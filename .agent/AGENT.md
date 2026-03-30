@@ -14,7 +14,7 @@
 - **Build**: Bun only. `bun install`, `bun run dev`, `bunx`. Never npm/npx/yarn.
 - **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
 - **MCP Atlas-harness**: Read `.agent/AGENT-GUIDE_MCP_atlas-harness.md` at start of every session.
-- **Live Settings**: `common/resources/settings-live/current-settings.json` — always read for current GAME_CONFIG values.
+- **Live Settings**: `common/resources/settings-live/current-settings.json` — read when current GAME_CONFIG values are needed.
 
 ---
 
@@ -48,6 +48,7 @@ When removing, renaming, or commenting out any symbol:
 | Feature status / bugs | `docs/project/features/FEATURE_STATUS.md` |
 | Design decisions | `docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `docs/game/design/MECHANICS.md` |
+| Implementation Plans* | `docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
@@ -110,7 +111,7 @@ Every `GAME_CONFIG` property with a UI element is sacred. Never delete, simplify
 - Bun + esbuild: decorators need special handling
 
 ### Architecture-First Rule
-When any conflict, refactor, or new work touches a domain: always prefer **master's current best architecture** over legacy patterns. Never regress to accommodate imported code — refactor incoming code to match the canonical pattern. If uncertain which is better, ask.
+When any conflict, refactor, or new work touches a domain: always prefer **master's current best architecture** over legacy patterns. Also always THINK WITH INIATIVE about the patterns in the codebase and how to improve them. Never regress to accommodate imported code — refactor incoming code to match the canonical pattern. If uncertain which is better, ask.
 
 ### Single-Pattern Enforcement
 One domain = one implementation pattern. Never introduce a second implementation for the same concern (e.g., two different UI control state patterns, two renderer dispatch mechanisms). If a merge or feature would create a duplicate pattern, refactor to the best existing pattern first.

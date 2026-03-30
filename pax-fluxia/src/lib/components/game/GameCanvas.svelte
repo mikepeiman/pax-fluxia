@@ -77,6 +77,10 @@
         resetPowerVoronoiCache,
     } from "$lib/renderers/PowerVoronoiRenderer";
     import {
+        renderPVV2DY4 as renderPVV2DY4Module,
+        resetPVV2DY4Cache,
+    } from "$lib/renderers/PowerVoronoiRenderer_DY4";
+    import {
         renderPVV3 as renderPVV3Module,
         resetPVV3Cache,
     } from "$lib/renderers/PVV3Renderer";
@@ -1296,6 +1300,16 @@
                         break;
                     case "modified_voronoi":
                         renderModifiedVoronoiModule(
+                            stars,
+                            voronoiContainer,
+                            colorUtils,
+                            GAME_WIDTH,
+                            GAME_HEIGHT,
+                            activeGameStore.connections as StarConnection[],
+                        );
+                        break;
+                    case "pvv2_dy4":
+                        renderPVV2DY4Module(
                             stars,
                             voronoiContainer,
                             colorUtils,

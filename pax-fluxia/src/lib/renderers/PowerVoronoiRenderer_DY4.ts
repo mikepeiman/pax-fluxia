@@ -1,0 +1,1426 @@
+// ============================================================================
+// PowerVoronoiRenderer ΓÇö F-138v2: Territory fill via weighted Voronoi (power diagram)
+// ============================================================================
+//
+// FRESH implementation using d3-weighted-voronoi for gap-free territory rendering.
+// Star margin is baked into the Voronoi as site weights ΓÇö no post-processing needed.
+//
+// Architecture: Edge-graph aware. All boundary edges are shared between adjacent
+// territories. Modifications move shared edges, not individual polygon vertices.
+//
+// Pipeline:
+//   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
+//   1. Power diagram via d3-weighted-voronoi (weight = starMargin┬▓)
+//   2. Build shared edge graph from cells
+//   3. Merge: remove same-owner internal edges
+//   4. Arc smoothing on shared edges (future)
+//   5. Chaikin smoothing on shared edges
+//   6. Trace edges ΓåÆ polygon contours ΓåÆ PIXI render
+//
+// Performance: Only recomputed when ownership fingerprint changes.
+// ============================================================================
+
+import * as PIXI from 'pixi.js';
+import { weightedVoronoi } from 'd3-weighted-voronoi';
+import { GAME_CONFIG } from '$lib/config/game.config';
+import type { StarState, StarConnection } from '$lib/types/game.types';
+import { findConnectedClustersOptimized } from './territoryUtils';
+import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
+import type { ColorUtils } from './RenderContext';
+import { log } from '$lib/utils/logger';
+
+// ΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** A site in the power diagram ΓÇö star or virtual point with weight. */
+interface PowerSite {
+    x: number;
+    y: number;
+    weight: number;
+    ownerId: string;
+    starId: string;
+    virtual?: 'corridor' | 'disconnect';
+}
+
+/** Polygon output from the power diagram, augmented with ownership info. */
+interface TerritoryCell {
+    points: [number, number][];
+    ownerId: string;
+    siteId: string;
+}
+
+/** Merged polygon for same-owner territory rendering. */
+interface MergedTerritory {
+    points: [number, number][];     // [[x,y], ...] closed polygon
+    ownerId: string;
+    color: number;          // hex fill color
+}
+
+// ΓöÇΓöÇ Cache ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+let cachedShapeFingerprint = '';
+let cachedVisualFingerprint = '';
+let fillGraphics: PIXI.Graphics | null = null;
+let borderGraphics: PIXI.Graphics | null = null;
+
+// ΓöÇΓöÇ Border Transition State (Segment Mode) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** Previous shared border edge positions for segment mode animation. */
+let prevBorderEdges: SharedBorderEdge[] | null = null;
+let targetBorderEdges: SharedBorderEdge[] | null = null;
+let borderTransitionStart = 0;
+let isBorderTransitioning = false;
+
+// ΓöÇΓöÇ Smooth Transition State (Contested Border Mode) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** A continuous polyline of chained shared border edges between two owners. */
+interface SharedPolyline {
+    points: [number, number][];  // ordered points of the chained polyline
+    ownerPairKey: string;        // sorted owner pair key for matching
+    color: number;               // blended color for rendering
+}
+
+let prevSharedPolylines: SharedPolyline[] | null = null;
+let targetSharedPolylines: SharedPolyline[] | null = null;
+let smoothTransitionStart = 0;
+let isSmoothTransitioning = false;
+let lastMergedTerritories: MergedTerritory[] | null = null;  // stored for smooth mode snapshot
+
+// ΓöÇΓöÇ Cell Change Tracking (frontier-first rendering) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+let lastCells: TerritoryCell[] | null = null;  // cells from previous rebuild
+let changedSiteIds: Set<string> | null = null; // stars that changed owner in this conquest
+
+// ΓöÇΓöÇ Fill Transition State (mode-independent crossfade) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+let prevMergedTerritories: MergedTerritory[] | null = null;
+let fillTransitionStart = 0;
+let isFillTransitioning = false;
+let lastEnclaveMap: Map<number, [number, number][][]> | null = null;
+let prevEnclaveMap: Map<number, [number, number][][]> | null = null;
+
+// ΓöÇΓöÇ Fingerprint ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+function buildShapeFingerprint(stars: StarState[]): string {
+    let fp = 'shape:';
+    for (const s of stars) {
+        fp += `${s.id}:${s.ownerId ?? ''}|`;
+    }
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    return fp;
+}
+
+function buildVisualFingerprint(): string {
+    let fp = 'visual:';
+    fp += `${GAME_CONFIG.VORONOI_ALPHA}:${GAME_CONFIG.VORONOI_BORDER_WIDTH}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.VORONOI_SATURATION}`;
+    fp += `:${GAME_CONFIG.VORONOI_LIGHTNESS}`;
+    fp += `:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    return fp;
+}
+
+// ΓöÇΓöÇ Color Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+function hexToRGB(hex: number): [number, number, number] {
+    return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
+}
+
+function rgbToHSL(r: number, g: number, b: number): [number, number, number] {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return [0, 0, l];
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return [h * 360, s, l];
+}
+
+function hslToRGB(h: number, s: number, l: number): [number, number, number] {
+    h /= 360;
+    if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+    const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [
+        Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+        Math.round(hue2rgb(p, q, h) * 255),
+        Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+    ];
+}
+
+function adjustColorHSL(hex: number, satMult: number, lightMult: number): number {
+    const [r, g, b] = hexToRGB(hex);
+    const [h, s, l] = rgbToHSL(r, g, b);
+    const [nr, ng, nb] = hslToRGB(
+        h,
+        Math.min(1, Math.max(0, s * satMult)),
+        Math.min(1, Math.max(0, l * lightMult)),
+    );
+    return (nr << 16) | (ng << 8) | nb;
+}
+
+// ΓöÇΓöÇ Edge Key Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** Canonical edge key ΓÇö direction-independent, snapped to 2dp. */
+function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
+    const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
+    const bx = +x2.toFixed(2), by = +y2.toFixed(2);
+    if (ax < bx || (ax === bx && ay < by)) return `${ax},${ay}-${bx},${by}`;
+    return `${bx},${by}-${ax},${ay}`;
+}
+
+function ptKey(x: number, y: number): string {
+    return `${+x.toFixed(2)},${+y.toFixed(2)}`;
+}
+
+// ΓöÇΓöÇ Shared Border Edge Extraction ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** A border edge segment shared between two different owners. */
+interface SharedBorderEdge {
+    x1: number; y1: number;
+    x2: number; y2: number;
+    ownerA: string;
+    ownerB: string;
+    colorA: number;
+    colorB: number;
+    siteIdA: string;  // star/cell identity on side A
+    siteIdB: string;  // star/cell identity on side B
+}
+
+/**
+ * Extract edges shared between cells of DIFFERENT owners (contested borders).
+ * Each edge appears once with ownerA/ownerB ΓÇö these are the boundaries where
+ * territory borders should overlap and blend.
+ */
+function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
+    // Map: edgeKey ΓåÆ { owners+siteIds per side, coordinates }
+    const edgeOwners = new Map<string, {
+        sides: { ownerId: string; siteId: string }[];
+        pts: [number, number, number, number];
+    }>();
+
+    for (const cell of cells) {
+        const pts = cell.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            if (!edgeOwners.has(key)) {
+                edgeOwners.set(key, {
+                    sides: [{ ownerId: cell.ownerId, siteId: cell.siteId }],
+                    pts: [pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]],
+                });
+            } else {
+                const entry = edgeOwners.get(key)!;
+                // Only add if this is a different cell (same edge shared by two cells)
+                if (!entry.sides.some(s => s.siteId === cell.siteId)) {
+                    entry.sides.push({ ownerId: cell.ownerId, siteId: cell.siteId });
+                }
+            }
+        }
+    }
+
+    // Collect only edges with exactly 2 different owners (contested boundaries)
+    const shared: SharedBorderEdge[] = [];
+    for (const [, entry] of edgeOwners) {
+        if (entry.sides.length === 2 &&
+            entry.sides[0].ownerId !== entry.sides[1].ownerId &&
+            entry.sides[0].ownerId !== '__disconnect__' &&
+            entry.sides[1].ownerId !== '__disconnect__') {
+            shared.push({
+                x1: entry.pts[0], y1: entry.pts[1],
+                x2: entry.pts[2], y2: entry.pts[3],
+                ownerA: entry.sides[0].ownerId,
+                ownerB: entry.sides[1].ownerId,
+                colorA: 0,
+                colorB: 0,
+                siteIdA: entry.sides[0].siteId,
+                siteIdB: entry.sides[1].siteId,
+            });
+        }
+    }
+    return shared;
+}
+
+/** Blend two hex colors by ratio t (0=colorA, 1=colorB). */
+function blendColors(colorA: number, colorB: number, t: number): number {
+    const [rA, gA, bA] = hexToRGB(colorA);
+    const [rB, gB, bB] = hexToRGB(colorB);
+    return (
+        (Math.round(rA + (rB - rA) * t) << 16) |
+        (Math.round(gA + (gB - gA) * t) << 8) |
+        Math.round(bA + (bB - bA) * t)
+    );
+}
+
+// ΓöÇΓöÇ Polygon Morph Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** Resample a polygon to `n` evenly-spaced points along its perimeter (CLOSED ΓÇö wraps last to first). */
+function resamplePolygon(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length <= 1 || n <= 1) return pts.slice();
+
+    // Compute cumulative arc lengths
+    const arcLens: number[] = [0];
+    for (let i = 1; i < pts.length; i++) {
+        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    const totalLen = arcLens[arcLens.length - 1];
+    if (totalLen === 0) return pts.slice();
+
+    const result: [number, number][] = [];
+    let segIdx = 0;
+    for (let i = 0; i < n; i++) {
+        const targetLen = (i / n) * totalLen;
+        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
+        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
+        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
+        result.push([
+            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
+            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
+        ]);
+    }
+    // Close the polygon
+    result.push([result[0][0], result[0][1]]);
+    return result;
+}
+
+/** Resample an OPEN polyline to `n` evenly-spaced points (no wrapping). */
+function resamplePolyline(pts: [number, number][], n: number): [number, number][] {
+    if (pts.length <= 1 || n <= 1) return pts.slice();
+
+    const arcLens: number[] = [0];
+    for (let i = 1; i < pts.length; i++) {
+        arcLens.push(arcLens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    const totalLen = arcLens[arcLens.length - 1];
+    if (totalLen === 0) return pts.slice();
+
+    const result: [number, number][] = [];
+    let segIdx = 0;
+    for (let i = 0; i < n; i++) {
+        const targetLen = (i / (n - 1)) * totalLen;  // n-1 so last point = endpoint
+        while (segIdx < arcLens.length - 2 && arcLens[segIdx + 1] < targetLen) segIdx++;
+        const segLen = arcLens[segIdx + 1] - arcLens[segIdx];
+        const t = segLen > 0 ? (targetLen - arcLens[segIdx]) / segLen : 0;
+        result.push([
+            pts[segIdx][0] + (pts[segIdx + 1][0] - pts[segIdx][0]) * t,
+            pts[segIdx][1] + (pts[segIdx + 1][1] - pts[segIdx][1]) * t,
+        ]);
+    }
+    return result;
+}
+
+/** Get centroid of a polygon. */
+function polygonCentroid(pts: [number, number][]): [number, number] {
+    let cx = 0, cy = 0;
+    const n = pts.length - 1;  // last point = first (closed)
+    for (let i = 0; i < n; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+    return n > 0 ? [cx / n, cy / n] : [0, 0];
+}
+
+/** Lerp two equal-length polygon arrays. */
+function lerpPolygon(from: [number, number][], to: [number, number][], t: number): [number, number][] {
+    const result: [number, number][] = [];
+    const len = Math.min(from.length, to.length);
+    for (let i = 0; i < len; i++) {
+        result.push([
+            from[i][0] + (to[i][0] - from[i][0]) * t,
+            from[i][1] + (to[i][1] - from[i][1]) * t,
+        ]);
+    }
+    return result;
+}
+
+/**
+ * Chaikin corner-cutting subdivision for open polylines.
+ * Preserves first and last points; interior corners are smoothed by
+ * replacing each segment midpoint region with 25%/75% cut points.
+ * @param pts Open polyline as array of [x, y] tuples
+ * @param passes Number of smoothing iterations (0 = no change)
+ */
+function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number, number][] {
+    if (passes <= 0 || pts.length < 3) return pts;
+
+    let current = pts;
+    for (let iter = 0; iter < passes; iter++) {
+        const n = current.length;
+        const next: [number, number][] = [current[0]]; // preserve start
+        for (let i = 0; i < n - 1; i++) {
+            const [ax, ay] = current[i];
+            const [bx, by] = current[i + 1];
+            // For first/last segment: keep the original endpoint and add one cut point
+            if (i === 0) {
+                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+            } else if (i === n - 2) {
+                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            } else {
+                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+            }
+        }
+        next.push(current[n - 1]); // preserve end
+        current = next;
+    }
+    return current;
+}
+
+/** Closed-polygon Chaikin: every edge including lastΓåÆfirst gets corner-cut uniformly. */
+function chaikinSmoothPolygon(pts: [number, number][], passes: number): [number, number][] {
+    if (passes <= 0 || pts.length < 3) return pts;
+
+    let current = pts;
+    for (let iter = 0; iter < passes; iter++) {
+        const n = current.length;
+        const next: [number, number][] = [];
+        for (let i = 0; i < n; i++) {
+            const [ax, ay] = current[i];
+            const [bx, by] = current[(i + 1) % n];
+            next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+            next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+        }
+        current = next;
+    }
+    return current;
+}
+
+/** Chain shared border edges into continuous polylines, grouped by owner-pair.
+ *  Edges between the same two owners that share endpoints get merged into polylines. */
+function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: (ownerA: string, ownerB: string) => number, smoothPasses = 0): SharedPolyline[] {
+    // Group edges by sorted owner pair
+    const byPair = new Map<string, SharedBorderEdge[]>();
+    for (const e of edges) {
+        const key = e.ownerA < e.ownerB ? `${e.ownerA}|${e.ownerB}` : `${e.ownerB}|${e.ownerA}`;
+        if (!byPair.has(key)) byPair.set(key, []);
+        byPair.get(key)!.push(e);
+    }
+
+    const result: SharedPolyline[] = [];
+    const SNAP = 3;  // endpoint snapping tolerance (pixels)
+
+    for (const [pairKey, pairEdges] of byPair) {
+        // Build adjacency by endpoint
+        const ptKey = (x: number, y: number) => `${Math.round(x / SNAP) * SNAP},${Math.round(y / SNAP) * SNAP}`;
+        const adj = new Map<string, { x: number; y: number; next: string }[]>();
+        const used = new Array(pairEdges.length).fill(false);
+
+        for (let i = 0; i < pairEdges.length; i++) {
+            const e = pairEdges[i];
+            const k1 = ptKey(e.x1, e.y1);
+            const k2 = ptKey(e.x2, e.y2);
+            if (!adj.has(k1)) adj.set(k1, []);
+            if (!adj.has(k2)) adj.set(k2, []);
+            adj.get(k1)!.push({ x: e.x2, y: e.y2, next: k2 });
+            adj.get(k2)!.push({ x: e.x1, y: e.y1, next: k1 });
+        }
+
+        // Greedy chain: start from an endpoint (degree 1) or any unused edge
+        while (true) {
+            // Find an unused edge
+            let startIdx = -1;
+            for (let i = 0; i < pairEdges.length; i++) {
+                if (!used[i]) { startIdx = i; break; }
+            }
+            if (startIdx < 0) break;
+
+            // Simple: just trace edges greedily
+            const chain: [number, number][] = [];
+            used[startIdx] = true;
+            const e = pairEdges[startIdx];
+            chain.push([e.x1, e.y1]);
+            chain.push([e.x2, e.y2]);
+
+            // Extend forward: try to find next unused edge that connects
+            let extended = true;
+            while (extended) {
+                extended = false;
+                const last = chain[chain.length - 1];
+                const lk = ptKey(last[0], last[1]);
+                for (let i = 0; i < pairEdges.length; i++) {
+                    if (used[i]) continue;
+                    const ei = pairEdges[i];
+                    if (ptKey(ei.x1, ei.y1) === lk) {
+                        chain.push([ei.x2, ei.y2]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (ptKey(ei.x2, ei.y2) === lk) {
+                        chain.push([ei.x1, ei.y1]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            // Extend backward similarly
+            extended = true;
+            while (extended) {
+                extended = false;
+                const first = chain[0];
+                const fk = ptKey(first[0], first[1]);
+                for (let i = 0; i < pairEdges.length; i++) {
+                    if (used[i]) continue;
+                    const ei = pairEdges[i];
+                    if (ptKey(ei.x2, ei.y2) === fk) {
+                        chain.unshift([ei.x1, ei.y1]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                    if (ptKey(ei.x1, ei.y1) === fk) {
+                        chain.unshift([ei.x2, ei.y2]);
+                        used[i] = true;
+                        extended = true;
+                        break;
+                    }
+                }
+            }
+
+            const [ownerA, ownerB] = pairKey.split('|');
+            const color = colorLookup ? colorLookup(ownerA, ownerB) : 0x888888;
+
+            // Apply Chaikin smoothing to convert straight Voronoi edges into smooth arcs
+            const smoothed = smoothPasses > 0 ? chaikinSmoothPolyline(chain, smoothPasses) : chain;
+            result.push({ points: smoothed, ownerPairKey: pairKey, color });
+        }
+    }
+
+    return result;
+}
+
+// ΓöÇΓöÇ Canonical Border Drawing ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/**
+ * Draw border polylines into a Graphics object as smooth B├⌐zier curves.
+ * Uses quadraticCurveTo through midpoints for smooth arc geometry.
+ * This is the SINGLE canonical function for all border rendering ΓÇö steady-state,
+ * transition animation, and segment mode all use this function.
+ * 
+ * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
+ * control points for the B├⌐zier interpolation. Round caps and joins ensure
+ * clean visual connections at polyline junctions.
+ */
+function drawBorderPolylines(
+    graphics: PIXI.Graphics,
+    polylines: { points: [number, number][]; color: number }[],
+    smoothPasses: number,
+    width: number,
+    alpha: number,
+): void {
+    let drawn = 0;
+    for (const polyline of polylines) {
+        const pts = smoothPasses > 0
+            ? chaikinSmoothPolyline(polyline.points, smoothPasses)
+            : polyline.points;
+        if (pts.length < 2) continue;
+
+        if (pts.length === 2) {
+            graphics.moveTo(pts[0][0], pts[0][1]);
+            graphics.lineTo(pts[1][0], pts[1][1]);
+        } else {
+            // Quadratic B├⌐zier through midpoints for smooth arc geometry
+            graphics.moveTo(pts[0][0], pts[0][1]);
+            const mid0x = (pts[0][0] + pts[1][0]) / 2;
+            const mid0y = (pts[0][1] + pts[1][1]) / 2;
+            graphics.lineTo(mid0x, mid0y);
+            for (let i = 1; i < pts.length - 1; i++) {
+                const midX = (pts[i][0] + pts[i + 1][0]) / 2;
+                const midY = (pts[i][1] + pts[i + 1][1]) / 2;
+                graphics.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY);
+            }
+            const last = pts[pts.length - 1];
+            graphics.lineTo(last[0], last[1]);
+        }
+        graphics.stroke({ width, color: polyline.color, alpha, cap: 'round', join: 'round' });
+        drawn++;
+    }
+    log.renderer('drawBorderPolylines', `drew ${drawn}/${polylines.length} polylines (smooth=${smoothPasses}, w=${width.toFixed(1)}, a=${alpha.toFixed(2)}, bezier=true)`);
+}
+
+/** Build lerped polylines from prev ΓåÆ target for transition animation.
+ *  Matches polylines by ownerPairKey + nearest centroid, resamples + lerps.
+ *  Returns an array suitable for drawBorderPolylines. */
+function buildLerpedPolylines(
+    prev: SharedPolyline[], target: SharedPolyline[],
+    t: number,
+): { points: [number, number][]; color: number }[] {
+    const RESAMPLE_N = 32;
+    const result: { points: [number, number][]; color: number }[] = [];
+
+    // Group by ownerPairKey for matching
+    const prevByKey = new Map<string, SharedPolyline[]>();
+    for (const p of prev) {
+        if (!prevByKey.has(p.ownerPairKey)) prevByKey.set(p.ownerPairKey, []);
+        prevByKey.get(p.ownerPairKey)!.push(p);
+    }
+    const targetByKey = new Map<string, SharedPolyline[]>();
+    for (const p of target) {
+        if (!targetByKey.has(p.ownerPairKey)) targetByKey.set(p.ownerPairKey, []);
+        targetByKey.get(p.ownerPairKey)!.push(p);
+    }
+
+    const allKeys = new Set([...prevByKey.keys(), ...targetByKey.keys()]);
+
+    for (const key of allKeys) {
+        const pLines = prevByKey.get(key) ?? [];
+        const tLines = targetByKey.get(key) ?? [];
+        const usedTargets = new Set<number>();
+
+        for (const pLine of pLines) {
+            const pC = polygonCentroid(pLine.points);
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let ti = 0; ti < tLines.length; ti++) {
+                if (usedTargets.has(ti)) continue;
+                const tC = polygonCentroid(tLines[ti].points);
+                const d = Math.hypot(pC[0] - tC[0], pC[1] - tC[1]);
+                if (d < bestDist) { bestDist = d; bestIdx = ti; }
+            }
+
+            if (bestIdx >= 0) {
+                usedTargets.add(bestIdx);
+                const tLine = tLines[bestIdx];
+                const pSampled = resamplePolyline(pLine.points, RESAMPLE_N);
+                let tSampled = resamplePolyline(tLine.points, RESAMPLE_N);
+
+                // Fix flipping: ensure polylines are oriented the same direction.
+                // If start-of-prev is closer to end-of-target than start-of-target,
+                // reverse the target to match orientation.
+                const p0 = pSampled[0];
+                const t0 = tSampled[0];
+                const tN = tSampled[tSampled.length - 1];
+                const distSameDir = Math.hypot(p0[0] - t0[0], p0[1] - t0[1]);
+                const distReversed = Math.hypot(p0[0] - tN[0], p0[1] - tN[1]);
+                if (distReversed < distSameDir) {
+                    tSampled = tSampled.slice().reverse() as [number, number][];
+                }
+
+                result.push({ points: lerpPolygon(pSampled, tSampled, t), color: tLine.color });
+            } else {
+                // Prev-only: use prev points (will fade out via alpha in caller)
+                result.push({ points: pLine.points, color: pLine.color });
+            }
+        }
+
+        // Target-only polylines: use target points (fade in via alpha in caller)
+        for (let ti = 0; ti < tLines.length; ti++) {
+            if (usedTargets.has(ti)) continue;
+            result.push({ points: tLines[ti].points, color: tLines[ti].color });
+        }
+    }
+    return result;
+}
+
+/** Draw shared border edges at interpolated positions between prev and target.
+ *  Matches edges by midpoint proximity for smooth "borders sliding" animation. */
+function renderInterpolatedBorders(
+    container: PIXI.Container,
+    prev: SharedBorderEdge[], target: SharedBorderEdge[],
+    t: number,  // 0=prev, 1=target (eased)
+    borderWidth: number, borderAlpha: number,
+): void {
+    if (!borderGraphics) {
+        borderGraphics = new PIXI.Graphics();
+        container.addChild(borderGraphics);
+    }
+    borderGraphics.clear();
+    borderGraphics.visible = true;
+
+    const blendWidth = borderWidth * 2.5;
+
+    // Build midpoint index for target edges
+    const targetUsed = new Set<number>();
+
+    // For each prev edge, find nearest target edge by midpoint
+    for (const pEdge of prev) {
+        const pMx = (pEdge.x1 + pEdge.x2) / 2;
+        const pMy = (pEdge.y1 + pEdge.y2) / 2;
+
+        let bestDist = Infinity;
+        let bestIdx = -1;
+        for (let ti = 0; ti < target.length; ti++) {
+            if (targetUsed.has(ti)) continue;
+            const tMx = (target[ti].x1 + target[ti].x2) / 2;
+            const tMy = (target[ti].y1 + target[ti].y2) / 2;
+            const d = Math.hypot(pMx - tMx, pMy - tMy);
+            if (d < bestDist) { bestDist = d; bestIdx = ti; }
+        }
+
+        if (bestIdx >= 0 && bestDist < 200) {
+            // Matched pair ΓÇö lerp endpoints
+            targetUsed.add(bestIdx);
+            const tEdge = target[bestIdx];
+            const x1 = pEdge.x1 + (tEdge.x1 - pEdge.x1) * t;
+            const y1 = pEdge.y1 + (tEdge.y1 - pEdge.y1) * t;
+            const x2 = pEdge.x2 + (tEdge.x2 - pEdge.x2) * t;
+            const y2 = pEdge.y2 + (tEdge.y2 - pEdge.y2) * t;
+            // Use target edge color (since fills show target state)
+            const color = tEdge.colorA || pEdge.colorA || 0x888888;
+            borderGraphics.moveTo(x1, y1);
+            borderGraphics.lineTo(x2, y2);
+            borderGraphics.stroke({ width: blendWidth, color, alpha: borderAlpha });
+        } else {
+            // Prev edge fading out (no match) ΓÇö draw at prev position with decreasing alpha
+            borderGraphics.moveTo(pEdge.x1, pEdge.y1);
+            borderGraphics.lineTo(pEdge.x2, pEdge.y2);
+            borderGraphics.stroke({ width: blendWidth, color: pEdge.colorA || 0x888888, alpha: borderAlpha * (1 - t) });
+        }
+    }
+
+    // Unmatched target edges ΓÇö fade in
+    for (let ti = 0; ti < target.length; ti++) {
+        if (targetUsed.has(ti)) continue;
+        const tEdge = target[ti];
+        borderGraphics.moveTo(tEdge.x1, tEdge.y1);
+        borderGraphics.lineTo(tEdge.x2, tEdge.y2);
+        borderGraphics.stroke({ width: blendWidth, color: tEdge.colorA || 0x888888, alpha: borderAlpha * t });
+    }
+}
+
+
+
+function mergeSameOwnerCells(
+    cells: TerritoryCell[],
+    clusterSplit: boolean,
+    clusterMap: Map<string, number>,
+): MergedTerritory[] {
+    // Build cluster key per cell
+    const clusterKeyOf = (cell: TerritoryCell) => {
+        const cIdx = clusterMap.get(cell.siteId) ?? 0;
+        return clusterSplit ? `${cell.ownerId}:${cIdx}` : cell.ownerId;
+    };
+
+    // Step 1: Count edges, track which cluster(s) share each edge
+    const edgeCount = new Map<string, number>();
+    const edgeClusters = new Map<string, Set<string>>();
+
+    for (const cell of cells) {
+        const ck = clusterKeyOf(cell);
+        const pts = cell.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            edgeCount.set(key, (edgeCount.get(key) ?? 0) + 1);
+            if (!edgeClusters.has(key)) edgeClusters.set(key, new Set());
+            edgeClusters.get(key)!.add(ck);
+        }
+    }
+
+    // Step 2: Collect external edges per cluster
+    type DEdge = { x1: number; y1: number; x2: number; y2: number };
+    const clusterEdges = new Map<string, DEdge[]>();
+    const clusterColor = new Map<string, number>();
+
+    for (const cell of cells) {
+        const ck = clusterKeyOf(cell);
+        if (!clusterEdges.has(ck)) clusterEdges.set(ck, []);
+        if (!clusterColor.has(ck)) clusterColor.set(ck, 0);
+
+        const pts = cell.points;
+        for (let j = 0; j < pts.length - 1; j++) {
+            const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
+            const count = edgeCount.get(key) ?? 0;
+            const clusters = edgeClusters.get(key)!;
+            // Internal: shared by 2+ cells of the SAME cluster ΓåÆ skip
+            if (count >= 2 && clusters.size === 1) continue;
+            clusterEdges.get(ck)!.push({
+                x1: pts[j][0], y1: pts[j][1],
+                x2: pts[j + 1][0], y2: pts[j + 1][1],
+            });
+        }
+    }
+
+    // Step 3: Chain edges into closed polygons
+    const result: MergedTerritory[] = [];
+
+    for (const [ck, edges] of clusterEdges) {
+        if (edges.length === 0) continue;
+        const ownerId = ck.split(':')[0];
+
+        // Bidirectional adjacency
+        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
+        const allEdges: IEdge[] = [];
+        for (let i = 0; i < edges.length; i++) {
+            const e = edges[i];
+            allEdges.push({ ...e, idx: i });
+            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
+        }
+
+        const adj = new Map<string, IEdge[]>();
+        for (const ie of allEdges) {
+            const k = ptKey(ie.x1, ie.y1);
+            if (!adj.has(k)) adj.set(k, []);
+            adj.get(k)!.push(ie);
+        }
+
+        const used = new Set<number>();
+        for (let start = 0; start < edges.length; start++) {
+            if (used.has(start)) continue;
+            const chain: number[][] = [];
+            const e0 = edges[start];
+            used.add(start);
+            chain.push([e0.x1, e0.y1]);
+            chain.push([e0.x2, e0.y2]);
+
+            const startPt = ptKey(e0.x1, e0.y1);
+            let curEnd = ptKey(e0.x2, e0.y2);
+            let safety = edges.length * 2;
+
+            while (curEnd !== startPt && safety-- > 0) {
+                const cands = adj.get(curEnd);
+                if (!cands) break;
+                let found = false;
+                for (const c of cands) {
+                    if (used.has(c.idx)) continue;
+                    used.add(c.idx);
+                    curEnd = ptKey(c.x2, c.y2);
+                    chain.push([c.x2, c.y2]);
+                    found = true;
+                    break;
+                }
+                if (!found) break;
+            }
+
+            if (chain.length >= 3) {
+                // Ensure closed
+                if (chain[0][0] !== chain[chain.length - 1][0] ||
+                    chain[0][1] !== chain[chain.length - 1][1]) {
+                    chain.push([chain[0][0], chain[0][1]]);
+                }
+                result.push({ points: chain as [number, number][], ownerId, color: 0 });
+            }
+        }
+    }
+
+    return result;
+}
+
+// ΓöÇΓöÇ Enclave Detection (B-38) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+/** Ray-casting point-in-polygon test. */
+function pointInPolygon(px: number, py: number, polygon: [number, number][]): boolean {
+    let inside = false;
+    const n = polygon.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+/** Compute centroid of a polygon (for enclave containment test). */
+function mergedCentroid(pts: [number, number][]): [number, number] {
+    let cx = 0, cy = 0;
+    const len = pts.length > 0 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]
+        ? pts.length - 1 : pts.length;
+    for (let i = 0; i < len; i++) { cx += pts[i][0]; cy += pts[i][1]; }
+    return len > 0 ? [cx / len, cy / len] : [0, 0];
+}
+
+/**
+ * Detect enclaves: for each merged territory, find other differently-owned
+ * territories whose centroid falls inside it. Returns a Map of territory
+ * index ΓåÆ array of enclave polygon point arrays to cut.
+ */
+function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, number][][]> {
+    const enclaveMap = new Map<number, [number, number][][]>();
+    for (let outerIdx = 0; outerIdx < merged.length; outerIdx++) {
+        const outer = merged[outerIdx];
+        const holes: [number, number][][] = [];
+        for (let innerIdx = 0; innerIdx < merged.length; innerIdx++) {
+            if (innerIdx === outerIdx) continue;
+            const inner = merged[innerIdx];
+            if (inner.ownerId === outer.ownerId) continue;
+            const [cx, cy] = mergedCentroid(inner.points);
+            if (pointInPolygon(cx, cy, outer.points)) {
+                holes.push(inner.points);
+            }
+        }
+        if (holes.length > 0) {
+            enclaveMap.set(outerIdx, holes);
+        }
+    }
+    return enclaveMap;
+}
+
+/** Draw a territory fill with enclave holes cut out.
+ *  Applies Chaikin smoothing to fill polygons so they match the smoothed
+ *  borders drawn by drawBorderPolylines (B-42 fix). */
+function drawTerritoryFillWithHoles(
+    graphics: PIXI.Graphics,
+    territory: MergedTerritory,
+    holes: [number, number][][] | undefined,
+    alpha: number,
+    smoothPasses = 0,
+): void {
+    const fillPts = smoothPasses > 0
+        ? chaikinSmoothPolygon(territory.points, smoothPasses)
+        : territory.points;
+    graphics.beginPath();
+    graphics.poly(fillPts.flat());
+    graphics.fill({ color: territory.color, alpha });
+    if (holes) {
+        for (const hole of holes) {
+            const smoothedHole = smoothPasses > 0
+                ? chaikinSmoothPolygon(hole, smoothPasses)
+                : hole;
+            graphics.beginPath();
+            graphics.poly(smoothedHole.flat());
+            graphics.cut();
+        }
+    }
+}
+
+// ΓöÇΓöÇ Main Renderer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+export function renderPVV2DY4(
+    stars: StarState[],
+    voronoiContainer: PIXI.Container,
+    colorUtils: ColorUtils,
+    worldWidth: number,
+    worldHeight: number,
+    connections?: StarConnection[],
+): void {
+    const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+    const now = performance.now();
+
+    // Re-show graphics ΓÇö voronoiContainer blanket-hides every frame
+    if (fillGraphics) fillGraphics.visible = true;
+    if (borderGraphics) borderGraphics.visible = true;
+
+    // ΓöÇΓöÇ Per-frame animation (both modes) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
+
+    // Throttled mode log ΓÇö only on state change
+    const modeKey = `${boundaryMode}|${isSmoothTransitioning}|${isBorderTransitioning}`;
+    if ((drawBorderPolylines as any).__lastModeKey !== modeKey) {
+        (drawBorderPolylines as any).__lastModeKey = modeKey;
+        log.renderer('PVV2', `mode=${boundaryMode} smoothTransition=${isSmoothTransitioning} segmentTransition=${isBorderTransitioning} fillTransition=${isFillTransitioning}`);
+    }
+
+    // ΓöÇΓöÇ Per-frame fill crossfade (mode-independent) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+        const elapsed = now - fillTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+        const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+        const fillSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+
+        fillGraphics.clear();
+        // Prev fills fading out (with enclave holes)
+        for (let i = 0; i < prevMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), fillSmoothPasses);
+        }
+        // Target fills fading in (with enclave holes)
+        for (let i = 0; i < lastMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, lastMergedTerritories[i], lastEnclaveMap?.get(i), alpha * eased, fillSmoothPasses);
+        }
+
+        if (rawT >= 1) {
+            isFillTransitioning = false;
+            prevMergedTerritories = null;
+            prevEnclaveMap = null;
+            log.renderer('PVV2', 'fill crossfade complete');
+        }
+    }
+
+    // Segment mode: chain lerped edges into polylines, render via canonical draw
+    if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
+        const elapsed = now - borderTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        // Lerp edge positions, then chain into polylines for canonical draw
+        const lerpedEdges: SharedBorderEdge[] = [];
+        const targetUsed = new Set<number>();
+        for (const pEdge of prevBorderEdges) {
+            const pMx = (pEdge.x1 + pEdge.x2) / 2;
+            const pMy = (pEdge.y1 + pEdge.y2) / 2;
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let ti = 0; ti < targetBorderEdges.length; ti++) {
+                if (targetUsed.has(ti)) continue;
+                const tMx = (targetBorderEdges[ti].x1 + targetBorderEdges[ti].x2) / 2;
+                const tMy = (targetBorderEdges[ti].y1 + targetBorderEdges[ti].y2) / 2;
+                const d = Math.hypot(pMx - tMx, pMy - tMy);
+                if (d < bestDist) { bestDist = d; bestIdx = ti; }
+            }
+            if (bestIdx >= 0 && bestDist < 200) {
+                targetUsed.add(bestIdx);
+                const tEdge = targetBorderEdges[bestIdx];
+                lerpedEdges.push({
+                    x1: pEdge.x1 + (tEdge.x1 - pEdge.x1) * eased,
+                    y1: pEdge.y1 + (tEdge.y1 - pEdge.y1) * eased,
+                    x2: pEdge.x2 + (tEdge.x2 - pEdge.x2) * eased,
+                    y2: pEdge.y2 + (tEdge.y2 - pEdge.y2) * eased,
+                    ownerA: tEdge.ownerA, ownerB: tEdge.ownerB,
+                    colorA: tEdge.colorA, colorB: tEdge.colorB,
+                    siteIdA: tEdge.siteIdA, siteIdB: tEdge.siteIdB,
+                });
+            }
+        }
+        // Unmatched target edges
+        for (let ti = 0; ti < targetBorderEdges.length; ti++) {
+            if (targetUsed.has(ti)) continue;
+            lerpedEdges.push(targetBorderEdges[ti]);
+        }
+
+        // Chain lerped edges into polylines + draw via canonical function
+        if (borderGraphics) {
+            borderGraphics.clear();
+            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const polylines = chainSharedEdgesIntoPolylines(lerpedEdges, (a, b) => {
+                const cA = lerpedEdges.find(e => (e.ownerA === a && e.ownerB === b) || (e.ownerA === b && e.ownerB === a));
+                return cA ? blendColors(cA.colorA, cA.colorB, 0.5) : 0x888888;
+            }, 0);  // don't smooth inside chain ΓÇö smooth in draw
+            drawBorderPolylines(borderGraphics, polylines, smoothPasses, borderWidth, borderAlpha);
+            log.renderer('PVV2', `SEGMENT TRANSITION t=${eased.toFixed(3)} | ${polylines.length} polylines from ${lerpedEdges.length} edges`);
+        }
+
+        if (rawT >= 1) {
+            isBorderTransitioning = false;
+            prevBorderEdges = null;
+        }
+        const shapeFpCheck = buildShapeFingerprint(stars);
+        const visualFpCheck = buildVisualFingerprint();
+        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) return;
+    }
+
+    // Smooth mode: contested shared border polyline morph
+    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
+        const elapsed = now - smoothTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        // Draw lerped borders into borderGraphics (single layer ΓÇö no outlineGraphics)
+        if (borderGraphics) {
+            borderGraphics.clear();
+            const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+            const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+            const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+            const t0 = performance.now();
+            const lerped = buildLerpedPolylines(prevSharedPolylines, targetSharedPolylines, eased);
+            const t1 = performance.now();
+            drawBorderPolylines(borderGraphics, lerped, smoothPasses, borderWidth, borderAlpha);
+            const t2 = performance.now();
+            const avgPts = lerped.length > 0 ? (lerped.reduce((s, p) => s + p.points.length, 0) / lerped.length).toFixed(0) : '0';
+            log.renderer('PVV2', `TRANSITION t=${eased.toFixed(3)} | lerp=${(t1 - t0).toFixed(1)}ms draw=${(t2 - t1).toFixed(1)}ms | ${lerped.length} polylines avgPts=${avgPts} smooth=${smoothPasses} | prev=${prevSharedPolylines.length} target=${targetSharedPolylines.length}`);
+        } else {
+            log.renderer('PVV2', `TRANSITION SKIPPED ΓÇö borderGraphics is null`);
+        }
+
+        if (rawT >= 1) {
+            isSmoothTransitioning = false;
+            prevSharedPolylines = null;
+            log.renderer('PVV2', 'smooth transition complete ΓÇö next frame will rebuild steady-state');
+        }
+        const shapeFpCheck = buildShapeFingerprint(stars);
+        const visualFpCheck = buildVisualFingerprint();
+        if (shapeFpCheck === cachedShapeFingerprint && visualFpCheck === cachedVisualFingerprint) {
+            log.renderer('PVV2', `early return ΓÇö fingerprints unchanged during transition`);
+            return;
+        }
+        log.renderer('PVV2', `fingerprints changed DURING transition ΓÇö falling through to rebuild`);
+    }
+
+    const shapeFp = buildShapeFingerprint(stars);
+    const visualFp = buildVisualFingerprint();
+    const shapeChanged = shapeFp !== cachedShapeFingerprint;
+    const visualChanged = visualFp !== cachedVisualFingerprint;
+
+    if (!shapeChanged && !visualChanged) return;  // nothing changed
+
+    log.renderer('PVV2', `REBUILD | shapeChanged=${shapeChanged} visualChanged=${visualChanged} | t+${(performance.now() - now).toFixed(1)}ms`);
+
+    // ΓöÇΓöÇ Shape changed: snapshot for transition animation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    if (shapeChanged && transitionMs > 0) {
+        // Segment mode: snapshot border edges
+        if (targetBorderEdges && targetBorderEdges.length > 0) {
+            prevBorderEdges = targetBorderEdges;
+        }
+        // Smooth mode: snapshot current shared polylines
+        if (targetSharedPolylines && targetSharedPolylines.length > 0) {
+            prevSharedPolylines = targetSharedPolylines;
+        }
+        // Fill crossfade: snapshot current merged territories
+        if (lastMergedTerritories && lastMergedTerritories.length > 0) {
+            prevMergedTerritories = lastMergedTerritories;
+            prevEnclaveMap = lastEnclaveMap;
+        }
+        // Cell change detection: snapshot previous cells for ownership comparison
+        // (changedSiteIds populated after new cells are computed ΓÇö see Stage 2c below)
+    }
+
+    cachedShapeFingerprint = shapeFp;
+    cachedVisualFingerprint = visualFp;
+
+    const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
+    const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
+    const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
+    const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
+    const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
+    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+
+    // ΓöÇΓöÇ Stage 0: Build site array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    const ownedStars = stars.filter(s => s.ownerId);
+    if (ownedStars.length < 2) return;
+
+    const sites: PowerSite[] = ownedStars.map(s => ({
+        x: s.x,
+        y: s.y,
+        weight: starMargin * starMargin,    // power diagram weight
+        ownerId: s.ownerId!,
+        starId: s.id,
+    }));
+
+    // Corridor virtual sites (shared module)
+    if (GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED && connections) {
+        const spacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60;
+        const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, spacing, 0.5);
+        for (const cv of corridorVirtuals) {
+            sites.push({
+                x: cv.x,
+                y: cv.y,
+                weight: starMargin * starMargin * cv.weight,
+                ownerId: cv.ownerId,
+                starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
+                virtual: 'corridor',
+            });
+        }
+    }
+
+    // Disconnect virtual enemy sites (shared module)
+    if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
+        const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
+        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, maxDist, 0.3);
+        for (const dv of disconnectVirtuals) {
+            sites.push({
+                x: dv.x,
+                y: dv.y,
+                weight: starMargin * starMargin * dv.weight,
+                ownerId: DISCONNECT_OWNER_ID,
+                starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
+                virtual: 'disconnect',
+            });
+        }
+        if (disconnectVirtuals.length > 0) {
+            log.sys('PowerVoronoi', `Injected ${disconnectVirtuals.length} disconnect virtual sites`);
+        }
+    }
+
+    // ΓöÇΓöÇ Stage 1: Power diagram ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    const pad = 50;
+    const clip: [number, number][] = [
+        [-pad, -pad],
+        [worldWidth + pad, -pad],
+        [worldWidth + pad, worldHeight + pad],
+        [-pad, worldHeight + pad],
+    ];
+
+    let polygons: any[];
+    try {
+        const wv = weightedVoronoi()
+            .x((d: PowerSite) => d.x)
+            .y((d: PowerSite) => d.y)
+            .weight((d: PowerSite) => d.weight)
+            .clip(clip);
+
+        polygons = wv(sites);
+    } catch (e) {
+        console.error('[PowerVoronoi] d3-weighted-voronoi CRASHED:', e);
+        return;
+    }
+
+    // Convert to TerritoryCell array
+    const cells: TerritoryCell[] = [];
+    for (let i = 0; i < polygons.length; i++) {
+        const poly = polygons[i];
+        if (!poly || poly.length < 3) continue;
+        const site = (poly as any).site?.originalObject as PowerSite | undefined;
+        if (!site) continue;
+
+        // Disconnect cells: assign to nearest ENEMY owner for fill rendering.
+        // In DF, disconnect sites push same-owner territory apart; the gap is filled by
+        // whatever enemy is closest. We replicate this by finding the source owner
+        // (the same-owner pair being disconnected) and assigning to nearest OTHER owner.
+        let effectiveOwner = site.ownerId;
+        if (site.ownerId === DISCONNECT_OWNER_ID) {
+            // Extract source owner: starId = 'disconnect_{starA}_{starB}'
+            const parts = site.starId.split('_');
+            const sourceStarA = parts[1];
+            const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
+
+            let nearestDist = Infinity;
+            let nearestOwner = '';
+            for (const s of ownedStars) {
+                // Skip same-owner stars ΓÇö we want the ENEMY fill
+                if (s.ownerId === sourceOwner) continue;
+                const dx = s.x - site.x;
+                const dy = s.y - site.y;
+                const d = dx * dx + dy * dy;
+                if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
+            }
+            if (!nearestOwner) {
+                // Fallback: if no enemy exists, use source owner (solo player edge case)
+                effectiveOwner = sourceOwner ?? '';
+                if (!effectiveOwner) continue;
+            } else {
+                effectiveOwner = nearestOwner;
+            }
+            log.renderer('PVV2', `disconnect cell (${site.x.toFixed(0)},${site.y.toFixed(0)}) src=${sourceOwner} ΓåÆ enemy fill ${effectiveOwner}`);
+        }
+
+        // Ensure closed polygon
+        const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
+        if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
+            pts.push([pts[0][0], pts[0][1]]);
+        }
+
+        cells.push({
+            points: pts,
+            ownerId: effectiveOwner,
+            siteId: site.starId,
+        });
+    }
+
+    log.sys('PowerVoronoi', `${cells.length} cells from ${sites.length} sites (${sites.filter(s => s.virtual).length} virtual)`);
+
+    // ΓöÇΓöÇ Stage 1c: Detect changed-owner stars ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    changedSiteIds = null;
+    if (lastCells && shapeChanged) {
+        const prevOwnerMap = new Map(lastCells.map(c => [c.siteId, c.ownerId]));
+        const changed = new Set<string>();
+        for (const cell of cells) {
+            const prevOwner = prevOwnerMap.get(cell.siteId);
+            if (prevOwner && prevOwner !== cell.ownerId) {
+                changed.add(cell.siteId);
+            }
+        }
+        if (changed.size > 0) {
+            changedSiteIds = changed;
+            log.sys('PowerVoronoi', `Conquest detected: ${changed.size} stars changed owner: ${[...changed].join(', ')}`);
+        }
+    }
+    lastCells = cells;
+
+    // ΓöÇΓöÇ Stage 2: Build cluster map ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    const clusterMap = new Map<string, number>();
+    if (GAME_CONFIG.TERRITORY_CLUSTER_SPLIT && connections) {
+        const starById = new Map(ownedStars.map(s => [s.id, s]));
+        const clusters = findConnectedClustersOptimized(ownedStars, connections, starById);
+        for (const [starId, info] of clusters) {
+            clusterMap.set(starId, info.clusterIdx);
+        }
+        // Virtual corridor sites inherit source star cluster
+        for (const site of sites) {
+            if (site.virtual === 'corridor') {
+                const sourceId = site.starId.split('_')[1]; // corridor_{sourceId}_{targetId}_{step}
+                const srcCluster = clusterMap.get(sourceId);
+                if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
+            }
+        }
+    }
+
+    // ΓöÇΓöÇ Stage 2b: Extract shared edges (before merge removes internal edges) ΓöÇΓöÇ
+    const sharedEdges = extractSharedEdges(cells);
+
+
+    // ΓöÇΓöÇ Stage 3: Merge same-owner cells ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    const merged = mergeSameOwnerCells(cells, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT, clusterMap);
+
+    // Assign colors
+    for (const territory of merged) {
+        const rawColor = colorUtils.getPlayerColor(territory.ownerId);
+        territory.color = adjustColorHSL(rawColor, satMult, lightMult);
+    }
+
+    log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
+
+    // ΓöÇΓöÇ Stage 4: Render Fills ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    if (!fillGraphics) {
+        fillGraphics = new PIXI.Graphics();
+        voronoiContainer.addChild(fillGraphics);
+    }
+    fillGraphics.clear();
+    fillGraphics.visible = true;
+
+    // Smooth passes ΓÇö shared by fills and borders (B-42: fills must match border smoothing)
+    const borderSmoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+
+    // B-38: Detect enclaves (opponent territories fully inside another territory)
+    const enclaveMap = detectEnclaves(merged);
+    if (enclaveMap.size > 0) {
+        log.renderer('PVV2', `B-38 enclave detection: ${enclaveMap.size} territories contain enclaves`);
+    }
+
+    // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
+    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
+        const elapsed = now - fillTransitionStart;
+        const rawT = Math.min(1, elapsed / transitionMs);
+        const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
+
+        // Prev fills fading out (with enclave holes)
+        for (let i = 0; i < prevMergedTerritories.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, prevMergedTerritories[i], prevEnclaveMap?.get(i), alpha * (1 - eased), borderSmoothPasses);
+        }
+        // Target fills fading in (with enclave holes)
+        for (let i = 0; i < merged.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha * eased, borderSmoothPasses);
+        }
+
+        if (rawT >= 1) {
+            isFillTransitioning = false;
+            prevMergedTerritories = null;
+            prevEnclaveMap = null;
+            log.renderer('PVV2', 'fill crossfade complete');
+        }
+    } else {
+        // Steady-state: draw target fills at full alpha (with enclave holes)
+        for (let i = 0; i < merged.length; i++) {
+            drawTerritoryFillWithHoles(fillGraphics, merged[i], enclaveMap.get(i), alpha, borderSmoothPasses);
+        }
+    }
+
+    // Borders ΓÇö smoothed shared edges via canonical drawBorderPolylines
+    if (borderWidth > 0 && borderAlpha > 0) {
+        if (!borderGraphics) {
+            borderGraphics = new PIXI.Graphics();
+            voronoiContainer.addChild(borderGraphics);
+        }
+        borderGraphics.clear();
+        borderGraphics.visible = true;
+
+        // Assign colors to shared edges
+        for (const edge of sharedEdges) {
+            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+        }
+
+        // Build color map for polyline construction
+        const colorMap = new Map<string, number>();
+        for (const edge of sharedEdges) {
+            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+            if (!colorMap.has(key)) {
+                colorMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
+            }
+        }
+
+        const builtPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+            return colorMap.get(key) ?? 0x888888;
+        }, borderSmoothPasses);
+
+        // chainSharedEdgesIntoPolylines already applies Chaikin ΓÇö pass 0 to drawBorderPolylines
+        // to avoid double-smoothing. Transition path passes smoothPasses because lerp destroys curves.
+        const t0b = performance.now();
+        drawBorderPolylines(borderGraphics, builtPolylines, 0, borderWidth, borderAlpha);
+        const t1b = performance.now();
+        const avgPts = builtPolylines.length > 0 ? (builtPolylines.reduce((s, p) => s + p.points.length, 0) / builtPolylines.length).toFixed(0) : '0';
+        log.renderer('PVV2', `STEADY-STATE borders | ${builtPolylines.length} polylines, ${sharedEdges.length} edges, smooth=${borderSmoothPasses} avgPts=${avgPts} | draw=${(t1b - t0b).toFixed(1)}ms | t+${(performance.now() - now).toFixed(1)}ms`);
+    } else if (borderGraphics) {
+        borderGraphics.clear();
+    }
+
+    // ΓöÇΓöÇ Store targets + start transition ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Assign colors if not already done in the border render block
+    if (borderWidth <= 0 || borderAlpha <= 0) {
+        for (const edge of sharedEdges) {
+            edge.colorA = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerA), satMult, lightMult);
+            edge.colorB = adjustColorHSL(colorUtils.getPlayerColor(edge.ownerB), satMult, lightMult);
+        }
+    }
+    targetBorderEdges = sharedEdges;
+    lastMergedTerritories = merged;
+    lastEnclaveMap = enclaveMap;
+
+    // Build polylines for morph transition (reuse from render block if available)
+    {
+        const smoothN = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
+        const cMap = new Map<string, number>();
+        for (const edge of sharedEdges) {
+            const key = edge.ownerA < edge.ownerB ? `${edge.ownerA}|${edge.ownerB}` : `${edge.ownerB}|${edge.ownerA}`;
+            if (!cMap.has(key)) cMap.set(key, blendColors(edge.colorA, edge.colorB, 0.5));
+        }
+        targetSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, (a, b) => {
+            const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+            return cMap.get(key) ?? 0x888888;
+        }, smoothN);
+    }
+
+    // Start transition based on mode
+    if (shapeChanged && transitionMs > 0) {
+        // Segment mode
+        if (prevBorderEdges && prevBorderEdges.length > 0) {
+            borderTransitionStart = now;
+            isBorderTransitioning = true;
+        }
+
+        // Smooth mode
+        if (prevSharedPolylines && prevSharedPolylines.length > 0) {
+            smoothTransitionStart = now;
+            isSmoothTransitioning = true;
+            log.renderer('PVV2', `TRANSITION STARTED | prev=${prevSharedPolylines.length} target=${targetSharedPolylines?.length ?? 0} | transitionMs=${transitionMs}`);
+        }
+
+        // Fill crossfade (mode-independent)
+        if (prevMergedTerritories && prevMergedTerritories.length > 0) {
+            fillTransitionStart = now;
+            isFillTransitioning = true;
+            log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
+        }
+    }
+    log.renderer('PVV2', `ΓùÇ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
+}
+
+// ΓöÇΓöÇ Cache Reset ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+export function resetPVV2DY4Cache(): void {
+    cachedShapeFingerprint = '';
+    cachedVisualFingerprint = '';
+    // Segment mode state
+    isBorderTransitioning = false;
+    prevBorderEdges = null;
+    targetBorderEdges = null;
+    borderTransitionStart = 0;
+    // Smooth mode state
+    isSmoothTransitioning = false;
+    prevSharedPolylines = null;
+    targetSharedPolylines = null;
+    smoothTransitionStart = 0;
+    lastMergedTerritories = null;
+    // Fill crossfade state
+    isFillTransitioning = false;
+    prevMergedTerritories = null;
+    prevEnclaveMap = null;
+    lastEnclaveMap = null;
+    fillTransitionStart = 0;
+    // Cell change tracking state
+    lastCells = null;
+    changedSiteIds = null;
+    log.renderer('PVV2', 'cache reset');
+    if (fillGraphics) {
+        if (fillGraphics.parent) fillGraphics.parent.removeChild(fillGraphics);
+        fillGraphics.destroy();
+        fillGraphics = null;
+    }
+    if (borderGraphics) {
+        if (borderGraphics.parent) borderGraphics.parent.removeChild(borderGraphics);
+        borderGraphics.destroy();
+        borderGraphics = null;
+    }
+}

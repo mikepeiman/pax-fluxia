@@ -253,6 +253,7 @@
     ] as const;
 
     const TERRITORY_LEGACY_STYLE_OPTIONS = [
+        { id: "pvv2_dy4", label: "PVV2 DY4 Restored (Reference 8dce88c)" },
         { id: "territory_engine", label: "Legacy Engine Router (DY4)" },
         { id: "vs_pvv3", label: "Legacy PVV3 Frontier Style" },
         { id: "power_voronoi", label: "Legacy PVV2 Weighted Voronoi" },
