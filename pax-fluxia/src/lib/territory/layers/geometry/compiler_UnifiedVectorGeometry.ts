@@ -200,12 +200,31 @@ function buildCanonicalWorldBorderPolylines(
 function buildCanonicalRegions(
     geometry: TerritoryGeometryData,
 ): TerritoryRegionShape[] {
-    return geometry.mergedTerritories.map((territory: MergedTerritory, idx: number) => ({
-        regionId: `region:${territory.ownerId}:${idx}`,
-        ownerId: territory.ownerId,
-        points: territory.points,
-        confidence: 1.0,
-    }));
+    // Track used IDs to handle (rare) centroid collisions within same owner
+    const usedIds = new Set<string>();
+
+    return geometry.mergedTerritories.map((territory: MergedTerritory) => {
+        // Spatially stable regionId: quantized centroid hash.
+        // Same geographic region → same centroid → same ID across recomputation.
+        const pts = territory.points;
+        let cx = 0, cy = 0;
+        for (const [x, y] of pts) { cx += x; cy += y; }
+        if (pts.length > 0) { cx /= pts.length; cy /= pts.length; }
+        // Quantize to integer pixels — avoids float jitter
+        let baseId = `region:${territory.ownerId}:${Math.round(cx)},${Math.round(cy)}`;
+        // Handle centroid collisions (very rare — two regions with same centroid)
+        let id = baseId;
+        let suffix = 0;
+        while (usedIds.has(id)) { suffix++; id = `${baseId}:${suffix}`; }
+        usedIds.add(id);
+
+        return {
+            regionId: id,
+            ownerId: territory.ownerId,
+            points: pts,
+            confidence: 1.0,
+        };
+    });
 }
 
 // ─── Shared Frontier Map (D-90 Multimap) ────────────────────────────────────
