@@ -247,7 +247,27 @@ export function renderOrderArrows(
         linkGraphics.lineTo(wing1X, wing1Y);
         linkGraphics.lineTo(wing2X, wing2Y);
         linkGraphics.closePath();
-        linkGraphics.fill({ color, alpha: 1.0 });
+        const headAlpha = GAME_CONFIG.ARROW_HEAD_ALPHA ?? arrowAlpha;
+        linkGraphics.fill({ color, alpha: headAlpha });
+
+        // Arrow outline (F-166)
+        const outlineW = GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0;
+        if (outlineW > 0) {
+            const outlineColor = GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000;
+            const outlineAlpha = GAME_CONFIG.ARROW_OUTLINE_ALPHA ?? arrowAlpha;
+            // Shaft outline
+            linkGraphics.beginPath();
+            linkGraphics.moveTo(startX, startY);
+            linkGraphics.lineTo(arrowBaseX, arrowBaseY);
+            linkGraphics.stroke({ color: outlineColor, width: lineWidth + outlineW * 2, alpha: outlineAlpha, cap: 'round' });
+            // Head outline
+            linkGraphics.beginPath();
+            linkGraphics.moveTo(tipX, tipY);
+            linkGraphics.lineTo(wing1X, wing1Y);
+            linkGraphics.lineTo(wing2X, wing2Y);
+            linkGraphics.closePath();
+            linkGraphics.stroke({ color: outlineColor, width: outlineW, alpha: outlineAlpha });
+        }
     });
 
     // ── Deferred Orders (dashed) ─────────────────────────────────────────

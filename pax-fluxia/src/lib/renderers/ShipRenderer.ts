@@ -844,7 +844,7 @@ export function renderShips(
 
             ship.x = lerp(ship.x, tx, 0.05);
             ship.y = lerp(ship.y, ty, 0.05);
-            ship.scale = lerp(ship.scale, 0.7, 0.1);
+            ship.scale = lerp(ship.scale, GAME_CONFIG.DAMAGED_SHIP_SCALE ?? 0.7, 0.1);
             ship.alpha = lerp(ship.alpha, 0.8, 0.1);
 
             drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, true, 1, effectiveOwner);

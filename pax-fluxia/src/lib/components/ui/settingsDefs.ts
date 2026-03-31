@@ -525,6 +525,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'arrowShaftWidth', configKey: 'ARROW_SHAFT_WIDTH' },
     { panelKey: 'arrowAlpha', configKey: 'ARROW_ALPHA' },
     { panelKey: 'arrowDashGap', configKey: 'ARROW_DASH_GAP' },
+    { panelKey: 'arrowHeadAlpha', configKey: 'ARROW_HEAD_ALPHA' },
+    { panelKey: 'arrowOutlineWidth', configKey: 'ARROW_OUTLINE_WIDTH' },
+    { panelKey: 'arrowOutlineColor', configKey: 'ARROW_OUTLINE_COLOR' },
+    { panelKey: 'arrowOutlineAlpha', configKey: 'ARROW_OUTLINE_ALPHA' },
+    { panelKey: 'damagedShipScale', configKey: 'DAMAGED_SHIP_SCALE' },
     { panelKey: 'arrowDashLength', configKey: 'ARROW_DASH_LENGTH' },
     // Star labels (F-159)
     { panelKey: 'starLabelLayout', configKey: 'STAR_LABEL_LAYOUT' },

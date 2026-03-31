@@ -266,6 +266,16 @@ interface GameConfigType {
     ARROW_DASH_LENGTH: number;
     /** Deferred arrow dash gap in px (default 10) */
     ARROW_DASH_GAP: number;
+    /** Arrowhead fill alpha (default = ARROW_ALPHA to match shaft) */
+    ARROW_HEAD_ALPHA: number;
+    /** Arrow outline stroke width in px (0=off, default 0) */
+    ARROW_OUTLINE_WIDTH: number;
+    /** Arrow outline color (default 0x000000) */
+    ARROW_OUTLINE_COLOR: number;
+    /** Arrow outline alpha (default = ARROW_ALPHA) */
+    ARROW_OUTLINE_ALPHA: number;
+    /** Damaged ship render scale multiplier (default 0.7) */
+    DAMAGED_SHIP_SCALE: number;
 
 
 
@@ -1036,6 +1046,11 @@ const _rawConfig: GameConfigType = {
     ARROW_ALPHA: 0.6,
     ARROW_DASH_LENGTH: 15,
     ARROW_DASH_GAP: 10,
+    ARROW_HEAD_ALPHA: 0.6,
+    ARROW_OUTLINE_WIDTH: 0,
+    ARROW_OUTLINE_COLOR: 0x000000,
+    ARROW_OUTLINE_ALPHA: 0.6,
+    DAMAGED_SHIP_SCALE: 0.7,
 
 
 

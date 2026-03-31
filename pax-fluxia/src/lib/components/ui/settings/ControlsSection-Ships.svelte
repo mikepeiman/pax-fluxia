@@ -1364,6 +1364,85 @@
         }}
     />
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Head Opacity</span><span class="val"
+            >{((panel.arrowHeadAlpha ?? 0.6) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="1.0"
+        step="0.05"
+        value={panel.arrowHeadAlpha ?? 0.6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_HEAD_ALPHA = v;
+            updatePanel("arrowHeadAlpha", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Outline Width</span><span class="val"
+            >{((panel.arrowOutlineWidth ?? 0) as number).toFixed(1)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5"
+        step="0.5"
+        value={panel.arrowOutlineWidth ?? 0}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_OUTLINE_WIDTH = v;
+            updatePanel("arrowOutlineWidth", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Outline Opacity</span><span class="val"
+            >{((panel.arrowOutlineAlpha ?? 0.6) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1.0"
+        step="0.05"
+        value={panel.arrowOutlineAlpha ?? 0.6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_OUTLINE_ALPHA = v;
+            updatePanel("arrowOutlineAlpha", v);
+        }}
+    />
+</div>
+
+<!-- ── Damaged Ships ── -->
+<h4 class="sub-heading">Damaged Ships</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Damaged Scale</span><span class="val"
+            >{((panel.damagedShipScale ?? 0.7) as number).toFixed(2)}×</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="1.5"
+        step="0.05"
+        value={panel.damagedShipScale ?? 0.7}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.DAMAGED_SHIP_SCALE = v;
+            updatePanel("damagedShipScale", v);
+        }}
+    />
+</div>
 
 <!-- ── Interaction ── -->
 <h4 class="sub-heading">Interaction</h4>
