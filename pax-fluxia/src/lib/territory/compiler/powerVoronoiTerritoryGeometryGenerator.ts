@@ -971,12 +971,7 @@ export function generateVoronoiTerritoryGeometry(
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
         log.renderer('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
-        // Stage 6: Detect enclaves (before smoothing, for centroid accuracy)
-        const enclaveMapRaw = detectEnclaves(mergedRaw);
-        log.renderer('PVV2Stage', `ENCLAVES: ${enclaveMapRaw.size} | COMPLETE`);
-
         // Stage 7: Extract world-boundary border polylines from RAW merged territories
-        // (these identify which edges lie on the world boundary — needed for fill reconstruction)
         const worldBorderPolylines = extractWorldBorderPolylines(mergedRaw, config.worldWidth, config.worldHeight);
         log.renderer('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
 
@@ -988,6 +983,9 @@ export function generateVoronoiTerritoryGeometry(
 
         log.renderer('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
+        // Stage 9: Detect enclaves using the finalized mergedTerritories so indices match renderer expectations.
+        const enclaveMapFinal = detectEnclaves(mergedTerritories);
+        log.renderer('PVV2Stage', `ENCLAVES: ${enclaveMapFinal.size} | COMPLETE`);
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config);
 
@@ -998,7 +996,7 @@ export function generateVoronoiTerritoryGeometry(
             rawSharedPolylines,
             sharedPolylines,
             worldBorderPolylines,
-            enclaveMap: enclaveMapRaw,
+            enclaveMap: enclaveMapFinal,
             fingerprint,
         } satisfies TerritoryGeometryData;
 
