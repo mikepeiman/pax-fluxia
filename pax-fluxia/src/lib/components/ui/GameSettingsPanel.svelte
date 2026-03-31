@@ -608,6 +608,7 @@
     let showFullSaveInput = $state(false);
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
+    let showThemeChips = $state(false);
 
     function handleApplyTheme(name: string) {
         themeStore.applyTheme(name);
@@ -946,26 +947,36 @@
             </div>
         </div>
         {#if themeStore.allThemes.length > 0}
-            <div class="full-chips-row">
-                {#each themeStore.allThemes as t}
-                    <button
-                        class="full-chip"
-                        class:active={themeStore.selectedThemeName === t.name}
-                        onclick={() => handleApplyTheme(t.name)}
-                    >
-                        {t.name}
-                        {#if themeStore.isUserTheme(t.name)}
-                            <span
-                                class="full-chip-delete"
-                                onclick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteFullTheme(t.name);
-                                }}>×</span
-                            >
-                        {/if}
-                    </button>
-                {/each}
-            </div>
+            <button
+                class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold tracking-wide uppercase text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded cursor-pointer hover:bg-slate-700/60 hover:text-slate-200 transition-colors"
+                onclick={() => showThemeChips = !showThemeChips}
+            >
+                <span class="text-[10px]">{showThemeChips ? '▾' : '▸'}</span>
+                <span>Themes</span>
+                <span class="ml-auto text-[10px] text-slate-500 font-normal">{themeStore.allThemes.length}</span>
+            </button>
+            {#if showThemeChips}
+                <div class="full-chips-row">
+                    {#each themeStore.allThemes as t}
+                        <button
+                            class="full-chip"
+                            class:active={themeStore.selectedThemeName === t.name}
+                            onclick={() => handleApplyTheme(t.name)}
+                        >
+                            {t.name}
+                            {#if themeStore.isUserTheme(t.name)}
+                                <span
+                                    class="full-chip-delete"
+                                    onclick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteFullTheme(t.name);
+                                    }}>×</span
+                                >
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
+            {/if}
         {/if}
         <div class="full-io-row">
             <button
