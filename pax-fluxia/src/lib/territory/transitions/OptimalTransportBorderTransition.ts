@@ -97,12 +97,13 @@ function segLen(pts: [number, number][], i: number, m: number): number {
 }
 
 function alignPolygon(source: [number, number][], target: [number, number][]): [number, number][] {
-    const N = source.length - 1;
-    if (N <= 1 || target.length - 1 !== N) return target.slice();
+    const N = source.length;
+    if (N <= 1 || target.length !== N) return target.slice();
 
     let bestShift = 0;
     let minDist = Infinity;
 
+    // Find the optimal rotation shift to minimize squared distance between matched vertices
     for (let shift = 0; shift < N; shift++) {
         let dist = 0;
         for (let i = 0; i < N; i++) {
@@ -119,12 +120,12 @@ function alignPolygon(source: [number, number][], target: [number, number][]): [
 
     if (bestShift === 0) return target.slice();
 
+    // Reorder the target array to match the source alignment
     const result: [number, number][] = [];
     for (let i = 0; i < N; i++) {
         const tgtIdx = (i + bestShift) % N;
         result.push([target[tgtIdx][0], target[tgtIdx][1]]);
     }
-    result.push([result[0][0], result[0][1]]);
     return result;
 }
 

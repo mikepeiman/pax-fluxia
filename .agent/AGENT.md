@@ -5,6 +5,8 @@
 
 ---
 
+***NOTE TO AGENT: This work costs money. You cost money based on token usage. Strategize, be tactical, advise and dialogue with your human to minimize token usage.***
+
 ## 1. Project
 
 **Pax Fluxia** — real-time multiplayer galactic strategy game.
