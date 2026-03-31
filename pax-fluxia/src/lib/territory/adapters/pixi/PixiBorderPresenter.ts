@@ -56,6 +56,7 @@ export class PixiBorderPresenter {
             const alpha = clamp01(command.alpha);
             const width = Math.max(0, command.width);
 
+            this.graphics.beginPath();
             this.graphics.poly(flatPoints, false);
             this.graphics.stroke({ color, alpha, width });
         }

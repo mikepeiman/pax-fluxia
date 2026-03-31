@@ -45,6 +45,7 @@ export class PixiFillPresenter {
                 fallbackColor(command.ownerId);
             const alpha = clamp01(command.alpha);
 
+            this.graphics.beginPath();
             this.graphics.poly(flatPoints);
             this.graphics.fill({ color, alpha });
         }
