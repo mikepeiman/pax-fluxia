@@ -13,9 +13,9 @@
       </h2>
       <p class="desc font-body">
         Pax Fluxia is the result of my passion to make an homage to the indie
-        gem from 2007, Pax Galaxia. I am proud to say that I have recreate
+        gem from 2007, Pax Galaxia. I am proud to say that I have recreated
         something very close to the original, but with modern features and
-        graphics. And after the classic mode is polished - a huge number of
+        graphics. And after the classic mode is polished, a huge number of
         features and mechanics are planned that will provide endless variety of
         game modes to create and share! I hope you enjoy playing Pax Fluxia as
         much as I enjoyed making it.
