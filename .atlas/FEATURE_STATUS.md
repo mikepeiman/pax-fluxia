@@ -17,6 +17,14 @@
 | B-43 | Canvas resize feedback loop — container height grows 6px/frame, map zooms/drifts off-viewport. Caused by corrupted localStorage/cache, not code. Fix: clear site data. Recurs intermittently. | ⚠️ Shelved | 2026-03-15 |
 | B-47 | **Deferred orders broken for neutral stars** — Case 2b in GameCanvas gated deferred orders with `ownerId !== "neutral"`, so clicking own star → neutral → next star always fell to Case 2c (no order). Fixed to `!isLocalPlayerStar()`, covering both enemy AND neutral stars. | ✅ Fixed | 2026-03-17 |
 | B-48 | **hitTestStar log spam** — logged on every pointer event call, including repeated same-target calls. Fixed with `lastHitStarId` tracker; logs only when result changes. | ✅ Fixed | 2026-03-17 |
+| B-49 | **MP combat intermittently fails** — Attacks draw arrows but do not prosecute. Ticks, production, orders work. SP unaffected. Code identical between live/master. Suspected stale server process. Resolved on restart. | ⚠️ Intermittent | 2026-03-30 |
+| B-50 | **Arrow appearance sliders missing from Map & Grid section** — sliders for order arrow head/shaft/alpha are not present in the expected settings section. | 🔴 Open | 2026-03-30 |
+| B-51 | **Saved maps appear in Classic mode** — user-saved maps and classic maps are mixed together. Classics should be a separate, read-only list. | 🔴 Open | 2026-03-30 |
+| B-52 | **No file load option in Load Game** — game settings Load Game has no actual file picker/import option. | 🔴 Open | 2026-03-30 |
+| B-53 | **MP only starts with random map** — no option to select map type (classic, saved, debug) when creating a multiplayer room. | 🔴 Open | 2026-03-30 |
+| B-54 | **Restart does not actually restart** — restart button/action fails to reset the game. Possibly related to AudioManager error: `NotSupportedError: The element has no supported sources.` | 🔴 Open | 2026-03-30 |
+| B-55 | **Lane order arrowhead opacity doesn't match shaft** — arrowhead alpha differs from shaft alpha and is not independently adjustable. | 🔴 Open | 2026-03-30 |
+| B-56 | **Damaged ship size ignores shipSize controls** — damaged ships do not obey the master/active ship size slider values. | 🔴 Open | 2026-03-30 |
 
 ## Planned Features
 
@@ -62,6 +70,14 @@
 | F-161 | **Classic maps in multiplayer**: Enable classic map selection in multiplayer lobbies. Server `initClassicMap()` with faction→sessionId remap + coordinate scaling. 🌐 MP play button in saved maps UI. | ✅ Done | Critical | 2026-03-15 |
 | F-162 | **Geometry Source dropdown** (4th territory pillar): UI dropdown for selecting data engine (FG2 Seed Graph, PVV3 Power Voronoi, etc.). Part of four-concern territory architecture (D-81). | 🔄 Planned | High | 2026-03-16 |
 | F-163 | **PVV3 geometry extraction as modular data engine**: Extract PVV3's `d3-weighted-voronoi` + merge pipeline into a standalone data engine that produces `CanonicalTerritoryData`, selectable alongside FG2. | 🔄 Planned | High | 2026-03-16 |
+| F-164 | **Remove Basic/Advanced/Developer settings toggle** — show ALL control sections by default instead of gating behind complexity levels. | 🔴 Queued | Medium | 2026-03-30 |
+| F-165 | **Custom Beehiiv mailing list signup** — replace iframe with custom Svelte form via `/api/subscribe` endpoint + Discord invite link. | ✅ Done | High | 2026-03-30 |
+| F-166 | **Arrow outline option + triangular ownership pull** — add outline/stroke to order arrows; new style where the ownership ring deforms into a triangular point along the order lane. | 🟡 Idea | Medium | 2026-03-30 |
+| F-167 | **Player toggles for star label elements** — individual toggles for each element of star labels (name, ship count, production, etc.). | 🔴 Queued | Medium | 2026-03-30 |
+| F-168 | **Main Menu random map preview + reshuffle** — Random Map option shows actual generated map preview with reshuffle/spin-again button before starting. | 🟡 Idea | High | 2026-03-30 |
+| F-169 | **PVV2 renderer revival** — bring PVV2 renderer into modern master and get it working with current architecture. | 🔄 Planned | High | 2026-03-30 |
+| F-170 | **DX equal split tuning** — DX weight currently biases one intervening player; both interveners should split the gap equally. | 🔴 Queued | Medium | 2026-03-30 |
+| F-171 | **Discord community link on landing page** — icon button linking to `https://discord.gg/yQu7X3UXv` in Hero section. | ✅ Done | High | 2026-03-30 |
 
 ## Known Regressions
 
