@@ -146,29 +146,42 @@ export class FrontierMorphFillMode implements FillTransitionMode {
 // ---------------------------------------------------------------------------
 
 /**
- * Rebuild canonical loop points (via the canonical rebuildLoopPoints), then
- * rotate the array so that index 0 starts at the beginning of the specified
- * alignment section.
+ * Rebuild canonical loop points via `rebuildLoopPoints`, then rotate the
+ * resulting open polygon array so that index 0 begins at the start of the
+ * specified alignment section.
  *
- * rebuildLoopPoints: first section contributes ALL its points; subsequent
- * sections skip the first point (junction dedup). We mirror this accounting
- * to find the precise rotation offset.
+ * WHY ROTATION MATTERS FOR OT:
+ * The OT perimeter-CDF sampler maps uniform fractions [0, 1) onto each
+ * polygon's perimeter independently. If two polygons start at very different
+ * positions around their shared boundary, the sampler's corresponding points
+ * will land on geometrically disparate edges → crossing interpolation lines.
+ * By rotating both prev and next to start at the same shared junction vertex
+ * (the start of `alignSectionId`), we guarantee the perimeter maps are
+ * co-anchored and the interpolation is locally coherent.
+ *
+ * HOW OFFSETS ARE COUNTED (as of the fixed rebuildLoopPoints):
+ * Every section contributes exactly (section.points.length - 1) points.
+ * This is because we skip the LAST point of each section — it's always
+ * identical to the FIRST point of the next section (the shared junction vertex).
+ * The final section's skipped last point equals the loop's starting vertex,
+ * which prevents a closing duplicate.
  */
 function rebuildAndAlign(
     loop: RegionLoop,
     sections: ReadonlyMap<string, FrontierSection>,
     alignSectionId: string,
 ): [number, number][] {
+    // Build the canonical open polygon (no closing duplicate, no re-reversal)
     const points = rebuildLoopPoints(loop, sections);
     if (points.length === 0) return points;
 
-    // Walk the section refs, accumulating point counts to find the rotation offset.
+    // Walk sectionRefs to find how many points precede the alignment section.
+    // Each section contributes exactly (section.points.length - 1) output points.
     let offset = 0;
     let rotationOffset = 0;
     let found = false;
 
-    for (let i = 0; i < loop.sectionRefs.length; i++) {
-        const ref = loop.sectionRefs[i];
+    for (const ref of loop.sectionRefs) {
         if (ref.sectionId === alignSectionId) {
             rotationOffset = offset;
             found = true;
@@ -176,16 +189,18 @@ function rebuildAndAlign(
         }
         const section = sections.get(ref.sectionId);
         if (!section) continue;
-        // First section: contribute section.points.length points.
-        // Subsequent sections: skip first point → contribute length - 1.
-        offset += i === 0 ? section.points.length : section.points.length - 1;
+        // Every section: contributes points.length - 1 (last point skipped)
+        offset += section.points.length - 1;
     }
 
+    // If the alignment section is the first one (offset=0) or not found,
+    // no rotation is needed
     if (!found || rotationOffset === 0) return points;
 
-    // Rotate so that `rotationOffset` becomes index 0
+    // Rotate so the alignment section's start vertex lands at index 0
     return [...points.slice(rotationOffset), ...points.slice(0, rotationOffset)];
 }
+
 
 /**
  * OT-interpolate two open (non-closed) polygons at progress t.

@@ -88,6 +88,13 @@ All UI sliders read from `panel.xxx` ($state), never `GAME_CONFIG.xxx`:
 ### 3.5 Never Remove User Controls
 Every `GAME_CONFIG` property with a UI element is sacred. Never delete, simplify, or hardcode over any slider/toggle/dropdown without explicit user instruction. **User configurability IS the product.**
 
+### 3.6 Commenting Code for Future Self
+When you write code that is complex, tricky, or otherwise non-obvious, add comments to explain:
+- Why you wrote it that way
+- What you were trying to accomplish
+- Any gotchas or things to watch out for
+- Any assumptions you made
+- Any trade-offs you made   
 ---
 
 ## 4. Architecture

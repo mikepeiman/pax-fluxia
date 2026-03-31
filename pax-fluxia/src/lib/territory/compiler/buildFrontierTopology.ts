@@ -231,6 +231,19 @@ export function buildFrontierTopology(
 /**
  * Rebuild the flat point array for a RegionLoop by walking its section refs.
  * This is the CANONICAL way to get fill points — from border sections.
+ *
+ * IMPORTANT: ChainWalkSegment.points (stored as CanonicalEdge.curvePoints) are
+ * already reversed when the walk traversed the polyline in reverse. The
+ * SectionRef.direction field reflects the original walk direction but should
+ * NOT be used to re-reverse curvePoints — they are always in correct walk order.
+ *
+ * Point deduplication: each section's curvePoints span [startVertex, endVertex]
+ * inclusive. The endVertex of one section is the startVertex of the next.
+ * We skip the LAST point of every section to avoid duplicating junction vertices.
+ * This also prevents the last section from appending a closing duplicate of
+ * the loop's first vertex.
+ *
+ * Result: open, non-self-intersecting polygon ready for OT interpolation and PIXI.
  */
 export function rebuildLoopPoints(
     loop: RegionLoop,
@@ -242,23 +255,19 @@ export function rebuildLoopPoints(
         const section = sections.get(ref.sectionId);
         if (!section) continue;
 
-        const sectionPts = ref.direction === 'reverse'
-            ? [...section.points].reverse()
-            : section.points;
+        const sectionPts = section.points; // always in correct walk-traversal order
 
-        // Append points, skipping the first point of subsequent sections
-        // (it's the same as the last point of the previous section — junction vertex)
-        if (points.length === 0) {
-            points.push(...sectionPts);
-        } else {
-            for (let i = 1; i < sectionPts.length; i++) {
-                points.push(sectionPts[i]);
-            }
+        // Skip the last point of every section:
+        // - It equals the start of the next section (junction dedup)
+        // - For the final section it equals the loop's first vertex (closing dedup)
+        for (let i = 0; i < sectionPts.length - 1; i++) {
+            points.push(sectionPts[i]);
         }
     }
 
     return points;
 }
+
 
 /**
  * Compute signed area via the shoelace formula.
