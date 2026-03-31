@@ -10,5 +10,7 @@ export function buildFillDrawCommands(
         ownerId: region.ownerId,
         points: region.points,
         alpha: tunables.fillAlpha,
+        strokeWidth: tunables.borderWidth,
+        strokeAlpha: tunables.borderAlpha,
     }));
 }

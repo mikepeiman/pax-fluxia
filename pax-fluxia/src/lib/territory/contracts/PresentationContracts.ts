@@ -8,6 +8,9 @@ export interface FillDrawCommand {
     points: [number, number][];
     alpha: number;
     color?: number;
+    strokeWidth?: number;
+    strokeColor?: number;
+    strokeAlpha?: number;
 }
 
 export interface BorderDrawCommand {

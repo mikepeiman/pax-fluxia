@@ -9,7 +9,7 @@
 import type { TerritoryConquestEvent, OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { GeometrySnapshot, FrontierPolylineShape } from '../contracts/GeometryContracts';
 import { computeGeometryTopologyDiff } from '../layers/transition/planners/GeometryTopologyDiff';
-import type { TransitionSnapshot, FillTransitionPlan, BorderTransitionPlan } from '../contracts/TransitionContracts';
+import type { TransitionSnapshot, FillTransitionPlan } from '../contracts/TransitionContracts';
 import type { TerritoryModeSelection } from '../contracts/TerritoryModeSelection';
 import { renderGeometryToCanvas, renderGeometryWithConquestMarkers } from './TransitionGeometryRenderer';
 import type { OwnerColorResolver, GeometryRenderOptions } from './TransitionGeometryRenderer';
@@ -24,7 +24,6 @@ export interface SnapshotCaptureContext {
     nextOwnership: OwnershipSnapshot;
     transition: TransitionSnapshot;
     fillPlan: FillTransitionPlan | null;
-    borderPlan: BorderTransitionPlan | null;
     selection: TerritoryModeSelection;
     nowMs: number;
     /** Star world positions for overlay markers */
@@ -101,10 +100,10 @@ function diffFromProduction(
     const deleted: FrontierPolylineShape[] = [];
 
     for (const entry of topologyDiff.frontiers) {
-        const shape: FrontierPolylineShape = {
+        const shape = {
             ownerPairKey: entry.ownerPairKey,
             points: entry.nextPoints ?? entry.previousPoints ?? [],
-        };
+        } as unknown as FrontierPolylineShape;
         switch (entry.topology) {
             case 'static': unchanged.push(shape); break;
             case 'drifted': changed.push(shape); break;

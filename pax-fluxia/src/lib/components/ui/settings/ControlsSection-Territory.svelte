@@ -270,15 +270,6 @@
         { id: "crossfade", label: "Alpha Crossfade Fill" },
     ] as const;
 
-    const BORDER_TRANSITION_OPTIONS = [
-        { id: "off", label: "Off" },
-        {
-            id: "optimal_transport",
-            label: "Optimal-Transport Correspondence Border",
-        },
-        { id: "rope_morph", label: "Rope-Interpolated Border" },
-    ] as const;
-
     const GEOMETRY_OPTIONS = [
         { id: "unified_vector", label: "Unified Vector Geometry" },
     ] as const;
@@ -310,9 +301,6 @@
         updatePanel("territoryFillTransition", transitionId);
     }
 
-    function selectBorderTransition(transitionId: string) {
-        updatePanel("territoryBorderTransition", transitionId);
-    }
 
     function resolveActiveStyleId(): string {
         return (
@@ -333,23 +321,6 @@
         return raw;
     }
 
-    function resolveActiveBorderTransitionId(): string {
-        const raw =
-            panel.territoryBorderTransition ??
-            GAME_CONFIG.TERRITORY_BORDER_TRANSITION_MODE ??
-            GAME_CONFIG.TERRITORY_BORDER_TRANSITION ??
-            "optimal_transport";
-        if (raw === "pixi_mesh_rope") return "rope_morph";
-        if (raw === "none") return "off";
-        if (
-            raw === "smooth_morph" ||
-            raw === "pixi_graphics_morph" ||
-            raw === "pressure_wave"
-        ) {
-            return "optimal_transport";
-        }
-        return raw;
-    }
 
     /**
      * Handle geometry mode button clicks.
@@ -483,23 +454,6 @@
         </div>
     </div>
 
-    <!-- Row 6: Border Transition (rose) -->
-    <div
-        class="axis-row"
-        style="--accent: #fb7185; --accent-bg: rgba(251,113,133,0.15)"
-    >
-        <span class="axis-label">Border Transition</span>
-        <div class="axis-buttons">
-            {#each BORDER_TRANSITION_OPTIONS as opt}
-                <button
-                    class="axis-btn"
-                    class:active={resolveActiveBorderTransitionId() === opt.id}
-                    onclick={() => selectBorderTransition(opt.id)}
-                    >{opt.label}</button
-                >
-            {/each}
-        </div>
-    </div>
 </div>
 
 <!-- ── Territory Invariants (MSR / CX / DX) ── -->

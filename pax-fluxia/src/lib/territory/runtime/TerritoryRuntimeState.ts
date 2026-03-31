@@ -12,7 +12,6 @@ export interface TerritoryRuntimeState {
     previousGeometry: GeometrySnapshot | null;
     previousTransition: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
-    activeBorderPlan: BorderTransitionPlan | null;
     activeTopologyPlan: FrontierTransitionPlan | null;
 }
 
@@ -22,7 +21,6 @@ export function createInitialTerritoryRuntimeState(): TerritoryRuntimeState {
         previousGeometry: null,
         previousTransition: null,
         activeFillPlan: null,
-        activeBorderPlan: null,
         activeTopologyPlan: null,
     };
 }

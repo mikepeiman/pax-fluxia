@@ -155,7 +155,6 @@ export class TerritoryRuntimeCoordinator {
             previousGeometry: this.state.previousGeometry,
             previousTransition: this.state.previousTransition,
             activeFillPlan: this.state.activeFillPlan,
-            activeBorderPlan: this.state.activeBorderPlan,
             activeTopologyPlan: this.state.activeTopologyPlan,
             selection: input.selection,
         });
@@ -197,7 +196,6 @@ export class TerritoryRuntimeCoordinator {
                 nextOwnership: ownership,
                 transition: transition.snapshot,
                 fillPlan: transition.activeFillPlan,
-                borderPlan: transition.activeBorderPlan,
                 selection: input.selection,
                 nowMs: input.nowMs,
                 starPositions,
@@ -208,8 +206,7 @@ export class TerritoryRuntimeCoordinator {
         if (envelope && !this.state.previousTransition?.envelope) {
             log.renderer('Territory',
                 `TRANSITION START: duration=${envelope.durationMs}ms` +
-                ` | fill=${transition.activeFillPlan?.sourceMode ?? 'none'}` +
-                ` | border=${transition.activeBorderPlan?.sourceMode ?? 'none'}`,
+                ` | fill=${transition.activeFillPlan?.sourceMode ?? 'none'}`,
             );
         }
         if (!envelope && this.state.previousTransition?.envelope) {
@@ -226,7 +223,7 @@ export class TerritoryRuntimeCoordinator {
                 ` | cached=${geometryResult.fromCache}` +
                 ` | fills=${presentation.fills.length} borders=${presentation.borders.length}` +
                 ` | transition=${envelope ? `p=${envelope.progress.toFixed(2)}` : 'none'}` +
-                ` | modes: g=${input.selection.geometryMode} ft=${input.selection.fillTransitionMode} bt=${input.selection.borderTransitionMode}`,
+                ` | modes: g=${input.selection.geometryMode} ft=${input.selection.fillTransitionMode}`,
             );
         }
 
@@ -235,7 +232,6 @@ export class TerritoryRuntimeCoordinator {
             previousGeometry: geometry,
             previousTransition: transition.snapshot,
             activeFillPlan: transition.activeFillPlan,
-            activeBorderPlan: transition.activeBorderPlan,
             activeTopologyPlan: transition.activeTopologyPlan ?? null,
         };
 

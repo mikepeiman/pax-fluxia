@@ -4,20 +4,13 @@ import type { GeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
 import type {
     BorderTransitionFrame,
-    BorderTransitionPlan,
     FillTransitionFrame,
     FillTransitionPlan,
     TransitionSnapshot,
 } from '../../contracts/TransitionContracts';
 import { SharedTransitionClock } from './SharedTransitionClock';
-import {
-    BORDER_TRANSITION_MODE_BY_ID,
-    FILL_TRANSITION_MODE_BY_ID,
-} from './registry';
-import {
-    planBorderTransition,
-    planFillTransition,
-} from './planners/TerritoryTransitionPlanner';
+import { FILL_TRANSITION_MODE_BY_ID } from './registry';
+import { planFillTransition } from './planners/TerritoryTransitionPlanner';
 import {
     buildFrontierTransitionPlan,
     type FrontierTransitionPlan,
@@ -34,14 +27,12 @@ export interface TransitionCoordinatorInput {
     previousGeometry?: GeometrySnapshot | null;
     previousTransition?: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
-    activeBorderPlan: BorderTransitionPlan | null;
     activeTopologyPlan?: FrontierTransitionPlan | null;
 }
 
 export interface TransitionCoordinatorResult {
     snapshot: TransitionSnapshot;
     activeFillPlan: FillTransitionPlan | null;
-    activeBorderPlan: BorderTransitionPlan | null;
     activeTopologyPlan?: FrontierTransitionPlan | null;
 }
 
@@ -51,11 +42,9 @@ function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionF
     };
 }
 
-function buildBorderFrameFromGeometry(
-    geometry: GeometrySnapshot,
-): BorderTransitionFrame {
+function buildEmptyBorderFrame(): BorderTransitionFrame {
     return {
-        frontiers: geometry.frontierPolylines,
+        frontiers: [],
     };
 }
 
@@ -64,7 +53,6 @@ export class TransitionLayerCoordinator {
 
     compute(input: TransitionCoordinatorInput): TransitionCoordinatorResult {
         let activeFillPlan = input.activeFillPlan;
-        let activeBorderPlan = input.activeBorderPlan;
         let activeTopologyPlan = input.activeTopologyPlan ?? null;
 
         const hasNewConquests = input.ownership.conquestEvents.length > 0;
@@ -95,7 +83,6 @@ export class TransitionLayerCoordinator {
                 // border sections. This prevents fill/border divergence.
                 activeTopologyPlan = buildFrontierTransitionPlan(prevTopo, nextTopo);
                 activeFillPlan = null;  // not needed — topology sampler handles both
-                activeBorderPlan = null;
                 log.renderer('TransitionCoordinator',
                     `Using unified topology path: ${activeTopologyPlan.sections.size} sections`,
                 );
@@ -118,22 +105,6 @@ export class TransitionLayerCoordinator {
                 } else {
                     activeFillPlan = null;
                 }
-
-                if (input.selection.borderTransitionMode !== 'off') {
-                    const borderMode = BORDER_TRANSITION_MODE_BY_ID.get(
-                        input.selection.borderTransitionMode,
-                    );
-                    if (borderMode) {
-                        activeBorderPlan = planBorderTransition(borderMode, {
-                            nowMs: input.nowMs,
-                            ownership: input.ownership,
-                            previousGeometry: input.previousGeometry,
-                            nextGeometry: input.geometry,
-                        });
-                    }
-                } else {
-                    activeBorderPlan = null;
-                }
             }
         }
 
@@ -144,7 +115,6 @@ export class TransitionLayerCoordinator {
         if (!hasNewConquests && hasGeometryDelta) {
             envelope = null;
             activeFillPlan = null;
-            activeBorderPlan = null;
             activeTopologyPlan = null;
         }
 
@@ -169,12 +139,8 @@ export class TransitionLayerCoordinator {
         } else {
             // ── LEGACY SAMPLING (independent fill + border) ──────────────
             const fillModeId = activeFillPlan?.sourceMode;
-            const borderModeId = activeBorderPlan?.sourceMode;
             const fillMode = fillModeId
                 ? FILL_TRANSITION_MODE_BY_ID.get(fillModeId)
-                : null;
-            const borderMode = borderModeId
-                ? BORDER_TRANSITION_MODE_BY_ID.get(borderModeId)
                 : null;
 
             fillFrame =
@@ -185,19 +151,12 @@ export class TransitionLayerCoordinator {
                     })
                     : buildFillFrameFromGeometry(input.geometry);
 
-            borderFrame =
-                envelope && activeBorderPlan && borderMode
-                    ? borderMode.sample(activeBorderPlan, {
-                        nowMs: input.nowMs,
-                        progress: envelope.progress,
-                    })
-                    : buildBorderFrameFromGeometry(input.geometry);
+            borderFrame = buildEmptyBorderFrame();
         }
 
         if (envelope && envelope.progress >= 1) {
             envelope = null;
             activeFillPlan = null;
-            activeBorderPlan = null;
             activeTopologyPlan = null;
         }
 
@@ -209,7 +168,6 @@ export class TransitionLayerCoordinator {
                 borderFrame,
             },
             activeFillPlan,
-            activeBorderPlan,
             activeTopologyPlan,
         };
     }

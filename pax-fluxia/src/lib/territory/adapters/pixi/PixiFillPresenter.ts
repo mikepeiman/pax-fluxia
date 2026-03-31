@@ -48,6 +48,12 @@ export class PixiFillPresenter {
             this.graphics.beginPath();
             this.graphics.poly(flatPoints);
             this.graphics.fill({ color, alpha });
+
+            if (command.strokeWidth !== undefined && command.strokeWidth > 0) {
+                const strokeColor = command.strokeColor ?? color;
+                const strokeAlpha = command.strokeAlpha ?? 1;
+                this.graphics.stroke({ width: command.strokeWidth, color: strokeColor, alpha: strokeAlpha });
+            }
         }
     }
 
