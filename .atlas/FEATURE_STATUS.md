@@ -17,6 +17,7 @@
 | B-43 | Canvas resize feedback loop — container height grows 6px/frame, map zooms/drifts off-viewport. Caused by corrupted localStorage/cache, not code. Fix: clear site data. Recurs intermittently. | ⚠️ Shelved | 2026-03-15 |
 | B-47 | **Deferred orders broken for neutral stars** — Case 2b in GameCanvas gated deferred orders with `ownerId !== "neutral"`, so clicking own star → neutral → next star always fell to Case 2c (no order). Fixed to `!isLocalPlayerStar()`, covering both enemy AND neutral stars. | ✅ Fixed | 2026-03-17 |
 | B-48 | **hitTestStar log spam** — logged on every pointer event call, including repeated same-target calls. Fixed with `lastHitStarId` tracker; logs only when result changes. | ✅ Fixed | 2026-03-17 |
+| B-49 | **MP combat intermittently fails** — Attacks draw arrows but do not prosecute (no damage, no conquest). Ticks, production, and orders all function. SP unaffected. Code investigation found zero diffs in combat path between `live` and `master`. Suspected stale server process or transient Colyseus connection issue. Resolved on restart/redeploy. | ⚠️ Intermittent | 2026-03-30 |
 
 ## Planned Features
 
