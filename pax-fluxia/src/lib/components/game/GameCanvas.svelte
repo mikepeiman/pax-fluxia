@@ -1113,6 +1113,18 @@
             nextShipId = 0;
             starShipCounts.clear();
             shipSpawnTimers.clear();
+            // B-57: Clear territory fills from previous game immediately so
+            // old conquest state doesn't persist while paused after restart.
+            if (voronoiContainer) {
+                for (const child of voronoiContainer.children) {
+                    if ((child as any).clear) (child as any).clear();
+                }
+            }
+            // Reset canonical bridge so it rebuilds for new map geometry
+            canonicalBridge?.reset();
+            canonicalBridge = null;
+            canonicalController = null;
+            canonicalRenderer = null;
             log.sys(
                 "GameCanvas",
                 `Session changed to ${currentSessionId}, state reset`,

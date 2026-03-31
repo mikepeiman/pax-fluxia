@@ -24,7 +24,11 @@
 | B-53 | **MP only starts with random map** — no option to select map type (classic, saved, debug) when creating a multiplayer room. | 🔴 Open | 2026-03-30 |
 | B-54 | **Restart does not actually restart** — restart button/action fails to reset the game. Possibly related to AudioManager error: `NotSupportedError: The element has no supported sources.` | 🔴 Open | 2026-03-30 |
 | B-55 | **Lane order arrowhead opacity doesn't match shaft** — arrowhead alpha differs from shaft alpha and is not independently adjustable. | 🔴 Open | 2026-03-30 |
-| B-56 | **Damaged ship size ignores shipSize controls** — damaged ships do not obey the master/active ship size slider values. | 🔴 Open | 2026-03-30 |
+| B-56 | **Damaged ship size ignores shipSize controls** — damaged ships do not obey the master/active ship size slider values. | ✅ Fixed | 2026-03-31 |
+| B-57 | **Restart leaves territory fills behind when paused** — after SP restart while paused, old conquest territory fills persist until gameplay resumes. Renderer not cleared on `destroyGame()`. | 🔴 Open | 2026-03-31 |
+| B-58 | **"Save Map" actually saves game state** — `saveCurrentMap()` calls `exportMapDefinition()` which includes live ship counts, owners, and target orders. Maps should be saved topology-only (positions + connections + star type). | 🔴 Open | 2026-03-31 |
+| B-59 | **No "Load Game" file import in settings** — the Load Game panel has no file picker for importing a saved game JSON. | 🔴 Open | 2026-03-31 |
+| B-60 | **AudioManager NotSupportedError** — `play()` calls `new Audio('/sounds/' + filePath)` but sound files are missing from `/sounds/`. Error: `NotSupportedError: The element has no supported sources.` | 🔴 Open | 2026-03-31 |
 
 ## Planned Features
 

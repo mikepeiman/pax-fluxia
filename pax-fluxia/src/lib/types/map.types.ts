@@ -53,6 +53,28 @@ export interface MapDefinition {
 }
 
 /**
+ * In-progress game snapshot (B-58).
+ * Captures live game state including ship counts, ownership, and orders.
+ * References a named MapDefinition AND embeds a full map copy as fallback.
+ */
+export interface SavedGame {
+  id: string;
+  name: string;           // txtgen phrase + yyyy-mm-dd, user-editable
+  createdAt: string;
+  tick: number;
+  mapName: string;        // named map reference (may be 'unsaved')
+  mapSnapshot: MapDefinition; // full copy in case named map is missing
+  stars: Array<{
+    id: StarId;
+    ownerId: PlayerId;
+    activeShips: number;
+    damagedShips: number;
+    targetId: string;
+  }>;
+  thumbnail?: string;     // data URL from generateMapThumbnail()
+}
+
+/**
  * Union type for map input to generateMap function
  */
 export type MapInput = string | MapTemplate | MapDefinition;

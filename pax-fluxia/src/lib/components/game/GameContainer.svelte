@@ -18,6 +18,7 @@
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
+  import { sentence as txtSentence } from 'txtgen';
 
   let gameCanvasRef: any = $state(null);
 
@@ -97,26 +98,66 @@
   let saveMapFeedback = $state("");
   let showLoadMapList = $state(false);
 
+  // ── Game save (B-58) ──
+  let showSaveGameInput = $state(false);
+  let saveGameName = $state("");
+  let saveGameFeedback = $state("");
+  let showLoadGameList = $state(false);
+
+  function suggestGameName(): string {
+    const date = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+    const words = txtSentence().split(' ').slice(0, 3).join(' ');
+    return `${words} ${date}`;
+  }
+
+  function openSaveGame() {
+    showSaveGameInput = !showSaveGameInput;
+    showSaveMapInput = false;
+    showLoadMapList = false;
+    showLoadGameList = false;
+    if (showSaveGameInput && !saveGameName) {
+      saveGameName = suggestGameName();
+    }
+  }
+
   function handleSaveMap() {
     const name = saveMapName.trim();
     if (!name) return;
     gameStore.saveCurrentMap(name);
-    saveMapFeedback = `✓ Saved "${name}"`;
+    saveMapFeedback = `✓ Map saved "${name}"`;
     saveMapName = "";
     showSaveMapInput = false;
     setTimeout(() => (saveMapFeedback = ""), 2500);
   }
 
+  function handleSaveGame() {
+    const name = saveGameName.trim();
+    if (!name) return;
+    gameStore.saveCurrentGame(name);
+    saveGameFeedback = `✓ Game saved "${name}"`;
+    saveGameName = "";
+    showSaveGameInput = false;
+    setTimeout(() => (saveGameFeedback = ""), 2500);
+  }
+
   async function handleLoadMap(map: any) {
     gameStore.loadSavedMap(map);
     showLoadMapList = false;
-    // Keep menu/settings open for debugging workflow
-    // Restart game with loaded map — must await since startGame is async
+    await gameStore.startGame();
+  }
+
+  async function handleLoadSavedGame(game: any, freshStart = false) {
+    gameStore.loadSavedGame(game, freshStart);
+    showLoadGameList = false;
     await gameStore.startGame();
   }
 
   function handleDeleteMap(name: string) {
     gameStore.deleteSavedMap(name);
+  }
+
+  function handleDeleteSavedGame(id: string) {
+    gameStore.deleteSavedGame(id);
   }
 
   const showResults = $derived(
@@ -566,15 +607,17 @@
                 <span class="mi-label">Chat</span>
               </button>
               <hr class="menu-divider" />
-              <!-- Save Map -->
+              <!-- Save Map (topology only) -->
               <button
                 class="menu-item"
                 onclick={() => {
                   showSaveMapInput = !showSaveMapInput;
+                  showSaveGameInput = false;
                   showLoadMapList = false;
+                  showLoadGameList = false;
                 }}
               >
-                <span class="mi-icon">💾</span>
+                <span class="mi-icon">🗺</span>
                 <span class="mi-label">Save Map</span>
               </button>
               {#if showSaveMapInput}
@@ -598,12 +641,40 @@
               {#if saveMapFeedback}
                 <div class="map-feedback">{saveMapFeedback}</div>
               {/if}
+              <!-- Save Game (full in-progress snapshot) -->
+              <button class="menu-item" onclick={openSaveGame}>
+                <span class="mi-icon">💾</span>
+                <span class="mi-label">Save Game</span>
+              </button>
+              {#if showSaveGameInput}
+                <div class="map-save-row">
+                  <input
+                    type="text"
+                    class="map-name-input"
+                    placeholder="Game name…"
+                    bind:value={saveGameName}
+                    onkeydown={(e) => {
+                      if (e.key === "Enter") handleSaveGame();
+                    }}
+                  />
+                  <button
+                    class="map-save-btn"
+                    onclick={handleSaveGame}
+                    disabled={!saveGameName.trim()}>Save</button
+                  >
+                </div>
+              {/if}
+              {#if saveGameFeedback}
+                <div class="map-feedback">{saveGameFeedback}</div>
+              {/if}
               <!-- Load Map -->
               <button
                 class="menu-item"
                 onclick={() => {
                   showLoadMapList = !showLoadMapList;
+                  showLoadGameList = false;
                   showSaveMapInput = false;
+                  showSaveGameInput = false;
                 }}
               >
                 <span class="mi-icon">📂</span>
@@ -628,6 +699,38 @@
                           onclick={() => handleDeleteMap(map.metadata.name)}
                           title="Delete">✕</button
                         >
+                      </div>
+                    {/each}
+                  {/if}
+                </div>
+              {/if}
+              <!-- Load Saved Game -->
+              <button
+                class="menu-item"
+                onclick={() => {
+                  showLoadGameList = !showLoadGameList;
+                  showLoadMapList = false;
+                  showSaveMapInput = false;
+                  showSaveGameInput = false;
+                }}
+              >
+                <span class="mi-icon">🎮</span>
+                <span class="mi-label">Load Game</span>
+              </button>
+              {#if showLoadGameList}
+                <div class="map-list">
+                  {#if gameStore.savedGames.length === 0}
+                    <div class="map-list-empty">No saved games</div>
+                  {:else}
+                    {#each gameStore.savedGames as game}
+                      <div class="map-list-item map-list-item--game">
+                        <div class="saved-game-name" title={game.name}>💾 {game.name}</div>
+                        <div class="saved-game-meta">Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}</div>
+                        <div class="saved-game-actions">
+                          <button class="map-load-btn" onclick={() => handleLoadSavedGame(game, false)}>Resume</button>
+                          <button class="map-load-btn map-load-btn--alt" onclick={() => handleLoadSavedGame(game, true)}>Fresh Start</button>
+                          <button class="map-delete-btn" onclick={() => handleDeleteSavedGame(game.id)}>✕</button>
+                        </div>
                       </div>
                     {/each}
                   {/if}
@@ -1602,6 +1705,40 @@
     background: rgba(255, 80, 80, 0.15);
     border-color: rgba(255, 80, 80, 0.3);
     color: #fca5a5;
+  }
+  /* Saved Game list items (stacked layout) */
+  .map-list-item--game {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .saved-game-name {
+    font-size: 0.73rem;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  .saved-game-meta {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 3px;
+  }
+  .saved-game-actions {
+    display: flex;
+    gap: 3px;
+  }
+  .map-load-btn--alt {
+    background: rgba(120, 200, 100, 0.1);
+    border-color: rgba(120, 200, 100, 0.2);
+    color: rgba(160, 230, 140, 0.8);
+  }
+  .map-load-btn--alt:hover {
+    background: rgba(120, 200, 100, 0.2);
+    border-color: rgba(120, 200, 100, 0.4);
+    color: #86efac;
   }
 
   /* ═══ OVERLAYS ═══ */

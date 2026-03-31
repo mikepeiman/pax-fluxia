@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "pax-fluxia-monorepo",
+      "dependencies": {
+        "txtgen": "^3.0.7",
+      },
     },
     "common": {
       "name": "@pax/common",
@@ -709,6 +712,8 @@
     "tsx": ["tsx@4.21.0", "", { "dependencies": { "esbuild": "~0.27.0", "get-tsconfig": "^4.7.5" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "bin": { "tsx": "dist/cli.mjs" } }, "sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw=="],
 
     "tweakpane": ["tweakpane@4.0.5", "", {}, "sha512-rxEXdSI+ArlG1RyO6FghC4ZUX8JkEfz8F3v1JuteXSV0pEtHJzyo07fcDG+NsJfN5L39kSbCYbB9cBGHyuI/tQ=="],
+
+    "txtgen": ["txtgen@3.0.7", "", {}, "sha512-1yIREceryZibOmv3CU+rUFTnGJLLSyiB336E9P5+cRru8RLoSAzmm6F6ACkaSoC3uCWykICMKm5GGNlriJxdbA=="],
 
     "type-is": ["type-is@2.0.1", "", { "dependencies": { "content-type": "^1.0.5", "media-typer": "^1.1.0", "mime-types": "^3.0.0" } }, "sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw=="],
 

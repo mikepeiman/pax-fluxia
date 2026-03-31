@@ -194,6 +194,8 @@ class AudioManager {
     private pools: Map<SoundType, HTMLAudioElement[]> = new Map();
     private lastPlayTime: Map<SoundType, number> = new Map();
     private initialized: boolean = false;
+    /** Sound types with missing/unplayable files — silently skipped */
+    private disabledSounds: Set<SoundType> = new Set();
 
     // ── Reactive state (mirrors of GAME_CONFIG for Svelte binding) ──
     public masterVolume = $state(0.5);
@@ -311,12 +313,18 @@ class AudioManager {
         const pool = this.pools.get(type);
         if (!pool) return;
 
+        // Skip sounds with missing/unplayable files
+        if (this.disabledSounds.has(type)) return;
+
         const audio = pool.find(a => a.paused || a.ended);
         if (audio) {
             audio.volume = this.getEffectiveVolume(type);
             audio.currentTime = this.soundOffsets[type] || 0;
             audio.play().catch(e => {
-                if (e.name !== "NotAllowedError") {
+                if (e.name === 'NotSupportedError' || e.name === 'NotAllowedError') {
+                    // Missing file or browser restriction — disable silently
+                    if (e.name === 'NotSupportedError') this.disabledSounds.add(type);
+                } else {
                     log.error("AudioManager", `Play error for ${type}`, e);
                 }
             });
@@ -365,7 +373,8 @@ class AudioManager {
             (GAME_CONFIG as any)[offsetKey(type)] = 0;
         }
 
-        // Rebuild audio pool with new file
+        // Rebuild audio pool with new file — re-enable in case it was disabled
+        this.disabledSounds.delete(type);
         if (this.initialized) {
             this.rebuildPool(type);
         }

@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+    import { generateMapThumbnail } from '$lib/utils/mapThumbnail';
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { fade, fly } from "svelte/transition";
@@ -163,6 +164,27 @@
 
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
+
+    // F-168: Random map preview thumbnail — uses real generateMap() engine via gameStore
+    let thumbnailUrl = $state('');
+    let previewSeed = $state(0); // incremented to trigger reshuffle
+
+    function generatePreview() {
+        const { stars, connections } = gameStore.generateMapPreview({
+            playerCount,
+            starsPerPlayer,
+            minLinksPerStar: minLinks,
+            maxLinksPerStar: maxLinks,
+            starSpacing,
+        });
+        thumbnailUrl = generateMapThumbnail(stars, connections, { width: 240, height: 135 });
+    }
+
+    $effect(() => {
+        // Regenerate when settings change or reshuffle is clicked
+        void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void previewSeed;
+        generatePreview();
+    });
 
     // Derived: all currently claimed hues (for marking occupied swatches)
     const claimedHues = $derived(
@@ -546,32 +568,16 @@
                                     </div>
                                 </div>
                                 <div class="random-map-preview">
-                                    <svg
-                                        class="map-thumb"
-                                        viewBox="0 0 64 48"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        {#each MAP_DEFS[0].connections as [a, b]}
-                                            {#if MAP_DEFS[0].stars[a] && MAP_DEFS[0].stars[b]}
-                                                <line
-                                                    x1={MAP_DEFS[0].stars[a].x}
-                                                    y1={MAP_DEFS[0].stars[a].y}
-                                                    x2={MAP_DEFS[0].stars[b].x}
-                                                    y2={MAP_DEFS[0].stars[b].y}
-                                                    stroke="#4488ff44"
-                                                    stroke-width="1"
-                                                />
-                                            {/if}
-                                        {/each}
-                                        {#each MAP_DEFS[0].stars as star}
-                                            <circle
-                                                cx={star.x}
-                                                cy={star.y}
-                                                r="3"
-                                                fill={star.color}
-                                            />
-                                        {/each}
-                                    </svg>
+                                    {#if thumbnailUrl}
+                                        <img src={thumbnailUrl} alt="Map preview" class="map-thumb-img" />
+                                    {:else}
+                                        <div class="map-thumb-placeholder">Generating…</div>
+                                    {/if}
+                                    <button
+                                        class="reshuffle-btn"
+                                        onclick={() => { previewSeed += 1; }}
+                                        title="Generate new random layout"
+                                    >🔀 Reshuffle</button>
                                 </div>
                             </div>
                         {:else}
@@ -1514,11 +1520,44 @@
         border-radius: 8px;
         padding: 8px;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
     }
-    .random-map-preview .map-thumb {
+    .map-thumb-img {
         width: 100%;
-        max-width: 200px;
+        max-width: 240px;
         height: auto;
+        border-radius: 4px;
+        border: 1px solid rgba(100, 200, 255, 0.12);
+        display: block;
+    }
+    .map-thumb-placeholder {
+        width: 240px;
+        height: 135px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 0.75rem;
+        font-style: italic;
+    }
+    .reshuffle-btn {
+        padding: 4px 12px;
+        background: rgba(100, 160, 255, 0.1);
+        border: 1px solid rgba(100, 160, 255, 0.2);
+        border-radius: 4px;
+        color: rgba(160, 200, 255, 0.8);
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+    }
+    .reshuffle-btn:hover {
+        background: rgba(100, 160, 255, 0.2);
+        border-color: rgba(100, 160, 255, 0.4);
+        color: #93c5fd;
     }
 
     /* ── Classic Map Cards ── */

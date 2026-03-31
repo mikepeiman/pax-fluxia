@@ -12,7 +12,7 @@ import type {
     PlayerState,
     GameHistoryEntry
 } from '$lib/types/game.types';
-import type { MapDefinition } from '$lib/types/map.types';
+import type { MapDefinition, SavedGame } from '$lib/types/map.types';
 import type {
     GameInput,
     IssueOrderInput,
@@ -596,6 +596,40 @@ function initDebugMap(playerIds: string[], variant: string): void {
     }
 }
 
+/**
+ * Generate a map preview from the real engine — no fake procedural code.
+ * Returns ThumbnailStar[] + ThumbnailConnection[] ready for generateMapThumbnail().
+ * Called by MainMenu to preview the random map before starting the game.
+ */
+function generateMapPreview(opts: {
+    playerCount: number;
+    starsPerPlayer: number;
+    minLinksPerStar: number;
+    maxLinksPerStar: number;
+    starSpacing: number;
+}): { stars: Array<{ id: string; x: number; y: number; ownerId: string }>; connections: Array<{ sourceId: string; targetId: string }> } {
+    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    const mapW = isPortrait ? 900 : 1600;
+    const mapH = isPortrait ? 1600 : 900;
+    const result = generateMap({
+        width: mapW,
+        height: mapH,
+        playerCount: opts.playerCount,
+        starsPerPlayer: opts.starsPerPlayer,
+        spacingMultiplier: opts.starSpacing,
+        hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
+        minLinksPerStar: opts.minLinksPerStar,
+        maxLinksPerStar: opts.maxLinksPerStar,
+    });
+    const stars = result.positions.map((pos, i) => ({
+        id: `s${i}`,
+        x: pos.x,
+        y: pos.y,
+        ownerId: i < opts.playerCount ? `player${i}` : 'neutral',
+    }));
+    return { stars, connections: result.connections };
+}
+
 /** Standard random map via generateMap() */
 function initStandardMap(playerIds: string[]): void {
     // Match map aspect ratio to viewport — portrait screens get portrait maps
@@ -771,6 +805,101 @@ async function loadBuiltinMapsAsync(): Promise<void> {
 }
 loadBuiltinMapsAsync();
 
+// ============================================================================
+// Saved Games (in-progress snapshots) — B-58
+// ============================================================================
+
+let savedGames: SavedGame[] = $state(loadSavedGames());
+
+function loadSavedGames(): SavedGame[] {
+    try {
+        const raw = localStorage.getItem('pax_savedGames');
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function persistSavedGamesList(): void {
+    localStorage.setItem('pax_savedGames', JSON.stringify(savedGames));
+}
+
+function persistGameToFilesystem(game: SavedGame): void {
+    try {
+        fetch('/__games', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(game),
+        }).catch(() => { /* dev server may not be running */ });
+    } catch { /* noop */ }
+}
+
+function deleteGameFromFilesystem(id: string): void {
+    try {
+        fetch(`/__games?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+            .catch(() => { /* noop */ });
+    } catch { /* noop */ }
+}
+
+/** Save current in-progress game as a SavedGame snapshot */
+function saveCurrentGame(name: string, thumbnail?: string): void {
+    const mapSnapshot = exportMapDefinition();
+    if (!mapSnapshot || !state) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const starSnapshots: SavedGame['stars'] = [];
+    state.stars.forEach((s) => {
+        starSnapshots.push({
+            id: s.id,
+            ownerId: s.ownerId,
+            activeShips: s.activeShips,
+            damagedShips: s.damagedShips,
+            targetId: s.targetId ?? '',
+        });
+    });
+    const game: SavedGame = {
+        id,
+        name,
+        createdAt: new Date().toISOString(),
+        tick: state.tick,
+        mapName: mapSnapshot.metadata.name ?? 'unsaved',
+        mapSnapshot,
+        stars: starSnapshots,
+        ...(thumbnail ? { thumbnail } : {}),
+    };
+    savedGames = [game, ...savedGames];
+    persistSavedGamesList();
+    persistGameToFilesystem(game);
+}
+
+/** Delete a saved game by id */
+function deleteSavedGame(id: string): void {
+    savedGames = savedGames.filter(g => g.id !== id);
+    persistSavedGamesList();
+    deleteGameFromFilesystem(id);
+}
+
+/** Load a saved game into the pending slot (full restore on next startGame) */
+function loadSavedGame(game: SavedGame, freshStart = false): void {
+    if (freshStart) {
+        // Strip game state — load map topology only
+        pendingSavedMap = game.mapSnapshot;
+    } else {
+        // Full restore: use mapSnapshot but preserve live ship counts
+        const restored: MapDefinition = {
+            ...game.mapSnapshot,
+            stars: game.mapSnapshot.stars.map((ms) => {
+                const snap = game.stars.find(s => s.id === ms.id);
+                return snap ? {
+                    ...ms,
+                    ownerId: snap.ownerId,
+                    activeShips: snap.activeShips,
+                    damagedShips: snap.damagedShips,
+                    targetId: snap.targetId,
+                } : ms;
+            }),
+        };
+        pendingSavedMap = restored;
+    }
+}
+
 function setDefaultMap(name: string): void {
     defaultMapName = name;
     localStorage.setItem('pax_defaultMap', name);
@@ -781,7 +910,39 @@ function clearDefaultMap(): void {
     localStorage.removeItem('pax_defaultMap');
 }
 
-/** Export current game state as a MapDefinition */
+/** Export current map as a TOPOLOGY-ONLY MapDefinition (no live game state).
+ * Ships reset to STARTING_SHIPS, no orders, no targets.
+ */
+function exportMapTopology(): MapDefinition | null {
+    if (!state) return null;
+    const stars: MapDefinition['stars'] = [];
+    state.stars.forEach((s) => {
+        stars.push({
+            id: s.id, x: s.x, y: s.y,
+            ownerId: s.ownerId,
+            starType: s.starType as StarType,
+            activeShips: GAME_CONFIG.STARTING_SHIPS, // Reset to starting ships
+            damagedShips: 0,
+            // No targetId — clean start
+        });
+    });
+    const connSet = new Set<string>();
+    const connections: MapDefinition['connections'] = [];
+    for (let i = 0; i < state.connections.length; i++) {
+        const c = state.connections[i];
+        const key = [c.sourceId, c.targetId].sort().join('|');
+        if (!connSet.has(key)) {
+            connSet.add(key);
+            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
+        }
+    }
+    return {
+        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
+        stars, connections,
+    };
+}
+
+/** Export current game state as a MapDefinition (legacy — includes live state) */
 function exportMapDefinition(): MapDefinition | null {
     if (!state) return null;
     const stars: MapDefinition['stars'] = [];
@@ -812,12 +973,11 @@ function exportMapDefinition(): MapDefinition | null {
     };
 }
 
-/** Save current map with a name */
+/** Save current map TOPOLOGY with a name (B-58: topology only, no game state) */
 function saveCurrentMap(name: string): void {
-    const map = exportMapDefinition();
+    const map = exportMapTopology();
     if (!map) return;
     map.metadata.name = name;
-    // Replace if same name exists
     savedMaps = savedMaps.filter(m => m.metadata.name !== name);
     savedMaps = [map, ...savedMaps];
     persistSavedMaps();
@@ -1299,6 +1459,15 @@ export const gameStore = {
     saveCurrentMap,
     deleteSavedMap,
     loadSavedMap,
+
+    // Game save/load (B-58)
+    get savedGames() { return savedGames; },
+    saveCurrentGame,
+    deleteSavedGame,
+    loadSavedGame,
+
+    // Map preview (F-168)
+    generateMapPreview,
 
     // F-148: Default map preference
     get defaultMapName() { return defaultMapName; },

@@ -9,5 +9,8 @@
     "scripts": {
         "dev": "npm run dev --workspace=pax-fluxia & npm run dev:node --workspace=pax-server",
         "build": "npm run build --workspaces"
+    },
+    "dependencies": {
+        "txtgen": "^3.0.7"
     }
 }
