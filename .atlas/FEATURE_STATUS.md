@@ -25,10 +25,10 @@
 | B-54 | **Restart does not actually restart** — restart button/action fails to reset the game. Possibly related to AudioManager error: `NotSupportedError: The element has no supported sources.` | 🔴 Open | 2026-03-30 |
 | B-55 | **Lane order arrowhead opacity doesn't match shaft** — arrowhead alpha differs from shaft alpha and is not independently adjustable. | 🔴 Open | 2026-03-30 |
 | B-56 | **Damaged ship size ignores shipSize controls** — damaged ships do not obey the master/active ship size slider values. | ✅ Fixed | 2026-03-31 |
-| B-57 | **Restart leaves territory fills behind when paused** — after SP restart while paused, old conquest territory fills persist until gameplay resumes. Renderer not cleared on `destroyGame()`. | 🔴 Open | 2026-03-31 |
-| B-58 | **"Save Map" actually saves game state** — `saveCurrentMap()` calls `exportMapDefinition()` which includes live ship counts, owners, and target orders. Maps should be saved topology-only (positions + connections + star type). | 🔴 Open | 2026-03-31 |
+| B-57 | **Restart leaves territory fills behind when paused** — after SP restart while paused, old conquest territory fills persist until gameplay resumes. Renderer not cleared on `destroyGame()`. | ✅ Fixed | 2026-03-31 |
+| B-58 | **"Save Map" actually saves game state** — split into `saveCurrentMap()` (topology-only) and `saveCurrentGame()` (full snapshot with txtgen yyyy-mm-dd name). Load Game has Resume vs Fresh-Start options. | ✅ Fixed | 2026-03-31 |
 | B-59 | **No "Load Game" file import in settings** — the Load Game panel has no file picker for importing a saved game JSON. | 🔴 Open | 2026-03-31 |
-| B-60 | **AudioManager NotSupportedError** — `play()` calls `new Audio('/sounds/' + filePath)` but sound files are missing from `/sounds/`. Error: `NotSupportedError: The element has no supported sources.` | 🔴 Open | 2026-03-31 |
+| B-60 | **AudioManager NotSupportedError** — silenced `NotSupportedError` and `NotAllowedError` in `play()`. Added `disabledSounds` set to skip missing files and prevent console spam. | ✅ Fixed | 2026-03-31 |
 
 ## Planned Features
 
@@ -78,7 +78,7 @@
 | F-165 | **Custom Beehiiv mailing list signup** — replace iframe with custom Svelte form via `/api/subscribe` endpoint + Discord invite link. | ✅ Done | High | 2026-03-30 |
 | F-166 | **Arrow outline option + triangular ownership pull** — add outline/stroke to order arrows; new style where the ownership ring deforms into a triangular point along the order lane. | 🟡 Idea | Medium | 2026-03-30 |
 | F-167 | **Player toggles for star label elements** — individual toggles for each element of star labels (name, ship count, production, etc.). | 🔴 Queued | Medium | 2026-03-30 |
-| F-168 | **Main Menu random map preview + reshuffle** — Random Map option shows actual generated map preview with reshuffle/spin-again button before starting. | 🟡 Idea | High | 2026-03-30 |
+| F-168 | **Main Menu random map preview + reshuffle** — Live canvas thumbnail using real `generateMap()` via `gameStore.generateMapPreview()`. Reshuffle button generates new layouts. Auto-updates on settings changes. | ✅ Done | High | 2026-03-31 |
 | F-169 | **PVV2 renderer revival** — bring PVV2 renderer into modern master and get it working with current architecture. | 🔄 Planned | High | 2026-03-30 |
 | F-170 | **DX equal split tuning** — DX weight currently biases one intervening player; both interveners should split the gap equally. | 🔴 Queued | Medium | 2026-03-30 |
 | F-171 | **Discord community link on landing page** — icon button linking to `https://discord.gg/yQu7X3UXv` in Hero section. | ✅ Done | High | 2026-03-30 |
