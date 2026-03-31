@@ -5,7 +5,10 @@ import type {
     FillTransitionPlanInput,
     TransitionSampleContext,
 } from '../../../contracts/TransitionContracts';
-import type { FrontierTopology, RegionLoop } from '../../../contracts/FrontierTopologyContracts';
+import type { FrontierSection, FrontierTopology, RegionLoop } from '../../../contracts/FrontierTopologyContracts';
+import { rebuildLoopPoints } from '../../../compiler/buildFrontierTopology';
+import { validateFillFrame } from '../../../devtools/PolygonValidator';
+import { log } from '$lib/utils/logger';
 
 /**
  * Transition plan holding explicitly the full FrontierTopology rather than
@@ -38,11 +41,14 @@ export class FrontierMorphFillMode implements FillTransitionMode {
     ): FillTransitionFrame {
         const typedPlan = plan as FrontierMorphFillPlan;
         const t = ctx.progress;
-        
+
+        log.renderer('FrontierMorphFill',
+            `sample() t=${t.toFixed(3)} | prevTopo=${typedPlan.previousTopology ? 'ok' : 'MISSING'} nextTopo=${typedPlan.targetTopology ? 'ok' : 'MISSING'}`,
+        );
+
         const regions: { ownerId: string; points: [number, number][] }[] = [];
 
         if (!typedPlan.previousTopology || !typedPlan.targetTopology) {
-            // Unlikely fallback if geometries are missing topology
             return { regions: [] };
         }
 
@@ -63,7 +69,7 @@ export class FrontierMorphFillMode implements FillTransitionMode {
             let sharedSectionId: string | undefined;
             let bestPrevLoop: RegionLoop | undefined;
 
-            // Find a prevLoop that shares at least one structural segment
+            // Find a prevLoop for the same owner that shares at least one section
             for (const nextRef of nextLoop.sectionRefs) {
                 const candidates = prevByOwner.get(nextLoop.ownerId) || [];
                 for (const prevLoop of candidates) {
@@ -71,7 +77,7 @@ export class FrontierMorphFillMode implements FillTransitionMode {
                     if (prevLoop.sectionRefs.some(r => r.sectionId === nextRef.sectionId)) {
                         bestPrevLoop = prevLoop;
                         sharedSectionId = nextRef.sectionId;
-                        break; // found match!
+                        break;
                     }
                 }
                 if (bestPrevLoop) break;
@@ -79,42 +85,56 @@ export class FrontierMorphFillMode implements FillTransitionMode {
 
             if (bestPrevLoop && sharedSectionId) {
                 matchedPrevLoopIds.add(bestPrevLoop.id);
-                // Align both Point arrays structurally to start at the shared section's start node
-                const prevPoints = buildLoopPoints(bestPrevLoop, prevTopology, sharedSectionId);
-                const nextPoints = buildLoopPoints(nextLoop, nextTopology, sharedSectionId);
-                
+
+                // Use the canonical rebuildLoopPoints (correct junction dedup),
+                // then rotate both to align at the shared section start.
+                const prevPoints = rebuildAndAlign(bestPrevLoop, prevTopology.sections, sharedSectionId);
+                const nextPoints = rebuildAndAlign(nextLoop, nextTopology.sections, sharedSectionId);
+
                 regions.push({
                     ownerId: nextLoop.ownerId,
                     points: otInterpolateAlignedPolygon(prevPoints, nextPoints, t),
                 });
             } else {
-                // Pure spawn: no shared topological boundary
-                const nextPoints = buildLoopPoints(nextLoop, nextTopology);
+                // Pure spawn: no shared topological boundary — grow from centroid
+                const nextPoints = rebuildLoopPoints(nextLoop, nextTopology.sections);
                 const centroid = polygonCentroid(nextPoints);
-                const morphed = nextPoints.map(([x, y]) => [
-                    centroid[0] + t * (x - centroid[0]),
-                    centroid[1] + t * (y - centroid[1]),
-                ] as [number, number]);
                 regions.push({
                     ownerId: nextLoop.ownerId,
-                    points: closePolygon(morphed),
+                    points: nextPoints.map(([x, y]) => [
+                        centroid[0] + t * (x - centroid[0]),
+                        centroid[1] + t * (y - centroid[1]),
+                    ] as [number, number]),
                 });
             }
         }
 
-        // 2) Process unmatched prev loops (Vanishing)
+        // 2) Process unmatched prev loops (vanishing) — shrink to centroid
         for (const prevLoop of prevTopology.loops) {
             if (matchedPrevLoopIds.has(prevLoop.id)) continue;
-            const prevPoints = buildLoopPoints(prevLoop, prevTopology);
+            const prevPoints = rebuildLoopPoints(prevLoop, prevTopology.sections);
             const centroid = polygonCentroid(prevPoints);
-            const morphed = prevPoints.map(([x, y]) => [
-                x + t * (centroid[0] - x),
-                y + t * (centroid[1] - y),
-            ] as [number, number]);
             regions.push({
                 ownerId: prevLoop.ownerId,
-                points: closePolygon(morphed),
+                points: prevPoints.map(([x, y]) => [
+                    x + t * (centroid[0] - x),
+                    y + t * (centroid[1] - y),
+                ] as [number, number]),
             });
+        }
+
+        log.renderer('FrontierMorphFill',
+            `sample done: ${regions.length} regions (matched=${matchedPrevLoopIds.size} spawning=${regions.length - matchedPrevLoopIds.size})`,
+        );
+
+        // Dev validation — logs warnings for degenerate polygons
+        if (import.meta.env.DEV) {
+            const { invalidCount } = validateFillFrame(regions, `t=${t.toFixed(3)}`, true);
+            if (invalidCount > 0) {
+                log.renderer('FrontierMorphFill',
+                    `WARNING: ${invalidCount}/${regions.length} regions are invalid at t=${t.toFixed(3)}`,
+                );
+            }
         }
 
         return { regions };
@@ -125,51 +145,56 @@ export class FrontierMorphFillMode implements FillTransitionMode {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function closePolygon(points: [number, number][]): [number, number][] {
-    if (points.length === 0) return points;
-    return [...points, [points[0][0], points[0][1]]];
-}
-
 /**
- * Reconstruct a full ordered coordinate sequence for a RegionLoop.
- * Does NOT append a closing duplicated vertex (leaves array open for OT CDF).
- * If alignSectionId is provided, rotates the array such that index 0 is 
- * the exact starting coordinate of the specified section.
+ * Rebuild canonical loop points (via the canonical rebuildLoopPoints), then
+ * rotate the array so that index 0 starts at the beginning of the specified
+ * alignment section.
+ *
+ * rebuildLoopPoints: first section contributes ALL its points; subsequent
+ * sections skip the first point (junction dedup). We mirror this accounting
+ * to find the precise rotation offset.
  */
-function buildLoopPoints(loop: RegionLoop, topology: FrontierTopology, alignSectionId?: string): [number, number][] {
-    const points: [number, number][] = [];
-    let startIdx = 0;
+function rebuildAndAlign(
+    loop: RegionLoop,
+    sections: ReadonlyMap<string, FrontierSection>,
+    alignSectionId: string,
+): [number, number][] {
+    const points = rebuildLoopPoints(loop, sections);
+    if (points.length === 0) return points;
+
+    // Walk the section refs, accumulating point counts to find the rotation offset.
+    let offset = 0;
+    let rotationOffset = 0;
+    let found = false;
 
     for (let i = 0; i < loop.sectionRefs.length; i++) {
         const ref = loop.sectionRefs[i];
         if (ref.sectionId === alignSectionId) {
-            startIdx = points.length;
+            rotationOffset = offset;
+            found = true;
+            break;
         }
-        const section = topology.sections.get(ref.sectionId);
+        const section = sections.get(ref.sectionId);
         if (!section) continue;
-
-        const pts = section.points;
-        if (ref.direction === 'forward') {
-            for (let j = 0; j < pts.length - 1; j++) {
-                points.push(pts[j]);
-            }
-        } else {
-            for (let j = pts.length - 1; j > 0; j--) {
-                points.push(pts[j]);
-            }
-        }
+        // First section: contribute section.points.length points.
+        // Subsequent sections: skip first point → contribute length - 1.
+        offset += i === 0 ? section.points.length : section.points.length - 1;
     }
 
-    if (startIdx > 0) {
-        return [...points.slice(startIdx), ...points.slice(0, startIdx)];
-    }
-    return points;
+    if (!found || rotationOffset === 0) return points;
+
+    // Rotate so that `rotationOffset` becomes index 0
+    return [...points.slice(rotationOffset), ...points.slice(0, rotationOffset)];
 }
 
 /**
- * OT-interpolate two closed polygons at progress t.
- * Input arrays MUST be topologically pre-aligned (index 0 corresponds 
- * exactly between prev and next).
+ * OT-interpolate two open (non-closed) polygons at progress t.
+ * Uses perimeter CDF sampling — vertex counts can differ between prev/next.
+ *
+ * IMPORTANT: Input arrays must NOT have a closing duplicate vertex.
+ * rebuildLoopPoints returns open arrays (no closing duplicate).
+ * Do NOT append a closing point here — the CDF sampler uses i % n modular
+ * indexing and treats the array as closed implicitly.
  */
 function otInterpolateAlignedPolygon(
     prev: [number, number][],
@@ -177,7 +202,7 @@ function otInterpolateAlignedPolygon(
     t: number,
 ): [number, number][] {
     if (prev.length < 2 || next.length < 2) {
-        return closePolygon(t < 0.5 ? prev : next);
+        return t < 0.5 ? prev : next;
     }
 
     const sampleCount = Math.max(prev.length, next.length, 4);
@@ -187,13 +212,13 @@ function otInterpolateAlignedPolygon(
 
     const result: [number, number][] = new Array(sampleCount);
     for (let i = 0; i < sampleCount; i++) {
-        const u = i / sampleCount; // [0, 1) for open-sequence polygon
+        const u = i / sampleCount; // [0, 1) uniform spacing on closed perimeter
         const [px, py] = evaluateClosedAtFraction(prev, prevCDF, u);
         const [nx, ny] = evaluateClosedAtFraction(next, nextCDF, u);
         result[i] = [s * px + t * nx, s * py + t * ny];
     }
 
-    return closePolygon(result);
+    return result;
 }
 
 function buildPerimeterCDF(points: [number, number][]): Float64Array {
