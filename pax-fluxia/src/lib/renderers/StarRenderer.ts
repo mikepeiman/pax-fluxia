@@ -370,16 +370,25 @@ export function renderStars(
         }
         lerp.lastUpdateMs = state.gameNowMs;
 
+        // Apply element visibility toggles (F-167)
+        const showId = GAME_CONFIG.STAR_LABEL_SHOW_ID ?? true;
+        const showActive = GAME_CONFIG.STAR_LABEL_SHOW_ACTIVE ?? true;
+        const showDamaged = GAME_CONFIG.STAR_LABEL_SHOW_DAMAGED ?? true;
+
         // Update text content
         if (activeText) {
             activeText.text = String(Math.round(lerp.activeDisplay));
             activeText.alpha = lerp.fadeAlpha;
+            activeText.visible = showActive;
         }
         if (damagedText) {
             damagedText.text = String(Math.round(lerp.damagedDisplay));
             damagedText.alpha = lerp.fadeAlpha;
-            damagedText.visible = true;
+            damagedText.visible = showDamaged;
         }
+        if (idText2) idText2.visible = showId;
+        if (sepText) sepText.visible = showId && (showActive || showDamaged);
+        if (slashText) slashText.visible = showActive && showDamaged;
 
         // Label position from angle + distance (polar → cartesian)
         const labelAngle = (GAME_CONFIG.STAR_LABEL_ANGLE ?? 35) * Math.PI / 180;
@@ -409,14 +418,11 @@ export function renderStars(
         if (layout === 'horizontal') {
             // Pill mode: [#N] [│] [active/damaged] in one row
             let cx = 0;
-            if (sepText) sepText.visible = true;
-            if (slashText) slashText.visible = true;
-
-            if (idText2) { idText2.anchor.set(0, 0.5); idText2.position.set(cx, 0); cx += idText2.width + gap; }
-            if (sepText) { sepText.anchor.set(0, 0.5); sepText.position.set(cx, 0); cx += sepText.width + gap; }
-            if (activeText) { activeText.anchor.set(0, 0.5); activeText.position.set(cx, 0); cx += activeText.width; }
-            if (slashText) { slashText.anchor.set(0, 0.5); slashText.position.set(cx, 0); cx += slashText.width; }
-            if (damagedText) { damagedText.anchor.set(0, 0.5); damagedText.position.set(cx, 0); cx += damagedText.width; }
+            if (idText2 && idText2.visible) { idText2.anchor.set(0, 0.5); idText2.position.set(cx, 0); cx += idText2.width + gap; }
+            if (sepText && sepText.visible) { sepText.anchor.set(0, 0.5); sepText.position.set(cx, 0); cx += sepText.width + gap; }
+            if (activeText && activeText.visible) { activeText.anchor.set(0, 0.5); activeText.position.set(cx, 0); cx += activeText.width; }
+            if (slashText && slashText.visible) { slashText.anchor.set(0, 0.5); slashText.position.set(cx, 0); cx += slashText.width; }
+            if (damagedText && damagedText.visible) { damagedText.anchor.set(0, 0.5); damagedText.position.set(cx, 0); cx += damagedText.width; }
 
             const totalW = cx;
             const pillH = 18 * labelScale;

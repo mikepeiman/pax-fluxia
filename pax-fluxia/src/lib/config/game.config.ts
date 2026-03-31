@@ -238,6 +238,9 @@ interface GameConfigType {
     STAR_LABEL_BORDER_ALPHA: number;// Pill border opacity (default 0.5)
     STAR_LABEL_BORDER_WIDTH: number;// Pill border stroke width in px (default 1)
     STAR_LABEL_LEASH: boolean;      // Show leash line from star to label (default false)
+    STAR_LABEL_SHOW_ID: boolean;     // Show star ID (#N) in label (default true)
+    STAR_LABEL_SHOW_ACTIVE: boolean; // Show active ship count in label (default true)
+    STAR_LABEL_SHOW_DAMAGED: boolean;// Show damaged ship count in label (default true)
     STAR_LABEL_FONT_FAMILY: string; // Font family for label text
     STAR_LABEL_COLOR_MODE: 'player' | 'universal'; // Color mode: owner color vs fixed HSLA
     STAR_LABEL_UNIVERSAL_H: number; // Universal mode hue (0-360, default 220)
@@ -966,6 +969,12 @@ const _rawConfig: GameConfigType = {
     STAR_LABEL_BORDER_WIDTH: 1,
     /** Show leash line from star to label */
     STAR_LABEL_LEASH: false,
+    /** Show star ID (#N) in label */
+    STAR_LABEL_SHOW_ID: true,
+    /** Show active ship count in label */
+    STAR_LABEL_SHOW_ACTIVE: true,
+    /** Show damaged ship count in label */
+    STAR_LABEL_SHOW_DAMAGED: true,
     /** Font family for label text */
     STAR_LABEL_FONT_FAMILY: 'JetBrains Mono, monospace',
     /** Color mode: 'player' uses owner color, 'universal' uses fixed HSLA */

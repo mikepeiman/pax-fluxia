@@ -133,6 +133,9 @@ export const STAR_LABEL_SLIDERS: AnimSliderDef[] = [
     { key: 'STAR_LABEL_UNIVERSAL_S', label: 'Uni Saturation', min: 0, max: 100, step: 1, unit: '%', group: 'Universal Color' },
     { key: 'STAR_LABEL_UNIVERSAL_L', label: 'Uni Lightness', min: 0, max: 100, step: 1, unit: '%', group: 'Universal Color' },
     { key: 'STAR_LABEL_UNIVERSAL_A', label: 'Uni Alpha', min: 0, max: 1, step: 0.05, unit: '', group: 'Universal Color' },
+    { key: 'STAR_LABEL_SHOW_ID', label: 'Show Star ID', type: 'toggle', group: 'Visibility' },
+    { key: 'STAR_LABEL_SHOW_ACTIVE', label: 'Show Active Ships', type: 'toggle', group: 'Visibility' },
+    { key: 'STAR_LABEL_SHOW_DAMAGED', label: 'Show Damaged Ships', type: 'toggle', group: 'Visibility' },
     { key: 'STAR_LABEL_LEASH', label: 'Leash Line', type: 'toggle', group: 'Appearance' },
 ];
 
@@ -538,6 +541,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'starLabelBorderAlpha', configKey: 'STAR_LABEL_BORDER_ALPHA' },
     { panelKey: 'starLabelBorderWidth', configKey: 'STAR_LABEL_BORDER_WIDTH' },
     { panelKey: 'starLabelLeash', configKey: 'STAR_LABEL_LEASH' },
+    { panelKey: 'starLabelShowId', configKey: 'STAR_LABEL_SHOW_ID' },
+    { panelKey: 'starLabelShowActive', configKey: 'STAR_LABEL_SHOW_ACTIVE' },
+    { panelKey: 'starLabelShowDamaged', configKey: 'STAR_LABEL_SHOW_DAMAGED' },
     { panelKey: 'starLabelFontFamily', configKey: 'STAR_LABEL_FONT_FAMILY' },
     { panelKey: 'starLabelColorMode', configKey: 'STAR_LABEL_COLOR_MODE' },
     { panelKey: 'starLabelUniversalH', configKey: 'STAR_LABEL_UNIVERSAL_H' },
