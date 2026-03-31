@@ -7,6 +7,7 @@
  *
  * No PIXI dependency — pure Canvas 2D API.
  */
+import { STAR_TYPE_STATS, type StarType } from '@pax/common';
 
 export interface ThumbnailStar {
     id: string;
@@ -139,15 +140,29 @@ export function generateMapThumbnail(
     // Draw stars
     for (const s of stars) {
         const [sx, sy] = toScreen(s.x, s.y);
-        const color = getOwnerColor(s.ownerId, getPlayerColor);
+        const ownerColor = getOwnerColor(s.ownerId, getPlayerColor);
+        
+        // Resolve starType color (fallback to grey)
+        let typeHex = '#8899aa';
+        if (s.starType && STAR_TYPE_STATS[s.starType as StarType]) {
+            typeHex = '#' + STAR_TYPE_STATS[s.starType as StarType].color.toString(16).padStart(6, '0');
+        }
+
+        // Star Core (Type Color)
         ctx.beginPath();
         ctx.arc(sx, sy, starRadius, 0, Math.PI * 2);
-        ctx.fillStyle = color;
+        ctx.fillStyle = typeHex;
         ctx.fill();
-        // Subtle glow ring
+
+        // Inner Ring (Owner Color)
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = ownerColor;
+        ctx.stroke();
+
+        // Subtle Outer Glow (Owner Color)
         ctx.beginPath();
-        ctx.arc(sx, sy, starRadius + 1.5, 0, Math.PI * 2);
-        ctx.strokeStyle = color + '66';
+        ctx.arc(sx, sy, starRadius + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = ownerColor + '66';
         ctx.lineWidth = 1;
         ctx.stroke();
     }

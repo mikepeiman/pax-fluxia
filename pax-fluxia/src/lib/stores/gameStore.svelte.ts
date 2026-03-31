@@ -607,7 +607,9 @@ function generateMapPreview(opts: {
     minLinksPerStar: number;
     maxLinksPerStar: number;
     starSpacing: number;
-}): { stars: Array<{ id: string; x: number; y: number; ownerId: string }>; connections: Array<{ sourceId: string; targetId: string }> } {
+    neutralStarCount: number;
+    specialStarPercentage: number;
+}): { stars: Array<{ id: string; x: number; y: number; ownerId: string; starType?: string }>; connections: Array<{ sourceId: string; targetId: string }> } {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
@@ -616,17 +618,56 @@ function generateMapPreview(opts: {
         height: mapH,
         playerCount: opts.playerCount,
         starsPerPlayer: opts.starsPerPlayer,
+        extraNeutralStars: opts.neutralStarCount,
         spacingMultiplier: opts.starSpacing,
         hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
         minLinksPerStar: opts.minLinksPerStar,
         maxLinksPerStar: opts.maxLinksPerStar,
     });
-    const stars = result.positions.map((pos, i) => ({
-        id: `s${i}`,
-        x: pos.x,
-        y: pos.y,
-        ownerId: i < opts.playerCount ? `player${i}` : 'neutral',
-    }));
+    
+    const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
+    
+    // Distribute ownership: exact number per player + neutrals
+    const ownerIds: string[] = [];
+    for (let p=0; p<opts.playerCount; p++) {
+        for (let s=0; s<opts.starsPerPlayer; s++) {
+            ownerIds.push(`player${p}`);
+        }
+    }
+    for (let n=0; n<opts.neutralStarCount; n++) {
+        ownerIds.push('neutral');
+    }
+
+    // Shuffle ownership
+    for (let i = ownerIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ownerIds[i], ownerIds[j]] = [ownerIds[j], ownerIds[i]];
+    }
+
+    const hasCapital = new Set<string>();
+
+    const stars = result.positions.map((pos, i) => {
+        const ownerId = ownerIds[i];
+        
+        let isCapital = false;
+        if (ownerId !== 'neutral' && !hasCapital.has(ownerId)) {
+            isCapital = true;
+            hasCapital.add(ownerId);
+        }
+        
+        const isSpecial = Math.random() * 100 < opts.specialStarPercentage;
+        // 'grey' is basic; others are special
+        const typeIndex = isSpecial ? Math.floor(Math.random() * (starTypes.length - 1)) + 1 : 0;
+        const starType = isCapital ? 'grey' : starTypes[typeIndex];
+
+        return {
+            id: `star-${i}`, // Must match generateMap()'s generated connection sourceIds
+            x: pos.x,
+            y: pos.y,
+            ownerId,
+            starType,
+        };
+    });
     return { stars, connections: result.connections };
 }
 
@@ -637,11 +678,13 @@ function initStandardMap(playerIds: string[]): void {
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
 
+    const neutralCount = settings.neutralStarCount ?? 0;
     const result = generateMap({
         width: mapW,
         height: mapH,
         playerCount: playerIds.length,
         starsPerPlayer: GAME_CONFIG.STARS_PER_PLAYER,
+        extraNeutralStars: neutralCount,
         spacingMultiplier: settings.starSpacing ?? 1.0,
         hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
         minLinksPerStar: settings.minLinksPerStar ?? 1,
@@ -655,22 +698,39 @@ function initStandardMap(playerIds: string[]): void {
     GAME_CONFIG._MAP_PADDING_X = result.paddingX;
     GAME_CONFIG._MAP_PADDING_Y = result.paddingY;
 
-    // Randomize which position gets which owner via shuffled indices
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-    const totalStars = result.positions.length;
-    const ownerIndices = Array.from({ length: totalStars }, (_, i) => i);
-    for (let i = ownerIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [ownerIndices[i], ownerIndices[j]] = [ownerIndices[j], ownerIndices[i]];
+    
+    // Allocate exact number of stars per player + neutral pool
+    const ownerIds: string[] = [];
+    for (const pid of playerIds) {
+        for (let s=0; s<GAME_CONFIG.STARS_PER_PLAYER; s++) {
+            ownerIds.push(pid);
+        }
+    }
+    for (let n=0; n<neutralCount; n++) {
+        ownerIds.push('neutral');
     }
 
+    // Shuffle ownership assigning to positions
+    for (let i = ownerIds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ownerIds[i], ownerIds[j]] = [ownerIds[j], ownerIds[i]];
+    }
+
+    const hasCapital = new Set<string>();
+
     result.positions.forEach((pos, i) => {
-        const ownerIdx = ownerIndices[i];
-        const ownerId = playerIds[ownerIdx % playerIds.length];
-        const isCapital = ownerIdx < playerIds.length;
-        const starType = isCapital
-            ? 'grey' as StarType
-            : starTypes[Math.floor(Math.random() * starTypes.length)];
+        const ownerId = ownerIds[i];
+        
+        let isCapital = false;
+        if (ownerId !== 'neutral' && !hasCapital.has(ownerId)) {
+            isCapital = true;
+            hasCapital.add(ownerId);
+        }
+        
+        const isSpecial = Math.random() * 100 < (settings.specialStarPercentage ?? 20);
+        const typeIndex = isSpecial ? Math.floor(Math.random() * (starTypes.length - 1)) + 1 : 0;
+        const starType = isCapital ? 'grey' as StarType : starTypes[typeIndex] as StarType;
         const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
 
         const star = new StarSchema();
@@ -679,7 +739,7 @@ function initStandardMap(playerIds: string[]): void {
         star.y = pos.y;
         star.ownerId = ownerId;
         star.starType = starType;
-        star.activeShips = GAME_CONFIG.STARTING_SHIPS;
+        star.activeShips = ownerId === 'neutral' ? (settings.neutralShipsPerStar ?? 10) : GAME_CONFIG.STARTING_SHIPS;
         star.damagedShips = 0;
         star.productionRate = 1;
         star.repairRate = stats.repairRate;

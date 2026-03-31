@@ -143,6 +143,10 @@
         loadSetting("retainOrderOnConquest", true),
     );
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
+    let neutralStarCount = $state(loadSetting("neutralStarCount", 0));
+    let neutralShipsPerStar = $state(loadSetting("neutralShipsPerStar", 10));
+    let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
+
     let playerConfigs = $state(
         loadSetting(
             "playerConfigs",
@@ -176,6 +180,8 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing,
+            neutralStarCount,
+            specialStarPercentage,
         });
         thumbnailUrl = generateMapThumbnail(stars, connections, { width: 240, height: 135 });
     }
@@ -183,6 +189,7 @@
     $effect(() => {
         // Regenerate when settings change or reshuffle is clicked
         void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void previewSeed;
+        void neutralStarCount; void specialStarPercentage;
         generatePreview();
     });
 
@@ -244,6 +251,9 @@
         saveSetting("starSpacing", starSpacing);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
         saveSetting("allowOpposingOrders", allowOpposingOrders);
+        saveSetting("neutralStarCount", neutralStarCount);
+        saveSetting("neutralShipsPerStar", neutralShipsPerStar);
+        saveSetting("specialStarPercentage", specialStarPercentage);
         saveSetting("playerConfigs", playerConfigs);
         saveSetting("hueOffset", hueOffset);
         saveSetting("tickDuration", tickDuration);
@@ -284,6 +294,9 @@
             starSpacing: starSpacing,
             gameSpeed: tickDuration,
             playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
+            neutralStarCount,
+            neutralShipsPerStar,
+            specialStarPercentage,
         });
 
         GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = selectedMap.mapType === "debug-b";
@@ -564,6 +577,29 @@
                                             <span class="value"
                                                 >{starSpacing.toFixed(1)}x</span
                                             >
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="config-row-3">
+                                    <div class="config-item">
+                                        <label>Special Stars</label>
+                                        <div class="slider-container">
+                                            <input type="range" min="0" max="100" step="5" bind:value={specialStarPercentage} />
+                                            <span class="value">{specialStarPercentage}%</span>
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label>Neutral Stars</label>
+                                        <div class="slider-container">
+                                            <input type="range" min="0" max="50" step="1" bind:value={neutralStarCount} />
+                                            <span class="value">{neutralStarCount}</span>
+                                        </div>
+                                    </div>
+                                    <div class="config-item" style={neutralStarCount === 0 ? "opacity:0.4; pointer-events:none;" : ""}>
+                                        <label>Neutral Ships</label>
+                                        <div class="slider-container">
+                                            <input type="range" min="0" max="100" step="5" bind:value={neutralShipsPerStar} />
+                                            <span class="value">{neutralShipsPerStar}</span>
                                         </div>
                                     </div>
                                 </div>

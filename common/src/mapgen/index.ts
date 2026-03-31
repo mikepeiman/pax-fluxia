@@ -19,7 +19,7 @@ import { generateConnections } from './connections';
  * @returns Positions, connections, and metadata
  */
 export function generateMap(config: MapGenConfig): MapGenResult {
-    const totalStars = config.playerCount * config.starsPerPlayer;
+    const totalStars = config.playerCount * config.starsPerPlayer + (config.extraNeutralStars ?? 0);
 
     const { positions, hexRadius, width, height, paddingX, paddingY } = generateStarPositions({
         width: config.width,

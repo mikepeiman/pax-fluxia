@@ -82,6 +82,7 @@
 | F-169 | **PVV2 renderer revival** — bring PVV2 renderer into modern master and get it working with current architecture. | 🔄 Planned | High | 2026-03-30 |
 | F-170 | **DX equal split tuning** — DX weight currently biases one intervening player; both interveners should split the gap equally. | 🔴 Queued | Medium | 2026-03-30 |
 | F-171 | **Discord community link on landing page** — icon button linking to `https://discord.gg/yQu7X3UXv` in Hero section. | ✅ Done | High | 2026-03-30 |
+| F-172 | **Random map generator enhancements** — UI toggles/sliders for neutral star generation, neutral starting ships, and special star distribution percentage. Star type colors mapped correctly in thumbnail preview. | ✅ Done | High | 2026-03-31 |
 
 ## Known Regressions
 

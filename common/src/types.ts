@@ -99,6 +99,9 @@ export interface GameSettings {
     gameSpeed?: number;
     /** Custom player colors as hex strings (e.g. '#4488ff'). Index 0 = human. */
     playerColors?: string[];
+    neutralStarCount?: number;
+    neutralShipsPerStar?: number;
+    specialStarPercentage?: number;
 }
 
 // === Combat ===

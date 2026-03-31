@@ -44,6 +44,8 @@ export interface MapGenConfig {
     playerCount: number;
     /** Stars allocated per player */
     starsPerPlayer: number;
+    /** Extra neutral stars to generate on top of player stars */
+    extraNeutralStars?: number;
     /** Spacing multiplier (1.0 = physics minimum) */
     spacingMultiplier?: number;
     /** Hex grid cell radius (default 60) */
