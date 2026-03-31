@@ -764,7 +764,7 @@ export function renderPowerVoronoi(
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
             const elapsed = now - s.weightLerpStartTime;
             const rawT = Math.min(1, elapsed / s.weightLerpDurationMs);
-            console.log('[DIAG-WL]', { rawT, elapsed, durationMs: s.weightLerpDurationMs, mode: GAME_CONFIG.VS_TRANSITION_MODE });
+            // console.log('[DIAG-WL]', { rawT, elapsed, durationMs: s.weightLerpDurationMs, mode: GAME_CONFIG.VS_TRANSITION_MODE });
 
             if (rawT >= 1) {
                 // Transition complete — stop, let normal draw take over

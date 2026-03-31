@@ -10,6 +10,17 @@ import { rebuildLoopPoints } from '../../../compiler/buildFrontierTopology';
 import { validateFillFrame } from '../../../devtools/PolygonValidator';
 import { log } from '$lib/utils/logger';
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum absolute area (in world-px²) for a region to be emitted.
+ * Regions below this threshold are degenerate slivers or collapsed loops
+ * and get silently dropped rather than submitted to PIXI for triangulation.
+ */
+const MIN_REGION_AREA = 10;
+
 /**
  * Transition plan holding explicitly the full FrontierTopology rather than
  * rendered polygons, enabling true topological segment ID matching.
@@ -42,12 +53,6 @@ export class FrontierMorphFillMode implements FillTransitionMode {
         const typedPlan = plan as FrontierMorphFillPlan;
         const t = ctx.progress;
 
-        log.renderer('FrontierMorphFill',
-            `sample() t=${t.toFixed(3)} | prevTopo=${typedPlan.previousTopology ? 'ok' : 'MISSING'} nextTopo=${typedPlan.targetTopology ? 'ok' : 'MISSING'}`,
-        );
-
-        const regions: { ownerId: string; points: [number, number][] }[] = [];
-
         if (!typedPlan.previousTopology || !typedPlan.targetTopology) {
             return { regions: [] };
         }
@@ -55,61 +60,105 @@ export class FrontierMorphFillMode implements FillTransitionMode {
         const prevTopology = typedPlan.previousTopology;
         const nextTopology = typedPlan.targetTopology;
 
-        // Group prev loops by owner for matching
-        const prevByOwner = new Map<string, RegionLoop[]>();
+        // ─── Phase 1: Build prev-loop point arrays with centroids ────────
+        // Pre-compute once so we can use them for both section-ID matching
+        // and centroid-proximity fallback matching.
+        const prevByOwner = new Map<string, { loop: RegionLoop; points: [number, number][]; centroid: [number, number] }[]>();
         for (const loop of prevTopology.loops) {
+            const points = rebuildLoopPoints(loop, prevTopology.sections);
+            const centroid = polygonCentroid(points);
+            const entry = { loop, points, centroid };
             const arr = prevByOwner.get(loop.ownerId);
-            if (arr) arr.push(loop); else prevByOwner.set(loop.ownerId, [loop]);
+            if (arr) arr.push(entry); else prevByOwner.set(loop.ownerId, [entry]);
         }
 
         const matchedPrevLoopIds = new Set<string>();
+        const regions: { ownerId: string; points: [number, number][] }[] = [];
 
-        // 1) Process all target loops
+        // ─── Phase 2: Match next loops to prev loops ─────────────────────
+        // Strategy:
+        //   A. First try section-ID matching (shared topological boundary)
+        //   B. Fall back to centroid-proximity matching (nearest same-owner loop)
+        // This prevents connected regions from vanishing/spawning just because
+        // a conquest changed all their section IDs.
         for (const nextLoop of nextTopology.loops) {
-            let sharedSectionId: string | undefined;
-            let bestPrevLoop: RegionLoop | undefined;
+            const nextPoints = rebuildLoopPoints(nextLoop, nextTopology.sections);
+            const nextCentroid = polygonCentroid(nextPoints);
 
-            // Find a prevLoop for the same owner that shares at least one section
+            // --- Strategy A: Section-ID match ---
+            let bestPrevEntry: { loop: RegionLoop; points: [number, number][]; centroid: [number, number] } | undefined;
+            let sharedSectionId: string | undefined;
+
+            const candidates = prevByOwner.get(nextLoop.ownerId) || [];
             for (const nextRef of nextLoop.sectionRefs) {
-                const candidates = prevByOwner.get(nextLoop.ownerId) || [];
-                for (const prevLoop of candidates) {
-                    if (matchedPrevLoopIds.has(prevLoop.id)) continue;
-                    if (prevLoop.sectionRefs.some(r => r.sectionId === nextRef.sectionId)) {
-                        bestPrevLoop = prevLoop;
+                for (const entry of candidates) {
+                    if (matchedPrevLoopIds.has(entry.loop.id)) continue;
+                    if (entry.loop.sectionRefs.some(r => r.sectionId === nextRef.sectionId)) {
+                        bestPrevEntry = entry;
                         sharedSectionId = nextRef.sectionId;
                         break;
                     }
                 }
-                if (bestPrevLoop) break;
+                if (bestPrevEntry) break;
             }
 
-            if (bestPrevLoop && sharedSectionId) {
-                matchedPrevLoopIds.add(bestPrevLoop.id);
+            // --- Strategy B: Centroid-proximity fallback ---
+            // If no shared section found, find the nearest unmatched prev loop
+            // for the same owner by Euclidean centroid distance.
+            if (!bestPrevEntry) {
+                let bestDist = Infinity;
+                for (const entry of candidates) {
+                    if (matchedPrevLoopIds.has(entry.loop.id)) continue;
+                    const dx = entry.centroid[0] - nextCentroid[0];
+                    const dy = entry.centroid[1] - nextCentroid[1];
+                    const dist = dx * dx + dy * dy;
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestPrevEntry = entry;
+                    }
+                }
+            }
 
-                // Use the canonical rebuildLoopPoints (correct junction dedup),
-                // then rotate both to align at the shared section start.
-                const prevPoints = rebuildAndAlign(bestPrevLoop, prevTopology.sections, sharedSectionId);
-                const nextPoints = rebuildAndAlign(nextLoop, nextTopology.sections, sharedSectionId);
+            if (bestPrevEntry) {
+                matchedPrevLoopIds.add(bestPrevEntry.loop.id);
 
-                regions.push({
-                    ownerId: nextLoop.ownerId,
-                    points: otInterpolateAlignedPolygon(prevPoints, nextPoints, t),
-                });
+                if (sharedSectionId) {
+                    // Section-aligned OT interpolation:
+                    // Rotate both polygons so they start at the shared section's
+                    // start vertex, then CDF-sample between them.
+                    const prevAligned = rebuildAndAlign(bestPrevEntry.loop, prevTopology.sections, sharedSectionId);
+                    const nextAligned = rebuildAndAlign(nextLoop, nextTopology.sections, sharedSectionId);
+                    regions.push({
+                        ownerId: nextLoop.ownerId,
+                        points: otInterpolateAlignedPolygon(prevAligned, nextAligned, t),
+                    });
+                } else {
+                    // Centroid-proximity match (no shared section):
+                    // Use raw OT interpolation without section alignment.
+                    // The CDF sampler handles differing vertex counts and positions,
+                    // though without alignment the morph may twist slightly.
+                    regions.push({
+                        ownerId: nextLoop.ownerId,
+                        points: otInterpolateAlignedPolygon(bestPrevEntry.points, nextPoints, t),
+                    });
+                }
             } else {
-                // Pure spawn: no shared topological boundary — grow from centroid
-                const nextPoints = rebuildLoopPoints(nextLoop, nextTopology.sections);
-                const centroid = polygonCentroid(nextPoints);
+                // Pure spawn: truly new region with no prior same-owner territory.
+                // Grow from centroid → full shape over the transition.
                 regions.push({
                     ownerId: nextLoop.ownerId,
                     points: nextPoints.map(([x, y]) => [
-                        centroid[0] + t * (x - centroid[0]),
-                        centroid[1] + t * (y - centroid[1]),
+                        nextCentroid[0] + t * (x - nextCentroid[0]),
+                        nextCentroid[1] + t * (y - nextCentroid[1]),
                     ] as [number, number]),
                 });
             }
         }
 
-        // 2) Process unmatched prev loops (vanishing) — shrink to centroid
+        // ─── Phase 3: Vanishing prev loops (unmatched) ───────────────────
+        // Only loops that truly have no successor should vanish.
+        // After centroid fallback, this should be rare — only when an owner
+        // lost ALL territory.
         for (const prevLoop of prevTopology.loops) {
             if (matchedPrevLoopIds.has(prevLoop.id)) continue;
             const prevPoints = rebuildLoopPoints(prevLoop, prevTopology.sections);
@@ -123,21 +172,27 @@ export class FrontierMorphFillMode implements FillTransitionMode {
             });
         }
 
-        log.renderer('FrontierMorphFill',
-            `sample done: ${regions.length} regions (matched=${matchedPrevLoopIds.size} spawning=${regions.length - matchedPrevLoopIds.size})`,
-        );
+        // ─── Phase 4: Filter degenerate regions ──────────────────────────
+        // Drop regions with near-zero area or too few points.
+        // These are collapsed slivers from degenerate topology loops that
+        // produce visual artifacts and crash earcut.
+        const validRegions = regions.filter(r => {
+            if (r.points.length < 3) return false;
+            const area = Math.abs(shoelaceArea(r.points));
+            return area >= MIN_REGION_AREA;
+        });
 
-        // Dev validation — logs warnings for degenerate polygons
+        // ─── Phase 5: Dev validation ─────────────────────────────────────
         if (import.meta.env.DEV) {
-            const { invalidCount } = validateFillFrame(regions, `t=${t.toFixed(3)}`, true);
+            const { invalidCount } = validateFillFrame(validRegions, `t=${t.toFixed(3)}`, true);
             if (invalidCount > 0) {
                 log.renderer('FrontierMorphFill',
-                    `WARNING: ${invalidCount}/${regions.length} regions are invalid at t=${t.toFixed(3)}`,
+                    `WARNING: ${invalidCount}/${validRegions.length} regions invalid at t=${t.toFixed(3)}`,
                 );
             }
         }
 
-        return { regions };
+        return { regions: validRegions };
     }
 }
 
@@ -201,7 +256,6 @@ function rebuildAndAlign(
     return [...points.slice(rotationOffset), ...points.slice(0, rotationOffset)];
 }
 
-
 /**
  * OT-interpolate two open (non-closed) polygons at progress t.
  * Uses perimeter CDF sampling — vertex counts can differ between prev/next.
@@ -234,6 +288,21 @@ function otInterpolateAlignedPolygon(
     }
 
     return result;
+}
+
+/**
+ * Shoelace area for an open polygon (no closing duplicate expected).
+ * Positive = clockwise (standard screen coords), negative = counterclockwise.
+ */
+function shoelaceArea(points: readonly [number, number][]): number {
+    let area = 0;
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += points[i][0] * points[j][1];
+        area -= points[j][0] * points[i][1];
+    }
+    return area / 2;
 }
 
 function buildPerimeterCDF(points: [number, number][]): Float64Array {
