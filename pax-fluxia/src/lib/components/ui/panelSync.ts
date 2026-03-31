@@ -261,10 +261,10 @@ export function recalcAnimLocksOnAnimSpeedChange(
 // ── Tier Persistence ────────────────────────────────────────────────────────
 
 export function loadTier(): 'basic' | 'advanced' | 'developer' {
-    if (typeof window === 'undefined') return 'basic';
+    if (typeof window === 'undefined') return 'developer';
     const s = localStorage.getItem(TIER_STORAGE_KEY);
-    if (s === 'advanced' || s === 'developer') return s;
-    return 'basic';
+    if (s === 'basic' || s === 'advanced') return s;
+    return 'developer';
 }
 
 export function saveTier(tier: string): void {

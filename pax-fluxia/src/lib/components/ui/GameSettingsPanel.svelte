@@ -860,8 +860,8 @@
 </script>
 
 <div class="controls-panel" use:nudgeSliders>
-    <!-- Tier Toggle -->
-    <div class="tier-bar">
+    <!-- Tier Toggle (hidden — F-164: show all sections by default) -->
+    <div class="tier-bar" style="display: none;">
         {#each ["basic", "advanced", "developer"] as const as tier}
             <button
                 class="tier-pill"
