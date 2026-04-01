@@ -1440,7 +1440,10 @@ export function exportDY4GeometrySnapshot(
     const merged = type === 'current' ? lastMergedTerritories : prevMergedTerritories;
     const borders = type === 'current' ? targetSharedPolylines : prevSharedPolylines;
 
-    if (!merged || !borders) return null;
+    if (!merged || !borders) {
+        console.warn(`[exportDY4GeometrySnapshot] Returning null for '${type}'. merged=${!!merged}, borders=${!!borders}`);
+        return null;
+    }
 
     return {
         version,

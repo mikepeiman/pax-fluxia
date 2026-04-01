@@ -75,11 +75,11 @@
     import {
         renderPowerVoronoi as renderPowerVoronoiModule,
         resetPowerVoronoiCache,
+        exportPowerVoronoiGeometrySnapshot,
     } from "$lib/renderers/PowerVoronoiRenderer";
     import {
         renderPVV2DY4 as renderPVV2DY4Module,
         resetPVV2DY4Cache,
-        exportDY4GeometrySnapshot,
     } from "$lib/renderers/PowerVoronoiRenderer_DY4";
     import {
         renderPVV3 as renderPVV3Module,
@@ -1588,9 +1588,11 @@
             processTickEvents(stars, tickEvents, connections || [], starsById);
 
             // Export local rendering states if snapshot recording is enabled
-            if (tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled()) {
-                const prevGeometry = exportDY4GeometrySnapshot("previous", "dy4:prev", "dy4:prev");
-                const nextGeometry = exportDY4GeometrySnapshot("current", "dy4:next", "dy4:next");
+            const willCapture = tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled();
+            if (willCapture) {
+                const prevGeometry = exportPowerVoronoiGeometrySnapshot("previous", "dy4:prev", "dy4:prev");
+                const nextGeometry = exportPowerVoronoiGeometrySnapshot("current", "dy4:next", "dy4:next");
+                console.log(`[GameCanvas] DY4 Snapshot attempt: conquests=${tickEvents.conquests.length}, prev=${!!prevGeometry}, next=${!!nextGeometry}`);
                 
                 if (prevGeometry && nextGeometry) {
                     const owners = new Map();
@@ -1611,8 +1613,8 @@
                         selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
                         nowMs: fxOrchestrator.gameTime,
                         starPositions: starPos,
-                        worldWidth: GAME_CONFIG.GAME_WIDTH || 1000,
-                        worldHeight: GAME_CONFIG.GAME_HEIGHT || 1000
+                        worldWidth: GAME_WIDTH,
+                        worldHeight: GAME_HEIGHT
                     });
                 }
             }
