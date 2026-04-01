@@ -79,6 +79,7 @@
     import {
         renderPVV2DY4 as renderPVV2DY4Module,
         resetPVV2DY4Cache,
+        exportDY4GeometrySnapshot,
     } from "$lib/renderers/PowerVoronoiRenderer_DY4";
     import {
         renderPVV3 as renderPVV3Module,
