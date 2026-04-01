@@ -1587,7 +1587,7 @@
             processTickEvents(stars, tickEvents, connections || [], starsById);
 
             // Export local rendering states if snapshot recording is enabled
-            if (activeMode === "territory_engine" && tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled()) {
+            if (tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled()) {
                 const prevGeometry = exportDY4GeometrySnapshot("previous", "dy4:prev", "dy4:prev");
                 const nextGeometry = exportDY4GeometrySnapshot("current", "dy4:next", "dy4:next");
                 
@@ -1597,19 +1597,21 @@
                     const starPos = new Map();
                     stars.forEach((s) => starPos.set(s.id, { x: s.x, y: s.y }));
                     
+                    const conquestsMap = tickEvents.conquests.map(c => ({ ...c, atMs: fxOrchestrator.gameTime }));
+
                     transitionSnapshotRecorder.capture({
-                        conquestEvents: tickEvents.conquests,
+                        conquestEvents: conquestsMap,
                         previousGeometry: prevGeometry,
                         nextGeometry: nextGeometry,
-                        previousOwnership: { version: "1", starOwners: owners, contestedLaneIds: [], conquestEvents: tickEvents.conquests, virtualStars: [] },
-                        nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: tickEvents.conquests, virtualStars: [] },
-                        transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any },
+                        previousOwnership: { version: "1", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
+                        nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
+                        transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any, geometryVersion: "1" },
                         fillPlan: null,
                         selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
                         nowMs: fxOrchestrator.gameTime,
                         starPositions: starPos,
-                        worldWidth: GAME_CONFIG.GAME_WIDTH,
-                        worldHeight: GAME_CONFIG.GAME_HEIGHT
+                        worldWidth: GAME_CONFIG.GAME_WIDTH || 1000,
+                        worldHeight: GAME_CONFIG.GAME_HEIGHT || 1000
                     });
                 }
             }
