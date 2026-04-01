@@ -1424,3 +1424,74 @@ export function resetPVV2DY4Cache(): void {
         borderGraphics = null;
     }
 }
+
+// ── Diagnostics Export ──────────────────────────────────────────────────────
+
+/**
+ * Synthesizes a CanonicalGeometrySnapshot from the internal DY4 cache state.
+ * This satisfies the TransitionSnapshotRecorder's requirement for canvas rendering
+ * without needing the DY4 pipeline to run a full geometry compiler.
+ */
+export function exportDY4GeometrySnapshot(
+    type: 'current' | 'previous',
+    version: string,
+    ownershipVersion: string
+): import('../territory/contracts/GeometryContracts').CanonicalGeometrySnapshot | null {
+    const merged = type === 'current' ? lastMergedTerritories : prevMergedTerritories;
+    const borders = type === 'current' ? targetSharedPolylines : prevSharedPolylines;
+
+    if (!merged || !borders) return null;
+
+    return {
+        version,
+        sourceMode: 'unified_vector',
+        sourceStyle: 'canonical' as any,
+        ownershipVersion,
+        geometryFamily: 'vector-native',
+        sourceMethod: 'power_voronoi',
+        territoryRegions: merged.map((m, i) => ({
+            regionId: `region_${m.ownerId}_${i}`,
+            ownerId: m.ownerId,
+            points: m.points,
+            area: 0,
+            bounds: { x: 0, y: 0, width: 0, height: 0 },
+            confidence: 1.0,
+        })),
+        frontierPolylines: borders.map((b, i) => {
+            const [ownerA, ownerB] = b.ownerPairKey.split('|');
+            return {
+                frontierId: `frontier_${b.ownerPairKey}_${i}`,
+                ownerA,
+                ownerB,
+                ownerPairKey: b.ownerPairKey,
+                points: b.points,
+                confidence: 1.0,
+            };
+        }),
+        worldBorderPolylines: [],
+        sharedFrontierMap: new Map(),
+        frontierTopology: {
+            version,
+            ownershipVersion,
+            worldBounds: { width: 0, height: 0 },
+            vertices: new Map(),
+            sections: new Map(),
+            loops: [],
+            sectionsByOwnerPair: new Map(),
+            sectionsByVertex: new Map(),
+            sectionsByOwner: new Map(),
+        },
+        shells: [],
+        shellLoops: [],
+        provenance: {
+            derivedFromField: false,
+            notes: ['Synthesized from PowerVoronoiRenderer_DY4 cache'],
+        },
+        diagnostics: {
+            topologyReliable: false,
+            identityReliable: false,
+            closureReliable: true,
+            notes: ['Generated locally from DY4 output cache for legacy transition snapshotting'],
+        }
+    };
+}

@@ -101,6 +101,7 @@
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
+    import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
 
     // ============================================================================
     // PixiJS Application
@@ -1584,6 +1585,35 @@
             // Existing event processing (transfers, conquests, combat log, etc.)
             starsInCombat.clear();
             processTickEvents(stars, tickEvents, connections || [], starsById);
+
+            // Export local rendering states if snapshot recording is enabled
+            if (activeMode === "territory_engine" && tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled()) {
+                const prevGeometry = exportDY4GeometrySnapshot("previous", "dy4:prev", "dy4:prev");
+                const nextGeometry = exportDY4GeometrySnapshot("current", "dy4:next", "dy4:next");
+                
+                if (prevGeometry && nextGeometry) {
+                    const owners = new Map();
+                    stars.forEach((s) => owners.set(s.id, s.ownerId));
+                    const starPos = new Map();
+                    stars.forEach((s) => starPos.set(s.id, { x: s.x, y: s.y }));
+                    
+                    transitionSnapshotRecorder.capture({
+                        conquestEvents: tickEvents.conquests,
+                        previousGeometry: prevGeometry,
+                        nextGeometry: nextGeometry,
+                        previousOwnership: { version: "1", starOwners: owners, contestedLaneIds: [], conquestEvents: tickEvents.conquests, virtualStars: [] },
+                        nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: tickEvents.conquests, virtualStars: [] },
+                        transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any },
+                        fillPlan: null,
+                        selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
+                        nowMs: fxOrchestrator.gameTime,
+                        starPositions: starPos,
+                        worldWidth: GAME_CONFIG.GAME_WIDTH,
+                        worldHeight: GAME_CONFIG.GAME_HEIGHT
+                    });
+                }
+            }
+
             // Record game-time at tick boundary for tickProgress computation
             lastTickGameTimeMs = fxOrchestrator.gameTime;
 
