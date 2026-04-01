@@ -41,6 +41,12 @@ export const FILL_TRANSITION_MODE_CATALOG: Readonly<
         summary:
             'Morphs fill geometry along frontier topology progression during ownership changes.',
     },
+    active_front: {
+        id: 'active_front',
+        name: 'Active Front Interpolation',
+        summary:
+            'Gap-free transitions by interpolating only changed frontier spans in the shared frontier graph, then rebuilding region loops from frozen + interpolated sections.',
+    },
     crossfade: {
         id: 'crossfade',
         name: 'Alpha Crossfade Fill',

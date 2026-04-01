@@ -1,5 +1,6 @@
 import type { BorderTransitionMode } from './BorderTransitionMode';
 import type { FillTransitionMode } from './FillTransitionMode';
+import { ActiveFrontFillMode } from './modes/ActiveFrontFillMode';
 import { AlphaCrossfadeFillMode } from './modes/AlphaCrossfadeFillMode';
 import { FrontierTopologyMorphFillMode } from './modes/FrontierTopologyMorphFillMode';
 import { OptimalTransportCorrespondenceBorderMode } from './modes/OptimalTransportCorrespondenceBorderMode';
@@ -7,6 +8,7 @@ import { RopeInterpolatedBorderMode } from './modes/RopeInterpolatedBorderMode';
 
 export const FILL_TRANSITION_MODES: readonly FillTransitionMode[] = [
     new FrontierTopologyMorphFillMode(),
+    ActiveFrontFillMode, // object literal, not a class — implements FillTransitionMode directly
     new AlphaCrossfadeFillMode(),
 ];
 

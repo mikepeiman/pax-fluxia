@@ -4,7 +4,8 @@ export type GeometryModeId =
     | 'unified_vector'; // Unified Vector Geometry — sole canonical mode
 
 export type FillTransitionModeId =
-    | 'frontier_morph' // Frontier Topology Morph Fill
+    | 'frontier_morph' // Frontier Topology Morph Fill (legacy OT — broken)
+    | 'active_front'   // Active Front Interpolation (gap-free frontier-graph surgery)
     | 'crossfade' // Alpha Crossfade Fill
     | 'off';
 

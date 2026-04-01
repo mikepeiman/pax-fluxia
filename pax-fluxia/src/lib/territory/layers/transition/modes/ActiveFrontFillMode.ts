@@ -52,19 +52,19 @@
 //     as the next topology; we only move the points that lie on changed
 //     frontiers, and we move them consistently for both owners of the frontier.
 
-import {
+import type {
     FrontierTopology,
     FrontierSection,
     RegionLoop,
     SectionRef,
-} from 'contracts/FrontierTopologyContracts'; // paths may differ in your repo[file:316]
-import {
+} from '../../../contracts/FrontierTopologyContracts';
+import type {
     FillTransitionMode,
     FillTransitionPlan,
     FillTransitionPlanInput,
     FillTransitionFrame,
     TransitionSampleContext,
-} from 'contracts/TransitionContracts'; // subset you shared[file:316]
+} from '../../../contracts/TransitionContracts';
 
 // ---------------------------------------------------------------------------
 // Small geometry helpers
@@ -378,7 +378,8 @@ function sectionPointsWithOrientation(
 // PLAN: build ActiveFrontFillPlan
 // ---------------------------------------------------------------------------
 
-const ACTIVE_FRONT_MODE_ID = 'active_front_interpolation' as any; // cast to FillTransitionModeId
+// Mode ID must match the FillTransitionModeId union string in TerritoryModeSelection.ts
+const ACTIVE_FRONT_MODE_ID = 'active_front' as const;
 
 // Tuning constants.
 // Fronts with mean per‑vertex movement below this threshold will be
@@ -591,7 +592,8 @@ export const ActiveFrontFillMode: FillTransitionMode = {
     // SAMPLE: build one FillTransitionFrame at time t
     // -------------------------------------------------------------------------
 
-    sample(plan: ActiveFrontFillPlan, ctx: TransitionSampleContext): FillTransitionFrame {
+    sample(basePlan: FillTransitionPlan, ctx: TransitionSampleContext): FillTransitionFrame {
+        const plan = basePlan as ActiveFrontFillPlan;
         const { nextTopology, fronts, sectionSpans } = plan;
         const t = Math.min(Math.max(ctx.progress, 0), 1);
 
