@@ -195,7 +195,22 @@ export async function downloadBundle(
     );
     triggerDownload(topologyBlob, `${prefix}_topology.json`);
 
-    console.log(`[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + meta.json + topology.json)`);
+    // geometry.json — full prev/next GeometrySnapshot (including regions and bounds).
+    // Specifically crucial for legacy pipeline testing where topology is empty.
+    const geometryBlob = new Blob(
+        [JSON.stringify({
+            conquestEvents: bundle.context.conquestEvents,
+            previousGeometry: bundle.context.previousGeometry,
+            nextGeometry: bundle.context.nextGeometry
+        }, (k, v) => {
+            if (v instanceof Map) return Object.fromEntries(v);
+            return v;
+        }, 2)],
+        { type: 'application/json' },
+    );
+    triggerDownload(geometryBlob, `${prefix}_geometry_snapshot.json`);
+
+    console.log(`[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + meta.json + topology.json + geometry_snapshot.json)`);
 }
 
 /**
