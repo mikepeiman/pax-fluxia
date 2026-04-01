@@ -1602,6 +1602,7 @@
                     
                     const conquestsMap = tickEvents.conquests.map(c => ({ ...c, atMs: fxOrchestrator.gameTime }));
 
+                    transitionSnapshotRecorder.setColorResolver((ownerId: string) => colorUtils.getPlayerColor(ownerId));
                     transitionSnapshotRecorder.capture({
                         conquestEvents: conquestsMap,
                         previousGeometry: prevGeometry,
