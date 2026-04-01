@@ -54,7 +54,7 @@ When removing, renaming, or commenting out any symbol:
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
-- **Chat log**: `.agent/WIP Work-In-Progress/CHAT_YYYY-MM-DD.md`
+**Chat log rule**:Chat logs must be LOSSLESS and COMPLETE. Do NOT summarize any human-written input. You may summarize or truncate logs and diagnostic machine content, but do not summarize or truncate any human-written input.
 
 ---
 

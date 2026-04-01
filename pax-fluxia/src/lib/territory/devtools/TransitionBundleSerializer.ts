@@ -5,8 +5,50 @@
 // Bundles now contain HTMLCanvasElement (rendered from geometry data),
 // not ImageBitmap (captured from PIXI canvas).
 
-import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
+import type { TransitionDebugBundle, SnapshotCaptureContext } from './TransitionSnapshotRecorder';
+import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
+
+// ── Topology Serializer Helper ───────────────────────────────────────────────
+// Converts FrontierTopology (which uses ReadonlyMap for vertices/sections) into
+// a plain JSON-serializable object for download and external agent review.
+
+function serializeFrontierTopology(topo: FrontierTopology | undefined | null) {
+    if (!topo) return null;
+    return {
+        version: topo.version,
+        ownershipVersion: topo.ownershipVersion,
+        worldBounds: topo.worldBounds,
+        vertexCount: topo.vertices.size,
+        sectionCount: topo.sections.size,
+        loopCount: topo.loops.length,
+        vertices: [...topo.vertices.values()],
+        sections: [...topo.sections.values()].map(s => ({
+            ...s,
+            // Trim point arrays to 10 for readability; full arrays are large
+            points: s.points,
+        })),
+        loops: topo.loops,
+        sectionsByOwnerPair: [...topo.sectionsByOwnerPair.entries()],
+    };
+}
+
+/**
+ * Serialize prev + next FrontierTopology from a SnapshotCaptureContext
+ * into a plain object suitable for JSON download.
+ */
+function serializeTopologyPair(ctx: SnapshotCaptureContext) {
+    return {
+        conquestEvents: ctx.conquestEvents,
+        prevTopology: serializeFrontierTopology(
+            ctx.previousGeometry?.frontierTopology ?? null,
+        ),
+        nextTopology: serializeFrontierTopology(
+            ctx.nextGeometry?.frontierTopology ?? null,
+        ),
+    };
+}
+
 
 // ── Canvas-to-Blob Helpers ──────────────────────────────────────────────────
 
@@ -144,7 +186,16 @@ export async function downloadBundle(
     );
     triggerDownload(metaBlob, `${prefix}_meta.json`);
 
-    console.log(`[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + meta.json)`);
+    // topology.json — full prev/next FrontierTopology for external debugging.
+    // Serializes vertices, sections, and loop structure so an external agent
+    // can inspect the exact topology diff for a bad conquest case.
+    const topologyBlob = new Blob(
+        [JSON.stringify(serializeTopologyPair(bundle.context), null, 2)],
+        { type: 'application/json' },
+    );
+    triggerDownload(topologyBlob, `${prefix}_topology.json`);
+
+    console.log(`[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + meta.json + topology.json)`);
 }
 
 /**
