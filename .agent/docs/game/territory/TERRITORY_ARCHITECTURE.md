@@ -25,13 +25,11 @@ Ownership → Geometry → Transition → Presentation
 | **Presentation** | Drawing to screen. PIXI.Graphics fills, strokes, visual style. | `PVV2RendererState` | **Style** dropdown |
 
 > [!IMPORTANT]
-> Fill Transition and Border Transition are **independently selectable** sub-concerns within the Transition layer.
-> They operate on different data (fill polygons vs border polylines) but must remain **temporally synchronized** —
 > fills must follow borders at every frame during transition, never snapping ahead or lagging behind.
 
 ### The 4-Axis UI Model
 
-The Territory Presentation section has 4 independent dropdowns:
+The Territory Presentation section has 4 independent dropdowns - the following shows some concrete implementations, but none of these are sacrosanct and all are subject to change. The goal is still a singular reliable geometry-transition-presentation pipeline upon which we can layer additional styles and modes.
 
 | Dropdown | Selects | Options |
 |----------|---------|---------|
@@ -44,17 +42,16 @@ The Territory Presentation section has 4 independent dropdowns:
 
 All 4 are independently selectable. This is the intended design — 4 distinct mode selections.
 
-### DY4 Split
+### Split
 
-DY4 Optimal Transport is split across two layers:
+Optimal Transport is split across two layers:
 
 | Component | Layer | Dropdown | ID |
 |-----------|-------|----------|----|
-| Border transition algorithm | Transition | Border Transition | `DY4_OT_borders` |
-| Fill transition algorithm | Transition | Fill Transition | `DY4_OT_fill` |
-| Visual rendering style | Presentation | Style | `DY4_styles` |
+| Border transition algorithm | Transition | Border Transition | `OT_borders` |
+| Fill transition algorithm | Transition | Fill Transition | `OT_fill` |
 
-DY4 remains **SACROSANCT** — do not alter its behavior without explicit user approval.
+Visual rendering style | Presentation is distinct from the transition algorithms - though this is open to change.
 
 ---
 
@@ -114,7 +111,7 @@ FXOrchestrator
 
 **Target state:** Territory transitions become `FXHandler<ConquestEvent>` implementations registered with the `FXRegistry`.
 
-#### Data Flow
+#### Data Flow - current thinking (subject to change)
 
 ```
 ConquestEvent fires

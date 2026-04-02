@@ -128,9 +128,3 @@ Star data packed into RGBA8 texture (MAX_STARS × 4 rows):
 | `TERRITORY_TRANSITION_MS` | float | 400 | Morph animation duration |
 
 ## 8. Open Bugs
-
-| ID | Issue |
-|----|-------|
-| B-37 | Two-pass renderer alignment bug — root cause partially identified (content-bounds overwrite) but other factors exist |
-| B-35 | Vector borders (Pass 3) not rendering — PIXI v8 `extract.pixels()` is async |
-| DX | Disconnect produces 0 sites across all distance values — Union-Find or filtering logic bug |
