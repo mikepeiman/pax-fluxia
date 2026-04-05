@@ -57,11 +57,8 @@ interface MergedTerritory {
 
 // ΓöÇΓöÇ Cache ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-// ── Investigation Isolation Flags (Phase 2) ──────────────────────────────────
-// Set one at a time to isolate transition branches. Default: all false.
-const DY4_DISABLE_FILL_CROSSFADE = false;      // Pass A1: disable fill alpha crossfade
-const DY4_DISABLE_BORDER_TRANSITION = false;    // Pass A2: disable border animation overlays
-const DY4_FORCE_TRANSITION_START = false;       // Pass A3: force transition even if prev is null
+    // ── Investigation Isolation Flags (Phase 2) ──────────────────────────────────
+    // Wired to GAME_CONFIG.DEBUG_DY4_* for UI toggling.
 
 let cachedShapeFingerprint = '';
 let cachedVisualFingerprint = '';
@@ -937,7 +934,7 @@ export function renderPVV2DY4(
     }
 
     // ΓöÇΓöÇ Per-frame fill crossfade (mode-independent) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    if (isFillTransitioning && !DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+    if (isFillTransitioning && !GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -963,7 +960,7 @@ export function renderPVV2DY4(
     }
 
     // Segment mode: chain lerped edges into polylines, render via canonical draw
-    if (boundaryMode === 'segment' && isBorderTransitioning && !DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
+    if (boundaryMode === 'segment' && isBorderTransitioning && !GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1027,7 +1024,7 @@ export function renderPVV2DY4(
     }
 
     // Smooth mode: contested shared border polyline morph
-    if (boundaryMode === 'smooth' && isSmoothTransitioning && !DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
+    if (boundaryMode === 'smooth' && isSmoothTransitioning && !GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
         const elapsed = now - smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1294,7 +1291,7 @@ export function renderPVV2DY4(
     }
 
     // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
-    if (isFillTransitioning && !DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && transitionMs > 0) {
+    if (isFillTransitioning && !GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1403,7 +1400,7 @@ export function renderPVV2DY4(
         }
 
         // Fill crossfade (mode-independent)
-        if (DY4_FORCE_TRANSITION_START && !prevMergedTerritories) {
+        if (GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START && !prevMergedTerritories) {
             prevMergedTerritories = merged; // Pass A3: bootstrap prev from current
             prevEnclaveMap = enclaveMap;
         }

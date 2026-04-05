@@ -342,6 +342,11 @@ interface GameConfigType {
     DEBUG_MORPH_VERTEX_NTH: number;       // Show label on every Nth vertex (1=all, 10=every 10th, default 10)
     DEBUG_MORPH_VERTEX_COLOR_MODE: string; // Vertex dot color mode: 'pinmorph' | 'owner' | 'neutral'
     DEBUG_MORPH_VERTEX_LABELS: boolean;    // Draw numeric index labels on vertex dots (default true)
+    
+    // ── DY4 Transition Isolation (F-138) ──────────────────────────────────────
+    DEBUG_DY4_DISABLE_FILL_CROSSFADE: boolean;
+    DEBUG_DY4_DISABLE_BORDER_TRANSITION: boolean;
+    DEBUG_DY4_FORCE_TRANSITION_START: boolean;
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
@@ -1172,6 +1177,12 @@ const _rawConfig: GameConfigType = {
     DEBUG_MORPH_VERTEX_COLOR_MODE: 'pinmorph' as string,
     /** Draw numeric index labels on vertex dots */
     DEBUG_MORPH_VERTEX_LABELS: true,
+    
+    // ── DY4 Transition Isolation (F-138) ──────────────────────────────────────
+    DEBUG_DY4_DISABLE_FILL_CROSSFADE: false,
+    DEBUG_DY4_DISABLE_BORDER_TRANSITION: false,
+    DEBUG_DY4_FORCE_TRANSITION_START: false,
+    
     /** Enable Metaball territory renderer */
     TERRITORY_METABALL: false,
     /** Enable Pixel (nearest-neighbor) territory renderer */

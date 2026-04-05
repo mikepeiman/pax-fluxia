@@ -25,6 +25,10 @@
     let showLabels = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true);
     let conquestRadius = $state(GAME_CONFIG.MORPH_CONQUEST_RADIUS ?? 300);
 
+    let dy4DisableFillCrossfade = $state(GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE ?? false);
+    let dy4DisableBorderTransition = $state(GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION ?? false);
+    let dy4ForceTransitionStart = $state(GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START ?? false);
+
     function toggleLabels() {
         showLabels = !showLabels;
         GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS = showLabels;
@@ -220,6 +224,33 @@
         >{conquestRadius === 0 ? "off" : `${conquestRadius}px`}</span
     >
 </div>
+
+<h4 class="sub-heading">🕵️ DY4 Transition Isolation</h4>
+
+<label class="toggle-row">
+    <input type="checkbox" checked={dy4DisableFillCrossfade} onchange={() => {
+        dy4DisableFillCrossfade = !dy4DisableFillCrossfade;
+        updatePanel('debugDy4DisableFillCrossfade', dy4DisableFillCrossfade);
+    }} />
+    <span>Disable Fill Crossfade</span>
+    <span class="debug-hint">Skip A-Z alpha morphing</span>
+</label>
+<label class="toggle-row">
+    <input type="checkbox" checked={dy4DisableBorderTransition} onchange={() => {
+        dy4DisableBorderTransition = !dy4DisableBorderTransition;
+        updatePanel('debugDy4DisableBorderTransition', dy4DisableBorderTransition);
+    }} />
+    <span>Disable Border Transition</span>
+    <span class="debug-hint">Snap immediately</span>
+</label>
+<label class="toggle-row">
+    <input type="checkbox" checked={dy4ForceTransitionStart} onchange={() => {
+        dy4ForceTransitionStart = !dy4ForceTransitionStart;
+        updatePanel('debugDy4ForceTransitionStart', dy4ForceTransitionStart);
+    }} />
+    <span>Force Transition Start</span>
+    <span class="debug-hint">Override condition checks</span>
+</label>
 
 <!-- Current Transition MS readout -->
 <div class="readout">

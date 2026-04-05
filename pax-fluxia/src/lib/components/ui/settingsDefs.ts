@@ -295,6 +295,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territoryVoronoi', configKey: 'TERRITORY_VORONOI' },
     { panelKey: 'territoryMetaball', configKey: 'TERRITORY_METABALL' },
     { panelKey: 'territoryPixel', configKey: 'TERRITORY_PIXEL' },
+    // DY4 Isolation
+    { panelKey: 'debugDy4DisableFillCrossfade', configKey: 'DEBUG_DY4_DISABLE_FILL_CROSSFADE' },
+    { panelKey: 'debugDy4DisableBorderTransition', configKey: 'DEBUG_DY4_DISABLE_BORDER_TRANSITION' },
+    { panelKey: 'debugDy4ForceTransitionStart', configKey: 'DEBUG_DY4_FORCE_TRANSITION_START' },
     // Territory invariants (MSR / CX / DX)
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
     { panelKey: 'corridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
