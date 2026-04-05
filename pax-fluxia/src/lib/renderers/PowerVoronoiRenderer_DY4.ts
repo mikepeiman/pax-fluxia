@@ -1274,7 +1274,7 @@ export function renderPVV2DY4(
     log.sys('PowerVoronoi', `Merged to ${merged.length} territories`);
 
     // ΓöÇΓöÇ Stage 4: Render Fills ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    if (!fillGraphics) {
+    if (!fillGraphics || fillGraphics.destroyed) {
         fillGraphics = new PIXI.Graphics();
         voronoiContainer.addChild(fillGraphics);
     }
@@ -1320,7 +1320,7 @@ export function renderPVV2DY4(
 
     // Borders ΓÇö smoothed shared edges via canonical drawBorderPolylines
     if (borderWidth > 0 && borderAlpha > 0) {
-        if (!borderGraphics) {
+        if (!borderGraphics || borderGraphics.destroyed) {
             borderGraphics = new PIXI.Graphics();
             voronoiContainer.addChild(borderGraphics);
         }

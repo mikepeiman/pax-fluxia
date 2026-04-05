@@ -1351,7 +1351,7 @@ export function renderPowerVoronoi(
 
 
     // ── Stage 4: Render Fills ──────────────────────────────────────────────
-    if (!s.fillGraphics) {
+    if (!s.fillGraphics || s.fillGraphics.destroyed) {
         s.fillGraphics = new PIXI.Graphics();
         voronoiContainer.addChild(s.fillGraphics);
     }
