@@ -60,6 +60,9 @@ When removing, renaming, or commenting out any symbol:
 
 ## 3. Code Standards
 
+### 3.0 Debugging and Troubleshooting
+- stop assuming root causes, instrument first, isolate branches, then diagnose.
+
 ### 3.1 Logging
 No raw `console.log`. Use Visual Telemetry:
 ```ts

@@ -57,6 +57,12 @@ interface MergedTerritory {
 
 // ΓöÇΓöÇ Cache ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
+// ── Investigation Isolation Flags (Phase 2) ──────────────────────────────────
+// Set one at a time to isolate transition branches. Default: all false.
+const DY4_DISABLE_FILL_CROSSFADE = false;      // Pass A1: disable fill alpha crossfade
+const DY4_DISABLE_BORDER_TRANSITION = false;    // Pass A2: disable border animation overlays
+const DY4_FORCE_TRANSITION_START = false;       // Pass A3: force transition even if prev is null
+
 let cachedShapeFingerprint = '';
 let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
@@ -897,11 +903,30 @@ export function renderPVV2DY4(
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
 
-    // Re-show graphics ΓÇö voronoiContainer blanket-hides every frame
+    // Re-show graphics — voronoiContainer blanket-hides every frame
     if (fillGraphics) fillGraphics.visible = true;
     if (borderGraphics) borderGraphics.visible = true;
 
-    // ΓöÇΓöÇ Per-frame animation (both modes) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── DY4 per-frame transition trace ───────────────────────────────────────
+    if (isFillTransitioning || isSmoothTransitioning || isBorderTransitioning) {
+        log.renderer('DY4:TRACE', JSON.stringify({
+            fillActive: isFillTransitioning,
+            smoothBorderActive: isSmoothTransitioning,
+            segmentBorderActive: isBorderTransitioning,
+            prevFillCount: prevMergedTerritories?.length ?? 0,
+            targetFillCount: lastMergedTerritories?.length ?? 0,
+            prevBorderCount: prevSharedPolylines?.length ?? 0,
+            targetBorderCount: targetSharedPolylines?.length ?? 0,
+            fillAuthorities: (isFillTransitioning ? 1 : 0) + 1,
+            elapsed: {
+                fill: isFillTransitioning ? Math.round(now - fillTransitionStart) : null,
+                smooth: isSmoothTransitioning ? Math.round(now - smoothTransitionStart) : null,
+                segment: isBorderTransitioning ? Math.round(now - borderTransitionStart) : null,
+            },
+        }));
+    }
+
+    // ── Per-frame animation (both modes) ──────────────────────────────────────
     const boundaryMode = GAME_CONFIG.TERRITORY_BOUNDARY_MODE ?? 'smooth';
 
     // Throttled mode log ΓÇö only on state change
@@ -912,7 +937,7 @@ export function renderPVV2DY4(
     }
 
     // ΓöÇΓöÇ Per-frame fill crossfade (mode-independent) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    if (isFillTransitioning && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
+    if (isFillTransitioning && !DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && lastMergedTerritories && fillGraphics && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -938,7 +963,7 @@ export function renderPVV2DY4(
     }
 
     // Segment mode: chain lerped edges into polylines, render via canonical draw
-    if (boundaryMode === 'segment' && isBorderTransitioning && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
+    if (boundaryMode === 'segment' && isBorderTransitioning && !DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1002,7 +1027,7 @@ export function renderPVV2DY4(
     }
 
     // Smooth mode: contested shared border polyline morph
-    if (boundaryMode === 'smooth' && isSmoothTransitioning && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
+    if (boundaryMode === 'smooth' && isSmoothTransitioning && !DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevSharedPolylines && targetSharedPolylines) {
         const elapsed = now - smoothTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1269,7 +1294,7 @@ export function renderPVV2DY4(
     }
 
     // Fill crossfade: during transition, draw prev fills fading out + target fills fading in
-    if (isFillTransitioning && prevMergedTerritories && transitionMs > 0) {
+    if (isFillTransitioning && !DY4_DISABLE_FILL_CROSSFADE && prevMergedTerritories && transitionMs > 0) {
         const elapsed = now - fillTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
@@ -1378,13 +1403,29 @@ export function renderPVV2DY4(
         }
 
         // Fill crossfade (mode-independent)
+        if (DY4_FORCE_TRANSITION_START && !prevMergedTerritories) {
+            prevMergedTerritories = merged; // Pass A3: bootstrap prev from current
+            prevEnclaveMap = enclaveMap;
+        }
         if (prevMergedTerritories && prevMergedTerritories.length > 0) {
             fillTransitionStart = now;
             isFillTransitioning = true;
             log.renderer('PVV2', `FILL CROSSFADE STARTED | prev=${prevMergedTerritories.length} target=${merged.length}`);
         }
     }
-    log.renderer('PVV2', `ΓùÇ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
+    // ── DY4 conquest-start trace ──────────────────────────────────────────────
+    log.renderer('DY4:CONQUEST', JSON.stringify({
+        fillStarted: isFillTransitioning,
+        smoothStarted: isSmoothTransitioning,
+        segmentStarted: isBorderTransitioning,
+        prevFillWasNull: prevMergedTerritories === null,
+        prevBordersWasNull: prevSharedPolylines === null,
+        shapeChanged,
+        transitionMs,
+        fillCount: merged.length,
+        borderPolylineCount: targetSharedPolylines?.length ?? 0,
+    }));
+    log.renderer('PVV2', `■ rebuild complete | total=${(performance.now() - now).toFixed(1)}ms`);
 }
 
 // ΓöÇΓöÇ Cache Reset ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ

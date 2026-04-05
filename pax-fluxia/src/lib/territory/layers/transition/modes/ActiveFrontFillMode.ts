@@ -475,6 +475,15 @@ export const ActiveFrontFillMode: FillTransitionMode = {
                     usedPrev.add(bestPrevIndex);
                 }
 
+                // ── ActiveFront correspondence trace ─────────────────
+                console.log('[ActiveFront:MATCH]', JSON.stringify({
+                    ownerPairKey,
+                    nextChainLen: nextChain.length,
+                    prevChainLen: prevChains.length,
+                    matchedPrevIdx: bestPrevIndex,
+                    matchedDist: bestPrevDist === Infinity ? 'none' : bestPrevDist.toFixed(1),
+                }));
+
                 // 3. Concatenate the NEXT chain's sections into one frontier polyline,
                 //    while remembering the index span for each section.
                 const nextPoints: Vec2[] = [];
@@ -585,6 +594,14 @@ export const ActiveFrontFillMode: FillTransitionMode = {
             sectionSpans,
         };
 
+        // ── ActiveFront plan summary trace ────────────────────────
+        console.log('[ActiveFront:PLAN]', JSON.stringify({
+            totalOwnerPairs: ownerPairKeys.size,
+            activeFronts: fronts.length,
+            sectionSpans: sectionSpans.size,
+            prevTopologyExists: !!prevTopology,
+        }));
+
         return plan;
     },
 
@@ -685,6 +702,35 @@ export const ActiveFrontFillMode: FillTransitionMode = {
                 points: loopPoints,
             });
         }
+
+        // ── ActiveFront per-frame trace + winding diagnostics ────
+        let windingFlips = 0;
+        for (const loop of nextTopology.loops) {
+            const region = regions.find(r => r.ownerId === loop.ownerId);
+            if (!region) continue;
+            const actualArea = signedArea(region.points);
+            const expectedSign = loop.sectionRefs.length > 0 ? 1 : -1; // CW expected for outer
+            if ((actualArea > 0) !== (expectedSign > 0)) {
+                windingFlips++;
+                console.warn('[ActiveFront:WINDING]', JSON.stringify({
+                    loopId: loop.id,
+                    ownerId: loop.ownerId,
+                    actualArea: actualArea.toFixed(1),
+                    sectionCount: loop.sectionRefs.length,
+                    t: t.toFixed(3),
+                }));
+            }
+        }
+        console.log('[ActiveFront:FRAME]', JSON.stringify({
+            t: t.toFixed(3),
+            activeFronts: fronts.length,
+            interpolatedSections: sectionGeometry.size,
+            totalSections: nextTopology.sections.size,
+            emittedRegions: regions.length,
+            expectedLoops: nextTopology.loops.length,
+            droppedLoops: nextTopology.loops.length - regions.length,
+            windingFlips,
+        }));
 
         return { regions };
     },

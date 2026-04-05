@@ -154,6 +154,21 @@ export class TransitionLayerCoordinator {
             borderFrame = buildEmptyBorderFrame();
         }
 
+        // ── CLR per-frame transition trace ───────────────────────────────
+        const pathUsed = activeTopologyPlan ? 'topology'
+            : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
+        if (envelope) {
+            log.renderer('CLR:TRACE', JSON.stringify({
+                pathUsed,
+                progress: envelope.progress.toFixed(3),
+                regionCount: fillFrame.regions.length,
+                borderCount: borderFrame.frontiers.length,
+                hasNewConquests,
+                hasGeometryDelta,
+                topologyPathEnabled: TOPOLOGY_PATH_ENABLED,
+            }));
+        }
+
         if (envelope && envelope.progress >= 1) {
             envelope = null;
             activeFillPlan = null;
