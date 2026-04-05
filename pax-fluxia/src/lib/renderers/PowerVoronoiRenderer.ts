@@ -760,6 +760,25 @@ export function renderPowerVoronoi(
 
         _fillPath = `smooth-anim|wl=${s.weightLerpActive}|splice=${!!(s.activeTransitionPlan?.plansByTerritoryId?.size)}|shape=${!!s.activeShapeTransitionHandler}|rope=${!!s.activeRopeRenderer}`;
 
+        // Transition Frame Tracing
+        if (s.weightLerpActive || s.isSmoothTransitioning || s.isBorderTransitioning) {
+            log.renderer('DY4:TRACE', JSON.stringify({
+                frame: 'transition',
+                fillActive: s.weightLerpActive,
+                smoothBorderActive: s.isSmoothTransitioning,
+                segmentBorderActive: s.isBorderTransitioning,
+                prevFillCount: s.weightLerpPrevWeights?.size ?? 0,
+                targetFillCount: s.weightLerpTargetWeights?.size ?? 0,
+                prevBorderCount: s.prevSharedPolylines?.length ?? 0,
+                targetBorderCount: s.targetSharedPolylines?.length ?? 0,
+                elapsed: {
+                    fill: s.weightLerpActive ? (now - (s.weightLerpStartTime ?? 0)) : null,
+                    smooth: s.isSmoothTransitioning ? (now - (s.smoothTransitionStart ?? 0)) : null,
+                    segment: s.isBorderTransitioning ? (now - (s.borderTransitionStart ?? 0)) : null,
+                },
+            }));
+        }
+
         // ── Ghost-Site Weight-Lerp Transition: recompute Voronoi each frame ──
         if (s.weightLerpActive && s.weightLerpStars && s.weightLerpConfig && s.weightLerpPrevWeights && s.weightLerpTargetWeights) {
             const elapsed = now - s.weightLerpStartTime;
@@ -778,7 +797,8 @@ export function renderPowerVoronoi(
                 s.activeShapeTransitionHandler = null;
                 s.activeBorderTransitionHandler = null;
                 log.sys('TMAP-WeightLerp', `GHOST TRANSITION COMPLETE | duration=${elapsed.toFixed(0)}ms`);
-            } else {
+            } else if (!GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE) {
+                // A1: Expose crossfade logic behind isolation boolean
                 // ── Mode-dependent easing + ghost strategy ──
                 const mode = GAME_CONFIG.VS_TRANSITION_MODE ?? 'no_loser';
                 let tConquest: number;
@@ -979,7 +999,7 @@ export function renderPowerVoronoi(
                 if (s.weightLerpActive) {
                     // ── Dying Island Dissolution ──
                     // Draw any island territories that are shrinking to their center point
-                    if (s.dyingIslands.length > 0) {
+                    if (s.dyingIslands.length > 0 && !GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE) {
                         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
                         s.dyingIslands = s.dyingIslands.filter(island => {
                             const islandElapsed = now - island.startTime;
@@ -1434,6 +1454,15 @@ export function renderPowerVoronoi(
             if (GAME_CONFIG.VS_BIND_TO_TICK && wlTransitionMs > tickMs) {
                 wlTransitionMs = tickMs;
             }
+
+            log.renderer('DY4:CONQUEST', JSON.stringify({
+                fillStarted: true,
+                smoothStarted: true,
+                segmentStarted: false,
+                prevFillCount: s.lastMergedTerritories?.length ?? 0,
+                transitionMs: wlTransitionMs,
+            }));
+
             // console.log('[DIAG-DURATION]', { baseDuration, wlTransitionMs, tickMs });
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
             const wlDefaultWeight = wlStarMargin * wlStarMargin;
@@ -1592,6 +1621,12 @@ export function renderPowerVoronoi(
             s.activeBorderTransitionHandler = null;
             log.sys('TMAP-WeightLerp', `GHOST TRANSITION | conquered=${[...s.changedSiteIds].join(',')} ghosts=${ghostSites.length} duration=${wlTransitionMs}ms`);
         }
+        
+        // A3: Force start even if null, though handled differently here
+        if (GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START) {
+            log.sys('PVV2', 'A3: DEBUG_DY4_FORCE_TRANSITION_START triggered');
+        }
+
         // Segment mode
         if (s.prevBorderEdges && s.prevBorderEdges.length > 0) {
             s.borderTransitionStart = now;
@@ -1619,7 +1654,7 @@ export function renderPowerVoronoi(
             const overshoot = GAME_CONFIG.BORDER_TRANS_OVERSHOOT ?? 1.7;
             log.renderer('PVV2', `TRANSITION STARTED | mode=${borderTransMode} easing=${easing} resampleN=${resampleN} overshoot=${overshoot.toFixed(2)} prev=${s.prevSharedPolylines.length} target=${s.targetSharedPolylines.length} | transitionMs=${transitionMs}`);
 
-            if (borderTransMode === 'pixi_mesh_rope') {
+            if (borderTransMode === 'pixi_mesh_rope' && !GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION) {
                 const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
                 s.activeRopeRenderer = new RopeBorderRenderer(s.prevSharedPolylines, s.targetSharedPolylines, easing, resampleN, borderWidth, overshoot);
                 s.activeRopeRenderer.addTo(voronoiContainer);
