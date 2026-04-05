@@ -91,6 +91,9 @@
 | R-1 | Territory rendering (all modes) regressed during mobile layout work | 🔴 Active | 2026-03-02 |
 | R-2 | Audio settings (conquest sounds, toggles) not persisting across reload | 🔴 Active | 2026-03-02 |
 | R-3 | Segment-based transitions cause massive region movement and severe lag/stalls | 🔴 Active | 2026-03-30 |
+| B-61 | **DY4 ghost fill on conquest** — shrinking copy of old territory fill appears overlaid on normal fill during conquest animation. Caused by alpha crossfade drawing overlapping prev+next fill polygons simultaneously onto same Graphics layer. See `PowerVoronoiRenderer_DY4.ts` lines 915–938 and 1271–1297. | 🔴 Active | 2026-04-04 |
+| B-62 | **DY4 snap-vs-animate inconsistency** — some conquests animate smoothly, others snap instantly. `prevMergedTerritories`/`prevSharedPolylines` are null on first conquest after mode switch or fast consecutive conquests, causing transition start guards to fail. `PowerVoronoiRenderer_DY4.ts` lines 1366–1386. | 🔴 Active | 2026-04-04 |
+| B-63 | **CLR territory flipping/rotating on conquest** — during conquest animation, territory regions flip or rotate. `ActiveFrontFillMode.ts` centroid-matching (lines 457–476) mismatches front chains when conquest significantly shifts map geometry. Also: `TOPOLOGY_PATH_ENABLED = false` in `TransitionLayerCoordinator.ts` disables unified topology sampling. | 🔴 Active | 2026-04-04 |
 
 
 ## Known Bugs (F-138 Territory Pipeline)

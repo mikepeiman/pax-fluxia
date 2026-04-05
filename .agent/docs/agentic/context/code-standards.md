@@ -50,12 +50,6 @@ When user provides terminology: adopt it immediately. Rename code to match user'
 - Use barrel exports (`index.ts`) for clean import paths
 - Move shared game logic to `common/` package
 
-### Known Violations (Tracked)
-- `GameCanvas.svelte` — needs component extraction
-- `MainMenu.svelte` — extract sub-panels
-- `GameRoom.ts` — should import from `common/`, not duplicate
-- `GameEngine.ts` — check line count
-
 ---
 
 ## Logging API
@@ -93,7 +87,7 @@ Only exception: `logger.ts` files themselves may use `console.log`.
 ## Refactoring Rules
 
 ### Before Any Rename/Refactor
-1. Run `bun tools/pax-find.ts --refs <name>` (or `grep_search`) for ALL references
+1. Run `bun tools/pax-find.ts --refs <name>` (or MCP `atlas-harness` tools) for ALL references
 2. Fix ALL occurrences in one edit, not incrementally
 3. After changes, re-run to confirm no stale references remain
 
