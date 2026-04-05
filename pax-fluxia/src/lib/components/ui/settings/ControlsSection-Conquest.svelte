@@ -455,27 +455,6 @@
         <option value="linear">Linear (all linear)</option>
     </select>
 </div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Animation Timing</span><span class="val"
-            >{panel.territoryTransitionMs ??
-                GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2000"
-        step="50"
-        value={panel.territoryTransitionMs ??
-            GAME_CONFIG.TERRITORY_TRANSITION_MS}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.TERRITORY_TRANSITION_MS = v;
-            updatePanel("territoryTransitionMs", v);
-        }}
-    />
-</div>
 {#each VS_SLIDERS as slider}
     <div class="var-row" class:locked={animLockModes[slider.key] != null}>
         <div class="row-top">

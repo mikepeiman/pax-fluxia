@@ -105,6 +105,8 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_SPEED', label: 'Arrow Speed', min: 0.1, max: 10, step: 0.05, unit: '×', group: 'Arrow Formation' },
     { key: 'ARROW_SPIRAL_DURATION_MS', label: 'Spiral Duration', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Arrow Formation' },
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
+    // Territory Transition
+    { key: 'TERRITORY_TRANSITION_MS', label: 'Canonical Anim', min: 0, max: 2000, step: 10, unit: 'ms', group: 'Territory Transition', desc: 'Animation duration for the canonical (or DY4) territory transition geometry pipeline.' },
     // VS Transition (F-165) — rendered in Conquest panel, not Timing
     { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the attacker\'s virtual star takes to travel from the attacking star to the conquered star. Longer = slower territory expansion animation.' },
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },

@@ -94,6 +94,7 @@
 | B-61 | **DY4 ghost fill on conquest** — shrinking copy of old territory fill appears overlaid on normal fill during conquest animation. Caused by alpha crossfade drawing overlapping prev+next fill polygons simultaneously onto same Graphics layer. See `PowerVoronoiRenderer_DY4.ts` lines 915–938 and 1271–1297. | 🔴 Active | 2026-04-04 |
 | B-62 | **DY4 snap-vs-animate inconsistency** — some conquests animate smoothly, others snap instantly. `prevMergedTerritories`/`prevSharedPolylines` are null on first conquest after mode switch or fast consecutive conquests, causing transition start guards to fail. `PowerVoronoiRenderer_DY4.ts` lines 1366–1386. | 🔴 Active | 2026-04-04 |
 | B-63 | **CLR territory flipping/rotating on conquest** — during conquest animation, territory regions flip or rotate. `ActiveFrontFillMode.ts` centroid-matching (lines 457–476) mismatches front chains when conquest significantly shifts map geometry. Also: `TOPOLOGY_PATH_ENABLED = false` in `TransitionLayerCoordinator.ts` disables unified topology sampling. | 🔴 Active | 2026-04-04 |
+| B-64 | **DY4 Reference mode fills and borders misaligned** — The "PVV2 DY4 Restored (Reference 8dce88c)" mode has superior border transition animation compared to the Canonical pipeline, but the fills and borders do not align. The Canonical pipeline needs to preserve this reference transition's timing and logic, and we need a slider added to the Timing Panel to test it. | 🔴 Active | 2026-04-04 |
 
 
 ## Known Bugs (F-138 Territory Pipeline)

@@ -11,6 +11,7 @@
  */
 
 import type { Star, Connection } from '@pax/common';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import { log } from '$lib/utils/logger';
 import { TerritoryCompiler } from '../compiler/TerritoryCompiler';
 import { planTransition } from '../compiler/TerritoryTransitionPlanner';
@@ -126,9 +127,9 @@ export class TerritoryEngineController {
             return;
         }
 
-        // Plan transition if we have a previous state
-        if (this.currentState) {
-            const prevState = this.currentState;
+        // Plan transition if we have a previous state (or forced by debug flag)
+        if (this.currentState || GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START) {
+            const prevState = this.currentState || newState;
             newState.transitionActive = true;
 
             const plan = planTransition(prevState, newState, nowMs, this.transitionDurationMs);
@@ -137,6 +138,13 @@ export class TerritoryEngineController {
                 this.currentTransitionPlan = null;
             } else {
                 this.currentTransitionPlan = plan as TransitionPlan;
+                log.renderer('DY4:CONQUEST', JSON.stringify({
+                    fillStarted: true,
+                    smoothStarted: true,
+                    segmentStarted: false,
+                    prevFillWasNull: !this.currentState,
+                    transitionMs: this.transitionDurationMs,
+                }));
             }
         } else {
             this.currentTransitionPlan = null;
