@@ -1576,10 +1576,18 @@ export function renderPowerVoronoi(
 
                     // Capture the old island territory polygon for dissolution animation
                     if (s.lastMergedTerritories) {
-                        const islandTerritory = s.lastMergedTerritories.find(mt =>
-                            mt.ownerId === prevOwnerId &&
-                            mt.points.length > 2
-                        );
+                        const islandTerritory = s.lastMergedTerritories.find(mt => {
+                            if (mt.ownerId !== prevOwnerId || mt.points.length < 3) return false;
+                            let inside = false;
+                            const x = conqueredStar.x, y = conqueredStar.y;
+                            for (let i = 0, j = mt.points.length - 1; i < mt.points.length; j = i++) {
+                                const xi = mt.points[i][0], yi = mt.points[i][1];
+                                const xj = mt.points[j][0], yj = mt.points[j][1];
+                                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                                if (intersect) inside = !inside;
+                            }
+                            return inside;
+                        });
                         if (islandTerritory) {
                             // Compute centroid of the island polygon
                             let cx = 0, cy = 0;
