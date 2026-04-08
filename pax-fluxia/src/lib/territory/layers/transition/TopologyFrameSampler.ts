@@ -168,23 +168,12 @@ export function sampleTopologyFrame(
         interpolatedSections.set(sectionId, interpolateSection(entry, t));
     }
 
-    // ── Step 2: Build border frame from interpolated sections ────────────
+    // ── Step 2: Border frame ────────────────────────────────────────────
+    // Borders come from fill polygon strokes (same points, guaranteed alignment).
+    // Emitting individual section polylines as separate borders creates
+    // double-rendering with seam artifacts at junctions. Keep borderFrame
+    // empty — consistent with the static rendering path.
     const borderFrontiers: { ownerPairKey: string; points: [number, number][] }[] = [];
-
-    for (const [sectionId, entry] of plan.sections) {
-        // Skip dying sections at high t (they collapse to nothing)
-        if (entry.kind === 'dying' && t > 0.95) continue;
-        // Skip world borders from border frame (but keep for fills)
-        if (entry.ownerPairKey.includes('world')) continue;
-
-        const pts = interpolatedSections.get(sectionId);
-        if (pts && pts.length >= 2) {
-            borderFrontiers.push({
-                ownerPairKey: entry.ownerPairKey,
-                points: pts,
-            });
-        }
-    }
 
     // ── Step 3: Build fill frame from interpolated sections via loops ────
     const fillRegions: { ownerId: string; points: [number, number][] }[] = [];
@@ -217,7 +206,7 @@ export function sampleTopologyFrame(
 
     return {
         fillFrame: { regions: fillRegions },
-        borderFrame: { frontiers: borderFrontiers },
+        borderFrame: { frontiers: [] },
     };
 }
 
@@ -236,19 +225,7 @@ function buildStaticFrame(
         }
     }
 
-    // Border frame
-    const borderFrontiers: { ownerPairKey: string; points: [number, number][] }[] = [];
-    for (const [sectionId, entry] of plan.sections) {
-        const pts = sections.get(sectionId);
-        if (pts && pts.length >= 2 && !entry.ownerPairKey.includes('world')) {
-            // Skip dying sections for 'next', born for 'prev'
-            if (which === 'next' && entry.kind === 'dying') continue;
-            if (which === 'prev' && entry.kind === 'born') continue;
-            borderFrontiers.push({ ownerPairKey: entry.ownerPairKey, points: pts });
-        }
-    }
-
-    // Fill frame
+    // Fill frame (borders come from fill polygon strokes — no separate border frame)
     const fillRegions: { ownerId: string; points: [number, number][] }[] = [];
     for (const loopEntry of plan.loops) {
         const refs = which === 'prev' ? loopEntry.prevSectionRefs : loopEntry.nextSectionRefs;
@@ -264,6 +241,6 @@ function buildStaticFrame(
 
     return {
         fillFrame: { regions: fillRegions },
-        borderFrame: { frontiers: borderFrontiers },
+        borderFrame: { frontiers: [] },
     };
 }

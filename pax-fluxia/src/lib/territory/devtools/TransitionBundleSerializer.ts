@@ -2,53 +2,18 @@
 // Converts TransitionDebugBundle → downloadable files.
 // Uses canvas.toBlob() for PNG encoding and <a download> for file saving.
 //
-// Bundles now contain HTMLCanvasElement (rendered from geometry data),
+// Bundles contain HTMLCanvasElement (rendered from geometry data),
 // not ImageBitmap (captured from PIXI canvas).
+//
+// JSON exports use compact serializers (downsampled polylines) to keep files usable.
 
-import type { TransitionDebugBundle, SnapshotCaptureContext } from './TransitionSnapshotRecorder';
-import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
+import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
-
-// ── Topology Serializer Helper ───────────────────────────────────────────────
-// Converts FrontierTopology (which uses ReadonlyMap for vertices/sections) into
-// a plain JSON-serializable object for download and external agent review.
-
-function serializeFrontierTopology(topo: FrontierTopology | undefined | null) {
-    if (!topo) return null;
-    return {
-        version: topo.version,
-        ownershipVersion: topo.ownershipVersion,
-        worldBounds: topo.worldBounds,
-        vertexCount: topo.vertices.size,
-        sectionCount: topo.sections.size,
-        loopCount: topo.loops.length,
-        vertices: [...topo.vertices.values()],
-        sections: [...topo.sections.values()].map(s => ({
-            ...s,
-            // Trim point arrays to 10 for readability; full arrays are large
-            points: s.points,
-        })),
-        loops: topo.loops,
-        sectionsByOwnerPair: [...topo.sectionsByOwnerPair.entries()],
-    };
-}
-
-/**
- * Serialize prev + next FrontierTopology from a SnapshotCaptureContext
- * into a plain object suitable for JSON download.
- */
-function serializeTopologyPair(ctx: SnapshotCaptureContext) {
-    return {
-        conquestEvents: ctx.conquestEvents,
-        prevTopology: serializeFrontierTopology(
-            ctx.previousGeometry?.frontierTopology ?? null,
-        ),
-        nextTopology: serializeFrontierTopology(
-            ctx.nextGeometry?.frontierTopology ?? null,
-        ),
-    };
-}
-
+import {
+    compactGeometrySnapshotForExport,
+    compactFrontierTopologyForExport,
+    filePrefixFromIsoTimestamp,
+} from './snapshotExport';
 
 // ── Canvas-to-Blob Helpers ──────────────────────────────────────────────────
 
@@ -77,8 +42,6 @@ function triggerDownload(blob: Blob, filename: string): void {
         URL.revokeObjectURL(url);
     }, 100);
 }
-
-// ── Canvas-to-ImageBitmap bridge (for overlay compositor) ───────────────────
 
 function canvasToImageBitmap(canvas: HTMLCanvasElement): Promise<ImageBitmap> {
     return createImageBitmap(canvas);
@@ -130,34 +93,45 @@ function buildCompositeSheet(
     return composite;
 }
 
+function serializeTopologyPairCompact(bundle: TransitionDebugBundle) {
+    const ctx = bundle.context;
+    return {
+        conquestEvents: ctx.conquestEvents,
+        exportNote: 'Compact: section points downsampled; use pointsSampled + bounds.',
+        prevTopology: compactFrontierTopologyForExport(
+            ctx.previousGeometry?.frontierTopology ?? null,
+        ),
+        nextTopology: compactFrontierTopologyForExport(
+            ctx.nextGeometry?.frontierTopology ?? null,
+        ),
+    };
+}
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
  * Download a single bundle as individual PNG files + meta.json.
- * Bundles contain clean geometry renders (HTMLCanvasElement), not PIXI captures.
+ * Filenames: `YYYY-MM-DD-hhmmss_...` first, then role; transition frames use `_frame_NN_`.
  */
 export async function downloadBundle(
     bundle: TransitionDebugBundle,
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
-    const prefix = bundle.id;
+    const prefix = filePrefixFromIsoTimestamp(bundle.timestamp);
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
-    // 00-prev-geometry.png — clean previous ownership → geometry render
     if (bundle.prevCanvas) {
-        panels.push({ label: '00 Previous Geometry', canvas: bundle.prevCanvas });
+        panels.push({ label: 'Previous geometry', canvas: bundle.prevCanvas });
         const blob = await canvasToBlob(bundle.prevCanvas);
-        triggerDownload(blob, `${prefix}_00-prev-geometry.png`);
+        triggerDownload(blob, `${prefix}_prev-geometry.png`);
     }
 
-    // 01-next-geometry.png — clean next ownership → geometry render
     if (bundle.nextCanvas) {
-        panels.push({ label: '01 Next Geometry', canvas: bundle.nextCanvas });
+        panels.push({ label: 'Next geometry', canvas: bundle.nextCanvas });
         const blob = await canvasToBlob(bundle.nextCanvas);
-        triggerDownload(blob, `${prefix}_01-next-geometry.png`);
+        triggerDownload(blob, `${prefix}_next-geometry.png`);
     }
 
-    // 02-frontier-diff-overlay.png — next geometry + frontier diff overlay
     if (bundle.nextCanvas) {
         const nextBitmap = await canvasToImageBitmap(bundle.nextCanvas);
         const overlayCanvas = compositeOverlayOnScreenshot(
@@ -167,55 +141,60 @@ export async function downloadBundle(
             starPositions,
         );
         nextBitmap.close();
-        panels.push({ label: '02 Frontier Diff Overlay', canvas: overlayCanvas });
+        panels.push({ label: 'Polyline diff overlay', canvas: overlayCanvas });
         const blob = await canvasToBlob(overlayCanvas);
-        triggerDownload(blob, `${prefix}_02-frontier-diff-overlay.png`);
+        triggerDownload(blob, `${prefix}_frontier-diff-overlay.png`);
     }
 
-    // 03-composite.png — all panels in one image
     if (panels.length > 0) {
         const composite = buildCompositeSheet(panels);
         const blob = await canvasToBlob(composite);
-        triggerDownload(blob, `${prefix}_03-composite.png`);
+        triggerDownload(blob, `${prefix}_composite.png`);
     }
 
-    // meta.json
+    if (bundle.transitionFrames && bundle.transitionFrames.length > 0) {
+        for (let i = 0; i < bundle.transitionFrames.length; i++) {
+            const { progress, canvas: frameCanvas } = bundle.transitionFrames[i];
+            const pctStr = Math.round(progress * 100).toString().padStart(3, '0');
+            const blob = await canvasToBlob(frameCanvas);
+            triggerDownload(blob, `${prefix}_frame_${String(i).padStart(2, '0')}_t${pctStr}.png`);
+            await new Promise(resolve => setTimeout(resolve, 80));
+        }
+    }
+
     const metaBlob = new Blob(
         [JSON.stringify(bundle.meta, null, 2)],
         { type: 'application/json' },
     );
     triggerDownload(metaBlob, `${prefix}_meta.json`);
 
-    // topology.json — full prev/next FrontierTopology for external debugging.
-    // Serializes vertices, sections, and loop structure so an external agent
-    // can inspect the exact topology diff for a bad conquest case.
-    const topologyBlob = new Blob(
-        [JSON.stringify(serializeTopologyPair(bundle.context), null, 2)],
-        { type: 'application/json' },
-    );
+    const topologyObj = serializeTopologyPairCompact(bundle);
+    const topologyStr = JSON.stringify(topologyObj, null, 2);
+    const topologyBlob = new Blob([topologyStr], { type: 'application/json' });
     triggerDownload(topologyBlob, `${prefix}_topology.json`);
 
-    // geometry.json — full prev/next GeometrySnapshot (including regions and bounds).
-    // Specifically crucial for legacy pipeline testing where topology is empty.
-    const geometryBlob = new Blob(
-        [JSON.stringify({
-            conquestEvents: bundle.context.conquestEvents,
-            previousGeometry: bundle.context.previousGeometry,
-            nextGeometry: bundle.context.nextGeometry
-        }, (k, v) => {
-            if (v instanceof Map) return Object.fromEntries(v);
-            return v;
-        }, 2)],
-        { type: 'application/json' },
-    );
-    triggerDownload(geometryBlob, `${prefix}_geometry_snapshot.json`);
+    const compactGeo = {
+        exportKind: 'compact' as const,
+        polylineDiffSemantics: bundle.meta.polylineDiffSemantics,
+        conquestEvents: bundle.context.conquestEvents,
+        previousGeometry: compactGeometrySnapshotForExport(bundle.context.previousGeometry ?? null),
+        nextGeometry: compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+    };
+    const geometryStr = JSON.stringify(compactGeo, (k, v) => {
+        if (v instanceof Map) return Object.fromEntries(v);
+        return v;
+    }, 2);
 
-    console.log(`[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + meta.json + topology.json + geometry_snapshot.json)`);
+    triggerDownload(
+        new Blob([geometryStr], { type: 'application/json' }),
+        `${prefix}_geometry_snapshot.json`,
+    );
+
+    console.log(
+        `[SnapshotRecorder] downloaded bundle: ${prefix} (${panels.length} panels + json; compact geo ~${geometryStr.length} chars)`,
+    );
 }
 
-/**
- * Download all bundles sequentially.
- */
 export async function downloadAllBundles(
     bundles: readonly TransitionDebugBundle[],
     starPositions: ReadonlyMap<string, { x: number; y: number }>,

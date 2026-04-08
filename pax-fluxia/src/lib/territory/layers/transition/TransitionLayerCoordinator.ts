@@ -12,10 +12,10 @@ import { SharedTransitionClock } from './SharedTransitionClock';
 import { FILL_TRANSITION_MODE_BY_ID } from './registry';
 import { planFillTransition } from './planners/TerritoryTransitionPlanner';
 import {
-    buildFrontierTransitionPlan,
-    type FrontierTransitionPlan,
-} from './planners/FrontierTopologyPlanner';
-import { sampleTopologyFrame } from './TopologyFrameSampler';
+    planActiveFrontTransition,
+    sampleActiveFrontTransition,
+    type ActiveFrontTransitionPlan,
+} from './ActiveFrontTransition';
 import { log } from '$lib/utils/logger';
 
 export interface TransitionCoordinatorInput {
@@ -27,13 +27,17 @@ export interface TransitionCoordinatorInput {
     previousGeometry?: GeometrySnapshot | null;
     previousTransition?: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
-    activeTopologyPlan?: FrontierTransitionPlan | null;
+    activeFrontPlan?: ActiveFrontTransitionPlan | null;
+    /** Prev topology snapshot preserved from when the transition started. */
+    transitionPrevTopology?: import('../../contracts/FrontierTopologyContracts').FrontierTopology | null;
 }
 
 export interface TransitionCoordinatorResult {
     snapshot: TransitionSnapshot;
     activeFillPlan: FillTransitionPlan | null;
-    activeTopologyPlan?: FrontierTransitionPlan | null;
+    activeFrontPlan?: ActiveFrontTransitionPlan | null;
+    /** Prev topology to keep alive for the duration of the transition. */
+    transitionPrevTopology?: import('../../contracts/FrontierTopologyContracts').FrontierTopology | null;
 }
 
 function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionFrame {
@@ -53,7 +57,7 @@ export class TransitionLayerCoordinator {
 
     compute(input: TransitionCoordinatorInput): TransitionCoordinatorResult {
         let activeFillPlan = input.activeFillPlan;
-        let activeTopologyPlan = input.activeTopologyPlan ?? null;
+        let activeFrontPlan = input.activeFrontPlan ?? null;
 
         const hasNewConquests = input.ownership.conquestEvents.length > 0;
         const hasGeometryDelta =
@@ -61,13 +65,22 @@ export class TransitionLayerCoordinator {
 
         let envelope = input.previousTransition?.envelope ?? null;
 
-        // ── Unified topology path — section-level transitions ────────────
-        // Fills are reconstructed from independently interpolated border
-        // sections. Unchanged sections pass through bit-identical.
-        const TOPOLOGY_PATH_ENABLED = false;
-        const prevTopo = input.previousGeometry?.frontierTopology;
+        // ── Unified active-front path — frontier-chain transitions ───────
+        // Fills are reconstructed from interpolated active-front geometry.
+        // Activated when user selects 'unified_topology' fill transition mode.
+        const TOPOLOGY_PATH_ENABLED = input.selection.fillTransitionMode === 'unified_topology';
         const nextTopo = input.geometry.frontierTopology;
-        const canUseTopologyPath = TOPOLOGY_PATH_ENABLED && !!(prevTopo && nextTopo);
+
+        // For planning (conquest frame): use previousGeometry's topology
+        const planPrevTopo = input.previousGeometry?.frontierTopology;
+        // For sampling (subsequent frames): use the stored topology from when
+        // the transition started — previousGeometry is overwritten every frame
+        // and would point to the NEW topology on frame 2+.
+        let transitionPrevTopology = input.transitionPrevTopology ?? null;
+        const samplePrevTopo = transitionPrevTopology ?? planPrevTopo;
+
+        const canPlanTopologyPath = TOPOLOGY_PATH_ENABLED && !!(planPrevTopo && nextTopo);
+        const canSampleTopologyPath = TOPOLOGY_PATH_ENABLED && !!(samplePrevTopo && nextTopo);
 
         if (hasNewConquests && hasGeometryDelta) {
             envelope = this.clock.buildEnvelope(
@@ -77,20 +90,29 @@ export class TransitionLayerCoordinator {
                 input.ownership.conquestEvents,
             );
 
-            if (canUseTopologyPath) {
-                // ── UNIFIED TOPOLOGY PATH ────────────────────────────────
-                // Fills and borders are derived from the SAME interpolated
-                // border sections. This prevents fill/border divergence.
-                activeTopologyPlan = buildFrontierTransitionPlan(prevTopo, nextTopo);
-                activeFillPlan = null;  // not needed — topology sampler handles both
+            if (canPlanTopologyPath) {
+                // ── UNIFIED ACTIVE-FRONT PATH ───────────────────────────
+                activeFrontPlan = planActiveFrontTransition(planPrevTopo!, nextTopo!, input.ownership);
+                activeFillPlan = null;
+                // Snapshot the prev topology so it survives the state overwrite
+                transitionPrevTopology = planPrevTopo!;
                 log.renderer('TransitionCoordinator',
-                    `Using unified topology path: ${activeTopologyPlan.sections.size} sections`,
+                    `Using unified active-front path: ${activeFrontPlan.fronts.length} fronts` +
+                    ` | prevTopo v=${planPrevTopo!.version.slice(0, 20)} nextTopo v=${nextTopo!.version.slice(0, 20)}`,
                 );
             } else {
                 // ── LEGACY INDEPENDENT PATH (fallback) ───────────────────
-                activeTopologyPlan = null;
+                activeFrontPlan = null;
+                transitionPrevTopology = null;
 
-                if (input.selection.fillTransitionMode !== 'off') {
+                if (TOPOLOGY_PATH_ENABLED) {
+                    log.renderer('TransitionCoordinator',
+                        `Unified topology selected but topology data unavailable ` +
+                        `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
+                    );
+                }
+
+                if (input.selection.fillTransitionMode !== 'off' && !TOPOLOGY_PATH_ENABLED) {
                     const fillMode = FILL_TRANSITION_MODE_BY_ID.get(
                         input.selection.fillTransitionMode,
                     );
@@ -115,7 +137,8 @@ export class TransitionLayerCoordinator {
         if (!hasNewConquests && hasGeometryDelta) {
             envelope = null;
             activeFillPlan = null;
-            activeTopologyPlan = null;
+            activeFrontPlan = null;
+            transitionPrevTopology = null;
         }
 
         if (envelope) {
@@ -126,16 +149,15 @@ export class TransitionLayerCoordinator {
         let fillFrame: FillTransitionFrame;
         let borderFrame: BorderTransitionFrame;
 
-        if (envelope && activeTopologyPlan && nextTopo) {
-            // ── UNIFIED TOPOLOGY SAMPLING ────────────────────────────────
-            // Both fill and border come from the SAME interpolated sections.
-            const result = sampleTopologyFrame(
-                activeTopologyPlan,
+        if (envelope && activeFrontPlan && samplePrevTopo && nextTopo) {
+            // ── UNIFIED ACTIVE-FRONT SAMPLING ───────────────────────────
+            fillFrame = sampleActiveFrontTransition(
+                activeFrontPlan,
+                samplePrevTopo,
                 nextTopo,
                 envelope.progress,
             );
-            fillFrame = result.fillFrame;
-            borderFrame = result.borderFrame;
+            borderFrame = buildEmptyBorderFrame();
         } else {
             // ── LEGACY SAMPLING (independent fill + border) ──────────────
             const fillModeId = activeFillPlan?.sourceMode;
@@ -155,7 +177,7 @@ export class TransitionLayerCoordinator {
         }
 
         // ── CLR per-frame transition trace ───────────────────────────────
-        const pathUsed = activeTopologyPlan ? 'topology'
+        const pathUsed = activeFrontPlan ? 'active_front'
             : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
         if (envelope) {
             log.renderer('CLR:TRACE', JSON.stringify({
@@ -172,7 +194,8 @@ export class TransitionLayerCoordinator {
         if (envelope && envelope.progress >= 1) {
             envelope = null;
             activeFillPlan = null;
-            activeTopologyPlan = null;
+            activeFrontPlan = null;
+            transitionPrevTopology = null;
         }
 
         return {
@@ -183,7 +206,8 @@ export class TransitionLayerCoordinator {
                 borderFrame,
             },
             activeFillPlan,
-            activeTopologyPlan,
+            activeFrontPlan,
+            transitionPrevTopology,
         };
     }
 }

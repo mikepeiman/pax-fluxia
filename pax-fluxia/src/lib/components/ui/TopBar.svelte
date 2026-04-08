@@ -11,9 +11,10 @@
         onSettingsClick?: () => void;
         onHelpClick?: () => void;
         onFitViewport?: () => void;
+        onDebugPanelClick?: () => void;
     }
 
-    let { onSettingsClick, onHelpClick, onFitViewport }: Props = $props();
+    let { onSettingsClick, onHelpClick, onFitViewport, onDebugPanelClick }: Props = $props();
 
     const isInGame = $derived(gameStore.currentView === "game");
     const isInMenu = $derived(gameStore.currentView === "menu");
@@ -89,6 +90,13 @@
         {/if}
     </div>
 </div>
+
+<!-- Debug panel button — fixed bottom-right, left of fit-to-viewport -->
+{#if onDebugPanelClick}
+    <button class="debug-fab" onclick={onDebugPanelClick} title="Transition Debug Panel">
+        ◈
+    </button>
+{/if}
 
 <!-- Fit-to-viewport button — fixed bottom-right, left of help -->
 {#if onFitViewport}
@@ -246,6 +254,34 @@
         border-color: rgba(0, 255, 255, 0.4);
         background: rgba(20, 20, 30, 0.9);
         box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+    }
+
+    /* Debug panel FAB — left of fit-to-viewport */
+    .debug-fab {
+        position: fixed;
+        bottom: 20px;
+        right: 108px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(20, 20, 30, 0.7);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(200, 180, 255, 0.5);
+        font-size: 1.05rem;
+        cursor: pointer;
+        z-index: 200;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .debug-fab:hover {
+        color: rgba(200, 180, 255, 1);
+        border-color: rgba(180, 130, 255, 0.5);
+        background: rgba(20, 20, 30, 0.9);
+        box-shadow: 0 0 12px rgba(180, 130, 255, 0.2);
     }
 
     /* Fit-to-viewport FAB — left of help */

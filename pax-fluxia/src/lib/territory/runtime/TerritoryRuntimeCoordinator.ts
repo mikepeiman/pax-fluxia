@@ -22,6 +22,7 @@ export interface TerritoryRuntimeOutput {
     ownership: OwnershipSnapshot;
     geometry: GeometrySnapshot;
     transition: TransitionSnapshot;
+    activeFrontPlan: import('../layers/transition/ActiveFrontTransition').ActiveFrontTransitionPlan | null;
     presentation: TerritoryPresentationFrame;
     diagnostics: TerritoryRuntimeDiagnostics;
 }
@@ -155,7 +156,8 @@ export class TerritoryRuntimeCoordinator {
             previousGeometry: this.state.previousGeometry,
             previousTransition: this.state.previousTransition,
             activeFillPlan: this.state.activeFillPlan,
-            activeTopologyPlan: this.state.activeTopologyPlan,
+            activeFrontPlan: this.state.activeFrontPlan,
+            transitionPrevTopology: this.state.transitionPrevTopology,
             selection: input.selection,
         });
 
@@ -196,6 +198,9 @@ export class TerritoryRuntimeCoordinator {
                 nextOwnership: ownership,
                 transition: transition.snapshot,
                 fillPlan: transition.activeFillPlan,
+                activeFrontPlan: transition.activeFrontPlan ?? null,
+                prevFrontierTopology: this.state.previousGeometry?.frontierTopology ?? null,
+                nextFrontierTopology: geometry.frontierTopology ?? null,
                 selection: input.selection,
                 nowMs: input.nowMs,
                 starPositions,
@@ -232,7 +237,8 @@ export class TerritoryRuntimeCoordinator {
             previousGeometry: geometry,
             previousTransition: transition.snapshot,
             activeFillPlan: transition.activeFillPlan,
-            activeTopologyPlan: transition.activeTopologyPlan ?? null,
+            activeFrontPlan: transition.activeFrontPlan ?? null,
+            transitionPrevTopology: transition.transitionPrevTopology ?? null,
         };
 
         diagnostics.finishedAtMs = Date.now();
@@ -241,6 +247,7 @@ export class TerritoryRuntimeCoordinator {
             ownership,
             geometry,
             transition: transition.snapshot,
+            activeFrontPlan: transition.activeFrontPlan ?? null,
             presentation,
             diagnostics,
         };

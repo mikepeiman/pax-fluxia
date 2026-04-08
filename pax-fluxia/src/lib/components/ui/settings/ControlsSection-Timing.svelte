@@ -2,6 +2,11 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { ANIM_SLIDERS } from "../settingsDefs";
+
+    const TT_SLIDER_KEY = "TERRITORY_TRANSITION_MS";
+    /** Sliders rendered below Animation Speed; Conquest Transition is shown first (leading block). */
+    const ANIM_SLIDERS_TIMING = ANIM_SLIDERS.filter((s) => s.key !== TT_SLIDER_KEY);
+    const conquestTransitionSlider = ANIM_SLIDERS.find((s) => s.key === TT_SLIDER_KEY);
     import {
         recalcAnimLocksOnTickChange,
         recalcAnimLocksOnAnimSpeedChange,
@@ -78,6 +83,10 @@
                 GAME_CONFIG.ANIMATION_SPEED_MS = v;
                 updatePanel("animSpeed", v);
             }
+            // Territory conquest transition duration follows tick when bound
+            if (panel.territoryTransitionBindToTick) {
+                setAnimValue(TT_SLIDER_KEY, v);
+            }
         }}
     />
 </div>
@@ -136,9 +145,101 @@
     />
 </div>
 
+<!-- Conquest territory transition — directly under tick + animation speed (persisted via panel + CONFIG_TO_PANEL_KEY) -->
+{#if conquestTransitionSlider}
+    <div
+        class="var-row grayed"
+        style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"
+    >
+        🎬 {conquestTransitionSlider.group}
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Bind Conquest Transition → Tick</span>
+            <label class="toggle-switch">
+                <input
+                    type="checkbox"
+                    checked={panel.territoryTransitionBindToTick}
+                    onchange={(e) => {
+                        const v = (e.target as HTMLInputElement).checked;
+                        GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK = v;
+                        updatePanel("territoryTransitionBindToTick", v);
+                        if (v) {
+                            setAnimValue(TT_SLIDER_KEY, GAME_CONFIG.BASE_TICK_MS);
+                        }
+                    }}
+                />
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+    <div
+        class="var-row"
+        class:locked={animLockModes[TT_SLIDER_KEY] != null ||
+            panel.territoryTransitionBindToTick}
+    >
+        <div class="row-top">
+            <span class="var-name">{conquestTransitionSlider.label}</span>
+            <span class="val-group">
+                <span class="val"
+                    >{formatAnimValue(
+                        getAnimValue(TT_SLIDER_KEY),
+                        conquestTransitionSlider.unit ?? "",
+                    )}</span
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[TT_SLIDER_KEY] === "pinned"}
+                    title={animLockModes[TT_SLIDER_KEY] === "pinned"
+                        ? "Pinned to tick duration — click to unpin"
+                        : "Pin value = tick duration"}
+                    onclick={() => pinValueToTickDuration(TT_SLIDER_KEY)}>🕐</button
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[TT_SLIDER_KEY] === "ratio"}
+                    title={animLockModes[TT_SLIDER_KEY] === "ratio"
+                        ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}×tick — click to unlock`
+                        : "Lock current ratio to tick"}
+                    onclick={() => lockRatioToTick(TT_SLIDER_KEY)}>◆</button
+                >
+                <button
+                    class="lock-btn"
+                    class:active={animLockModes[TT_SLIDER_KEY] === "animSpeed"}
+                    title={animLockModes[TT_SLIDER_KEY] === "animSpeed"
+                        ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}×anim — click to unlock`
+                        : "Lock current ratio to animation speed"}
+                    onclick={() => lockRatioToAnimSpeed(TT_SLIDER_KEY)}>⚡</button
+                >
+            </span>
+        </div>
+        <input
+            type="range"
+            min={conquestTransitionSlider.min}
+            max={conquestTransitionSlider.max}
+            step={conquestTransitionSlider.step}
+            value={getAnimValue(TT_SLIDER_KEY)}
+            disabled={animLockModes[TT_SLIDER_KEY] != null ||
+                panel.territoryTransitionBindToTick}
+            oninput={(e) => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setAnimValue(TT_SLIDER_KEY, v);
+            }}
+        />
+    </div>
+    {#if conquestTransitionSlider.desc}
+        <div
+            class="var-row grayed"
+            style="font-size: 9px; padding: 0 4px 4px; margin-top: -6px; opacity: 0.6;"
+        >
+            {conquestTransitionSlider.desc}
+        </div>
+    {/if}
+{/if}
+
 <!-- Animation Duration Sliders with Tick-Lock -->
-{#each ANIM_SLIDERS as slider, i}
-    {#if i === 0 || ANIM_SLIDERS[i - 1].group !== slider.group}
+{#each ANIM_SLIDERS_TIMING as slider, i}
+    {#if i === 0 || ANIM_SLIDERS_TIMING[i - 1].group !== slider.group}
         <div
             class="var-row grayed"
             style="font-size: 10px; padding: 4px 4px 2px; margin-top: 6px; opacity: 0.7;"

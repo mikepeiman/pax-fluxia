@@ -318,6 +318,8 @@ interface GameConfigType {
     TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
+    /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
+    TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
@@ -329,7 +331,7 @@ interface GameConfigType {
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
-    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'crossfade' | 'off'; // Clean-arch fill transition selector
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'active_front' | 'unified_topology' | 'crossfade' | 'off'; // Clean-arch fill transition selector
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
     TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
@@ -1118,8 +1120,7 @@ const _rawConfig: GameConfigType = {
     TERRITORY_POWER_VORONOI: false,
     /** Enable PVV3 frontier-first territory renderer */
     TERRITORY_PVV3: false,
-    // ═══ SACROSANCT: DY4 Optimal Transport is the canonical default ═══
-    // See registry.ts and .atlas/DECISIONS.md. Do not change without user approval.
+    // Default territory engine method id (see registry.ts + TERRITORY_ARCHITECTURE.md).
     TERRITORY_ENGINE_ENABLED: true,
     /** Unified method ID — replaces MODE + STATIC_METHOD + DYNAMIC_METHOD */
     TERRITORY_ENGINE_METHOD: 'new_frontiers_0319' as const,
@@ -1139,6 +1140,7 @@ const _rawConfig: GameConfigType = {
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 400,
+    TERRITORY_TRANSITION_BIND_TO_TICK: false,
     // ── Virtual Star Transition (F-165) ──
     VS_VICTOR_TRAVEL_MS: 0,        // 0 = use TERRITORY_TRANSITION_MS
     VS_LOSER_TRAVEL_MS: 0,         // 0 = use TERRITORY_TRANSITION_MS

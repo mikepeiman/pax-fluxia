@@ -62,6 +62,7 @@
     import ControlsSectionDebug from "./settings/ControlsSection-Debug.svelte";
     import {
         ANIM_SLIDERS,
+        CONFIG_TO_PANEL_KEY,
         type AnimSliderDef,
         type SettingsTier,
         TIER_LABELS,
@@ -528,21 +529,9 @@
         }
     }
 
-    // Map GAME_CONFIG keys to panel keys (many already exist)
+    /** Map GAME_CONFIG keys to panel keys — full coverage via PANEL_CONFIG_MAP (settingsDefs). */
     function animSliderToPanelKey(configKey: string): string | null {
-        const map: Record<string, string> = {
-            SETTLE_DURATION_MS: "settleDuration",
-            ARRIVAL_SPREAD: "arrivalSpread",
-            TRAVEL_DURATION_MULT: "travelDurationMult",
-            DEPART_JITTER_MS: "departJitter",
-            ATTACK_SURGE_RAMP_MS: "attackSurgeRampMs",
-            CONQUEST_TRAVEL_SPEED: "conquestTravelSpeed",
-            CONQUEST_LERP_DELAY_MS: "conquestLerpDelayMs",
-            CONQUEST_COLOR_DELAY_TICKS: "conquestColorDelayTicks",
-            CONQUEST_FLASH_TICKS: "conquestFlashTicks",
-            ARROW_SPEED: "arrowSpeed",
-        };
-        return map[configKey] ?? null;
+        return CONFIG_TO_PANEL_KEY[configKey] ?? null;
     }
 
     // Reactive mirror of animation slider values — GAME_CONFIG is not $state,
@@ -562,7 +551,7 @@
 
     function syncPanelKey(configKey: string, val: number) {
         const panelKey = animSliderToPanelKey(configKey);
-        if (panelKey && panelKey in panel) {
+        if (panelKey) {
             panel = { ...panel, [panelKey]: val };
             savePanelSettings(panel);
         }

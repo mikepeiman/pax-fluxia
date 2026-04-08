@@ -188,7 +188,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">➡️ Arrow Length</span><span class="val"
-            >{Math.round(((panel.arrowLength ?? 0.5) as number) * 100)}%</span
+            >{Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}%</span
         >
     </div>
     <input
@@ -196,11 +196,11 @@
         min="10"
         max="100"
         step="1"
-        value={Math.round(((panel.arrowLength ?? 0.5) as number) * 100)}
+        value={Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}
         oninput={(e) => {
             const v = parseInt((e.target as HTMLInputElement).value) / 100;
             GAME_CONFIG.ARROW_LENGTH_FRACTION = v;
-            updatePanel("arrowLength", v);
+            updatePanel("arrowLengthFraction", v);
         }}
     />
 </div>

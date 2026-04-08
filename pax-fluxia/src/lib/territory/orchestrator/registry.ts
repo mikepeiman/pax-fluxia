@@ -56,17 +56,11 @@ export const TERRITORY_METHODS: TerritoryMethodDescriptor[] = [
         implementedStages: ['render'],
         adapter: 'refactored_pvv2',
     },
-    // ┌─────────────────────────────────────────────────────────────────┐
-    // │  SACROSANCT — DY4 Optimal Transport is the CANONICAL default   │
-    // │  border animation mode. Do NOT modify, break, or change the    │
-    // │  adapter without explicit user approval.                       │
-    // │  See .agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md           │
-    // └─────────────────────────────────────────────────────────────────┘
     {
         id: 'dy4_optimal_transport',
         label: 'DY4 Optimal Transport',
         description:
-            'Mass-preserving ownership transport updates. CANONICAL DEFAULT — sacrosanct.',
+            'Mass-preserving ownership transport updates. Default registry entry for border morphing; coordinate behavior changes with playtesting.',
         implementedStages: ['render'],
         adapter: 'legacy_pvv2',
     },
@@ -101,11 +95,8 @@ export const TERRITORY_METHOD_BY_ID: Record<
     {} as Record<TerritoryMethodId, TerritoryMethodDescriptor>,
 );
 
-// ════════════════════════════════════════════════════════════════════
-// SACROSANCT DEFAULTS — DY4 Optimal Transport is the canonical border
-// animation mode. These defaults must not change without explicit user
-// approval. See .agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md
-// ════════════════════════════════════════════════════════════════════
+// Default method id for territory engine resolution (see game.config + UI).
+// Spec: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
 export const DEFAULT_TERRITORY_METHOD: TerritoryMethodId =
     'dy4_optimal_transport';
 

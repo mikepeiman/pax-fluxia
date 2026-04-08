@@ -47,6 +47,12 @@ export const FILL_TRANSITION_MODE_CATALOG: Readonly<
         summary:
             'Gap-free transitions by interpolating only changed frontier spans in the shared frontier graph, then rebuilding region loops from frozen + interpolated sections.',
     },
+    unified_topology: {
+        id: 'unified_topology',
+        name: 'Unified Topology',
+        summary:
+            'Fills and borders derived from the same interpolated frontier sections. Eliminates fill/border divergence by construction.',
+    },
     crossfade: {
         id: 'crossfade',
         name: 'Alpha Crossfade Fill',

@@ -156,7 +156,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Settle Time</span><span class="val"
-            >{panel.settleDuration}ms</span
+            >{panel.settleDurationMs}ms</span
         >
     </div>
     <input
@@ -164,11 +164,11 @@
         min="0"
         max="2000"
         step="10"
-        value={panel.settleDuration}
+        value={panel.settleDurationMs}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.SETTLE_DURATION_MS = v;
-            updatePanel("settleDuration", v);
+            updatePanel("settleDurationMs", v);
         }}
     />
 </div>
@@ -213,7 +213,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Depart Jitter</span><span class="val"
-            >{panel.departJitter}ms</span
+            >{panel.departJitterMs}ms</span
         >
     </div>
     <input
@@ -221,11 +221,11 @@
         min="0"
         max="200"
         step="5"
-        value={panel.departJitter}
+        value={panel.departJitterMs}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.DEPART_JITTER_MS = v;
-            updatePanel("departJitter", v);
+            updatePanel("departJitterMs", v);
         }}
     />
 </div>

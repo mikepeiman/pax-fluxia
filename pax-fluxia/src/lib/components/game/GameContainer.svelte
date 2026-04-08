@@ -13,6 +13,7 @@
   import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
+  import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
   import StatusBar from "$lib/components/ui/StatusBar.svelte";
   import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
@@ -33,6 +34,7 @@
 
   // ── Panel visibility states ──
   let showAudioSettings = $state(false);
+  let showTransitionDebugPanel = $state(false);
   let showSurrenderModal = $state(false);
   let showStarInfoPanel = $state(
     typeof localStorage !== "undefined" &&
@@ -395,7 +397,14 @@
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
       : undefined}
+    onDebugPanelClick={gameStore.currentView === "game"
+      ? () => (showTransitionDebugPanel = !showTransitionDebugPanel)
+      : undefined}
   />
+
+  {#if showTransitionDebugPanel}
+    <TransitionDebugPanel onClose={() => (showTransitionDebugPanel = false)} />
+  {/if}
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />

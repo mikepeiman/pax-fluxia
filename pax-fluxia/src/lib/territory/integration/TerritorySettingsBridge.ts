@@ -28,6 +28,8 @@ function resolveFillTransitionMode(config: Record<string, unknown>): TerritoryMo
         DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode,
     );
     if (raw === 'none' || raw === 'off') return 'off';
+    if (raw === 'active_front') return 'active_front';
+    if (raw === 'unified_topology') return 'unified_topology';
     if (raw === 'crossfade') return 'crossfade';
     if (raw === 'frontier' || raw === 'frontier_morph') return 'frontier_morph';
     return DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode;
@@ -69,7 +71,14 @@ export function readTerritoryRuntimeSettings(
             styleMode: resolveStyleMode(config),
         },
         tunables: {
-            transitionDurationMs: asNumber(config.TERRITORY_TRANSITION_MS, 600),
+            transitionDurationMs: (() => {
+                const bindToTick = Boolean(config.TERRITORY_TRANSITION_BIND_TO_TICK);
+                const tickMs = asNumber(config.BASE_TICK_MS, 1250);
+                const storedMs = asNumber(config.TERRITORY_TRANSITION_MS, 600);
+                return bindToTick
+                    ? Math.max(0, Math.round(tickMs))
+                    : Math.max(0, Math.round(storedMs));
+            })(),
             borderWidth: asNumber(config.VORONOI_BORDER_WIDTH, 2),
             fillAlpha: asNumber(config.VORONOI_ALPHA, 0.2),
             borderAlpha: asNumber(config.VORONOI_BORDER_ALPHA, 0.5),

@@ -12,10 +12,10 @@ import type { FrontierDiffResult } from './TransitionSnapshotRecorder';
 // ── Overlay Colors ──────────────────────────────────────────────────────────
 
 const COLORS = {
-    changedFrontier: '#FF2222',      // thick red
-    unchangedFrontier: '#22CC22',    // thick green
-    insertedFrontier: '#FF8800',     // orange
-    deletedFrontier: '#AA44FF',      // purple
+    driftedFrontier: '#FF2222',       // thick red — same key, points moved
+    staticFrontier: '#22CC22',        // thick green
+    appearedKeyOrSeg: '#FF8800',      // orange — new key or extra segment (not "birth")
+    removedKeyOrSeg: '#AA44FF',       // purple dashed — key gone or fewer segments
     conquestStar: '#FFFF00',         // yellow
     anchorPoint: '#00FFFF',          // cyan
     labelText: '#FFFFFF',            // white
@@ -23,10 +23,10 @@ const COLORS = {
 } as const;
 
 const LINE_WIDTHS = {
-    changed: 6,
-    unchanged: 3,
-    inserted: 5,
-    deleted: 5,
+    drifted: 6,
+    staticPoly: 3,
+    appeared: 5,
+    removed: 5,
     anchor: 8,
 } as const;
 
@@ -97,8 +97,8 @@ function drawLabel(
 // ── Public Overlay Functions ────────────────────────────────────────────────
 
 /**
- * Render changed-frontier overlay onto a canvas.
- * Shows changed (red), unchanged (green), inserted (orange), deleted (purple) frontiers.
+ * Render polyline diff overlay (structural multiset diff by ownerPairKey + segment index).
+ * See `polylineDiffSemantics` on bundle meta — not transition "birth/death".
  */
 export function renderChangedFrontierOverlay(
     ctx: CanvasRenderingContext2D,
@@ -106,24 +106,20 @@ export function renderChangedFrontierOverlay(
     conquestEvents: readonly TerritoryConquestEvent[],
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): void {
-    // Draw unchanged first (underneath)
-    for (const poly of diff.unchanged) {
-        drawPolyline(ctx, poly.points, COLORS.unchangedFrontier, LINE_WIDTHS.unchanged);
+    for (const poly of diff.staticPolylines) {
+        drawPolyline(ctx, poly.points, COLORS.staticFrontier, LINE_WIDTHS.staticPoly);
     }
 
-    // Draw deleted (dashed purple)
-    for (const poly of diff.deleted) {
-        drawPolyline(ctx, poly.points, COLORS.deletedFrontier, LINE_WIDTHS.deleted, true);
+    for (const poly of diff.removedKeyOrSegment) {
+        drawPolyline(ctx, poly.points, COLORS.removedKeyOrSeg, LINE_WIDTHS.removed, true);
     }
 
-    // Draw inserted (orange)
-    for (const poly of diff.inserted) {
-        drawPolyline(ctx, poly.points, COLORS.insertedFrontier, LINE_WIDTHS.inserted);
+    for (const poly of diff.appearedKeyOrSegment) {
+        drawPolyline(ctx, poly.points, COLORS.appearedKeyOrSeg, LINE_WIDTHS.appeared);
     }
 
-    // Draw changed (thick red, on top)
-    for (const poly of diff.changed) {
-        drawPolyline(ctx, poly.points, COLORS.changedFrontier, LINE_WIDTHS.changed);
+    for (const poly of diff.drifted) {
+        drawPolyline(ctx, poly.points, COLORS.driftedFrontier, LINE_WIDTHS.drifted);
     }
 
     // Draw conquest star markers
@@ -150,10 +146,10 @@ export function renderOverlayLegend(
     y: number,
 ): void {
     const entries = [
-        { color: COLORS.changedFrontier, label: 'Changed frontier' },
-        { color: COLORS.unchangedFrontier, label: 'Unchanged frontier' },
-        { color: COLORS.insertedFrontier, label: 'Inserted frontier' },
-        { color: COLORS.deletedFrontier, label: 'Deleted frontier' },
+        { color: COLORS.driftedFrontier, label: 'Drifted (same segment, moved)' },
+        { color: COLORS.staticFrontier, label: 'Static polyline' },
+        { color: COLORS.appearedKeyOrSeg, label: 'Appeared key/extra segment' },
+        { color: COLORS.removedKeyOrSeg, label: 'Removed key/missing segment' },
         { color: COLORS.conquestStar, label: 'Conquest star' },
     ];
 
@@ -205,7 +201,7 @@ export function compositeOverlayOnScreenshot(
     renderChangedFrontierOverlay(ctx, diff, conquestEvents, starPositions);
 
     // Diff summary header (top-left)
-    const summary = `Δ changed=${diff.changed.length} inserted=${diff.inserted.length} deleted=${diff.deleted.length} unchanged=${diff.unchanged.length}`;
+    const summary = `Δ drifted=${diff.drifted.length} appeared=${diff.appearedKeyOrSegment.length} removed=${diff.removedKeyOrSegment.length} static=${diff.staticPolylines.length}`;
     ctx.font = 'bold 13px monospace';
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(8, 8, ctx.measureText(summary).width + 12, 22);

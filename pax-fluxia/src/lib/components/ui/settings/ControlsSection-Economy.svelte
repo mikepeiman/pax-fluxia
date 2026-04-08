@@ -147,7 +147,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">💥 Global Damage Modifier</span><span class="val"
-            >{panel.globalDamage}%</span
+            >{panel.globalDamageModifier}%</span
         >
     </div>
     <input
@@ -155,11 +155,11 @@
         min="0"
         max="200"
         step="1"
-        value={panel.globalDamage}
+        value={panel.globalDamageModifier}
         oninput={(e) => {
             const v = parseInt((e.target as HTMLInputElement).value);
             GAME_CONFIG.GLOBAL_DAMAGE_MODIFIER = v;
-            updatePanel("globalDamage", v);
+            updatePanel("globalDamageModifier", v);
         }}
     />
 </div>

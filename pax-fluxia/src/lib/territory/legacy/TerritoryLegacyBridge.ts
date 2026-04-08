@@ -24,7 +24,7 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { runFG2DataPipeline, extractCanonicalData } from '$lib/territory/orchestrator';
 
 export type LegacyStyleId =
-    | 'territory_engine'   // Old DY4 pipeline — canonical default, do not alter
+    | 'territory_engine'   // Territory engine / PVV2 adapter path (legacy bridge)
     | 'vs_pvv3'            // PVV3 vector stroke
     | 'power_voronoi'      // PVV2 power voronoi
     | 'modified_voronoi'   // F-138: merged cells + arc smooth + star margin + DX
@@ -62,7 +62,6 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
 
     switch (style) {
         case 'territory_engine': {
-            // SACROSANCT — DY4 optimal transport. Do not alter behavior.
             const { renderTerritoryEngine } = await import('$lib/territory/orchestrator');
             renderTerritoryEngine({
                 stars, container, colorUtils, worldWidth, worldHeight,

@@ -266,6 +266,7 @@
 
     const FILL_TRANSITION_OPTIONS = [
         { id: "off", label: "Off" },
+        { id: "unified_topology", label: "Unified Topology" },
         { id: "active_front", label: "Active Front Interpolation" },
         { id: "frontier_morph", label: "Frontier Topology Morph (legacy)" },
         { id: "crossfade", label: "Alpha Crossfade Fill" },
@@ -299,7 +300,7 @@
     }
 
     function selectFillTransition(transitionId: string) {
-        updatePanel("territoryFillTransition", transitionId);
+        updatePanel("territoryFillTransitionMode", transitionId);
     }
 
 
@@ -313,6 +314,7 @@
 
     function resolveActiveFillTransitionId(): string {
         const raw =
+            panel.territoryFillTransitionMode ??
             panel.territoryFillTransition ??
             GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
             GAME_CONFIG.TERRITORY_FILL_MODE ??

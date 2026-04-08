@@ -2,20 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { readTerritoryRuntimeSettings } from './TerritorySettingsBridge';
 
 describe('readTerritoryRuntimeSettings', () => {
-    it('maps legacy geometry aliases to clean geometry mode ids', () => {
-        const frontier = readTerritoryRuntimeSettings({
-            TERRITORY_GEOMETRY_MODE: 'new_frontiers_0319',
-        });
-        const seedGraph = readTerritoryRuntimeSettings({
-            TERRITORY_GEOMETRY_MODE: 'unified_polygon',
-        });
-        const powerVoronoi = readTerritoryRuntimeSettings({
-            TERRITORY_GEOMETRY_MODE: 'power_voronoi',
-        });
-
-        expect(frontier.selection.geometryMode).toBe('boundary_aware_frontier');
-        expect(seedGraph.selection.geometryMode).toBe('seed_graph');
-        expect(powerVoronoi.selection.geometryMode).toBe('power_voronoi');
+    it('normalizes legacy geometry keys to unified_vector', () => {
+        for (const mode of ['new_frontiers_0319', 'unified_polygon', 'power_voronoi'] as const) {
+            const snap = readTerritoryRuntimeSettings({ TERRITORY_GEOMETRY_MODE: mode });
+            expect(snap.selection.geometryMode).toBe('unified_vector');
+        }
     });
 
     it('maps legacy fill and border transition keys to clean transition ids', () => {
@@ -65,10 +56,28 @@ describe('readTerritoryRuntimeSettings', () => {
             frontierResolution: 12,
             boundaryPad: 44,
             boundaryEps: 8,
+            starMargin: 45,
+            corridorEnabled: true,
+            corridorSpacing: 60,
+            corridorCount: 0,
+            corridorWeight: 0.5,
+            disconnectEnabled: false,
+            disconnectDistance: 400,
+            disconnectWeight: 0.3,
+            clusterSplitThreshold: 0,
         });
 
         const fallback = readTerritoryRuntimeSettings({});
         expect(fallback.tunables.transitionDurationMs).toBe(600);
         expect(fallback.tunables.borderWidth).toBe(2);
+    });
+
+    it('uses tick duration for transition when TERRITORY_TRANSITION_BIND_TO_TICK is true', () => {
+        const bound = readTerritoryRuntimeSettings({
+            TERRITORY_TRANSITION_BIND_TO_TICK: true,
+            BASE_TICK_MS: 2000,
+            TERRITORY_TRANSITION_MS: 400,
+        });
+        expect(bound.tunables.transitionDurationMs).toBe(2000);
     });
 });

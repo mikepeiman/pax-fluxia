@@ -6,6 +6,7 @@ export type GeometryModeId =
 export type FillTransitionModeId =
     | 'frontier_morph' // Frontier Topology Morph Fill (legacy OT — broken)
     | 'active_front'   // Active Front Interpolation (gap-free frontier-graph surgery)
+    | 'unified_topology' // Unified Topology — fills + borders derived from same interpolated frontier sections
     | 'crossfade' // Alpha Crossfade Fill
     | 'off';
 

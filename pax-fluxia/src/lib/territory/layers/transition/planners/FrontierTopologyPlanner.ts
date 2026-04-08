@@ -339,13 +339,24 @@ export function buildFrontierTransitionPlan(
 
     // Build section transition entries
     const sections = new Map<string, SectionTransitionEntry>();
+    let reversedCount = 0;
 
     for (const [nextId, match] of matched) {
-        const isStatic = pointsEqual(match.prevSection.points, match.nextSection.points);
+        // Detect reversed orientation: prev section's start maps to next section's end
+        const prevStartMapped = vertexMatches.get(match.prevSection.startVertexId);
+        const isReversed = prevStartMapped === match.nextSection.endVertexId;
+
+        const prevPoints = isReversed
+            ? [...match.prevSection.points].reverse()
+            : match.prevSection.points;
+
+        if (isReversed) reversedCount++;
+
+        const isStatic = pointsEqual(prevPoints, match.nextSection.points);
         sections.set(nextId, {
             kind: isStatic ? 'static' : 'drifted',
             sectionId: nextId,
-            prevPoints: match.prevSection.points,
+            prevPoints,
             nextPoints: match.nextSection.points,
             ownerPairKey: match.nextSection.ownerPairKey,
         });
@@ -380,7 +391,8 @@ export function buildFrontierTransitionPlan(
     log.renderer('TopologyPlanner',
         `Plan: ${sections.size} sections ` +
         `(${staticCount} static, ${driftedCount} drifted, ` +
-        `${born.length} born, ${dying.length} dying) | ` +
+        `${born.length} born, ${dying.length} dying, ` +
+        `${reversedCount} orientation-corrected) | ` +
         `${loops.length} loops ` +
         `(${loops.filter(l => l.kind === 'static').length} static, ` +
         `${loops.filter(l => l.kind === 'modified').length} modified, ` +

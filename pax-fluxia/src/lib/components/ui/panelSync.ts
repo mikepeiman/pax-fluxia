@@ -7,7 +7,7 @@
  */
 
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
+import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
@@ -85,11 +85,39 @@ export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
 
 // ── Panel Settings Persistence ──────────────────────────────────────────────
 
+/**
+ * Historical panel key renames.
+ * These were stored under old (incorrect) keys in localStorage; migrate them
+ * forward once by reading under the old key and writing under the new key.
+ * Only the 8 keys that were "historical accidents" — abbreviated forms that
+ * diverged from the SCREAMING_SNAKE_CASE → camelCase convention.
+ */
+const PANEL_KEY_RENAMES: Record<string, string> = {
+    settleDuration:    'settleDurationMs',
+    globalDamage:      'globalDamageModifier',
+    arrowLength:       'arrowLengthFraction',
+    departJitter:      'departJitterMs',
+    metaballRadius:    'metaballInfluenceRadius',
+    metaballStrength:  'metaballStrengthMult',
+    orbitBias:         'orbitBiasStrength',
+    transferAnimMs:    'transferAnimationMs',
+};
+
 export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T {
     if (typeof window === 'undefined') return { ...defaults };
     try {
         const s = localStorage.getItem(PANEL_STORAGE_KEY);
-        if (s) return { ...defaults, ...JSON.parse(s) };
+        if (s) {
+            const stored: Record<string, any> = JSON.parse(s);
+            // Migrate renamed keys forward
+            for (const [oldKey, newKey] of Object.entries(PANEL_KEY_RENAMES)) {
+                if (oldKey in stored && !(newKey in stored)) {
+                    stored[newKey] = stored[oldKey];
+                    delete stored[oldKey];
+                }
+            }
+            return { ...defaults, ...stored };
+        }
     } catch {
         /* ignore */
     }
@@ -97,14 +125,14 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
 }
 
 /**
- * Build panel defaults by reading every key in PANEL_CONFIG_MAP from GAME_CONFIG.
+ * Build panel defaults by reading every key in RESOLVED_PANEL_CONFIG_MAP from GAME_CONFIG.
  * This ensures panel state always starts consistent with game config — no undefined keys.
  */
 export function panelDefaultsFromConfig(
     configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
 ): Record<string, any> {
     const defaults: Record<string, any> = {};
-    for (const m of PANEL_CONFIG_MAP) {
+    for (const m of RESOLVED_PANEL_CONFIG_MAP) {
         const raw = configSource[m.configKey];
         defaults[m.panelKey] = m.transform === 'inverse' ? (1 / raw) : raw;
     }
@@ -125,10 +153,10 @@ export function savePanelSettings(panel: Record<string, any>): void {
 
 /**
  * Write all panel values to GAME_CONFIG.
- * Uses PANEL_CONFIG_MAP for the mapping; handles 'inverse' transform.
+ * Uses RESOLVED_PANEL_CONFIG_MAP for the mapping; handles 'inverse' transform.
  */
 export function applyPanelToConfig(panel: Record<string, any>): void {
-    for (const mapping of PANEL_CONFIG_MAP) {
+    for (const mapping of RESOLVED_PANEL_CONFIG_MAP) {
         const val = panel[mapping.panelKey];
         if (val === undefined) continue;
         if (mapping.transform === 'inverse') {
@@ -148,7 +176,7 @@ export function syncPanelFromConfig(
     configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
 ): Record<string, any> {
     const updated = { ...existing };
-    for (const mapping of PANEL_CONFIG_MAP) {
+    for (const mapping of RESOLVED_PANEL_CONFIG_MAP) {
         const configVal = configSource[mapping.configKey];
         if (configVal === undefined) continue;
         if (mapping.transform === 'inverse') {
