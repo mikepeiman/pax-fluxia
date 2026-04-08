@@ -140,7 +140,7 @@ Pax Fluxia uses a **V4 Symmetric Damage Model**:
 |----------|-------------|
 | [Game Specification](.atlas/GAME_SPECIFICATION.md) | Complete technical spec for all systems |
 | [Development History](.atlas/DEVELOPMENT_HISTORY.md) | Chronological build log and roadmap |
-| [Feature Status](.atlas/FEATURE_STATUS.md) | Current state of all features |
+| [Feature Status](.agent/docs/project/features/FEATURE_STATUS.md) | Current state of all features |
 | [Design Decisions](.atlas/DECISIONS.md) | Architectural decision records |
 | [PRD](.atlas/PRD_ACTIVE.md) | Product requirements document |
 

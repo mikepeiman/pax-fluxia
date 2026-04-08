@@ -1,7 +1,11 @@
 # Feature & Regression Tracker
 
-**Last Updated**: 2026-02-16  
-**Last Verified By**: User (partial — see Status column)
+**Authority:** The **active** tracker is this file under `.agent/docs/project/features/`. Legacy stubs (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) redirect here.
+
+**Main body last updated:** 2026-02-16  
+**Last consolidated:** 2026-04-08 — Former parallel trackers **deduplicated** into **Supplement** (IDs MC- / RG- / TR- / FI-); verbatim appendices removed. Unique facts retained; long FG2 bullet list **referenced**, not duplicated.
+
+**Last Verified By:** User (partial — see Status column)
 
 ---
 
@@ -532,10 +536,168 @@
 
 ---
 
+
+---
+
+## Supplement — merged trackers (2026-04-08)
+
+Former parallel copies (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) are **deduplicated** here. IDs **MC-** = mobile client / shell, **RG-** = cross-cutting regressions, **TR-** = territory pipeline & rendering. Rows are **not** verbatim — combined duplicates; unique facts preserved.
+
+### MC — Mobile & shell
+
+| ID | Issue | Status | Date |
+|----|-------|--------|------|
+| MC-1 | Touch targets wrong after transpose (hit test vs render) | Fixed | 2026-03-01 |
+| MC-2 | Full-map recenter ignores bottom UI | Fixed | 2026-03-01 |
+| MC-3 | Territory lag on mobile (1–4 ticks before visual update) | Open | 2026-03-01 |
+| MC-4 | Damaged orbit rings lerp on orientation shift | Open | 2026-03-01 |
+| MC-5 | Map centering 0-origin asymmetric dead space | Fixed | 2026-03-02 |
+| MC-6 | Pixel territory shows nothing on mobile | Fixed | 2026-03-02 |
+| MC-7 | Lane territory oversized / wrong boundaries | Open | 2026-03-02 |
+| MC-8 | Portrait wastes space — map gen doesn’t maximize viewport | Open | 2026-03-02 |
+| MC-9 | All territory renderers invoked every frame | Fixed | 2026-03-03 |
+| MC-10 | `app.resize is not a function` early PIXI init | Fixed | 2026-03-03 |
+| MC-11 | Canvas resize feedback loop (localStorage/cache) | Shelved | 2026-03-15 |
+| MC-12 | Deferred orders neutral-star case | Fixed | 2026-03-17 |
+| MC-13 | hitTestStar log spam | Fixed | 2026-03-17 |
+| MC-14 | MP combat intermittent (stale server suspected) | Intermittent | 2026-03-30 |
+| MC-15 | Arrow appearance sliders missing from Map & Grid | Open | 2026-03-30 |
+| MC-16 | Saved maps mixed into Classic list | Open | 2026-03-30 |
+| MC-17 | Load Game: no file import | Open | 2026-03-30 |
+| MC-18 | MP only random map in lobby | Open | 2026-03-30 |
+| MC-19 | Restart incomplete / audio `NotSupportedError` | Open | 2026-03-30 |
+| MC-20 | Lane arrowhead alpha ≠ shaft | Open | 2026-03-30 |
+| MC-21 | Damaged ship size ignored shipSize sliders | Fixed | 2026-03-31 |
+| MC-22 | Restart leaves territory fills when paused | Fixed | 2026-03-31 |
+| MC-23 | Save Map saved full game state — split map vs game save | Fixed | 2026-03-31 |
+| MC-24 | Load Game file import still missing in settings | Open | 2026-03-31 |
+| MC-25 | AudioManager NotSupportedError spam | Fixed | 2026-03-31 |
+
+### RG — Cross-cutting regressions
+
+| ID | Issue | Status | Date |
+|----|-------|--------|------|
+| RG-1 | Territory rendering regressed during mobile layout | Active | 2026-03-02 |
+| RG-2 | Audio conquest toggles not persisting | Active | 2026-03-02 |
+| RG-3 | Segment-based transitions: massive movement / lag | Active | 2026-03-30 |
+
+### TR — Territory pipeline, DY4 reference, DF (open / active)
+
+| ID | Issue | Status | Date |
+|----|-------|--------|------|
+| TR-1 | DY4 ghost fill on conquest (overlapping prev+next) | Active | 2026-04-04 |
+| TR-2 | DY4 snap vs animate (`prevMergedTerritories` null) | Active | 2026-04-04 |
+| TR-3 | CLR flipping/rotating on conquest (`ActiveFrontFillMode` / topology path) | Active | 2026-04-04 |
+| TR-4 | PVV2 DY4 Reference: fill/border misaligned vs clean pipeline | Active | 2026-04-04 |
+| TR-5 | Territory gaps — shared Voronoi vertices modified per polygon | Open | 2026-03-03 |
+| TR-6 | Corridor spacing <~45px fragments merge | Deferred | 2026-03-03 |
+| TR-7 | Disconnect buffer distorts shapes | Open | 2026-03-03 |
+| TR-8 | Vector borders async `extract.pixels` | Open | 2026-03-05 |
+| TR-9 | Themes only localStorage | Open | 2026-03-06 |
+| TR-10 | DF layer offset from starmap | Active | 2026-03-06 |
+| TR-11 | PVV2 enclave overwritten by outer fill | Active | 2026-03-14 |
+| TR-12 | Diagonal line artifacts (PIXI path) | Fixed | 2026-03-14 |
+| TR-13 | Border/fill misalignment (single-path fix landed) | Fixed | 2026-03-17 |
+| TR-14 | MSR default not 100 in themes | Open | 2026-03-14 |
+| TR-15 | Theme export wrong name | Open | 2026-03-14 |
+| TR-16 | Deferred orders regression | Fixed | 2026-03-30 |
+| TR-17 | DY4 OT twisting (`alignPolygon` fix) | Fixed | 2026-03-17 |
+| TR-18 | DY4 double-border after conquest | Active | 2026-03-18 |
+| TR-19 | Rope border width changes during conquest | Active | 2026-03-18 |
+| TR-20 | Graphics Morph unsatisfying | Active | 2026-03-18 |
+| TR-21 | Transition modes duplicate VFX | Active | 2026-03-18 |
+| TR-22 | Conquest timing slider persistence | Active | 2026-03-18 |
+| TR-23 | Smoothing order inverted | Active | 2026-03-18 |
+| TR-24 | Fills settle on second tick | Active | 2026-03-20 |
+| TR-25 | Morph vertices teleport | Active | 2026-03-20 |
+| TR-26 | Morph debug dots not drawn when paused | Active | 2026-03-20 |
+| TR-27 | Double-filled enclaves (Geometry_0319) | Active | 2026-03-20 |
+| TR-28 | 10× slow-mo ignores user timing | Active | 2026-03-20 |
+
+### Planned features — batch F-120 — F-172 (from merged tracker)
+
+| ID | Feature | Status | Priority | Date |
+|----|---------|--------|----------|------|
+| F-120 | Mobile CSS Grid layout | Done | High | 2026-03-01 |
+| F-121 | Gear+hamburger in SpeedControls | Done | Medium | 2026-03-01 |
+| F-122 | StatusBar replaces TopBar | Done | Medium | 2026-03-01 |
+| F-123 | StatusBar stats / ships per tick | Done | Medium | 2026-03-01 |
+| F-124 | StarNav cycling | Done | Medium | 2026-03-01 |
+| F-125 | Player swatch in StatusBar | Done | Medium | 2026-03-01 |
+| F-126 | Smooth camera transitions | Done | High | 2026-03-02 |
+| F-127 | Stretch Map To Fit | Done | High | 2026-03-02 |
+| F-128 | Main menu redesign | In Progress | Medium | 2026-03-02 |
+| F-129 | Canvas debug infra | Done | Low | 2026-03-02 |
+| F-130–F-132 | Audio persistence, per-sound files, audio themes | Done | Critical | 2026-03-02 |
+| F-133 | New territory renderer idea | Idea | Medium | 2026-03-02 |
+| F-104 | Contour renderer | Shelved | Medium | 2026-03-02 |
+| F-134 | Restart+Quit sidebar | Done | High | 2026-03-02 |
+| F-135 | Territory equalize angles (contour) | Shelved | Medium | 2026-03-02 |
+| F-136 | Min shared-boundary length | Idea | Medium | 2026-03-02 |
+| F-137 | Periphery coverage | In Progress | Medium | 2026-03-03 |
+| F-138 | Modified Voronoi territories | In Progress | High | 2026-03-03 |
+| F-138v2 | Power Voronoi V2 phase 2 | Phase 2 Done | High | 2026-03-03 |
+| F-139 | Minimum star boundary margin | In Progress | High | 2026-03-03 |
+| F-140 | Topographic renderer idea | Idea | Medium | 2026-03-03 |
+| F-141 | Distinct conquest travel duration | Idea | Medium | 2026-03-03 |
+| F-142 | Strength-blended borders | Done | High | 2026-03-03 |
+| F-143 | Animated boundary modes | Testing | Medium | 2026-03-03 |
+| F-144 | DF V1 shelved / V2 planned | Shelved/Planned | High | 2026-03-03 |
+| F-145 | Built-in filesystem themes | In Progress | Medium | 2026-03-14 |
+| F-146 | HSLA widget for territory colors | In Progress | Medium | 2026-03-14 |
+| F-147 | Built-in filesystem maps | Done | Medium | 2026-03-14 |
+| F-149 | Star System Appearance suite | Done | High | 2026-03-14 |
+| F-150 | Classic map spacing factor | Done | Medium | 2026-03-14 |
+| F-157 | Main menu map selection redesign | In Progress | High | 2026-03-15 |
+| F-158–F-160 | Tutorial, controls guide, public lobby+chat | In Progress | mixed | 2026-03-15 |
+| F-161 | Classic maps in MP | Done | Critical | 2026-03-15 |
+| F-162 | Geometry Source dropdown | Planned | High | 2026-03-16 |
+| F-163 | PVV3 geometry as modular engine | Planned | High | 2026-03-16 |
+| F-164 | Remove Basic/Advanced/Developer settings gate | Queued | Medium | 2026-03-30 |
+| F-165 | Beehiiv signup | Done | High | 2026-03-30 |
+| F-166–F-167 | Arrow outline idea; star label element toggles | Idea/Queued | Medium | 2026-03-30 |
+| F-168 | Main menu random preview + reshuffle | Done | High | 2026-03-31 |
+| F-169 | PVV2 revival in modern master | Planned | High | 2026-03-30 |
+| F-170 | DX equal split | Queued | Medium | 2026-03-30 |
+| F-171 | Discord link on landing | Done | High | 2026-03-30 |
+| F-172 | Random map gen UI enhancements | Done | High | 2026-03-31 |
+
+### Feature ideas — territory / persistence (from merged tracker)
+
+| ID | Idea | Priority | Date |
+|----|------|----------|------|
+| FI-1 | File persistence maps/themes/settings | High | 2026-03-05 |
+| FI-2 | Border layers mode | Medium | 2026-03-06 |
+| FI-3 | Default map load preference | High | 2026-03-06 |
+| FI-4 | Audio in GAME_CONFIG + themes | High | 2026-03-07 |
+| FI-5 | Power-weighted border colors | Medium | 2026-03-10 |
+| FI-6 | Junction overlap blending | Medium | 2026-03-10 |
+| FI-7 | MSR expansion (dynamic, gravity, etc.) | Medium | 2026-03-16 |
+| FI-8 | Constraint cleanup CX/DX | High | 2026-03-16 |
+| FI-9 | Player color badge in logs | Low | 2026-03-20 |
+
+### Sub-repo UI snapshot (ex-`pax-fluxia/.atlas/FEATURE_STATUS`)
+
+| Item | Status | Ref |
+|------|--------|-----|
+| Star Data Pill | Done | `7f4292b` |
+| Star Label Color Mode | Done | `486e3c7` |
+| Star Label Border Width | Done | `486e3c7` |
+| Leash Line Toggle | Done | `7f4292b` |
+| Main Menu V2 4-column / MP lobby / unified map selection / thumbnails / AI themes | Planned | design docs |
+
+### FG2 / territory engine program notes (2026-03-12)
+
+Long-form progress bullets lived in the old atlas file (FG2 half-edge, owner shells, trace inspector). **Not duplicated here.** See git history or session notes under `.agent/docs/project/sessions/`; code status summarized in `doc-review-architecture-docs.md` (2026-04-04).
+
+**Also from that tracker (not expanded here):** PVV3 `borderGraphics` hidden-by-GameCanvas fix (2026-03-15); audio settings panel intermittent open on load (investigating, 2026-03-15); R-3 PVV3 interim frontiers — fills addressed via FG2 shells (`2f6234b`).
+
 ## Session Log
 
 | Date | Summary |
 |------|---------|
+| 2026-04-08 | **FEATURE_STATUS reorganize:** Verbatim appendices removed; supplement tables **MC- / RG- / TR-** renumber parallel atlas bugs; F-120—F-172 + FI-* carry forward without row-for-row duplication of main **B-** list. |
+| 2026-04-07 | **FEATURE_STATUS consolidation:** Single authority at `.agent/docs/project/features/FEATURE_STATUS.md`. Former `.atlas/` copies stubbed; `FEATURE_STATUS_atlas.md` → pointer. See `planning-docs-chronological-index.md` + `deep-audit-territory-phased-plan.md`. |
 | 2026-02-15 | **Renderer Wiring (Phase D complete)**: Deleted inline rendering functions from `GameCanvas.svelte`, replaced with imported modules. `colorUtils` (-150 LOC), `StarRenderer` (-285 LOC), `LaneRenderer` (-366 LOC), `ShipRenderer` (-982 LOC), `containerFactory` (-80 LOC). **GameCanvas: 3020 → 1384 lines (-54%)**. Input layer stays inline (orchestrator code). D.6 skipped as design decision. |
 | 2026-02-15 | **Renderer Extraction (Phase C)**: `RenderContext` interface, `containerFactory` (PIXI hierarchy + textures), `colorUtils` (HSL/density-tier), `StarRenderer` (stars/labels/icons/glow), `LaneRenderer` (connections/arrows/deferred), `ShipRenderer` (orbits/travel lifecycle/orb groups/attack surge/particle pool). All extracted to `pax-fluxia/src/lib/renderers/`. Zero new type errors. Wiring (Phase D) pending. |
 | 2026-02-14 | **4002 FIX**: Resolved Colyseus "seat reservation expired" — root cause was dual `@colyseus/core` module instances from explicit WebSocketTransport import. Fix: let `Server.getDefaultTransport()` handle it. **Multiplayer now working online!** |
@@ -569,3 +731,5 @@
 | 2026-02-02 | Right-click cancel, ship disappear fix, attack damage fix. |
 | 2026-02-02 | Command lag fix via pendingOrders. Created tracker. |
 | 2026-02-01 | V3.1 combat + individual ship animation. |
+
+---

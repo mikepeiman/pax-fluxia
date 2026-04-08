@@ -11,11 +11,11 @@ Items deferred from active sessions. Check before each work session.
 - **Question:** Config changes currently all trigger the same full geometry recompile path. Should changes be classified into: (A) topology, (B) geometry-family, (C) presentation-style — so presentation-only changes (color, alpha, width) never trigger a recompile?
 - **Status:** Not a current problem per user (2026-03-25). Revisit if performance issues emerge.
 
-### OQ-S1: Single-Path vs Independent Fill/Border
-- **Source:** Second-pass ingestion, Persona 1 (Architect)
-- **Question:** V3 Master Architecture mandates single-path fill+stroke. User chose independence instead. The sub-pixel divergence assumption underlying the mandate needs testing (see OQ-S7).
-- **Decision made:** Independence (separate caches, derived from same canonical geometry)
-- **Status:** Resolved — implementation should use separate fill/border caches per `CanonicalGeometrySnapshot`
+### OQ-S1: Unified transition vs independent fill/border *timing*
+- **Source:** Second-pass ingestion; revised **2026-04-07** (user mandate).
+- **Question:** Should fill and frontier ever animate on **different** clocks or plans?
+- **Decision made:** **No** for the shipped path — **one** transition step; fills and frontiers follow the **same** plan and timeline. Separate **caches** or draw lists for fill vs stroke are fine; separate **transition algorithms** with independent timing are not (they caused visible divergence). **Future:** optional separable VFX hooks may return for experimental modes if architecture keeps extension points.
+- **Status:** Resolved for product defaults — see `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md` §1.
 
 ### OQ-S7: Test Sub-Pixel Divergence Claim
 - **Source:** Second-pass ingestion, Persona 6 (Empiricist)
