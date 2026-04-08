@@ -15,8 +15,8 @@
 
 1. [`.agent/AGENT.md`](../../../../AGENT.md) — non-negotiable behaviors and file ontology.
 2. This document — Sections **0** (here), **1**, **2**, **3**, then **6** (ingestion strategy and checklist below).
-3. **Unified master plan** (phase spine, architecture summary, resolved decisions): **[TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)** — canonical copy in the repo (not only Cursor’s internal plans folder). After **P0** exists, the short mirror is [condensed/PLAN_CONDENSED.md](condensed/PLAN_CONDENSED.md) (create via P0 if missing).
-4. Latest **handoff** in this folder matching your phase: `handoff_p0.md`, `handoff_doc_a.md`, … (see unified plan Part V–VI).
+3. **Unified master plan** (phase spine, architecture summary, resolved decisions): **[TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)** — canonical copy in the repo (not only Cursor’s internal plans folder). Short mirror: [condensed/PLAN_CONDENSED.md](condensed/PLAN_CONDENSED.md). Doc A outputs: [artifacts_doc_a/](artifacts_doc_a/) + [BRAINSTORMING_IDEAS_INDEX.md](./BRAINSTORMING_IDEAS_INDEX.md).
+4. Latest **handoff** in this folder matching your phase: `handoff_p0.md`, `handoff_doc_a.md`, `handoff_doc_b.md`, … (see unified plan Part V–VI).
 
 **Do not start by loading** raw harness logs (`.agent-harness/logs/*.jsonl`), code snapshots under `research/.../pipeline-snapshot-*`, or entire `node_modules` / `.svelte-kit` — see Section 6.4.
 

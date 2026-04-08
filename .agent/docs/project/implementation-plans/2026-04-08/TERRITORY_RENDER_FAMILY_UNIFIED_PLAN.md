@@ -11,8 +11,8 @@ If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), tr
 
 ## Execution checklist (track in repo or your tracker)
 
-- [ ] **P0** — Condense: `condensed/CONTEXT|THINKING|PLAN_CONDENSED.md` + `handoff_p0.md`
-- [ ] **Doc A** — Band 2026-03-23 … 2026-04-08 + PVV2 / `.atlas` / `.gemini` + artifacts v1 + `BRAINSTORMING_IDEAS_INDEX` v1 + `handoff_doc_a.md`
+- [x] **P0** — Condense: `condensed/CONTEXT|THINKING|PLAN_CONDENSED.md` + `handoff_p0.md`
+- [x] **Doc A** — Band 2026-03-23 … 2026-04-08 + PVV2 / `.atlas` / `.gemini` + artifacts v1 + `BRAINSTORMING_IDEAS_INDEX` v1 + `handoff_doc_a.md`
 - [ ] **Doc B** — Band 2026-03-08 … 2026-03-22 + research sampling + artifacts v2 + index v2 + `handoff_doc_b.md`
 - [ ] **Doc C** — FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL.md` + `RECOMMENDATIONS_FOR_ARCHITECT.md` + `handoff_doc_c.md`
 - [ ] **Impl 0** — `RenderFamily`, registry, `DiagnosticProvider`, runtime clock, gated dispatch + `handoff_i0.md`
