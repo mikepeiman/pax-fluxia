@@ -19,11 +19,11 @@ When the user shares any of the following, you **must** record it before proceed
 
 | Type | Document |
 |------|----------|
-| Feature ideas / roadmap | `.atlas/FEATURE_STATUS.md` → Planned Features table |
-| Bug reports | `.atlas/FEATURE_STATUS.md` → Known Regressions |
-| Design decisions | `.atlas/DECISIONS.md` |
-| Game mechanics changes | `.atlas/MECHANICS.md` |
-| Balance/tuning | `.atlas/PRD_ACTIVE.md` or `MECHANICS.md` |
+| Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_STATUS.md` → Planned Features (or appendices) |
+| Bug reports | `.agent/docs/project/features/FEATURE_STATUS.md` → Known bugs / regressions |
+| Design decisions | `.agent/docs/project/decisions/DECISIONS.md` (and `.atlas/DECISIONS.md` if reconciling legacy) |
+| Game mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
+| Balance/tuning | Game design docs under `.agent/docs/game/design/` |
 
 ## Process
 

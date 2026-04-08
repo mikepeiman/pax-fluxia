@@ -7,6 +7,7 @@
 
 ***NOTE TO AGENT: This work costs money. You cost money based on token usage. Strategize, be tactical, advise and dialogue with your human to minimize token usage.***
 
+
 ## 1. Project
 
 **Pax Fluxia** — real-time multiplayer galactic strategy game.
@@ -46,11 +47,11 @@ When removing, renaming, or commenting out any symbol:
 ### 2.5 Document Everything
 | Type | Where |
 |------|-------|
-| Feature ideas / roadmap | `docs/project/features/FEATURE_IDEAS.md` |
-| Feature status / bugs | `docs/project/features/FEATURE_STATUS.md` |
-| Design decisions | `docs/project/decisions/DECISIONS.md` |
-| Mechanics changes | `docs/game/design/MECHANICS.md` |
-| Implementation Plans* | `docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
+| Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_IDEAS.md` |
+| Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
+| Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
+| Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
+| Implementation Plans* | `.agent/docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
@@ -62,6 +63,30 @@ When removing, renaming, or commenting out any symbol:
 
 ### 3.0 Debugging and Troubleshooting
 - stop assuming root causes, instrument first, isolate branches, then diagnose.
+- always think Architecture-first, honoring current standards
+- always note & communicate instances you that see you could fix inconsistencies and simplify codebase
+
+THINK:
+***Think like a systems detective: reconstruct the real model, find the violated invariants, identify the hidden assumptions, locate the wrong boundary or ownership decision, and only then propose the smallest high-confidence change.***
+
+Act as a senior architect-debugger, not just a coder.
+
+Before writing code:
+- restate the problem precisely
+- separate facts, assumptions, and unknowns
+- model system boundaries, data flow, control flow, state transitions, contracts, and invariants
+- identify likely root causes
+- explicitly look for what is missing, extra, miswired, wrongly owned, wrongly assumed, or solving the wrong problem
+
+Then:
+- propose the smallest correct fix
+- mention better structural alternatives if warranted
+- state risks and tradeoffs
+- provide a verification plan
+- call out open questions instead of guessing
+
+Optimize for root-cause correctness, simplicity, maintainability, and leverage.
+Do not patch symptoms before understanding structure.
 
 ### 3.1 Logging
 No raw `console.log`. Use Visual Telemetry:
@@ -173,23 +198,23 @@ Use `git ac "message"` alias. Run commands separately, never `&&`.
 
 | Need | Load |
 |------|------|
-| Game mechanics (ground truth) | `docs/game/design/MECHANICS.md` |
-| Master game spec | `docs/game/design/GAME_SPECIFICATION.md` |
-| Terminology & jargon | `docs/game/design/TERMINOLOGY.md` |
-| Feature status / bugs | `docs/project/features/FEATURE_STATUS.md` |
-| Feature ideas | `docs/project/features/FEATURE_IDEAS.md` |
-| Design decisions | `docs/project/decisions/DECISIONS.md` |
-| Territory architecture | `docs/game/territory/TERRITORY_ARCHITECTURE.md` |
-| Naming conventions | `docs/engineering/NAMING_CONVENTIONS.md` |
-| UI/Design rules | `docs/atlas/DESIGN_RULES.md` |
-| Work history | `docs/project/WORK_HISTORY.md` |
+| Game mechanics (ground truth) | `.agent/docs/game/design/MECHANICS.md` |
+| Master game spec | `.agent/docs/game/design/GAME_SPECIFICATION.md` |
+| Terminology & jargon | `.agent/docs/game/design/TERMINOLOGY.md` |
+| Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
+| Feature ideas | `.agent/docs/project/features/FEATURE_IDEAS.md` |
+| Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
+| Territory architecture | `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md` |
+| Naming conventions | `.agent/docs/engineering/NAMING_CONVENTIONS.md` |
+| UI/Design rules | `.agent/docs/atlas/DESIGN_RULES.md` |
+| Work history | `.agent/docs/project/WORK_HISTORY.md` |
 | Active rules | `.agent/rules/` |
 
 ---
 
 ## 8. Post-Mortem Process
 
-Write to `docs/project/process/post-mortem_YYYY-MM-DD-<name>.md` when: agent declares "done" but didn't, same bug recurs, agent fails explicit instruction, or user corrects something obvious.
+Write to `.agent/docs/project/process/post-mortem_YYYY-MM-DD-<name>.md` when: agent declares "done" but didn't, same bug recurs, agent fails explicit instruction, or user corrects something obvious.
 
 ```
 # Post-Mortem: [Date] — [Short Title]

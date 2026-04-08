@@ -45,7 +45,7 @@
 |------|----------|
 | `project/decisions/` | DECISIONS, DECISIONS_atlas (duplicate for reconciliation) |
 | `project/post-mortems/` | POST_MORTEMS, POST_MORTEM_2026-03-24_FRONTIER_DEDUP, POST_MORTEM_ANIMATION_SPEED, POST_MORTEM_V1_FALLACIOUS, POST_MORTEM_V2_CORRECTED, atlas/ (7 post-mortems from .atlas/) |
-| `project/features/` | FEATURE_IDEAS, FEATURE_STATUS, FEATURE_STATUS_atlas (duplicate for reconciliation) |
+| `project/features/` | FEATURE_IDEAS, **FEATURE_STATUS** (primary); FEATURE_STATUS_atlas → pointer; `.atlas/FEATURE_STATUS.md` = stub → primary |
 | `project/process/` | PROCESS_IMPROVEMENTS, DEFECT_PREVENTION, PLANNING_DOCS_AUDIT, DEEP_INGESTION_FINDINGS, SECOND_PASS_ONTOLOGY_AND_INGESTION, LESSONS_LEARNED, context-distillation-plan |
 | `project/sessions/notes/` | SESSION_2026-02-17 through SESSION_2026-03-25 |
 | `project/sessions/chats/` | CHAT_2026-02-27 through CHAT_2026-03-25 |
