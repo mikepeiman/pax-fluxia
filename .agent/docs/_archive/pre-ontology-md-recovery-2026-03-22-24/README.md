@@ -1,6 +1,6 @@
 # Pre-ontology Markdown recovery (Mar 22-24, 2026)
 
-**Generated:** 2026-04-08 (see `MANIFEST.tsv` for blob sources)
+**Generated:** 2026-04-08 15:33
 
 Historical snapshots: `504bf64` (end Mar 22), `ff5c3df` (end Mar 23), `c4a3076` (end Mar 24).
 
@@ -12,7 +12,7 @@ When several historical paths or snapshots produced different blobs for the same
 
 ## Layout
 
-- `files/` - recovered markdown (flat; original basename; rare collision gets `_1`, `_2` suffix).
+- `files/` - recovered markdown (flat; names from original basename; rare collision -> numeric suffix).
 - `MANIFEST.tsv` - basename, blob SHA, size, winning snapshot, source path at that snapshot.
 
 ## Regenerate
@@ -25,12 +25,8 @@ powershell -NoProfile -File .agent/docs/_archive/_scripts/build_pre_ontology_md_
 
 ## Atlas Harness (optional)
 
-Use MCP **atlas-harness** `file_list` / `file_read` to spot-check, or `code_references` after re-homing content into real paths. Bulk extraction is intentionally **git + this script** (not hundreds of MCP writes).
+Use MCP atlas-harness `file_list` / `file_read` to spot-check, or `code_references` after re-homing content. Bulk extraction uses git + this script.
 
 ## Caveat
 
-Same basename in different folders may have been different documents; this archive keeps **one** body per basename. Use `MANIFEST.tsv` and `git cat-file -p <blob>` for alternate SHAs.
-
-## Codex rendering pack
-
-The five `RENDERING_*.md` audits from `SPECIFICATIONS/2026-03-22 Rendering refactor plan (Codex)/` are in `files/` with their original names (see manifest rows).
+Same basename in different folders may have been different documents; this archive keeps **one** body per basename. Use `MANIFEST.tsv` and `git show <blob>` for other SHAs if needed.

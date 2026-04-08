@@ -127,18 +127,20 @@ $manifestLines = [System.Collections.Generic.List[string]]::new()
 $unsafe = '[<>:"/\\|?*]'
 
 Write-Host "Writing $($winners.Count) files..."
+$usedOut = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($w in ($winners | Sort-Object BaseKey)) {
-    $safeName = $w.Basename
-    if ($safeName -match $unsafe) {
-        $safeName = ($w.BaseKey -replace $unsafe, '_') + '.md'
-    }
-    $outFile = Join-Path $filesDir $safeName
-    $n = 1
-    while (Test-Path $outFile) {
+    # Lowercase basename avoids Windows treating two writes as the same path.
+    $safeName = ($w.BaseKey -replace $unsafe, '_')
+    if (-not ($safeName -match '\.md$')) { $safeName += '.md' }
+    $finalName = $safeName
+    $k = 0
+    while ($usedOut.Contains($finalName)) {
+        $k++
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($safeName)
-        $outFile = Join-Path $filesDir ($stem + "_" + $n + ".md")
-        $n++
+        $finalName = $stem + '_' + $w.BlobSha.Substring(0, 7) + '_' + $k + '.md'
     }
+    [void]$usedOut.Add($finalName)
+    $outFile = Join-Path $filesDir $finalName
 
     $content = git cat-file blob $w.BlobSha
     [System.IO.File]::WriteAllText($outFile, $content, [System.Text.UTF8Encoding]::new($false))
