@@ -63,7 +63,7 @@
 ## research/
 | Path | Contents |
 |------|----------|
-| `research/2026-03-22 Codex rendering/` | RENDERING_ARCHITECTURE_INTEGRITY_AUDIT, RENDERING_CLEAN_ARCH_MIGRATION_BLUEPRINT, RENDERING_VISUAL_SPEC_GDD, RENDERING_SYSTEM_AUDIT_MASTER, RENDERING_TECHNICAL_CANDIDATES_MATRIX |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/files/` | **Recovered** Codex rendering pack (`RENDERING_*.md`) + other pre-Ontology-E `.md` bodies not matched at HEAD by basename+SHA; see archive `README.md` + `MANIFEST.tsv` |
 | `research/2026-03-20 transition research/` | Morph boundary vertex research, Perplexity transition guidance |
 | `research/reference/` | Pax_Galaxia_dev_notes_2026-02-08 |
 | `research/permanent-references/` | Full territory deep-history archive (111 files) |
@@ -77,6 +77,7 @@
 ## _archive/
 | Path | Contents |
 |------|----------|
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/` | Flat recovery of 315 `.md` blobs from Mar22-24 snapshots not represented at HEAD (basename+SHA); script in `_archive/_scripts/build_pre_ontology_md_archive.ps1` |
 | `_archive/territory-recovery-2026-03-08/` | 22 territory recovery plan files (superseded) |
 | `_archive/F-138-ModifiedVoronoi/` | F-138 feature implementation archive |
 | `_archive/diagnostics/` | Diagnostic run outputs |
