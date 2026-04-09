@@ -33,7 +33,7 @@
 | game_other | 13 |
 | game_territory | 28 |
 | gemini | 2 |
-| implementation_plans | 17 |
+| implementation_plans | 24 |
 | other | 1 |
 | pax_fluxia | 5 |
 | plans | 32 |
@@ -45,9 +45,9 @@
 | review_reconcile | 11 |
 | root_readme | 1 |
 | sessions | 50 |
-| WIP | 16 |
+| WIP | 18 |
 
-**Total indexed:** 895
+**Total indexed:** 904
 
 ## Regenerate
 

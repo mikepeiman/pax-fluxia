@@ -1,4 +1,4 @@
-**Generated:** 2026-04-09 12:45 (local)
+**Generated:** 2026-04-09 12:49 (local)
 
 **Regenerate:** run from repo root: `powershell -NoProfile -File .agent/docs/project/implementation-plans/2026-04-08/doc-audit/_generate_markdown_manifest_index.ps1`
 
@@ -8,7 +8,7 @@
 
 ## Snapshot commits
 
-- **Current HEAD** - f10a94a1 2026-04-08 15:34:45 -0400 fix(archive): dedupe pre-ontology recovery files and harden naming
+- **Current HEAD** - 03dd8e6c 2026-04-09 12:47:15 -0400 docs: move markdown audit to 2026-04-08/doc-audit (CSV, BMAD exclusion)
 - **End 2026-03-24 (c4a3076)** - c4a30769 2026-03-24 21:58:45 -0400 docs: D-93 geometry refactor decision, D-94 DY4 virtual-star preservation
 - **End 2026-03-23 (ff5c3df)** - ff5c3dfd 2026-03-23 21:55:04 -0400 docs: add Phase 0 audit + session notes, note legacy geometry mode audit priority
 - **End 2026-03-22 (504bf64)** - 504bf644 2026-03-22 22:13:11 -0400 fix: territory re-renders while paused when config changes (config fingerprint gate)
@@ -17,7 +17,7 @@
 
 | Snapshot | .md files |
 |----------|-----------|
-| Current HEAD | 893 |
+| Current HEAD | 902 |
 | End 2026-03-24 (c4a3076) | 494 |
 | End 2026-03-23 (ff5c3df) | 466 |
 | End 2026-03-22 (504bf64) | 447 |
@@ -105,7 +105,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/SYSTEM/atlas-harness-project/02-basic-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/02-basic-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/03-atlas-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/03-atlas-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/04-perplexity-evaluation.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/04-perplexity-evaluation.md`
-- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/00-original-spec.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/00-original-spec.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/agent-harness-schema.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/agent-harness-schema.md | .agent/docs/agentic/harness-perplexity/agent-harness-schema.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/ai-mental-models.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/ai-mental-models.md`
@@ -259,7 +259,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md`
-- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step1_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step2_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step3_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md`
@@ -447,7 +447,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `pax-fluxia/src/lib/territory/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md` - *same basename at HEAD:* `.agent/docs/_archive/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md`
 - `reference/GDD/design-inspiration-landingpage.md` - *same basename at HEAD:* `.agent/docs/research/reference/GDD/design-inspiration-landingpage.md`
 - `reference/Pax_Galaxia_dev_notes_2026-02-08.md` - *same basename at HEAD:* `.agent/docs/research/reference/Pax_Galaxia_dev_notes_2026-02-08.md`
-- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `reference/legacy_app/screencapnotes.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/screencapnotes.md`
 - `reference/legacy_app/todo.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/todo.md`
 - `reference/research/3d pulse.md` - *same basename at HEAD:* `.agent/docs/research/reference/research/3d pulse.md`
@@ -507,7 +507,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/SYSTEM/atlas-harness-project/02-basic-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/02-basic-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/03-atlas-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/03-atlas-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/04-perplexity-evaluation.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/04-perplexity-evaluation.md`
-- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/00-original-spec.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/00-original-spec.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/agent-harness-schema.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/agent-harness-schema.md | .agent/docs/agentic/harness-perplexity/agent-harness-schema.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/ai-mental-models.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/ai-mental-models.md`
@@ -658,7 +658,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md`
-- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step1_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step2_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step3_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md`
@@ -847,7 +847,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `pax-fluxia/src/lib/territory/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md` - *same basename at HEAD:* `.agent/docs/_archive/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md`
 - `reference/GDD/design-inspiration-landingpage.md` - *same basename at HEAD:* `.agent/docs/research/reference/GDD/design-inspiration-landingpage.md`
 - `reference/Pax_Galaxia_dev_notes_2026-02-08.md` - *same basename at HEAD:* `.agent/docs/research/reference/Pax_Galaxia_dev_notes_2026-02-08.md`
-- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `reference/legacy_app/screencapnotes.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/screencapnotes.md`
 - `reference/legacy_app/todo.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/todo.md`
 - `reference/research/3d pulse.md` - *same basename at HEAD:* `.agent/docs/research/reference/research/3d pulse.md`
@@ -891,7 +891,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/SYSTEM/atlas-harness-project/02-basic-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/02-basic-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/03-atlas-harness-plan.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/03-atlas-harness-plan.md`
 - `.agent/SYSTEM/atlas-harness-project/04-perplexity-evaluation.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/04-perplexity-evaluation.md`
-- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/SYSTEM/atlas-harness-project/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/00-original-spec.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/00-original-spec.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/agent-harness-schema.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/agent-harness-schema.md | .agent/docs/agentic/harness-perplexity/agent-harness-schema.md`
 - `.agent/SYSTEM/atlas-harness-project/reference/ai-mental-models.md` - *same basename at HEAD:* `.agent/docs/agentic/atlas-harness/reference/ai-mental-models.md`
@@ -1039,7 +1039,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/research/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md`
-- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step1_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step2_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md`
 - `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md` - *same basename at HEAD:* `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step3_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md`
@@ -1228,7 +1228,7 @@ These paths existed in git at that commit but are absent at HEAD (deleted, renam
 - `pax-fluxia/src/lib/territory/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md` - *same basename at HEAD:* `.agent/docs/_archive/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md`
 - `reference/GDD/design-inspiration-landingpage.md` - *same basename at HEAD:* `.agent/docs/research/reference/GDD/design-inspiration-landingpage.md`
 - `reference/Pax_Galaxia_dev_notes_2026-02-08.md` - *same basename at HEAD:* `.agent/docs/research/reference/Pax_Galaxia_dev_notes_2026-02-08.md`
-- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `reference/legacy_app/README.md` - *same basename at HEAD:* `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `reference/legacy_app/screencapnotes.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/screencapnotes.md`
 - `reference/legacy_app/todo.md` - *same basename at HEAD:* `.agent/docs/research/reference/legacy_app/todo.md`
 - `reference/research/3d pulse.md` - *same basename at HEAD:* `.agent/docs/research/reference/research/3d pulse.md`
@@ -1316,7 +1316,7 @@ Tag key: `22` = present at end Mar22, `23` = end Mar23, `24` = end Mar24.
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/02-basic-harness-plan.md` -> `.agent/docs/agentic/atlas-harness/02-basic-harness-plan.md`
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/03-atlas-harness-plan.md` -> `.agent/docs/agentic/atlas-harness/03-atlas-harness-plan.md`
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/04-perplexity-evaluation.md` -> `.agent/docs/agentic/atlas-harness/04-perplexity-evaluation.md`
-- `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/reference/00-original-spec.md` -> `.agent/docs/agentic/atlas-harness/reference/00-original-spec.md`
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/reference/agent-harness-schema.md` -> `.agent/docs/agentic/atlas-harness/reference/agent-harness-schema.md | .agent/docs/agentic/harness-perplexity/agent-harness-schema.md`
 - `[24,23,22]` `.agent/SYSTEM/atlas-harness-project/reference/ai-mental-models.md` -> `.agent/docs/agentic/atlas-harness/reference/ai-mental-models.md`
@@ -1470,7 +1470,7 @@ Tag key: `22` = present at end Mar22, `23` = end Mar23, `24` = end Mar24.
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md` -> `.agent/docs/research/permanent-references/territory/TERRITORY_FRONTIER_TOP5_IMPLEMENTATION_PLAN_2026-03-12.md`
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md` -> `.agent/docs/research/permanent-references/territory/TERRITORY_REFERENCE_INDEX_2026-03-12.md`
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md` -> `.agent/docs/research/permanent-references/territory/canonical_frontier_wiring_handoff_2026-03-08.md`
-- `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/screenshots/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md` -> `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step1_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step1_2026-03-08.md`
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md` -> `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step2_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step2_2026-03-08.md`
 - `[24,23,22]` `.agent/WIP Work-In-Progress/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md` -> `.agent/docs/_archive/territory-recovery-2026-03-08/territory_border_quality_recovery_step3_2026-03-08.md | .agent/docs/research/permanent-references/territory/territory_border_quality_recovery_step3_2026-03-08.md`
@@ -1659,14 +1659,14 @@ Tag key: `22` = present at end Mar22, `23` = end Mar23, `24` = end Mar24.
 - `[24,23,22]` `pax-fluxia/src/lib/territory/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md` -> `.agent/docs/_archive/TERRITORY_CLEAN_ARCHITECTURE_RENAME_LEDGER.md`
 - `[24,23,22]` `reference/GDD/design-inspiration-landingpage.md` -> `.agent/docs/research/reference/GDD/design-inspiration-landingpage.md`
 - `[24,23,22]` `reference/Pax_Galaxia_dev_notes_2026-02-08.md` -> `.agent/docs/research/reference/Pax_Galaxia_dev_notes_2026-02-08.md`
-- `[24,23,22]` `reference/legacy_app/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
+- `[24,23,22]` `reference/legacy_app/README.md` -> `.agent/.skills/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/README.md | .agent/docs/_archive/pre-ontology-md-recovery-2026-03-22-24/files/README.md | .agent/docs/agentic/atlas-harness/README.md | .agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/README.md | .agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md | .agent/docs/research/permanent-references/territory/screenshots/README.md | .agent/docs/research/reference/legacy_app/README.md | README.md | under_development/pax-fluxia-ui/README.md`
 - `[24,23,22]` `reference/legacy_app/screencapnotes.md` -> `.agent/docs/research/reference/legacy_app/screencapnotes.md`
 - `[24,23,22]` `reference/legacy_app/todo.md` -> `.agent/docs/research/reference/legacy_app/todo.md`
 - `[24,23,22]` `reference/research/3d pulse.md` -> `.agent/docs/research/reference/research/3d pulse.md`
 - `[24,23,22]` `reference/research/circle-orb-effect.md` -> `.agent/docs/research/reference/research/circle-orb-effect.md`
 - `[24,23,22]` `reference/research/florin-pop pulse.md` -> `.agent/docs/research/reference/research/florin-pop pulse.md`
 
-## Only in current HEAD, not at end of 2026-03-24 (824 paths)
+## Only in current HEAD, not at end of 2026-03-24 (833 paths)
 
 New or re-introduced since the Mar 24 snapshot.
 
@@ -1677,6 +1677,7 @@ New or re-introduced since the Mar 24 snapshot.
 - `.agent/WIP Work-In-Progress/CHAT_2026-03-31.md`
 - `.agent/WIP Work-In-Progress/CHAT_2026-04-01.md`
 - `.agent/WIP Work-In-Progress/CHAT_2026-04-02.md`
+- `.agent/WIP Work-In-Progress/CHAT_2026-04-09.md`
 - `.agent/WIP Work-In-Progress/KICKSTART_2026-03-30.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-25.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-27.md`
@@ -1685,6 +1686,7 @@ New or re-introduced since the Mar 24 snapshot.
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-31.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-04-01.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-04-02.md`
+- `.agent/WIP Work-In-Progress/SESSION_2026-04-09.md`
 - `.agent/docs/_INDEX.md`
 - `.agent/docs/_archive/CURRENT_OBJECTIVE_archived.md`
 - `.agent/docs/_archive/CURRENT_SPRINT_archived.md`
@@ -2266,6 +2268,7 @@ New or re-introduced since the Mar 24 snapshot.
 - `.agent/docs/project/implementation-plans/2026-04-07/territory-pipeline-onboarding-notes.md`
 - `.agent/docs/project/implementation-plans/2026-04-07/territory-transition-wip-notes.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX_FINAL.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/APPROACH_EVIDENCE_SCORECARD.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/CLAIMS_REGISTRY.md`
@@ -2276,6 +2279,12 @@ New or re-introduced since the Mar 24 snapshot.
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/CONTEXT_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/PLAN_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/THINKING_CONDENSED.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/2026-04-08_session_work_summary_and_prompt_log.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/IDEA_MINING_PIPELINE_POSTMORTEM.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_MASTER_INDEX.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/handoff_doc_a.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/handoff_p0.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md`
@@ -2299,7 +2308,7 @@ New or re-introduced since the Mar 24 snapshot.
 - `.agent/docs/project/process/DEEP_PROCESSING_PLAN.md`
 - `.agent/docs/project/process/DEFECT_PREVENTION.md`
 - `.agent/docs/project/process/LESSONS_LEARNED.md`
-- `.agent/docs/project/process/MARKDOWN_FULL_MANIFEST_VS_HEAD.md`
+- `.agent/docs/project/process/PLANNING_DOCS_AUDIT.md`
 - `.agent/docs/project/process/PROCESS_IMPROVEMENTS.md`
 - `.agent/docs/project/process/TRANCHE_A_FINDINGS.md`
 - `.agent/docs/project/process/TRANCHE_B_FINDINGS.md`
@@ -2523,6 +2532,7 @@ For each `.md` at current HEAD: whether the **same path** existed at end Mar22 /
 | `.agent/WIP Work-In-Progress/CHAT_2026-03-31.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/CHAT_2026-04-01.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/CHAT_2026-04-02.md` | - | - | - |
+| `.agent/WIP Work-In-Progress/CHAT_2026-04-09.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/KICKSTART_2026-03-30.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/SESSION_2026-03-17.md` | Y | Y | Y |
 | `.agent/WIP Work-In-Progress/SESSION_2026-03-25.md` | - | - | - |
@@ -2532,6 +2542,7 @@ For each `.md` at current HEAD: whether the **same path** existed at end Mar22 /
 | `.agent/WIP Work-In-Progress/SESSION_2026-03-31.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/SESSION_2026-04-01.md` | - | - | - |
 | `.agent/WIP Work-In-Progress/SESSION_2026-04-02.md` | - | - | - |
+| `.agent/WIP Work-In-Progress/SESSION_2026-04-09.md` | - | - | - |
 | `.agent/docs/_INDEX.md` | - | - | - |
 | `.agent/docs/_archive/CURRENT_OBJECTIVE_archived.md` | - | - | - |
 | `.agent/docs/_archive/CURRENT_SPRINT_archived.md` | - | - | - |
@@ -3113,6 +3124,7 @@ For each `.md` at current HEAD: whether the **same path** existed at end Mar22 /
 | `.agent/docs/project/implementation-plans/2026-04-07/territory-pipeline-onboarding-notes.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-07/territory-transition-wip-notes.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX_FINAL.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/APPROACH_EVIDENCE_SCORECARD.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/CLAIMS_REGISTRY.md` | - | - | - |
@@ -3123,6 +3135,12 @@ For each `.md` at current HEAD: whether the **same path** existed at end Mar22 /
 | `.agent/docs/project/implementation-plans/2026-04-08/condensed/CONTEXT_CONDENSED.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/condensed/PLAN_CONDENSED.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/condensed/THINKING_CONDENSED.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/2026-04-08_session_work_summary_and_prompt_log.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/IDEA_MINING_PIPELINE_POSTMORTEM.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_MASTER_INDEX.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md` | - | - | - |
+| `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/handoff_doc_a.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/handoff_p0.md` | - | - | - |
 | `.agent/docs/project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md` | - | - | - |
@@ -3146,7 +3164,7 @@ For each `.md` at current HEAD: whether the **same path** existed at end Mar22 /
 | `.agent/docs/project/process/DEEP_PROCESSING_PLAN.md` | - | - | - |
 | `.agent/docs/project/process/DEFECT_PREVENTION.md` | - | - | - |
 | `.agent/docs/project/process/LESSONS_LEARNED.md` | - | - | - |
-| `.agent/docs/project/process/MARKDOWN_FULL_MANIFEST_VS_HEAD.md` | - | - | - |
+| `.agent/docs/project/process/PLANNING_DOCS_AUDIT.md` | - | - | - |
 | `.agent/docs/project/process/PROCESS_IMPROVEMENTS.md` | - | - | - |
 | `.agent/docs/project/process/TRANCHE_A_FINDINGS.md` | - | - | - |
 | `.agent/docs/project/process/TRANCHE_B_FINDINGS.md` | - | - | - |
@@ -3899,7 +3917,7 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 
 ## Full path lists (appendix)
 
-### Current HEAD - 893 files
+### Current HEAD - 902 files
 
 - `.agent/.skills/README.md`
 - `.agent/.skills/assumption-validation/SKILL.md`
@@ -3923,6 +3941,7 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 - `.agent/WIP Work-In-Progress/CHAT_2026-03-31.md`
 - `.agent/WIP Work-In-Progress/CHAT_2026-04-01.md`
 - `.agent/WIP Work-In-Progress/CHAT_2026-04-02.md`
+- `.agent/WIP Work-In-Progress/CHAT_2026-04-09.md`
 - `.agent/WIP Work-In-Progress/KICKSTART_2026-03-30.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-17.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-25.md`
@@ -3932,6 +3951,7 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 - `.agent/WIP Work-In-Progress/SESSION_2026-03-31.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-04-01.md`
 - `.agent/WIP Work-In-Progress/SESSION_2026-04-02.md`
+- `.agent/WIP Work-In-Progress/SESSION_2026-04-09.md`
 - `.agent/docs/_INDEX.md`
 - `.agent/docs/_archive/CURRENT_OBJECTIVE_archived.md`
 - `.agent/docs/_archive/CURRENT_SPRINT_archived.md`
@@ -4513,6 +4533,7 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 - `.agent/docs/project/implementation-plans/2026-04-07/territory-pipeline-onboarding-notes.md`
 - `.agent/docs/project/implementation-plans/2026-04-07/territory-transition-wip-notes.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/BRAINSTORMING_IDEAS_INDEX_FINAL.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/APPROACH_EVIDENCE_SCORECARD.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/artifacts_doc_a/CLAIMS_REGISTRY.md`
@@ -4523,6 +4544,12 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/CONTEXT_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/PLAN_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/THINKING_CONDENSED.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/2026-04-08_session_work_summary_and_prompt_log.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/IDEA_MINING_PIPELINE_POSTMORTEM.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/MARKDOWN_MASTER_INDEX.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/README.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/handoff_doc_a.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/handoff_p0.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md`
@@ -4546,7 +4573,7 @@ Union of all `.md` paths that appear in **any** of the three snapshots (495 uniq
 - `.agent/docs/project/process/DEEP_PROCESSING_PLAN.md`
 - `.agent/docs/project/process/DEFECT_PREVENTION.md`
 - `.agent/docs/project/process/LESSONS_LEARNED.md`
-- `.agent/docs/project/process/MARKDOWN_FULL_MANIFEST_VS_HEAD.md`
+- `.agent/docs/project/process/PLANNING_DOCS_AUDIT.md`
 - `.agent/docs/project/process/PROCESS_IMPROVEMENTS.md`
 - `.agent/docs/project/process/TRANCHE_A_FINDINGS.md`
 - `.agent/docs/project/process/TRANCHE_B_FINDINGS.md`
