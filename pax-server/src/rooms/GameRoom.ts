@@ -34,6 +34,7 @@ interface RoomOptions {
     starsPerPlayer?: number;
     shipsPerStar?: number;
     starSpacing?: number;
+    mapBoardFit?: number;
     minLinks?: number;
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
@@ -425,6 +426,7 @@ export class GameRoom extends Room {
             if (message.starsPerPlayer) this.roomOptions.starsPerPlayer = message.starsPerPlayer;
             if (message.shipsPerStar) this.roomOptions.shipsPerStar = message.shipsPerStar;
             if (message.starSpacing) this.roomOptions.starSpacing = message.starSpacing;
+            if (message.mapBoardFit !== undefined) this.roomOptions.mapBoardFit = message.mapBoardFit;
 
             this.updateListingMetadata();
             log.game('GameRoom', `Room options updated by host`);
@@ -759,6 +761,7 @@ export class GameRoom extends Room {
             spacingMultiplier: this.roomOptions.starSpacing ?? 1.0,
             minLinksPerStar: this.roomOptions.minLinks ?? 1,
             maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
+            boardFit: this.roomOptions.mapBoardFit ?? 0,
         });
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);

@@ -1,4 +1,4 @@
-# Brainstorming ideas index — Doc A (v1)
+# Brainstorming ideas index — Doc B (v2)
 
 **Row shape:** `idea_id | one_line_idea | suggested_family | H/M/L | source_path | date | tried/untried/partial | notes`
 
@@ -19,6 +19,8 @@
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/CONTEXT_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/THINKING_CONDENSED.md`
 - `.agent/docs/project/implementation-plans/2026-04-08/condensed/PLAN_CONDENSED.md`
+- `.agent/docs/project/implementation-plans/2026-04-08/AGENT_ENTRYPOINT.md` *(redirect only → `territory-rendering-jumpstart.md`)*
+- `.agent/docs/project/implementation-plans/2026-04-08/handoff_doc_b.md`
 
 ### A.2 Plans root + dated + subplans
 
@@ -51,7 +53,7 @@
 - `.agent/docs/plans/geometry-refactor/05-QUARANTINE-AND-PURGE.md`
 - `.agent/docs/plans/geometry-refactor/COMPLETED_STEPS_SUMMARY.md`
 
-### A.3 Game territory specs (selected; geometry-atlas + `_archive` truncated)
+### A.3 Game territory specs (selected)
 
 - `.agent/docs/game/territory/CONQUEST_ANIMATION_SPEC.md`
 - `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
@@ -64,9 +66,23 @@
 - `.agent/docs/game/territory/geometry-atlas/GEOMETRY_ATLAS.md`
 - `.agent/docs/game/territory/geometry-atlas/GEOMETRY_CONSOLIDATION_ANALYSIS.md`
 - `.agent/docs/game/territory/geometry-atlas/Geometry pipeline refactor 2026-03-24.md`
-- `.agent/docs/game/territory/geometry-atlas/_archive/*` (9 Perplexity / status files — enumerate in Doc B if needed)
 
-### A.4 Sessions in band 2026-03-23 … 2026-04-08
+### A.9 `geometry-atlas/_archive` (explicit — Doc B)
+
+- `.agent/docs/game/territory/geometry-atlas/_archive/Geometry pipeline refactor 2025-03-24 Perplexity part 1.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor code output round 1.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor code output round 2.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor code output round 3.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor plan round 1.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor plan round 2.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry refactor plan round 3.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry review recommendations 1.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry review recommendations 2.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry review tranche 1.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/Perplexity 2026-03-24 geometry review tranche 2.md`
+- `.agent/docs/game/territory/geometry-atlas/_archive/TERRITORY_CLEAN_ARCHITECTURE_COMPLETION_STATUS_2026-03-21.md`
+
+### A.4 Sessions/chats band 2026-03-23 … 2026-04-08 (Doc A)
 
 - `.agent/docs/project/sessions/chats/CHAT_2026-03-23.md`
 - `.agent/docs/project/sessions/chats/CHAT_2026-03-24.md`
@@ -90,9 +106,66 @@
 - `.gemini/MEMORY/agent-context.md`
 - `.gemini/MEMORY/git-branch-workflow.md`
 
+### A.7 `research/2026-03-20 transition research/` (Doc B)
+
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 canonical-boundary-implementation-plan.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 F-165 virtual-star-position-lerp.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 morph boundary vertices.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 morph boundary vertices v2.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 morph boundary vertices v2 implementation plan.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 novel-transition-solutions-prompt.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 Perplexity new transition guidance.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20 Perplexity renderPowerVoronoi.md`
+- `.agent/docs/research/2026-03-20 transition research/2026-03-20__1031 morph-even-distribution-algorithm.md`
+
+### A.8 `_review-reconcile/` (Doc B)
+
+- `.agent/docs/_review-reconcile/01-CANONICAL-CONTRACT.md`
+- `.agent/docs/_review-reconcile/02-UNIFIED-COMPILER.md`
+- `.agent/docs/_review-reconcile/03-ENFORCE-SINGLE-MODE.md`
+- `.agent/docs/_review-reconcile/AGENT_WORKTREE_COORDINATION_2026-03-21.md`
+- `.agent/docs/_review-reconcile/ARCHITECTURE_GUIDING_PRINCIPLES.md`
+- `.agent/docs/_review-reconcile/GEOMETRY_DATA_SHAPE.md`
+- `.agent/docs/_review-reconcile/Perplexity 2026-03-24 geometry refactor code agent detailed prompt.md`
+- `.agent/docs/_review-reconcile/Perplexity 2026-03-24 new renderer contextual plan.md`
+- `.agent/docs/_review-reconcile/Perplexity 2026-03-24 new renderer contextual plan round 2.md`
+- `.agent/docs/_review-reconcile/PROJECT_ARCHITECTURE_GUIDING_PRINCIPLES.md`
+- `.agent/docs/_review-reconcile/TERRITORY_CLEAN_ARCHITECTURE_BLUEPRINT.md`
+
+### A.10 Sessions/chats band 2026-03-08 … 2026-03-22 (Doc B)
+
+**Notes:** `SESSION_2026-03-23.md`+ and `CHAT_2026-03-23.md`+ belong to Doc A band.
+
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-08.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-12.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-13.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-14.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-15.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-15b.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-16.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-17.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-18.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-19.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-20.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-21.md`
+- `.agent/docs/project/sessions/notes/SESSION_2026-03-22.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-08.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-10.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-12.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-14.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-15.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-15b.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-16.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-17.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-18.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-19.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-20.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-21.md`
+- `.agent/docs/project/sessions/chats/CHAT_2026-03-22.md`
+
 ---
 
-## B. Idea rows (v1 seed)
+## B. Idea rows (v1 seed + Doc B additions)
 
 | idea_id | one_line_idea | family | pri | source_path | date | status | notes |
 |---------|---------------|--------|-----|-------------|------|--------|-------|
@@ -111,12 +184,26 @@
 | I-013 | GPT-5.4 plan supersedes narrative in older architecture doc | Meta | H | 2026-04-04 design plan | 2026-04-04 | partial | Use for requirements wording. |
 | I-014 | Render Family gated flag default off until DF path validated | Meta | H | TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md | 2026-04-08 | untried | Impl 0 acceptance criterion. |
 | I-015 | Atlas mechanics terminology block should sync to canonical MECHANICS | Meta | M | TRANCHE_A_FINDINGS.md | 2026-03-25 | untried | Prevents agent confusion. |
+| I-016 | DX/debug fill can disagree with true owner — harden ownership→display coupling | Shared / UI | H | `.atlas/post-mortems/post-mortem_2026-03-10-dx-fill-wrong-owner.md` | 2026-03-10 | partial | Diagnostics idea: dual-source truth check. |
+| I-017 | Stop over-investing in geometry-only refactors while transition/render fails | Meta | H | `.atlas/post-mortems/2026-03-17-planning-bias-geometry-vs-render.md` | 2026-03-17 | partial | Validates idea-first doc epic. |
+| I-018 | Morph boundary vertices along star segments to fix midpoint/kink artifacts | VectorPolygon | M | `2026-03-20 morph boundary vertices v2.md` | 2026-03-20 | partial | See CLAIMS C-B-RESEARCH-01. |
+| I-019 | Lerp virtual star positions for smooth conquest motion | VectorPolygon | M | `2026-03-20 F-165 virtual-star-position-lerp.md` | 2026-03-20 | untried | Ownership presentation interaction. |
+| I-020 | Even-distribution / canonical boundary algorithm for morph fairness | VectorPolygon | L | `2026-03-20__1031 morph-even-distribution-algorithm.md` | 2026-03-20 | untried | Pair with I-018. |
+| I-021 | Package “novel transition solutions” as prompt constraints for new modes | Meta | L | `2026-03-20 novel-transition-solutions-prompt.md` | 2026-03-20 | untried | Feeds brainstorming sessions. |
+| I-022 | Perplexity transition guidance as literature snapshot (OT / warp) | VectorPolygon | M | `2026-03-20 Perplexity new transition guidance.md` | 2026-03-20 | partial | Dedupe vs 03-31 research brief. |
+| I-023 | renderPowerVoronoi Perplexity round — PVV rendering nuances | VectorPolygon | L | `2026-03-20 Perplexity renderPowerVoronoi.md` | 2026-03-20 | partial | Excavation note for PVV2. |
+| I-024 | Clean-architecture blueprint as alternate migration story vs geometry-refactor | Meta | M | `_review-reconcile/TERRITORY_CLEAN_ARCHITECTURE_BLUEPRINT.md` | 2026-03 | partial | Contradiction row in artifacts_doc_b. |
+| I-025 | Single-mode enforcement doc as contract gate | VectorPolygon | M | `_review-reconcile/03-ENFORCE-SINGLE-MODE.md` | 2026-03 | partial | Maps to registry enforcement. |
+| I-026 | Renderer every-frame call pattern — prefer event-driven or cached families | DistanceField / Meta | M | `.atlas/post-mortems/2026-03-03-renderers-called-every-frame.md` | 2026-03-03 | partial | Perf idea for family `update()`. |
+| I-027 | Polygon count reasoning doc — LOD / simplification ideas | VectorPolygon | L | `.atlas/post-mortems/2026-03-03-polygon-count-reasoning.md` | 2026-03-03 | partial | Quality vs cost knob. |
+| I-028 | Codex territory plan 2026-03-08 tranche — strategic alternatives | Meta | M | `TERRITORY PLAN 2026-03-08 Codex V2.md` | 2026-03-08 | partial | Read with directives doc. |
 
 ---
 
-## C. Next (Doc B)
+## C. Doc C complete
 
-- Add `research/2026-03-20 transition research/` and `_review-reconcile/` manifests.  
-- Expand §A.3 `_archive` to explicit file list.  
-- Merge duplicate Perplexity rounds per unified plan VII.  
-- Add idea rows for each post-mortem in `.atlas/post-mortems/` (pre-03-23 band).
+Final snapshot: **[BRAINSTORMING_IDEAS_INDEX_FINAL.md](./BRAINSTORMING_IDEAS_INDEX_FINAL.md)** (ideas **I-001 … I-033**, §A.11 band C). Also **`RECOMMENDATIONS_FOR_ARCHITECT.md`**, **`handoff_doc_c.md`**, **`artifacts_doc_c/`**.
+
+Further edits here = **working draft** only; bump FINAL with architect sign-off if you reopen the doc epic.
+
+**Optional later:** line-level digest of queued chats from Doc A (03-23+) if evidence gaps appear during Impl.

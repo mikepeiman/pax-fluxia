@@ -102,6 +102,8 @@ export interface GameSettings {
     neutralStarCount?: number;
     neutralShipsPerStar?: number;
     specialStarPercentage?: number;
+    /** Random map: 0 = loose placement bbox, 1 = expand/center to fill padded board */
+    mapBoardFit?: number;
 }
 
 // === Combat ===

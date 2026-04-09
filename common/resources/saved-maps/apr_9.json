@@ -1,0 +1,348 @@
+{
+  "metadata": {
+    "name": "apr_9",
+    "createdAt": "2026-04-09T18:18:58.041Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 830,
+      "y": 163,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 755,
+      "y": 293,
+      "ownerId": "ai-3",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 1430,
+      "y": 596,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 230,
+      "y": 770,
+      "ownerId": "ai-5",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 680,
+      "y": 163,
+      "ownerId": "ai-4",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-5",
+      "x": 305,
+      "y": 899,
+      "ownerId": "ai-3",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-6",
+      "x": 605,
+      "y": 813,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-7",
+      "x": 1580,
+      "y": 856,
+      "ownerId": "ai-4",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-8",
+      "x": 1055,
+      "y": 380,
+      "ownerId": "ai-2",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-9",
+      "x": 980,
+      "y": 510,
+      "ownerId": "ai-4",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-10",
+      "x": 1655,
+      "y": 207,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-11",
+      "x": 530,
+      "y": 163,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-12",
+      "x": 1355,
+      "y": 293,
+      "ownerId": "ai-5",
+      "starType": "green",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-13",
+      "x": 455,
+      "y": 813,
+      "ownerId": "ai-3",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-14",
+      "x": 980,
+      "y": 163,
+      "ownerId": "ai-2",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-15",
+      "x": 305,
+      "y": 293,
+      "ownerId": "ai-5",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-16",
+      "x": 830,
+      "y": 683,
+      "ownerId": "ai-2",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-17",
+      "x": 1355,
+      "y": 899,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-0",
+      "targetId": "star-14",
+      "distance": 150
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-1",
+      "distance": 150.08331019803634
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-7",
+      "distance": 300.1666203960727
+    },
+    {
+      "sourceId": "star-3",
+      "targetId": "star-5",
+      "distance": 149.21796138535066
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-4",
+      "distance": 150
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-6",
+      "distance": 150
+    },
+    {
+      "sourceId": "star-8",
+      "targetId": "star-9",
+      "distance": 150.08331019803634
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-12",
+      "distance": 312.0833222073874
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-4",
+      "distance": 150
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-15",
+      "distance": 259.8557292037257
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-9",
+      "distance": 228.97379762758882
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-7",
+      "distance": 229.0720410700529
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-4",
+      "distance": 150.08331019803634
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-11",
+      "distance": 259.8557292037257
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-14",
+      "distance": 259.8557292037257
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-8",
+      "distance": 312.360368805007
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-9",
+      "distance": 312.5923863436216
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-2",
+      "distance": 312.14419744726956
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-2",
+      "distance": 312.14419744726956
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-8",
+      "distance": 432.7597485903697
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-2",
+      "distance": 449.3840228579561
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-9",
+      "distance": 458.1440821401058
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-3",
+      "distance": 229.0720410700529
+    },
+    {
+      "sourceId": "star-15",
+      "targetId": "star-3",
+      "distance": 482.8602282234477
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-5",
+      "distance": 172.90459797240788
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-6",
+      "distance": 259.8557292037257
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-6",
+      "distance": 754.9145647025232
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-7",
+      "distance": 653.3192175345831
+    },
+    {
+      "sourceId": "star-14",
+      "targetId": "star-8",
+      "distance": 229.5952961190625
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-8",
+      "distance": 312.360368805007
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-9",
+      "distance": 540.3202753922899
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-14",
+      "distance": 676.4325539179794
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-14",
+      "distance": 396.8941924493227
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-15",
+      "distance": 541.2023651093923
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-17",
+      "distance": 567.6979830860772
+    }
+  ]
+}

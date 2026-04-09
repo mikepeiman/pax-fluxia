@@ -139,6 +139,7 @@
     let minLinks = $state(loadSetting("minLinks", 1));
     let maxLinks = $state(loadSetting("maxLinks", 6));
     let starSpacing = $state(loadSetting("starSpacing", 1.0));
+    let mapBoardFit = $state(loadSetting("mapBoardFit", 0.55));
     let retainOrderOnConquest = $state(
         loadSetting("retainOrderOnConquest", true),
     );
@@ -180,6 +181,7 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing,
+            mapBoardFit,
             neutralStarCount,
             specialStarPercentage,
         });
@@ -188,7 +190,7 @@
 
     $effect(() => {
         // Regenerate when settings change or reshuffle is clicked
-        void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void previewSeed;
+        void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void mapBoardFit; void previewSeed;
         void neutralStarCount; void specialStarPercentage;
         generatePreview();
     });
@@ -249,6 +251,7 @@
         saveSetting("minLinks", minLinks);
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
+        saveSetting("mapBoardFit", mapBoardFit);
         saveSetting("retainOrderOnConquest", retainOrderOnConquest);
         saveSetting("allowOpposingOrders", allowOpposingOrders);
         saveSetting("neutralStarCount", neutralStarCount);
@@ -292,6 +295,7 @@
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
             starSpacing: starSpacing,
+            mapBoardFit,
             gameSpeed: tickDuration,
             playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
             neutralStarCount,
@@ -342,6 +346,7 @@
             starsPerPlayer,
             shipsPerStar,
             starSpacing,
+            mapBoardFit,
             minLinks,
             maxLinks,
             retainOrderOnConquest,
@@ -576,6 +581,28 @@
                                             />
                                             <span class="value"
                                                 >{starSpacing.toFixed(1)}x</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="config-row-3"
+                                    style="grid-template-columns: 1fr;"
+                                >
+                                    <div class="config-item">
+                                        <label title="Loose: natural cluster. Tight: stars scaled to fill the padded map area."
+                                            >Board fill</label
+                                        >
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.05"
+                                                bind:value={mapBoardFit}
+                                            />
+                                            <span class="value"
+                                                >{Math.round(mapBoardFit * 100)}%</span
                                             >
                                         </div>
                                     </div>

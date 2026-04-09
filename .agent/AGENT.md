@@ -57,6 +57,7 @@ When removing, renaming, or commenting out any symbol:
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
 **Chat log rule**:Chat logs must be LOSSLESS and COMPLETE. Do NOT summarize any human-written input. You may summarize or truncate logs and diagnostic machine content, but do not summarize or truncate any human-written input.
 
+***NEVER use TSV format; if tables are required, use CSV or another format appropriately.***
 ---
 
 ## 3. Code Standards

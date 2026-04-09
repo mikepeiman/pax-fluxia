@@ -607,6 +607,7 @@ function generateMapPreview(opts: {
     minLinksPerStar: number;
     maxLinksPerStar: number;
     starSpacing: number;
+    mapBoardFit: number;
     neutralStarCount: number;
     specialStarPercentage: number;
 }): { stars: Array<{ id: string; x: number; y: number; ownerId: string; starType?: string }>; connections: Array<{ sourceId: string; targetId: string }> } {
@@ -623,6 +624,7 @@ function generateMapPreview(opts: {
         hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
         minLinksPerStar: opts.minLinksPerStar,
         maxLinksPerStar: opts.maxLinksPerStar,
+        boardFit: opts.mapBoardFit,
     });
     
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
@@ -689,6 +691,7 @@ function initStandardMap(playerIds: string[]): void {
         hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
         minLinksPerStar: settings.minLinksPerStar ?? 1,
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
+        boardFit: settings.mapBoardFit ?? 0,
     });
 
     // Store map gen metadata for debug grid overlay

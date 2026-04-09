@@ -2,6 +2,7 @@
 # Rules: .md only; group by basename (case-insensitive); one archived file per basename;
 #        multiple variants -> largest blob, tie-break Mar24 > Mar23 > Mar22.
 # Skips a blob if the same SHA exists in ANY HEAD file with the same basename.
+# Excludes all paths under `_bmad/` (BMAD agentic framework — not project docs).
 # Run from repo root:
 #   powershell -NoProfile -File .agent/docs/_archive/_scripts/build_pre_ontology_md_archive.ps1
 $ErrorActionPreference = "Stop"
@@ -19,6 +20,10 @@ $snaps = @(
     @{ Key = "Mar22"; Ref = "504bf6442304a8cda1bbedfe0ee5af5fab7e6694"; Rank = 1 }
 )
 
+function Test-IsBmadPath([string]$path) {
+    return $path -match '(?i)(^|[\\/])_bmad([\\/]|$)'
+}
+
 function Build-PathToShaMap([string]$ref) {
     $map = @{}
     $lines = git ls-tree -r $ref
@@ -27,6 +32,7 @@ function Build-PathToShaMap([string]$ref) {
         $sha = $Matches[1]
         $p = $Matches[2]
         if ($p -notmatch '\.md$') { continue }
+        if (Test-IsBmadPath $p) { continue }
         $map[$p] = $sha
     }
     return $map
@@ -128,6 +134,7 @@ $unsafe = '[<>:"/\\|?*]'
 
 Write-Host "Writing $($winners.Count) files..."
 $usedOut = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+$listRows = [System.Collections.Generic.List[object]]::new()
 foreach ($w in ($winners | Sort-Object BaseKey)) {
     # Lowercase basename avoids Windows treating two writes as the same path.
     $safeName = ($w.BaseKey -replace $unsafe, '_')
@@ -148,6 +155,12 @@ foreach ($w in ($winners | Sort-Object BaseKey)) {
     [void]$manifestLines.Add(
         ($w.Basename + "`t" + $w.BlobSha + "`t" + $w.Size + "`t" + $w.Snapshot + "`t" + $w.SourcePath)
     )
+    [void]$listRows.Add([PSCustomObject]@{
+            FinalName  = $finalName
+            SourcePath = $w.SourcePath
+            BlobSha    = $w.BlobSha
+            Snapshot   = $w.Snapshot
+        })
 }
 
 $readme = @'
@@ -163,10 +176,15 @@ For each **basename** `*.md` that appeared under those trees: if the blob **SHA*
 
 When several historical paths or snapshots produced different blobs for the same basename, **one** blob was kept: **largest size**, then **newer snapshot** (Mar24 > Mar23 > Mar22).
 
+## Exclusions
+
+Paths under `_bmad/` (BMAD agentic framework) are **not** included; only Pax Fluxia / project-adjacent markdown.
+
 ## Layout
 
 - `files/` - recovered markdown (flat; names from original basename; rare collision -> numeric suffix).
 - `MANIFEST.tsv` - basename, blob SHA, size, winning snapshot, source path at that snapshot.
+- `RECOVERED_LEGACY_DOC_LIST.md` - same inventory as a readable table (for documentation audits).
 
 ## Regenerate
 
@@ -188,6 +206,19 @@ $readme = $readme.Replace('__GEN__', (Get-Date -Format 'yyyy-MM-dd HH:mm'))
 
 [System.IO.File]::WriteAllText((Join-Path $archiveRoot "README.md"), $readme, [System.Text.UTF8Encoding]::new($false))
 [System.IO.File]::WriteAllLines((Join-Path $archiveRoot "MANIFEST.tsv"), $manifestLines, [System.Text.UTF8Encoding]::new($false))
+
+$listMd2 = [System.Text.StringBuilder]::new()
+[void]$listMd2.AppendLine("# Recovered legacy markdown (pre-Ontology-E, Mar 22-24)")
+[void]$listMd2.AppendLine()
+[void]$listMd2.AppendLine("BMAD (`_bmad/`) paths are excluded. Machine-readable twin: `MANIFEST.tsv`.")
+[void]$listMd2.AppendLine()
+[void]$listMd2.AppendLine('| `files/` name | Source path at snapshot | Blob SHA | Snapshot |')
+[void]$listMd2.AppendLine('|----------------|-------------------------|----------|----------|')
+foreach ($r in ($listRows | Sort-Object SourcePath)) {
+    $cellPath = $r.SourcePath -replace '\|', '\|'
+    [void]$listMd2.AppendLine("| ``$($r.FinalName)`` | ``$cellPath`` | ``$($r.BlobSha)`` | $($r.Snapshot) |")
+}
+[System.IO.File]::WriteAllText((Join-Path $archiveRoot "RECOVERED_LEGACY_DOC_LIST.md"), $listMd2.ToString(), [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "Done. Archive: $archiveRoot"
 Write-Host "Files written: $($winners.Count)"

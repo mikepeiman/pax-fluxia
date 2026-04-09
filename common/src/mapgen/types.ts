@@ -54,6 +54,8 @@ export interface MapGenConfig {
     minLinksPerStar?: number;
     /** Maximum connections per star (default 6) */
     maxLinksPerStar?: number;
+    /** 0 = natural bbox after placement; 1 = scale/translate to fill padded play area (uniform, Delaunay-safe) */
+    boardFit?: number;
 }
 
 /**

@@ -58,14 +58,25 @@ function dist(a: HexCoord, b: HexCoord): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+function minDistToSelected(hex: HexCoord, selected: HexCoord[]): number {
+    let m = Infinity;
+    for (const s of selected) {
+        const d = dist(s, hex);
+        if (d < m) m = d;
+    }
+    return m;
+}
+
 /**
  * Select `count` positions from a hex grid with minimum spacing.
- * Uses adaptive retry: if spacing is too tight, reduces by 20% per attempt.
+ * `placementUniformity` blends farthest-point (maximin) picks vs random valid picks: 1 = even spread,
+ * 0 = organic / asymmetric clusters (similar to legacy shuffle+greedy).
  *
  * @param hexes            - Candidate hex positions
  * @param count            - Number to select
  * @param minSpacing       - Desired minimum pixel spacing
  * @param absoluteMinSpacing - Hard floor (default 50)
+ * @param placementUniformity - 0..1, same knob as map board-fit (high = uniform placement)
  * @returns Selected positions (may be fewer than count if grid is too small)
  */
 export function selectPositions(
@@ -73,19 +84,40 @@ export function selectPositions(
     count: number,
     minSpacing: number,
     absoluteMinSpacing: number = 50,
+    placementUniformity: number = 1,
 ): MapPosition[] {
+    const u = Math.max(0, Math.min(1, placementUniformity));
     const floor = Math.max(absoluteMinSpacing, 50);
     let spacing = minSpacing;
 
     while (spacing >= floor) {
+        const pool = shuffled(hexes);
         const selected: HexCoord[] = [];
-        const available = shuffled(hexes);
 
-        for (const hex of available) {
-            if (selected.length >= count) break;
-            if (!selected.some(s => dist(s, hex) < spacing)) {
-                selected.push(hex);
+        if (pool.length === 0) break;
+
+        const seedIdx = Math.floor(Math.random() * pool.length);
+        selected.push(pool[seedIdx]!);
+        pool.splice(seedIdx, 1);
+
+        while (selected.length < count && pool.length > 0) {
+            const candidates = pool.filter(h => selected.every(s => dist(s, h) >= spacing));
+            if (candidates.length === 0) break;
+
+            let best = candidates[0]!;
+            let bestScore = minDistToSelected(best, selected);
+            for (let i = 1; i < candidates.length; i++) {
+                const h = candidates[i]!;
+                const score = minDistToSelected(h, selected);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = h;
+                }
             }
+            const chosen = Math.random() < u ? best : candidates[Math.floor(Math.random() * candidates.length)]!;
+            selected.push(chosen);
+            const ri = pool.indexOf(chosen);
+            if (ri >= 0) pool.splice(ri, 1);
         }
 
         if (selected.length >= count) return selected;
@@ -94,6 +126,58 @@ export function selectPositions(
 
     // Absolute fallback: random pick, no spacing constraint
     return shuffled(hexes).slice(0, count);
+}
+
+/** Inset from padded edge when fitting bbox (matches typical star draw radius). */
+const BOARD_FIT_INSET = 25;
+
+/**
+ * Blend from raw placement (t=0) to uniform scale+translate that centers the bbox in the map and
+ * fills the inner padded rect (t=1). Preserves relative directions — safe for Delaunay connections.
+ */
+function applyBoardFit(
+    positions: MapPosition[],
+    width: number,
+    height: number,
+    paddingX: number,
+    paddingY: number,
+    boardFit: number,
+): MapPosition[] {
+    const t = Math.max(0, Math.min(1, boardFit));
+    if (t <= 0 || positions.length < 2) return positions;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const p of positions) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+    }
+    const bboxW = maxX - minX;
+    const bboxH = maxY - minY;
+    if (bboxW <= 0 || bboxH <= 0) return positions;
+
+    const innerW = width - 2 * paddingX - 2 * BOARD_FIT_INSET;
+    const innerH = height - 2 * paddingY - 2 * BOARD_FIT_INSET;
+    if (innerW <= 0 || innerH <= 0) return positions;
+
+    const scaleFull = Math.min(innerW / bboxW, innerH / bboxH);
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
+    const targetX = width / 2;
+    const targetY = height / 2;
+
+    return positions.map(p => {
+        const fx = (p.x - midX) * scaleFull + targetX;
+        const fy = (p.y - midY) * scaleFull + targetY;
+        return {
+            x: p.x + (fx - p.x) * t,
+            y: p.y + (fy - p.y) * t,
+        };
+    });
 }
 
 function shuffled<T>(arr: T[]): T[] {
@@ -130,8 +214,9 @@ export function generateStarPositions(config: {
     totalStars: number;
     spacingMultiplier?: number;
     hexRadius?: number;
+    boardFit?: number;
 }): { positions: MapPosition[]; hexRadius: number; width: number; height: number; paddingX: number; paddingY: number } {
-    const { totalStars, spacingMultiplier = 1.0 } = config;
+    const { totalStars, spacingMultiplier = 1.0, boardFit = 0 } = config;
     const scaleFactor = Math.max(1, spacingMultiplier);
     const width = Math.round(config.width * scaleFactor);
     const height = Math.round(config.height * scaleFactor);
@@ -160,7 +245,8 @@ export function generateStarPositions(config: {
     const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
     const minSpacing = physicsMinSpacing * spacingMultiplier;
 
-    const positions = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
+    const raw = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing, boardFit);
+    const positions = applyBoardFit(raw, width, height, paddingX, paddingY, boardFit);
 
     return { positions, hexRadius, width, height, paddingX, paddingY };
 }

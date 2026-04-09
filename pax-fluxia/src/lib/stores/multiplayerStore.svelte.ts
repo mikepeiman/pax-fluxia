@@ -11,6 +11,20 @@ import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { audioManager } from '$lib/services/audioManager.svelte';
 
+/** Options forwarded to Colyseus `create('game_room', opts)` (host map setup). */
+export type CreateRoomOptions = {
+    playerCount?: number;
+    mapType?: string;
+    starsPerPlayer?: number;
+    shipsPerStar?: number;
+    starSpacing?: number;
+    mapBoardFit?: number;
+    minLinks?: number;
+    maxLinks?: number;
+    retainOrderOnConquest?: boolean;
+    gameplayConfig?: Partial<EngineConfig>;
+};
+
 // Server URL: env var > same-origin (production) > localhost (dev)
 const SERVER_URL = import.meta.env.VITE_SERVER_URL
     || (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -130,17 +144,7 @@ async function connect(): Promise<void> {
     }
 }
 
-async function createRoom(options: {
-    playerCount?: number;
-    mapType?: string;
-    starsPerPlayer?: number;
-    shipsPerStar?: number;
-    starSpacing?: number;
-    minLinks?: number;
-    maxLinks?: number;
-    retainOrderOnConquest?: boolean;
-    gameplayConfig?: Partial<EngineConfig>;
-} = {}): Promise<string | null> {
+async function createRoomInternal(options: CreateRoomOptions = {}): Promise<string | null> {
     if (!client) await connect();
     if (!client) return null;
 
@@ -714,7 +718,9 @@ export const multiplayerStore = {
 
     // Connection actions
     connect,
-    createRoom,
+    createRoom(options: CreateRoomOptions = {}) {
+        return createRoomInternal(options);
+    },
     joinRoom,
     leaveRoom,
     disconnect,

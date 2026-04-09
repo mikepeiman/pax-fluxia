@@ -27,6 +27,7 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         totalStars,
         spacingMultiplier: config.spacingMultiplier,
         hexRadius: config.hexRadius,
+        boardFit: config.boardFit,
     });
 
     // Create connectable nodes with sequential IDs
