@@ -1,33 +1,81 @@
 # Territory Rendering: Fresh-Start Jumpstart Document
 
-**Date**: 2026-04-08
-**Purpose**: Onboarding document for a new agent session starting from zero context. The task is NOT to implement code. It is to ingest, organize, reconcile, and help the human architect make directional decisions about territory rendering.
+**Single entry point** for the territory documentation epic (ingestion + ideas). There is no separate onboarding file: **start here at Section 0**, then continue through the sections below in order.
+
+**Date**: 2026-04-08  
+**Purpose**: Onboarding for a new agent or reset session. **Do not** implement production code unless the architect explicitly directs it. Ingest, surface **ideas** (rendering, geometry, VFX, features, architecture, …), reconcile, and support directional decisions.
 
 ---
 
-## 0. Fresh-context entry point (start here)
+## 0. Fresh-context entry point (start here — only file to assign)
 
-**This file is the repository entrypoint** for a new agent or a reset session:
+### 0.0 Path (give agents this one file)
 
 `.agent/docs/project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md`
 
-**Suggested load order**
+### 0.A Verbatim instruction (architect copy-paste)
+
+> Start at **Section 0** of this file. Follow the **Suggested load order** below. **Current phase:** **Impl 0** (doc epic complete) — confirm against **Phase status** (0.B). **Ideas before plans before code** still applies to any *new* doc work; for **implementation**, follow the unified plan + `handoff_doc_c.md` and only write code when the architect directs it.
+
+### 0.B Phase status (keep this table in sync when a phase finishes)
+
+| Phase | Status | Handoff to read next |
+|-------|--------|----------------------|
+| P0 | Done | `handoff_p0.md` (historical) |
+| Doc A | Done | `handoff_doc_a.md` |
+| Doc B | Done | `handoff_doc_b.md` |
+| Doc C | Done | `handoff_doc_c.md` |
+| Impl 0–3 | **Next** (after architect locks direction) | [handoff_doc_c.md](./handoff_doc_c.md) + [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md) Impl 0 |
+
+**Doc epic (P0 + Doc A–C) is complete.** Deliverables: `artifacts_doc_c/`, `BRAINSTORMING_IDEAS_INDEX_FINAL.md`, `RECOMMENDATIONS_FOR_ARCHITECT.md`, `handoff_doc_c.md`. **Impl 0** may start when the architect greenlights code (default: after reading RECOMMENDATIONS + SYNTHESIS_FINAL).
+
+### 0.C Companion files in this folder (not separate entry points)
+
+| File | Role |
+|------|------|
+| [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md) | Phase checklist; ideas epic (Doc A–C) then Impl 0–3; Parts I–II = proposed engineering direction. |
+| [BRAINSTORMING_IDEAS_INDEX_FINAL.md](./BRAINSTORMING_IDEAS_INDEX_FINAL.md) | **Frozen** idea row ledger; §C links each row to [master inventory](./doc-audit/MARKDOWN_MASTER_INDEX.csv) paths + `git_last_commit`. Narrative story layer: [TERRITORY_IDEA_CORPUS_NARRATIVE.md](./doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md). |
+| [BRAINSTORMING_IDEAS_INDEX.md](./BRAINSTORMING_IDEAS_INDEX.md) | Working draft / same lineage; use if reopening ingestion. |
+| [RECOMMENDATIONS_FOR_ARCHITECT.md](./RECOMMENDATIONS_FOR_ARCHITECT.md) | Post–Doc C decisions backlog. |
+| `handoff_p0.md` | P0 checkpoint only; skip if you already loaded `condensed/`. |
+| `handoff_doc_a.md` … `handoff_doc_c.md` | **Continuity** — read **`handoff_doc_c.md`** before Impl 0. |
+| `artifacts_doc_a/`, `artifacts_doc_b/`, `artifacts_doc_c/`, `condensed/` | Ledgers, synthesis, short summaries. |
+
+**Deprecated alias:** [AGENT_ENTRYPOINT.md](./AGENT_ENTRYPOINT.md) redirects here — do not add new content there.
+
+### 0.D Doc B completion criteria (reference for auditors)
+
+Doc B is complete when: (1) `artifacts_doc_b/` exists with v2 ledgers, (2) `BRAINSTORMING_IDEAS_INDEX.md` is v2 with expanded manifests, (3) `handoff_doc_b.md` lists deliverables and Doc C next steps. *(Already satisfied in this repo snapshot.)*
+
+### 0.E Related hubs
+
+- [PLANNING_DOCS_AUDIT.md](../../process/PLANNING_DOCS_AUDIT.md) — ideas → plans → implementation + manifest links.  
+- [`_INDEX.md`](../../../_INDEX.md) — *Major documentation audit (2026-04)*.
+
+---
+
+### Suggested load order
 
 1. [`.agent/AGENT.md`](../../../../AGENT.md) — non-negotiable behaviors and file ontology.
-2. This document — Sections **0** (here), **1**, **2**, **3**, then **6** (ingestion strategy and checklist below).
-3. **Unified master plan** (phase spine, architecture summary, resolved decisions): **[TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)** — canonical copy in the repo (not only Cursor’s internal plans folder). Short mirror: [condensed/PLAN_CONDENSED.md](condensed/PLAN_CONDENSED.md). Doc A outputs: [artifacts_doc_a/](artifacts_doc_a/) + [BRAINSTORMING_IDEAS_INDEX.md](./BRAINSTORMING_IDEAS_INDEX.md).
-4. Latest **handoff** in this folder matching your phase: `handoff_p0.md`, `handoff_doc_a.md`, `handoff_doc_b.md`, … (see unified plan Part V–VI).
+2. **This file** — Sections **0** (above), **1**, **2**, **3**, then **6** (ingestion strategy and checklist). For **new doc ingestion**, surface *ideas* into artifacts + brainstorming; for **Impl**, skim §6 only if you need exclusion rules.
+3. **Unified plan** **[TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)** — phase spine, Parts I–II, **Impl** sequencing. Short mirror: [condensed/PLAN_CONDENSED.md](condensed/PLAN_CONDENSED.md). **Doc epic outputs:** [artifacts_doc_a/](artifacts_doc_a/) + [artifacts_doc_b/](artifacts_doc_b/) + [artifacts_doc_c/](artifacts_doc_c/) + [BRAINSTORMING_IDEAS_INDEX.md](./BRAINSTORMING_IDEAS_INDEX.md). **Impl prelude (read before coding):** [handoff_doc_c.md](./handoff_doc_c.md), [BRAINSTORMING_IDEAS_INDEX_FINAL.md](./BRAINSTORMING_IDEAS_INDEX_FINAL.md) (§E), [RECOMMENDATIONS_FOR_ARCHITECT.md](./RECOMMENDATIONS_FOR_ARCHITECT.md), [artifacts_doc_c/SYNTHESIS_FINAL.md](./artifacts_doc_c/SYNTHESIS_FINAL.md).
+4. Latest **handoff** for your phase (`handoff_doc_c.md` before **Impl 0**, etc.) — see unified plan Part V–VI.
 
 **Do not start by loading** raw harness logs (`.agent-harness/logs/*.jsonl`), code snapshots under `research/.../pipeline-snapshot-*`, or entire `node_modules` / `.svelte-kit` — see Section 6.4.
 
 ### 0.1 Ingestion roots checklist (for exhaustive brainstorming file lists)
 
-Use **buckets + keyword search** under each path to build an **exhaustive list of candidate `.md` files** (then read in **date bands**, Section 6.2). Group the list by bucket in `BRAINSTORMING_IDEAS_INDEX*.md` or a `FILE_MANIFEST` section.
+**Canonical enumeration (mining):** [MARKDOWN_MASTER_INDEX.md](./doc-audit/MARKDOWN_MASTER_INDEX.md) and [MARKDOWN_MASTER_INDEX.csv](./doc-audit/MARKDOWN_MASTER_INDEX.csv) under `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/` — one row per **git-tracked** `.md` at `HEAD` (category, git first/last touch, Mar22/Mar24 **tree** flags, default `processing_status`). Regenerate with `doc-audit/_generate_markdown_master_index.ps1`. That inventory is the ground truth for “every tracked doc”; the bucket table below is a **human triage** map on top of it.
+
+**Primary reader consolidation (ordering principle #1 — Ideas):** [TERRITORY_IDEA_CORPUS_NARRATIVE.md](./doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md) — prose + sourced bullets across rendering, geometry, transition, VFX, feature, architecture, UX, diagnostic, and process (snapshot; does not replace `BRAINSTORMING_IDEAS_INDEX*`).
+
+Use **buckets + keyword search** under each path to build **candidate lists** (then read in **date bands**, Section 6.2). Group the list by bucket in `BRAINSTORMING_IDEAS_INDEX*.md` or a `FILE_MANIFEST` section.
 
 | Bucket | Path (from repo root) |
 |--------|------------------------|
-| Process acceleration | `.agent/docs/project/process/` — `TRANCHE_*_FINDINGS.md`, `planning-docs-chronological-index.md` |
+| Process acceleration | `.agent/docs/project/process/` — `TRANCHE_*_FINDINGS.md`, `planning-docs-chronological-index.md`; **master markdown index** lives in `implementation-plans/2026-04-08/doc-audit/` (`MARKDOWN_MASTER_INDEX.csv` + `.md`) |
 | Ground truth | `.agent/docs/project/sessions/notes/`, `sessions/chats/` |
+| WIP / scratch | `.agent/WIP Work-In-Progress/` (also indexed in the master CSV as category `WIP`) |
 | Decisions / post-mortems | `.agent/docs/project/decisions/`, `project/post-mortems/` |
 | Territory specs (canonical tree) | `.agent/docs/game/territory/` (include `geometry-atlas/` and `_archive/` when indexing) |
 | Implementation plans (dated) | `.agent/docs/project/implementation-plans/2026-04-07/`, `2026-04-08/` |
@@ -42,6 +90,8 @@ Use **buckets + keyword search** under each path to build an **exhaustive list o
 | Tool memory (skim) | `.gemini/MEMORY/*.md` |
 | Canonical atlas mirror | `.agent/docs/atlas/` |
 
+**Documentation audit baselines (do not skip for Doc B/C):** [PLANNING_DOCS_AUDIT.md](../../process/PLANNING_DOCS_AUDIT.md) (hub), [2026-03-25__1018 PLANNING_DOCS_AUDIT.md](../../process/2026-03-25__1018%20PLANNING_DOCS_AUDIT.md) (dated token/triage + 2026-04-08 meta-audit), [doc-audit/README.md](./doc-audit/README.md) (inventory folder index), [MARKDOWN_FULL_MANIFEST_VS_HEAD.md](./doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md), **[MARKDOWN_MASTER_INDEX.md](./doc-audit/MARKDOWN_MASTER_INDEX.md)** (full tracked `.md` inventory + processing queue columns), [IDEA_MINING_PIPELINE_POSTMORTEM.md](./doc-audit/IDEA_MINING_PIPELINE_POSTMORTEM.md) (why brainstorming rows ≠ exhaustive index), pre-ontology [RECOVERED_LEGACY_DOC_LIST.md](../../../_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md) (**basename-deduped** recovery only — not a complete Mar 22 export), master [`_INDEX.md`](../../../_INDEX.md) (*Major documentation audit*).
+
 Code locations for renderer inventory (not prose ingestion): `pax-fluxia/src/lib/renderers/`, `pax-fluxia/src/lib/territory/` — listed in Sections 4–5 of this file.
 
 ---
@@ -50,8 +100,8 @@ Code locations for renderer inventory (not prose ingestion): `pax-fluxia/src/lib
 
 You are entering a project with 2+ months of partial, conflicting agentic work on territory rendering. Multiple agents across multiple sessions have attempted various approaches, often contradicting each other, often claiming things work when they do not.
 
-**Your job this session:**
-1. Follow the **ingestion roots checklist** (Section 0.1) and strategy (Section 6): enumerate candidate files per bucket (exhaustive lists for brainstorming), then read in **date bands** — not a single undifferentiated “read everything” pass.
+**Your job this session (ordering: ideas → plans → implementation):**
+1. Follow the **ingestion roots checklist** (Section 0.1) and strategy (Section 6): enumerate candidate files per bucket (exhaustive lists for brainstorming), then read in **date bands** — not a single undifferentiated “read everything” pass. **Prioritize capturing ideas** (including wild, abandoned, or contradictory ones) in the brainstorming index and registries; implementation plans come **after** the architect synthesizes those.
 2. Organize findings by theme and date
 3. Identify contradictions and redundancies across documents
 4. Tally mentions of what worked vs. what failed (see Section 9)
@@ -338,7 +388,7 @@ The "universal 4-layer linear pipeline" has been evaluated and found to be optim
 - The existing 4-layer pipeline becomes VectorPolygonFamily's internal implementation
 - DistanceField wrapping is the Phase 1 priority
 
-See: `plans/territory_architecture_audit_778cac4a.plan.md` for the full architecture plan with resolved decisions.
+See: **[TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)** — **proposed** architecture (Parts I–II), resolved decisions **as of 2026-04-08**, and **Impl** phase spine. **Not** the authority on the full **idea** space; **canonical for Impl ordering and handoffs** once the architect locks direction. Cursor-only plan copies are optional; refresh from this file after edits.
 
 ### 8.2 Key Decisions Already Made
 - **PVV** stays inside VectorPolygonFamily as a transition-mode variant (not its own family)

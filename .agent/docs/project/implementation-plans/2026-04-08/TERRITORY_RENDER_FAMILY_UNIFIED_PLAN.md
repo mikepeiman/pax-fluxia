@@ -1,11 +1,19 @@
 # Territory Render Family — Unified Master Plan
 
-**Canonical copy (versioned in repo):** this file —  
+**Versioned repo copy (edit here):**  
 `.agent/docs/project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`
 
-**Onboarding / ingestion entrypoint:** [territory-rendering-jumpstart.md](./territory-rendering-jumpstart.md) (Section 0).
+**Single entry point:** [territory-rendering-jumpstart.md](./territory-rendering-jumpstart.md) — **Section 0** (path, verbatim instruction, phase table, companion files); **Sections 1+** are the rest of the runbook. `AGENT_ENTRYPOINT.md` redirects here.
 
-If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), treat it as **optional**; **this file is source of truth** — refresh any external copy from here after edits.
+If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), treat it as **optional**; refresh it from **this file** after edits.
+
+### Ordering principle (ideas → plans → implementation)
+
+1. **Ideas** — Doc phases A–B–C and their artifacts exist primarily to **surface** rendering, geometry, transition, VFX, feature, architecture, UX, diagnostic, and process **ideas** from the corpus (especially `BRAINSTORMING_IDEAS_INDEX*`, ledgers, scorecards). No implementation plan “closes” the idea space.
+2. **Plans** — The human architect commits direction (which ideas to pursue, which to park). Parts I–II of this document are **proposed** engineering plans and resolved decisions as of 2026-04-08; **Doc C** (`RECOMMENDATIONS_FOR_ARCHITECT.md`, final index) may **revise** them.
+3. **Implementation** — Impl 0–3 execute **after** idea synthesis is far enough along to avoid coding blind; gated or parallel spikes are fine if reversible. **This file is canonical for Impl sequencing, handoffs, and the `RenderFamily` sketch** once direction is locked — **not** canonical for “all ideas that matter.”
+
+**Ideas-principle deliverables (living):** [TERRITORY_IDEA_CORPUS_NARRATIVE.md](./doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md) — narrative digest across rendering → process axes; [MARKDOWN_MASTER_INDEX.csv](./doc-audit/MARKDOWN_MASTER_INDEX.csv) — tracked `.md` **queue** (`processing_status` / `notes`); [BRAINSTORMING_IDEAS_INDEX_FINAL.md](./BRAINSTORMING_IDEAS_INDEX_FINAL.md) — row ledger + §C path/commit map. None of these “close” the idea space.
 
 ---
 
@@ -13,8 +21,8 @@ If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), tr
 
 - [x] **P0** — Condense: `condensed/CONTEXT|THINKING|PLAN_CONDENSED.md` + `handoff_p0.md`
 - [x] **Doc A** — Band 2026-03-23 … 2026-04-08 + PVV2 / `.atlas` / `.gemini` + artifacts v1 + `BRAINSTORMING_IDEAS_INDEX` v1 + `handoff_doc_a.md`
-- [ ] **Doc B** — Band 2026-03-08 … 2026-03-22 + research sampling + artifacts v2 + index v2 + `handoff_doc_b.md`
-- [ ] **Doc C** — FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL.md` + `RECOMMENDATIONS_FOR_ARCHITECT.md` + `handoff_doc_c.md`
+- [x] **Doc B** — Band 2026-03-08 … 2026-03-22 + research sampling + artifacts v2 + index v2 + `handoff_doc_b.md`
+- [x] **Doc C** — FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL.md` + `RECOMMENDATIONS_FOR_ARCHITECT.md` + `handoff_doc_c.md`
 - [ ] **Impl 0** — `RenderFamily`, registry, `DiagnosticProvider`, runtime clock, gated dispatch + `handoff_i0.md`
 - [ ] **Impl 1** — `DistanceFieldFamily` (priority) + `handoff_i1.md`
 - [ ] **Impl 2** — `VectorPolygonFamily` + `handoff_i2.md`
@@ -24,8 +32,9 @@ If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), tr
 
 This document merges:
 
-- **Architecture audit & redesign** (Render Family model, diagnosis, resolved decisions, diagnostics/VFX/clock, sacrosanct items).
-- **Documentation-first execution** (optional condensed always-load docs after P0, extended corpus, brainstorming index, Doc Phases A–C, Impl Phases 0–3).
+- **Idea epic** (extended corpus, exhaustive bucket lists, `BRAINSTORMING_IDEAS_INDEX*`, ledgers, scorecards — **primary** doc output is **ideas** and evidence, not a single narrative).
+- **Proposed architecture & decisions** (Render Family model, diagnosis, Parts I–II — **plan layer**; revisable after synthesis).
+- **Implementation spine** (P0 condense optional, Impl 0–3 — **code layer**; runs **after** ideas → architect plans, unless explicitly gated/experimental).
 
 ---
 
@@ -100,7 +109,9 @@ interface RenderFamilyOutput {
 
 ---
 
-## Part II — Resolved decisions (2026-04-08)
+## Part II — Resolved decisions (2026-04-08) — **plan layer**
+
+These are **committed engineering decisions for the current hypothesis**. Doc C and new evidence may **reopen** them; they do **not** limit which **ideas** you must still extract from older docs.
 
 ### II.1 PVV
 
@@ -118,24 +129,42 @@ Incremental **D1–D13** menu; optional **`DiagnosticProvider`** + shared overla
 
 **Runtime-owned** transition clock; per-family duration/easing via tunables; `activeTransition` on input (see sketch above).
 
-### II.5 Implementation priority
+### II.5 Implementation priority (hypothesis; revisable after idea synthesis)
 
-**DistanceFieldFamily first** after doc synthesis and Impl 0 — validates hardest GPU/shader path.
+**DistanceFieldFamily first** after doc synthesis and Impl 0 — validates hardest GPU/shader path. **If Doc C surfaces stronger evidence for another paradigm, reorder here before deep Impl.**
 
 ---
 
-## Part III — Documentation epic (primary)
+## Part III — Documentation epic (primary): **surface ideas**
+
+The doc phases are **not** a preamble to “the real work” of coding. Their main job is to **extract and record ideas** (explicit and latent) across **rendering, geometry, transitions, VFX, features, architecture, UX, diagnostics, tooling, and process** — then tie evidence to those ideas. Implementation phases consume **summaries** of that work; they do not replace it.
+
+### III.0 Planning-doc audit stack (2026-03-25 + 2026-04-08)
+
+Use these together so **idea coverage** stays aligned with repo-wide inventory:
+
+| Artifact | Use |
+|----------|-----|
+| [PLANNING_DOCS_AUDIT.md](../../process/PLANNING_DOCS_AUDIT.md) | Hub: **ideas first**, then plans, then Impl; jumpstart = **single** territory entry file; dated audit, manifest, recovery, this file. |
+| [2026-03-25__1018 PLANNING_DOCS_AUDIT.md](../../process/2026-03-25__1018%20PLANNING_DOCS_AUDIT.md) | **Treasure map** — where large, idea-rich clusters live + token sizing for read order; **§2026-04-08** reframes it as input to **idea mining**, not as superseded by any code plan. |
+| [MARKDOWN_FULL_MANIFEST_VS_HEAD.md](./doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md) | Exhaustive tracked `.md` inventory vs path (regenerate via `doc-audit/_generate_markdown_manifest_index.ps1`). |
+| [MARKDOWN_MASTER_INDEX.md](./doc-audit/MARKDOWN_MASTER_INDEX.md) + `.csv` | Per-file **queue**: category, git dates, Mar22/Mar24 tree flags, `processing_status` (regenerate via `doc-audit/_generate_markdown_master_index.ps1`). |
+| [TERRITORY_IDEA_CORPUS_NARRATIVE.md](./doc-audit/TERRITORY_IDEA_CORPUS_NARRATIVE.md) | **Narrative digest** — prose + sourced bullets across all Ideas axes (living snapshot). |
+| [RECOVERED_LEGACY_DOC_LIST.md](../../../_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md) | 25 pre-Ontology-E bodies (legacy framework paths excluded); includes Codex `RENDERING_*` when SHA differed from HEAD — **mine for ideas**. |
+| [`_INDEX.md`](../../../_INDEX.md) | *Major documentation audit (2026-04)* — single map of the above. |
+
+**Rule:** Jumpstart §6 defines *how* to ingest; this subsection defines *which baselines* prevent gaps in **idea enumeration**.
 
 ### III.1 Goals (aligned with jumpstart + audit lenses)
 
-Ingestion should produce evidence for:
+Ingestion should produce **idea- and evidence-backed** outputs for:
 
-1. Per-renderer / per-family human-grounded track record.
-2. Transition techniques by paradigm (GPU vs vector vs grid).
-3. **Hidden / untried** ideas → **`BRAINSTORMING_IDEAS_INDEX`**.
-4. Per-renderer **tunable inventory** → family `tunableKeys`.
-5. Failure patterns by paradigm vs by transition approach.
-6. Diagnostics / VFX references → D-menu prioritization.
+1. Per-renderer / per-approach human-grounded track record (what was **tried**, what **worked** or **failed** in observation — not agent claims alone).
+2. Transition **techniques** and **paradigms** (GPU vs vector vs grid vs field vs hybrid) as **ideas**, not only as “current pipeline.”
+3. **Hidden, untried, or abandoned ideas** → **`BRAINSTORMING_IDEAS_INDEX`** (rendering, geometry, borders, fills, animation, UX, settings, performance, **VFX**, **features**, **architecture**).
+4. **Tunable / control** ideas per approach → later `tunableKeys` **only after** ideas are catalogued.
+5. **Failure and success patterns** by paradigm and by transition style.
+6. **Diagnostics and VFX** ideas (what would we want to see, trigger, or sync?) → D-menu and bus priorities.
 
 ### III.2 Extended corpus (outside `.agent/docs` only)
 
@@ -167,7 +196,7 @@ Buckets (same as jumpstart + extended corpus): `.agent/docs/research/permanent-r
 6. `BRAINSTORMING_IDEAS_INDEX*` (above)
 7. `RECOMMENDATIONS_FOR_ARCHITECT.md` (final in Doc C)
 
-Handoff bundle for Impl: **compact summaries** of scorecard + index + plan headlines — not full research paste.
+Handoff bundle for Impl: **compact summaries** of scorecard + **brainstorming index** + plan headlines — for **engineering execution**, not a substitute for the full idea record. New ideas discovered in code should still **flow back** into the index or a dated addendum.
 
 ---
 
@@ -281,12 +310,12 @@ Metaball, Contour, `settingsDefs` / `panelSync` / `game.config`, family UI.
 | Phase | Type | Primary output |
 | ----- | ---- | -------------- |
 | P0 | Setup | Condensed always-load + `handoff_p0.md` |
-| Doc A | Ingestion | Artifacts v1 + brainstorming index v1 + `handoff_doc_a.md` |
-| Doc B | Ingestion | Artifacts v2 + brainstorming index v2 + `handoff_doc_b.md` |
-| Doc C | Synthesis | FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL` + `RECOMMENDATIONS` + `handoff_doc_c.md` |
+| Doc A | **Idea + evidence ingestion** | Artifacts v1 + brainstorming index v1 + `handoff_doc_a.md` |
+| Doc B | **Idea + evidence ingestion** | Artifacts v2 + brainstorming index v2 + `handoff_doc_b.md` |
+| Doc C | **Idea synthesis** | FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL` + `RECOMMENDATIONS` + `handoff_doc_c.md` |
 | Impl 0 | Code | Interface + registry + clock + gated dispatch + `handoff_i0.md` |
 | Impl 1 | Code | `DistanceFieldFamily` + `handoff_i1.md` |
 | Impl 2 | Code | `VectorPolygonFamily` + `handoff_i2.md` |
 | Impl 3 | Code | Metaball + Contour + UI + prune + `RENDER_FAMILY_COMPLETE.md` |
 
-**Eight phases.** Documentation epic **precedes** implementation; architecture rationale and decisions **above** drive **what** to build; doc artifacts drive **tunables, evidence, and excavation**.
+**Eight phases.** Doc A–C **precede** Impl in intent: they **surface and reconcile ideas** (and evidence) first; **architect-owned plans** sit between Doc C and heavy Impl. Parts I–II are **plan hypotheses** informed by — and subordinate to — that idea work. Impl phases use condensed handoffs but **do not** exhaust the idea space.

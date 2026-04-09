@@ -1,10 +1,17 @@
 # Generates MARKDOWN_FULL_MANIFEST_VS_HEAD.md — full-repo .md inventory vs HEAD.
-# Run from repo root: powershell -NoProfile -File .agent/docs/project/process/_generate_markdown_manifest_index.ps1
+# Run from repo root:
+#   powershell -NoProfile -File .agent/docs/project/implementation-plans/2026-04-08/doc-audit/_generate_markdown_manifest_index.ps1
 $ErrorActionPreference = "Stop"
-Set-Location (Resolve-Path "$PSScriptRoot/../../../..")
+$repoRoot = $PSScriptRoot
+1..6 | ForEach-Object { $repoRoot = Split-Path $repoRoot -Parent }
+Set-Location (Resolve-Path $repoRoot)
+
+function Test-IsExcludedAuditPath([string]$path) {
+    return $path -match '(?i)bmad'
+}
 
 function Get-MdPaths([string]$ref) {
-    git ls-tree -r --name-only $ref | Where-Object { $_ -match '\.md$' }
+    git ls-tree -r --name-only $ref | Where-Object { $_ -match '\.md$' -and -not (Test-IsExcludedAuditPath $_) }
 }
 
 $snaps = @(
@@ -71,7 +78,7 @@ $outPath = Join-Path $PSScriptRoot "MARKDOWN_FULL_MANIFEST_VS_HEAD.md"
 $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine('# Markdown full manifest: historical commits vs current HEAD')
 [void]$sb.AppendLine('')
-[void]$sb.AppendLine('**Method:** `git ls-tree -r --name-only <ref>` filtered to paths ending in `.md` (ASCII).')
+[void]$sb.AppendLine('**Method:** `git ls-tree -r --name-only <ref>` filtered to paths ending in `.md` (ASCII). Paths containing `bmad` (case-insensitive) are **excluded** from this audit manifest.')
 [void]$sb.AppendLine('')
 [void]$sb.AppendLine('## Snapshot commits')
 [void]$sb.AppendLine('')
@@ -190,7 +197,7 @@ foreach ($s in $snaps) {
 }
 
 $genLine = '**Generated:** ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') + ' (local)'
-$regen = '**Regenerate:** run from repo root: `powershell -NoProfile -File .agent/docs/project/process/_generate_markdown_manifest_index.ps1`'
+$regen = '**Regenerate:** run from repo root: `powershell -NoProfile -File .agent/docs/project/implementation-plans/2026-04-08/doc-audit/_generate_markdown_manifest_index.ps1`'
 $full = $genLine + "`n`n" + $regen + "`n`n" + $sb.ToString()
 [System.IO.File]::WriteAllText($outPath, $full, [System.Text.UTF8Encoding]::new($false))
 Write-Host "Wrote $outPath"

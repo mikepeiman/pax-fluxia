@@ -3,6 +3,43 @@
 **Purpose:** Identify documents for distillation to reduce context bloat.
 **Token estimation:** bytes ÷ 4 (rough approximation for English markdown).
 
+**Idea-first note (2026-04-08):** This inventory is a **map of where prose (and latent ideas) are dense** — rendering, geometry, VFX, features, architecture, transitions, tooling, UX, diagnostics, etc. Distillation saves tokens; it does **not** replace **extracting ideas** into ledgers and `BRAINSTORMING_IDEAS_INDEX*`. Order of concern: **ideas → architect-owned plans → implementation** (see [territory-rendering-jumpstart.md](../implementation-plans/2026-04-08/territory-rendering-jumpstart.md), [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](../implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md)).
+
+**Hub / navigation:** [PLANNING_DOCS_AUDIT.md](./PLANNING_DOCS_AUDIT.md) — jumpstart, dated audit (this file), manifest, recovery list, unified plan (code-sequence hypothesis only).
+
+---
+
+## 2026-04-08 — Meta-audit of this document (re-framed)
+
+### What this March 25 audit is *for*
+
+- **Idea mining:** The tables below point at **clusters** that historically contained lots of proposals, alternatives, failed experiments, and specs — i.e. **raw material for ideas**, not a single “winning plan.”
+- **Reading priority:** Token estimates help decide **where to look first** when expanding the brainstorming file list and scorecards; they are not a verdict that “small doc = unimportant ideas.”
+- **Hygiene:** KEEP / ARCHIVE / DISTILL still matter so you **do not re-read duplicate Perplexity rounds** when the same ideas already sit in a later synthesis — but archived rounds can still be **mined once** for ideas before they leave hot storage.
+
+### What this audit is *not*
+
+- **Not** the authority on which **ideas** are valid. New or recovered ideas can overturn any plan written the same week.
+- **Not** superseded by the Render Family write-up in the sense of “stop looking here.” The [unified plan](../implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md) is mainly an **implementation sequencing hypothesis** (Impl 0–3) plus **proposed** architecture; **Doc A–C** exist to **surface ideas** first. If synthesis finds a better direction, the plan changes — not the other way around.
+
+### Corrections to the original framing
+
+1. **Paths** — Short names (`geometry-atlas/`, `plans/…`) map to Ontology E trees under **`.agent/docs/`** (e.g. `.agent/docs/game/territory/geometry-atlas/`, `.agent/docs/plans/active/…`). Use this file as **cluster labels**, not guaranteed paths.
+2. **Linear refactor story** — The March 25 narrative centered Step 4 + geometry refactor. That is one **plan thread** among many **idea threads** in the corpus. Continue to mine **all** threads for ideas; the architect **then** commits plans.
+3. **Codex `RENDERING_*.md` + 03-16 folder** — Treat as **high-value idea sources** (architecture, candidates, visual intent). Copies also appear under **`_archive/pre-ontology-md-recovery-2026-03-22-24/`** when blob SHAs differed from HEAD. Pull **ideas** into the brainstorming index and scorecards; do not defer reading them just because another doc claims to be “current.”
+4. **Scale** — [territory-rendering-jumpstart.md](../implementation-plans/2026-04-08/territory-rendering-jumpstart.md): **enumerate** per bucket, **date-band** ingestion, tranche acceleration — still the right way to **cover ideas** without reading every file linearly.
+
+### How this artifact feeds 2026-04-08 work
+
+| This March 25 artifact | Role for **idea surfacing** (then engineering) |
+|------------------------|-----------------------------------------------|
+| Directory summaries + token estimates | Prioritize buckets and **heavy** folders when building exhaustive file lists; cross-check [MARKDOWN_FULL_MANIFEST_VS_HEAD.md](../implementation-plans/2026-04-08/doc-audit/MARKDOWN_FULL_MANIFEST_VS_HEAD.md). |
+| Codex rendering + 03-16 tables | Explicit **idea harvest** targets: approaches, concerns, VFX/rendering/geometry language → rows in **BRAINSTORMING_IDEAS_INDEX** + **APPROACH_EVIDENCE_SCORECARD**. |
+| Distillation recommendations | **After** a pass has extracted ideas into registries/index, reduce duplicate bulk so future sessions spend tokens on **new** material — not before ideas are captured. |
+| Proposed `docs_audit` tool | Optional automation (sizes, headings) to support **idea inventory** passes. |
+
+**Next actions:** Continue Doc B/C per jumpstart: **expand idea coverage** (exhaustive lists, index rows, contradictions, hidden/untried). Use this file as a **treasure map**, not as permission to skip clusters that did not appear in March 25.
+
 ---
 
 ## Summary

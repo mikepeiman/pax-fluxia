@@ -1,5 +1,5 @@
 # docs/ — Master Index (Ontology E)
-**Updated:** 2026-03-25 (reorganization pass 2)
+**Updated:** 2026-04-08 (pre-ontology recovery: BMAD excluded; audit cross-links)
 **Structure:** Game System + Meta
 
 ---
@@ -63,7 +63,7 @@
 ## research/
 | Path | Contents |
 |------|----------|
-| `_archive/pre-ontology-md-recovery-2026-03-22-24/files/` | **Recovered** Codex rendering pack (`RENDERING_*.md`) + other pre-Ontology-E `.md` bodies not matched at HEAD by basename+SHA; see archive `README.md` + `MANIFEST.tsv` |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/files/` | **25** pre-Ontology-E `.md` blobs (Mar22–24) not matched at HEAD by basename+SHA; **`_bmad/` excluded**; Codex rendering pack (`RENDERING_*.md`), SPECIFICATIONS-era copies, WIP, `.atlas/DECISIONS`, etc. Inventory: `RECOVERED_LEGACY_DOC_LIST.md`, `MANIFEST.tsv`, `README.md` |
 | `research/2026-03-20 transition research/` | Morph boundary vertex research, Perplexity transition guidance |
 | `research/reference/` | Pax_Galaxia_dev_notes_2026-02-08 |
 | `research/permanent-references/` | Full territory deep-history archive (111 files) |
@@ -77,7 +77,7 @@
 ## _archive/
 | Path | Contents |
 |------|----------|
-| `_archive/pre-ontology-md-recovery-2026-03-22-24/` | Flat recovery of 315 `.md` blobs from Mar22-24 snapshots not represented at HEAD (basename+SHA); script in `_archive/_scripts/build_pre_ontology_md_archive.ps1` |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/` | **25** legacy `.md` files (Mar22–24 snapshots vs HEAD); **`_bmad/` permanently excluded** from candidate paths; `RECOVERED_LEGACY_DOC_LIST.md` + `MANIFEST.tsv`; regenerate: `_archive/_scripts/build_pre_ontology_md_archive.ps1` |
 | `_archive/territory-recovery-2026-03-08/` | 22 territory recovery plan files (superseded) |
 | `_archive/F-138-ModifiedVoronoi/` | F-138 feature implementation archive |
 | `_archive/diagnostics/` | Diagnostic run outputs |
@@ -99,6 +99,22 @@
 | `.atlas/` (17 files) | Original .atlas catalog — copies now in `docs/atlas/` + counterpart locations |
 | `pax-fluxia/src/lib/config/THEMES_AGENT_DOC.md` | In-source theming doc (co-located with code) |
 | `README.md` | Repo root readme |
+
+---
+
+## Major documentation audit (2026-04)
+
+Cross-links for ongoing triage (Ontology E + full-repo markdown inventory):
+
+| Artifact | Role |
+|----------|------|
+| `project/process/PLANNING_DOCS_AUDIT.md` | **Hub** — links dated planning audit, territory unified plan + jumpstart, manifest, recovery list. |
+| `project/process/2026-03-25__1018 PLANNING_DOCS_AUDIT.md` | Token/triage **treasure map** for idea-dense clusters + **§2026-04-08** meta-audit (idea-first framing). |
+| `project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md` | **Ideas epic** (Doc A–C) then **Impl** 0–3; Parts I–II are **plan hypotheses** revisable after synthesis; Part III centers **surfacing ideas**. |
+| `project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md` | **Single entry** for territory doc epic (Section 0 = phase + load order); buckets, date bands, artifacts; `AGENT_ENTRYPOINT.md` = redirect only. |
+| `project/implementation-plans/2026-04-08/doc-audit/` | **Markdown audit:** `MARKDOWN_MASTER_INDEX.csv` (per-file queue), `MARKDOWN_FULL_MANIFEST_VS_HEAD.md`, generators, 2026-04-08 session narrative — see `doc-audit/README.md`. |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md` | **Recovered legacy** bodies from Mar22–24 only when basename+SHA differed from current HEAD; BMAD paths omitted. |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/MANIFEST.tsv` | Same 25 rows as TSV (basename, SHA, size, snapshot, source path). |
 
 ---
 
