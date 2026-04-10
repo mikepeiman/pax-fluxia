@@ -30,7 +30,8 @@ import {
     PlayerSchema,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
-    generateMap
+    generateMap,
+    generateConnections,
 } from '@pax/common';
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
@@ -40,6 +41,7 @@ import { GAME_CONFIG, buildEngineConfig } from '$lib/config/game.config';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
+import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 
 // ============================================================================
 // Constants
@@ -558,6 +560,27 @@ function addDebugConnection(sourceId: string, targetId: string): void {
     state!.connections.push(c2);
 }
 
+/** Recompute Delaunay-based links from current star positions (same algorithm as mapgen). */
+function rebuildConnectionsFromLaneClearance(): void {
+    if (!state || state.stars.size < 2) return;
+
+    const nodes = [...state.stars.values()]
+        .map((s) => ({ id: s.id, x: s.x, y: s.y }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+    const minL = settings.minLinksPerStar ?? 1;
+    const maxL = settings.maxLinksPerStar ?? 5;
+    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
+    const uni = generateConnections(nodes, Infinity, minL, maxL, Math.max(0, msr + buf));
+
+    state.connections.length = 0;
+    for (const c of uni) {
+        addDebugConnection(c.sourceId, c.targetId);
+    }
+    bumpTerritoryVisualConfig();
+}
+
 /** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
 function initDebugMap(playerIds: string[], variant: string): void {
     const cx = 800, cy = 450, spread = 250;
@@ -625,6 +648,8 @@ function generateMapPreview(opts: {
         minLinksPerStar: opts.minLinksPerStar,
         maxLinksPerStar: opts.maxLinksPerStar,
         boardFit: opts.mapBoardFit,
+        mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+        mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
     });
     
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
@@ -692,6 +717,8 @@ function initStandardMap(playerIds: string[]): void {
         minLinksPerStar: settings.minLinksPerStar ?? 1,
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
         boardFit: settings.mapBoardFit ?? 0,
+        mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+        mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
     });
 
     // Store map gen metadata for debug grid overlay
@@ -1531,6 +1558,9 @@ export const gameStore = {
 
     // Map preview (F-168)
     generateMapPreview,
+
+    /** Rebuild lane graph from current star positions using MSR + lane buffer (paused / live tuning). */
+    rebuildConnectionsFromLaneClearance,
 
     // F-148: Default map preference
     get defaultMapName() { return defaultMapName; },

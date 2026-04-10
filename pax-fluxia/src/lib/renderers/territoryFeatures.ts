@@ -1,4 +1,5 @@
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 
 export interface VirtualSite {
     x: number;
@@ -8,6 +9,8 @@ export interface VirtualSite {
     kind: 'corridor' | 'disconnect';
     sourceStarA: string;
     sourceStarB: string;
+    /** Corridor: endpoint star for cluster/color; disconnect: optional attribution helper */
+    anchorStarId?: string;
 }
 
 export const DISCONNECT_OWNER_ID = '__disconnect__';
@@ -59,15 +62,15 @@ function canonicalizeVirtualSites(sites: VirtualSite[]): VirtualSite[] {
     });
 
     normalized.sort((a, b) => {
-        const keyA = `${a.kind}|${a.ownerId}|${a.sourceStarA}|${a.sourceStarB}|${Math.round(a.x * 100)}|${Math.round(a.y * 100)}|${Math.round(a.weight * 1000)}`;
-        const keyB = `${b.kind}|${b.ownerId}|${b.sourceStarA}|${b.sourceStarB}|${Math.round(b.x * 100)}|${Math.round(b.y * 100)}|${Math.round(b.weight * 1000)}`;
+        const keyA = `${a.kind}|${a.ownerId}|${a.sourceStarA}|${a.sourceStarB}|${a.anchorStarId ?? ''}|${Math.round(a.x * 100)}|${Math.round(a.y * 100)}|${Math.round(a.weight * 1000)}`;
+        const keyB = `${b.kind}|${b.ownerId}|${b.sourceStarA}|${b.sourceStarB}|${b.anchorStarId ?? ''}|${Math.round(b.x * 100)}|${Math.round(b.y * 100)}|${Math.round(b.weight * 1000)}`;
         return keyA.localeCompare(keyB);
     });
 
     const deduped: VirtualSite[] = [];
     let prevKey = '';
     for (const site of normalized) {
-        const key = `${site.kind}|${site.ownerId}|${site.sourceStarA}|${site.sourceStarB}|${Math.round(site.x * 100)}|${Math.round(site.y * 100)}|${Math.round(site.weight * 1000)}`;
+        const key = `${site.kind}|${site.ownerId}|${site.sourceStarA}|${site.sourceStarB}|${site.anchorStarId ?? ''}|${Math.round(site.x * 100)}|${Math.round(site.y * 100)}|${Math.round(site.weight * 1000)}`;
         if (key === prevKey) continue;
         deduped.push(site);
         prevKey = key;
@@ -109,52 +112,14 @@ export function computeCorridorVirtuals(
     weightMultiplier = 0.5,
     count?: number,
 ): VirtualSite[] {
-    if (ownedStars.length === 0 || connections.length === 0) return [];
-
-    const starMap = new Map([...ownedStars]
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .map((star) => [star.id, star] as const));
-    const normalizedConnections = normalizeConnections(connections);
-
-    const spacingPx = Number.isFinite(spacing) && spacing > 0 ? spacing : 60;
-    const countMode = count != null && Number.isFinite(count)
-        ? Math.max(0, Math.floor(count))
-        : null;
-    const weight = clampWeight(weightMultiplier, 0.5);
-
-    const sites: VirtualSite[] = [];
-
-    for (const conn of normalizedConnections) {
-        const starA = starMap.get(conn.sourceId);
-        const starB = starMap.get(conn.targetId);
-        if (!starA || !starB) continue;
-        if (!starA.ownerId || starA.ownerId !== starB.ownerId) continue;
-
-        const dx = starB.x - starA.x;
-        const dy = starB.y - starA.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist <= EPSILON) continue;
-
-        const nSites = countMode != null
-            ? countMode
-            : Math.max(0, Math.floor(dist / spacingPx) - 1);
-        if (nSites <= 0) continue;
-
-        for (let i = 1; i <= nSites; i++) {
-            const t = i / (nSites + 1);
-            sites.push({
-                x: starA.x + dx * t,
-                y: starA.y + dy * t,
-                weight,
-                ownerId: starA.ownerId,
-                kind: 'corridor',
-                sourceStarA: starA.id,
-                sourceStarB: starB.id,
-            });
-        }
-    }
-
-    return canonicalizeVirtualSites(sites);
+    const built = buildCorridorVirtualSites(
+        ownedStars,
+        connections,
+        spacing,
+        weightMultiplier,
+        count,
+    );
+    return canonicalizeVirtualSites(built as VirtualSite[]);
 }
 
 export function computeDisconnectVirtuals(
@@ -259,6 +224,7 @@ export function computeDisconnectVirtuals(
                             kind: 'disconnect',
                             sourceStarA: starA.id,
                             sourceStarB: starB.id,
+                            anchorStarId: starA.id,
                         });
                     }
                 }

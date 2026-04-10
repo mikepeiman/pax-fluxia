@@ -289,6 +289,11 @@ interface GameConfigType {
     CONNECTION_SHADOW_WIDTH: number;
     CONNECTION_SHADOW_ALPHA: number;
     SHOW_CONNECTIONS: boolean;
+    /**
+     * Extra px beyond `MODIFIED_VORONOI_STAR_MARGIN` when pruning mapgen edges that pass too close to other stars.
+     * Pass-through clearance = MSR + this buffer.
+     */
+    MAPGEN_LANE_BUFFER_PX: number;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -1097,6 +1102,9 @@ const _rawConfig: GameConfigType = {
 
     /** Maximum distance for star connections */
     CONNECTION_MAX_DISTANCE: 150, // Ignored by Delaunay but kept for Types
+
+    /** Added to MSR for Delaunay pass-through prune in `@pax/common/mapgen` */
+    MAPGEN_LANE_BUFFER_PX: 30,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',

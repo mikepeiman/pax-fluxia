@@ -85,6 +85,7 @@
 | V-6 | Orbit Bias Oscillation | ❓ | Min/Max/Freq controls. Oscillates bias strength per tick frequency |
 | V-7 | Smooth Departure Easing | ❓ | easeInOutQuad replaces easeInCubic for smoother departure |
 | V-8 | Metaball blur targets | ❓ | `METABALL_BLUR_AFFECTS_BORDERS` toggle: default blur fill only; optional single-pass blur on fill + border strokes when GPU blur is on. |
+| V-9 | Mapgen lane clearance + CX | ❓ | MSR + `MAPGEN_LANE_BUFFER_PX` in `@pax/common/mapgen`; live rebuild in Map & Grid; single-source `buildCorridorVirtualSites` (cross-owner CX); Pixel split capsule. |
 
 ---
 

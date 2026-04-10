@@ -290,7 +290,7 @@ export function renderPixelTerritory(
     workerBusy = true;
 
 
-    // Build corridor segments for same-owner connected pairs
+    // Corridor capsules: same-owner full segment; cross-owner split at midpoint (matches CX virtual split)
     const corridorBoost = GAME_CONFIG.PIXEL_CORRIDOR_BOOST ?? 0;
     const corridorSegs: { x1: number; y1: number; x2: number; y2: number; ownerIdx: number; halfW: number }[] = [];
     if (corridorBoost > 0 && connections) {
@@ -298,16 +298,26 @@ export function renderPixelTerritory(
             const a = starById.get(conn.sourceId);
             const b = starById.get(conn.targetId);
             if (!a || !b || !a.ownerId || !b.ownerId) continue;
-            if (a.ownerId !== b.ownerId) continue;
-            const ci = clusterMap.get(a.id)?.clusterIdx;
-            if (ci === undefined) continue;
             const x1 = (a.x + padding) / resolution;
             const y1 = (a.y + padding) / resolution;
             const x2 = (b.x + padding) / resolution;
             const y2 = (b.y + padding) / resolution;
             const linkDist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
             const halfW = Math.max(2, Math.min(30 / resolution, linkDist * 0.12 * corridorBoost));
-            corridorSegs.push({ x1, y1, x2, y2, ownerIdx: ci, halfW });
+
+            if (a.ownerId === b.ownerId) {
+                const ci = clusterMap.get(a.id)?.clusterIdx;
+                if (ci === undefined) continue;
+                corridorSegs.push({ x1, y1, x2, y2, ownerIdx: ci, halfW });
+            } else {
+                const ciA = clusterMap.get(a.id)?.clusterIdx;
+                const ciB = clusterMap.get(b.id)?.clusterIdx;
+                if (ciA === undefined || ciB === undefined) continue;
+                const mx = (x1 + x2) / 2;
+                const my = (y1 + y2) / 2;
+                corridorSegs.push({ x1, y1, x2: mx, y2: my, ownerIdx: ciA, halfW });
+                corridorSegs.push({ x1: mx, y1: my, x2, y2, ownerIdx: ciB, halfW });
+            }
         }
     }
 

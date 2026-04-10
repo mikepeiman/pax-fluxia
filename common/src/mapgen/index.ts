@@ -37,11 +37,16 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         y: pos.y,
     }));
 
+    const msr = config.mapgenStarMarginPx ?? 45;
+    const laneBuf = config.mapgenLaneBufferPx ?? 30;
+    const passThroughClearancePx = Math.max(0, msr + laneBuf);
+
     const connections = generateConnections(
         nodes,
         Infinity,
         config.minLinksPerStar ?? 1,
         config.maxLinksPerStar ?? 6,
+        passThroughClearancePx,
     );
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };

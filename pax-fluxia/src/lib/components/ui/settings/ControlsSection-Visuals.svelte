@@ -1,6 +1,8 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
+    import { gameStore } from "$lib/stores/gameStore.svelte";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
     // Extracted from GameSettingsPanel.svelte
@@ -139,6 +141,57 @@
         style="font-size:9px;opacity:0.6">Flip X↔Y axes</span
     ></label
 >
+
+<h4 class="sub-heading">Lane clearance (live)</h4>
+<p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
+    MSR + buffer prune Delaunay edges that pass too close to other stars. Adjust while paused to
+    rebuild links and refresh territory.
+</p>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">MSR (map + territory)</span><span class="val"
+            >{Math.round(
+                panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+            )}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="500"
+        step="5"
+        value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
+            updatePanel("starMargin", v);
+            bumpTerritoryVisualConfig();
+            if (gameStore.hasStarted) gameStore.rebuildConnectionsFromLaneClearance();
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Lane buffer (mapgen)</span><span class="val"
+            >{Math.round(
+                panel.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+            )}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="120"
+        step="5"
+        value={panel.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = v;
+            updatePanel("mapgenLaneBufferPx", v);
+            if (gameStore.hasStarted) gameStore.rebuildConnectionsFromLaneClearance();
+        }}
+    />
+</div>
 
 <!-- Label Number Animation Mode -->
 <div class="var-row">

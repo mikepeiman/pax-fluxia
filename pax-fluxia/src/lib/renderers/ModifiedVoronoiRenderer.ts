@@ -19,6 +19,7 @@ import * as PIXI from 'pixi.js';
 import { Delaunay } from 'd3-delaunay';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 import {
@@ -801,46 +802,37 @@ export function renderModifiedVoronoi(
         worldWidth + pad, worldHeight + pad,
     ];
 
-    // ── Corridor Virtual Sites: inject points along same-owner lanes ──
-    // Virtual sites participate in Voronoi, creating corridor cells that merge with owners
+    // ── Corridor virtual sites (single-source CX builder; cross-owner lanes included) ──
     const corridorEnabled = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true;
     const corridorSpacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 100;
+    const cxWeight = GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5;
+    const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
 
-    // Build augmented star array: real stars + virtual corridor sites
     const starById = new Map<string, StarState>();
     for (const s of stars) starById.set(s.id, s);
 
     const virtualStars: StarState[] = [];
-    const virtualStarSource = new Map<string, string>(); // virtual ID → source star ID
+    const virtualStarSource = new Map<string, string>(); // virtual ID → anchor star (cluster/color)
     if (corridorEnabled && connections && connections.length > 0) {
+        const ownedForCx = stars.filter((s): s is StarState => Boolean(s.ownerId));
+        const corridorSites = buildCorridorVirtualSites(
+            ownedForCx,
+            connections,
+            corridorSpacing,
+            cxWeight,
+            cxCount > 0 ? cxCount : undefined,
+        );
         let virtualIdx = 0;
-        for (const conn of connections) {
-            const srcStar = starById.get(conn.sourceId);
-            const tgtStar = starById.get(conn.targetId);
-            if (!srcStar || !tgtStar) continue;
-            // Only inject along same-owner lanes
-            if (!srcStar.ownerId || !tgtStar.ownerId || srcStar.ownerId !== tgtStar.ownerId) continue;
-
-            // Sample points along the lane at corridorSpacing intervals
-            const dx = tgtStar.x - srcStar.x;
-            const dy = tgtStar.y - srcStar.y;
-            const dist = Math.hypot(dx, dy);
-            const numSites = Math.max(1, Math.floor(dist / corridorSpacing));
-
-            for (let s = 1; s < numSites; s++) {
-                const t = s / numSites;
-                const vx = srcStar.x + dx * t;
-                const vy = srcStar.y + dy * t;
-                const vid = `__corridor_${virtualIdx++}`;
-                virtualStarSource.set(vid, conn.sourceId);
-                virtualStars.push({
-                    id: vid,
-                    x: vx,
-                    y: vy,
-                    ownerId: srcStar.ownerId,
-                    ships: 0,
-                } as unknown as StarState);
-            }
+        for (const site of corridorSites) {
+            const vid = `__corridor_${virtualIdx++}`;
+            virtualStarSource.set(vid, site.anchorStarId);
+            virtualStars.push({
+                id: vid,
+                x: site.x,
+                y: site.y,
+                ownerId: site.ownerId,
+                ships: 0,
+            } as unknown as StarState);
         }
         if (MV_DEV && virtualStars.length > 0) {
             console.log(`[ModifiedVoronoi] Injected ${virtualStars.length} corridor virtual sites`);

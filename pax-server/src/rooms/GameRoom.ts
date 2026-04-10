@@ -753,6 +753,9 @@ export class GameRoom extends Room {
         const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
 
         // Delegate placement + connections to shared mapgen
+        const gc = this.roomOptions.gameplayConfig as
+            | { MODIFIED_VORONOI_STAR_MARGIN?: number; MAPGEN_LANE_BUFFER_PX?: number }
+            | undefined;
         const result = generateMap({
             width: 1600,
             height: 900,
@@ -762,6 +765,8 @@ export class GameRoom extends Room {
             minLinksPerStar: this.roomOptions.minLinks ?? 1,
             maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
             boardFit: this.roomOptions.mapBoardFit ?? 0,
+            mapgenStarMarginPx: gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+            mapgenLaneBufferPx: gc?.MAPGEN_LANE_BUFFER_PX ?? 30,
         });
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);

@@ -49,6 +49,7 @@ function pointToSegmentDistance(
  * @param maxDistance    - Max edge length (default Infinity)
  * @param minLinks      - Min connections per node (default 1)
  * @param maxLinks      - Max connections per node (default 6)
+ * @param passThroughClearancePx - Min distance from chord to any non-endpoint star (default 75 ≈ 45 MSR + 30 buffer)
  * @returns Canonical unidirectional connections
  */
 export function generateConnections<T extends Connectable>(
@@ -56,6 +57,7 @@ export function generateConnections<T extends Connectable>(
     maxDistance: number = Infinity,
     minLinks: number = 1,
     maxLinks: number = 6,
+    passThroughClearancePx: number = 75,
 ): MapConnection[] {
     if (nodes.length < 2) return [];
 
@@ -173,7 +175,7 @@ export function generateConnections<T extends Connectable>(
     }
 
     // ── Phase 4: Prune pass-through connections ───────────────────────────
-    const CLEARANCE = 35; // star radius (25) + padding (10)
+    const clearance = Math.max(0, passThroughClearancePx);
 
     changed = true;
     while (changed) {
@@ -186,7 +188,7 @@ export function generateConnections<T extends Connectable>(
             let passesThrough = false;
             for (const other of nodes) {
                 if (other.id === aId || other.id === bId) continue;
-                if (pointToSegmentDistance(other.x, other.y, a.x, a.y, b.x, b.y) < CLEARANCE) {
+                if (pointToSegmentDistance(other.x, other.y, a.x, a.y, b.x, b.y) < clearance) {
                     passesThrough = true;
                     break;
                 }

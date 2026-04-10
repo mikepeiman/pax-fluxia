@@ -24,6 +24,7 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 import { chaikinSmoothPolyline } from './geometry/chaikin';
 import { computeDisconnectVirtuals } from './territoryFeatures';
+import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -201,39 +202,36 @@ function buildCorridorSamples(
     if (!GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) return [];
 
     const spacing = Math.max(12, GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60);
-    let cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
+    const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
     const cxWeight = Math.max(0, GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5);
+
+    const ownedStars = [...starById.values()].filter((s) => Boolean(s.ownerId));
+    const sites = buildCorridorVirtualSites(
+        ownedStars,
+        connections,
+        spacing,
+        cxWeight,
+        cxCount > 0 ? cxCount : undefined,
+    );
+
     const out: InfluenceSample[] = [];
+    for (const site of sites) {
+        const sa = starById.get(site.sourceStarA);
+        const sb = starById.get(site.sourceStarB);
+        if (!sa || !sb) continue;
 
-    for (const conn of connections) {
-        const sa = starById.get(conn.sourceId);
-        const sb = starById.get(conn.targetId);
-        if (!sa?.ownerId || !sb?.ownerId || sa.ownerId !== sb.ownerId) continue;
+        const playerIdx = clusterMap.get(site.anchorStarId)?.clusterIdx;
+        if (playerIdx === undefined) continue;
 
-        const ia = clusterMap.get(conn.sourceId)?.clusterIdx;
-        const ib = clusterMap.get(conn.targetId)?.clusterIdx;
-        if (ia === undefined || ib !== ia) continue;
-
-        const dx = sb.x - sa.x;
-        const dy = sb.y - sa.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 1) continue;
-
-        let n = cxCount;
-        if (n <= 0) n = Math.max(1, Math.floor(dist / spacing));
         const str =
-            ((starStrength(sa, strengthMult) + starStrength(sb, strengthMult)) / 2) * cxWeight;
-
-        for (let i = 1; i <= n; i++) {
-            const t = i / (n + 1);
-            out.push({
-                x: sa.x + dx * t,
-                y: sa.y + dy * t,
-                playerIdx: ia,
-                strength: str,
-                corridorVirtual: true,
-            });
-        }
+            ((starStrength(sa, strengthMult) + starStrength(sb, strengthMult)) / 2) * site.weight;
+        out.push({
+            x: site.x,
+            y: site.y,
+            playerIdx,
+            strength: str,
+            corridorVirtual: true,
+        });
     }
     return out;
 }

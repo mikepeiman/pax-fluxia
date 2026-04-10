@@ -56,6 +56,14 @@ export interface MapGenConfig {
     maxLinksPerStar?: number;
     /** 0 = natural bbox after placement; 1 = scale/translate to fill padded play area (uniform, Delaunay-safe) */
     boardFit?: number;
+    /**
+     * MSR (px) for pass-through prune: edges whose chord passes closer than
+     * `mapgenStarMarginPx + mapgenLaneBufferPx` to a non-endpoint star are dropped when possible.
+     * Default 45 — align with client `MODIFIED_VORONOI_STAR_MARGIN`.
+     */
+    mapgenStarMarginPx?: number;
+    /** Extra clearance beyond MSR (default 30). */
+    mapgenLaneBufferPx?: number;
 }
 
 /**
