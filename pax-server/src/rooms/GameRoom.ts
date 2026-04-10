@@ -754,7 +754,11 @@ export class GameRoom extends Room {
 
         // Delegate placement + connections to shared mapgen
         const gc = this.roomOptions.gameplayConfig as
-            | { MODIFIED_VORONOI_STAR_MARGIN?: number; MAPGEN_LANE_BUFFER_PX?: number }
+            | {
+                  MODIFIED_VORONOI_STAR_MARGIN?: number;
+                  MAPGEN_LANE_BUFFER_PX?: number;
+                  MAPGEN_LANE_MODE?: 'straight' | 'curved';
+              }
             | undefined;
         const result = generateMap({
             width: 1600,
@@ -767,6 +771,7 @@ export class GameRoom extends Room {
             boardFit: this.roomOptions.mapBoardFit ?? 0,
             mapgenStarMarginPx: gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
             mapgenLaneBufferPx: gc?.MAPGEN_LANE_BUFFER_PX ?? 30,
+            mapLaneMode: gc?.MAPGEN_LANE_MODE ?? 'curved',
         });
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
