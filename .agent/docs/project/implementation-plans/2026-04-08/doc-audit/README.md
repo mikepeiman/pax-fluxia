@@ -20,4 +20,4 @@ powershell -NoProfile -File .agent/docs/project/implementation-plans/2026-04-08/
 powershell -NoProfile -File .agent/docs/project/implementation-plans/2026-04-08/doc-audit/_generate_markdown_manifest_index.ps1
 ```
 
-**Entry hub** for assignees: [territory-rendering-jumpstart.md](../territory-rendering-jumpstart.md). Planning audit hub: [PLANNING_DOCS_AUDIT.md](../../process/PLANNING_DOCS_AUDIT.md).
+**Entry hub** for assignees: [territory-rendering-jumpstart.md](../territory-rendering-jumpstart.md) (§0). Engineering inventory + strategy: [territory-rendering-overview.md](../territory-rendering-overview.md). **Impl** sequencing: [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](../TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md). Planning audit hub: [PLANNING_DOCS_AUDIT.md](../../process/PLANNING_DOCS_AUDIT.md).

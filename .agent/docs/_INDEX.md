@@ -110,8 +110,8 @@ Cross-links for ongoing triage (Ontology E + full-repo markdown inventory):
 |----------|------|
 | `project/process/PLANNING_DOCS_AUDIT.md` | **Hub** — links dated planning audit, territory unified plan + jumpstart, manifest, recovery list. |
 | `project/process/2026-03-25__1018 PLANNING_DOCS_AUDIT.md` | Token/triage **treasure map** for idea-dense clusters + **§2026-04-08** meta-audit (idea-first framing). |
-| `project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md` | **Ideas epic** (Doc A–C) then **Impl** 0–3; Parts I–II are **plan hypotheses** revisable after synthesis; Part III centers **surfacing ideas**. |
-| `project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md` | **Single entry** for territory doc epic (Section 0 = phase + load order); buckets, date bands, artifacts; `AGENT_ENTRYPOINT.md` = redirect only. |
+| `project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md` | **Impl spine** (checklist, Parts I–II, handoffs); Doc A–C complete; links hub + overview + doc epic. |
+| `project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md` | **Hub** — Section 0 only (path, phase 0.B, companion 0.C, load order, §0.1 buckets). Topical: `territory-rendering-overview.md`, `territory-documentation-epic.md`, `territory-d3-voronoi-family-analysis.md`, `territory-clean-architecture-map.md`. `AGENT_ENTRYPOINT.md` = redirect only. |
 | `project/implementation-plans/2026-04-08/doc-audit/` | **Markdown audit:** `MARKDOWN_MASTER_INDEX.csv` (per-file queue), `MARKDOWN_FULL_MANIFEST_VS_HEAD.md`, generators, 2026-04-08 session narrative — see `doc-audit/README.md`. |
 | `_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md` | **Recovered legacy** bodies from Mar22–24 only when basename+SHA differed from current HEAD; BMAD paths omitted. |
 | `_archive/pre-ontology-md-recovery-2026-03-22-24/MANIFEST.tsv` | Same 25 rows as TSV (basename, SHA, size, snapshot, source path). |

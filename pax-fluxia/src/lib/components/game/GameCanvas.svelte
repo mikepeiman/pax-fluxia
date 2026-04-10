@@ -53,7 +53,7 @@
         resetVoronoiCache,
     } from "$lib/renderers/VoronoiRenderer";
     import {
-        renderMetaball as renderMetaballModule,
+        renderMetaballScene as renderMetaballModule,
         resetMetaballCache,
     } from "$lib/renderers/MetaballRenderer";
     import {
@@ -98,6 +98,13 @@
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
+    import {
+        getRenderFamily,
+        registerRenderFamily,
+    } from "$lib/territory/families/renderFamilyRegistry";
+    import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
+    import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
+    import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
@@ -1185,7 +1192,9 @@
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
             `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
-            `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}`;
+            `${GAME_CONFIG.USE_RENDER_FAMILIES}:` +
+            `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
+            `${getTerritoryVisualEpoch()}`;
         const configChanged =
             territoryConfigFp !== (globalThis as any).__lastTerritoryConfigFp;
         if (configChanged)
@@ -1241,6 +1250,20 @@
                         `[Territory Style Dispatch] TERRITORY_RENDER_MODE="${GAME_CONFIG.TERRITORY_RENDER_MODE}" → activeMode="${activeMode}"`,
                     );
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
+                }
+
+                if (
+                    (!GAME_CONFIG.USE_RENDER_FAMILIES ||
+                        activeMode !== "metaball") &&
+                    voronoiContainer
+                ) {
+                    const mf = getRenderFamily("metaball");
+                    if (
+                        mf instanceof MetaballFamily &&
+                        mf.displayRoot.parent === voronoiContainer
+                    ) {
+                        voronoiContainer.removeChild(mf.displayRoot);
+                    }
                 }
 
                 switch (activeMode) {
@@ -1343,14 +1366,44 @@
                         );
                         break;
                     case "metaball":
-                        renderMetaballModule(
-                            stars,
-                            voronoiContainer,
-                            colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
-                            activeGameStore.connections as StarConnection[],
-                        );
+                        if (
+                            GAME_CONFIG.USE_RENDER_FAMILIES &&
+                            voronoiContainer
+                        ) {
+                            let fam = getRenderFamily("metaball");
+                            if (!fam) {
+                                registerRenderFamily(
+                                    createMetaballFamily(colorUtils),
+                                );
+                                fam = getRenderFamily("metaball")!;
+                            }
+                            const mf = fam as MetaballFamily;
+                            mf.update(
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes: activeGameStore
+                                        .connections as StarConnection[],
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    gameTick: activeGameStore.currentTick,
+                                }),
+                            );
+                            if (mf.displayRoot.parent !== voronoiContainer) {
+                                voronoiContainer.addChild(mf.displayRoot);
+                            }
+                            mf.displayRoot.visible = true;
+                        } else {
+                            renderMetaballModule(
+                                stars,
+                                voronoiContainer,
+                                colorUtils,
+                                GAME_WIDTH,
+                                GAME_HEIGHT,
+                                activeGameStore.connections as StarConnection[],
+                                activeGameStore.currentTick,
+                            );
+                        }
                         break;
                     case "pixel":
                         renderPixelTerritoryModule(

@@ -66,5 +66,6 @@ export {
 // Metaball territory rendering
 export {
     renderMetaball,
+    renderMetaballScene,
     resetMetaballCache,
 } from './MetaballRenderer';

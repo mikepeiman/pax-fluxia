@@ -1,0 +1,20 @@
+---
+description: Gameplay and visual tuning must be user-configurable, not hidden literals in render/game code.
+globs: pax-fluxia/**/*.{ts,svelte}
+alwaysApply: true
+---
+
+# Tuning variables — no surprise constants
+
+When changing behavior that a designer or player would reasonably want to adjust (combat feel, territory visuals, timing windows, distances, thresholds, blend factors, etc.):
+
+1. **Do not** introduce new magic numeric literals in renderer, simulation, or gameplay code (e.g. `160`, `2.25`, ad-hoc `Math.max(48, …)` chains) to “fix” tuning.
+2. **Do** add or reuse a **`GAME_CONFIG` (or equivalent) key** with a clear name, document it in the type block, set an explicit default in `_rawConfig`, and wire **`settingsDefs`** (+ **panel keys** where the UI persists state).
+3. **Do** expose controls in the **settings UI** when the value is user-facing (territory, combat, ships, etc.), with tooltip/title text explaining units and semantics.
+4. **Do** include the key in **render fingerprints** / **cache invalidation** wherever a stale visual would otherwise occur.
+5. **Do** register the key in **`categoryThemes`** and **`MetaballFamily` tunable lists** (or the relevant family) when it belongs to that subsystem.
+6. If a value must be *derived*, derive it **only** from other existing config keys and document the formula; prefer a **dedicated** config for the derived knob if the formula is not obvious or stable.
+
+**Escalation:** If unsure whether a number is “tuning,” treat it as tuning and expose it (or ask the user before merging a literal).
+
+This rule exists because hidden constants bypass the project’s tuning workflow and conflict with user intent for adjustable, inspectable parameters.

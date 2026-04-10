@@ -59,6 +59,204 @@ export function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     return shared;
 }
 
+// ── Merged owner outlines (e.g. Modified Voronoi) — contested + hull split ──
+
+/** One closed owner region after merge (duplicate first/last vertex allowed). */
+export interface OwnerPolygonOutline {
+    ownerId: string;
+    points: [number, number][];
+}
+
+/** Visit each undirected edge of a closed outline once. */
+function forEachOutlineEdge(
+    pts: [number, number][],
+    visit: (x1: number, y1: number, x2: number, y2: number) => void,
+): void {
+    const n = pts.length;
+    if (n < 2) return;
+    const closed =
+        n > 2 &&
+        pts[0]![0] === pts[n - 1]![0] &&
+        pts[0]![1] === pts[n - 1]![1];
+    const m = closed ? n - 1 : n;
+    for (let j = 0; j < m; j++) {
+        const jn = (j + 1) % m;
+        visit(pts[j]![0], pts[j]![1], pts[jn]![0], pts[jn]![1]);
+    }
+}
+
+function addCanonicalEndpointSum(
+    sum: [number, number, number, number],
+    x1: number, y1: number, x2: number, y2: number,
+): void {
+    const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
+    const bx = +x2.toFixed(2), by = +y2.toFixed(2);
+    if (ax < bx || (ax === bx && ay < by)) {
+        sum[0] += x1; sum[1] += y1; sum[2] += x2; sum[3] += y2;
+    } else {
+        sum[0] += x2; sum[1] += y2; sum[2] += x1; sum[3] += y1;
+    }
+}
+
+function finalizeLedgerEntry(
+    sum: [number, number, number, number],
+    count: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+    const c = count;
+    return {
+        x1: sum[0] / c,
+        y1: sum[1] / c,
+        x2: sum[2] / c,
+        y2: sum[3] / c,
+    };
+}
+
+/**
+ * From merged owner outlines (same geometry used for fills), split boundary into:
+ * - **contested**: edges incident to two different owners — one canonical segment each,
+ *   endpoints averaged when both polygons contribute (reduces asymmetric warp gaps).
+ * - **hull**: per-polygon segments that only one owner claims (map / outer boundary).
+ *
+ * Matches the PVV2/PVV3 “shared contested border” model while keeping hull strokes
+ * per territory color.
+ */
+export function splitMergedOwnerOutlineEdges(polygons: OwnerPolygonOutline[]): {
+    contested: SharedBorderEdge[];
+    hullSegmentsByPolygon: Array<Array<{ x1: number; y1: number; x2: number; y2: number }>>;
+} {
+    type LedgerEntry = {
+        owners: Set<string>;
+        sum: [number, number, number, number];
+        count: number;
+    };
+    const ledger = new Map<string, LedgerEntry>();
+
+    for (const poly of polygons) {
+        forEachOutlineEdge(poly.points, (x1, y1, x2, y2) => {
+            const key = edgeKey(x1, y1, x2, y2);
+            let ent = ledger.get(key);
+            if (!ent) {
+                ent = { owners: new Set(), sum: [0, 0, 0, 0], count: 0 };
+                ledger.set(key, ent);
+            }
+            ent.owners.add(poly.ownerId);
+            addCanonicalEndpointSum(ent.sum, x1, y1, x2, y2);
+            ent.count += 1;
+        });
+    }
+
+    const contested: SharedBorderEdge[] = [];
+    for (const ent of ledger.values()) {
+        if (ent.owners.size !== 2) continue;
+        const [oa, ob] = [...ent.owners].sort();
+        const f = finalizeLedgerEntry(ent.sum, ent.count);
+        contested.push({
+            ...f,
+            ownerA: oa,
+            ownerB: ob,
+            colorA: 0,
+            colorB: 0,
+            siteIdA: '',
+            siteIdB: '',
+        });
+    }
+
+    const hullSegmentsByPolygon: Array<Array<{ x1: number; y1: number; x2: number; y2: number }>> = polygons.map(() => []);
+    for (let pi = 0; pi < polygons.length; pi++) {
+        const poly = polygons[pi]!;
+        const hull = hullSegmentsByPolygon[pi]!;
+        forEachOutlineEdge(poly.points, (x1, y1, x2, y2) => {
+            const key = edgeKey(x1, y1, x2, y2);
+            const ent = ledger.get(key)!;
+            if (ent.owners.size === 1) {
+                hull.push(finalizeLedgerEntry(ent.sum, ent.count));
+            }
+        });
+    }
+
+    return { contested, hullSegmentsByPolygon };
+}
+
+/**
+ * Greedy-chain undirected segments that meet at endpoints (same ptKey / toFixed(2) as borders).
+ * Does not group by owner — call per polygon for hull chains so same owner’s disconnected
+ * regions never merge incorrectly.
+ */
+export function chainUndirectedSegments(
+    segments: Array<{ x1: number; y1: number; x2: number; y2: number }>,
+): [number, number][][] {
+    if (segments.length === 0) return [];
+    const ptKey = (x: number, y: number) => `${+x.toFixed(2)},${+y.toFixed(2)}`;
+    const n = segments.length;
+    const used = new Array<boolean>(n).fill(false);
+    const polylines: [number, number][][] = [];
+
+    while (true) {
+        let startIdx = -1;
+        for (let i = 0; i < n; i++) {
+            if (!used[i]) {
+                startIdx = i;
+                break;
+            }
+        }
+        if (startIdx < 0) break;
+
+        used[startIdx] = true;
+        const e = segments[startIdx]!;
+        const chain: [number, number][] = [[e.x1, e.y1], [e.x2, e.y2]];
+
+        let extended = true;
+        while (extended) {
+            extended = false;
+            const last = chain[chain.length - 1]!;
+            const lk = ptKey(last[0], last[1]);
+            for (let i = 0; i < n; i++) {
+                if (used[i]) continue;
+                const ei = segments[i]!;
+                if (ptKey(ei.x1, ei.y1) === lk) {
+                    chain.push([ei.x2, ei.y2]);
+                    used[i] = true;
+                    extended = true;
+                    break;
+                }
+                if (ptKey(ei.x2, ei.y2) === lk) {
+                    chain.push([ei.x1, ei.y1]);
+                    used[i] = true;
+                    extended = true;
+                    break;
+                }
+            }
+        }
+
+        extended = true;
+        while (extended) {
+            extended = false;
+            const first = chain[0]!;
+            const fk = ptKey(first[0], first[1]);
+            for (let i = 0; i < n; i++) {
+                if (used[i]) continue;
+                const ei = segments[i]!;
+                if (ptKey(ei.x2, ei.y2) === fk) {
+                    chain.unshift([ei.x1, ei.y1]);
+                    used[i] = true;
+                    extended = true;
+                    break;
+                }
+                if (ptKey(ei.x1, ei.y1) === fk) {
+                    chain.unshift([ei.x2, ei.y2]);
+                    used[i] = true;
+                    extended = true;
+                    break;
+                }
+            }
+        }
+
+        polylines.push(chain);
+    }
+
+    return polylines;
+}
+
 
 /** Chain shared border edges into continuous polylines, grouped by owner-pair.
  *  Edges between the same two owners that share endpoints get merged into polylines. */

@@ -6,7 +6,17 @@
         type TerritoryPipelineStageId,
     } from "$lib/territory/orchestrator";
     import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
+    import {
+        isTerritoryRenderModeUiHidden,
+        resolveTerritoryRenderModeOptions,
+    } from "$lib/territory/ui/territoryRenderModeCatalog";
+    import {
+        familyRegistryEpoch,
+        getRegisteredFamilyAdapterModeIds,
+    } from "$lib/territory/families/renderFamilyRegistry";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+    import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
     // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -18,6 +28,18 @@
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
 
+    /** CX/DX sub-sliders stay visible when off; these drive disabled + dim styling. */
+    let cxOn = $derived(
+        panel.corridorEnabled ??
+            GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
+            true,
+    );
+    let dxOn = $derived(
+        panel.disconnectEnabled ??
+            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
+            false,
+    );
+
     // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
     function debouncedConfigUpdate(
         configKey: string,
@@ -27,6 +49,7 @@
     ) {
         (GAME_CONFIG as any)[configKey] = value;
         updatePanel(panelKey, value);
+        bumpTerritoryVisualConfig();
     }
 
     function formatTraceValue(value: unknown): string {
@@ -248,16 +271,12 @@
     let isLegacyGridEngine = $derived(activeBorderEngine === "legacy_grid");
     /* ── V3.1 Three-Concern Architecture ── */
 
-    const TERRITORY_CLEAN_STYLE_OPTIONS = [
-        { id: "none", label: "Off" },
-        { id: "territory_canonical", label: "Canonical Layered Runtime" },
-    ] as const;
-
-    const TERRITORY_LEGACY_STYLE_OPTIONS = [
-        { id: "territory_engine", label: "Engine (DY4 Pipeline)" },
-        { id: "pvv2_dy4", label: "PVV2 DY4 Restored (Reference 8dce88c)" },
-        { id: "power_voronoi", label: "PVV2 Current (Weighted Voronoi)" },
-    ] as const;
+    function getRenderModeOptions() {
+        return resolveTerritoryRenderModeOptions(
+            Boolean(panel.useRenderFamilies ?? GAME_CONFIG.USE_RENDER_FAMILIES),
+            getRegisteredFamilyAdapterModeIds(),
+        );
+    }
 
     const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
         { id: "clean", label: "Clean Architecture" },
@@ -287,15 +306,20 @@
         pixel: "territoryPixel",
         graph: "territoryGraph",
         contour: "territoryContour",
+        territory_engine: "territoryEngine",
     };
 
     function selectTerritoryStyle(styleId: string) {
-        updatePanel("territoryRenderMode", styleId);
+        debouncedConfigUpdate(
+            "TERRITORY_RENDER_MODE",
+            "territoryRenderMode",
+            styleId,
+        );
         // Reset diagnostic so it logs on next render frame
         (globalThis as any).__RENDER_MODE_LOGGED = false;
-        // Sync old boolean flags for backward compat
+        // Sync legacy renderer booleans to panel; setSetting applies GAME_CONFIG via RESOLVED map.
         for (const [mode, panelKey] of Object.entries(STYLE_TO_BOOLEAN)) {
-            updatePanel(panelKey, mode === styleId);
+            updatePanel(panelKey, styleId !== "none" && mode === styleId);
         }
     }
 
@@ -374,43 +398,80 @@
         </div>
     </div>
 
-    <!-- Row 2: Clean Runtime Style (purple) -->
+    <!-- Row 2: All render modes (catalog) — purple / amber accent mix -->
     <div
         class="axis-row"
         style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)"
     >
-        <span class="axis-label">Clean Style</span>
-        <div class="axis-buttons">
-            {#each TERRITORY_CLEAN_STYLE_OPTIONS as opt}
-                <button
-                    class="axis-btn"
-                    class:active={resolveActiveStyleId() === opt.id}
-                    onclick={() => selectTerritoryStyle(opt.id)}
-                    >{opt.label}</button
-                >
-            {/each}
+        <span class="axis-label">Render mode</span>
+        <div class="axis-buttons axis-buttons-wrap">
+            {#key $familyRegistryEpoch}
+                {#each getRenderModeOptions() as opt}
+                    <button
+                        type="button"
+                        class="axis-btn"
+                        class:active={resolveActiveStyleId() === opt.id}
+                        disabled={!opt.selectable}
+                        title={opt.disabledReason ??
+                            opt.shortDescription ??
+                            opt.label}
+                        onclick={() => {
+                            if (opt.selectable) selectTerritoryStyle(opt.id);
+                        }}>{opt.label}</button
+                    >
+                {/each}
+            {/key}
         </div>
     </div>
 
-    <!-- Row 3: Legacy Renderers (amber) -->
-    <div
-        class="axis-row"
-        style="--accent: #f59e0b; --accent-bg: rgba(245,158,11,0.16)"
-    >
-        <span class="axis-label">Legacy Style</span>
-        <div class="axis-buttons">
-            {#each TERRITORY_LEGACY_STYLE_OPTIONS as opt}
+    {#if isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
+        <div
+            class="axis-note"
+            style="border-left: 3px solid #f59e0b; padding: 8px 10px; margin: 4px 0 8px; background: rgba(245,158,11,0.08);"
+        >
+            <strong>Deprecated mode active:</strong>
+            <code>{resolveActiveStyleId()}</code>
+            — hidden from the list above. Prefer PVV3 or PVV2 for maintained seams.
+            <span style="display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap;">
                 <button
+                    type="button"
                     class="axis-btn"
-                    class:active={resolveActiveStyleId() === opt.id}
-                    onclick={() => selectTerritoryStyle(opt.id)}
-                    >{opt.label}</button
+                    onclick={() => selectTerritoryStyle("vs_pvv3")}>Switch to PVV3</button
                 >
-            {/each}
+                <button
+                    type="button"
+                    class="axis-btn"
+                    onclick={() =>
+                        selectTerritoryStyle("power_voronoi")}>Switch to PVV2</button
+                >
+            </span>
         </div>
+    {/if}
+
+    <div class="axis-row axis-row-compact">
+        <label class="render-family-gate">
+            <input
+                type="checkbox"
+                checked={panel.useRenderFamilies ??
+                    GAME_CONFIG.USE_RENDER_FAMILIES ??
+                    false}
+                onchange={(e) => {
+                    const v = (e.target as HTMLInputElement).checked;
+                    debouncedConfigUpdate(
+                        "USE_RENDER_FAMILIES",
+                        "useRenderFamilies",
+                        v,
+                    );
+                }}
+            />
+            <span
+                title="When on, only modes with a registered RenderFamily adapter stay selectable (exempt: Off, Canonical). Metaball registers in-game."
+                >USE_RENDER_FAMILIES (family gate)</span
+            >
+        </label>
     </div>
 
-    <!-- Row 4: Architecture Path (blue) -->
+    <!-- Row 3: Architecture Path (blue) -->
     <div
         class="axis-row"
         style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)"
@@ -435,11 +496,12 @@
     </div>
     {#if resolveActiveStyleId() !== "territory_canonical" && resolveActiveStyleId() !== "none"}
         <div class="axis-note">
-            Legacy style selection bypasses canonical clean-layer routing.
+            Non-canonical render mode bypasses clean-layer routing for that
+            path.
         </div>
     {/if}
 
-    <!-- Row 5: Fill Transition (gold) -->
+    <!-- Row 4: Fill Transition (gold) -->
     <div
         class="axis-row"
         style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)"
@@ -459,12 +521,487 @@
 
 </div>
 
+{#if resolveActiveStyleId() === "metaball"}
+    <div class="engine-control-group">
+        <h4 class="axis-card-title">Metaball (CPU grid)</h4>
+        <div class="row-bottom" style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+            Larger <strong>Cell size</strong> → fewer grid cells, better FPS (typical
+            8–16). <strong>Territory Invariants</strong> below: <strong>CX Corridors</strong>
+            adds lane influence for Metaball; <strong>DX Disconnect</strong> damps
+            runner-up influence (sharper borders).
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Cell size (px)</span><span class="val"
+                    >{Math.round(
+                        panel.metaballCellSize ??
+                            GAME_CONFIG.METABALL_CELL_SIZE ??
+                            10,
+                    )}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="4"
+                max="32"
+                step="1"
+                value={panel.metaballCellSize ??
+                    GAME_CONFIG.METABALL_CELL_SIZE ??
+                    10}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_CELL_SIZE",
+                        "metaballCellSize",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Influence radius</span><span class="val"
+                    >{Math.round(
+                        panel.metaballInfluenceRadius ??
+                            GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
+                            90,
+                    )}px</span
+                >
+            </div>
+            <input
+                type="range"
+                min="40"
+                max="220"
+                step="5"
+                value={panel.metaballInfluenceRadius ??
+                    GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
+                    90}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_INFLUENCE_RADIUS",
+                        "metaballInfluenceRadius",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div
+            class="var-row"
+            title="Per grid cell we take the top two factions’ influence (w1, w2). Dominance = w1/(w1+w2). At 0.5 the two are tied; at 1.0 there is no runner-up. When this control is above 0.5, cells with dominance below your value stay empty—think of it as hiding ‘contested mush’ between two blobs. At 0 (or any value ≤0.5) that filter is off: every cell the field favors gets a fill. Example: two fleets contesting the same nebula—raising this trims the grey 50/50 band; lowering it (or Off) keeps softer handoffs visible."
+        >
+            <div class="row-top">
+                <span class="var-name">Min dominance (winner / top-2)</span><span
+                    class="val"
+                    >{(panel.metaballThreshold ??
+                        GAME_CONFIG.METABALL_THRESHOLD ??
+                        0.52) <= 0.5
+                        ? "Off"
+                        : (
+                              panel.metaballThreshold ??
+                              GAME_CONFIG.METABALL_THRESHOLD ??
+                              0.52
+                          ).toFixed(3)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="0.98"
+                step="0.005"
+                value={panel.metaballThreshold ??
+                    GAME_CONFIG.METABALL_THRESHOLD ??
+                    0.52}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_THRESHOLD",
+                        "metaballThreshold",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Strength multiplier</span><span
+                    class="val"
+                    >{(
+                        panel.metaballStrengthMult ??
+                        GAME_CONFIG.METABALL_STRENGTH_MULT ??
+                        1
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0.5"
+                max="8"
+                step="0.1"
+                value={panel.metaballStrengthMult ??
+                    GAME_CONFIG.METABALL_STRENGTH_MULT ??
+                    1}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_STRENGTH_MULT",
+                        "metaballStrengthMult",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div
+            class="var-row"
+            title="Extra grid extent beyond the map (0 = tight). Higher helps when zoomed out."
+        >
+            <div class="row-top">
+                <span class="var-name">Coverage padding</span><span class="val"
+                    >{(
+                        panel.metaballCoverage ??
+                        GAME_CONFIG.METABALL_COVERAGE ??
+                        0
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="0.45"
+                step="0.05"
+                value={panel.metaballCoverage ??
+                    GAME_CONFIG.METABALL_COVERAGE ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_COVERAGE",
+                        "metaballCoverage",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">GPU blur</span><span class="val"
+                    >{Math.round(
+                        panel.metaballBlur ?? GAME_CONFIG.METABALL_BLUR ?? 0,
+                    )}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="16"
+                step="1"
+                value={panel.metaballBlur ?? GAME_CONFIG.METABALL_BLUR ?? 0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate("METABALL_BLUR", "metaballBlur", v);
+                }}
+            />
+        </div>
+        <div
+            class="var-row"
+            title="When GPU blur is above 0: off blurs fill only (sharp borders). On applies one blur pass to fill and border strokes together."
+        >
+            <div class="row-top">
+                <span class="var-name">Blur affects borders</span>
+                <label class="lock-toggle">
+                    <input
+                        type="checkbox"
+                        checked={panel.metaballBlurAffectsBorders ??
+                            GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ??
+                            false}
+                        onchange={(e) => {
+                            const v = (e.target as HTMLInputElement).checked;
+                            debouncedConfigUpdate(
+                                "METABALL_BLUR_AFFECTS_BORDERS",
+                                "metaballBlurAffectsBorders",
+                                v,
+                            );
+                        }}
+                    />
+                    {(panel.metaballBlurAffectsBorders ??
+                    GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ??
+                    false)
+                        ? "On"
+                        : "Off"}
+                </label>
+            </div>
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Faction blend sharpness</span><span
+                    class="val"
+                    >{(
+                        panel.metaballSharpness ??
+                        GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
+                        3
+                    ).toFixed(1)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="1"
+                max="40"
+                step="0.5"
+                value={panel.metaballSharpness ??
+                    GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
+                    3}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_BLEND_SHARPNESS",
+                        "metaballSharpness",
+                        v,
+                    );
+                }}
+            />
+        </div>
+
+        <TerritorySlaWidget
+            title="Territory fill (SLA)"
+            help="Hue is fixed per player from the palette; adjust saturation, lightness, and alpha."
+            panel={panel}
+            onUpdate={debouncedConfigUpdate}
+            configSat="METABALL_SATURATION"
+            panelSat="metaballSaturation"
+            defaultSat={1.05}
+            configLight="METABALL_LIGHTNESS"
+            panelLight="metaballLightness"
+            defaultLight={0.65}
+            configAlpha="METABALL_ALPHA"
+            panelAlpha="metaballAlpha"
+            defaultAlpha={0.5}
+        />
+
+        <TerritorySlaWidget
+            title="Territory border (width + SLA)"
+            panel={panel}
+            onUpdate={debouncedConfigUpdate}
+            configWidth="METABALL_BORDER_WIDTH"
+            panelWidth="metaballBorderWidth"
+            defaultWidth={3}
+            widthMin={0.5}
+            widthMax={12}
+            widthStep={0.5}
+            configSat="METABALL_BORDER_SATURATION"
+            panelSat="metaballBorderSaturation"
+            defaultSat={1}
+            configLight="METABALL_BORDER_LIGHTNESS"
+            panelLight="metaballBorderLightness"
+            defaultLight={1}
+            configAlpha="METABALL_BORDER_ALPHA"
+            panelAlpha="metaballBorderAlpha"
+            defaultAlpha={1}
+        />
+
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Border Chaikin passes</span><span
+                    class="val"
+                    >{Math.round(
+                        panel.metaballChaikinPasses ??
+                            GAME_CONFIG.METABALL_CHAIKIN_PASSES ??
+                            0,
+                    )}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="4"
+                step="1"
+                value={panel.metaballChaikinPasses ??
+                    GAME_CONFIG.METABALL_CHAIKIN_PASSES ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_CHAIKIN_PASSES",
+                        "metaballChaikinPasses",
+                        v,
+                    );
+                }}
+            />
+        </div>
+
+        <h4 class="sub-heading">Combat &amp; fleet pressure</h4>
+        <div class="row-bottom" style="font-size:11px;opacity:0.72;margin-bottom:8px;">
+            Width/alpha boosts apply only along border segments that pass near a star
+            that recently fought (same tick window). Fleet imbalance still nudges both
+            along an edge. Set recency to 0 to disable combat highlighting.
+        </div>
+        <div
+            class="var-row"
+            title="Max distance in pixels from a border line to a hot star for combat boost. 0 = use Metaball influence radius (same tuning as the field). Raise this if boosts never trigger along fronts that sit far from star centers."
+        >
+            <div class="row-top">
+                <span class="var-name">Combat border proximity (px)</span><span
+                    class="val"
+                    >{(() => {
+                        const v =
+                            panel.metaballCombatBorderProximityPx ??
+                            GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
+                            0;
+                        return v <= 0 ? `0 (→ ${GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 0}px)` : `${Math.round(v)}`;
+                    })()}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="600"
+                step="10"
+                value={panel.metaballCombatBorderProximityPx ??
+                    GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_COMBAT_BORDER_PROXIMITY_PX",
+                        "metaballCombatBorderProximityPx",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div
+            class="var-row"
+            title="If currentTick − lastCombatTick (or lastAttackTick) is under this window for a star on one side of a border segment, that segment gets the combat width/alpha boost—only near that star, not for the whole faction."
+        >
+            <div class="row-top">
+                <span class="var-name">Combat recency (ticks)</span><span
+                    class="val"
+                    >{Math.round(
+                        panel.metaballCombatBorderTicks ??
+                            GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS ??
+                            0,
+                    )}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="30"
+                step="1"
+                value={panel.metaballCombatBorderTicks ??
+                    GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_COMBAT_BORDER_TICKS",
+                        "metaballCombatBorderTicks",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Combat width boost</span><span
+                    class="val"
+                    >{(
+                        panel.metaballCombatBorderWidthBoost ??
+                        GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST ??
+                        0
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="6"
+                step="0.25"
+                value={panel.metaballCombatBorderWidthBoost ??
+                    GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_COMBAT_BORDER_WIDTH_BOOST",
+                        "metaballCombatBorderWidthBoost",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">Combat alpha boost</span><span
+                    class="val"
+                    >{(
+                        panel.metaballCombatBorderAlphaBoost ??
+                        GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST ??
+                        0
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={panel.metaballCombatBorderAlphaBoost ??
+                    GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_COMBAT_BORDER_ALPHA_BOOST",
+                        "metaballCombatBorderAlphaBoost",
+                        v,
+                    );
+                }}
+            />
+        </div>
+        <div
+            class="var-row"
+            title="Scales border emphasis by fleet imbalance across the edge (proxy until conquest metrics exist)."
+        >
+            <div class="row-top">
+                <span class="var-name">Fleet pressure on borders</span><span
+                    class="val"
+                    >{(
+                        panel.metaballBorderForceRatio ??
+                        GAME_CONFIG.METABALL_BORDER_FORCE_RATIO ??
+                        0
+                    ).toFixed(2)}</span
+                >
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value={panel.metaballBorderForceRatio ??
+                    GAME_CONFIG.METABALL_BORDER_FORCE_RATIO ??
+                    0}
+                oninput={(e) => {
+                    const v = +(e.target as HTMLInputElement).value;
+                    debouncedConfigUpdate(
+                        "METABALL_BORDER_FORCE_RATIO",
+                        "metaballBorderForceRatio",
+                        v,
+                    );
+                }}
+            />
+        </div>
+    </div>
+{/if}
+
 <!-- ── Territory Invariants (MSR / CX / DX) ── -->
 <div class="engine-control-group">
     <h4 class="axis-card-title">Territory Invariants</h4>
 
     <!-- MSR — Minimum Star Region -->
-    <div class="var-row">
+    <div
+        class="var-row"
+        title="Metaball: each cell inside this radius of a real star is assigned to that star’s cluster (nearest star wins), so every owned star keeps a disc of territory. Voronoi/engine paths use the same value for geometric margins."
+    >
         <div class="row-top">
             <span class="var-name">MSR (Star Margin)</span><span class="val"
                 >{panel.starMargin ??
@@ -482,8 +1019,11 @@
                 45}
             oninput={(e) => {
                 const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
-                updatePanel("starMargin", v);
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_STAR_MARGIN",
+                    "starMargin",
+                    v,
+                );
             }}
         />
     </div>
@@ -500,8 +1040,11 @@
                         true}
                     onchange={(e) => {
                         const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED = v;
-                        updatePanel("corridorEnabled", v);
+                        debouncedConfigUpdate(
+                            "MODIFIED_VORONOI_CORRIDOR_ENABLED",
+                            "corridorEnabled",
+                            v,
+                        );
                     }}
                 />
                 {(panel.corridorEnabled ??
@@ -512,77 +1055,87 @@
             </label>
         </div>
     </div>
-    {#if panel.corridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">CX Count</span><span class="val"
-                    >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) ===
-                    0
-                        ? "Auto"
-                        : (panel.cxCount ??
-                          GAME_CONFIG.TERRITORY_CX_COUNT)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="20"
-                step="1"
-                value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.TERRITORY_CX_COUNT = v;
-                    updatePanel("cxCount", v);
-                }}
-            />
+    <div
+        class="var-row indent"
+        class:disabled={!cxOn}
+        title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}
+    >
+        <div class="row-top">
+            <span class="var-name">CX Count</span><span class="val"
+                >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) === 0
+                    ? "Auto"
+                    : (panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT)}</span
+            >
         </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">CX Weight</span><span class="val"
-                    >{(
-                        panel.cxWeight ??
-                        GAME_CONFIG.TERRITORY_CX_WEIGHT ??
-                        0.5
-                    ).toFixed(2)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.TERRITORY_CX_WEIGHT = v;
-                    updatePanel("cxWeight", v);
-                }}
-            />
+        <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            disabled={!cxOn}
+            value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("TERRITORY_CX_COUNT", "cxCount", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row indent"
+        class:disabled={!cxOn}
+        title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}
+    >
+        <div class="row-top">
+            <span class="var-name">CX Weight</span><span class="val"
+                >{(
+                    panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5
+                ).toFixed(2)}</span
+            >
         </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">CX Spacing</span><span class="val"
-                    >{panel.corridorSpacing ??
-                        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
-                        60}px</span
-                >
-            </div>
-            <input
-                type="range"
-                min="10"
-                max="200"
-                step="5"
-                value={panel.corridorSpacing ??
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            disabled={!cxOn}
+            value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("TERRITORY_CX_WEIGHT", "cxWeight", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row indent"
+        class:disabled={!cxOn}
+        title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}
+    >
+        <div class="row-top">
+            <span class="var-name">CX Spacing</span><span class="val"
+                >{panel.corridorSpacing ??
                     GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
-                    60}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING = v;
-                    updatePanel("corridorSpacing", v);
-                }}
-            />
+                    60}px</span
+            >
         </div>
-    {/if}
+        <input
+            type="range"
+            min="10"
+            max="200"
+            step="5"
+            disabled={!cxOn}
+            value={panel.corridorSpacing ??
+                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
+                60}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
+                    "corridorSpacing",
+                    v,
+                );
+            }}
+        />
+    </div>
 
     <!-- DX — Disconnection Zones -->
     <div class="var-row">
@@ -596,8 +1149,11 @@
                         false}
                     onchange={(e) => {
                         const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = v;
-                        updatePanel("disconnectEnabled", v);
+                        debouncedConfigUpdate(
+                            "MODIFIED_VORONOI_DISCONNECT_ENABLED",
+                            "disconnectEnabled",
+                            v,
+                        );
                     }}
                 />
                 {(panel.disconnectEnabled ??
@@ -608,54 +1164,62 @@
             </label>
         </div>
     </div>
-    {#if panel.disconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">DX Weight</span><span class="val"
-                    >{(
-                        panel.dxWeight ??
-                        GAME_CONFIG.TERRITORY_DX_WEIGHT ??
-                        0.3
-                    ).toFixed(2)}</span
-                >
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.TERRITORY_DX_WEIGHT = v;
-                    updatePanel("dxWeight", v);
-                }}
-            />
+    <div
+        class="var-row indent"
+        class:disabled={!dxOn}
+        title={!dxOn ? "Turn DX Disconnect on to edit these values." : ""}
+    >
+        <div class="row-top">
+            <span class="var-name">DX Weight</span><span class="val"
+                >{(
+                    panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3
+                ).toFixed(2)}</span
+            >
         </div>
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">DX Distance</span><span class="val"
-                    >{panel.disconnectDistance ??
-                        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
-                        400}px</span
-                >
-            </div>
-            <input
-                type="range"
-                min="50"
-                max="1000"
-                step="25"
-                value={panel.disconnectDistance ??
+        <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            disabled={!dxOn}
+            value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate("TERRITORY_DX_WEIGHT", "dxWeight", v);
+            }}
+        />
+    </div>
+    <div
+        class="var-row indent"
+        class:disabled={!dxOn}
+        title={!dxOn ? "Turn DX Disconnect on to edit these values." : ""}
+    >
+        <div class="row-top">
+            <span class="var-name">DX Distance</span><span class="val"
+                >{panel.disconnectDistance ??
                     GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
-                    400}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE = v;
-                    updatePanel("disconnectDistance", v);
-                }}
-            />
+                    400}px</span
+            >
         </div>
-    {/if}
+        <input
+            type="range"
+            min="50"
+            max="1000"
+            step="25"
+            disabled={!dxOn}
+            value={panel.disconnectDistance ??
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
+                400}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                debouncedConfigUpdate(
+                    "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+                    "disconnectDistance",
+                    v,
+                );
+            }}
+        />
+    </div>
 </div>
 
 <!-- Border Transition Tuning -->
@@ -769,152 +1333,6 @@
 </div>
 
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
-
-{#if panel.territoryModifiedVoronoi}
-    <!-- -- Modified Voronoi Settings (F-138) -- -->
-    <h4 class="sub-heading">Modified Voronoi Settings</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">? Star Margin</span><span class="val"
-                >{panel.modifiedVoronoiStarMargin ??
-                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="500"
-            step="5"
-            value={panel.modifiedVoronoiStarMargin ??
-                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "MODIFIED_VORONOI_STAR_MARGIN",
-                    "modifiedVoronoiStarMargin",
-                    v,
-                );
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">?? Arc Strength</span><span class="val"
-                >{(
-                    panel.modifiedVoronoiArcStrength ??
-                    GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH
-                ).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={panel.modifiedVoronoiArcStrength ??
-                GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "MODIFIED_VORONOI_ARC_STRENGTH",
-                    "modifiedVoronoiArcStrength",
-                    v,
-                );
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">?? Arc Threshold</span><span class="val"
-                >{panel.modifiedVoronoiArcThreshold ??
-                    GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}�</span
-            >
-        </div>
-        <input
-            type="range"
-            min="30"
-            max="180"
-            step="5"
-            value={panel.modifiedVoronoiArcThreshold ??
-                GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "MODIFIED_VORONOI_ARC_THRESHOLD",
-                    "modifiedVoronoiArcThreshold",
-                    v,
-                );
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">?? Arc Min Segment</span><span class="val"
-                >{panel.modifiedVoronoiArcMinSegment ??
-                    GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="1"
-            max="20"
-            step="1"
-            value={panel.modifiedVoronoiArcMinSegment ??
-                GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "MODIFIED_VORONOI_ARC_MIN_SEGMENT",
-                    "modifiedVoronoiArcMinSegment",
-                    v,
-                );
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">??? Corridor Sites</span><span class="val"
-                >{(panel.modifiedVoronoiCorridorEnabled ??
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED)
-                    ? "ON"
-                    : "OFF"}</span
-            >
-        </div>
-        <input
-            type="checkbox"
-            checked={panel.modifiedVoronoiCorridorEnabled ??
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}
-            onchange={(e) => {
-                const v = (e.target as HTMLInputElement).checked;
-                updatePanel("modifiedVoronoiCorridorEnabled", v);
-            }}
-        />
-    </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">?? Corridor Spacing</span><span class="val"
-                >{panel.modifiedVoronoiCorridorSpacing ??
-                    GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="20"
-            max="200"
-            step="5"
-            value={panel.modifiedVoronoiCorridorSpacing ??
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                debouncedConfigUpdate(
-                    "MODIFIED_VORONOI_CORRIDOR_SPACING",
-                    "modifiedVoronoiCorridorSpacing",
-                    v,
-                );
-            }}
-        />
-    </div>
-{/if}
 
 {#if resolveActiveStyleId() === "territory_engine" || resolveActiveStyleId() === "territory_canonical"}
 {#if resolveActiveStyleId() === "territory_engine"}
@@ -1416,6 +1834,29 @@
         border-color: var(--accent, #888);
         color: #111;
         font-weight: 600;
+    }
+    .axis-btn:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+    }
+    .axis-buttons-wrap {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    .axis-row-compact {
+        padding: 2px 0 6px;
+    }
+    .render-family-gate {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.65);
+        cursor: pointer;
+        user-select: none;
+    }
+    .render-family-gate input {
+        cursor: pointer;
     }
     /* Legacy compat — keep old selectors but not used by card */
     .triple-select-row {

@@ -2,9 +2,9 @@
 
 **Ordering:** **Ideas** (mine from docs, ledgers, brainstorming index) → **plans** (architect commits) → **implementation** (code). Nothing in this hub reverses that.
 
-**1. Territory idea ingestion — single entry file**
+**1. Territory idea ingestion — hub + topical files**
 
-- [territory-rendering-jumpstart.md](../implementation-plans/2026-04-08/territory-rendering-jumpstart.md) — **only file to assign new agents**; Section 0 = path, copy-paste instruction, phase status, load order; rest = buckets, date bands, artifact protocol, required outputs.
+- [territory-rendering-jumpstart.md](../implementation-plans/2026-04-08/territory-rendering-jumpstart.md) — **assign this path**; **Section 0 only** = path, copy-paste instruction, phase status (0.B), companion index (0.C), load order, ingestion roots (0.1). Long-form runbooks: [territory-rendering-overview.md](../implementation-plans/2026-04-08/territory-rendering-overview.md), [territory-documentation-epic.md](../implementation-plans/2026-04-08/territory-documentation-epic.md), [territory-d3-voronoi-family-analysis.md](../implementation-plans/2026-04-08/territory-d3-voronoi-family-analysis.md), [territory-clean-architecture-map.md](../implementation-plans/2026-04-08/territory-clean-architecture-map.md). **Impl spine:** [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](../implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md).
 
 **2. Where ideas are dense (maps + baselines)**
 

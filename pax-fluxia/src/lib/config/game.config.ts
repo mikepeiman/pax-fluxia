@@ -355,6 +355,8 @@ interface GameConfigType {
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
+    /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
+    USE_RENDER_FAMILIES: boolean;
     TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode
 
     // ── Distance Field Territory ──────────────────────────────────────────────
@@ -403,6 +405,7 @@ interface GameConfigType {
     MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
     MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
+    MODIFIED_VORONOI_ARC_MAX_SEGMENTS: number; // Cap Bézier samples per corner (4-64, higher=smoother/slower)
     MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
     MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
     TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
@@ -449,15 +452,36 @@ interface GameConfigType {
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
     METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
     METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
-    METABALL_THRESHOLD: number;         // Minimum influence to draw (0-1, default 0.05)
+    /**
+     * Metaball dominance gate: per cell, winnerShare = w1/(w1+w2) for top two factions.
+     * Values ≤0.5 disable the gate (no cells dropped for being “too close”).
+     * Above 0.5, cells with winnerShare below this stay empty (hides stalemate bands).
+     */
+    METABALL_THRESHOLD: number;
     METABALL_STRENGTH_MULT: number;     // Star strength multiplier (default 1.0)
     METABALL_EDGE_FADE: number;         // Edge alpha falloff multiplier (default 3.0)
-    METABALL_BLUR: number;              // GPU blur on metaball container (0=sharp, default 4)
+    METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
+    /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
+    METABALL_BLUR_AFFECTS_BORDERS: boolean;
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
     METABALL_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
     METABALL_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
+    METABALL_BORDER_SATURATION: number; // Border saturation multiplier (default 1)
+    METABALL_BORDER_LIGHTNESS: number;  // Border lightness multiplier (default 1)
+    METABALL_CHAIKIN_PASSES: number;    // Chaikin smoothing passes on border polylines (0=off, 1-4, default 0)
+    /** 0 = no combat border boost; else tick window for lastCombatTick / lastAttackTick */
+    METABALL_COMBAT_BORDER_TICKS: number;
+    /**
+     * Max distance (px) from a border segment to a “hot” star for combat width/alpha boost.
+     * 0 = use METABALL_INFLUENCE_RADIUS as the distance (no extra literals in renderer).
+     */
+    METABALL_COMBAT_BORDER_PROXIMITY_PX: number;
+    METABALL_COMBAT_BORDER_WIDTH_BOOST: number; // Extra border width when stars on edge are "hot" (default 0)
+    METABALL_COMBAT_BORDER_ALPHA_BOOST: number; // Extra border alpha when hot (default 0)
+    /** Scale border emphasis by fleet imbalance across edge: 0=off, 1=moderate (default 0) */
+    METABALL_BORDER_FORCE_RATIO: number;
 
     // ── Pixel Territory ────────────────────────────────────────────────────
     PIXEL_ALPHA: number;             // Pixel territory alpha (0-1, default 0.15)
@@ -1195,6 +1219,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_MODE: 'metaball' as 'voronoi' | 'metaball' | 'off',
     /** Active render mode selector */
     TERRITORY_RENDER_MODE: 'territory_canonical',
+    /** Gated RenderFamily dispatch (default off — full legacy panel) */
+    USE_RENDER_FAMILIES: false,
     /** Master architecture selector for canonical territory mode */
     TERRITORY_ARCHITECTURE_PATH: 'clean' as const,
 
@@ -1243,7 +1269,7 @@ const _rawConfig: GameConfigType = {
     /** Number of concentric glow layers */
     VORONOI_GLOW_LAYERS: 7,
     /** GPU blur for smooth territory edges (0=sharp, higher=softer) */
-    VORONOI_BLUR: 6,
+    VORONOI_BLUR: 3,
     /** Chaikin smoothing iterations (0=angular polygons, 2=rounded, 4=very smooth) */
     VORONOI_SMOOTHING: 0,
     /** Enable gradient blending at territory borders */
@@ -1260,10 +1286,12 @@ const _rawConfig: GameConfigType = {
     MODIFIED_VORONOI_ARC_THRESHOLD: 150,
     /** Min line-segment length for Bézier tessellation (px, lower=smoother) */
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: 4,
+    /** Max Bézier tessellation steps per sharp corner (bounds CPU / triangulation cost) */
+    MODIFIED_VORONOI_ARC_MAX_SEGMENTS: 28,
     /** Whether to inject virtual Voronoi sites along same-owner lanes */
-    MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
     /** Distance between virtual corridor sites in px (lower=more sites=denser corridor) */
-    MODIFIED_VORONOI_CORRIDOR_SPACING: 20,
+    MODIFIED_VORONOI_CORRIDOR_SPACING: 100,
     /** Number of corridor vstars per lane (0 = auto from spacing) */
     TERRITORY_CX_COUNT: 0,
     /** Corridor vstar weight multiplier vs starMargin² (0.0-2.0) */
@@ -1285,15 +1313,16 @@ const _rawConfig: GameConfigType = {
     /** Overall metaball territory alpha (0-1) */
     METABALL_ALPHA: 0.5,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
-    METABALL_CELL_SIZE: 2,
-    /** Minimum influence to draw (lower = more coverage, 0.01-0.2 typical) */
-    METABALL_THRESHOLD: 0.01,
+    METABALL_CELL_SIZE: 10,
+    /** Min dominance (winner / (winner+runner-up)); raise to require clearer lead per cell */
+    METABALL_THRESHOLD: 0.52,
     /** Star strength multiplier (scales all influence, default 1.0) */
     METABALL_STRENGTH_MULT: 4.3,
     /** Edge alpha falloff steepness (higher = sharper edges, default 3.0) */
     METABALL_EDGE_FADE: 0.5,
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
     METABALL_BLUR: 0,
+    METABALL_BLUR_AFFECTS_BORDERS: false,
     /** Border line width between metaball territories */
     METABALL_BORDER_WIDTH: 3,
     /** Border line alpha */
@@ -1304,6 +1333,14 @@ const _rawConfig: GameConfigType = {
     METABALL_SATURATION: 1.05,
     /** Metaball color lightness multiplier (0=dark, 1=original, 2=bright) */
     METABALL_LIGHTNESS: 0.65,
+    METABALL_BORDER_SATURATION: 1,
+    METABALL_BORDER_LIGHTNESS: 1,
+    METABALL_CHAIKIN_PASSES: 0,
+    METABALL_COMBAT_BORDER_TICKS: 15,
+    METABALL_COMBAT_BORDER_PROXIMITY_PX: 0,
+    METABALL_COMBAT_BORDER_WIDTH_BOOST: 1.5,
+    METABALL_COMBAT_BORDER_ALPHA_BOOST: 0.35,
+    METABALL_BORDER_FORCE_RATIO: 0.6,
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */

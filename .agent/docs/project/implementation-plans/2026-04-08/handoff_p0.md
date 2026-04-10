@@ -13,7 +13,7 @@
 ## Always-load path (fresh sessions)
 
 1. `AGENT.md`  
-2. `territory-rendering-jumpstart.md` §0–3, §6  
+2. `territory-rendering-jumpstart.md` §0; ingestion methodology in `territory-documentation-epic.md` §1–3, §6  
 3. This folder’s **`condensed/*.md`** (optional speed layer)  
 4. **`TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`** for full detail  
 5. Next handoff: **`handoff_doc_a.md`** (create in Doc A)

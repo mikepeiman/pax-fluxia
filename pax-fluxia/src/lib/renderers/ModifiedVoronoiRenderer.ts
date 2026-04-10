@@ -5,11 +5,12 @@
 // Derived from VoronoiRenderer.ts for F-138.
 // Uses d3-delaunay for per-star Voronoi cells, then applies a pipeline:
 //   1. Merge same-owner adjacent cells (remove shared internal edges)
-//   2. Chain remaining boundary edges into unified polygons per owner-cluster
-//   3. Apply minimum star boundary margin (F-139)
-//   4. Bézier arc smoothing at sharp vertices (angle < threshold)
-//   5. Optional Chaikin smoothing on final boundary
-//   6. Periphery coverage for edge star pairs (F-137)
+//   2. Disconnect buffer (non-connected same-owner lanes)
+//   3. Bézier arc smoothing at sharp vertices (angle < threshold)
+//   4. Minimum star boundary margin (F-139)
+//   5. Weld contested seam vertices (shared geometry vs adjacent owners)
+//   6. Optional Chaikin smoothing on final boundary
+//   7. Periphery coverage for edge star pairs (F-137)
 //
 // Performance: Only recomputed when ownership fingerprint changes.
 // ============================================================================
@@ -20,6 +21,15 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
+import {
+    chainSharedEdgesIntoPolylines,
+    chainUndirectedSegments,
+    drawBorderPolylines,
+    splitMergedOwnerOutlineEdges,
+    weldContestedBoundaryVertices,
+} from '$lib/renderers/geometry';
+
+const MV_DEV = import.meta.env.DEV;
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +57,7 @@ function buildFingerprint(stars: StarState[]): string {
     // F-138 specific config keys
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH}:${GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}:${GAME_CONFIG.MODIFIED_VORONOI_ARC_MAX_SEGMENTS}`;
     return fp;
 }
 
@@ -263,9 +273,11 @@ function mergeSameOwnerCells(
         totalEdges += count;
         if (count >= 2 && edgeClusters.get(key)!.size === 1) internalRemoved += count;
     }
-    console.log(`[ModifiedVoronoi:Merge] Total edge instances: ${totalEdges}, internal removed: ${internalRemoved}, unique clusters: ${clusterEdges.size}`);
-    for (const [ck, edges] of clusterEdges) {
-        console.log(`[ModifiedVoronoi:Merge]   Cluster "${ck}": ${edges.length} external edges`);
+    if (MV_DEV) {
+        console.log(`[ModifiedVoronoi:Merge] Total edge instances: ${totalEdges}, internal removed: ${internalRemoved}, unique clusters: ${clusterEdges.size}`);
+        for (const [ck, edges] of clusterEdges) {
+            console.log(`[ModifiedVoronoi:Merge]   Cluster "${ck}": ${edges.length} external edges`);
+        }
     }
 
     // Step 3: Chain edges into closed polygons per cluster
@@ -370,22 +382,38 @@ function applyMinStarMargin(
     if (minRadius <= 0) return;
 
     for (const poly of polygons) {
-        // Collect stars belonging to this owner
         const ownerStars = ownedStars.filter(s => s.ownerId === poly.ownerId);
+        if (ownerStars.length === 0) continue;
 
         for (let i = 0; i < poly.points.length; i++) {
             const [vx, vy] = poly.points[i];
 
+            // Only the nearest owner star should define the margin ray (was:
+            // last star in list overwrote others → inconsistent / folded edges).
+            let nearest: StarState | null = null;
+            let nearestD = Infinity;
             for (const star of ownerStars) {
                 const dx = vx - star.x;
                 const dy = vy - star.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < minRadius && dist > 0.001) {
-                    // Push outward along star→vertex ray
-                    const scale = minRadius / dist;
-                    poly.points[i] = [star.x + dx * scale, star.y + dy * scale];
+                const d = Math.hypot(dx, dy);
+                if (d < nearestD) {
+                    nearestD = d;
+                    nearest = star;
                 }
+            }
+
+            if (
+                nearest &&
+                nearestD < minRadius &&
+                nearestD > 0.001
+            ) {
+                const dx = vx - nearest.x;
+                const dy = vy - nearest.y;
+                const scale = minRadius / nearestD;
+                poly.points[i] = [
+                    nearest.x + dx * scale,
+                    nearest.y + dy * scale,
+                ];
             }
         }
     }
@@ -435,12 +463,30 @@ function quadBezier(
     ];
 }
 
+function pushPtDedupe(out: number[][], p: number[], epsSq: number): void {
+    const last = out[out.length - 1];
+    if (!last) {
+        out.push(p);
+        return;
+    }
+    const dx = last[0] - p[0];
+    const dy = last[1] - p[1];
+    if (dx * dx + dy * dy > epsSq) out.push(p);
+}
+
+/** Above this, "smooth almost every vertex" — interior angles are almost always < 180°. */
+const ARC_THRESHOLD_SAFETY_MAX = 165;
+
 /**
- * Smooth sharp vertices by replacing them with quadratic Bézier arcs.
- * For each vertex with interior angle < threshold:
- *   1. Retract vertex toward the nearest star center (origin) by arcStrength
- *   2. Tessellate a Bézier arc from prev vertex through retracted point to next vertex
- *   3. Splice arc segments into the polygon
+ * Smooth sharp vertices with a **local** quadratic fillet on each corner.
+ * Endpoints sit on the two incident edges (not on prev/next vertices), so the
+ * curve rounds the corner instead of cutting across the polygon interior.
+ * Segment count is capped — the old prev→next chord + unbounded tessellation
+ * exploded to thousands of vertices per polygon (overlap, lag).
+ *
+ * Corners eligible for smoothing are also **budget-limited** (sharpest first):
+ * with threshold 180° and CX, hundreds of vertices would otherwise each spawn
+ * a short arc → multi‑thousand output verts and visible spikes.
  */
 function smoothSharpVertices(
     polygons: MergedPolygon[],
@@ -451,6 +497,9 @@ function smoothSharpVertices(
 ): void {
     if (arcStrength <= 0) return;
 
+    const epsSq = 0.25 * 0.25;
+    const thrEff = Math.min(Math.max(arcThreshold, 1), ARC_THRESHOLD_SAFETY_MAX);
+
     for (const poly of polygons) {
         let pts = poly.points;
         const isClosed = pts.length > 1 &&
@@ -460,50 +509,108 @@ function smoothSharpVertices(
 
         const newPts: number[][] = [];
         const len = pts.length;
+        if (len < 3) continue;
 
-        // Find nearest star to this polygon for origin computation
         const ownerStars = ownedStars.filter(s => s.ownerId === poly.ownerId);
 
+        type CornerCand = { i: number; angle: number };
+        const cornerCands: CornerCand[] = [];
+        if (ownerStars.length > 0) {
+            for (let i = 0; i < len; i++) {
+                const angle = interiorAngle(pts, i);
+                if (angle < thrEff && angle > 0) cornerCands.push({ i, angle });
+            }
+            cornerCands.sort((a, b) => a.angle - b.angle);
+        }
+        const maxSmoothCorners = Math.min(
+            96,
+            Math.max(8, Math.floor(len * 0.06)),
+        );
+        const smoothThese = new Set(
+            cornerCands.slice(0, maxSmoothCorners).map((c) => c.i),
+        );
+
         for (let i = 0; i < len; i++) {
+            const prev = pts[(i - 1 + len) % len];
+            const curr = pts[i];
+            const next = pts[(i + 1) % len];
+
             const angle = interiorAngle(pts, i);
 
-            if (angle < arcThreshold && angle > 0) {
-                // This vertex is sharp — apply arc smoothing
-                const prev = pts[(i - 1 + len) % len];
-                const curr = pts[i];
-                const next = pts[(i + 1) % len];
+            if (
+                smoothThese.has(i) &&
+                angle < thrEff &&
+                angle > 0 &&
+                ownerStars.length > 0
+            ) {
+                const distPC = Math.hypot(curr[0] - prev[0], curr[1] - prev[1]);
+                const distCN = Math.hypot(next[0] - curr[0], next[1] - curr[1]);
+                if (distPC < 1e-3 || distCN < 1e-3) {
+                    pushPtDedupe(newPts, curr, epsSq);
+                    continue;
+                }
 
-                // Find nearest star center as the "origin" for retraction
-                let nearestStar = ownerStars[0];
+                // Inset along edges toward the corner (fraction scales with strength)
+                const f = Math.min(
+                    0.45,
+                    Math.max(0.06, 0.08 + arcStrength * 0.55),
+                );
+                const p0: number[] = [
+                    curr[0] + f * (prev[0] - curr[0]),
+                    curr[1] + f * (prev[1] - curr[1]),
+                ];
+                const p2: number[] = [
+                    curr[0] + f * (next[0] - curr[0]),
+                    curr[1] + f * (next[1] - curr[1]),
+                ];
+
+                let nearestStar = ownerStars[0]!;
                 let minDist = Infinity;
                 for (const s of ownerStars) {
                     const d = Math.hypot(s.x - curr[0], s.y - curr[1]);
-                    if (d < minDist) { minDist = d; nearestStar = s; }
+                    if (d < minDist) {
+                        minDist = d;
+                        nearestStar = s;
+                    }
                 }
 
-                // Retract toward origin
-                const origin = [nearestStar.x, nearestStar.y];
-                const controlPt = [
-                    curr[0] + arcStrength * (origin[0] - curr[0]),
-                    curr[1] + arcStrength * (origin[1] - curr[1]),
+                const controlPt: number[] = [
+                    curr[0] + arcStrength * (nearestStar.x - curr[0]),
+                    curr[1] + arcStrength * (nearestStar.y - curr[1]),
                 ];
 
-                // Compute arc length to determine segment count
-                const arcLen = Math.hypot(next[0] - prev[0], next[1] - prev[1]) +
-                    Math.hypot(controlPt[0] - prev[0], controlPt[1] - prev[1]);
-                const segments = Math.max(3, Math.ceil(arcLen / Math.max(1, arcMinSegment)));
+                const chord = Math.hypot(p2[0] - p0[0], p2[1] - p0[1]);
+                if (chord < 1e-3) {
+                    pushPtDedupe(newPts, curr, epsSq);
+                    continue;
+                }
 
-                // Tessellate Bézier: prev → controlPt → next
+                const rawSeg = Math.ceil(
+                    chord / Math.max(3, arcMinSegment),
+                );
+                const segCap = Math.max(
+                    4,
+                    Math.min(
+                        64,
+                        Math.round(
+                            GAME_CONFIG.MODIFIED_VORONOI_ARC_MAX_SEGMENTS ?? 28,
+                        ),
+                    ),
+                );
+                const segments = Math.max(2, Math.min(segCap, rawSeg));
+
                 for (let s = 0; s <= segments; s++) {
-                    const t = s / segments;
-                    newPts.push(quadBezier(prev, controlPt, next, t));
+                    pushPtDedupe(
+                        newPts,
+                        quadBezier(p0, controlPt, p2, s / segments),
+                        epsSq,
+                    );
                 }
             } else {
-                newPts.push(pts[i]);
+                pushPtDedupe(newPts, curr, epsSq);
             }
         }
 
-        // Re-close
         if (newPts.length > 0) {
             newPts.push([newPts[0][0], newPts[0][1]]);
         }
@@ -634,7 +741,9 @@ function applyDisconnectBuffer(
         }
     }
 
-    console.log(`[ModifiedVoronoi] Applied disconnect buffer to ${zones.length} non-connected same-owner pairs`);
+    if (MV_DEV) {
+        console.log(`[ModifiedVoronoi] Applied disconnect buffer to ${zones.length} non-connected same-owner pairs`);
+    }
 }
 
 // ── Main Renderer ──────────────────────────────────────────────────────────
@@ -695,7 +804,7 @@ export function renderModifiedVoronoi(
     // ── Corridor Virtual Sites: inject points along same-owner lanes ──
     // Virtual sites participate in Voronoi, creating corridor cells that merge with owners
     const corridorEnabled = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true;
-    const corridorSpacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 80;
+    const corridorSpacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 100;
 
     // Build augmented star array: real stars + virtual corridor sites
     const starById = new Map<string, StarState>();
@@ -733,7 +842,7 @@ export function renderModifiedVoronoi(
                 } as unknown as StarState);
             }
         }
-        if (virtualStars.length > 0) {
+        if (MV_DEV && virtualStars.length > 0) {
             console.log(`[ModifiedVoronoi] Injected ${virtualStars.length} corridor virtual sites`);
         }
     }
@@ -777,35 +886,55 @@ export function renderModifiedVoronoi(
     // ══════════════════════════════════════════════════════════════════════
     // F-138 Pipeline: Merge → Arcs → Star Margin (hard) → Smooth → Render
     // ══════════════════════════════════════════════════════════════════════
-    console.time('[ModifiedVoronoi] Total pipeline');
+    if (MV_DEV) console.time('[ModifiedVoronoi] Total pipeline');
 
     // Stage 1: Merge same-owner cells
-    console.time('[ModifiedVoronoi] Stage 1: Merge cells');
+    if (MV_DEV) console.time('[ModifiedVoronoi] Stage 1: Merge cells');
     const mergedPolygons = mergeSameOwnerCells(
         voronoi, augmentedStars, ownedSet, augOwnedStars, starColors, GAME_CONFIG.TERRITORY_CLUSTER_SPLIT,
     );
-    console.timeEnd('[ModifiedVoronoi] Stage 1: Merge cells');
-    console.log(`[ModifiedVoronoi] Merged into ${mergedPolygons.length} polygons, total vertices: ${mergedPolygons.reduce((s, p) => s + p.points.length, 0)}`);
+    if (MV_DEV) {
+        console.timeEnd('[ModifiedVoronoi] Stage 1: Merge cells');
+        console.log(`[ModifiedVoronoi] Merged into ${mergedPolygons.length} polygons, total vertices: ${mergedPolygons.reduce((s, p) => s + p.points.length, 0)}`);
+    }
 
     // Stage 1b: Disconnect buffer — push same-owner non-connected territory apart
     if (connections && connections.length > 0) {
-        console.time('[ModifiedVoronoi] Stage 1b: Disconnect buffer');
+        if (MV_DEV) console.time('[ModifiedVoronoi] Stage 1b: Disconnect buffer');
         applyDisconnectBuffer(mergedPolygons, ownedStars, connections);
-        console.timeEnd('[ModifiedVoronoi] Stage 1b: Disconnect buffer');
+        if (MV_DEV) console.timeEnd('[ModifiedVoronoi] Stage 1b: Disconnect buffer');
     }
 
     // Stage 2: Bézier arc smoothing at sharp vertices (BEFORE margin so margin wins)
-    console.time('[ModifiedVoronoi] Stage 2: Arc smoothing');
+    if (MV_DEV) console.time('[ModifiedVoronoi] Stage 2: Arc smoothing');
     const arcStrength = GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH ?? 0.3;
     const arcThreshold = GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD ?? 150;
     const arcMinSeg = GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT ?? 4;
+    const vertsBeforeArc = MV_DEV
+        ? mergedPolygons.reduce((s, p) => s + p.points.length, 0)
+        : 0;
     smoothSharpVertices(mergedPolygons, ownedStars, arcStrength, arcThreshold, arcMinSeg);
-    console.timeEnd('[ModifiedVoronoi] Stage 2: Arc smoothing');
-    console.log(`[ModifiedVoronoi] After smoothing, total vertices: ${mergedPolygons.reduce((s, p) => s + p.points.length, 0)}`);
+    if (MV_DEV) {
+        console.timeEnd('[ModifiedVoronoi] Stage 2: Arc smoothing');
+        const vertsAfterArc = mergedPolygons.reduce(
+            (s, p) => s + p.points.length,
+            0,
+        );
+        const cap = Math.round(
+            GAME_CONFIG.MODIFIED_VORONOI_ARC_MAX_SEGMENTS ?? 28,
+        );
+        const thrEff = Math.min(
+            Math.max(arcThreshold, 1),
+            ARC_THRESHOLD_SAFETY_MAX,
+        );
+        console.log(
+            `[ModifiedVoronoi] Arc verts ${vertsBeforeArc} -> ${vertsAfterArc} (maxSeg/corner<=${cap}, str=${arcStrength.toFixed(2)}, thrDeg_ui=${arcThreshold}, thrDeg_eff=${thrEff})`,
+        );
+    }
 
     // Stage 3: Enforce minimum star boundary margin (F-139) — LAST geometric constraint
     // Cap margin at half the minimum inter-star distance to prevent overlapping margins
-    console.time('[ModifiedVoronoi] Stage 3: Star margin (hard)');
+    if (MV_DEV) console.time('[ModifiedVoronoi] Stage 3: Star margin (hard)');
     let minStarDist = Infinity;
     for (let a = 0; a < stars.length; a++) {
         for (let b = a + 1; b < stars.length; b++) {
@@ -816,14 +945,25 @@ export function renderModifiedVoronoi(
     const maxMargin = minStarDist / 2;
     const rawMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
     const starMargin = Math.min(rawMargin, maxMargin);
-    if (rawMargin > maxMargin) {
+    if (MV_DEV && rawMargin > maxMargin) {
         console.log(`[ModifiedVoronoi] Star margin capped: ${rawMargin}px → ${starMargin.toFixed(1)}px (minStarDist=${minStarDist.toFixed(1)}px)`);
     }
     applyMinStarMargin(mergedPolygons, ownedStars, starMargin);
-    console.timeEnd('[ModifiedVoronoi] Stage 3: Star margin (hard)');
+    if (MV_DEV) console.timeEnd('[ModifiedVoronoi] Stage 3: Star margin (hard)');
+
+    // Stage 3b: Weld contested seam vertices so adjacent owners share identical geometry (fills meet).
+    if (MV_DEV) console.time('[ModifiedVoronoi] Stage 3b: Weld contested seams');
+    weldContestedBoundaryVertices(mergedPolygons);
+    if (MV_DEV) console.timeEnd('[ModifiedVoronoi] Stage 3b: Weld contested seams');
 
     // Stage 6: Chaikin smoothing (optional)
     const smoothingIter = GAME_CONFIG.VORONOI_SMOOTHING ?? 0;
+
+    // One Chaikin pass per polygon shared by fill + border (was duplicated).
+    const drawPolys = mergedPolygons.map((poly) => ({
+        poly,
+        pts: chaikinSmooth(poly.points, smoothingIter),
+    }));
 
     // ── BACKFILL: Draw raw Voronoi cells as base layer for 100% coverage ──
     // This guarantees no gaps — every pixel belongs to some territory.
@@ -835,14 +975,13 @@ export function renderModifiedVoronoi(
     cellGraphics.clear();
 
     // Single layer: merged + modified polygons (all compute passes produce the final result)
-    for (const poly of mergedPolygons) {
-        const smoothed = chaikinSmooth(poly.points, smoothingIter);
-        cellGraphics.poly(smoothed.flat());
+    for (const { poly, pts } of drawPolys) {
+        cellGraphics.poly(pts.flat());
         cellGraphics.fill({ color: poly.color.hex, alpha });
     }
-    console.timeEnd('[ModifiedVoronoi] Total pipeline');
+    if (MV_DEV) console.timeEnd('[ModifiedVoronoi] Total pipeline');
 
-    // ── Draw territory borders as unified paths ──
+    // ── Draw territory borders: contested seams once (PVV-style), hull per outline ──
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics) {
             borderGraphics = new PIXI.Graphics();
@@ -850,24 +989,60 @@ export function renderModifiedVoronoi(
         }
         borderGraphics.clear();
 
-        for (const poly of mergedPolygons) {
-            const pts = chaikinSmooth(poly.points, smoothingIter);
-            const borderColor = rgbToHex(
-                Math.min(255, poly.color.rgb[0] + borderBrighten),
-                Math.min(255, poly.color.rgb[1] + borderBrighten),
-                Math.min(255, poly.color.rgb[2] + borderBrighten),
+        const brightenBorder = (rgb: [number, number, number]): number =>
+            rgbToHex(
+                Math.min(255, rgb[0] + borderBrighten),
+                Math.min(255, rgb[1] + borderBrighten),
+                Math.min(255, rgb[2] + borderBrighten),
             );
 
-            // Build single unified path, then stroke once
-            if (pts.length > 1) {
-                borderGraphics.moveTo(pts[0][0], pts[0][1]);
-                for (let i = 1; i < pts.length; i++) {
-                    borderGraphics.lineTo(pts[i][0], pts[i][1]);
-                }
-                borderGraphics.closePath();
-                borderGraphics.stroke({ width: borderWidth, color: borderColor, alpha: borderAlpha });
+        const ownerRgb = new Map<string, [number, number, number]>();
+        for (const { poly } of drawPolys) {
+            if (!ownerRgb.has(poly.ownerId)) {
+                ownerRgb.set(poly.ownerId, poly.color.rgb as [number, number, number]);
             }
         }
+
+        const outlines = drawPolys.map(({ poly, pts }) => ({
+            ownerId: poly.ownerId,
+            points: pts as [number, number][],
+        }));
+
+        const { contested, hullSegmentsByPolygon } = splitMergedOwnerOutlineEdges(outlines);
+
+        const borderPolylines: { points: [number, number][]; color: number }[] = [];
+
+        const contestedPls = chainSharedEdgesIntoPolylines(
+            contested,
+            (a, b) => {
+                const ra = ownerRgb.get(a) ?? [128, 128, 128];
+                const rb = ownerRgb.get(b) ?? [128, 128, 128];
+                const [ar, ag, ab] = hexToRGB(brightenBorder(ra));
+                const [br, bg, bb] = hexToRGB(brightenBorder(rb));
+                return rgbToHex(
+                    Math.round((ar + br) / 2),
+                    Math.round((ag + bg) / 2),
+                    Math.round((ab + bb) / 2),
+                );
+            },
+            0,
+        );
+        for (const pl of contestedPls) {
+            borderPolylines.push({ points: pl.points, color: pl.color });
+        }
+
+        for (let i = 0; i < hullSegmentsByPolygon.length; i++) {
+            const segs = hullSegmentsByPolygon[i]!;
+            if (segs.length === 0) continue;
+            const poly = drawPolys[i]!.poly;
+            const col = brightenBorder(poly.color.rgb as [number, number, number]);
+            for (const loop of chainUndirectedSegments(segs)) {
+                if (loop.length < 2) continue;
+                borderPolylines.push({ points: loop, color: col });
+            }
+        }
+
+        drawBorderPolylines(borderGraphics, borderPolylines, 0, borderWidth, borderAlpha);
     } else if (borderGraphics) {
         borderGraphics.clear();
     }
@@ -876,7 +1051,7 @@ export function renderModifiedVoronoi(
     const blurStrength = GAME_CONFIG.VORONOI_BLUR ?? 8;
     if (blurStrength > 0) {
         if (!cachedBlurFilter || cachedBlurStrength !== blurStrength) {
-            cachedBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 });
+            cachedBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 2 });
             cachedBlurStrength = blurStrength;
         }
         cellGraphics.filters = [cachedBlurFilter];

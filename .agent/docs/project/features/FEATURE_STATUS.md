@@ -84,6 +84,7 @@
 | V-5 | Facing Departure (orbit dance) | ❓ | Toggle in Animation Tuning, OFF by default. Sort+splice causes dance effect |
 | V-6 | Orbit Bias Oscillation | ❓ | Min/Max/Freq controls. Oscillates bias strength per tick frequency |
 | V-7 | Smooth Departure Easing | ❓ | easeInOutQuad replaces easeInCubic for smoother departure |
+| V-8 | Metaball blur targets | ❓ | `METABALL_BLUR_AFFECTS_BORDERS` toggle: default blur fill only; optional single-pass blur on fill + border strokes when GPU blur is on. |
 
 ---
 

@@ -5,7 +5,7 @@
 // Pure geometry — no rendering, no PIXI, no config reads.
 //
 // Canonical pipeline order:
-//   Merge → CX → DX → Star Margin → Arc Smooth → Chaikin → Output
+//   Merge → CX → DX → Arc Smooth → Star Margin → Weld contested seams → Chaikin → Output
 //
 // Each function mutates MergedTerritory[].points in place for efficiency.
 // ============================================================================
@@ -13,6 +13,7 @@
 import type { MergedTerritory } from './types';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
+import { edgeKey } from './polyUtils';
 
 // ── Star Margin ─────────────────────────────────────────────────────────────
 
@@ -285,4 +286,151 @@ export function applyDisconnectBuffer(
     }
 
     log.sys('GeometryModifiers', `Applied disconnect buffer to ${zones.length} non-connected same-owner pairs`);
+}
+
+// ── Contested boundary welding ───────────────────────────────────────────────
+
+/** Any merged outline with owner + ring points (MV / PVV-style consumers). */
+export type WeldableTerritoryOutline = Pick<MergedTerritory, 'ownerId' | 'points'>;
+
+function refKey(pi: number, vi: number): string {
+    return `${pi}|${vi}`;
+}
+
+function parseRefKey(k: string): { pi: number; vi: number } {
+    const i = k.indexOf('|');
+    return { pi: Number(k.slice(0, i)), vi: Number(k.slice(i + 1)) };
+}
+
+/** Unique vertex count for one boundary ring (drops duplicate closing copy of first point). */
+function ringVertexCount(pts: [number, number][]): number {
+    const n = pts.length;
+    if (n < 2) return 0;
+    const closed =
+        n > 2 &&
+        pts[0]![0] === pts[n - 1]![0] &&
+        pts[0]![1] === pts[n - 1]![1];
+    return closed ? n - 1 : n;
+}
+
+/**
+ * After per-polygon warps (disconnect, arcs, star margin), adjacent owners’ rings
+ * no longer share identical coordinates along contested edges. This pass groups
+ * endpoints that belong to the **same** undirected contested edge (two different
+ * owners, opposite winding along the seam) and replaces each group with the
+ * centroid of its members so fills and borders share one polyline.
+ *
+ * Mutates `points` in place. Run once after the last asymmetric modifier and
+ * before Chaikin / tessellation.
+ */
+export function weldContestedBoundaryVertices(territories: WeldableTerritoryOutline[]): void {
+    if (territories.length < 2) return;
+
+    type Contrib = { pi: number; i: number; ni: number };
+    const byKey = new Map<string, Contrib[]>();
+
+    for (let pi = 0; pi < territories.length; pi++) {
+        const pts = territories[pi]!.points as [number, number][];
+        const m = ringVertexCount(pts);
+        if (m < 2) continue;
+
+        for (let j = 0; j < m; j++) {
+            const nj = (j + 1) % m;
+            const k = edgeKey(pts[j]![0], pts[j]![1], pts[nj]![0], pts[nj]![1]);
+            if (!byKey.has(k)) byKey.set(k, []);
+            byKey.get(k)!.push({ pi, i: j, ni: nj });
+        }
+    }
+
+    const parent = new Map<string, string>();
+
+    function find(a: string): string {
+        let p = parent.get(a);
+        if (p === undefined) {
+            parent.set(a, a);
+            return a;
+        }
+        if (p !== a) {
+            const r = find(p);
+            parent.set(a, r);
+            return r;
+        }
+        return a;
+    }
+
+    function union(a: string, b: string): void {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent.set(ra, rb);
+    }
+
+    const active = new Set<string>();
+
+    for (const list of byKey.values()) {
+        const byPi = new Map<number, Contrib>();
+        for (const c of list) {
+            if (!byPi.has(c.pi)) byPi.set(c.pi, c);
+        }
+        const uniq = [...byPi.values()];
+        if (uniq.length !== 2) continue;
+
+        const a = uniq[0]!;
+        const b = uniq[1]!;
+        const oa = territories[a.pi]!.ownerId;
+        const ob = territories[b.pi]!.ownerId;
+        if (oa === ob) continue;
+
+        // Opposite orientation along the shared seam (both polygons wound CCW/CW).
+        union(refKey(a.pi, a.i), refKey(b.pi, b.ni));
+        union(refKey(a.pi, a.ni), refKey(b.pi, b.i));
+
+        active.add(refKey(a.pi, a.i));
+        active.add(refKey(a.pi, a.ni));
+        active.add(refKey(b.pi, b.i));
+        active.add(refKey(b.pi, b.ni));
+    }
+
+    if (active.size === 0) return;
+
+    const buckets = new Map<string, { sx: number; sy: number; n: number }>();
+    for (const rk of active) {
+        const root = find(rk);
+        const { pi, vi } = parseRefKey(rk);
+        const p = territories[pi]!.points[vi] as [number, number];
+        let g = buckets.get(root);
+        if (!g) {
+            g = { sx: 0, sy: 0, n: 0 };
+            buckets.set(root, g);
+        }
+        g.sx += p[0];
+        g.sy += p[1];
+        g.n += 1;
+    }
+
+    const centroid = new Map<string, [number, number]>();
+    for (const [root, g] of buckets) {
+        if (g.n < 1) continue;
+        centroid.set(root, [g.sx / g.n, g.sy / g.n]);
+    }
+
+    for (const rk of active) {
+        const root = find(rk);
+        const c = centroid.get(root);
+        if (!c) continue;
+        const { pi, vi } = parseRefKey(rk);
+        territories[pi]!.points[vi] = [c[0], c[1]];
+    }
+
+    // Keep explicit closing duplicate identical to vertex 0 (merge pipeline convention).
+    for (const t of territories) {
+        const pts = t.points as [number, number][];
+        const n = pts.length;
+        if (n > 2) {
+            const a = pts[0]!;
+            const b = pts[n - 1]!;
+            if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-3) {
+                pts[n - 1] = [a[0], a[1]];
+            }
+        }
+    }
 }

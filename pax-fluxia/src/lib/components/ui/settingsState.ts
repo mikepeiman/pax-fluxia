@@ -1,13 +1,19 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { PANEL_CONFIG_MAP, type PanelConfigMapping } from './settingsDefs';
+import { RESOLVED_PANEL_CONFIG_MAP, type PanelConfigMapping } from './settingsDefs';
 import { recordSettingWrite } from '$lib/config/settingsTelemetry';
 
 export interface SettingsSchemaEntry extends PanelConfigMapping {}
 
-export const SETTINGS_SCHEMA: SettingsSchemaEntry[] = PANEL_CONFIG_MAP;
+/** Resolved panelKey for every config row (required for setSetting → GAME_CONFIG). */
+export const SETTINGS_SCHEMA: SettingsSchemaEntry[] =
+    RESOLVED_PANEL_CONFIG_MAP as SettingsSchemaEntry[];
 
-const SETTINGS_BY_PANEL_KEY = new Map(SETTINGS_SCHEMA.map((entry) => [entry.panelKey, entry] as const));
-const SETTINGS_BY_CONFIG_KEY = new Map(SETTINGS_SCHEMA.map((entry) => [entry.configKey, entry] as const));
+const SETTINGS_BY_PANEL_KEY = new Map(
+    RESOLVED_PANEL_CONFIG_MAP.map((entry) => [entry.panelKey, entry] as const),
+);
+const SETTINGS_BY_CONFIG_KEY = new Map(
+    RESOLVED_PANEL_CONFIG_MAP.map((entry) => [entry.configKey, entry] as const),
+);
 
 function applyMappedSetting(panelKey: string, value: unknown): void {
     const mapping = SETTINGS_BY_PANEL_KEY.get(panelKey);

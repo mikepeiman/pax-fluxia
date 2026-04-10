@@ -3,7 +3,15 @@
 **Versioned repo copy (edit here):**  
 `.agent/docs/project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`
 
-**Single entry point:** [territory-rendering-jumpstart.md](./territory-rendering-jumpstart.md) — **Section 0** (path, verbatim instruction, phase table, companion files); **Sections 1+** are the rest of the runbook. `AGENT_ENTRYPOINT.md` redirects here.
+**Navigation (three roles):**
+
+1. **Hub** — [territory-rendering-jumpstart.md](./territory-rendering-jumpstart.md) **Section 0** only: assignable path, phase table (0.B), companion index (0.C), suggested load order, ingestion roots (0.1). Long-form territory prose is **not** in the jumpstart anymore.
+2. **Engineering context** — [territory-rendering-overview.md](./territory-rendering-overview.md): legacy `renderers/` inventory, config keys, Render Family strategy, tech stack, non-negotiables. **d3 / Voronoi** deep dive: [territory-d3-voronoi-family-analysis.md](./territory-d3-voronoi-family-analysis.md). **`territory/` tree:** [territory-clean-architecture-map.md](./territory-clean-architecture-map.md).
+3. **This file** — **Impl spine**: execution checklist, Parts I–II, handoffs, `RenderFamily` sketch. **Doc ingestion epic** (§6, §9–13): [territory-documentation-epic.md](./territory-documentation-epic.md).
+
+`AGENT_ENTRYPOINT.md` redirects to the jumpstart hub.
+
+**Related topical docs:** [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](./RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md); [2026-04-09-voronoi-territory-modes-comparison.md](../../decisions/2026-04-09-voronoi-territory-modes-comparison.md) (catalog-oriented; canonical prose for d3 modes is [territory-d3-voronoi-family-analysis.md](./territory-d3-voronoi-family-analysis.md)).
 
 If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), treat it as **optional**; refresh it from **this file** after edits.
 
@@ -24,9 +32,11 @@ If a Cursor “Plans” UI copy exists (`full_phased_plan_34174ddf.plan.md`), tr
 - [x] **Doc B** — Band 2026-03-08 … 2026-03-22 + research sampling + artifacts v2 + index v2 + `handoff_doc_b.md`
 - [x] **Doc C** — FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL.md` + `RECOMMENDATIONS_FOR_ARCHITECT.md` + `handoff_doc_c.md`
 - [ ] **Impl 0** — `RenderFamily`, registry, `DiagnosticProvider`, runtime clock, gated dispatch + `handoff_i0.md`
-- [ ] **Impl 1** — `DistanceFieldFamily` (priority) + `handoff_i1.md`
-- [ ] **Impl 2** — `VectorPolygonFamily` + `handoff_i2.md`
-- [ ] **Impl 3** — Metaball + Contour + family UI + prune + `RENDER_FAMILY_COMPLETE.md`
+- [ ] **Impl 1** — `MetaballFamily` (first adapter — thinnest wedge) + `handoff_i1.md`
+- [ ] **Impl 2** — `ContourFamily` + `handoff_i2.md`
+- [ ] **Impl 3** — `DistanceFieldFamily` + `VectorPolygonFamily` facade + family UI + prune + `RENDER_FAMILY_COMPLETE.md`
+
+**Ordering note (2026-04-09):** **Supersedes** the 2026-04-08 **DF-first** Impl 1 choice. Rationale: prove the family shell on the smallest legacy adapter first; see [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](./RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md).
 
 ---
 
@@ -131,7 +141,7 @@ Incremental **D1–D13** menu; optional **`DiagnosticProvider`** + shared overla
 
 ### II.5 Implementation priority (hypothesis; revisable after idea synthesis)
 
-**DistanceFieldFamily first** after doc synthesis and Impl 0 — validates hardest GPU/shader path. **If Doc C surfaces stronger evidence for another paradigm, reorder here before deep Impl.**
+**MetaballFamily first** after Impl 0 — thinnest adapter (~`MetaballRenderer.ts`), lowest risk to prove registry + gated dispatch. **Then** `ContourFamily`, **then** `DistanceFieldFamily`, **then** `VectorPolygonFamily` facade (largest blast radius). **Supersedes** the 2026-04-08 “DF-first” ordering; see [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](./RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md).
 
 ---
 
@@ -225,9 +235,9 @@ flowchart TD
     DB["Doc B\nBand 2"]
     DC["Doc C\nSynthesis"]
     I0["Impl 0\nInterface + clock"]
-    I1["Impl 1\nDF family"]
-    I2["Impl 2\nVectorPolygon"]
-    I3["Impl 3\nMetaball + Contour\n+ UI + prune"]
+    I1["Impl 1\nMetaball family"]
+    I2["Impl 2\nContour family"]
+    I3["Impl 3\nDF + VectorPolygon\n+ UI + prune"]
     P0 --> DA
     DA --> DB
     DB --> DC
@@ -275,23 +285,23 @@ Contracts, `TerritoryRuntimeCoordinator`, integration touchpoints, **Doc C hando
 
 **Out:** `RenderFamily` types, registry, `DiagnosticProvider`, runtime `TransitionClock`, **gated** family dispatch (`USE_RENDER_FAMILIES` false by default), `handoff_i0.md`.
 
-### Impl 1 — DF
+### Impl 1 — Metaball
 
-Targeted `DistanceFieldTerritoryRenderer` sections + `GAME_CONFIG` DF keys + interfaces.
+`MetaballRenderer.ts` + `GAME_CONFIG` metaball keys + thin `RenderFamily` adapter.
 
-**Out:** `DistanceFieldFamily`, tunables, tests, `handoff_i1.md`. Optional D9 DF overlays, D1/D2 where cheap.
+**Out:** `MetaballFamily`, tunables, tests, `handoff_i1.md`.
 
-### Impl 2 — VectorPolygon
+### Impl 2 — Contour
 
-Coordinators, registries, contracts.
+`ContourTerritoryRenderer` + worker + `GAME_CONFIG` contour keys.
 
-**Out:** `VectorPolygonFamily` facade; **PVV2_REFERENCE_COMMIT + `BRAINSTORMING_IDEAS_INDEX_FINAL`** as excavation references; `handoff_i2.md`.
+**Out:** `ContourFamily`, tunables, tests, `handoff_i2.md`.
 
-### Impl 3 — Rest
+### Impl 3 — DistanceField + VectorPolygon + UI
 
-Metaball, Contour, `settingsDefs` / `panelSync` / `game.config`, family UI.
+`DistanceFieldTerritoryRenderer` (targeted reads); coordinators/registries/contracts facade for `VectorPolygonFamily`; `settingsDefs` / `panelSync` / `game.config` parity; UI prune.
 
-**Out:** `MetaballFamily`, `ContourFamily`, UI simplification, prune, `RENDER_FAMILY_COMPLETE.md`.
+**Out:** `DistanceFieldFamily`, `VectorPolygonFamily` facade (**PVV2_REFERENCE_COMMIT + `BRAINSTORMING_IDEAS_INDEX_FINAL`** as excavation refs), UI simplification, prune, `RENDER_FAMILY_COMPLETE.md`.
 
 ---
 
@@ -314,8 +324,8 @@ Metaball, Contour, `settingsDefs` / `panelSync` / `game.config`, family UI.
 | Doc B | **Idea + evidence ingestion** | Artifacts v2 + brainstorming index v2 + `handoff_doc_b.md` |
 | Doc C | **Idea synthesis** | FINAL artifacts + `BRAINSTORMING_IDEAS_INDEX_FINAL` + `RECOMMENDATIONS` + `handoff_doc_c.md` |
 | Impl 0 | Code | Interface + registry + clock + gated dispatch + `handoff_i0.md` |
-| Impl 1 | Code | `DistanceFieldFamily` + `handoff_i1.md` |
-| Impl 2 | Code | `VectorPolygonFamily` + `handoff_i2.md` |
-| Impl 3 | Code | Metaball + Contour + UI + prune + `RENDER_FAMILY_COMPLETE.md` |
+| Impl 1 | Code | `MetaballFamily` + `handoff_i1.md` |
+| Impl 2 | Code | `ContourFamily` + `handoff_i2.md` |
+| Impl 3 | Code | `DistanceFieldFamily` + `VectorPolygonFamily` + UI + prune + `RENDER_FAMILY_COMPLETE.md` |
 
 **Eight phases.** Doc A–C **precede** Impl in intent: they **surface and reconcile ideas** (and evidence) first; **architect-owned plans** sit between Doc C and heavy Impl. Parts I–II are **plan hypotheses** informed by — and subordinate to — that idea work. Impl phases use condensed handoffs but **do not** exhaust the idea space.

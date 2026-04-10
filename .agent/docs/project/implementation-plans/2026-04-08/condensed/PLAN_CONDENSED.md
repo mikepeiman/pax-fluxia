@@ -24,7 +24,7 @@ The 4-layer pipeline fits **vector polygons → morph → draw commands**. **Dis
 | Diagnostics | Incremental D-menu; optional **DiagnosticProvider** with shared overlay — ship with renderer work. |
 | VFX | **Runtime** emits from ownership diff → `VFXBus`; optional `events[]` on family output later. |
 | Clock | **Runtime-owned** transition clock; `activeTransition` + tunables per family. |
-| Build order | **Impl 0** (interface + gated dispatch) → **DistanceFieldFamily first** → VectorPolygon facade → rest. |
+| Build order | **Impl 0** (interface + gated dispatch) → **MetaballFamily** → **ContourFamily** → **DistanceFieldFamily** + **VectorPolygonFamily** + UI prune — [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](../RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md) (2026-04-09 supersedes DF-first for Impl 1). |
 
 ---
 
@@ -75,9 +75,9 @@ interface RenderFamilyOutput {
 | **Doc B** | Artifacts v2, index v2, band 2026-03-08…03-22 |
 | **Doc C** | `*_FINAL.md`, `BRAINSTORMING_IDEAS_INDEX_FINAL.md`, `RECOMMENDATIONS_FOR_ARCHITECT.md` |
 | **Impl 0** | Types, registry, `DiagnosticProvider`, runtime clock, **`USE_RENDER_FAMILIES` default false** |
-| **Impl 1** | `DistanceFieldFamily` |
-| **Impl 2** | `VectorPolygonFamily` facade (+ PVV2 ref for excavation) |
-| **Impl 3** | Metaball + Contour + family UI + prune |
+| **Impl 1** | `MetaballFamily` |
+| **Impl 2** | `ContourFamily` |
+| **Impl 3** | `DistanceFieldFamily` + `VectorPolygonFamily` facade + family UI + prune |
 
 **Doc epic precedes implementation.** Handoffs: `handoff_doc_a.md` … `handoff_i2.md` in this folder.
 

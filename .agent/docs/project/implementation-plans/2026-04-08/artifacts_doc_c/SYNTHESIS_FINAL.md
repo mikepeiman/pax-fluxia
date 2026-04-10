@@ -7,7 +7,7 @@
 
 - **~28 tracked idea rows** (I-001 … I-028) + Doc C additions in **BRAINSTORMING_IDEAS_INDEX_FINAL.md** — rendering, geometry, transition, VFX, UX, perf, process.
 - **Three artifact tiers** (`artifacts_doc_a/`, `artifacts_doc_b/`, `artifacts_doc_c/`) — ledgers, claims, contradictions, scorecard hooks, **transition inventory** grounding.
-- **Single entry:** `territory-rendering-jumpstart.md` Section 0.
+- **Hub:** `territory-rendering-jumpstart.md` Section 0; full ingestion epic in `territory-documentation-epic.md`.
 
 ## Strongest evidence-backed themes
 
@@ -24,3 +24,7 @@
 
 - Do not re-run full doc ingestion; extend **BRAINSTORMING_IDEAS_INDEX_FINAL.md** only if code discovers new ideas.
 - Do not treat Perplexity round **duplicates** as action items without synthesis.
+
+---
+
+**Footnote (2026-04-09):** Theme **#1** above (“DF + shader-native morph as first implementation slice”) referred to **first deep renderer integration** under an earlier **DF-first** ordering. The architect **reordered** the **first `RenderFamily` adapter** to **Metaball** for wedge risk; DF remains a high-value target in **Impl 3** with VectorPolygon. See [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](../RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md).

@@ -9,7 +9,7 @@
 
 2. **Keep geometry-refactor inside VectorPolygon:** Do not restart a parallel “blueprint-only” migration (I-024); fold any unique blueprint ideas into family work items.
 
-3. **Prioritize DistanceField after Impl 0:** Hold II.5 ordering unless Doc C–style synthesis finds stronger human evidence for another paradigm (none surfaced in band C).
+3. **First family after Impl 0 — Metaball (2026-04-09):** Adopt **MetaballFamily** before DF/vector extraction to prove the shell on the smallest adapter. Rationale and history: [RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md](./RENDER_FAMILY_SPIKE_ORDER_METABALL_FIRST.md); engineering checklist: [TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md](./TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md) §II.5.
 
 4. **Trust inventory for boundaries:** Use `TERRITORY_TRANSITION_INVENTORY.md` when drawing `VectorPolygonFamily` vs legacy renderer seams (I-029).
 

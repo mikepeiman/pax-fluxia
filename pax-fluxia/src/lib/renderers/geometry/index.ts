@@ -7,6 +7,8 @@ export type {
     SharedPolyline, SharedBorderEdge, FrontierLoop,
 } from './types';
 
+export type { OwnerPolygonOutline } from './borderPipeline';
+
 export {
     hexToRGB, rgbToHSL, hslToRGB, adjustColorHSL, blendColors,
 } from '$lib/utils/colorUtils';
@@ -20,6 +22,7 @@ export {
 
 export {
     extractSharedEdges, chainSharedEdgesIntoPolylines, substituteSmoothedEdges,
+    splitMergedOwnerOutlineEdges, chainUndirectedSegments,
 } from './borderPipeline';
 
 export {
@@ -33,6 +36,9 @@ export {
 
 export { mergeSameOwnerCells } from './mergeUtils';
 
+export type { WeldableTerritoryOutline } from './geometryModifiers';
+
 export {
     applyMinStarMargin, smoothSharpVertices, applyDisconnectBuffer,
+    weldContestedBoundaryVertices,
 } from './geometryModifiers';
