@@ -1,0 +1,7 @@
+# Pax Fluxia — Cursor / AI context
+
+1. **Master instructions:** `.agent/AGENT.md` (load first; overrides informal notes).
+2. **Additional Cursor rules:** `.cursor/rules/*.mdc` (e.g. tuning, agent-core).
+3. **Stack:** SvelteKit 5 + PixiJS (`pax-fluxia/`), Colyseus + Bun (`pax-server/`), shared `common/` (`@pax/common`).
+
+If a rule here conflicts with `.agent/AGENT.md`, follow **AGENT.md**.
