@@ -42,6 +42,13 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+import type { MapLaneMode } from '@pax/common/mapgen';
+import {
+    seedLanePolylineCacheFromMapGen,
+    rebuildLanePolylineCache,
+    canonicalUniConnections,
+    clearLanePolylineCache,
+} from '$lib/lanes/lanePolylineCache';
 
 // ============================================================================
 // Constants
@@ -560,6 +567,21 @@ function addDebugConnection(sourceId: string, targetId: string): void {
     state!.connections.push(c2);
 }
 
+function refreshLanePolylinesFromConfig(): void {
+    if (!state || state.stars.size < 2) return;
+    const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+    const uni = canonicalUniConnections(state.connections);
+    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
+    rebuildLanePolylineCache(
+        nodes,
+        uni,
+        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        Math.max(0, msr + buf),
+    );
+    bumpTerritoryVisualConfig();
+}
+
 /** Recompute Delaunay-based links from current star positions (same algorithm as mapgen). */
 function rebuildConnectionsFromLaneClearance(): void {
     if (!state || state.stars.size < 2) return;
@@ -578,6 +600,12 @@ function rebuildConnectionsFromLaneClearance(): void {
     for (const c of uni) {
         addDebugConnection(c.sourceId, c.targetId);
     }
+    rebuildLanePolylineCache(
+        nodes,
+        uni,
+        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        Math.max(0, msr + buf),
+    );
     bumpTerritoryVisualConfig();
 }
 
@@ -617,6 +645,17 @@ function initDebugMap(playerIds: string[], variant: string): void {
         addDebugConnection('star-2', 'star-0');
         addDebugConnection('star-0', 'star-3');
     }
+
+    const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+    const uniDbg = canonicalUniConnections(state!.connections);
+    const msrDbg = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const bufDbg = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
+    rebuildLanePolylineCache(
+        nodesDbg,
+        uniDbg,
+        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        Math.max(0, msrDbg + bufDbg),
+    );
 }
 
 /**
@@ -633,7 +672,10 @@ function generateMapPreview(opts: {
     mapBoardFit: number;
     neutralStarCount: number;
     specialStarPercentage: number;
-}): { stars: Array<{ id: string; x: number; y: number; ownerId: string; starType?: string }>; connections: Array<{ sourceId: string; targetId: string }> } {
+}): {
+    stars: Array<{ id: string; x: number; y: number; ownerId: string; starType?: string }>;
+    connections: Array<{ sourceId: string; targetId: string; laneWaypoints?: [number, number][] }>;
+} {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
@@ -650,8 +692,9 @@ function generateMapPreview(opts: {
         boardFit: opts.mapBoardFit,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
         mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+        mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
-    
+
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
     
     // Distribute ownership: exact number per player + neutrals
@@ -695,7 +738,14 @@ function generateMapPreview(opts: {
             starType,
         };
     });
-    return { stars, connections: result.connections };
+    return {
+        stars,
+        connections: result.connections.map((c) => ({
+            sourceId: c.sourceId,
+            targetId: c.targetId,
+            laneWaypoints: c.laneWaypoints,
+        })),
+    };
 }
 
 /** Standard random map via generateMap() */
@@ -719,6 +769,7 @@ function initStandardMap(playerIds: string[]): void {
         boardFit: settings.mapBoardFit ?? 0,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
         mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+        mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
     // Store map gen metadata for debug grid overlay
@@ -789,6 +840,7 @@ function initStandardMap(playerIds: string[]): void {
     for (const conn of result.connections) {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
+    seedLanePolylineCacheFromMapGen(result.connections);
 }
 
 // ============================================================================
@@ -1177,6 +1229,16 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     for (const conn of map.connections) {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
+    const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+    const uniSaved = canonicalUniConnections(state!.connections);
+    const msrS = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const bufS = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
+    rebuildLanePolylineCache(
+        nodesSaved,
+        uniSaved,
+        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        Math.max(0, msrS + bufS),
+    );
 }
 function initializeState(): void {
     state = new GameRoomState();
@@ -1261,6 +1323,7 @@ function destroyGame(): void {
     history = [];
     peakFleetSize = 0;
     starsCaptured = 0;
+    clearLanePolylineCache();
 }
 
 // ============================================================================
@@ -1561,6 +1624,9 @@ export const gameStore = {
 
     /** Rebuild lane graph from current star positions using MSR + lane buffer (paused / live tuning). */
     rebuildConnectionsFromLaneClearance,
+
+    /** Recompute curved lane polylines from current stars + links (e.g. lane mode change). */
+    refreshLanePolylinesFromConfig,
 
     // F-148: Default map preference
     get defaultMapName() { return defaultMapName; },
