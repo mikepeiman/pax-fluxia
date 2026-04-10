@@ -12,6 +12,12 @@ export interface MapPosition {
 }
 
 /**
+ * Lane resolution class for motion and corridor sampling (not the same as `MapLaneMode`).
+ * `straight` = chord polyline (two endpoints only). `curved` = Bézier samples or kinked polyline.
+ */
+export type LanePathKind = 'straight' | 'curved';
+
+/**
  * A connection between two map nodes.
  * Uses string IDs so both client (Star class) and server (StarSchema) can map to their own types.
  */
@@ -21,6 +27,8 @@ export interface MapConnection {
     distance: number;
     /** Centerline polyline (star centers); used by preview, territory CX, and travel. */
     laneWaypoints?: Array<[number, number]>;
+    /** Set by mapgen / lane solver; consumers avoid re-deriving from waypoint count alone. */
+    lanePathKind?: LanePathKind;
 }
 
 /**

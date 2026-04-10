@@ -1,13 +1,16 @@
 // ============================================================================
 // Lane polylines — centerlines between star centers (mapgen + runtime).
 // - `straight`: chord only.
-// - `curved`: straight when chord is clear of other stars (MSR) and does not
+// - `curved`: straight when chord is clear of other stars (D_clear) and does not
 //   cross existing lanes; otherwise quadratic Bézier (try both bulge directions),
-//   then a single-kink detour if needed. Samples must stay ≥ obstacleMsrPx
-//   from non-endpoint star centers.
+//   then a single-kink detour if needed. Samples must stay ≥ D_clear from
+//   non-endpoint star centers (typically MSR + laneBuffer).
+//
+// Solver bounds (deterministic): bulge binary search ≤14 iters; single-kink grid
+// ≤16 offsets × 2 signs; Bézier sample count 21; polyline segment interior samples <8.
 // ============================================================================
 
-import type { Connectable, MapConnection } from './types';
+import type { Connectable, LanePathKind, MapConnection } from './types';
 import { pointToSegmentDistance } from './connections';
 
 export type MapLaneMode = 'straight' | 'curved';
@@ -229,35 +232,36 @@ function solveAdaptiveWaypoints(
     ax: number, ay: number,
     bx: number, by: number,
     obstacles: Array<{ x: number; y: number }>,
-    obstacleMsrPx: number,
+    clearancePx: number,
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
 ): Array<[number, number]> {
     const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
     const okStraight =
-        chordClearOfObstacles(ax, ay, bx, by, obstacles, obstacleMsrPx)
-        && polylineClearOfObstacles(straight, obstacles, obstacleMsrPx)
+        chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
+        && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
     if (okStraight) return straight;
 
     for (const bulgeSign of [1, -1] as const) {
-        const best = searchBulge(ax, ay, bx, by, obstacles, obstacleMsrPx, bulgeSign);
+        const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
         if (best < hypot(bx - ax, by - ay) * 0.015) continue;
         const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
-        if (!polylineClearOfObstacles(cand, obstacles, obstacleMsrPx)) continue;
+        if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) continue;
         if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
         return cand;
     }
 
-    const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, obstacleMsrPx, placed, starCenters);
+    const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) return kink;
 
-    // Last resort: chord (preserves MSR vs stars; may cross another lane in pathological maps)
+    // Last resort: chord (preserves clearance vs stars; may cross another lane in pathological maps)
     return straight;
 }
 
 /**
- * Single edge (no lane–lane crossing check). Same MSR and adaptive rules otherwise.
+ * Single edge (no lane–lane crossing check). Same clearance and adaptive rules otherwise.
+ * @param laneObstacleClearancePx — use `MSR + laneBuffer` (D_clear) for curved feasibility.
  */
 export function computeLaneWaypoints(
     ax: number,
@@ -265,21 +269,33 @@ export function computeLaneWaypoints(
     bx: number,
     by: number,
     obstacleCenters: Array<{ x: number; y: number }>,
-    obstacleMsrPx: number,
+    laneObstacleClearancePx: number,
     mode: MapLaneMode,
 ): Array<[number, number]> {
     if (mode === 'straight') {
         return [[ax, ay], [bx, by]];
     }
-    return solveAdaptiveWaypoints(ax, ay, bx, by, obstacleCenters, obstacleMsrPx, [], obstacleCenters);
+    return solveAdaptiveWaypoints(
+        ax,
+        ay,
+        bx,
+        by,
+        obstacleCenters,
+        laneObstacleClearancePx,
+        [],
+        obstacleCenters,
+    );
 }
 
 export function attachLaneWaypointsToConnections<T extends Connectable>(
     nodes: T[],
     connections: MapConnection[],
     mode: MapLaneMode,
-    /** Minimum distance from lane centerline to any non-endpoint star center (typically MSR). */
-    obstacleMsrPx: number,
+    /**
+     * Minimum distance from sampled lane centerline to any non-endpoint star center.
+     * Use **D_clear = mapgenStarMarginPx + mapgenLaneBufferPx** to match connection prune.
+     */
+    laneObstacleClearancePx: number,
 ): void {
     const pos = new Map(nodes.map((n) => [n.id, n]));
     const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
@@ -303,19 +319,27 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
             .filter((n) => n.id !== c.sourceId && n.id !== c.targetId)
             .map((n) => ({ x: n.x, y: n.y }));
 
+        const clearance = Math.max(0, laneObstacleClearancePx);
         let wp: Array<[number, number]>;
+        let pathKind: LanePathKind;
         if (mode === 'straight') {
             wp = [[a.x, a.y], [b.x, b.y]];
+            pathKind = 'straight';
         } else {
             wp = solveAdaptiveWaypoints(
-                a.x, a.y, b.x, b.y,
+                a.x,
+                a.y,
+                b.x,
+                b.y,
                 obstacles,
-                Math.max(0, obstacleMsrPx),
+                clearance,
                 placed,
                 starCenters,
             );
+            pathKind = wp.length <= 2 ? 'straight' : 'curved';
         }
         c.laneWaypoints = wp;
+        c.lanePathKind = pathKind;
         placed.push(...polylineToSegments(wp));
     }
 }

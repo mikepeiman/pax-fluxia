@@ -567,16 +567,22 @@ function addDebugConnection(sourceId: string, targetId: string): void {
     state!.connections.push(c2);
 }
 
+/** D_clear for lane centerline vs non-endpoint stars (MSR + lane buffer); matches `@pax/common` mapgen. */
+function laneDClearancePx(): number {
+    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
+    return Math.max(0, msr + buf);
+}
+
 function refreshLanePolylinesFromConfig(): void {
     if (!state || state.stars.size < 2) return;
     const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uni = canonicalUniConnections(state.connections);
-    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
     rebuildLanePolylineCache(
         nodes,
         uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msr),
+        laneDClearancePx(),
     );
     bumpTerritoryVisualConfig();
 }
@@ -603,7 +609,7 @@ function rebuildConnectionsFromLaneClearance(): void {
         nodes,
         uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msr),
+        laneDClearancePx(),
     );
     bumpTerritoryVisualConfig();
 }
@@ -647,12 +653,11 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
-    const msrDbg = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
     rebuildLanePolylineCache(
         nodesDbg,
         uniDbg,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msrDbg),
+        laneDClearancePx(),
     );
 }
 
@@ -672,7 +677,12 @@ function generateMapPreview(opts: {
     specialStarPercentage: number;
 }): {
     stars: Array<{ id: string; x: number; y: number; ownerId: string; starType?: string }>;
-    connections: Array<{ sourceId: string; targetId: string; laneWaypoints?: [number, number][] }>;
+    connections: Array<{
+        sourceId: string;
+        targetId: string;
+        laneWaypoints?: [number, number][];
+        lanePathKind?: 'straight' | 'curved';
+    }>;
 } {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
@@ -742,6 +752,7 @@ function generateMapPreview(opts: {
             sourceId: c.sourceId,
             targetId: c.targetId,
             laneWaypoints: c.laneWaypoints,
+            lanePathKind: c.lanePathKind,
         })),
     };
 }
@@ -1229,12 +1240,11 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     }
     const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniSaved = canonicalUniConnections(state!.connections);
-    const msrS = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
     rebuildLanePolylineCache(
         nodesSaved,
         uniSaved,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msrS),
+        laneDClearancePx(),
     );
 }
 function initializeState(): void {

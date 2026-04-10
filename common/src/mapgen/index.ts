@@ -3,7 +3,14 @@
 // Single source of truth for map generation, consumed by both client and server.
 // ============================================================================
 
-export type { MapPosition, MapConnection, Connectable, MapGenConfig, MapGenResult } from './types';
+export type {
+    MapPosition,
+    MapConnection,
+    Connectable,
+    MapGenConfig,
+    MapGenResult,
+    LanePathKind,
+} from './types';
 export type { MapLaneMode } from './lanePolylines';
 export { computeLaneWaypoints, attachLaneWaypointsToConnections } from './lanePolylines';
 export { generateHexGrid, selectPositions, generateStarPositions } from './placement';
@@ -54,8 +61,13 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
-    // Lane centerline vs other stars: MSR (graph prune still uses MSR + buffer above).
-    attachLaneWaypointsToConnections(nodes, connections, laneMode, Math.max(0, msr));
+    // Curved clearance vs non-endpoint stars: D_clear = MSR + buffer (same as Phase 4 chord prune).
+    attachLaneWaypointsToConnections(
+        nodes,
+        connections,
+        laneMode,
+        Math.max(0, passThroughClearancePx),
+    );
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }
