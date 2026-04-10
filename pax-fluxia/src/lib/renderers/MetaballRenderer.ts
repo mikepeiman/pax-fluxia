@@ -659,6 +659,7 @@ function renderMetaballImpl(
     }
 
     ensureMetaballParenting(container, blurUnifiesBorders, blurStrengthCfg);
+    if (!territoryGraphics || !borderGraphics) return;
 
     const fingerprint = buildFingerprint(stars, gameTick) + `:${worldWidth}:${worldHeight}`;
     if (fingerprint === cachedFingerprint) {
