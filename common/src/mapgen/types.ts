@@ -19,6 +19,8 @@ export interface MapConnection {
     sourceId: string;
     targetId: string;
     distance: number;
+    /** Centerline polyline (star centers); used by preview, territory CX, and travel. */
+    laneWaypoints?: Array<[number, number]>;
 }
 
 /**
@@ -64,6 +66,8 @@ export interface MapGenConfig {
     mapgenStarMarginPx?: number;
     /** Extra clearance beyond MSR (default 30). */
     mapgenLaneBufferPx?: number;
+    /** Straight chord vs curved clearance-aware centerline (default curved). */
+    mapLaneMode?: 'straight' | 'curved';
 }
 
 /**

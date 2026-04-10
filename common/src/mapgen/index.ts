@@ -4,12 +4,16 @@
 // ============================================================================
 
 export type { MapPosition, MapConnection, Connectable, MapGenConfig, MapGenResult } from './types';
+export type { MapLaneMode } from './lanePolylines';
+export { computeLaneWaypoints, attachLaneWaypointsToConnections } from './lanePolylines';
 export { generateHexGrid, selectPositions, generateStarPositions } from './placement';
 export { generateConnections, pointToSegmentDistance } from './connections';
 
 import type { MapGenConfig, MapGenResult } from './types';
 import { generateStarPositions } from './placement';
 import { generateConnections } from './connections';
+import { attachLaneWaypointsToConnections } from './lanePolylines';
+import type { MapLaneMode } from './lanePolylines';
 
 /**
  * Generate a complete map: positions + connections.
@@ -48,6 +52,9 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         config.maxLinksPerStar ?? 6,
         passThroughClearancePx,
     );
+
+    const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
+    attachLaneWaypointsToConnections(nodes, connections, laneMode, passThroughClearancePx);
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }
