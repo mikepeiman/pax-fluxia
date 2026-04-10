@@ -51,17 +51,19 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     const msr = config.mapgenStarMarginPx ?? 45;
     const laneBuf = config.mapgenLaneBufferPx ?? 30;
     const passThroughClearancePx = Math.max(0, msr + laneBuf);
+    /** Phase 4 prune: MSR only so topology is not over-tightened before lane geometry runs. */
+    const connectionPruneClearancePx = Math.max(0, msr);
 
     const connections = generateConnections(
         nodes,
         Infinity,
         config.minLinksPerStar ?? 1,
         config.maxLinksPerStar ?? 6,
-        passThroughClearancePx,
+        connectionPruneClearancePx,
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
-    // Curved clearance vs non-endpoint stars: D_clear = MSR + buffer (same as Phase 4 chord prune).
+    // Lane centerlines enforce full D_clear (MSR + buffer); graph edges use looser prune above.
     attachLaneWaypointsToConnections(
         nodes,
         connections,

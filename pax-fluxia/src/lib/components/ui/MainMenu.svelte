@@ -190,6 +190,9 @@
         full.mapgenLaneBufferPx = menuLaneBuffer;
         full.mapgenLaneMode = menuLaneMode;
         savePanelSettings(full);
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
+        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
     }
 
     let playerConfigs = $state(
@@ -662,11 +665,17 @@
                                 <div class="config-row-3">
                                     <div class="config-item">
                                         <label title="Matches Map & Grid → Lane clearance">Lane path</label>
-                                        <div class="slider-container menu-lane-mode-pair">
+                                        <div
+                                            class="map-lane-mode-segment"
+                                            role="group"
+                                            aria-label="Lane path: straight or curved"
+                                        >
                                             <button
                                                 type="button"
-                                                class="menu-lane-mode-btn"
-                                                class:active={menuLaneMode === "straight"}
+                                                class="map-lane-mode-segment__btn"
+                                                class:map-lane-mode-segment__btn--active={menuLaneMode ===
+                                                    "straight"}
+                                                aria-pressed={menuLaneMode === "straight"}
                                                 onclick={() => {
                                                     menuLaneMode = "straight";
                                                     persistMenuLaneKnobs();
@@ -674,8 +683,10 @@
                                             >
                                             <button
                                                 type="button"
-                                                class="menu-lane-mode-btn"
-                                                class:active={menuLaneMode === "curved"}
+                                                class="map-lane-mode-segment__btn"
+                                                class:map-lane-mode-segment__btn--active={menuLaneMode ===
+                                                    "curved"}
+                                                aria-pressed={menuLaneMode === "curved"}
                                                 onclick={() => {
                                                     menuLaneMode = "curved";
                                                     persistMenuLaneKnobs();
@@ -1442,31 +1453,40 @@
         background: #050510;
     }
 
-    .menu-lane-mode-pair {
+    .map-lane-mode-segment {
         display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        align-items: center;
+        width: 100%;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.35);
     }
-    .menu-lane-mode-btn {
-        flex: 1;
+    .map-lane-mode-segment__btn {
+        margin: 0;
+        flex: 1 1 0;
         min-width: 0;
+        min-height: 30px;
         padding: 6px 10px;
         font-size: 11px;
-        border-radius: 4px;
-        border: 1px solid #445;
-        background: #1a1a2e;
-        color: #aaa;
+        font-weight: 500;
+        color: #9aa;
+        background: transparent;
+        border: none;
         cursor: pointer;
+        transition:
+            background 0.12s,
+            color 0.12s;
     }
-    .menu-lane-mode-btn:hover {
-        border-color: #668;
-        color: #ddd;
+    .map-lane-mode-segment__btn:hover {
+        color: #e2e8f0;
+        background: rgba(255, 255, 255, 0.06);
     }
-    .menu-lane-mode-btn.active {
-        border-color: #4ade80;
-        color: #e8ffe8;
-        box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+    .map-lane-mode-segment__btn--active {
+        color: #ecfdf5;
+        background: rgba(74, 222, 128, 0.22);
+    }
+    .map-lane-mode-segment__btn + .map-lane-mode-segment__btn {
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .menu-fullscreen {

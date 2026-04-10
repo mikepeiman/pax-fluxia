@@ -18,6 +18,13 @@ export type MapLaneMode = 'straight' | 'curved';
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
 
+/** When straight is already valid at D_clear, still curve chords at least this long (world px). */
+const AESTHETIC_MIN_CHORD_PX = 88;
+/** Max perpendicular bulge for cosmetic curves. */
+const AESTHETIC_BULGE_CAP_PX = 78;
+/** Bulge scales with chord: fraction of chord length, capped by AESTHETIC_BULGE_CAP_PX. */
+const AESTHETIC_BULGE_CHORD_FRAC = 0.125;
+
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -197,6 +204,53 @@ function searchBulge(
     return best;
 }
 
+/**
+ * Optional gentle quadratic curve when the chord already clears obstacles (curved mode aesthetic).
+ * Picks the larger feasible bulge (either sign) up to a modest cap.
+ */
+function tryAestheticBezierCurve(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    obstacles: Array<{ x: number; y: number }>,
+    clearancePx: number,
+    placed: Seg[],
+    starCenters: Array<{ x: number; y: number }>,
+): Array<[number, number]> | null {
+    const chordLen = hypot(bx - ax, by - ay);
+    if (chordLen < AESTHETIC_MIN_CHORD_PX) return null;
+    const cap = Math.min(AESTHETIC_BULGE_CAP_PX, chordLen * AESTHETIC_BULGE_CHORD_FRAC);
+    if (cap < chordLen * 0.02) return null;
+
+    let bestBulge = 0;
+    let bestSign: 1 | -1 = 1;
+    for (const bulgeSign of [1, -1] as const) {
+        let lo = 0;
+        let hi = cap;
+        let best = 0;
+        for (let iter = 0; iter < 12; iter++) {
+            const mid = (lo + hi) * 0.5;
+            const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, mid);
+            if (
+                polylineClearOfObstacles(cand, obstacles, clearancePx)
+                && !polylineCrossesPlaced(cand, placed, starCenters)
+            ) {
+                best = mid;
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        if (best > bestBulge) {
+            bestBulge = best;
+            bestSign = bulgeSign;
+        }
+    }
+    if (bestBulge < chordLen * 0.028) return null;
+    return buildBezierWaypoints(ax, ay, bx, by, bestSign, bestBulge);
+}
+
 function trySingleKinkDetour(
     ax: number, ay: number,
     bx: number, by: number,
@@ -241,7 +295,20 @@ function solveAdaptiveWaypoints(
         chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
         && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
-    if (okStraight) return straight;
+    if (okStraight) {
+        const pretty = tryAestheticBezierCurve(
+            ax,
+            ay,
+            bx,
+            by,
+            obstacles,
+            clearancePx,
+            placed,
+            starCenters,
+        );
+        if (pretty) return pretty;
+        return straight;
+    }
 
     for (const bulgeSign of [1, -1] as const) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);

@@ -26,6 +26,12 @@
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
+    let lanePathUiMode = $derived(
+        (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
+            | "straight"
+            | "curved",
+    );
+
     // ── Background Image Picker ──
     let bgImages = $state<string[]>(BG_IMAGES);
 
@@ -144,8 +150,9 @@
 
 <h4 class="sub-heading">Lane clearance (live)</h4>
 <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-    MSR + buffer prune Delaunay edges that pass too close to other stars. Adjust while paused to
-    rebuild links and refresh territory.
+    <strong>Edges:</strong> Delaunay prune uses <strong>MSR</strong> only (topology). <strong>Lanes:</strong>
+    drawn centerlines enforce <strong>MSR + lane buffer</strong>. Adjust while paused to rebuild links and
+    refresh territory.
 </p>
 <div class="var-row">
     <div class="row-top">
@@ -195,25 +202,29 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Lane path</span>
-        <div class="lane-mode-pair" role="group" aria-label="Lane path straight or curve when needed">
+        <div
+            class="map-lane-mode-segment"
+            role="group"
+            aria-label="Lane path: straight chords or curved when needed"
+        >
             <button
                 type="button"
-                class="lock-btn lane-mode-btn"
-                class:active={(panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") === "straight"}
+                class="map-lane-mode-segment__btn"
+                class:map-lane-mode-segment__btn--active={lanePathUiMode === "straight"}
                 title="Chord only between linked stars"
+                aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
-                    GAME_CONFIG.MAPGEN_LANE_MODE = "straight";
                     updatePanel("mapgenLaneMode", "straight");
                     if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
                 }}>Straight</button
             >
             <button
                 type="button"
-                class="lock-btn lane-mode-btn"
-                class:active={(panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") === "curved"}
-                title="Straight when clear; curve or detour only if needed (MSR, no lane crosses)"
+                class="map-lane-mode-segment__btn"
+                class:map-lane-mode-segment__btn--active={lanePathUiMode === "curved"}
+                title="Gentle curves on longer lanes; detour when D_clear or crossings require it"
+                aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
-                    GAME_CONFIG.MAPGEN_LANE_MODE = "curved";
                     updatePanel("mapgenLaneMode", "curved");
                     if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
                 }}>Curve if needed</button
@@ -395,17 +406,39 @@
 
 <style>
     @import "./panel-shared.css";
-    .lane-mode-pair {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+    .map-lane-mode-segment {
+        display: inline-flex;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.35);
     }
-    :global(.lane-mode-btn) {
-        font-size: 10px;
-        padding: 2px 8px;
+    .map-lane-mode-segment__btn {
+        margin: 0;
+        padding: 6px 12px;
+        min-height: 30px;
         min-width: 0;
+        flex: 1 1 0;
+        font-size: 11px;
+        font-weight: 500;
+        color: #9aa;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition:
+            background 0.12s,
+            color 0.12s;
+    }
+    .map-lane-mode-segment__btn:hover {
+        color: #e2e8f0;
+        background: rgba(255, 255, 255, 0.06);
+    }
+    .map-lane-mode-segment__btn--active {
+        color: #ecfdf5;
+        background: rgba(74, 222, 128, 0.22);
+    }
+    .map-lane-mode-segment__btn + .map-lane-mode-segment__btn {
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
     }
     .bg-grid {
         display: flex;

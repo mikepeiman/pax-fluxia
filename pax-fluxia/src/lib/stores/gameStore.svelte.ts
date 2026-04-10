@@ -598,8 +598,8 @@ function rebuildConnectionsFromLaneClearance(): void {
     const minL = settings.minLinksPerStar ?? 1;
     const maxL = settings.maxLinksPerStar ?? 5;
     const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
-    const uni = generateConnections(nodes, Infinity, minL, maxL, Math.max(0, msr + buf));
+    /** Match `generateMap`: prune edges with MSR-only; lane polylines still use D_clear (MSR+buffer). */
+    const uni = generateConnections(nodes, Infinity, minL, maxL, Math.max(0, msr));
 
     state.connections.length = 0;
     for (const c of uni) {
