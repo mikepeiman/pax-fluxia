@@ -12,6 +12,12 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { getOrbitSlot } from '$lib/utils/render.utils';
 import type { FXHandler } from '../FXRegistry';
 import { isTraceArmed, traceTransferSetup } from '$lib/debug/travelTrace';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
+import {
+    assignShipLaneGeometry,
+    computeLaneHeadingForNearside,
+} from '$lib/lanes/applyLaneTravelPath';
 
 /**
  * Core transfer handler — selects ships from source orbit, configures departure,
@@ -29,28 +35,39 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         const count = Math.floor(event.shipCount);
         const ships = ctx.vsm.getOrbitShips(event.sourceId);
 
-        // Calculate lane geometry
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const ndx = dx / dist;
-        const ndy = dy / dist;
+        const sourceRef = {
+            id: event.sourceId,
+            x: source.x,
+            y: source.y,
+            radius: source.radius,
+        };
+        const targetRef = {
+            id: event.targetId,
+            x: target.x,
+            y: target.y,
+            radius: target.radius,
+        };
+        const rawPoly = getLanePolyline(event.sourceId, event.targetId);
+        let pretrimmed: [number, number][] | undefined;
+        if (rawPoly && rawPoly.length >= 2) {
+            const t = trimLanePolylineToStarRims(rawPoly, sourceRef, targetRef, 5);
+            if (t.length >= 2) pretrimmed = t;
+        }
+        const { ndx, ndy } = computeLaneHeadingForNearside(sourceRef, targetRef, pretrimmed);
 
         // Lane convergence: how tightly ships converge to the lane
         const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
         const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100; // 0-1
 
-        // Base lane endpoints
+        // Base / effective lane starts (for trace only when polyline — assignShipLaneGeometry owns real values)
         const baseLaneStartX = source.x + ndx * (source.radius + 5);
         const baseLaneStartY = source.y + ndy * (source.radius + 5);
         const baseLaneEndX = target.x - ndx * (target.radius + 5);
         const baseLaneEndY = target.y - ndy * (target.radius + 5);
-
-        // Convergence point: a position along baseLaneStart→baseLaneEnd
-        // When convergencePoint > 0, laneStart moves forward along the path,
-        // so the depart phase animates from orbit → convergence position (visible funnel fan-in)
-        const effectiveLaneStartX = baseLaneStartX + (baseLaneEndX - baseLaneStartX) * convergencePoint;
-        const effectiveLaneStartY = baseLaneStartY + (baseLaneEndY - baseLaneStartY) * convergencePoint;
+        const convStartX = source.x + (target.x - source.x) * convergencePoint;
+        const convStartY = source.y + (target.y - source.y) * convergencePoint;
+        const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
+        const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
 
         // Tick-synchronized timing
         const halfTick = ctx.effectiveTickMs / 2;
@@ -119,27 +136,7 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             ship.travelDuration = travelDuration;
             ship.departDuration = departDuration;
 
-            // Apply convergence: blend between lane point and per-ship spread
-            if (convergence >= 1) {
-                // Full convergence (default) — standard lane behavior
-                ship.laneStartX = effectiveLaneStartX;
-                ship.laneStartY = effectiveLaneStartY;
-                ship.laneEndX = baseLaneEndX;
-                ship.laneEndY = baseLaneEndY;
-            } else {
-                // Partial convergence: ships spread out proportionally
-                // Per-ship "spread" target = point on target circumference based on ship's slot
-                const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
-                const spreadEndX = target.x + Math.cos(spreadAngle) * (target.radius + 5);
-                const spreadEndY = target.y + Math.sin(spreadAngle) * (target.radius + 5);
-
-                // Start: blend between lane start and ship's current orbit position
-                ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
-                ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
-                // End: blend between lane end and spread destination
-                ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
-                ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
-            }
+            assignShipLaneGeometry(ship, sourceRef, targetRef, pretrimmed);
 
             ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
             ship.staggerDelay = 0;
@@ -153,8 +150,10 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
                 targetId: event.targetId,
                 sourceX: source.x, sourceY: source.y, sourceRadius: source.radius,
                 targetX: target.x, targetY: target.y, targetRadius: target.radius,
-                laneStartX: effectiveLaneStartX, laneStartY: effectiveLaneStartY,
-                laneEndX: baseLaneEndX, laneEndY: baseLaneEndY,
+                laneStartX: departingShips[0]?.laneStartX ?? effectiveLaneStartX,
+                laneStartY: departingShips[0]?.laneStartY ?? effectiveLaneStartY,
+                laneEndX: departingShips[0]?.laneEndX ?? baseLaneEndX,
+                laneEndY: departingShips[0]?.laneEndY ?? baseLaneEndY,
                 halfTick, departDuration, travelDuration, departFraction,
                 convergencePoint, convergence,
                 shipsToMove, streamMode, streamInterval,

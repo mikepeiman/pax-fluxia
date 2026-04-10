@@ -10,6 +10,7 @@ import type { VisualShipState } from '$lib/utils/render.utils';
 import { SHIP_ANIM } from '$lib/utils/render.utils';
 import type { DepartBehavior, TravelBehavior, PhaseResult, PhaseContext } from './travelTypes';
 import { easeInOutQuad, applyTravelEasing } from './easing';
+import { pointAtArcFraction, tangentAtArcFraction } from '$lib/lanes/laneGeometry';
 
 // ════════════════════════════════════════════════════════════════════════════
 // DEPART BEHAVIORS
@@ -112,6 +113,22 @@ function computeWobble(
     return { perpX, perpY, edgeFade, wobble };
 }
 
+function computeWobbleWithPerp(
+    ship: VisualShipState,
+    travelProgress: number,
+    wobbleAmp: number,
+    perpX: number,
+    perpY: number,
+): { edgeFade: number; wobble: number } {
+    const edgeFade = Math.min(travelProgress * 4, (1 - travelProgress) * 4, 1);
+    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
+    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
+    const wobble = wobbleAmp > 0
+        ? Math.sin(travelProgress * wobbleFreq * Math.PI * 2 + wobblePhase) * wobbleAmp * edgeFade
+        : 0;
+    return { edgeFade, wobble };
+}
+
 /** ORB travel: straight lane interpolation with configurable easing + wobble */
 export const orbTravel: TravelBehavior = {
     name: 'orb',
@@ -120,10 +137,33 @@ export const orbTravel: TravelBehavior = {
         // Use configurable easing (same as lane travel) instead of hardcoded cubic
         const eased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
-        const baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
-
-        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, ctx.wobbleAmp);
+        const poly = ship.lanePolyline;
+        let baseX: number;
+        let baseY: number;
+        let perpX: number;
+        let perpY: number;
+        let edgeFade: number;
+        let wobble: number;
+        if (poly && poly.length >= 2) {
+            const p = pointAtArcFraction(poly, eased);
+            baseX = p.x;
+            baseY = p.y;
+            const { tx, ty } = tangentAtArcFraction(poly, eased);
+            const len = Math.hypot(tx, ty) || 1;
+            perpX = -ty / len;
+            perpY = tx / len;
+            const w = computeWobbleWithPerp(ship, travelProgress, ctx.wobbleAmp, perpX, perpY);
+            edgeFade = w.edgeFade;
+            wobble = w.wobble;
+        } else {
+            baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
+            baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
+            const w = computeWobble(ship, travelProgress, ctx.wobbleAmp);
+            perpX = w.perpX;
+            perpY = w.perpY;
+            edgeFade = w.edgeFade;
+            wobble = w.wobble;
+        }
 
         const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
         const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
@@ -139,10 +179,33 @@ export const laneTravel: TravelBehavior = {
         const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
         const laneEased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * laneEased;
-        const baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * laneEased;
-
-        const { perpX, perpY, edgeFade, wobble } = computeWobble(ship, travelProgress, ctx.wobbleAmp);
+        const poly = ship.lanePolyline;
+        let baseX: number;
+        let baseY: number;
+        let perpX: number;
+        let perpY: number;
+        let edgeFade: number;
+        let wobble: number;
+        if (poly && poly.length >= 2) {
+            const p = pointAtArcFraction(poly, laneEased);
+            baseX = p.x;
+            baseY = p.y;
+            const { tx, ty } = tangentAtArcFraction(poly, laneEased);
+            const len = Math.hypot(tx, ty) || 1;
+            perpX = -ty / len;
+            perpY = tx / len;
+            const w = computeWobbleWithPerp(ship, travelProgress, ctx.wobbleAmp, perpX, perpY);
+            edgeFade = w.edgeFade;
+            wobble = w.wobble;
+        } else {
+            baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * laneEased;
+            baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * laneEased;
+            const w = computeWobble(ship, travelProgress, ctx.wobbleAmp);
+            perpX = w.perpX;
+            perpY = w.perpY;
+            edgeFade = w.edgeFade;
+            wobble = w.wobble;
+        }
 
         const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
         const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);

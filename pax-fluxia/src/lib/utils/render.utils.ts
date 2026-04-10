@@ -48,6 +48,8 @@ export interface VisualShipState {
     laneStartY: number;
     laneEndX: number;
     laneEndY: number;
+    /** When set (≥2 points), travel uses arc-length along this polyline. */
+    lanePolyline?: [number, number][];
     // Departure origin (captured when ship starts departing)
     departFromX: number;
     departFromY: number;
