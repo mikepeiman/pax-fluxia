@@ -195,20 +195,30 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Lane path</span>
-        <select
-            class="val"
-            style="background:#111;color:#ccc;border:1px solid #444;border-radius:3px;font-size:11px;padding:1px 4px;"
-            value={panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved"}
-            onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value as "straight" | "curved";
-                GAME_CONFIG.MAPGEN_LANE_MODE = v;
-                updatePanel("mapgenLaneMode", v);
-                if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
-            }}
-        >
-            <option value="curved">Curved</option>
-            <option value="straight">Straight</option>
-        </select>
+        <div class="lane-mode-pair" role="group" aria-label="Lane path straight or curve when needed">
+            <button
+                type="button"
+                class="lock-btn lane-mode-btn"
+                class:active={(panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") === "straight"}
+                title="Chord only between linked stars"
+                onclick={() => {
+                    GAME_CONFIG.MAPGEN_LANE_MODE = "straight";
+                    updatePanel("mapgenLaneMode", "straight");
+                    if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
+                }}>Straight</button
+            >
+            <button
+                type="button"
+                class="lock-btn lane-mode-btn"
+                class:active={(panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") === "curved"}
+                title="Straight when clear; curve or detour only if needed (MSR, no lane crosses)"
+                onclick={() => {
+                    GAME_CONFIG.MAPGEN_LANE_MODE = "curved";
+                    updatePanel("mapgenLaneMode", "curved");
+                    if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
+                }}>Curve if needed</button
+            >
+        </div>
     </div>
 </div>
 
@@ -385,6 +395,18 @@
 
 <style>
     @import "./panel-shared.css";
+    .lane-mode-pair {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    :global(.lane-mode-btn) {
+        font-size: 10px;
+        padding: 2px 8px;
+        min-width: 0;
+    }
     .bg-grid {
         display: flex;
         flex-wrap: wrap;

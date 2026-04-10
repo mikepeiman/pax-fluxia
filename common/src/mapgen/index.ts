@@ -54,7 +54,8 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
-    attachLaneWaypointsToConnections(nodes, connections, laneMode, passThroughClearancePx);
+    // Lane centerline vs other stars: MSR (graph prune still uses MSR + buffer above).
+    attachLaneWaypointsToConnections(nodes, connections, laneMode, Math.max(0, msr));
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }

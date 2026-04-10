@@ -572,12 +572,11 @@ function refreshLanePolylinesFromConfig(): void {
     const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uni = canonicalUniConnections(state.connections);
     const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
     rebuildLanePolylineCache(
         nodes,
         uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msr + buf),
+        Math.max(0, msr),
     );
     bumpTerritoryVisualConfig();
 }
@@ -604,7 +603,7 @@ function rebuildConnectionsFromLaneClearance(): void {
         nodes,
         uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msr + buf),
+        Math.max(0, msr),
     );
     bumpTerritoryVisualConfig();
 }
@@ -649,12 +648,11 @@ function initDebugMap(playerIds: string[], variant: string): void {
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
     const msrDbg = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    const bufDbg = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
     rebuildLanePolylineCache(
         nodesDbg,
         uniDbg,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msrDbg + bufDbg),
+        Math.max(0, msrDbg),
     );
 }
 
@@ -1232,12 +1230,11 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniSaved = canonicalUniConnections(state!.connections);
     const msrS = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    const bufS = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
     rebuildLanePolylineCache(
         nodesSaved,
         uniSaved,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        Math.max(0, msrS + bufS),
+        Math.max(0, msrS),
     );
 }
 function initializeState(): void {

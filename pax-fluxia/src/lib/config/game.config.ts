@@ -294,7 +294,10 @@ interface GameConfigType {
      * Pass-through clearance = MSR + this buffer.
      */
     MAPGEN_LANE_BUFFER_PX: number;
-    /** Map connection centerline: chord vs curved (mapgen + live lane cache). */
+    /**
+     * Lane centerline: `straight` = chord only. `curved` = chord when it clears other
+     * stars (MSR) and does not cross other lanes; else Bézier or a short detour.
+     */
     MAPGEN_LANE_MODE: 'straight' | 'curved';
 
     // ── Territory Overlay ────────────────────────────────────────────────────

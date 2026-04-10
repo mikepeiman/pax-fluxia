@@ -662,19 +662,25 @@
                                 <div class="config-row-3">
                                     <div class="config-item">
                                         <label title="Matches Map & Grid → Lane clearance">Lane path</label>
-                                        <div class="slider-container">
-                                            <select
-                                                value={menuLaneMode}
-                                                onchange={(e) => {
-                                                    menuLaneMode = (e.currentTarget as HTMLSelectElement)
-                                                        .value as typeof menuLaneMode;
+                                        <div class="slider-container menu-lane-mode-pair">
+                                            <button
+                                                type="button"
+                                                class="menu-lane-mode-btn"
+                                                class:active={menuLaneMode === "straight"}
+                                                onclick={() => {
+                                                    menuLaneMode = "straight";
                                                     persistMenuLaneKnobs();
-                                                }}
-                                                style="flex:1;max-width:140px;background:#1a1a2e;color:#ccc;border:1px solid #445;border-radius:4px;padding:4px 8px;font-size:12px;"
+                                                }}>Straight</button
                                             >
-                                                <option value="curved">Curved</option>
-                                                <option value="straight">Straight</option>
-                                            </select>
+                                            <button
+                                                type="button"
+                                                class="menu-lane-mode-btn"
+                                                class:active={menuLaneMode === "curved"}
+                                                onclick={() => {
+                                                    menuLaneMode = "curved";
+                                                    persistMenuLaneKnobs();
+                                                }}>Curve if needed</button
+                                            >
                                         </div>
                                     </div>
                                     <div class="config-item">
@@ -1434,6 +1440,33 @@
     :global(body) {
         margin: 0;
         background: #050510;
+    }
+
+    .menu-lane-mode-pair {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .menu-lane-mode-btn {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 4px;
+        border: 1px solid #445;
+        background: #1a1a2e;
+        color: #aaa;
+        cursor: pointer;
+    }
+    .menu-lane-mode-btn:hover {
+        border-color: #668;
+        color: #ddd;
+    }
+    .menu-lane-mode-btn.active {
+        border-color: #4ade80;
+        color: #e8ffe8;
+        box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
     }
 
     .menu-fullscreen {

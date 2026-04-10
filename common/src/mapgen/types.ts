@@ -66,7 +66,10 @@ export interface MapGenConfig {
     mapgenStarMarginPx?: number;
     /** Extra clearance beyond MSR (default 30). */
     mapgenLaneBufferPx?: number;
-    /** Straight chord vs curved clearance-aware centerline (default curved). */
+    /**
+     * `straight` = chord only. `curved` = straight when valid, else curve/detour
+     * (MSR clearance vs other stars; avoid crossing other lane centerlines).
+     */
     mapLaneMode?: 'straight' | 'curved';
 }
 

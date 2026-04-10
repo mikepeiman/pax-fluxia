@@ -47,7 +47,8 @@ export function rebuildLanePolylineCache(
     nodes: Array<{ id: string; x: number; y: number }>,
     uniConnections: Array<{ sourceId: string; targetId: string }>,
     mode: MapLaneMode,
-    clearance: number,
+    /** Minimum distance from centerline to non-endpoint star centers (typically MSR). */
+    obstacleMsrPx: number,
 ): void {
     cache.clear();
     if (nodes.length < 2 || uniConnections.length === 0) return;
@@ -57,7 +58,7 @@ export function rebuildLanePolylineCache(
         targetId: c.targetId,
         distance: 0,
     }));
-    attachLaneWaypointsToConnections(nodes, conns, mode, clearance);
+    attachLaneWaypointsToConnections(nodes, conns, mode, Math.max(0, obstacleMsrPx));
     for (const c of conns) {
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
             cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
