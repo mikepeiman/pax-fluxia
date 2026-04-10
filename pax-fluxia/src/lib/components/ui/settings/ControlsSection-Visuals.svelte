@@ -192,6 +192,25 @@
         }}
     />
 </div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Lane path</span>
+        <select
+            class="val"
+            style="background:#111;color:#ccc;border:1px solid #444;border-radius:3px;font-size:11px;padding:1px 4px;"
+            value={panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved"}
+            onchange={(e) => {
+                const v = (e.target as HTMLSelectElement).value as "straight" | "curved";
+                GAME_CONFIG.MAPGEN_LANE_MODE = v;
+                updatePanel("mapgenLaneMode", v);
+                if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
+            }}
+        >
+            <option value="curved">Curved</option>
+            <option value="straight">Straight</option>
+        </select>
+    </div>
+</div>
 
 <!-- Label Number Animation Mode -->
 <div class="var-row">

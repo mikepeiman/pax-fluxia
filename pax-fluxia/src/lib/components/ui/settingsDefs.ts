@@ -263,6 +263,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DENSITY_DARKEN_ALT' },
     { configKey: 'SHOW_HEX_GRID' },
     { panelKey: 'mapgenLaneBufferPx', configKey: 'MAPGEN_LANE_BUFFER_PX' },
+    { panelKey: 'mapgenLaneMode', configKey: 'MAPGEN_LANE_MODE' },
     { configKey: 'STATIC_ORBITS' },
     { configKey: 'SHOW_SELECTION_HEX' },
     { configKey: 'LANE_OFFSET_PX' },

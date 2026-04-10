@@ -286,6 +286,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
 
     visuals: [
         'MAPGEN_LANE_BUFFER_PX',
+        'MAPGEN_LANE_MODE',
         'MODIFIED_VORONOI_STAR_MARGIN',
         // Connections / Lanes
         'CONNECTION_MAX_DISTANCE',

@@ -1,7 +1,13 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import { generateMapThumbnail } from '$lib/utils/mapThumbnail';
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        loadPanelSettings,
+        savePanelSettings,
+        panelDefaultsFromConfig,
+    } from "$lib/components/ui/panelSync";
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
     import {
@@ -148,6 +154,44 @@
     let neutralShipsPerStar = $state(loadSetting("neutralShipsPerStar", 10));
     let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
 
+    /** Lane preview + new game — synced with Map & Grid panel (localStorage). */
+    function readLaneKnobsFromPanel() {
+        const p = loadPanelSettings(panelDefaultsFromConfig());
+        const modeRaw = p.mapgenLaneMode;
+        const mode: "straight" | "curved" =
+            modeRaw === "straight" || modeRaw === "curved"
+                ? modeRaw
+                : (GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved");
+        return {
+            msr: Math.round(
+                p.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+            ),
+            buf: Math.round(
+                p.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+            ),
+            mode,
+        };
+    }
+
+    let menuStarMargin = $state(45);
+    let menuLaneBuffer = $state(30);
+    let menuLaneMode = $state<"straight" | "curved">("curved");
+
+    onMount(() => {
+        const k = readLaneKnobsFromPanel();
+        menuStarMargin = k.msr;
+        menuLaneBuffer = k.buf;
+        menuLaneMode = k.mode;
+    });
+
+    function persistMenuLaneKnobs() {
+        const full = loadPanelSettings(panelDefaultsFromConfig());
+        full.starMargin = menuStarMargin;
+        full.mapgenLaneBufferPx = menuLaneBuffer;
+        full.mapgenLaneMode = menuLaneMode;
+        savePanelSettings(full);
+    }
+
     let playerConfigs = $state(
         loadSetting(
             "playerConfigs",
@@ -175,6 +219,9 @@
     let previewSeed = $state(0); // incremented to trigger reshuffle
 
     function generatePreview() {
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
+        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
         const { stars, connections } = gameStore.generateMapPreview({
             playerCount,
             starsPerPlayer,
@@ -192,6 +239,7 @@
         // Regenerate when settings change or reshuffle is clicked
         void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void mapBoardFit; void previewSeed;
         void neutralStarCount; void specialStarPercentage;
+        void menuStarMargin; void menuLaneBuffer; void menuLaneMode;
         generatePreview();
     });
 
@@ -264,6 +312,7 @@
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
         saveSetting("paletteSize", paletteSize);
+        persistMenuLaneKnobs();
     }
 
     /** Enforce perceptual color spacing (CIEDE2000) between all players */
@@ -285,6 +334,9 @@
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
         GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
         GAME_CONFIG.ALLOW_OPPOSING_ORDERS = allowOpposingOrders;
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
+        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
 
         const selectedMap =
             MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
@@ -604,6 +656,53 @@
                                             <span class="value"
                                                 >{Math.round(mapBoardFit * 100)}%</span
                                             >
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="config-row-3">
+                                    <div class="config-item">
+                                        <label title="Matches Map & Grid → Lane clearance">Lane path</label>
+                                        <div class="slider-container">
+                                            <select
+                                                value={menuLaneMode}
+                                                onchange={(e) => {
+                                                    menuLaneMode = (e.currentTarget as HTMLSelectElement)
+                                                        .value as typeof menuLaneMode;
+                                                    persistMenuLaneKnobs();
+                                                }}
+                                                style="flex:1;max-width:140px;background:#1a1a2e;color:#ccc;border:1px solid #445;border-radius:4px;padding:4px 8px;font-size:12px;"
+                                            >
+                                                <option value="curved">Curved</option>
+                                                <option value="straight">Straight</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label title="MSR — also used for territory">MSR (px)</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="500"
+                                                step="5"
+                                                bind:value={menuStarMargin}
+                                                oninput={() => persistMenuLaneKnobs()}
+                                            />
+                                            <span class="value">{menuStarMargin}</span>
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label title="Extra mapgen clearance beyond MSR">Lane buffer</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="120"
+                                                step="5"
+                                                bind:value={menuLaneBuffer}
+                                                oninput={() => persistMenuLaneKnobs()}
+                                            />
+                                            <span class="value">{menuLaneBuffer}</span>
                                         </div>
                                     </div>
                                 </div>

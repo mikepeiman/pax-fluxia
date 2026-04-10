@@ -294,6 +294,8 @@ interface GameConfigType {
      * Pass-through clearance = MSR + this buffer.
      */
     MAPGEN_LANE_BUFFER_PX: number;
+    /** Map connection centerline: chord vs curved (mapgen + live lane cache). */
+    MAPGEN_LANE_MODE: 'straight' | 'curved';
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -1105,6 +1107,8 @@ const _rawConfig: GameConfigType = {
 
     /** Added to MSR for Delaunay pass-through prune in `@pax/common/mapgen` */
     MAPGEN_LANE_BUFFER_PX: 30,
+
+    MAPGEN_LANE_MODE: 'curved',
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',
