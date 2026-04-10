@@ -13,7 +13,7 @@ source_plan: Cursor plan `lanes_msr_cx_spec_1bef4f59` (authoritative working cop
 | Phase | Status (2026-04-09) |
 |-------|---------------------|
 | **P0** | Tunable `D_clear` in `generateConnections`; CX builder `buildCorridorVirtualSites` + `computeCorridorVirtuals`; Metaball / MV / PV / DF / compiler consume it; cross-owner sampling. |
-| **P1** | Curved adaptive solver in `common/src/mapgen/lanePolylines.ts` (chord-if-ok, Bézier, kink); **sampled** clearance uses **`D_clear = MSR + laneBuffer`** in `generateMap` and client `rebuildLanePolylineCache`; **`lanePathKind`** on `MapConnection`; ship transfer/conquest use `lanePolylineCache` + `applyLaneTravelPath` (already polyline-aware). Solver iteration/sample caps documented in module header. Map & Grid live refresh: `refreshLanePolylinesFromConfig` + `laneDClearancePx()`. **Remaining:** optional shared `LanePath` type alias in client only if desired; `validateLaneClearance` (P4). |
+| **P1** | Curved adaptive solver (chord-if-ok, **aesthetic bulge** on long chords when straight is valid, else Bézier/kink); **D_clear** on **drawn** lanes only; **Delaunay Phase 4 prune uses MSR-only** so topology is not over-tightened before lanes run. **`lanePathKind`**; motion via `lanePolylineCache`. Map & Grid / Main Menu **segmented** lane-mode control. **Remaining:** `validateLaneClearance` (P4). |
 | **P2** | MV still calls `buildCorridorVirtualSites` directly (same math as `computeCorridorVirtuals`); optional switch to `computeCorridorVirtuals` for one import path. |
 | **P3–P4** | Validator + FEATURE_STATUS row — not started. |
 

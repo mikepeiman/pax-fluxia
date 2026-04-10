@@ -27,7 +27,7 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 
 | ID | Constraint |
 |----|------------|
-| **L-1** | **Plan (mapgen prune / straight chords).** For feasibility of **straight** segments and for **Phase 4** chord-based pruning in connection generation, clearance to **non-endpoint** stars uses **`D_clear = MSR_px + laneBuffer_px`** (tunable; not a hardcoded constant). Endpoints of that edge are **exempt**. See [MAP_LANES_MSR_BUFFER_AND_CROSS_PLAYER_CX.md](./implementation-plans/2026-04-10/MAP_LANES_MSR_BUFFER_AND_CROSS_PLAYER_CX.md) §1. |
+| **L-1** | **Plan.** **Phase 4 Delaunay prune** (which edges exist) uses **MSR-only** clearance to non-endpoints so the graph is not over-pruned before lanes run. **Drawn** lane segments (straight or curved) still respect **`D_clear = MSR_px + laneBuffer_px`** vs non-endpoints. Endpoints exempt per edge. |
 | **L-2** | **Must.** Sampled **curved** lane centerlines stay at least **`D_clear = MSR + laneBuffer`** from any non-endpoint star center (same numeric clearance as L-1 / MAP_LANES §1.3). Straight **map lane mode** still uses endpoint-to-endpoint chords only. |
 | **L-3** | **Must (session 2026-04-09).** In **curve-allowed** mode, lanes are **not** all curved: use a **straight chord** when it already satisfies **L-2** (and non-crossing rules below). Introduce curvature or a detour **only when necessary**. |
 | **L-4** | **Must (session 2026-04-09).** Lane centerlines **must not cross** each other (interior intersections between distinct edges). |
