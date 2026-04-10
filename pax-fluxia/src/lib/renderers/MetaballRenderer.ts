@@ -25,6 +25,7 @@ import type { ColorUtils } from './RenderContext';
 import { chaikinSmoothPolyline } from './geometry/chaikin';
 import { computeDisconnectVirtuals } from './territoryFeatures';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,7 @@ function buildCorridorSamples(
         spacing,
         cxWeight,
         cxCount > 0 ? cxCount : undefined,
+        getLanePolyline,
     );
 
     const out: InfluenceSample[] = [];

@@ -20,6 +20,8 @@ export interface ThumbnailStar {
 export interface ThumbnailConnection {
     sourceId: string;
     targetId: string;
+    /** Mapgen centerline; when length > 2, draw as a polyline. */
+    laneWaypoints?: [number, number][];
 }
 
 export interface ThumbnailOptions {
@@ -130,6 +132,16 @@ export function generateMapThumbnail(
         const src = starById.get(conn.sourceId);
         const tgt = starById.get(conn.targetId);
         if (!src || !tgt) continue;
+        const wp = conn.laneWaypoints;
+        if (wp && wp.length > 2) {
+            const [fx, fy] = toScreen(wp[0][0], wp[0][1]);
+            ctx.moveTo(fx, fy);
+            for (let i = 1; i < wp.length; i++) {
+                const [px, py] = toScreen(wp[i][0], wp[i][1]);
+                ctx.lineTo(px, py);
+            }
+            continue;
+        }
         const [sx, sy] = toScreen(src.x, src.y);
         const [tx, ty] = toScreen(tgt.x, tgt.y);
         ctx.moveTo(sx, sy);

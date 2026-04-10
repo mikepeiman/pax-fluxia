@@ -1,5 +1,6 @@
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
 
 export interface VirtualSite {
     x: number;
@@ -111,6 +112,7 @@ export function computeCorridorVirtuals(
     spacing: number,
     weightMultiplier = 0.5,
     count?: number,
+    lanePolylineResolver: (a: string, b: string) => [number, number][] | undefined = getLanePolyline,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,
@@ -118,6 +120,7 @@ export function computeCorridorVirtuals(
         spacing,
         weightMultiplier,
         count,
+        lanePolylineResolver,
     );
     return canonicalizeVirtualSites(built as VirtualSite[]);
 }

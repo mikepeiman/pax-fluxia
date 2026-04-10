@@ -17,6 +17,7 @@ import * as PIXI from 'pixi.js';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from './RenderContext';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
 
 // ── Connection Lanes ────────────────────────────────────────────────────────
 
@@ -40,6 +41,19 @@ export function renderConnections(
         const source = starsById.get(conn.sourceId);
         const target = starsById.get(conn.targetId);
         if (!source || !target) return;
+
+        const poly = getLanePolyline(conn.sourceId, conn.targetId);
+        if (poly && poly.length > 2) {
+            for (let i = 0; i < poly.length - 1; i++) {
+                segments.push({
+                    x1: poly[i][0],
+                    y1: poly[i][1],
+                    x2: poly[i + 1][0],
+                    y2: poly[i + 1][1],
+                });
+            }
+            return;
+        }
 
         const dx = target.x - source.x;
         const dy = target.y - source.y;

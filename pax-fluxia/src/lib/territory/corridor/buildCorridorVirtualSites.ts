@@ -1,11 +1,45 @@
 // ============================================================================
 // Single-source CX (corridor) virtual sites — all render families should use this.
-// Includes cross-owner lanes: samples split by chord midpoint (arc-length later).
+// Cross-owner lanes: samples split at half arc-length when a polyline resolver is provided.
 // ============================================================================
 
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
 const EPSILON = 1e-6;
+
+function polylineArcLength(pts: ReadonlyArray<readonly [number, number]>): number {
+    let L = 0;
+    for (let i = 1; i < pts.length; i++) {
+        const dx = pts[i][0] - pts[i - 1][0];
+        const dy = pts[i][1] - pts[i - 1][1];
+        L += Math.hypot(dx, dy);
+    }
+    return L;
+}
+
+function pointOnPolylineAtArcLength(
+    pts: ReadonlyArray<readonly [number, number]>,
+    dist: number,
+): { x: number; y: number } {
+    if (pts.length === 0) return { x: 0, y: 0 };
+    if (pts.length === 1) return { x: pts[0][0], y: pts[0][1] };
+    let remaining = Math.max(0, dist);
+    for (let i = 1; i < pts.length; i++) {
+        const ax = pts[i - 1][0];
+        const ay = pts[i - 1][1];
+        const bx = pts[i][0];
+        const by = pts[i][1];
+        const segLen = Math.hypot(bx - ax, by - ay);
+        if (segLen < EPSILON) continue;
+        if (remaining <= segLen) {
+            const t = remaining / segLen;
+            return { x: ax + (bx - ax) * t, y: ay + (by - ay) * t };
+        }
+        remaining -= segLen;
+    }
+    const last = pts[pts.length - 1];
+    return { x: last[0], y: last[1] };
+}
 
 /** Row shape compatible with `VirtualSite` (corridor kind); consumed by `computeCorridorVirtuals`. */
 export interface BuiltCorridorVirtualSite {
@@ -65,6 +99,7 @@ export function buildCorridorVirtualSites(
     spacing: number,
     weightMultiplier = 0.5,
     count?: number,
+    lanePolylineResolver?: (a: string, b: string) => [number, number][] | undefined,
 ): BuiltCorridorVirtualSite[] {
     if (ownedStars.length === 0 || connections.length === 0) return [];
 
@@ -88,23 +123,42 @@ export function buildCorridorVirtualSites(
         if (!starA || !starB) continue;
         if (!starA.ownerId || !starB.ownerId) continue;
 
+        const poly = lanePolylineResolver?.(conn.sourceId, conn.targetId);
+        const usePoly = poly != null && poly.length >= 2;
+
         const dx = starB.x - starA.x;
         const dy = starB.y - starA.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist <= EPSILON) continue;
+        const chordDist = Math.hypot(dx, dy);
+        if (chordDist <= EPSILON) continue;
+
+        const pathLen = usePoly ? polylineArcLength(poly) : chordDist;
+        if (pathLen <= EPSILON) continue;
 
         const nSites =
             countMode != null
                 ? countMode
-                : Math.max(0, Math.floor(dist / spacingPx) - 1);
+                : Math.max(0, Math.floor(pathLen / spacingPx) - 1);
         if (nSites <= 0) continue;
 
         const sameOwner = starA.ownerId === starB.ownerId;
+        const halfArc = usePoly ? pathLen * 0.5 : null;
 
         for (let i = 1; i <= nSites; i++) {
             const t = i / (nSites + 1);
-            const x = starA.x + dx * t;
-            const y = starA.y + dy * t;
+            let x: number;
+            let y: number;
+            let crossT: number;
+            if (usePoly) {
+                const along = t * pathLen;
+                const p = pointOnPolylineAtArcLength(poly, along);
+                x = p.x;
+                y = p.y;
+                crossT = halfArc != null ? (along <= halfArc + EPSILON ? 0 : 1) : t;
+            } else {
+                x = starA.x + dx * t;
+                y = starA.y + dy * t;
+                crossT = t;
+            }
 
             let anchor: StarState;
             let ownerId: string;
@@ -112,7 +166,7 @@ export function buildCorridorVirtualSites(
                 anchor = starA;
                 ownerId = starA.ownerId;
             } else {
-                anchor = t <= 0.5 + EPSILON ? starA : starB;
+                anchor = crossT <= 0.5 + EPSILON ? starA : starB;
                 ownerId = anchor.ownerId!;
             }
 

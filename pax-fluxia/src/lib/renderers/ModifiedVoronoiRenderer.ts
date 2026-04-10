@@ -20,6 +20,7 @@ import { Delaunay } from 'd3-delaunay';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
 import {
@@ -821,6 +822,7 @@ export function renderModifiedVoronoi(
             corridorSpacing,
             cxWeight,
             cxCount > 0 ? cxCount : undefined,
+            getLanePolyline,
         );
         let virtualIdx = 0;
         for (const site of corridorSites) {
