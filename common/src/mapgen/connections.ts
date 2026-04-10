@@ -29,6 +29,83 @@ function pointToSegmentDistance(
     return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
 }
 
+/**
+ * If `finalEdges` is disconnected, add missing Delaunay edges (shortest first)
+ * until one connected component spans all nodes. Updates `linkCount`.
+ */
+function ensureConnectedGraph<T extends Connectable>(
+    nodes: T[],
+    finalEdges: Set<string>,
+    linkCount: Map<string, number>,
+    nodeEdges: Map<string, { targetId: string; distance: number }[]>,
+    edgeKey: (a: string, b: string) => string,
+): void {
+    if (nodes.length < 2) return;
+
+    const ids = nodes.map((n) => n.id);
+    const ufParent = new Map<string, string>();
+    const ufFind = (x: string): string => {
+        let p = ufParent.get(x);
+        if (p === undefined) {
+            ufParent.set(x, x);
+            return x;
+        }
+        if (p !== x) {
+            const r = ufFind(p);
+            ufParent.set(x, r);
+            return r;
+        }
+        return x;
+    };
+    const ufUnion = (a: string, b: string) => {
+        const ra = ufFind(a);
+        const rb = ufFind(b);
+        if (ra === rb) return;
+        ufParent.set(rb, ra);
+    };
+
+    const seenCand = new Set<string>();
+    const candidates: { key: string; a: string; b: string; d: number }[] = [];
+    for (const n of nodes) {
+        for (const e of nodeEdges.get(n.id) ?? []) {
+            const key = edgeKey(n.id, e.targetId);
+            if (seenCand.has(key)) continue;
+            seenCand.add(key);
+            if (finalEdges.has(key)) continue;
+            const a = n.id <= e.targetId ? n.id : e.targetId;
+            const b = n.id <= e.targetId ? e.targetId : n.id;
+            candidates.push({ key, a, b, d: e.distance });
+        }
+    }
+    candidates.sort((u, v) => u.d - v.d);
+
+    const maxBridgeAdds = Math.max(0, nodes.length * 4);
+    let adds = 0;
+    while (adds < maxBridgeAdds) {
+        ufParent.clear();
+        for (const id of ids) ufParent.set(id, id);
+        for (const key of finalEdges) {
+            const [a, b] = key.split('|');
+            ufUnion(a, b);
+        }
+        const roots = new Set(ids.map((id) => ufFind(id)));
+        if (roots.size <= 1) return;
+
+        let bridged = false;
+        for (const c of candidates) {
+            if (ufFind(c.a) !== ufFind(c.b)) {
+                finalEdges.add(c.key);
+                linkCount.set(c.a, (linkCount.get(c.a) ?? 0) + 1);
+                linkCount.set(c.b, (linkCount.get(c.b) ?? 0) + 1);
+                bridged = true;
+                adds++;
+                break;
+            }
+        }
+        if (!bridged) return;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Connection Generation
 // ---------------------------------------------------------------------------
@@ -36,11 +113,12 @@ function pointToSegmentDistance(
 /**
  * Generate connections between nodes using Delaunay triangulation.
  *
- * 4-phase algorithm:
+ * 5-phase algorithm:
  *  1. Ensure minimum links per star (shortest Delaunay edges first)
  *  2. Fill additional edges up to maxLinksPerStar
  *  3. Prune near-zero-angle (<15°) connections (visual clutter)
  *  4. Prune connections passing too close to intermediate stars
+ *  5. If the graph is disconnected, re-add shortest Delaunay edges until connected
  *
  * Returns unidirectional connections (sourceId < targetId by sort order).
  * Consumer converts to bidirectional if needed.
@@ -206,6 +284,12 @@ export function generateConnections<T extends Connectable>(
             }
         }
     }
+
+    // ── Phase 5: Restore global connectivity (G-1) ─────────────────────
+    // Phases 3–4 can disconnect the graph. Re-add shortest Delaunay edges that
+    // bridge components until the graph is connected. May exceed maxLinks on an
+    // endpoint — connectivity overrides degree caps for these bridge edges.
+    ensureConnectedGraph(nodes, finalEdges, linkCount, nodeEdges, edgeKey);
 
     // ── Build result ──────────────────────────────────────────────────────
     const connections: MapConnection[] = [];

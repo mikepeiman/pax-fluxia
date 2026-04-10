@@ -4,6 +4,7 @@
 
 - **Issue:** Curved mode rarely produced curves because **connection prune** and **straight-chord acceptance** both used the same **`D_clear`**, so surviving edges almost always had straight chords already valid.
 - **Change:** `generateMap` / live `rebuildConnectionsFromLaneClearance` now prune Delaunay edges with **MSR only**; **lane polylines** still enforce **MSR + lane buffer** on sampled paths.
+- **Connectivity (G-1):** Looser prune could disconnect the graph (breaks gameplay). **`generateConnections`** runs **Phase 5** after Phase 4: re-add shortest **Delaunay** edges until the graph is **connected** (bridge edges may exceed `maxLinks` on an endpoint).
 - **Aesthetic:** For **curved** mode, when a straight chord is already valid at `D_clear`, **long** chords (≥ ~88px) still get an optional **gentle quadratic** bulge (capped) if it stays clear and does not cross prior lanes.
 
 ## Map & Grid lane path UI

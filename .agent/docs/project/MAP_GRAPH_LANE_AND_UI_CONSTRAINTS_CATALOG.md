@@ -18,8 +18,8 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 
 | ID | Constraint |
 |----|------------|
-| **G-1** | **Must.** The star–connection graph is **connected**: for every pair of distinct stars there exists a **path of edges** (lanes / map connections) between them. There are **no disconnected components** or island subgraphs. *(Originating constraint; restated explicitly 2026-04-09.)* |
-| **G-2** | **Should.** Map generation (placement + `generateConnections` and any prune passes) **preserves G-1** or **repairs** it (e.g. guarantee a spanning structure, re-add bridge edges, or reject/regenerate layouts). If a prune step can remove bridges, that is an **implementation risk** against G-1 until addressed. |
+| **G-1** | **Must.** The star–connection graph is **connected**: for **every** pair of distinct stars there exists a **path of edges** (lanes / map connections) between them. There are **no disconnected components** or island subgraphs. **Gameplay depends on this:** ships and orders must be able to route (directly or transitively) between any two stars on the map. *(Originating constraint; restated 2026-04-09; gameplay impact explicit 2026-04-09.)* |
+| **G-2** | **Must.** Map generation (`generateConnections` and any prune or clearance pass) **must not** ship a disconnected graph. If a prune step removes bridge edges, the pipeline **must repair** connectivity (e.g. Phase 5 bridge re-add from the Delaunay edge pool, shortest first) or reject/regenerate the layout. **MSR-only edge prune** and similar heuristics are allowed only when followed by a **connectivity guarantee**. |
 
 ---
 
@@ -27,7 +27,7 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 
 | ID | Constraint |
 |----|------------|
-| **L-1** | **Plan.** **Phase 4 Delaunay prune** (which edges exist) uses **MSR-only** clearance to non-endpoints so the graph is not over-pruned before lanes run. **Drawn** lane segments (straight or curved) still respect **`D_clear = MSR_px + laneBuffer_px`** vs non-endpoints. Endpoints exempt per edge. |
+| **L-1** | **Plan.** **Phase 4 Delaunay prune** (which edges exist) uses **MSR-only** clearance to non-endpoints so the graph is not over-pruned before lanes run. **Drawn** lane segments (straight or curved) still respect **`D_clear = MSR_px + laneBuffer_px`** vs non-endpoints. Endpoints exempt per edge. **G-1 / G-2:** after pruning, **`generateConnections`** runs a **connectivity repair** pass so the final edge set remains a single component. |
 | **L-2** | **Must.** Sampled **curved** lane centerlines stay at least **`D_clear = MSR + laneBuffer`** from any non-endpoint star center (same numeric clearance as L-1 / MAP_LANES §1.3). Straight **map lane mode** still uses endpoint-to-endpoint chords only. |
 | **L-3** | **Must (session 2026-04-09).** In **curve-allowed** mode, lanes are **not** all curved: use a **straight chord** when it already satisfies **L-2** (and non-crossing rules below). Introduce curvature or a detour **only when necessary**. |
 | **L-4** | **Must (session 2026-04-09).** Lane centerlines **must not cross** each other (interior intersections between distinct edges). |
@@ -94,3 +94,4 @@ These items describe **what the player should eventually perceive** and how **cu
 |------|--------|
 | 2026-04-09 | Initial catalog: connectivity **G-1**, adaptive lanes **L-3**, MSR obstacle **L-2**, non-crossing **L-4**, lane mode toggle **U-2**, DX neutral/pattern intent **D-1–D-3**; merged with MAP_LANES plan items **L-1**, **L-5–L-7**, **M-***, **U-1**, **C-***, **A-1**. |
 | 2026-04-09 | **L-2** unified with **D_clear** for curved sampling; **M-1** adds `lanePathKind` on `MapConnection`. |
+| 2026-04-09 | **G-1** expanded with **gameplay routing** wording; **G-2** promoted to **Must** + connectivity repair after prune (`common/mapgen/connections.ts` Phase 5). |
