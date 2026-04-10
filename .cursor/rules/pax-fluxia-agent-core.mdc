@@ -1,0 +1,40 @@
+---
+description: Pax Fluxia non-negotiables from .agent/AGENT.md (build, shell, git, code, process).
+alwaysApply: true
+---
+
+# Pax Fluxia — core agent rules
+
+**Authoritative source:** `.agent/AGENT.md` (load at session start). Deep rules: `.agent/rules/`.
+
+## Build and tooling
+
+- **Bun only** for this repo: `bun install`, `bun run dev`, `bunx`. Do not use npm, npx, or yarn unless the user explicitly overrides.
+- **PowerShell on Windows:** do **not** chain commands with `&&`. Run each command separately.
+
+## Git
+
+- Prefer the project alias **`git ac "message"`** when available.
+- **Never push to the `live` branch.**
+- **Commit working state frequently** (incremental commits per logical step). Do not leave large uncommitted batches without reason.
+
+## Code
+
+- **No raw `console.log`.** Use `import { log } from '$lib/utils/logger'` → `log.sys`, `log.state`, `log.error`, etc.
+- **Slider / tuning UI:** controls read **`panel.xxx`** (`$state`), not `GAME_CONFIG` in templates. Map via `settingsDefs` / `updatePanel` / `panelSync` (see AGENT §3.4).
+- **Never remove or hide user-facing controls** tied to `GAME_CONFIG` without explicit user instruction.
+- **Config keys:** `ALL_CAPS_WITH_UNITS` where applicable.
+- **Game time in game code:** `gameNowMs` / FX clock — not `performance.now()` for game logic.
+
+## Process
+
+- **Trace before speculating:** read the code path end-to-end before claiming root cause.
+- User observations of the running app are **ground truth**. Do not declare something fixed without evidence; say **please verify**.
+- **Never open a browser or browser subagent** unless the user explicitly allows it.
+- **Documentation homes:** features → `FEATURE_STATUS.md` / `FEATURE_IDEAS.md`; sessions → `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`; plans → `.agent/docs/project/implementation-plans/<date>/`.
+- **Do not use TSV** for tables in agent docs; use Markdown tables or CSV as appropriate.
+
+## MCP
+
+- When using Atlas-harness, follow `.agent/AGENT-GUIDE_MCP_atlas-harness.md`.
+- **Live settings snapshot:** `common/resources/settings-live/current-settings.json` when current defaults matter.
