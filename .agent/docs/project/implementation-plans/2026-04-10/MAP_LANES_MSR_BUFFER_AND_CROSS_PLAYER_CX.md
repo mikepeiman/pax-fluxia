@@ -2,10 +2,20 @@
 title: Map lanes (MSR + buffer) and cross-player CX
 date: 2026-04-10
 status: in_progress
+revision: 2026-04-09 — P1 lane contract + D_clear alignment (see § Progress)
 source_plan: Cursor plan `lanes_msr_cx_spec_1bef4f59` (authoritative working copy may live under `.cursor/plans/`)
 ---
 
 # Map lanes (MSR + buffer) and cross-player CX — planning artifact
+
+## Progress (rolling)
+
+| Phase | Status (2026-04-09) |
+|-------|---------------------|
+| **P0** | Tunable `D_clear` in `generateConnections`; CX builder `buildCorridorVirtualSites` + `computeCorridorVirtuals`; Metaball / MV / PV / DF / compiler consume it; cross-owner sampling. |
+| **P1** | Curved adaptive solver in `common/src/mapgen/lanePolylines.ts` (chord-if-ok, Bézier, kink); **sampled** clearance uses **`D_clear = MSR + laneBuffer`** in `generateMap` and client `rebuildLanePolylineCache`; **`lanePathKind`** on `MapConnection`; ship transfer/conquest use `lanePolylineCache` + `applyLaneTravelPath` (already polyline-aware). Solver iteration/sample caps documented in module header. Map & Grid live refresh: `refreshLanePolylinesFromConfig` + `laneDClearancePx()`. **Remaining:** optional shared `LanePath` type alias in client only if desired; `validateLaneClearance` (P4). |
+| **P2** | MV still calls `buildCorridorVirtualSites` directly (same math as `computeCorridorVirtuals`); optional switch to `computeCorridorVirtuals` for one import path. |
+| **P3–P4** | Validator + FEATURE_STATUS row — not started. |
 
 ## Purpose (user goal)
 
@@ -104,12 +114,13 @@ flowchart TB
 
 | Area | Location | Behavior today |
 |------|----------|----------------|
-| Map pipeline | [common/src/mapgen/index.ts](../../../../../common/src/mapgen/index.ts) | `generateStarPositions` then `generateConnections`. |
-| Connection geometry | [common/src/mapgen/connections.ts](../../../../../common/src/mapgen/connections.ts) | Delaunay + prune; **Phase 4** uses fixed `CLEARANCE = 35`—**must become tunable** `D_clear = MSR + laneBuffer`. |
-| MSR at render | [game.config.ts](../../../../../pax-fluxia/src/lib/config/game.config.ts), renderers | Territory MSR **not** passed into `common` mapgen—**fix**. |
-| CX virtuals | [territoryFeatures.ts](../../../../../pax-fluxia/src/lib/renderers/territoryFeatures.ts) | **`same-owner` guard—remove entirely** for eligibility (see §2). |
-| CX duplicates | [MetaballRenderer](../../../../../pax-fluxia/src/lib/renderers/MetaballRenderer.ts), [ModifiedVoronoiRenderer](../../../../../pax-fluxia/src/lib/renderers/ModifiedVoronoiRenderer.ts) | Parallel logic—**consolidate** into CX module. |
-| Other consumers | PV, DF, Pixel | Audit for same-owner assumptions; switch to module **one by one**. |
+| Map pipeline | [common/src/mapgen/index.ts](../../../../../common/src/mapgen/index.ts) | `generateStarPositions` → `generateConnections(..., passThroughClearancePx)` → `attachLaneWaypointsToConnections(..., D_clear)`. |
+| Connection geometry | [common/src/mapgen/connections.ts](../../../../../common/src/mapgen/connections.ts) | Delaunay + prune; Phase 4 pass-through uses caller **`passThroughClearancePx`** (typically MSR + lane buffer). |
+| MSR + buffer | [game.config.ts](../../../../../pax-fluxia/src/lib/config/game.config.ts), [gameStore](../../../../../pax-fluxia/src/lib/stores/gameStore.svelte.ts), `MapGenConfig` | Mapgen and live lane rebuild use **`MODIFIED_VORONOI_STAR_MARGIN`** + **`MAPGEN_LANE_BUFFER_PX`** for `D_clear`. |
+| Lane waypoints | [lanePolylines.ts](../../../../../common/src/mapgen/lanePolylines.ts), [types.ts](../../../../../common/src/mapgen/types.ts) | `laneWaypoints` + **`lanePathKind`** (`straight` \| `curved`). |
+| CX virtuals | [buildCorridorVirtualSites.ts](../../../../../pax-fluxia/src/lib/territory/corridor/buildCorridorVirtualSites.ts), [territoryFeatures.ts](../../../../../pax-fluxia/src/lib/renderers/territoryFeatures.ts) | Cross-owner + polyline arc-length split; `computeCorridorVirtuals` canonicalizes. |
+| CX in MV | [ModifiedVoronoiRenderer](../../../../../pax-fluxia/src/lib/renderers/ModifiedVoronoiRenderer.ts) | Uses **`buildCorridorVirtualSites`** + `getLanePolyline` (same geometry as module; optional dedupe to `computeCorridorVirtuals` only). |
+| Other consumers | Metaball, PV, DF, compilers | Corridor via `computeCorridorVirtuals` or direct builder + lane resolver. |
 
 ---
 

@@ -28,7 +28,7 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 | ID | Constraint |
 |----|------------|
 | **L-1** | **Plan (mapgen prune / straight chords).** For feasibility of **straight** segments and for **Phase 4** chord-based pruning in connection generation, clearance to **non-endpoint** stars uses **`D_clear = MSR_px + laneBuffer_px`** (tunable; not a hardcoded constant). Endpoints of that edge are **exempt**. See [MAP_LANES_MSR_BUFFER_AND_CROSS_PLAYER_CX.md](./implementation-plans/2026-04-10/MAP_LANES_MSR_BUFFER_AND_CROSS_PLAYER_CX.md) §1. |
-| **L-2** | **Must (session 2026-04-09).** The **drawn lane centerline** must not pass within **MSR** of the center of any star that is **not** an endpoint of that lane. *(Implementation today: curved polyline obstacle check uses MSR-only; graph prune still uses MSR + lane buffer per L-1 — keep both documented until unified if design requires.)* |
+| **L-2** | **Must.** Sampled **curved** lane centerlines stay at least **`D_clear = MSR + laneBuffer`** from any non-endpoint star center (same numeric clearance as L-1 / MAP_LANES §1.3). Straight **map lane mode** still uses endpoint-to-endpoint chords only. |
 | **L-3** | **Must (session 2026-04-09).** In **curve-allowed** mode, lanes are **not** all curved: use a **straight chord** when it already satisfies **L-2** (and non-crossing rules below). Introduce curvature or a detour **only when necessary**. |
 | **L-4** | **Must (session 2026-04-09).** Lane centerlines **must not cross** each other (interior intersections between distinct edges). |
 | **L-5** | **Plan.** **Straight** mode: path is exactly the segment between endpoints; clearance checked accordingly. |
@@ -41,7 +41,7 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 
 | ID | Constraint |
 |----|------------|
-| **M-1** | **Plan.** Map output carries stable **waypoints / polyline** per connection so renderers, CX, and gameplay do not re-solve independently. |
+| **M-1** | **Plan.** Map output carries stable **waypoints / polyline** per connection plus **`lanePathKind`** (`straight` \| `curved`) so renderers, CX, and gameplay do not re-solve independently. |
 | **M-2** | **Plan.** Ship travel and conquest (and related FX) follow the **same** lane path as territory/corridor consumers — not an ad hoc chord if the map is curved. |
 
 ---
@@ -93,3 +93,4 @@ These items describe **what the player should eventually perceive** and how **cu
 | Date | Notes |
 |------|--------|
 | 2026-04-09 | Initial catalog: connectivity **G-1**, adaptive lanes **L-3**, MSR obstacle **L-2**, non-crossing **L-4**, lane mode toggle **U-2**, DX neutral/pattern intent **D-1–D-3**; merged with MAP_LANES plan items **L-1**, **L-5–L-7**, **M-***, **U-1**, **C-***, **A-1**. |
+| 2026-04-09 | **L-2** unified with **D_clear** for curved sampling; **M-1** adds `lanePathKind` on `MapConnection`. |
