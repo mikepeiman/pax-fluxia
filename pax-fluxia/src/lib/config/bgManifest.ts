@@ -8,6 +8,27 @@
 // To add a new background: drop the image in static/assets/ and add it here.
 // ============================================================================
 
+/**
+ * GameCanvas loads backgrounds as `/assets/` + basename (see `static/assets/`).
+ * Migrates legacy values like `/images/backgrounds/bg-25.jpg`, which produced
+ * `/assets/images/...` and 404.
+ */
+export function normalizeBgImagePath(raw: string | undefined | null): string {
+    let s = (raw ?? '').trim();
+    if (!s) return '';
+    if (
+        /\/images\/backgrounds\/bg-25\.jpe?g$/i.test(s) ||
+        /^\/?images\/backgrounds\/bg-25\.jpe?g$/i.test(s)
+    ) {
+        return 'pax-fluxia-bg-25.jpg';
+    }
+    s = s.replace(/^\/+/, '');
+    if (s.toLowerCase().startsWith('assets/')) {
+        s = s.slice('assets/'.length).replace(/^\/+/, '');
+    }
+    return s;
+}
+
 export const BG_IMAGES: string[] = [
     'nebula-bg.png',
     'pax-fluxia-bg-3.png',

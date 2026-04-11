@@ -40,6 +40,31 @@
             false,
     );
 
+    const METABALL_FALLOFF_OPTIONS = [
+        {
+            id: "inverse-square" as const,
+            label: "Inverse square — organic, lower CPU",
+        },
+        {
+            id: "gaussian" as const,
+            label: "Gaussian — fluid look, heavier CPU",
+        },
+        {
+            id: "smoothstep" as const,
+            label: "Smoothstep — crisp falloff band",
+        },
+    ];
+
+    function resolveMetaballFalloffId():
+        | "inverse-square"
+        | "gaussian"
+        | "smoothstep" {
+        const raw =
+            panel.metaballFalloff ?? GAME_CONFIG.METABALL_FALLOFF ?? "gaussian";
+        const hit = METABALL_FALLOFF_OPTIONS.find((o) => o.id === raw);
+        return hit ? hit.id : "gaussian";
+    }
+
     // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
     function debouncedConfigUpdate(
         configKey: string,
@@ -585,6 +610,33 @@
                     );
                 }}
             />
+        </div>
+        <div
+            class="var-row"
+            title="How star influence decays with distance in the CPU grid. Gaussian uses Math.exp per sample (slower); inverse-square is cheaper and often looks fine for gameplay."
+        >
+            <div class="row-top">
+                <span class="var-name">Influence falloff</span>
+            </div>
+            <select
+                class="mode-select"
+                value={resolveMetaballFalloffId()}
+                onchange={(e) => {
+                    const v = (e.target as HTMLSelectElement).value as
+                        | "inverse-square"
+                        | "gaussian"
+                        | "smoothstep";
+                    debouncedConfigUpdate(
+                        "METABALL_FALLOFF",
+                        "metaballFalloff",
+                        v,
+                    );
+                }}
+            >
+                {#each METABALL_FALLOFF_OPTIONS as opt}
+                    <option value={opt.id}>{opt.label}</option>
+                {/each}
+            </select>
         </div>
         <div
             class="var-row"

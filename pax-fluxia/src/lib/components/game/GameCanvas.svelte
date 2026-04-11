@@ -7,6 +7,7 @@
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import {
         getOrbitSlot,
         getTotalOccupiedLayers,
@@ -559,7 +560,10 @@
 
         // L5: Faint nebula background — uses same image as main menu
         // Respect "no background" choice: if BG_IMAGE_URL is empty, skip loading
-        const bgImagePath = GAME_CONFIG.BG_IMAGE_URL;
+        const bgImagePath = normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL);
+        if (bgImagePath !== GAME_CONFIG.BG_IMAGE_URL) {
+            GAME_CONFIG.BG_IMAGE_URL = bgImagePath;
+        }
         const bgSprite = new PIXI.Sprite();
         bgSprite.anchor.set(0.5, 0.5);
         bgSprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
@@ -583,7 +587,9 @@
 
         // Live background swap via settings panel
         const handleBgChange = async (e: Event) => {
-            const img = (e as CustomEvent).detail as string;
+            const img = normalizeBgImagePath(
+                (e as CustomEvent).detail as string,
+            );
             const sprite = (app as any)?._nebulaBgSprite as
                 | PIXI.Sprite
                 | undefined;

@@ -790,19 +790,26 @@ function renderMetaballImpl(
     let dbgFillSkipAlpha = 0;
     let dbgFillSkipRealGeomMismatch = 0;
 
+    /** Reused per cell — avoids 2× allocations per grid cell (major GC pressure). */
+    const infReal = new Float32Array(numPlayers);
+    const infGeom = new Float32Array(numPlayers);
+    const rCut = radius * 2;
+    const rCut2 = rCut * rCut;
+
     for (let row = 0; row < rows; row++) {
         const py = gridOriginY + (row + 0.5) * cellSize;
         for (let col = 0; col < cols; col++) {
             const px = gridOriginX + (col + 0.5) * cellSize;
             const idx = row * cols + col;
 
-            const infReal = new Float32Array(numPlayers);
-            const infGeom = new Float32Array(numPlayers);
+            infReal.fill(0);
+            infGeom.fill(0);
             for (const star of starData) {
                 const dx = px - star.x;
                 const dy = py - star.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > radius * 2) continue;
+                const dist2 = dx * dx + dy * dy;
+                if (dist2 > rCut2) continue;
+                const dist = Math.sqrt(dist2);
                 const c = falloffFn(dist, radius) * star.strength;
                 const p = star.playerIdx;
                 if (!star.corridorVirtual && !star.disconnectVirtual) infReal[p] += c;
@@ -1127,67 +1134,6 @@ function renderMetaballImpl(
         dbgAllSegsLen = allSegs.length;
         dbgCombatNearCount = dbgCombatNear;
     }
-
-    // #region agent log
-    {
-        const g = globalThis as typeof globalThis & { __metaballDbgLoggedFp?: string };
-        const fpNow = cachedFingerprint;
-        if (g.__metaballDbgLoggedFp !== fpNow) {
-            g.__metaballDbgLoggedFp = fpNow;
-            const data = {
-                gameTick,
-                gameTickType: typeof gameTick,
-                useRenderFamilies: !!GAME_CONFIG.USE_RENDER_FAMILIES,
-                combatTicks,
-                combatWBoost,
-                combatABoost,
-                combatProximityPx,
-                dbgCorridorSamples,
-                dbgFilledCells,
-                dbgEdgeOwnerDiff,
-                dbgEdgeToVoid,
-                dbgVoidBorderSegs,
-                borderWidth,
-                borderAlpha,
-                rows,
-                cols,
-                numClusters,
-                dbgHotStars,
-                dbgCombatNear: dbgCombatNearCount,
-                allSegsLen: dbgAllSegsLen,
-                blurStrength: GAME_CONFIG.METABALL_BLUR ?? 0,
-                blurAffectsBorders: !!GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS,
-                blurTarget:
-                    GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS &&
-                    Math.max(0, GAME_CONFIG.METABALL_BLUR ?? 0) > 0 &&
-                    metaballLayer
-                        ? 'metaballLayer'
-                        : 'territoryGraphics',
-                dbgGeomNonVoid,
-                dbgFillDrawn,
-                dbgFillSkipDom,
-                dbgFillSkipAlpha,
-                dbgFillSkipRealGeomMismatch,
-            };
-            fetch('http://127.0.0.1:7669/ingest/efe08626-e045-40bf-b28a-513e3d21b8a1', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Debug-Session-Id': 'c70a8e',
-                },
-                body: JSON.stringify({
-                    sessionId: 'c70a8e',
-                    runId: 'post-fix',
-                    hypothesisId: 'G_real_geom_agree_blur_fill_only',
-                    location: 'MetaballRenderer.ts:renderMetaballImpl',
-                    message: 'metaball diagnostics',
-                    data,
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => {});
-        }
-    }
-    // #endregion
 
     applyBlurFilter();
 }

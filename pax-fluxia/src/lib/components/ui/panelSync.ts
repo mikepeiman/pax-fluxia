@@ -7,6 +7,7 @@
  */
 
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
@@ -48,14 +49,19 @@ export const VISUAL_DEFAULTS = {
     laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
     shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
     shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-    bgImage: '/images/backgrounds/bg-25.jpg',
+    /** Basename under `/assets/` — see `bgManifest.normalizeBgImagePath` */
+    bgImage: 'pax-fluxia-bg-25.jpg',
 };
 
 export function loadVisuals(): typeof VISUAL_DEFAULTS {
     if (typeof window === 'undefined') return { ...VISUAL_DEFAULTS };
     try {
         const s = localStorage.getItem(VISUALS_STORAGE_KEY);
-        if (s) return { ...VISUAL_DEFAULTS, ...JSON.parse(s) };
+        if (s) {
+            const merged = { ...VISUAL_DEFAULTS, ...JSON.parse(s) };
+            merged.bgImage = normalizeBgImagePath(merged.bgImage);
+            return merged;
+        }
     } catch {
         /* ignore */
     }
@@ -64,7 +70,8 @@ export function loadVisuals(): typeof VISUAL_DEFAULTS {
 
 export function saveVisuals(vis: typeof VISUAL_DEFAULTS): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(vis));
+    const toSave = { ...vis, bgImage: normalizeBgImagePath(vis.bgImage) };
+    localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(toSave));
     dumpSettings();
 }
 
@@ -74,11 +81,12 @@ export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
     GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
     GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
 
+    const bgPath = normalizeBgImagePath(vis.bgImage);
     // Live-update background image if it changes
-    if (GAME_CONFIG.BG_IMAGE_URL !== vis.bgImage) {
-        GAME_CONFIG.BG_IMAGE_URL = vis.bgImage;
+    if (GAME_CONFIG.BG_IMAGE_URL !== bgPath) {
+        GAME_CONFIG.BG_IMAGE_URL = bgPath;
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent("pax-bg-change", { detail: vis.bgImage }));
+            window.dispatchEvent(new CustomEvent('pax-bg-change', { detail: bgPath }));
         }
     }
 }
