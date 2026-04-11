@@ -57,6 +57,30 @@ The builder also supports command-line overrides:
   - `bun run agentic:context:build`
 - Benchmark cold vs warm behavior:
   - `bun run agentic:context:benchmark`
+- Launch the project-local Pi setup:
+  - `bun run agentic:pi`
+
+## Pi integration
+
+The repo now carries a project-local Pi configuration under `.pi/`.
+
+- `.pi/settings.json`
+  - keeps Pi session state inside the workspace instead of `C:\Users\mikep\.pi\...`
+- `.pi/extensions/cli-anything/`
+  - project-local CLI-Anything extension bundle copied from upstream during setup
+- `.pi/extensions/pax-project/`
+  - Pax Fluxia bridge extension for cached-context awareness and context-pack commands
+
+The Pax project extension keeps Pi aware of the repo-local context cache without forcing all stable context into every turn.
+
+Available Pi-side commands:
+
+- `/pax-context:status`
+  - show which cached stable artifacts exist
+- `/pax-context:rebuild [artifact-id ...] [--force] [--clear-cache]`
+  - rebuild the repo-local stable context artifacts from inside Pi
+- `/pax-context:inject <artifact-id|all>`
+  - inject selected cached stable artifacts into the current Pi session on demand
 
 ## Clearing cache
 

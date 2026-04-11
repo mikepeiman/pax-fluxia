@@ -1,0 +1,7 @@
+{
+  "sessionDir": "sessions",
+  "extensions": [
+    "extensions/cli-anything",
+    "extensions/pax-project"
+  ]
+}

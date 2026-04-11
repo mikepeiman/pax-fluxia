@@ -14,13 +14,28 @@ Capture the workflow and control surfaces that already exist in Pax Fluxia so th
   - Current state: direct command invocation via `atlas-harness --transport mcp`
   - Status: live and canonical for workspace operations
 
+- `.pi/settings.json`
+  - Current role: project-local Pi configuration
+  - Current state: keeps Pi session state inside the repo and explicitly loads project-local extensions
+  - Status: live and now part of the active workflow surface
+
+- `.pi/extensions/cli-anything/`
+  - Current role: project-local CLI-Anything Pi extension bundle
+  - Current state: copied into the repo with its required local assets so the slash commands can resolve correctly
+  - Status: live evaluation lane for CLI-Anything inside Pax Fluxia
+
+- `.pi/extensions/pax-project/`
+  - Current role: Pax Fluxia-specific Pi bridge
+  - Current state: exposes repo-local context-cache status, rebuild, and on-demand stable-context injection commands
+  - Status: live bridge between Pi and the repo-owned context-pack layer
+
 ### Harness candidates and related platforms
 
 - CLI-Anything
   - Current role: primary harness candidate to evaluate
   - Official reference:
     - [CLI-Anything](https://clianything.net/)
-  - Current status in Pax Fluxia: not yet integrated, but now elevated above atlas-harness in evaluation priority
+  - Current status in Pax Fluxia: now integrated through a project-local Pi extension bundle and ready for real task evaluation
 
 - `atlas-harness`
   - Current role: active local harness path and comparative candidate
@@ -28,7 +43,7 @@ Capture the workflow and control surfaces that already exist in Pax Fluxia so th
 
 - Pi
   - Current role: orchestration candidate
-  - Current status: still relevant, but should sit above the evaluated harness winner rather than presuppose atlas-harness
+  - Current status: installed as a repo dependency and now wired project-locally around the context-pack layer, but not yet fully validated end-to-end
 
 - `.cursor/hooks.json`
   - Current role: Cursor lifecycle hook routing
@@ -160,3 +175,25 @@ This inventory is "good enough" for the current implementation pass when:
 - the transitional workflow corpus is called out explicitly
 - the initial keep/transitional/do-not-expand decisions are documented
 - the cache and workflow-installation work can proceed without pretending the repo is a blank slate
+
+## Same-Day Integration Update
+
+The repo is no longer in a purely pre-install state.
+
+Project-local workflow integration now includes:
+
+- repo-local Pi config:
+  - `.pi/settings.json`
+- project-local CLI-Anything extension bundle:
+  - `.pi/extensions/cli-anything/`
+- project-local Pax Fluxia Pi bridge:
+  - `.pi/extensions/pax-project/index.ts`
+- Bun launch entrypoint:
+  - `bun run agentic:pi`
+
+This means the next workflow work is no longer "install Pi from scratch."
+It is now:
+
+- validate Pi startup and extension loading on real tasks
+- evaluate CLI-Anything against atlas-harness on a fixed task matrix
+- decide whether CLI-Hub or other CLI-Anything components are needed later

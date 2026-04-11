@@ -12,15 +12,37 @@ Install the workflow foundation for Pax Fluxia so future coding, documentation, 
 
 ## Scope Of This Spec
 
-This spec covers the first concrete setup pass only:
+This spec covers the first concrete setup pass:
 
 - verify and retain the minimal live workflow substrate
 - define the canonical workflow/control boundaries
 - install the first repo-local context/cache layer
-- prepare the configuration surface Pi will consume later
+- prepare and then project-localize the Pi configuration surface
 
-This spec does not yet install Pi or retrieval/memory systems in full.
 This spec now also treats harness choice as an explicit evaluation process rather than a settled atlas-harness-first architecture.
+
+## Same-Day Implementation Update
+
+The repo has now moved beyond the purely preparatory state described in the original draft of this spec.
+
+Concrete same-day outputs now in place:
+
+- Pi installed as a repo dev dependency in `package.json`
+- project-local Pi config:
+  - `.pi/settings.json`
+- project-local CLI-Anything extension bundle:
+  - `.pi/extensions/cli-anything/`
+- project-local Pax Fluxia Pi bridge:
+  - `.pi/extensions/pax-project/index.ts`
+- Bun launch entrypoint:
+  - `bun run agentic:pi`
+
+What this means:
+
+- Pi is now installed and project-localized
+- CLI-Anything is now integrated as a real evaluation lane inside Pi
+- the repo-local context/cache layer is now reachable from Pi through explicit commands rather than only via standalone Bun scripts
+- retrieval and memory systems are still not installed in full
 
 ## Canonical Ownership
 
@@ -234,6 +256,27 @@ Create and maintain:
   - how to disable caching
   - how to rerun the benchmark
 
+### Project-local Pi contract added same day
+
+Create and maintain:
+
+- `.pi/settings.json`
+- `.pi/README.md`
+- `.pi/extensions/cli-anything/`
+- `.pi/extensions/pax-project/`
+
+Intended meanings:
+
+- `.pi/settings.json`
+  - project-local Pi resource roots
+  - project-local session storage
+- `.pi/extensions/cli-anything/`
+  - project-local extension bundle for CLI-Anything so it can be evaluated without global install side effects
+- `.pi/extensions/pax-project/`
+  - thin project bridge around the repo-owned context cache
+- `.pi/README.md`
+  - launch and operator note for the project-local Pi setup
+
 ## Step 3: Minimal Context/Cache Foundation
 
 ### Deliverables
@@ -293,14 +336,17 @@ This slice is complete when:
 ## Not Yet In Scope
 
 - provider-side caching integration
-- full Pi installation
 - LightRAG indexing
 - OpenSpace skill harvest
 - volatile task-pack generation
 
+Pi installation is now in scope-complete for the project-local first pass.
+What remains is validation and deeper workflow layering, not first install.
+
 ## Follow-On Work After This Slice
 
-1. Evaluate CLI-Anything against atlas-harness and decide the retained harness boundary.
-2. Add retrieval and memory integrations that consume canonical artifacts.
-3. Reduce prompt/research sprawl.
-4. Extend the context packer with volatile task-time artifacts.
+1. Validate Pi startup plus extension loading on real Pax Fluxia tasks.
+2. Evaluate CLI-Anything against atlas-harness and decide the retained harness boundary.
+3. Add retrieval and memory integrations that consume canonical artifacts.
+4. Reduce prompt/research sprawl.
+5. Extend the context packer with volatile task-time artifacts.

@@ -16,7 +16,7 @@
 - **Shared**: `@pax/common` monorepo package (`common/`)
 - **Build**: Bun only. `bun install`, `bun run dev`, `bunx`. Never npm/npx/yarn.
 - **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
-- **MCP Atlas-harness**: Read `.agent/AGENT-GUIDE_MCP_atlas-harness.md` at start of every session.
+- **MCP Atlas-harness**: Read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at start of every session.
 - **Live Settings**: `common/resources/settings-live/current-settings.json` — read when current GAME_CONFIG values are needed.
 
 ---

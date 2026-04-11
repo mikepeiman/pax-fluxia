@@ -940,8 +940,8 @@ Current status against the workflow plan:
 
 ### Not yet completed
 
-- CLI-Anything installation and real evaluation pass
-- Pi installation and integration
+- CLI-Anything real evaluation pass
+- Pi end-to-end validation
 - LightRAG integration
 - OpenSpace integration
 - final harness decision:
@@ -960,3 +960,45 @@ The project is currently in the gap between:
 - and wiring in the new orchestration / harness / retrieval layers
 
 So yes: workflow installation and integration work still remains.
+
+---
+
+## Pi + CLI-Anything Integration Update
+
+This slice moved the workflow stack from planning-only into project-local integration.
+
+### New concrete outputs
+
+- Pi installed as a repo dev dependency:
+  - `package.json`
+- project-local Pi config:
+  - `.pi/settings.json`
+- project-local Pi operator note:
+  - `.pi/README.md`
+- project-local CLI-Anything extension bundle:
+  - `.pi/extensions/cli-anything/`
+- project-local Pax Fluxia Pi bridge:
+  - `.pi/extensions/pax-project/index.ts`
+- Bun launch entrypoint:
+  - `bun run agentic:pi`
+
+### What the Pax Fluxia Pi bridge now does
+
+- keeps Pi sessions inside the workspace
+- advertises the repo-local context cache to Pi through a small stable system-prompt notice
+- exposes `/pax-context:status`
+- exposes `/pax-context:rebuild`
+- exposes `/pax-context:inject <artifact-id|all>`
+
+This is important because it means Pi now sits around the repo-owned context-pack layer instead of bypassing it.
+
+### Updated workflow reality
+
+- CLI-Anything is now integrated as a real project-local Pi extension lane
+- Pi is now installed and localized to the repo
+- the remaining work is no longer first install
+- the remaining work is:
+  - validate Pi startup and extension loading
+  - compare CLI-Anything and atlas-harness on real tasks
+  - decide whether CLI-Hub or additional CLI-Anything components are needed
+  - add retrieval and memory layers later
