@@ -9,15 +9,18 @@
 
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { PlayerHSL, ColorUtils } from './RenderContext';
+import { defaultPlayerPaletteHex, fallbackPlayerColor } from '$lib/utils/playerPalette';
 
-// Default player color palette
+const DEFAULT_PLAYER_HEX = defaultPlayerPaletteHex().map((hex) =>
+    parseInt(hex.replace('#', ''), 16),
+);
 const PLAYER_COLORS: Record<string, number> = {
-    'human-player': 0x4488ff,
-    'ai-1': 0xff4466,
-    'ai-2': 0x44ff88,
-    'ai-3': 0xffcc44,
-    'ai-4': 0xaa66ff,
-    'ai-5': 0xff8844,
+    'human-player': DEFAULT_PLAYER_HEX[0] ?? 0x4488ff,
+    'ai-1': DEFAULT_PLAYER_HEX[1] ?? 0xff4466,
+    'ai-2': DEFAULT_PLAYER_HEX[2] ?? 0x44ff88,
+    'ai-3': DEFAULT_PLAYER_HEX[3] ?? 0xffcc44,
+    'ai-4': DEFAULT_PLAYER_HEX[4] ?? 0xaa66ff,
+    'ai-5': DEFAULT_PLAYER_HEX[5] ?? 0xff8844,
 };
 
 // HSL cache per player (invalidated when hex changes)
@@ -90,7 +93,10 @@ export function createColorUtils(
 ): ColorUtils {
 
     function getPlayerColor(ownerId: string): number {
-        let hex = resolvePlayerColor(ownerId) ?? PLAYER_COLORS[ownerId] ?? 0x888888;
+        let hex =
+            resolvePlayerColor(ownerId) ??
+            PLAYER_COLORS[ownerId] ??
+            parseInt(fallbackPlayerColor(ownerId).replace('#', ''), 16);
         // F-75: Apply minimum lightness floor so dark colors don't vanish on dark bg
         const minL = GAME_CONFIG.MIN_COLOR_LIGHTNESS ?? 0;
         if (minL > 0) {

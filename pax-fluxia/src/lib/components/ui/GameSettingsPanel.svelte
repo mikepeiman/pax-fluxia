@@ -55,6 +55,7 @@
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
+    import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
     import ControlsSectionRules from "./settings/ControlsSection-Rules.svelte";
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
@@ -665,6 +666,7 @@
     // Icon Toolbar — sections definition
     // =========================================================================
     type SectionId =
+        | "players"
         | "speed"
         | "rules"
         | "battle"
@@ -738,6 +740,13 @@
         color: string;
         tier: SettingsTier;
     }[] = [
+        {
+            id: "players",
+            icon: "👥",
+            label: "Players",
+            color: "#7dd3fc",
+            tier: "basic",
+        },
         {
             id: "speed",
             icon: "⚡",
@@ -1111,6 +1120,10 @@
                         {importConfigJSON}
                         {configStatus}
                         {configStatusColor}
+                        syncFromConfig={syncAllFromConfig}
+                    />
+                {:else if sec.id === "players"}
+                    <ControlsSectionPlayers
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "visuals"}

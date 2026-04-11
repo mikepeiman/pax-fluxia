@@ -6,6 +6,11 @@
  */
 
 import type { GameSettings } from '$lib/types/game.types';
+import {
+    PLAYER_PALETTE_DEFAULTS,
+    hslHueToHex,
+    generatePlayerPaletteHues,
+} from '$lib/utils/playerPalette';
 
 // ── AI Strategies ───────────────────────────────────────────────────────────
 
@@ -29,11 +34,17 @@ export interface PlayerConfig {
     strategy: string;
 }
 
-export const DEFAULT_HUES = [210, 0, 120, 45, 280, 170]; // blue, red, green, orange, purple, teal
+export const DEFAULT_HUES = generatePlayerPaletteHues(
+    PLAYER_PALETTE_DEFAULTS.anchorHue,
+);
 
-export function makeDefaultPlayerConfigs(count: number): PlayerConfig[] {
+export function makeDefaultPlayerConfigs(
+    count: number,
+    anchorHue: number = PLAYER_PALETTE_DEFAULTS.anchorHue,
+): PlayerConfig[] {
+    const palette = generatePlayerPaletteHues(anchorHue);
     return Array.from({ length: count }, (_, i) => ({
-        hue: DEFAULT_HUES[i % DEFAULT_HUES.length],
+        hue: palette[i % palette.length],
         isAI: i > 0,
         difficulty: 'Normal',
         strategy: 'default',
@@ -102,11 +113,5 @@ export const MIN_HUE_GAP = 30;
 
 /** Convert HSL hue (0-360) at fixed S/L to hex string */
 export function hslToHex(hue: number, s: number = 0.7, l: number = 0.55): string {
-    const a = s * Math.min(l, 1 - l);
-    const f = (n: number) => {
-        const k = (n + hue / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
+    return hslHueToHex(hue, s, l);
 }

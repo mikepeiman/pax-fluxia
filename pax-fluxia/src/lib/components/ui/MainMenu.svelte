@@ -10,11 +10,6 @@
     } from "$lib/components/ui/panelSync";
     import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
-    import {
-        enforcePerceptualSpacing,
-        generatePalette,
-        MIN_DELTA_E,
-    } from "$lib/utils/colorDistance";
     import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
     import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { loadVisuals, saveVisuals } from "$lib/components/ui/panelSync";
@@ -30,8 +25,13 @@
         DIFFICULTIES,
         hslToHex as hslToHexBase,
     } from "./menuDefs";
+    import {
+        PLAYER_PALETTE_SIZE,
+        generatePlayerPaletteHues,
+        loadPlayerPaletteSettings,
+        savePlayerPaletteSettings,
+    } from "$lib/utils/playerPalette";
     import RangeDual from "./RangeDual.svelte";
-    import ColorPalette from "./ColorPalette.svelte";
 
     let visible = $state(true);
 
@@ -123,6 +123,8 @@
     function hslToHex(hue: number): string {
         return hslToHexBase(hue, colorSat / 100, colorLig / 100);
     }
+
+    const storedPaletteSettings = loadPlayerPaletteSettings();
 
     // Config state
     let showMobileOptions = $state(false);
@@ -222,10 +224,15 @@
     let playerName = $state(loadSetting("playerName", "Commander"));
 
     // Global color palette controls (persisted)
-    let colorSat = $state(loadSetting("colorSat", 70)); // 40-100
-    let colorLig = $state(loadSetting("colorLig", 55)); // 30-70
-    let hueOffset = $state(loadSetting("hueOffset", 0)); // global hue rotation offset
-    let paletteSize = $state(loadSetting("paletteSize", 8)); // 6-12 palette colors
+    let colorSat = $state(
+        loadSetting("colorSat", storedPaletteSettings.saturation),
+    );
+    let colorLig = $state(
+        loadSetting("colorLig", storedPaletteSettings.lightness),
+    );
+    let hueOffset = $state(
+        loadSetting("hueOffset", storedPaletteSettings.anchorHue),
+    );
 
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
@@ -260,31 +267,45 @@
         generatePreview();
     });
 
-    // Derived: all currently claimed hues (for marking occupied swatches)
-    const claimedHues = $derived(
-        playerConfigs.slice(0, playerCount).map((c) => c.hue),
-    );
-
-    // Auto-assign unclaimed palette colors to AI opponents
-    $effect(() => {
-        const palette = generatePalette(
-            paletteSize,
+    const playerPaletteHues = $derived(
+        generatePlayerPaletteHues(
+            hueOffset,
+            PLAYER_PALETTE_SIZE,
             colorSat / 100,
             colorLig / 100,
-        );
-        const humanHue = playerConfigs[0]?.hue ?? 210;
-        // Find palette colors NOT close to the human player's color
-        const available = palette.filter((h) => Math.abs(h - humanHue) > 5);
-        for (let i = 1; i < playerConfigs.length; i++) {
-            if (i < available.length) {
-                playerConfigs[i].hue =
-                    available[
-                        i - 1 < available.length
-                            ? i - 1
-                            : (i - 1) % available.length
-                    ];
+        ),
+    );
+
+    $effect(() => {
+        if (playerConfigs.length !== PLAYER_PALETTE_SIZE) {
+            const normalized = makeDefaultPlayerConfigs(
+                PLAYER_PALETTE_SIZE,
+                hueOffset,
+            );
+            for (let i = 0; i < Math.min(playerConfigs.length, normalized.length); i++) {
+                normalized[i] = {
+                    ...normalized[i],
+                    difficulty:
+                        playerConfigs[i]?.difficulty ?? normalized[i].difficulty,
+                    strategy: playerConfigs[i]?.strategy ?? normalized[i].strategy,
+                };
             }
+            playerConfigs = normalized;
         }
+
+        for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
+            const nextHue = playerPaletteHues[i] ?? playerConfigs[i]?.hue ?? 0;
+            if (playerConfigs[i].hue !== nextHue) {
+                playerConfigs[i].hue = nextHue;
+            }
+            playerConfigs[i].isAI = i > 0;
+        }
+
+        savePlayerPaletteSettings({
+            anchorHue: hueOffset,
+            saturation: colorSat,
+            lightness: colorLig,
+        });
     });
 
     // MP Join state
@@ -328,23 +349,10 @@
         saveSetting("playerName", playerName);
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
-        saveSetting("paletteSize", paletteSize);
         persistMenuLaneKnobs();
     }
 
-    /** Enforce perceptual color spacing (CIEDE2000) between all players */
-    function enforceHueSpacing() {
-        const hues = playerConfigs.map((c) => c.hue);
-        const corrected = enforcePerceptualSpacing(hues);
-        for (let i = 0; i < corrected.length; i++) {
-            playerConfigs[i].hue = corrected[i];
-        }
-    }
-
     function applyConfig() {
-        // Enforce min hue spacing before applying colors
-        enforceHueSpacing();
-
         GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
         GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
@@ -926,13 +934,23 @@
                     <!-- Commander Identity + Audio (compact row) -->
                     <div class="identity-audio-row">
                         <div class="identity-widget">
-                            <ColorPalette
-                                bind:selectedHue={playerConfigs[0].hue}
-                                saturation={colorSat}
-                                lightness={colorLig}
-                                {paletteSize}
-                                {claimedHues}
-                            />
+                            <div class="identity-palette-stack">
+                                <span
+                                    class="identity-swatch"
+                                    style="background: {hslToHex(
+                                        playerPaletteHues[0] ?? hueOffset,
+                                    )}"
+                                ></span>
+                                <div class="identity-palette-preview">
+                                    {#each playerPaletteHues.slice(0, playerCount) as hue, index}
+                                        <span
+                                            class="identity-palette-chip"
+                                            style="background: {hslToHex(hue)}"
+                                            title={"Player " + (index + 1)}
+                                        ></span>
+                                    {/each}
+                                </div>
+                            </div>
                             <input
                                 type="text"
                                 class="identity-name-input"
@@ -999,7 +1017,7 @@
                                 class="toggle-details-btn"
                                 onclick={() =>
                                     (showColorPalette = !showColorPalette)}
-                                title="Color palette">🎨</button
+                                title="Player palette">👥</button
                             >
                             <button
                                 class="toggle-details-btn"
@@ -1014,14 +1032,17 @@
                                 transition:fly={{ y: -8, duration: 150 }}
                             >
                                 <div class="hue-offset-inline">
-                                    <span class="mini-label">COLORS</span>
+                                    <span class="mini-label">ANCHOR</span>
                                     <input
+                                        class="hue-slider"
                                         type="range"
-                                        min="6"
-                                        max="12"
-                                        bind:value={paletteSize}
+                                        min="0"
+                                        max="359"
+                                        step="1"
+                                        bind:value={hueOffset}
+                                        style="--hue: {hueOffset}"
                                     />
-                                    <span class="value">{paletteSize}</span>
+                                    <span class="value">{Math.round(hueOffset)}°</span>
                                 </div>
                                 <div class="hue-offset-inline">
                                     <span class="mini-label">SAT</span>
@@ -1044,21 +1065,30 @@
                                     <span class="value">{colorLig}%</span>
                                 </div>
                             </div>
+                            <div class="menu-palette-preview" transition:fly={{ y: -8, duration: 150 }}>
+                                {#each playerPaletteHues as hue, index}
+                                    <div class="menu-palette-preview__slot">
+                                        <span
+                                            class="menu-palette-preview__swatch"
+                                            style="background: {hslToHex(hue)}"
+                                        ></span>
+                                        <span class="menu-palette-preview__label">P{index + 1}</span>
+                                    </div>
+                                {/each}
+                            </div>
                         {/if}
 
                         <div class="ai-grid">
                             {#each playerConfigs as cfg, i}
                                 {#if i > 0}
                                     <div class="ai-row">
-                                        <ColorPalette
-                                            bind:selectedHue={
-                                                playerConfigs[i].hue
-                                            }
-                                            saturation={colorSat}
-                                            lightness={colorLig}
-                                            {paletteSize}
-                                            {claimedHues}
-                                        />
+                                        <span
+                                            class="ai-color-dot"
+                                            style="background: {hslToHex(
+                                                playerConfigs[i].hue,
+                                            )}"
+                                            title={"Player " + (i + 1)}
+                                        ></span>
                                         <select
                                             class="ai-select-mini"
                                             bind:value={
@@ -1968,6 +1998,32 @@
         gap: 8px;
         flex: 1;
     }
+    .identity-palette-stack {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .identity-swatch {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
+        flex-shrink: 0;
+    }
+    .identity-palette-preview {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .identity-palette-chip {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+    }
     .identity-name-input {
         flex: 1;
         background: rgba(10, 20, 40, 0.6);
@@ -2230,6 +2286,22 @@
         background: rgba(100, 200, 255, 0.15);
         border-radius: 2px;
     }
+    .hue-offset-inline .hue-slider {
+        background: linear-gradient(
+            to right,
+            hsl(0, 82%, 56%),
+            hsl(30, 82%, 56%),
+            hsl(60, 82%, 56%),
+            hsl(120, 82%, 56%),
+            hsl(180, 82%, 56%),
+            hsl(210, 82%, 56%),
+            hsl(270, 82%, 56%),
+            hsl(330, 82%, 56%),
+            hsl(360, 82%, 56%)
+        );
+        height: 6px;
+        border-radius: 999px;
+    }
     .hue-offset-inline input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
         width: 10px;
@@ -2237,6 +2309,49 @@
         border-radius: 50%;
         background: #00ccff;
         cursor: pointer;
+    }
+    .hue-offset-inline .hue-slider::-webkit-slider-thumb {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        background: hsl(var(--hue, 210), 82%, 56%);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+    }
+    .hue-offset-inline .hue-slider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        background: hsl(var(--hue, 210), 82%, 56%);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+        cursor: pointer;
+    }
+    .menu-palette-preview {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 6px;
+        padding: 0 2px 8px;
+    }
+    .menu-palette-preview__slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 4px;
+        border-radius: 6px;
+        background: rgba(10, 20, 40, 0.26);
+    }
+    .menu-palette-preview__swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+    }
+    .menu-palette-preview__label {
+        font-size: 0.58rem;
+        letter-spacing: 0.08em;
+        color: rgba(200, 220, 255, 0.72);
     }
 
     .player-config-list {
@@ -2744,6 +2859,14 @@
         padding: 8px 12px;
         border-radius: 6px;
         background: rgba(10, 20, 40, 0.4);
+    }
+    .ai-color-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+        flex-shrink: 0;
     }
     .ai-select-mini {
         flex: 1;

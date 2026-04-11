@@ -8,6 +8,7 @@
  * No PIXI dependency — pure Canvas 2D API.
  */
 import { STAR_TYPE_STATS, type StarType } from '@pax/common';
+import { defaultPlayerPaletteHex, fallbackPlayerColor } from '$lib/utils/playerPalette';
 
 export interface ThumbnailStar {
     id: string;
@@ -43,20 +44,12 @@ export interface ThumbnailOptions {
     padding?: number;
 }
 
-const DEFAULT_PALETTE = [
-    '#4af', '#f84', '#8f4', '#f4a', '#af8', '#fa4', '#48f', '#f48'
-];
-
-let paletteIdx = 0;
-const ownerColorCache = new Map<string, string>();
+const DEFAULT_PALETTE = defaultPlayerPaletteHex();
 
 function getOwnerColor(ownerId: string, getPlayerColor?: (id: string) => string): string {
     if (ownerId === 'neutral' || !ownerId) return '#556';
     if (getPlayerColor) return getPlayerColor(ownerId);
-    if (!ownerColorCache.has(ownerId)) {
-        ownerColorCache.set(ownerId, DEFAULT_PALETTE[paletteIdx++ % DEFAULT_PALETTE.length]);
-    }
-    return ownerColorCache.get(ownerId)!;
+    return fallbackPlayerColor(ownerId) || DEFAULT_PALETTE[0];
 }
 
 /**
@@ -78,9 +71,6 @@ export function generateMapThumbnail(
         getPlayerColor,
         padding = 0.08,
     } = options;
-
-    // Clear per-call color cache if no external resolver
-    if (!getPlayerColor) ownerColorCache.clear();
 
     const canvas = document.createElement('canvas');
     canvas.width = width;

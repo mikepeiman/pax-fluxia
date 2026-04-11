@@ -15,6 +15,7 @@ import { getBuiltinThemes, getBuiltinCategoryPresets } from './builtinThemes';
 // ── Category IDs ────────────────────────────────────────────────────────────
 
 export type ThemeCategory =
+    | 'players'
     | 'timing'
     | 'combat'
     | 'economy'
@@ -40,6 +41,7 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<ThemeCategory, CategoryMeta> = {
+    players: { id: 'players', icon: '👥', label: 'Players', color: '#7dd3fc' },
     timing: { id: 'timing', icon: '⚡', label: 'Timing', color: '#ffcc44' },
     combat: { id: 'combat', icon: '⚔️', label: 'Battle', color: '#ff4466' },
     economy: { id: 'economy', icon: '💰', label: 'Economy', color: '#44dd88' },
@@ -59,6 +61,8 @@ export const CATEGORY_META: Record<ThemeCategory, CategoryMeta> = {
 // ── Category → Config Keys Mapping ──────────────────────────────────────────
 
 export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
+    players: [],
+
     timing: [
         'BASE_TICK_MS',
         'MIN_TICK_MS',
@@ -431,7 +435,7 @@ export const SUPER_CATEGORIES: Record<ThemeSuperCategory, SuperCategoryMeta> = {
         icon: '✨',
         label: 'Appearance',
         color: '#cc66ff',
-        children: ['ships', 'territory', 'visuals', 'audio'],
+        children: ['players', 'ships', 'territory', 'visuals', 'audio'],
     },
     intelligence: {
         id: 'intelligence',

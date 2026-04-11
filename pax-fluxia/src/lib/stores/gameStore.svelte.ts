@@ -50,123 +50,16 @@ import {
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
 import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
+import {
+    PLAYER_PALETTE_DEFAULTS,
+    buildPlayerPaletteHex,
+} from '$lib/utils/playerPalette';
 
 // ============================================================================
 // Constants
 // ============================================================================
 
 const HUMAN_PLAYER_ID = 'human-player';
-
-// ── Guaranteed hue-separated player colors ──
-// Instead of a fixed palette that can have close hues, 
-// generate colors with maximum hue separation for N players.
-const HUMAN_HUE = 220; // Blue — always the human's hue
-const BASE_SATURATION = 0.75;
-const BASE_LIGHTNESS = 0.55;
-const MIN_HUE_SEPARATION = 40; // degrees minimum between any two players
-
-// ── RGB → CIELAB conversion for perceptual color distance ──
-
-function srgbToLinear(c: number): number {
-    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-}
-
-function rgbToLab(r: number, g: number, b: number): [number, number, number] {
-    // sRGB → linear → XYZ (D65)
-    const rl = srgbToLinear(r / 255);
-    const gl = srgbToLinear(g / 255);
-    const bl = srgbToLinear(b / 255);
-    let x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
-    let y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750) / 1.00000;
-    let z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
-    const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
-    x = f(x); y = f(y); z = f(z);
-    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
-}
-
-/** CIE76 ΔE: Euclidean distance in Lab space */
-function deltaE(lab1: [number, number, number], lab2: [number, number, number]): number {
-    return Math.sqrt(
-        (lab1[0] - lab2[0]) ** 2 + (lab1[1] - lab2[1]) ** 2 + (lab1[2] - lab2[2]) ** 2,
-    );
-}
-
-function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-    h = ((h % 360) + 360) % 360;
-    const c = (1 - Math.abs(2 * l - 1)) * s;
-    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-    const m = l - c / 2;
-    let r1: number, g1: number, b1: number;
-    if (h < 60) { r1 = c; g1 = x; b1 = 0; }
-    else if (h < 120) { r1 = x; g1 = c; b1 = 0; }
-    else if (h < 180) { r1 = 0; g1 = c; b1 = x; }
-    else if (h < 240) { r1 = 0; g1 = x; b1 = c; }
-    else if (h < 300) { r1 = x; g1 = 0; b1 = c; }
-    else { r1 = c; g1 = 0; b1 = x; }
-    return [
-        Math.round((r1 + m) * 255),
-        Math.round((g1 + m) * 255),
-        Math.round((b1 + m) * 255),
-    ];
-}
-
-/**
- * Generate N player colors with guaranteed perceptual separation.
- * Uses CIELAB ΔE (CIE76) to measure perceptual distance.
- * Human player always gets blue (hue 220).
- * AI colors are greedily selected to maximize minimum ΔE from all existing colors.
- */
-function generatePlayerColors(count: number): string[] {
-    const colors: string[] = [];
-    const labs: [number, number, number][] = [];
-
-    // Human always gets blue
-    const humanRgb = hslToRgb(HUMAN_HUE, BASE_SATURATION, BASE_LIGHTNESS);
-    colors.push(`#${humanRgb.map(c => c.toString(16).padStart(2, '0')).join('')}`);
-    labs.push(rgbToLab(...humanRgb));
-
-    if (count <= 1) return colors;
-
-    // Generate candidate pool: 72 hues at 5° intervals (skip near-human zone ±25°)
-    const candidates: { hue: number; rgb: [number, number, number]; lab: [number, number, number] }[] = [];
-    for (let h = 0; h < 360; h += 5) {
-        // Skip hues too close to human hue (within MIN_HUE_SEPARATION)
-        const dist = Math.min(Math.abs(h - HUMAN_HUE), 360 - Math.abs(h - HUMAN_HUE));
-        if (dist < MIN_HUE_SEPARATION) continue;
-        const rgb = hslToRgb(h, BASE_SATURATION, BASE_LIGHTNESS);
-        candidates.push({ hue: h, rgb, lab: rgbToLab(...rgb) });
-    }
-
-    // Greedy selection: pick candidate with max minimum ΔE to all chosen colors
-    for (let pick = 1; pick < count; pick++) {
-        let bestIdx = 0;
-        let bestMinDE = -1;
-
-        for (let c = 0; c < candidates.length; c++) {
-            let minDE = Infinity;
-            for (const chosen of labs) {
-                const de = deltaE(candidates[c].lab, chosen);
-                if (de < minDE) minDE = de;
-            }
-            if (minDE > bestMinDE) {
-                bestMinDE = minDE;
-                bestIdx = c;
-            }
-        }
-
-        const winner = candidates[bestIdx];
-        colors.push(`#${winner.rgb.map(c => c.toString(16).padStart(2, '0')).join('')}`);
-        labs.push(winner.lab);
-        // Remove winner from candidates so it can't be picked again
-        candidates.splice(bestIdx, 1);
-    }
-
-    return colors;
-}
-
-
-
-
 // Legacy fixed palette — kept as fallback only
 const PLAYER_COLORS_LEGACY = [
     '#4488ff', // Blue (human)
@@ -176,6 +69,16 @@ const PLAYER_COLORS_LEGACY = [
     '#aa66ff', // Purple
     '#ff8844'  // Orange
 ];
+
+function generatePlayerColors(count: number): string[] {
+    const generated = buildPlayerPaletteHex(
+        PLAYER_PALETTE_DEFAULTS.anchorHue,
+        count,
+        PLAYER_PALETTE_DEFAULTS.saturation,
+        PLAYER_PALETTE_DEFAULTS.lightness,
+    );
+    return generated.length > 0 ? generated : PLAYER_COLORS_LEGACY.slice(0, count);
+}
 
 const DEFAULT_SETTINGS: GameSettings = {
     playerCount: 6,
@@ -1354,6 +1257,19 @@ function updateSettings(partial: Partial<GameSettings>): void {
     settings = { ...settings, ...partial };
 }
 
+function applyPlayerColors(colors: string[]): void {
+    settings = { ...settings, playerColors: colors };
+    if (!state) return;
+
+    let index = 0;
+    state.players.forEach((player: PlayerSchema) => {
+        player.color = colors[index] ?? player.color;
+        index++;
+    });
+
+    snapshot = toGameState(state);
+}
+
 async function startGame(): Promise<void> {
     // Destroy existing game if any
     destroyGame();
@@ -1602,6 +1518,7 @@ export const gameStore = {
     // Actions
     setView,
     updateSettings,
+    applyPlayerColors,
     startGame,
     pauseGame,
     resumeGame,

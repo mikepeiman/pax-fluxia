@@ -362,6 +362,14 @@ function startGame(): void {
     }
 }
 
+function applyPlayerColors(colors: string[]): void {
+    if (isMultiplayerMode()) {
+        multiplayerStore.applyPlayerColors(colors);
+    } else {
+        gameStore.applyPlayerColors(colors);
+    }
+}
+
 // ============================================================================
 // Order Validation (uses shared logic for optimistic UI)
 // ============================================================================
@@ -534,6 +542,7 @@ export const activeGameStore = {
     resumeGame,
     setSpeed,
     startGame,
+    applyPlayerColors,
     playAgain,
     returnToMenu,
     surrender,

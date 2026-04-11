@@ -556,7 +556,7 @@
       </div>
       <input
         type="range"
-        min="40"
+        min="0"
         max="220"
         step="5"
         value={panel.metaballInfluenceRadius ??

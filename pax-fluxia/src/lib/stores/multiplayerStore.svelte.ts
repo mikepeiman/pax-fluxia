@@ -619,6 +619,23 @@ function setTickInterval(ms: number): void {
     room?.send('setTickInterval', { ms });
 }
 
+function applyPlayerColors(colors: string[]): void {
+    if (colors.length === 0) return;
+    players = players.map((player, index) => ({
+        ...player,
+        color: colors[index] ?? player.color,
+    }));
+
+    const localIndex = players.findIndex(
+        (player) => (player as any).sessionId === localSessionId || player.id === localSessionId,
+    );
+    const localColor = colors[localIndex >= 0 ? localIndex : 0];
+    if (localColor) {
+        playerColor = localColor;
+        localStorage.setItem('pax_playerColor', localColor);
+    }
+}
+
 function restartGame(): void {
     log.net('Room', 'Sending requestRestart (vote)');
     room?.send('requestRestart');
@@ -735,6 +752,7 @@ export const multiplayerStore = {
     pauseGame,
     setSpeed,
     setTickInterval,
+    applyPlayerColors,
     issueOrder,
     cancelOrder,
     setDeferredOrder,

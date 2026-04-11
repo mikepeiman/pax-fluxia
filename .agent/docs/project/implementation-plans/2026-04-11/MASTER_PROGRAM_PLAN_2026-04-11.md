@@ -17,6 +17,13 @@ This document is the rolling master plan for 2026-04-11 and should be updated as
 
 ## Implementation Status
 
+### Latest completed slice
+
+- Player palette contrast was simplified and centralized around a 6-color anchored palette.
+- Main Menu now drives player colors from one master hue plus shared palette settings.
+- An in-game `Players` section now applies live palette changes during the current match.
+- Neutral fallback color regression was immediately corrected so neutral remains grey.
+
 ### Steps 1-3 completed in this slice
 
 The following concrete outputs now exist:
