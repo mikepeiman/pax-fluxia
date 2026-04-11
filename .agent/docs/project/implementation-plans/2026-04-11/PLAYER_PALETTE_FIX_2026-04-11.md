@@ -38,6 +38,8 @@ This slice also reduced duplicated palette logic:
 
 - Neutral fallback color was briefly regressed by the new generic owner-color fallback path.
 - It is now explicitly hard-pinned back to grey for `neutral` and empty owner IDs.
+- Live in-game palette adjustment also needed an explicit canvas/territory invalidation step.
+- Player color changes now bump the territory visual epoch so the battlefield actually repaints immediately.
 
 ## Validation
 

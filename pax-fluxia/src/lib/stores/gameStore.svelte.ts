@@ -1268,6 +1268,7 @@ function applyPlayerColors(colors: string[]): void {
     });
 
     snapshot = toGameState(state);
+    bumpTerritoryVisualConfig();
 }
 
 async function startGame(): Promise<void> {

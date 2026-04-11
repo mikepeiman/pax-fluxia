@@ -235,7 +235,7 @@
     );
 
     let showAIDetails = $state(false);
-    let showColorPalette = $state(false);
+    let showPlayerPaletteAdvanced = $state(false);
 
     // F-168: Random map preview thumbnail — uses real generateMap() engine via gameStore
     let thumbnailUrl = $state('');
@@ -981,6 +981,83 @@
                                     )}
                             />
                         </div>
+                    </div>
+
+                    <div class="player-colors-card">
+                        <div class="player-colors-card__header">
+                            <span class="player-colors-card__title"
+                                >PLAYER COLORS</span
+                            >
+                            <button
+                                class="toggle-details-btn"
+                                onclick={() =>
+                                    (showPlayerPaletteAdvanced =
+                                        !showPlayerPaletteAdvanced)}
+                                title="Advanced palette controls"
+                            >
+                                {showPlayerPaletteAdvanced ? "▾" : "▸"}
+                            </button>
+                        </div>
+
+                        <div class="player-colors-card__row">
+                            <label class="player-colors-card__label"
+                                >Anchor Hue</label
+                            >
+                            <input
+                                class="hue-slider player-colors-card__slider"
+                                type="range"
+                                min="0"
+                                max="359"
+                                step="1"
+                                bind:value={hueOffset}
+                                style="--hue: {hueOffset}"
+                            />
+                            <span class="value"
+                                >{Math.round(hueOffset)}°</span
+                            >
+                        </div>
+
+                        <div class="menu-palette-preview">
+                            {#each playerPaletteHues as hue, index}
+                                <div class="menu-palette-preview__slot">
+                                    <span
+                                        class="menu-palette-preview__swatch"
+                                        style="background: {hslToHex(hue)}"
+                                    ></span>
+                                    <span class="menu-palette-preview__label"
+                                        >P{index + 1}</span
+                                    >
+                                </div>
+                            {/each}
+                        </div>
+
+                        {#if showPlayerPaletteAdvanced}
+                            <div
+                                class="color-palette-row"
+                                transition:fly={{ y: -8, duration: 150 }}
+                            >
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">SAT</span>
+                                    <input
+                                        type="range"
+                                        min="40"
+                                        max="100"
+                                        bind:value={colorSat}
+                                    />
+                                    <span class="value">{colorSat}%</span>
+                                </div>
+                                <div class="hue-offset-inline">
+                                    <span class="mini-label">LUM</span>
+                                    <input
+                                        type="range"
+                                        min="30"
+                                        max="70"
+                                        bind:value={colorLig}
+                                    />
+                                    <span class="value">{colorLig}%</span>
+                                </div>
+                            </div>
+                        {/if}
                     </div>
 
                     <div class="start-actions-row">

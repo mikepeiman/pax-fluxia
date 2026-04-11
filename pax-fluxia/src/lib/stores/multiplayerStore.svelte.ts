@@ -12,6 +12,7 @@ import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { audioManager } from '$lib/services/audioManager.svelte';
 import { clearLanePolylineCache } from '$lib/lanes/lanePolylineCache';
 import { seedLaneCacheFromConnections } from '$lib/lanes/laneConnectionSync';
+import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 
 /** Options forwarded to Colyseus `create('game_room', opts)` (host map setup). */
 export type CreateRoomOptions = {
@@ -634,6 +635,8 @@ function applyPlayerColors(colors: string[]): void {
         playerColor = localColor;
         localStorage.setItem('pax_playerColor', localColor);
     }
+
+    bumpTerritoryVisualConfig();
 }
 
 function restartGame(): void {
