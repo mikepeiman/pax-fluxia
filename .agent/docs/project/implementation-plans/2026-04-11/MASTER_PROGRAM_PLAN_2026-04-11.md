@@ -869,3 +869,15 @@ Important limitation:
 
 - this change cannot be validated inside the current thread because the current command runner was launched under the prior sandbox settings
 - a full Codex restart is required before the new Windows sandbox mode is actually exercised
+
+Post-restart smoke test result:
+
+- `node --version` now works in the Codex command runner
+- `atlas-harness --help` now works in the Codex command runner
+- `bun --version` and `git status` remain healthy
+- `rg --version` still fails because resolution still points at the Codex app-bundled binary under `C:\Program Files\WindowsApps\OpenAI.Codex...`
+
+Current interpretation:
+
+- the Windows sandbox change materially improved the runner environment
+- the remaining issue is now narrower and appears specific to Codex-bundled `rg` resolution under WindowsApps
