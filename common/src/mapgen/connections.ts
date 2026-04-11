@@ -127,7 +127,10 @@ function ensureConnectedGraph<T extends Connectable>(
  * @param maxDistance    - Max edge length (default Infinity)
  * @param minLinks      - Min connections per node (default 1)
  * @param maxLinks      - Max connections per node (default 6)
- * @param passThroughClearancePx - Min distance from chord to any non-endpoint star (default 75 ≈ 45 MSR + 30 buffer)
+ * @param passThroughClearancePx - Lane margin: same px used later for sampled lane centerlines vs stars.
+ * @param laneCurveVsPruneBias - 0..1. Phase 4 tests the **straight chord** against clearance
+ *   `passThroughClearancePx * (1 - bias)`. **0** = prune/reconnect aggressively (topology); **1** = do not
+ *   prune for pass-through (keep edges; lane solver uses **curves** to satisfy lane margin).
  * @returns Canonical unidirectional connections
  */
 export function generateConnections<T extends Connectable>(
@@ -136,6 +139,7 @@ export function generateConnections<T extends Connectable>(
     minLinks: number = 1,
     maxLinks: number = 6,
     passThroughClearancePx: number = 75,
+    laneCurveVsPruneBias: number = 0,
 ): MapConnection[] {
     if (nodes.length < 2) return [];
 
@@ -252,8 +256,9 @@ export function generateConnections<T extends Connectable>(
         }
     }
 
-    // ── Phase 4: Prune pass-through connections ───────────────────────────
-    const clearance = Math.max(0, passThroughClearancePx);
+    // ── Phase 4: Prune pass-through connections (straight chord vs stars only) ──
+    const b = Math.min(1, Math.max(0, laneCurveVsPruneBias));
+    const clearance = Math.max(0, passThroughClearancePx * (1 - b));
 
     changed = true;
     while (changed) {

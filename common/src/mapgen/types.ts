@@ -67,18 +67,28 @@ export interface MapGenConfig {
     /** 0 = natural bbox after placement; 1 = scale/translate to fill padded play area (uniform, Delaunay-safe) */
     boardFit?: number;
     /**
-     * MSR (px) for pass-through prune: edges whose chord passes closer than
-     * `mapgenStarMarginPx + mapgenLaneBufferPx` to a non-endpoint star are dropped when possible.
-     * Default 45 — align with client `MODIFIED_VORONOI_STAR_MARGIN`.
+     * Client territory MSR (px); **not** used for lane pass-through or lane geometry — see `mapgenLaneMarginPx`.
+     * Still passed through mapgen config for server/client parity with `GAME_CONFIG`.
      */
     mapgenStarMarginPx?: number;
-    /** Extra clearance beyond MSR (default 30). */
-    mapgenLaneBufferPx?: number;
+    /**
+     * Minimum distance (px) from a Delaunay chord / sampled lane centerline to any non-endpoint star.
+     * Single knob for lane topology + curved solver (independent of territory MSR).
+     * Default **75** ≈ prior defaults 45 MSR + 30 “buffer”.
+     */
+    mapgenLaneMarginPx?: number;
     /**
      * `straight` = chord only. `curved` = straight when valid, else curve/detour
-     * (MSR clearance vs other stars; avoid crossing other lane centerlines).
+     * (lane-margin clearance vs other stars; avoid crossing other lane centerlines).
      */
     mapLaneMode?: 'straight' | 'curved';
+    /**
+     * 0..1 — **Phase 4 pass-through prune** strictness for the **straight chord** test only.
+     * **0**: prune when chord is within lane margin (prefer different topology / Phase 5 bridges).
+     * **1**: never prune on chord proximity; keep edges so the lane solver can use **curved** paths
+     * that still respect full lane margin on samples. **Lane margin** (`mapgenLaneMarginPx`) stays the hard clearance for drawn lanes.
+     */
+    mapgenLaneCurveVsPruneBias?: number;
 }
 
 /**

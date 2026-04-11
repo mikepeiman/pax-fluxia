@@ -1,29 +1,37 @@
 ---
-title: Map lanes (MSR + buffer) and cross-player CX
+title: Map lanes (lane margin) and cross-player CX
 date: 2026-04-10
 status: in_progress
-revision: 2026-04-09 — P1 lane contract + D_clear alignment (see § Progress)
+revision: 2026-04-10 — lane margin split from MSR; see § 1 and § Next
 source_plan: Cursor plan `lanes_msr_cx_spec_1bef4f59` (authoritative working copy may live under `.cursor/plans/`)
 ---
 
-# Map lanes (MSR + buffer) and cross-player CX — planning artifact
+# Map lanes (lane margin) and cross-player CX — planning artifact
+
+## Next (queued)
+
+- **Cross-player CX — midpoint vstars:** On lanes between **different owners**, add a **virtual star for each player** placed **near the geometric (or arc-length) midpoint** of the lane polyline so **enemy territory does not overlap** across the corridor. Extends `buildCorridorVirtualSites` / `computeCorridorVirtuals`; tune weight/spacing vs existing CX.
+
+## Curve vs prune (geometry vs topology)
+
+- **`MAPGEN_LANE_CURVE_VS_PRUNE_BIAS`** (0..1): Phase 4 tests the **straight lane** (line between endpoints) with clearance **`laneMargin × (1 − bias)`**; full **lane margin** still applies to **sampled** paths in `attachLaneWaypointsToConnections`. Curves are **constraint-driven**, not aesthetic.
 
 ## Progress (rolling)
 
 | Phase | Status (2026-04-09) |
 |-------|---------------------|
 | **P0** | Tunable clearance in `generateConnections`; **Phase 5 connectivity repair** after prune (single component, **G-1**); CX builder `buildCorridorVirtualSites` + `computeCorridorVirtuals`; cross-owner sampling. |
-| **P1** | Curved adaptive solver (chord-if-ok, **aesthetic bulge** on long chords when straight is valid, else Bézier/kink); **D_clear** on **drawn** lanes only; **Delaunay Phase 4 prune uses MSR-only** so topology is not over-tightened before lanes run. **`lanePathKind`**; motion via `lanePolylineCache`. Map & Grid / Main Menu **segmented** lane-mode control. **Remaining:** `validateLaneClearance` (P4). |
+| **P1** | Curved adaptive solver (chord-if-ok, necessity-only Bézier/kink); **lane margin** for prune + drawn lanes; **`lanePathKind`**; `lanePolylineCache`. Map & Grid / Main Menu **segmented** lane-mode control. **Remaining:** `validateLaneClearance` (P4). |
 | **P2** | MV still calls `buildCorridorVirtualSites` directly (same math as `computeCorridorVirtuals`); optional switch to `computeCorridorVirtuals` for one import path. |
 | **P3–P4** | Validator + FEATURE_STATUS row — not started. |
 
 ## Purpose (user goal)
 
-- **Lane clearance:** No **laneway** may pass within **MSR + laneBuffer** of any star **except** the two **endpoint** stars of that edge. **laneBuffer** default **30px**, **always tunable** (the historical fixed `35` in mapgen should never have been hardcoded).
+- **Lane clearance:** No **laneway** may pass within **`laneMargin_px`** of any star **except** the two **endpoint** stars of that edge. **`MAPGEN_LANE_MARGIN_PX`** is the single tunable (default **75** ≈ prior 45 MSR + 30 buffer). **MSR** applies to **territory ownership boundaries** only, not lane chords or polylines.
 - **Routing:** **Straight** vs **curved** (curved default). Prefer **one** curved segment when possible; allow **2–3 interior vertices** only when required for feasibility. Solver must have **hard iteration/time limits**—no endless loops, predictable perf.
 - **CX:** Corridor virtuals for **all** qualifying map connections—including **different owners**—so borders **meet** along the lane. The **same-owner guard must be removed**, not “narrowed”: cross-owner CX is an explicit requirement.
 - **Architecture:** **Single-source CX module** used by every territory/render path; **Metaball first** for development and confirmation, then **systematic verification** in each other mode.
-- **Live editing:** **Map & Grid** controls to adjust map-geometry parameters (**MSR**, **lane buffer**, lane mode, etc.) with **reactive updates while the game is paused** (re-solve or regen paths, bump caches).
+- **Live editing:** **Map & Grid** — **MSR** (territory), **lane margin** (topology + lane shape), lane mode; reactive updates while paused (lane margin rebuilds links; MSR bumps territory only).
 - **Motion:** Lane geometry must **interface with ship travel and conquest animations** via a shared **lane path** contract (waypoints / polyline), not ad hoc chords.
 - **Per-family tuning (conditional):** If different render families need different weights to reach acceptable geometry, plan for **separate exposed tunables per family**; if not observed in QA, keep one global set and document.
 
@@ -115,8 +123,8 @@ flowchart TB
 | Area | Location | Behavior today |
 |------|----------|----------------|
 | Map pipeline | [common/src/mapgen/index.ts](../../../../../common/src/mapgen/index.ts) | `generateStarPositions` → `generateConnections(..., passThroughClearancePx)` → `attachLaneWaypointsToConnections(..., D_clear)`. |
-| Connection geometry | [common/src/mapgen/connections.ts](../../../../../common/src/mapgen/connections.ts) | Delaunay + prune; Phase 4 pass-through uses caller **`passThroughClearancePx`** (typically MSR + lane buffer). |
-| MSR + buffer | [game.config.ts](../../../../../pax-fluxia/src/lib/config/game.config.ts), [gameStore](../../../../../pax-fluxia/src/lib/stores/gameStore.svelte.ts), `MapGenConfig` | Mapgen and live lane rebuild use **`MODIFIED_VORONOI_STAR_MARGIN`** + **`MAPGEN_LANE_BUFFER_PX`** for `D_clear`. |
+| Connection geometry | [common/src/mapgen/connections.ts](../../../../../common/src/mapgen/connections.ts) | Delaunay + prune; Phase 4 pass-through uses **`laneMargin_px`** (same as lane polylines). |
+| Lane margin + MSR | [game.config.ts](../../../../../pax-fluxia/src/lib/config/game.config.ts), [gameStore](../../../../../pax-fluxia/src/lib/stores/gameStore.svelte.ts), `MapGenConfig` | **`MAPGEN_LANE_MARGIN_PX`** → prune + polylines. **`MODIFIED_VORONOI_STAR_MARGIN`** → territory only. |
 | Lane waypoints | [lanePolylines.ts](../../../../../common/src/mapgen/lanePolylines.ts), [types.ts](../../../../../common/src/mapgen/types.ts) | `laneWaypoints` + **`lanePathKind`** (`straight` \| `curved`). |
 | CX virtuals | [buildCorridorVirtualSites.ts](../../../../../pax-fluxia/src/lib/territory/corridor/buildCorridorVirtualSites.ts), [territoryFeatures.ts](../../../../../pax-fluxia/src/lib/renderers/territoryFeatures.ts) | Cross-owner + polyline arc-length split; `computeCorridorVirtuals` canonicalizes. |
 | CX in MV | [ModifiedVoronoiRenderer](../../../../../pax-fluxia/src/lib/renderers/ModifiedVoronoiRenderer.ts) | Uses **`buildCorridorVirtualSites`** + `getLanePolyline` (same geometry as module; optional dedupe to `computeCorridorVirtuals` only). |
@@ -124,24 +132,24 @@ flowchart TB
 
 ---
 
-## 1) Lane clearance: MSR + laneBuffer
+## 1) Lane clearance: lane margin
 
 ### 1.1 Definitions
 
 - **Endpoint stars** of connection `(A,B)`: **exempt** from clearance for that lane’s path.
 - **Constraint stars**: all other stars.
-- **Clearance:** `D_clear = MSR_px + laneBuffer_px`.
+- **Clearance:** `D_lane = laneMargin_px` (`MAPGEN_LANE_MARGIN_PX`). **MSR is not added** to lane geometry.
 
 ### 1.2 Straight-lane mode
 
 - Path = segment `A–B`; use [pointToSegmentDistance](../../../../../common/src/mapgen/connections.ts) (or shared geom util).
-- Replace fixed **35** with **`D_clear`** from config.
+- Pass-through and sampling use **`D_lane`** from config.
 
 ### 1.3 Curved-lane mode (default)
 
 - **Prefer a single curve** (e.g. one quadratic or cubic Bézier) from A to B.
 - **Escalation:** If infeasible, introduce **2–3 interior polyline vertices** (or equivalent control points), still bounded.
-- **Constraints:** Minimum distance from **sampled** path to constraint stars ≥ `D_clear`.
+- **Constraints:** Minimum distance from **sampled** path to constraint stars ≥ `D_lane`.
 - **Solver safety (mandatory):**
   - **Maximum iteration count** and/or **wall-clock budget** (deterministic exit).
   - **No** `while (true)` without a proven decrementing measure.
@@ -157,12 +165,12 @@ flowchart TB
 
 ### 1.5 API / config
 
-- [MapGenConfig](../../../../../common/src/mapgen/types.ts): `laneMode`, `laneBufferPx`, `msrPx`; thread [generateMap](../../../../../common/src/mapgen/index.ts), [gameStore](../../../../../pax-fluxia/src/lib/stores/gameStore.svelte.ts), [GameRoom](../../../../../pax-server/src/rooms/GameRoom.ts).
+- [MapGenConfig](../../../../../common/src/mapgen/types.ts): `mapLaneMode`, `mapgenLaneMarginPx`, `mapgenStarMarginPx` (territory parity only); thread [generateMap](../../../../../common/src/mapgen/index.ts), [gameStore](../../../../../pax-fluxia/src/lib/stores/gameStore.svelte.ts), [GameRoom](../../../../../pax-server/src/rooms/GameRoom.ts).
 
 ### 1.6 UI — Map and Grid (live, paused)
 
-- Expose **MSR**, **lane buffer**, **lane geometry mode** (and related map knobs) in **ControlsSection Map & Grid** (not only one-shot game setup).
-- **Reactive behavior:** While **paused**, changing these controls triggers **recomputation** of lane paths (and any dependent territory caches—e.g. metaball reset, orchestrator bump) so the user sees **immediate** layout feedback without starting a new match.
+- Expose **MSR** (territory), **lane margin**, **lane geometry mode** in **ControlsSection Map & Grid**.
+- **Reactive behavior:** While **paused**, **lane margin** rebuilds Delaunay links + polylines + territory bump; **MSR** updates territory visuals without changing link topology.
 - Still store **gen-time snapshot** on the map for reproducibility/debug; live edits overlay **current** slider state until a new game is started if product requires that distinction.
 
 ---
@@ -200,7 +208,7 @@ Same-owner-only CX leaves **cross-player** chords weak; **third-party** influenc
 
 | Phase | Scope |
 |-------|--------|
-| **P0** | Tunable `D_clear` in mapgen; MSR + laneBuffer threaded from shared config; **CX module** scaffold + Metaball switched to it; **remove same-owner guard** in module for qualifying edges. |
+| **P0** | Tunable **`D_lane`** (`MAPGEN_LANE_MARGIN_PX`) in mapgen; **CX module** scaffold + Metaball; **remove same-owner guard** in module for qualifying edges. |
 | **P1** | Curved solver (single curve first; bounded multi-vertex); **LanePath** contract + **animation/movement** integration; Map & Grid **live paused** updates. |
 | **P2** | Modified Voronoi + compilers + DF + Pixel migrated to CX module; **per-family tuning** only if validated need. |
 | **P3** | Custom map validator; [TERRITORY_ARCHITECTURE.md](../../../game/territory/TERRITORY_ARCHITECTURE.md) / `.agent` decision; FEATURE_STATUS. |

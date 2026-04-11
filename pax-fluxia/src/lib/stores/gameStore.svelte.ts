@@ -567,11 +567,9 @@ function addDebugConnection(sourceId: string, targetId: string): void {
     state!.connections.push(c2);
 }
 
-/** D_clear for lane centerline vs non-endpoint stars (MSR + lane buffer); matches `@pax/common` mapgen. */
+/** Lane margin: clearance for chords / sampled centerlines vs non-endpoint stars (`@pax/common` mapgen). */
 function laneDClearancePx(): number {
-    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    const buf = GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30;
-    return Math.max(0, msr + buf);
+    return Math.max(0, GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75);
 }
 
 function refreshLanePolylinesFromConfig(): void {
@@ -585,6 +583,7 @@ function refreshLanePolylinesFromConfig(): void {
         laneDClearancePx(),
     );
     bumpTerritoryVisualConfig();
+    snapshot = toGameState(state);
 }
 
 /** Recompute Delaunay-based links from current star positions (same algorithm as mapgen). */
@@ -597,9 +596,13 @@ function rebuildConnectionsFromLaneClearance(): void {
 
     const minL = settings.minLinksPerStar ?? 1;
     const maxL = settings.maxLinksPerStar ?? 5;
-    const msr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-    /** Match `generateMap`: prune edges with MSR-only; lane polylines still use D_clear (MSR+buffer). */
-    const uni = generateConnections(nodes, Infinity, minL, maxL, Math.max(0, msr));
+    const lm = laneDClearancePx();
+    const curveVsPruneBias = Math.min(
+        1,
+        Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+    );
+    /** Match `generateMap`: Phase 4 chord clearance × (1−bias); lane polylines use full lane margin. */
+    const uni = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias);
 
     state.connections.length = 0;
     for (const c of uni) {
@@ -612,6 +615,7 @@ function rebuildConnectionsFromLaneClearance(): void {
         laneDClearancePx(),
     );
     bumpTerritoryVisualConfig();
+    snapshot = toGameState(state);
 }
 
 /** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
@@ -699,7 +703,11 @@ function generateMapPreview(opts: {
         maxLinksPerStar: opts.maxLinksPerStar,
         boardFit: opts.mapBoardFit,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+        mapgenLaneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+        mapgenLaneCurveVsPruneBias: Math.min(
+            1,
+            Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+        ),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
@@ -777,7 +785,11 @@ function initStandardMap(playerIds: string[]): void {
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
         boardFit: settings.mapBoardFit ?? 0,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        mapgenLaneBufferPx: GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+        mapgenLaneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+        mapgenLaneCurveVsPruneBias: Math.min(
+            1,
+            Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+        ),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 

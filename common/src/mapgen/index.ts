@@ -48,28 +48,20 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         y: pos.y,
     }));
 
-    const msr = config.mapgenStarMarginPx ?? 45;
-    const laneBuf = config.mapgenLaneBufferPx ?? 30;
-    const passThroughClearancePx = Math.max(0, msr + laneBuf);
-    /** Phase 4 prune: MSR only so topology is not over-tightened before lane geometry runs. */
-    const connectionPruneClearancePx = Math.max(0, msr);
+    const laneMarginPx = Math.max(0, config.mapgenLaneMarginPx ?? 75);
+    const curveVsPruneBias = Math.min(1, Math.max(0, config.mapgenLaneCurveVsPruneBias ?? 0));
 
     const connections = generateConnections(
         nodes,
         Infinity,
         config.minLinksPerStar ?? 1,
         config.maxLinksPerStar ?? 6,
-        connectionPruneClearancePx,
+        laneMarginPx,
+        curveVsPruneBias,
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
-    // Lane centerlines enforce full D_clear (MSR + buffer); graph edges use looser prune above.
-    attachLaneWaypointsToConnections(
-        nodes,
-        connections,
-        laneMode,
-        Math.max(0, passThroughClearancePx),
-    );
+    attachLaneWaypointsToConnections(nodes, connections, laneMode, laneMarginPx);
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }

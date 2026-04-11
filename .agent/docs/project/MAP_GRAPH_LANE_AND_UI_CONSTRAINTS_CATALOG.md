@@ -1,6 +1,6 @@
 ---
 title: Map graph, lanes, and Map & Grid UI — constraints catalog
-date: 2026-04-09
+date: 2026-04-10
 status: active
 related:
   - ./implementation-plans/2026-04-10/MAP_LANES_MSR_BUFFER_AND_CROSS_PLAYER_CX.md
@@ -8,7 +8,7 @@ related:
 
 # Map graph, lanes, and Map & Grid UI — constraints catalog
 
-Single place for **map topology**, **lane geometry**, **live UI**, and **related territory (CX/DX) expectations** that have been stated as requirements (originating design plus refinements from implementation discussion on **2026-04-09**).
+Single place for **map topology**, **lane geometry**, **live UI**, and **related territory (CX/DX) expectations** that have been stated as requirements (updated **2026-04-10** for lane margin split from MSR).
 
 **Legend:** **Must** = hard product constraint. **Should** = strong intent with known implementation gaps called out. **Plan** = captured in a planning artifact, rollout may be partial.
 
@@ -27,9 +27,9 @@ Single place for **map topology**, **lane geometry**, **live UI**, and **related
 
 | ID | Constraint |
 |----|------------|
-| **L-1** | **Plan.** **Phase 4 Delaunay prune** (which edges exist) uses **MSR-only** clearance to non-endpoints so the graph is not over-pruned before lanes run. **Drawn** lane segments (straight or curved) still respect **`D_clear = MSR_px + laneBuffer_px`** vs non-endpoints. Endpoints exempt per edge. **G-1 / G-2:** after pruning, **`generateConnections`** runs a **connectivity repair** pass so the final edge set remains a single component. |
-| **L-2** | **Must.** Sampled **curved** lane centerlines stay at least **`D_clear = MSR + laneBuffer`** from any non-endpoint star center (same numeric clearance as L-1 / MAP_LANES §1.3). Straight **map lane mode** still uses endpoint-to-endpoint chords only. |
-| **L-3** | **Must (session 2026-04-09).** In **curve-allowed** mode, lanes are **not** all curved: use a **straight chord** when it already satisfies **L-2** (and non-crossing rules below). Introduce curvature or a detour **only when necessary**. |
+| **L-1** | **Must.** **Drawn** lane centerlines (straight or curved) respect full **`laneMargin_px`** to non-endpoint stars. **Phase 4** pass-through uses the **straight chord** only, with effective test clearance **`laneMargin_px × (1 − curveVsPruneBias)`** (`MAPGEN_LANE_CURVE_VS_PRUNE_BIAS`, 0..1): lower bias favors **pruning** and Phase 5 **reconnect**; higher bias **keeps edges** so curved geometry can satisfy lane margin. **MSR** does not participate in lane geometry. **G-1 / G-2** unchanged. |
+| **L-2** | **Must.** Sampled **curved** lane centerlines stay at least **`laneMargin_px`** from any non-endpoint star center (same numeric clearance as L-1). Straight **map lane mode** uses endpoint-to-endpoint chords only. |
+| **L-3** | **Must.** In **curve-allowed** mode, lanes are **not** all curved: use a **straight chord** when it already satisfies **L-2** (and non-crossing rules below). Introduce curvature or a detour **only when necessary**. |
 | **L-4** | **Must (session 2026-04-09).** Lane centerlines **must not cross** each other (interior intersections between distinct edges). |
 | **L-5** | **Plan.** **Straight** mode: path is exactly the segment between endpoints; clearance checked accordingly. |
 | **L-6** | **Plan.** Curved solver: **prefer** a single curved segment (e.g. one Bézier); allow a **small** number of interior vertices only if required; **hard** iteration and/or time limits; capped sampling — no unbounded loops. |
@@ -93,5 +93,5 @@ These items describe **what the player should eventually perceive** and how **cu
 | Date | Notes |
 |------|--------|
 | 2026-04-09 | Initial catalog: connectivity **G-1**, adaptive lanes **L-3**, MSR obstacle **L-2**, non-crossing **L-4**, lane mode toggle **U-2**, DX neutral/pattern intent **D-1–D-3**; merged with MAP_LANES plan items **L-1**, **L-5–L-7**, **M-***, **U-1**, **C-***, **A-1**. |
-| 2026-04-09 | **L-2** unified with **D_clear** for curved sampling; **M-1** adds `lanePathKind` on `MapConnection`. |
+| 2026-04-10 | **L-1** / **L-2**: **lane margin** only for prune + lanes; MSR territory-only. |
 | 2026-04-09 | **G-1** expanded with **gameplay routing** wording; **G-2** promoted to **Must** + connectivity repair after prune (`common/mapgen/connections.ts` Phase 5). |

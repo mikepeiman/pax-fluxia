@@ -166,32 +166,45 @@
             msr: Math.round(
                 p.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
             ),
-            buf: Math.round(
-                p.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+            laneMargin: Math.round(
+                p.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+            ),
+            curveVsPruneBias: Math.min(
+                1,
+                Math.max(
+                    0,
+                    p.mapgenLaneCurveVsPruneBias ??
+                        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
+                        0.55,
+                ),
             ),
             mode,
         };
     }
 
     let menuStarMargin = $state(45);
-    let menuLaneBuffer = $state(30);
+    let menuLaneMargin = $state(75);
+    let menuCurveVsPruneBias = $state(0.55);
     let menuLaneMode = $state<"straight" | "curved">("curved");
 
     onMount(() => {
         const k = readLaneKnobsFromPanel();
         menuStarMargin = k.msr;
-        menuLaneBuffer = k.buf;
+        menuLaneMargin = k.laneMargin;
+        menuCurveVsPruneBias = k.curveVsPruneBias;
         menuLaneMode = k.mode;
     });
 
     function persistMenuLaneKnobs() {
         const full = loadPanelSettings(panelDefaultsFromConfig());
         full.starMargin = menuStarMargin;
-        full.mapgenLaneBufferPx = menuLaneBuffer;
+        full.mapgenLaneMarginPx = menuLaneMargin;
+        full.mapgenLaneCurveVsPruneBias = menuCurveVsPruneBias;
         full.mapgenLaneMode = menuLaneMode;
         savePanelSettings(full);
         GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
         GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
     }
 
@@ -223,7 +236,8 @@
 
     function generatePreview() {
         GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
         GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
         const { stars, connections } = gameStore.generateMapPreview({
             playerCount,
@@ -242,7 +256,7 @@
         // Regenerate when settings change or reshuffle is clicked
         void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void mapBoardFit; void previewSeed;
         void neutralStarCount; void specialStarPercentage;
-        void menuStarMargin; void menuLaneBuffer; void menuLaneMode;
+        void menuStarMargin; void menuLaneMargin; void menuCurveVsPruneBias; void menuLaneMode;
         generatePreview();
     });
 
@@ -338,7 +352,8 @@
         GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
         GAME_CONFIG.ALLOW_OPPOSING_ORDERS = allowOpposingOrders;
         GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = menuLaneBuffer;
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
         GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
 
         const selectedMap =
@@ -695,7 +710,7 @@
                                         </div>
                                     </div>
                                     <div class="config-item">
-                                        <label title="MSR — also used for territory">MSR (px)</label>
+                                        <label title="Territory / ownership boundary margin">MSR (px)</label>
                                         <div class="slider-container">
                                             <input
                                                 type="range"
@@ -709,17 +724,31 @@
                                         </div>
                                     </div>
                                     <div class="config-item">
-                                        <label title="Extra mapgen clearance beyond MSR">Lane buffer</label>
+                                        <label title="Lane chords & centerlines vs other stars (mapgen)">Lane margin (px)</label>
                                         <div class="slider-container">
                                             <input
                                                 type="range"
                                                 min="0"
-                                                max="120"
+                                                max="250"
                                                 step="5"
-                                                bind:value={menuLaneBuffer}
+                                                bind:value={menuLaneMargin}
                                                 oninput={() => persistMenuLaneKnobs()}
                                             />
-                                            <span class="value">{menuLaneBuffer}</span>
+                                            <span class="value">{menuLaneMargin}</span>
+                                        </div>
+                                    </div>
+                                    <div class="config-item">
+                                        <label title="0 = prune tight chords; 1 = keep edges for curves">Curve vs prune</label>
+                                        <div class="slider-container">
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.05"
+                                                bind:value={menuCurveVsPruneBias}
+                                                oninput={() => persistMenuLaneKnobs()}
+                                            />
+                                            <span class="value">{menuCurveVsPruneBias.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>

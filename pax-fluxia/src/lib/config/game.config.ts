@@ -290,15 +290,21 @@ interface GameConfigType {
     CONNECTION_SHADOW_ALPHA: number;
     SHOW_CONNECTIONS: boolean;
     /**
-     * Extra px beyond `MODIFIED_VORONOI_STAR_MARGIN` when pruning mapgen edges that pass too close to other stars.
-     * Pass-through clearance = MSR + this buffer.
+     * Minimum distance (px) from mapgen lane chords / sampled centerlines to non-endpoint stars.
+     * Drives Delaunay pass-through prune and curved-lane solver only — **not** territory MSR.
      */
-    MAPGEN_LANE_BUFFER_PX: number;
+    MAPGEN_LANE_MARGIN_PX: number;
     /**
      * Lane centerline: `straight` = chord only. `curved` = chord when it clears other
-     * stars (MSR) and does not cross other lanes; else Bézier or a short detour.
+     * stars at lane margin and does not cross other lanes; else Bézier or a short detour.
      */
     MAPGEN_LANE_MODE: 'straight' | 'curved';
+    /**
+     * 0..1 — Phase 4 tests only the **straight chord** vs stars using `laneMargin * (1 - bias)`.
+     * **0** = prune/reconnect when chord is tight (topology). **1** = keep edges; **curved** lane mode
+     * then satisfies full **lane margin** on sampled paths. Does not relax lane margin itself.
+     */
+    MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -411,7 +417,7 @@ interface GameConfigType {
     DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
-    MODIFIED_VORONOI_STAR_MARGIN: number;      // Min boundary distance from star centers in px (0-500)
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory ownership boundary margin from star centers (px, 0–500); not used for mapgen lane clearance
     MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
     MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
@@ -636,7 +642,17 @@ function loadSavedConfig(): Partial<GameConfigType> {
     if (typeof window === 'undefined') return {};
     try {
         const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+            const o = JSON.parse(raw) as Record<string, unknown>;
+            // Lane margin split from MSR (2026-04-10): old saves had additive buffer only
+            if ('MAPGEN_LANE_BUFFER_PX' in o && !('MAPGEN_LANE_MARGIN_PX' in o)) {
+                const buf = Number(o.MAPGEN_LANE_BUFFER_PX) || 30;
+                const msr = Number(o.MODIFIED_VORONOI_STAR_MARGIN) || 45;
+                o.MAPGEN_LANE_MARGIN_PX = msr + buf;
+                delete o.MAPGEN_LANE_BUFFER_PX;
+            }
+            return o as Partial<GameConfigType>;
+        }
     } catch { /* ignore corrupt data */ }
     return {};
 }
@@ -1108,10 +1124,13 @@ const _rawConfig: GameConfigType = {
     /** Maximum distance for star connections */
     CONNECTION_MAX_DISTANCE: 150, // Ignored by Delaunay but kept for Types
 
-    /** Added to MSR for Delaunay pass-through prune in `@pax/common/mapgen` */
-    MAPGEN_LANE_BUFFER_PX: 30,
+    /** Lane–obstacle clearance for mapgen + live lane rebuild (default ≈ old 45 MSR + 30 buffer) */
+    MAPGEN_LANE_MARGIN_PX: 75,
 
     MAPGEN_LANE_MODE: 'curved',
+
+    /** 0 = prune-first topology; 1 = keep edges for curved geometry (Phase 4 chord test scaled) */
+    MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',

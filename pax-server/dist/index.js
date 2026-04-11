@@ -34842,7 +34842,7 @@ var require_node_gyp_build_optional_packages = __commonJS((exports, module) => {
 
 // ../node_modules/.bun/msgpackr-extract@3.0.3/node_modules/msgpackr-extract/index.js
 var require_msgpackr_extract = __commonJS((exports, module) => {
-  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\msgpackr-extract@3.0.3\\node_modules\\msgpackr-extract";
+  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\msgpackr-extract@3.0.3\\node_modules\\msgpackr-extract";
   module.exports = require_node_gyp_build_optional_packages()(__dirname);
 });
 
@@ -38972,7 +38972,7 @@ function dynamicImport(moduleName) {
     return promise;
   }
 }
-var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\@colyseus+core@0.17.33+88ff834de43b6000\\node_modules\\@colyseus\\core\\build\\utils", __require2, REMOTE_ROOM_SHORT_TIMEOUT, MAX_CONCURRENT_CREATE_ROOM_WAIT_TIME, signals, Deferred = class _Deferred {
+var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\@colyseus+core@0.17.33+88ff834de43b6000\\node_modules\\@colyseus\\core\\build\\utils", __require2, REMOTE_ROOM_SHORT_TIMEOUT, MAX_CONCURRENT_CREATE_ROOM_WAIT_TIME, signals, Deferred = class _Deferred {
   constructor(promise) {
     this.promise = promise ?? new Promise((resolve, reject) => {
       this.resolve = resolve;
@@ -41397,7 +41397,7 @@ var require_autocast = __commonJS((exports) => {
 
 // ../node_modules/.bun/@pm2+io@6.1.0/node_modules/@pm2/io/build/main/configuration.js
 var require_configuration = __commonJS((exports) => {
-  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\@pm2+io@6.1.0\\node_modules\\@pm2\\io\\build\\main";
+  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\@pm2+io@6.1.0\\node_modules\\@pm2\\io\\build\\main";
   Object.defineProperty(exports, "__esModule", { value: true });
   var debug_1 = require_src2();
   var debug2 = (0, debug_1.default)("axm:configuration");
@@ -51590,7 +51590,7 @@ WD9f
 
 // ../node_modules/.bun/ioredis@5.9.2/node_modules/ioredis/built/utils/index.js
 var require_utils5 = __commonJS((exports) => {
-  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\ioredis@5.9.2\\node_modules\\ioredis\\built\\utils";
+  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\ioredis@5.9.2\\node_modules\\ioredis\\built\\utils";
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.noop = exports.defaults = exports.Debug = exports.getPackageMeta = exports.zipMap = exports.CONNECTION_CLOSED_ERROR_MSG = exports.shuffle = exports.sample = exports.resolveTLSProfile = exports.parseURL = exports.optimizeErrorStack = exports.toArg = exports.convertMapToArray = exports.convertObjectToArray = exports.timeout = exports.packObject = exports.isInt = exports.wrapMultiResult = exports.convertBufferToString = undefined;
   var fs_1 = __require("fs");
@@ -51876,7 +51876,7 @@ var require_argumentParsers = __commonJS((exports) => {
 
 // ../node_modules/.bun/ioredis@5.9.2/node_modules/ioredis/built/Command.js
 var require_Command = __commonJS((exports) => {
-  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\ioredis@5.9.2\\node_modules\\ioredis\\built";
+  var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\ioredis@5.9.2\\node_modules\\ioredis\\built";
   Object.defineProperty(exports, "__esModule", { value: true });
   var commands_1 = require_built();
   var calculateSlot = require_lib3();
@@ -85943,7 +85943,7 @@ class RedisStore extends import_express_session.Store {
 var esm_default = RedisStore;
 
 // ../node_modules/.bun/@colyseus+auth@0.17.6+88ff834de43b6000/node_modules/@colyseus/auth/build/oauth.mjs
-var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\@colyseus+auth@0.17.6+88ff834de43b6000\\node_modules\\@colyseus\\auth\\build";
+var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\@colyseus+auth@0.17.6+88ff834de43b6000\\node_modules\\@colyseus\\auth\\build";
 var oAuthProviderCallback = async (data, provider) => {
   console.debug("OAuth callback missing. Use oauth.onCallback() to persist user data.");
   return data;
@@ -86067,7 +86067,7 @@ var Hash = class {
 };
 
 // ../node_modules/.bun/@colyseus+auth@0.17.6+88ff834de43b6000/node_modules/@colyseus/auth/build/auth.mjs
-var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\@colyseus+auth@0.17.6+88ff834de43b6000\\node_modules\\@colyseus\\auth\\build";
+var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\@colyseus+auth@0.17.6+88ff834de43b6000\\node_modules\\@colyseus\\auth\\build";
 var onFindUserByEmail = (email) => {
   throw new Error("`auth.settings.onFindUserByEmail` not implemented.");
 };
@@ -86638,7 +86638,7 @@ var TimedEventException2 = class extends Error {
 };
 
 // ../node_modules/.bun/@colyseus+core@0.17.33+8f7dc0be1121f5c7/node_modules/@colyseus/core/build/utils/Utils.mjs
-var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\PRISM-Atlas-DART v1\\node_modules\\.bun\\@colyseus+core@0.17.33+8f7dc0be1121f5c7\\node_modules\\@colyseus\\core\\build\\utils";
+var __dirname = "C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\node_modules\\.bun\\@colyseus+core@0.17.33+8f7dc0be1121f5c7\\node_modules\\@colyseus\\core\\build\\utils";
 var REMOTE_ROOM_SHORT_TIMEOUT2 = Number(process.env.COLYSEUS_PRESENCE_SHORT_TIMEOUT || 2000);
 var MAX_CONCURRENT_CREATE_ROOM_WAIT_TIME2 = Number(process.env.COLYSEUS_MAX_CONCURRENT_CREATE_ROOM_WAIT_TIME || 0.5);
 function generateId2(length = 9) {
@@ -89977,89 +89977,6 @@ class GameEngine {
     return neighbors;
   }
 }
-// ../common/src/mapgen/placement.ts
-function generateHexGrid(width, height, radius) {
-  const hexWidth = radius * 2;
-  const hexHeight = Math.sqrt(3) * radius;
-  const xStep = hexWidth * 0.75;
-  const yStep = hexHeight;
-  const cols = Math.floor(width / xStep);
-  const rows = Math.floor(height / yStep);
-  const coords = [];
-  for (let row = 0;row < rows; row++) {
-    for (let col = 0;col < cols; col++) {
-      const x = col * xStep + radius;
-      let y = row * yStep + hexHeight / 2;
-      if (col % 2 === 1)
-        y += hexHeight / 2;
-      if (x + radius <= width && y + radius <= height) {
-        coords.push({ x: Math.round(x), y: Math.round(y) });
-      }
-    }
-  }
-  return coords;
-}
-function dist(a, b) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-function selectPositions(hexes, count, minSpacing, absoluteMinSpacing = 50) {
-  const floor = Math.max(absoluteMinSpacing, 50);
-  let spacing = minSpacing;
-  while (spacing >= floor) {
-    const selected = [];
-    const available = shuffled(hexes);
-    for (const hex of available) {
-      if (selected.length >= count)
-        break;
-      if (!selected.some((s) => dist(s, hex) < spacing)) {
-        selected.push(hex);
-      }
-    }
-    if (selected.length >= count)
-      return selected;
-    spacing *= 0.8;
-  }
-  return shuffled(hexes).slice(0, count);
-}
-function shuffled(arr) {
-  const copy2 = [...arr];
-  for (let i = copy2.length - 1;i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy2[i], copy2[j]] = [copy2[j], copy2[i]];
-  }
-  return copy2;
-}
-var STAR_RADIUS = 20;
-var SHIP_BASE_SIZE = 4;
-var RING_SPACING = SHIP_BASE_SIZE * 1.4;
-var MAX_ORBIT_LAYERS = 5;
-var SPACING_BUFFER = 20;
-function generateStarPositions(config2) {
-  const { totalStars, spacingMultiplier = 1 } = config2;
-  const scaleFactor = Math.max(1, spacingMultiplier);
-  const width = Math.round(config2.width * scaleFactor);
-  const height = Math.round(config2.height * scaleFactor);
-  const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
-  const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-  const paddingX = Math.round(basePaddingX * scaleFactor);
-  const paddingY = Math.round(basePaddingY * scaleFactor);
-  let hexRadius = config2.hexRadius ?? 60;
-  const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
-  const neededPositions = totalStars * 3;
-  const maxHexArea = gridArea / neededPositions;
-  const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
-  hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
-  const gridWidth = width - paddingX * 2;
-  const gridHeight = height - paddingY * 2;
-  const rawHexes = generateHexGrid(gridWidth, gridHeight, hexRadius);
-  const hexes = rawHexes.map((h) => ({ x: h.x + paddingX, y: h.y + paddingY }));
-  const physicsMinSpacing = STAR_RADIUS * 2 + RING_SPACING * MAX_ORBIT_LAYERS * 2 + SPACING_BUFFER;
-  const minSpacing = physicsMinSpacing * spacingMultiplier;
-  const positions = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing);
-  return { positions, hexRadius, width, height, paddingX, paddingY };
-}
 // ../node_modules/.bun/robust-predicates@3.0.2/node_modules/robust-predicates/esm/util.js
 var epsilon = 0.00000000000000011102230246251565;
 var splitter = 134217729;
@@ -90474,7 +90391,7 @@ class Delaunator {
     const cy = (minY + maxY) / 2;
     let i0, i1, i2;
     for (let i = 0, minDist = Infinity;i < n; i++) {
-      const d = dist2(cx, cy, coords[2 * i], coords[2 * i + 1]);
+      const d = dist(cx, cy, coords[2 * i], coords[2 * i + 1]);
       if (d < minDist) {
         i0 = i;
         minDist = d;
@@ -90485,7 +90402,7 @@ class Delaunator {
     for (let i = 0, minDist = Infinity;i < n; i++) {
       if (i === i0)
         continue;
-      const d = dist2(i0x, i0y, coords[2 * i], coords[2 * i + 1]);
+      const d = dist(i0x, i0y, coords[2 * i], coords[2 * i + 1]);
       if (d < minDist && d > 0) {
         i1 = i;
         minDist = d;
@@ -90540,7 +90457,7 @@ class Delaunator {
     this._cx = center.x;
     this._cy = center.y;
     for (let i = 0;i < n; i++) {
-      this._dists[i] = dist2(coords[2 * i], coords[2 * i + 1], center.x, center.y);
+      this._dists[i] = dist(coords[2 * i], coords[2 * i + 1], center.x, center.y);
     }
     quicksort(this._ids, this._dists, 0, n - 1);
     this._hullStart = i0;
@@ -90695,7 +90612,7 @@ function pseudoAngle(dx, dy) {
   const p = dx / (Math.abs(dx) + Math.abs(dy));
   return (dy > 0 ? 3 - p : 1 + p) / 4;
 }
-function dist2(ax, ay, bx, by) {
+function dist(ax, ay, bx, by) {
   const dx = ax - bx;
   const dy = ay - by;
   return dx * dx + dy * dy;
@@ -91467,7 +91384,76 @@ function pointToSegmentDistance(px, py, ax, ay, bx, by) {
   const projY = ay + t * dy;
   return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2);
 }
-function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLinks = 6) {
+function ensureConnectedGraph(nodes, finalEdges, linkCount, nodeEdges, edgeKey) {
+  if (nodes.length < 2)
+    return;
+  const ids = nodes.map((n) => n.id);
+  const ufParent = new Map;
+  const ufFind = (x) => {
+    let p = ufParent.get(x);
+    if (p === undefined) {
+      ufParent.set(x, x);
+      return x;
+    }
+    if (p !== x) {
+      const r = ufFind(p);
+      ufParent.set(x, r);
+      return r;
+    }
+    return x;
+  };
+  const ufUnion = (a, b) => {
+    const ra = ufFind(a);
+    const rb = ufFind(b);
+    if (ra === rb)
+      return;
+    ufParent.set(rb, ra);
+  };
+  const seenCand = new Set;
+  const candidates = [];
+  for (const n of nodes) {
+    for (const e of nodeEdges.get(n.id) ?? []) {
+      const key = edgeKey(n.id, e.targetId);
+      if (seenCand.has(key))
+        continue;
+      seenCand.add(key);
+      if (finalEdges.has(key))
+        continue;
+      const a = n.id <= e.targetId ? n.id : e.targetId;
+      const b = n.id <= e.targetId ? e.targetId : n.id;
+      candidates.push({ key, a, b, d: e.distance });
+    }
+  }
+  candidates.sort((u4, v2) => u4.d - v2.d);
+  const maxBridgeAdds = Math.max(0, nodes.length * 4);
+  let adds = 0;
+  while (adds < maxBridgeAdds) {
+    ufParent.clear();
+    for (const id of ids)
+      ufParent.set(id, id);
+    for (const key of finalEdges) {
+      const [a, b] = key.split("|");
+      ufUnion(a, b);
+    }
+    const roots = new Set(ids.map((id) => ufFind(id)));
+    if (roots.size <= 1)
+      return;
+    let bridged = false;
+    for (const c of candidates) {
+      if (ufFind(c.a) !== ufFind(c.b)) {
+        finalEdges.add(c.key);
+        linkCount.set(c.a, (linkCount.get(c.a) ?? 0) + 1);
+        linkCount.set(c.b, (linkCount.get(c.b) ?? 0) + 1);
+        bridged = true;
+        adds++;
+        break;
+      }
+    }
+    if (!bridged)
+      return;
+  }
+}
+function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLinks = 6, passThroughClearancePx = 75) {
   if (nodes.length < 2)
     return [];
   const points = nodes.map((n) => [n.x, n.y]);
@@ -91481,10 +91467,10 @@ function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLin
         const b = nodes[j];
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const dist3 = Math.sqrt(dx * dx + dy * dy);
-        if (dist3 <= maxDistance) {
-          nodeEdges.get(a.id).push({ targetId: b.id, distance: dist3 });
-          nodeEdges.get(b.id).push({ targetId: a.id, distance: dist3 });
+        const dist2 = Math.sqrt(dx * dx + dy * dy);
+        if (dist2 <= maxDistance) {
+          nodeEdges.get(a.id).push({ targetId: b.id, distance: dist2 });
+          nodeEdges.get(b.id).push({ targetId: a.id, distance: dist2 });
         }
       }
     }
@@ -91569,7 +91555,7 @@ function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLin
       }
     }
   }
-  const CLEARANCE = 35;
+  const clearance = Math.max(0, passThroughClearancePx);
   changed = true;
   while (changed) {
     changed = false;
@@ -91581,7 +91567,7 @@ function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLin
       for (const other of nodes) {
         if (other.id === aId || other.id === bId)
           continue;
-        if (pointToSegmentDistance(other.x, other.y, a.x, a.y, b.x, b.y) < CLEARANCE) {
+        if (pointToSegmentDistance(other.x, other.y, a.x, a.y, b.x, b.y) < clearance) {
           passesThrough = true;
           break;
         }
@@ -91598,6 +91584,7 @@ function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLin
       }
     }
   }
+  ensureConnectedGraph(nodes, finalEdges, linkCount, nodeEdges, edgeKey);
   const connections = [];
   finalEdges.forEach((key) => {
     const [sourceId, targetId] = key.split("|");
@@ -91609,22 +91596,396 @@ function generateConnections(nodes, maxDistance = Infinity, minLinks = 1, maxLin
   });
   return connections;
 }
+
+// ../common/src/mapgen/lanePolylines.ts
+var INTERIOR_T = 0.001;
+var STAR_TOUCH_PX = 3;
+function hypot(dx, dy) {
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function quadBezierPoint(ax, ay, cx, cy, bx, by, t) {
+  const mt = 1 - t;
+  const x = mt * mt * ax + 2 * mt * t * cx + t * t * bx;
+  const y = mt * mt * ay + 2 * mt * t * cy + t * t * by;
+  return [x, y];
+}
+function chordClearOfObstacles(ax, ay, bx, by, obstacles, minDist) {
+  for (const o of obstacles) {
+    if (pointToSegmentDistance(o.x, o.y, ax, ay, bx, by) < minDist)
+      return false;
+  }
+  return true;
+}
+function polylineClearOfObstacles(pts, obstacles, minDist) {
+  for (let i = 0;i < pts.length - 1; i++) {
+    const x1 = pts[i][0], y1 = pts[i][1];
+    const x2 = pts[i + 1][0], y2 = pts[i + 1][1];
+    if (!chordClearOfObstacles(x1, y1, x2, y2, obstacles, minDist))
+      return false;
+    for (let s = 1;s < 8; s++) {
+      const t = s / 8;
+      const px = x1 + (x2 - x1) * t;
+      const py = y1 + (y2 - y1) * t;
+      for (const o of obstacles) {
+        if (hypot(px - o.x, py - o.y) < minDist)
+          return false;
+      }
+    }
+  }
+  return true;
+}
+function intersectionParams(ax, ay, bx, by, cx, cy, dx, dy) {
+  const rdx = bx - ax, rdy = by - ay;
+  const sdx = dx - cx, sdy = dy - cy;
+  const denom = rdx * sdy - rdy * sdx;
+  if (Math.abs(denom) < 0.00000000000001)
+    return { hit: false, t: 0 };
+  const acx = cx - ax, acy = cy - ay;
+  const t = (acx * sdy - acy * sdx) / denom;
+  const s = (acx * rdy - acy * rdx) / denom;
+  if (t > INTERIOR_T && t < 1 - INTERIOR_T && s > INTERIOR_T && s < 1 - INTERIOR_T) {
+    return { hit: true, t };
+  }
+  return { hit: false, t };
+}
+function nearAnyStarCenter(px, py, stars) {
+  for (const s of stars) {
+    if (hypot(px - s.x, py - s.y) < STAR_TOUCH_PX)
+      return true;
+  }
+  return false;
+}
+function polylineCrossesPlaced(pts, placed, starCenters) {
+  for (let i = 0;i < pts.length - 1; i++) {
+    const ax = pts[i][0], ay = pts[i][1], bx = pts[i + 1][0], by = pts[i + 1][1];
+    for (const seg of placed) {
+      const { hit, t } = intersectionParams(ax, ay, bx, by, seg.ax, seg.ay, seg.bx, seg.by);
+      if (!hit)
+        continue;
+      const ix = ax + (bx - ax) * t;
+      const iy = ay + (by - ay) * t;
+      if (nearAnyStarCenter(ix, iy, starCenters))
+        continue;
+      return true;
+    }
+  }
+  return false;
+}
+function polylineToSegments(pts) {
+  const out = [];
+  for (let i = 0;i < pts.length - 1; i++) {
+    out.push({ ax: pts[i][0], ay: pts[i][1], bx: pts[i + 1][0], by: pts[i + 1][1] });
+  }
+  return out;
+}
+function bezierSamplesClear(ax, ay, cx, cy, bx, by, obstacles, minDist) {
+  for (let i = 0;i <= 20; i++) {
+    const t = i / 20;
+    const [px, py] = quadBezierPoint(ax, ay, cx, cy, bx, by, t);
+    for (const o of obstacles) {
+      if (hypot(px - o.x, py - o.y) < minDist)
+        return false;
+    }
+  }
+  return true;
+}
+function buildBezierWaypoints(ax, ay, bx, by, bulgeSign, bestD) {
+  const chord = hypot(bx - ax, by - ay);
+  const mx = (ax + bx) * 0.5;
+  const my = (ay + by) * 0.5;
+  const ux = (bx - ax) / chord;
+  const uy = (by - ay) / chord;
+  const px = -uy * bulgeSign;
+  const py = ux * bulgeSign;
+  const cx = mx + px * bestD;
+  const cy = my + py * bestD;
+  const steps = 16;
+  const out = [];
+  for (let i = 0;i <= steps; i++) {
+    const t = i / steps;
+    out.push(quadBezierPoint(ax, ay, cx, cy, bx, by, t));
+  }
+  return out;
+}
+function searchBulge(ax, ay, bx, by, obstacles, minDist, bulgeSign) {
+  const chord = hypot(bx - ax, by - ay);
+  if (chord < 1)
+    return 0;
+  const dMax = Math.min(chord * 0.38, 220);
+  let lo = 0;
+  let hi = dMax;
+  let best = 0;
+  for (let iter = 0;iter < 14; iter++) {
+    const mid = (lo + hi) * 0.5;
+    const mx = (ax + bx) * 0.5;
+    const my = (ay + by) * 0.5;
+    const ux = (bx - ax) / chord;
+    const uy = (by - ay) / chord;
+    const px = -uy * bulgeSign;
+    const py = ux * bulgeSign;
+    const cx = mx + px * mid;
+    const cy = my + py * mid;
+    if (bezierSamplesClear(ax, ay, cx, cy, bx, by, obstacles, minDist)) {
+      best = mid;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return best;
+}
+function trySingleKinkDetour(ax, ay, bx, by, obstacles, minDist, placed, starCenters) {
+  const chord = hypot(bx - ax, by - ay);
+  if (chord < 1)
+    return null;
+  const mx = (ax + bx) * 0.5;
+  const my = (ay + by) * 0.5;
+  const ux = (bx - ax) / chord;
+  const uy = (by - ay) / chord;
+  const nx = -uy;
+  const ny = ux;
+  const dMax = Math.min(chord * 0.35, 180);
+  for (let step = 0;step < 16; step++) {
+    const off = dMax * (step + 1) / 16;
+    for (const sign of [1, -1]) {
+      const kx = mx + nx * off * sign;
+      const ky = my + ny * off * sign;
+      const pts = [[ax, ay], [kx, ky], [bx, by]];
+      if (!polylineClearOfObstacles(pts, obstacles, minDist))
+        continue;
+      if (polylineCrossesPlaced(pts, placed, starCenters))
+        continue;
+      return pts;
+    }
+  }
+  return null;
+}
+function solveAdaptiveWaypoints(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters) {
+  const straight = [[ax, ay], [bx, by]];
+  const okStraight = chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx) && polylineClearOfObstacles(straight, obstacles, clearancePx) && !polylineCrossesPlaced(straight, placed, starCenters);
+  if (okStraight)
+    return straight;
+  for (const bulgeSign of [1, -1]) {
+    const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
+    if (best < hypot(bx - ax, by - ay) * 0.015)
+      continue;
+    const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
+    if (!polylineClearOfObstacles(cand, obstacles, clearancePx))
+      continue;
+    if (polylineCrossesPlaced(cand, placed, starCenters))
+      continue;
+    return cand;
+  }
+  const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
+  if (kink)
+    return kink;
+  return straight;
+}
+function attachLaneWaypointsToConnections(nodes, connections, mode, laneObstacleClearancePx) {
+  const pos = new Map(nodes.map((n) => [n.id, n]));
+  const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
+  const withLen = connections.map((c) => {
+    const a = pos.get(c.sourceId);
+    const b = pos.get(c.targetId);
+    const dist2 = a && b ? hypot(b.x - a.x, b.y - a.y) : 0;
+    return { c, dist: dist2 };
+  });
+  withLen.sort((u4, v2) => v2.dist - u4.dist);
+  const placed = [];
+  for (const { c } of withLen) {
+    const a = pos.get(c.sourceId);
+    const b = pos.get(c.targetId);
+    if (!a || !b)
+      continue;
+    const obstacles = nodes.filter((n) => n.id !== c.sourceId && n.id !== c.targetId).map((n) => ({ x: n.x, y: n.y }));
+    const clearance = Math.max(0, laneObstacleClearancePx);
+    let wp;
+    let pathKind;
+    if (mode === "straight") {
+      wp = [[a.x, a.y], [b.x, b.y]];
+      pathKind = "straight";
+    } else {
+      wp = solveAdaptiveWaypoints(a.x, a.y, b.x, b.y, obstacles, clearance, placed, starCenters);
+      pathKind = wp.length <= 2 ? "straight" : "curved";
+    }
+    c.laneWaypoints = wp;
+    c.lanePathKind = pathKind;
+    placed.push(...polylineToSegments(wp));
+  }
+}
+// ../common/src/mapgen/placement.ts
+function generateHexGrid(width, height, radius) {
+  const hexWidth = radius * 2;
+  const hexHeight = Math.sqrt(3) * radius;
+  const xStep = hexWidth * 0.75;
+  const yStep = hexHeight;
+  const cols = Math.floor(width / xStep);
+  const rows = Math.floor(height / yStep);
+  const coords = [];
+  for (let row = 0;row < rows; row++) {
+    for (let col = 0;col < cols; col++) {
+      const x = col * xStep + radius;
+      let y = row * yStep + hexHeight / 2;
+      if (col % 2 === 1)
+        y += hexHeight / 2;
+      if (x + radius <= width && y + radius <= height) {
+        coords.push({ x: Math.round(x), y: Math.round(y) });
+      }
+    }
+  }
+  return coords;
+}
+function dist2(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function minDistToSelected(hex, selected) {
+  let m = Infinity;
+  for (const s of selected) {
+    const d = dist2(s, hex);
+    if (d < m)
+      m = d;
+  }
+  return m;
+}
+function selectPositions(hexes, count, minSpacing, absoluteMinSpacing = 50, placementUniformity = 1) {
+  const u4 = Math.max(0, Math.min(1, placementUniformity));
+  const floor = Math.max(absoluteMinSpacing, 50);
+  let spacing = minSpacing;
+  while (spacing >= floor) {
+    const pool2 = shuffled(hexes);
+    const selected = [];
+    if (pool2.length === 0)
+      break;
+    const seedIdx = Math.floor(Math.random() * pool2.length);
+    selected.push(pool2[seedIdx]);
+    pool2.splice(seedIdx, 1);
+    while (selected.length < count && pool2.length > 0) {
+      const candidates = pool2.filter((h) => selected.every((s) => dist2(s, h) >= spacing));
+      if (candidates.length === 0)
+        break;
+      let best = candidates[0];
+      let bestScore = minDistToSelected(best, selected);
+      for (let i = 1;i < candidates.length; i++) {
+        const h = candidates[i];
+        const score = minDistToSelected(h, selected);
+        if (score > bestScore) {
+          bestScore = score;
+          best = h;
+        }
+      }
+      const chosen = Math.random() < u4 ? best : candidates[Math.floor(Math.random() * candidates.length)];
+      selected.push(chosen);
+      const ri = pool2.indexOf(chosen);
+      if (ri >= 0)
+        pool2.splice(ri, 1);
+    }
+    if (selected.length >= count)
+      return selected;
+    spacing *= 0.8;
+  }
+  return shuffled(hexes).slice(0, count);
+}
+var BOARD_FIT_INSET = 25;
+function applyBoardFit(positions, width, height, paddingX, paddingY, boardFit) {
+  const t = Math.max(0, Math.min(1, boardFit));
+  if (t <= 0 || positions.length < 2)
+    return positions;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of positions) {
+    if (p.x < minX)
+      minX = p.x;
+    if (p.y < minY)
+      minY = p.y;
+    if (p.x > maxX)
+      maxX = p.x;
+    if (p.y > maxY)
+      maxY = p.y;
+  }
+  const bboxW = maxX - minX;
+  const bboxH = maxY - minY;
+  if (bboxW <= 0 || bboxH <= 0)
+    return positions;
+  const innerW = width - 2 * paddingX - 2 * BOARD_FIT_INSET;
+  const innerH = height - 2 * paddingY - 2 * BOARD_FIT_INSET;
+  if (innerW <= 0 || innerH <= 0)
+    return positions;
+  const scaleFull = Math.min(innerW / bboxW, innerH / bboxH);
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
+  const targetX = width / 2;
+  const targetY = height / 2;
+  return positions.map((p) => {
+    const fx = (p.x - midX) * scaleFull + targetX;
+    const fy = (p.y - midY) * scaleFull + targetY;
+    return {
+      x: p.x + (fx - p.x) * t,
+      y: p.y + (fy - p.y) * t
+    };
+  });
+}
+function shuffled(arr) {
+  const copy2 = [...arr];
+  for (let i = copy2.length - 1;i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy2[i], copy2[j]] = [copy2[j], copy2[i]];
+  }
+  return copy2;
+}
+var STAR_RADIUS = 20;
+var SHIP_BASE_SIZE = 4;
+var RING_SPACING = SHIP_BASE_SIZE * 1.4;
+var MAX_ORBIT_LAYERS = 5;
+var SPACING_BUFFER = 20;
+function generateStarPositions(config2) {
+  const { totalStars, spacingMultiplier = 1, boardFit = 0 } = config2;
+  const scaleFactor = Math.max(1, spacingMultiplier);
+  const width = Math.round(config2.width * scaleFactor);
+  const height = Math.round(config2.height * scaleFactor);
+  const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
+  const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
+  const paddingX = Math.round(basePaddingX * scaleFactor);
+  const paddingY = Math.round(basePaddingY * scaleFactor);
+  let hexRadius = config2.hexRadius ?? 60;
+  const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
+  const neededPositions = totalStars * 3;
+  const maxHexArea = gridArea / neededPositions;
+  const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
+  hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
+  const gridWidth = width - paddingX * 2;
+  const gridHeight = height - paddingY * 2;
+  const rawHexes = generateHexGrid(gridWidth, gridHeight, hexRadius);
+  const hexes = rawHexes.map((h) => ({ x: h.x + paddingX, y: h.y + paddingY }));
+  const physicsMinSpacing = STAR_RADIUS * 2 + RING_SPACING * MAX_ORBIT_LAYERS * 2 + SPACING_BUFFER;
+  const minSpacing = physicsMinSpacing * spacingMultiplier;
+  const raw = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing, boardFit);
+  const positions = applyBoardFit(raw, width, height, paddingX, paddingY, boardFit);
+  return { positions, hexRadius, width, height, paddingX, paddingY };
+}
 // ../common/src/mapgen/index.ts
 function generateMap(config2) {
-  const totalStars = config2.playerCount * config2.starsPerPlayer;
+  const totalStars = config2.playerCount * config2.starsPerPlayer + (config2.extraNeutralStars ?? 0);
   const { positions, hexRadius, width, height, paddingX, paddingY } = generateStarPositions({
     width: config2.width,
     height: config2.height,
     totalStars,
     spacingMultiplier: config2.spacingMultiplier,
-    hexRadius: config2.hexRadius
+    hexRadius: config2.hexRadius,
+    boardFit: config2.boardFit
   });
   const nodes = positions.map((pos, i) => ({
     id: `star-${i}`,
     x: pos.x,
     y: pos.y
   }));
-  const connections = generateConnections(nodes, Infinity, config2.minLinksPerStar ?? 1, config2.maxLinksPerStar ?? 6);
+  const laneMarginPx = Math.max(0, config2.mapgenLaneMarginPx ?? 75);
+  const connections = generateConnections(nodes, Infinity, config2.minLinksPerStar ?? 1, config2.maxLinksPerStar ?? 6, laneMarginPx);
+  const laneMode = config2.mapLaneMode ?? "curved";
+  attachLaneWaypointsToConnections(nodes, connections, laneMode, laneMarginPx);
   return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }
 // ../common/src/ai/AI.ts
@@ -91835,6 +92196,7 @@ class GameRoom extends Room {
   roomOptions = {};
   engineConfig = { ...DEFAULT_ENGINE_CONFIG };
   restartVotes = new Set;
+  startVotes = new Set;
   onCreate(options) {
     try {
       log.sys("GameRoom", `onCreate: players=${options.playerCount || 4}, map=${options.mapType || "standard"}`);
@@ -92111,6 +92473,8 @@ class GameRoom extends Room {
         this.roomOptions.shipsPerStar = message.shipsPerStar;
       if (message.starSpacing)
         this.roomOptions.starSpacing = message.starSpacing;
+      if (message.mapBoardFit !== undefined)
+        this.roomOptions.mapBoardFit = message.mapBoardFit;
       this.updateListingMetadata();
       log.game("GameRoom", `Room options updated by host`);
     });
@@ -92268,6 +92632,47 @@ class GameRoom extends Room {
       log.net("GameRoom", `Host ${client.sessionId} disposed room`);
       this.disconnect();
     });
+    this.onMessage("chat", (client, message) => {
+      if (!message.text || typeof message.text !== "string")
+        return;
+      const text = message.text.trim().slice(0, 500);
+      if (!text)
+        return;
+      const player = this.state.players.get(client.sessionId);
+      const senderName = player?.name || "Unknown";
+      const senderColor = player?.color || "#888888";
+      this.broadcast("chat", {
+        senderId: client.sessionId,
+        senderName,
+        senderColor,
+        text,
+        timestamp: Date.now()
+      });
+      log.net("GameRoom", `Chat from ${senderName}: ${text.slice(0, 80)}`);
+    });
+    this.onMessage("voteToStart", (client) => {
+      if (this.state.phase !== "lobby")
+        return;
+      if (client.sessionId === this.state.hostSessionId)
+        return;
+      const player = this.state.players.get(client.sessionId);
+      if (!player || player.isAI)
+        return;
+      this.startVotes.add(client.sessionId);
+      const connectedIds = new Set(this.clients.map((c) => c.sessionId));
+      let nonHostHumans = 0;
+      this.state.players.forEach((p, sid) => {
+        if (!p.isAI && connectedIds.has(sid) && sid !== this.state.hostSessionId)
+          nonHostHumans++;
+      });
+      const currentVotes = this.startVotes.size;
+      log.game("GameRoom", `Vote to start: ${player.name} (${currentVotes}/${nonHostHumans})`);
+      this.broadcast("startVote", {
+        votes: currentVotes,
+        needed: nonHostHumans,
+        voters: Array.from(this.startVotes)
+      });
+    });
   }
   initializeGame() {
     const humanCount = this.state.players.size;
@@ -92286,9 +92691,7 @@ class GameRoom extends Room {
     }
     this.state.playerCount = this.state.players.size;
     const mt = this.roomOptions.mapType || "standard";
-    if (mt === "classic" && this.roomOptions.mapData) {
-      this.initClassicMap();
-    } else if (mt === "debug" || mt === "debug-b") {
+    if (mt === "debug" || mt === "debug-b") {
       this.initDebugMap();
     } else {
       this.initStandardMap();
@@ -92315,6 +92718,9 @@ class GameRoom extends Room {
   initStandardMap() {
     const playerIds = Array.from(this.state.players.values()).map((p) => p.sessionId);
     const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
+    const gc = this.roomOptions.gameplayConfig;
+    const msr = gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const laneMargin = gc?.MAPGEN_LANE_MARGIN_PX ?? (gc?.MAPGEN_LANE_BUFFER_PX != null ? msr + gc.MAPGEN_LANE_BUFFER_PX : 75);
     const result = generateMap({
       width: 1600,
       height: 900,
@@ -92322,7 +92728,11 @@ class GameRoom extends Room {
       starsPerPlayer,
       spacingMultiplier: this.roomOptions.starSpacing ?? 1,
       minLinksPerStar: this.roomOptions.minLinks ?? 1,
-      maxLinksPerStar: this.roomOptions.maxLinks ?? 6
+      maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
+      boardFit: this.roomOptions.mapBoardFit ?? 0,
+      mapgenStarMarginPx: msr,
+      mapgenLaneMarginPx: laneMargin,
+      mapLaneMode: gc?.MAPGEN_LANE_MODE ?? "curved"
     });
     log.sys("GameRoom", `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
     const starTypes = ["grey", "yellow", "blue", "purple", "red", "green"];
@@ -92342,54 +92752,6 @@ class GameRoom extends Room {
     for (const conn of result.connections) {
       this.addConnection(conn.sourceId, conn.targetId);
     }
-  }
-  initClassicMap() {
-    const map = this.roomOptions.mapData;
-    const playerIds = Array.from(this.state.players.values()).map((p) => p.sessionId);
-    const starTypes = ["grey", "yellow", "blue", "purple", "red", "green"];
-    const factionRemap = new Map;
-    const mapFactions = new Set;
-    for (const s of map.stars) {
-      if (s.ownerId && s.ownerId !== "neutral" && s.ownerId !== "") {
-        mapFactions.add(s.ownerId);
-      }
-    }
-    const sortedFactions = Array.from(mapFactions).sort();
-    sortedFactions.forEach((faction, i) => {
-      if (i < playerIds.length) {
-        factionRemap.set(faction, playerIds[i]);
-      } else {
-        factionRemap.set(faction, "neutral");
-      }
-    });
-    log.data("GameRoom", `Classic map factions: [${sortedFactions.join(", ")}] → players: [${playerIds.join(", ")}]`);
-    const maxX = Math.max(...map.stars.map((s) => s.x));
-    const maxY = Math.max(...map.stars.map((s) => s.y));
-    const targetW = 1600;
-    const targetH = 900;
-    const needsScale = maxX < 1000 && maxY < 600;
-    const spacingMult = this.roomOptions.starSpacing ?? 1;
-    const scaleX = needsScale ? targetW * 0.85 / (maxX || 1) * spacingMult : 1;
-    const scaleY = needsScale ? targetH * 0.85 / (maxY || 1) * spacingMult : 1;
-    const offsetX = needsScale ? targetW * 0.075 : 0;
-    const offsetY = needsScale ? targetH * 0.075 : 0;
-    for (const s of map.stars) {
-      const isNeutral = !s.ownerId || s.ownerId === "neutral" || s.ownerId === "";
-      const ownerId = isNeutral ? "neutral" : factionRemap.get(s.ownerId) ?? s.ownerId;
-      const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
-      const x = s.x * scaleX + offsetX;
-      const y = s.y * scaleY + offsetY;
-      this.createStar(s.id, x, y, ownerId, starType);
-      if (s.activeShips !== undefined) {
-        const star = this.state.stars.get(s.id);
-        if (star)
-          star.activeShips = s.activeShips;
-      }
-    }
-    for (const conn of map.connections) {
-      this.addConnection(conn.sourceId, conn.targetId);
-    }
-    log.sys("GameRoom", `Classic map "${map.metadata.name}": ${map.stars.length} stars, ${map.connections.length} connections`);
   }
   createStar(id, x, y, ownerId, starType) {
     const star = new StarSchema;

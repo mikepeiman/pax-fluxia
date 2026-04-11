@@ -756,10 +756,21 @@ export class GameRoom extends Room {
         const gc = this.roomOptions.gameplayConfig as
             | {
                   MODIFIED_VORONOI_STAR_MARGIN?: number;
+                  MAPGEN_LANE_MARGIN_PX?: number;
+                  /** @deprecated Combined into `MAPGEN_LANE_MARGIN_PX` on client; server migrates if margin absent */
                   MAPGEN_LANE_BUFFER_PX?: number;
                   MAPGEN_LANE_MODE?: 'straight' | 'curved';
+                  MAPGEN_LANE_CURVE_VS_PRUNE_BIAS?: number;
               }
             | undefined;
+        const msr = gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+        const laneMargin =
+            gc?.MAPGEN_LANE_MARGIN_PX
+            ?? (gc?.MAPGEN_LANE_BUFFER_PX != null ? msr + gc.MAPGEN_LANE_BUFFER_PX : 75);
+        const curveVsPruneBias = Math.min(
+            1,
+            Math.max(0, gc?.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+        );
         const result = generateMap({
             width: 1600,
             height: 900,
@@ -769,8 +780,9 @@ export class GameRoom extends Room {
             minLinksPerStar: this.roomOptions.minLinks ?? 1,
             maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
             boardFit: this.roomOptions.mapBoardFit ?? 0,
-            mapgenStarMarginPx: gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-            mapgenLaneBufferPx: gc?.MAPGEN_LANE_BUFFER_PX ?? 30,
+            mapgenStarMarginPx: msr,
+            mapgenLaneMarginPx: laneMargin,
+            mapgenLaneCurveVsPruneBias: curveVsPruneBias,
             mapLaneMode: gc?.MAPGEN_LANE_MODE ?? 'curved',
         });
 

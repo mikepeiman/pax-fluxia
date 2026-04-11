@@ -47,7 +47,7 @@ export function rebuildLanePolylineCache(
     nodes: Array<{ id: string; x: number; y: number }>,
     uniConnections: Array<{ sourceId: string; targetId: string }>,
     mode: MapLaneMode,
-    /** D_clear: minimum distance from sampled centerline to non-endpoint stars (MSR + lane buffer). */
+    /** Lane margin: minimum distance from sampled centerline to non-endpoint stars. */
     laneObstacleClearancePx: number,
 ): void {
     cache.clear();

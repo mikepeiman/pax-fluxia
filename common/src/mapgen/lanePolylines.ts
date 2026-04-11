@@ -1,10 +1,11 @@
 // ============================================================================
 // Lane polylines — centerlines between star centers (mapgen + runtime).
 // - `straight`: chord only.
-// - `curved`: straight when chord is clear of other stars (D_clear) and does not
-//   cross existing lanes; otherwise quadratic Bézier (try both bulge directions),
-//   then a single-kink detour if needed. Samples must stay ≥ D_clear from
-//   non-endpoint star centers (typically MSR + laneBuffer).
+// - `curved`: straight chord when it satisfies **lane margin** vs other stars, does not
+//   cross existing lanes, and passes dense sampling; otherwise quadratic Bézier
+//   (both bulge directions), then a single-kink detour — curves satisfy the same
+//   clearance as straights (not decorative). Topology may still add edges whose chord
+//   fails clearance; those are curved here while sampled paths respect margin.
 //
 // Solver bounds (deterministic): bulge binary search ≤14 iters; single-kink grid
 // ≤16 offsets × 2 signs; Bézier sample count 21; polyline segment interior samples <8.
@@ -17,13 +18,6 @@ export type MapLaneMode = 'straight' | 'curved';
 
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
-
-/** When straight is already valid at D_clear, still curve chords at least this long (world px). */
-const AESTHETIC_MIN_CHORD_PX = 88;
-/** Max perpendicular bulge for cosmetic curves. */
-const AESTHETIC_BULGE_CAP_PX = 78;
-/** Bulge scales with chord: fraction of chord length, capped by AESTHETIC_BULGE_CAP_PX. */
-const AESTHETIC_BULGE_CHORD_FRAC = 0.125;
 
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
@@ -204,53 +198,6 @@ function searchBulge(
     return best;
 }
 
-/**
- * Optional gentle quadratic curve when the chord already clears obstacles (curved mode aesthetic).
- * Picks the larger feasible bulge (either sign) up to a modest cap.
- */
-function tryAestheticBezierCurve(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    obstacles: Array<{ x: number; y: number }>,
-    clearancePx: number,
-    placed: Seg[],
-    starCenters: Array<{ x: number; y: number }>,
-): Array<[number, number]> | null {
-    const chordLen = hypot(bx - ax, by - ay);
-    if (chordLen < AESTHETIC_MIN_CHORD_PX) return null;
-    const cap = Math.min(AESTHETIC_BULGE_CAP_PX, chordLen * AESTHETIC_BULGE_CHORD_FRAC);
-    if (cap < chordLen * 0.02) return null;
-
-    let bestBulge = 0;
-    let bestSign: 1 | -1 = 1;
-    for (const bulgeSign of [1, -1] as const) {
-        let lo = 0;
-        let hi = cap;
-        let best = 0;
-        for (let iter = 0; iter < 12; iter++) {
-            const mid = (lo + hi) * 0.5;
-            const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, mid);
-            if (
-                polylineClearOfObstacles(cand, obstacles, clearancePx)
-                && !polylineCrossesPlaced(cand, placed, starCenters)
-            ) {
-                best = mid;
-                lo = mid;
-            } else {
-                hi = mid;
-            }
-        }
-        if (best > bestBulge) {
-            bestBulge = best;
-            bestSign = bulgeSign;
-        }
-    }
-    if (bestBulge < chordLen * 0.028) return null;
-    return buildBezierWaypoints(ax, ay, bx, by, bestSign, bestBulge);
-}
-
 function trySingleKinkDetour(
     ax: number, ay: number,
     bx: number, by: number,
@@ -295,20 +242,7 @@ function solveAdaptiveWaypoints(
         chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
         && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
-    if (okStraight) {
-        const pretty = tryAestheticBezierCurve(
-            ax,
-            ay,
-            bx,
-            by,
-            obstacles,
-            clearancePx,
-            placed,
-            starCenters,
-        );
-        if (pretty) return pretty;
-        return straight;
-    }
+    if (okStraight) return straight;
 
     for (const bulgeSign of [1, -1] as const) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
@@ -328,7 +262,7 @@ function solveAdaptiveWaypoints(
 
 /**
  * Single edge (no lane–lane crossing check). Same clearance and adaptive rules otherwise.
- * @param laneObstacleClearancePx — use `MSR + laneBuffer` (D_clear) for curved feasibility.
+ * @param laneObstacleClearancePx — lane margin only (`mapgenLaneMarginPx`); independent of territory MSR.
  */
 export function computeLaneWaypoints(
     ax: number,
@@ -360,7 +294,7 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
     mode: MapLaneMode,
     /**
      * Minimum distance from sampled lane centerline to any non-endpoint star center.
-     * Use **D_clear = mapgenStarMarginPx + mapgenLaneBufferPx** to match connection prune.
+     * Use the same **lane margin** (px) as `generateConnections` pass-through prune.
      */
     laneObstacleClearancePx: number,
 ): void {

@@ -116,6 +116,18 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
                     delete stored[oldKey];
                 }
             }
+            // Lane margin vs MSR split (2026-04-10): old panel had additive buffer only
+            if ('mapgenLaneBufferPx' in stored && !('mapgenLaneMarginPx' in stored)) {
+                const buf = typeof stored.mapgenLaneBufferPx === 'number' ? stored.mapgenLaneBufferPx : 30;
+                const starM =
+                    typeof stored.starMargin === 'number'
+                        ? stored.starMargin
+                        : typeof defaults.starMargin === 'number'
+                          ? defaults.starMargin
+                          : 45;
+                stored.mapgenLaneMarginPx = starM + buf;
+                delete stored.mapgenLaneBufferPx;
+            }
             return { ...defaults, ...stored };
         }
     } catch {

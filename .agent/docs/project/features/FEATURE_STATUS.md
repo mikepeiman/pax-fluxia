@@ -85,7 +85,7 @@
 | V-6 | Orbit Bias Oscillation | ❓ | Min/Max/Freq controls. Oscillates bias strength per tick frequency |
 | V-7 | Smooth Departure Easing | ❓ | easeInOutQuad replaces easeInCubic for smoother departure |
 | V-8 | Metaball blur targets | ❓ | `METABALL_BLUR_AFFECTS_BORDERS` toggle: default blur fill only; optional single-pass blur on fill + border strokes when GPU blur is on. |
-| V-9 | Mapgen lane clearance + CX | ❓ | Delaunay **edge** prune uses **MSR**; **lane** centerlines use **MSR + lane buffer** (`D_clear`); curved mode adds aesthetic Bézier on longer chords when straight is valid; live rebuild in Map & Grid; CX via `buildCorridorVirtualSites`. |
+| V-9 | Mapgen lane clearance + CX | ❓ | Delaunay prune and lane polylines use **`MAPGEN_LANE_MARGIN_PX`** only; **MSR** = territory boundaries; curved mode is necessity-only (no cosmetic bulge); live Map & Grid; CX via `buildCorridorVirtualSites`. **Queued:** cross-player **vstar near lane midpoint** per owner to block enemy territory overlap. |
 | V-10 | Metaball same-owner overlap banding | ❓ | Influence is **summed per player** (`infGeom[p] += c`), so two stars of one owner **double** the field in overlap — can read as seams/artifacts vs a single smooth blob. **Fix:** moderate effort — e.g. take **per-cluster max** instead of sum for real stars, or normalize by local star count; needs visual QA so territory area does not shrink unexpectedly. |
 
 ---

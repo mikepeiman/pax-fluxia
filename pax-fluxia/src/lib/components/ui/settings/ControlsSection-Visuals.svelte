@@ -148,15 +148,17 @@
     ></label
 >
 
-<h4 class="sub-heading">Lane clearance (live)</h4>
+<h4 class="sub-heading">Map & lanes (live)</h4>
 <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-    <strong>Edges:</strong> Delaunay prune uses <strong>MSR</strong> only (topology). <strong>Lanes:</strong>
-    drawn centerlines enforce <strong>MSR + lane buffer</strong>. Adjust while paused to rebuild links and
-    refresh territory.
+    <strong>MSR</strong> — territory boundaries only. <strong>Lane margin</strong> — hard minimum distance from
+    <strong>drawn</strong> lane centerlines to non-endpoint stars. <strong>Curve vs prune</strong> — Phase 4 only
+    checks the <strong>straight chord</strong> against <code>margin×(1−bias)</code>: low bias favors
+    <strong>dropping edges</strong> and Phase 5 reconnect; high bias <strong>keeps edges</strong> so curved mode
+    can route around stars while still meeting full lane margin on samples.
 </p>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">MSR (map + territory)</span><span class="val"
+        <span class="var-name">MSR (territory boundaries)</span><span class="val"
             >{Math.round(
                 panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
             )}px</span
@@ -173,29 +175,55 @@
             GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
             updatePanel("starMargin", v);
             bumpTerritoryVisualConfig();
-            if (gameStore.hasStarted) gameStore.rebuildConnectionsFromLaneClearance();
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Lane buffer (mapgen)</span><span class="val"
+        <span class="var-name">Lane margin (mapgen)</span><span class="val"
             >{Math.round(
-                panel.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30,
+                panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
             )}px</span
         >
     </div>
     <input
         type="range"
         min="0"
-        max="120"
+        max="250"
         step="5"
-        value={panel.mapgenLaneBufferPx ?? GAME_CONFIG.MAPGEN_LANE_BUFFER_PX ?? 30}
+        value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MAPGEN_LANE_BUFFER_PX = v;
-            updatePanel("mapgenLaneBufferPx", v);
-            if (gameStore.hasStarted) gameStore.rebuildConnectionsFromLaneClearance();
+            GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
+            updatePanel("mapgenLaneMarginPx", v);
+            gameStore.rebuildConnectionsFromLaneClearance();
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Curve vs prune (topology)</span><span class="val"
+            >{(
+                panel.mapgenLaneCurveVsPruneBias ??
+                GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
+                0.55
+            ).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.mapgenLaneCurveVsPruneBias ??
+            GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
+            0.55}
+        title="0 = prune tight chords; 1 = keep edges for curved geometry"
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
+            updatePanel("mapgenLaneCurveVsPruneBias", v);
+            gameStore.rebuildConnectionsFromLaneClearance();
         }}
     />
 </div>
@@ -215,18 +243,18 @@
                 aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "straight");
-                    if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
+                    gameStore.refreshLanePolylinesFromConfig();
                 }}>Straight</button
             >
             <button
                 type="button"
                 class="map-lane-mode-segment__btn"
                 class:map-lane-mode-segment__btn--active={lanePathUiMode === "curved"}
-                title="Gentle curves on longer lanes; detour when D_clear or crossings require it"
+                title="Satisfy lane margin with chord or, if needed, curve/kink vs stars and other lanes"
                 aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "curved");
-                    if (gameStore.hasStarted) gameStore.refreshLanePolylinesFromConfig();
+                    gameStore.refreshLanePolylinesFromConfig();
                 }}>Curve if needed</button
             >
         </div>
