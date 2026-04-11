@@ -257,6 +257,19 @@ Then:
 - clarifies whether atlas-harness should remain a core investment
 - keeps the final workflow stack simpler and more honest
 
+#### Active-circulation method
+
+Atlas-harness should not be mothballed during evaluation.
+
+- keep it as the live default MCP/tool path during the evaluation window
+- run real Pax Fluxia work through it while CLI-Anything is tested in parallel
+- record comparisons by capability bucket:
+  - commodity
+  - differentiator
+  - not worth ongoing investment
+
+This keeps the comparison honest and prevents judging atlas-harness only against stale memory or hypothetical use.
+
 ## Resolved Entries
 
 - 2026-04-11 A1. Sandboxed agent shell produced a false negative for direct `atlas-harness` invocation

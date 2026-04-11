@@ -122,6 +122,84 @@ CLI-Anything and atlas-harness should be compared against:
 
 Atlas-harness should survive only if its unique strengths are worth continuing to build.
 
+## Active Evaluation Protocol
+
+This is how atlas-harness stays in active circulation during the comparison instead of being sidelined too early.
+
+### 1. Keep atlas-harness as the live default during the evaluation window
+
+- Pax Fluxia keeps `.agent/mcp_config.json` pointed at `atlas-harness --transport mcp`.
+- Real project work continues to use atlas-harness as the current active workspace tool path.
+- This preserves comparable day-to-day evidence instead of comparing CLI-Anything against a dormant or hypothetical atlas-harness.
+
+### 2. Bring CLI-Anything in as a parallel evaluation lane
+
+- Install and verify CLI-Anything separately.
+- Do not immediately replace the active MCP path.
+- Use it in a deliberate comparison lane so we can test it against the same real task categories without destabilizing the whole workflow at once.
+
+### 3. Compare on a fixed task matrix
+
+Run both tools against the same categories of work:
+
+- file inspection and targeted edits
+- process execution
+- git operations
+- structured JSON or machine-readable output
+- command discoverability and help quality
+- safety and guardrails
+- code-intelligence depth
+- project-aware rule enforcement
+- observability and health diagnostics
+- setup and maintenance burden
+
+### 4. Use real Pax Fluxia work as the benchmark
+
+Do not judge with toy examples alone.
+
+Use real work from this repo:
+
+- documentation updates
+- code search and symbol tracing
+- patching and refactors
+- validation runs
+- git checkpointing
+- workflow/doc audit tasks
+
+### 5. Record outcomes in three buckets
+
+For every meaningful capability, classify atlas-harness as:
+
+- `commodity`
+  - CLI-Anything matches or beats it; no reason to keep atlas-harness for this
+- `differentiator`
+  - atlas-harness does something uniquely valuable enough to preserve
+- `not worth ongoing investment`
+  - interesting, but not strong enough to justify continued development
+
+### 6. Narrow before preserving
+
+If atlas-harness survives, it should likely survive in a narrower role, not automatically as a full competing general harness.
+
+The most plausible retained roles are:
+
+- Pax-specific rule enforcement
+- code-intelligence helpers
+- drift / repair / claims / methodology tooling
+- guarded workspace operations tightly shaped to this project
+
+CLI-Anything would then own the more generic command-abstraction layer.
+
+### 7. Decision rule
+
+Atlas-harness should remain a first-class investment only if it proves at least one of these:
+
+- materially stronger project-aware enforcement than CLI-Anything
+- materially stronger code-intelligence value in practice
+- materially better safety or maintainability for Pax Fluxia-specific work
+
+If not, it should be narrowed sharply or retired.
+
 ## Step 2: Concrete Install Contract
 
 ### Static config surface

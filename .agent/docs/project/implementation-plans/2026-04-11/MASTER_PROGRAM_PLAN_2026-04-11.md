@@ -326,6 +326,17 @@ The next workflow phase should now be treated as a **tool-evaluation process**, 
 
 - atlas-harness remains relevant only if it offers unique leverage that is worth continuing to build.
 
+### How atlas-harness stays active during evaluation
+
+- keep atlas-harness as the live default MCP path during the evaluation window
+- bring CLI-Anything in as a parallel comparison lane rather than flipping the whole stack immediately
+- compare both against the same real Pax Fluxia tasks
+- classify atlas-harness capabilities into:
+  - commodity
+  - differentiator
+  - not worth ongoing investment
+- preserve atlas-harness only for proven differentiators, likely in a narrower role
+
 ### Current orchestration candidate
 
 - Pi still looks like a strong orchestration candidate, but it should be paired with the evaluated winner of the harness layer rather than assumed above atlas-harness by default.
