@@ -1,5 +1,5 @@
 # docs/ — Master Index (Ontology E)
-**Updated:** 2026-04-08 (pre-ontology recovery: BMAD excluded; audit cross-links)
+**Updated:** 2026-04-11 (workflow cleanup; audit cross-links)
 **Structure:** Game System + Meta
 
 ---
@@ -63,7 +63,7 @@
 ## research/
 | Path | Contents |
 |------|----------|
-| `_archive/pre-ontology-md-recovery-2026-03-22-24/files/` | **25** pre-Ontology-E `.md` blobs (Mar22–24) not matched at HEAD by basename+SHA; **`_bmad/` excluded**; Codex rendering pack (`RENDERING_*.md`), SPECIFICATIONS-era copies, WIP, `.atlas/DECISIONS`, etc. Inventory: `RECOVERED_LEGACY_DOC_LIST.md`, `MANIFEST.tsv`, `README.md` |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/files/` | **25** pre-Ontology-E `.md` blobs (Mar22–24) not matched at HEAD by basename+SHA; legacy framework paths excluded; Codex rendering pack (`RENDERING_*.md`), SPECIFICATIONS-era copies, WIP, `.atlas/DECISIONS`, etc. Inventory: `RECOVERED_LEGACY_DOC_LIST.md`, `MANIFEST.tsv`, `README.md` |
 | `research/2026-03-20 transition research/` | Morph boundary vertex research, Perplexity transition guidance |
 | `research/reference/` | Pax_Galaxia_dev_notes_2026-02-08 |
 | `research/permanent-references/` | Full territory deep-history archive (111 files) |
@@ -77,7 +77,7 @@
 ## _archive/
 | Path | Contents |
 |------|----------|
-| `_archive/pre-ontology-md-recovery-2026-03-22-24/` | **25** legacy `.md` files (Mar22–24 snapshots vs HEAD); **`_bmad/` permanently excluded** from candidate paths; `RECOVERED_LEGACY_DOC_LIST.md` + `MANIFEST.tsv`; regenerate: `_archive/_scripts/build_pre_ontology_md_archive.ps1` |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/` | **25** legacy `.md` files (Mar22–24 snapshots vs HEAD); legacy framework paths permanently excluded from candidate paths; `RECOVERED_LEGACY_DOC_LIST.md` + `MANIFEST.tsv`; regenerate: `_archive/_scripts/build_pre_ontology_md_archive.ps1` |
 | `_archive/territory-recovery-2026-03-08/` | 22 territory recovery plan files (superseded) |
 | `_archive/F-138-ModifiedVoronoi/` | F-138 feature implementation archive |
 | `_archive/diagnostics/` | Diagnostic run outputs |
@@ -95,7 +95,7 @@
 | `.agent/CURRENT_OBJECTIVE.md` | Active work objective |
 | `.agent/CURRENT_SPRINT.md` | Current sprint tracking |
 | `.agent/rules/` (22 files) | Active agent rules (must stay here for system effectiveness) |
-| `.agent/workflows/` (68 BMAD files) | BMAD method docs — retained for reference, not indexed |
+| `.agent/workflows/` | Deprecated residue. Ignore it and delete it if found. |
 | `.atlas/` (17 files) | Original .atlas catalog — copies now in `docs/atlas/` + counterpart locations |
 | `pax-fluxia/src/lib/config/THEMES_AGENT_DOC.md` | In-source theming doc (co-located with code) |
 | `README.md` | Repo root readme |
@@ -113,7 +113,7 @@ Cross-links for ongoing triage (Ontology E + full-repo markdown inventory):
 | `project/implementation-plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md` | **Impl spine** (checklist, Parts I–II, handoffs); Doc A–C complete; links hub + overview + doc epic. |
 | `project/implementation-plans/2026-04-08/territory-rendering-jumpstart.md` | **Hub** — Section 0 only (path, phase 0.B, companion 0.C, load order, §0.1 buckets). Topical: `territory-rendering-overview.md`, `territory-documentation-epic.md`, `territory-d3-voronoi-family-analysis.md`, `territory-clean-architecture-map.md`. `AGENT_ENTRYPOINT.md` = redirect only. |
 | `project/implementation-plans/2026-04-08/doc-audit/` | **Markdown audit:** `MARKDOWN_MASTER_INDEX.csv` (per-file queue), `MARKDOWN_FULL_MANIFEST_VS_HEAD.md`, generators, 2026-04-08 session narrative — see `doc-audit/README.md`. |
-| `_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md` | **Recovered legacy** bodies from Mar22–24 only when basename+SHA differed from current HEAD; BMAD paths omitted. |
+| `_archive/pre-ontology-md-recovery-2026-03-22-24/RECOVERED_LEGACY_DOC_LIST.md` | **Recovered legacy** bodies from Mar22–24 only when basename+SHA differed from current HEAD; legacy framework paths omitted. |
 | `_archive/pre-ontology-md-recovery-2026-03-22-24/MANIFEST.tsv` | Same 25 rows as TSV (basename, SHA, size, snapshot, source path). |
 
 ---

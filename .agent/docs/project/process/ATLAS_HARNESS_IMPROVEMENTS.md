@@ -219,6 +219,44 @@ In this session, there was no obvious first-class atlas-harness health command o
 - report subsystem readiness and degraded capabilities clearly
 - give agents one obvious first stop before they start guessing
 
+### 2026-04-11 F1. Atlas Harness should be judged against CLI-Anything by explicit keep-vs-eject criteria
+
+- Status: open
+- Category: workflow improvement
+- Surface: strategic harness direction
+
+#### Motivation
+
+Pax Fluxia now needs a real harness evaluation process rather than continuing atlas-harness development by default.
+
+CLI-Anything is now the higher-priority harness candidate to evaluate:
+
+- [CLI-Anything](https://clianything.net/)
+
+#### Proposed improvement
+
+Compare atlas-harness against CLI-Anything on:
+
+- command-surface quality
+- structured output quality
+- breadth of useful control
+- project-aware rule enforcement
+- code-intelligence value
+- maintenance burden
+- extension burden
+
+Then:
+
+- keep atlas-harness only for unique value worth developing
+- narrow it if only a subset is uniquely strong
+- retire it if it is mostly redundant
+
+#### Expected benefit
+
+- prevents sunk-cost bias
+- clarifies whether atlas-harness should remain a core investment
+- keeps the final workflow stack simpler and more honest
+
 ## Resolved Entries
 
 - 2026-04-11 A1. Sandboxed agent shell produced a false negative for direct `atlas-harness` invocation

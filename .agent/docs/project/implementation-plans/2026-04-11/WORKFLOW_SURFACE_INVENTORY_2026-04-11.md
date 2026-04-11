@@ -3,6 +3,7 @@
 ## Purpose
 
 Capture the workflow and control surfaces that already exist in Pax Fluxia so the Pi + atlas-harness installation/setup pass can reduce and unify the stack instead of layering blindly on top of it.
+Capture the workflow and control surfaces that already exist in Pax Fluxia so the harness evaluation pass can compare CLI-Anything, atlas-harness, Pi, and Entire on grounded repo reality instead of assumptions.
 
 ## Grounded Inventory
 
@@ -12,6 +13,22 @@ Capture the workflow and control surfaces that already exist in Pax Fluxia so th
   - Current role: workspace MCP entrypoint for `atlas-harness`
   - Current state: direct command invocation via `atlas-harness --transport mcp`
   - Status: live and canonical for workspace operations
+
+### Harness candidates and related platforms
+
+- CLI-Anything
+  - Current role: primary harness candidate to evaluate
+  - Official reference:
+    - [CLI-Anything](https://clianything.net/)
+  - Current status in Pax Fluxia: not yet integrated, but now elevated above atlas-harness in evaluation priority
+
+- `atlas-harness`
+  - Current role: active local harness path and comparative candidate
+  - Current status: still configured, but no longer assumed to be the long-term winner
+
+- Pi
+  - Current role: orchestration candidate
+  - Current status: still relevant, but should sit above the evaluated harness winner rather than presuppose atlas-harness
 
 - `.cursor/hooks.json`
   - Current role: Cursor lifecycle hook routing
@@ -50,8 +67,8 @@ So Entire is not random overhead in this repo. It is a real incumbent checkpoint
 ### Current assessment
 
 - Keep Entire in the stack for now as the live session-capture and hook/event substrate.
-- Treat it as complementary to Pi + atlas-harness, not as a replacement for them.
-- Re-evaluate it after Pi is installed and the repo-local context/cache layer is fully in use.
+- Treat it as complementary to the evaluated harness/orchestration stack, not as a replacement for it.
+- Re-evaluate it after harness selection and the repo-local context/cache layer are fully in use.
 
 ### Eject criteria
 
@@ -84,12 +101,10 @@ Entire becomes a candidate for removal if, after Pi installation:
   - Current role: plans, session notes, process docs, feature and decision tracking
   - Status: primary planning/history corpus, but currently too large to consume raw
 
-### Workflow corpus that must be reduced before Pi becomes first-class
+### Legacy deleted workflow residue
 
-- `.agent/workflows/`
-  - Current role: large markdown workflow library, heavily BMAD-oriented
-  - Status: transitional corpus, not a clean canonical workflow stack
-  - Risk: if left unmanaged, Pi integration will create a second workflow operating system beside it
+- If `.agent/workflows/` is found, treat it as deprecated residue and delete it.
+- It is not part of the intended workflow stack.
 
 ## Classification
 
@@ -105,7 +120,6 @@ Entire becomes a candidate for removal if, after Pi installation:
 
 ### Transitional
 
-- `.agent/workflows/`
 - `.agent/docs/agentic/`
 - large portions of `.agent/docs/project/` that should be reduced into smaller canonical artifacts before being fed to Pi or retrieval systems
 
@@ -117,8 +131,9 @@ Entire becomes a candidate for removal if, after Pi installation:
 
 ## Immediate Decisions For Steps 1-3
 
-- `atlas-harness` remains the execution and enforcement boundary.
-- Pi is the intended future orchestrator, but it should not be installed as a second truth source.
+- CLI-Anything should be evaluated first as the primary harness candidate.
+- `atlas-harness` should be justified only by unique value, not by incumbency.
+- Pi remains the orchestration candidate, but it should not be installed as a second truth source.
 - `entire` remains the incumbent live hook/event layer until Pi-owned equivalents exist.
 - Stable project context should be built into deterministic repo-local artifacts before Pi consumes it.
 - Generated cache state and metrics should live under `.agent-harness/`, not inside source-controlled documentation trees.
@@ -130,10 +145,6 @@ Entire becomes a candidate for removal if, after Pi installation:
 
 - inventory the live hook entrypoints and keep them visible
 - avoid multiplying new top-level workflow docs
-- reduce `.agent/workflows/` into:
-  - retained canonical workflows
-  - transitional reference workflows
-  - archive candidates
 
 ### Second reduction target: stable context inputs
 

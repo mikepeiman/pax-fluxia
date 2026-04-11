@@ -1,7 +1,7 @@
 # AGENT.md — Pax Fluxia Master Context
 
 > **Load this file at session start. It replaces all other rule/memory files.**
-> For deep dives, see `.agent/rules/`. For concurrent multi-agent work, load `.agent/workflows/repo-multi-agent-concurrency-protocol.md`.
+> For deep dives, see `.agent/rules/`.
 
 ---
 

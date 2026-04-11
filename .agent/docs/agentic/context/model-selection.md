@@ -49,27 +49,6 @@ Am I reading/auditing a large codebase or long doc?
 
 ---
 
-## Mapped to BMAD Workflows
-
-| BMAD Workflow | Model | Why |
-|---------------|-------|-----|
-| `/help` | Gemini 3 Flash | Just reading a CSV and suggesting next steps |
-| `/quick-dev` | **Sonnet 4.6** | Standard feature implementation |
-| `/quick-spec` | **Sonnet 4.6** | Tech spec writing is structured, not architecturally deep |
-| `/bmad-gds-gdd` | **Opus 4.6** | GDD requires deep creative + technical integration |
-| `/bmad-gds-game-architecture` | **Opus 4.6** | Architecture requires multi-system reasoning |
-| `/bmad-gds-sprint-planning` | **Sonnet 4.6** | Structured planning from existing docs |
-| `/bmad-gds-create-story` | **Sonnet 4.6** | Story writing from epics is templated work |
-| `/bmad-gds-dev-story` | **Sonnet 4.6** | Standard implementation |
-| `/bmad-gds-code-review` | **Sonnet 4.6** | Pattern matching, finding issues — Sonnet excels |
-| `/bmad-gds-brainstorm-game` | **Sonnet 4.6** | Creative but not architecturally complex |
-| `/bmad-gds-correct-course` | **Opus 4.6** | Impact analysis across systems |
-| `/bmad-gds-retrospective` | Gemini 3.1 Pro (Low) | Summarization, reflection |
-| `/bmad-gds-document-project` | Gemini 3.1 Pro (High) | Large codebase reading + doc generation |
-| Party Mode `/bmad-party-mode` | **Sonnet 4.6** | Multi-agent discussion, good balance |
-
----
-
 ## When to Override to Opus
 
 Even during Gear 1/2 work, escalate to Opus when:

@@ -75,7 +75,6 @@ The following concrete outputs now exist:
   - `.cursor/hooks.json` routes Cursor lifecycle events through `entire hooks cursor ...`
   - `.gemini/settings.json` routes Gemini lifecycle hooks through `entire hooks gemini ...`
   - `.entire/settings.json` is enabled, so `entire` is not theoretical here; it is live wiring
-- The repo also contains a large preexisting workflow corpus under `.agent/workflows/`, much of it BMAD-oriented, which means workflow setup is partly a migration and reduction problem, not a blank-slate install.
 - The repo does **not** currently expose an obvious in-repo provider client or prompt-orchestration runtime that can simply be patched for caching.
 - There is already a local state/log area in `.agent-harness/` that proves this repo tolerates workspace-local dynamic agent state.
 - There is already a deterministic markdown inventory pipeline in `.agent/docs/project/implementation-plans/2026-04-08/doc-audit/`, which is the best current precedent for memoized derived context.
@@ -108,28 +107,30 @@ The external harness research is useful, but it should be **integrated**, not co
 The correct synthesis is:
 
 - Codex Desktop remains the human-facing shell.
-- Pi is now the leading candidate for the outer harness/runtime layer.
-- `atlas-harness` is already a serious local asset and should be treated as the main action + enforcement substrate, not as an incidental MCP sidecar.
+- Pi remains a strong orchestration candidate, but harness priority should now shift to **CLI-Anything evaluation first**.
+- `CLI-Anything` should be treated as the primary harness candidate to evaluate for general command-abstraction and agent-native software control:
+  - [CLI-Anything](https://clianything.net/)
+- `atlas-harness` should now be treated as a comparative local tool under evaluation, not as an automatically-preserved default.
 - The repo itself should own the deterministic project context layer, cache-aware context packaging, and maintainable configuration surface.
-- The chosen outer harness should consume those repo-owned context artifacts rather than re-deriving project understanding ad hoc on every task.
+- The chosen harness/orchestration stack should consume those repo-owned context artifacts rather than re-deriving project understanding ad hoc on every task.
 
 ### Capability ownership
 
 - **Codex Desktop**: main UI shell for the human.
-- **Pi**: preferred outer harness candidate for orchestration, session control, model routing, and extensibility.
+- **Pi**: orchestration candidate for session control, model routing, and extensibility.
 - **OMO**: optional comparison branch, not the primary direction.
 - **Advisor**: planning, risk review, escalation, model-class recommendation.
 - **Executor**: code/task execution.
 - **LightRAG**: default retrieval layer for code/docs/notes/post-mortems.
 - **RAG-Anything**: optional multimodal extension only when explicitly requested.
 - **OpenSpace**: reusable skills, workflow harvest, reusable post-mortem memory.
-- **atlas-harness**: action substrate, workspace tool server, and methodology-enforcement plane.
-- **CLI-Anything**: optional complementary command abstraction only if it fills a real gap that atlas-harness does not already cover.
+- **CLI-Anything**: primary harness candidate to evaluate for command abstraction and agent-native tool surfaces.
+- **atlas-harness**: comparative local tool under evaluation for any unique project-aware value it may offer beyond CLI-Anything.
 - **Repo-local context/cache layer**: deterministic stable-context generation, memoization, metrics, invalidation, benchmarkability.
 
 This ownership map matters because it prevents overlapping tools from turning into overlapping responsibilities.
 
-### Atlas Harness findings that change the plan
+### Harness findings that change the plan
 
 The local environment now confirms several facts:
 
@@ -147,6 +148,9 @@ The practical conclusion is:
 - The deprecated local checkout should remain removed regardless of which published-package invocation path we standardize on.
 - atlas-harness quality should be tracked through a permanent active ledger, not scattered session remarks:
   - `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`
+- harness priority should shift to a **CLI-Anything-first evaluation process**
+- the central question is now:
+  - what does `atlas-harness` do uniquely well enough to justify continued development after comparison with CLI-Anything?
 
 ---
 
@@ -309,18 +313,22 @@ Pi should consume these artifacts as resources or prompt inputs, not regenerate 
 
 ---
 
-## B. Pi-centered orchestration layer
+## B. Harness Evaluation And Orchestration Layer
 
-Pi should be integrated **after** the repo-local context/cache foundation is defined, so the outer harness consumes stable project artifacts instead of improvising them.
+The next workflow phase should now be treated as a **tool-evaluation process**, not as a foregone atlas-harness-centered stack.
 
-### Why Pi now looks like the better primary fit
+### Primary harness candidate
 
-Based on the imported harness review plus local-repo reality:
+- CLI-Anything should be evaluated first as the stronger likely default for general command abstraction and agent-native software control:
+  - [CLI-Anything](https://clianything.net/)
 
-- Pi appears better aligned with a provider-agnostic, multi-model, local-friendly architecture.
-- Pi is a cleaner outer harness candidate when the project already has a custom inner tool substrate (`atlas-harness`).
-- OMO now looks more like a high-variance comparison candidate than the best default base.
-- Superpowers remains a useful Claude-specific process enhancer, but not the central architecture for this project.
+### Comparative local tool
+
+- atlas-harness remains relevant only if it offers unique leverage that is worth continuing to build.
+
+### Current orchestration candidate
+
+- Pi still looks like a strong orchestration candidate, but it should be paired with the evaluated winner of the harness layer rather than assumed above atlas-harness by default.
 
 ### Advisor pattern
 
@@ -357,22 +365,25 @@ The Pi-centered integration should support:
 
 The first pass should favor inspectable CLI/config entrypoints over an elaborate custom UI.
 
-### Atlas Harness integration rules
+### Harness evaluation rules
 
-Pi should not replace atlas-harness. It should sit above it.
+Do not assume the current local tool should survive just because it already exists.
 
-The preferred stack is:
+The preferred evaluation question is:
 
-- Codex Desktop = human shell
-- Pi = outer harness/orchestrator
-- atlas-harness = workspace operations + enforcement + code intelligence
+- CLI-Anything as primary candidate for generic harness value
+- atlas-harness as the local comparative candidate
+- Pi as orchestration candidate above the chosen harness layer
 
 That means:
 
-- do **not** build a duplicate generic action substrate if atlas-harness already provides the capability
-- do **not** spread policy enforcement across multiple overlapping layers unless there is a clear reason
-- treat atlas-harness as the main execution/control boundary for file/process/git/workspace operations
-- let Pi focus on orchestration, routing, advisor logic, and extension composition
+- do **not** continue developing atlas-harness by default if CLI-Anything already covers the same ground better
+- do identify whether atlas-harness has unique value in:
+  - project-aware rule enforcement
+  - AST-aware code analysis
+  - drift, repair, claims, or methodology features
+  - tight local workspace integration
+- do retire or narrow atlas-harness if those unique advantages are not compelling enough
 
 ### Current local caveat
 
@@ -394,48 +405,49 @@ Install and bootstrap the agentic workflow stack so all subsequent architecture,
 
 #### Stack for this pass
 
-- Pi orchestrates
-- repo-local context/cache layer supplies stable artifacts
-- atlas-harness executes and enforces
+- evaluate CLI-Anything first
+- compare atlas-harness against it for unique value
+- keep repo-local context/cache artifacts as canonical stable inputs
+- let Pi remain the orchestration candidate above the eventual harness choice
 - LightRAG and OpenSpace plug in as services
 
 #### Current repo reality this pass must respect
 
 - `entire` is the current active hook/event bus for both Cursor and Gemini surfaces.
-- `.agent/workflows/` already contains a large workflow library, so we should not casually add a second sprawling workflow corpus beside it.
 - `atlas-harness` is now correctly pointed at the published installed package line through `.agent/mcp_config.json`.
 - The canonical invocation for Pax Fluxia should be the direct command form:
   - `atlas-harness --transport mcp`
 
-#### Migration stance
+#### Evaluation stance
 
-This first workflow/setup pass should be **interop-first**, not rip-and-replace.
+This first workflow/setup pass should be **evaluation-first**, not atlas-harness-first.
 
-- Pi becomes the intended orchestrator.
-- atlas-harness remains the execution and enforcement boundary.
-- the repo-local context/cache layer becomes the stable artifact source of truth.
+- CLI-Anything becomes the primary harness candidate to assess.
+- atlas-harness becomes the local comparative candidate.
+- Pi remains the orchestration candidate.
+- the repo-local context/cache layer remains the stable artifact source of truth.
 - `entire` should be treated as the incumbent hook/event layer that must either:
   - remain as a transitional event source feeding the new stack, or
   - be cleanly retired later once Pi-owned equivalents exist
 
-What we should not do is build Pi in isolation, ignore the live `entire` hooks, and accidentally create two simultaneous workflow operating systems.
+What we should not do is continue assuming atlas-harness is the winner before we compare it with CLI-Anything on real criteria.
 
-#### Phase 1: foundation and wiring
+#### Phase 1: harness evaluation foundation
 
-- Install Pi as the new workflow/runtime layer.
-- Keep atlas-harness on the published package line only.
-- Ensure Pax Fluxia MCP/config points only at the published `atlas-harness` package line through the direct command form.
-- Create the initial Pi project structure in-repo.
+- Install and inspect CLI-Anything.
+- Keep atlas-harness on the published package line only during comparison.
+- Ensure Pax Fluxia MCP/config can still use the direct `atlas-harness` command while evaluation is in progress.
+- Create the initial comparison and operator structure in-repo.
 - Establish one obvious configuration surface for:
   - model classes
   - provider IDs
   - resource locations
-  - advisor settings
+  - harness evaluation settings
   - retrieval endpoints
   - skill/memory endpoints
 - Inventory the current external control points and decide which are:
   - retained as-is for now
-  - routed through Pi next
+  - routed through the evaluated harness next
   - scheduled for retirement later
 
 #### Phase 1A: workflow-surface inventory and reduction
@@ -445,7 +457,6 @@ Before broad installation work, capture the live workflow surfaces and classify 
 - `.cursor/hooks.json`
 - `.gemini/settings.json`
 - `.entire/settings.json`
-- `.agent/workflows/*`
 - `.agent/rules/*`
 - `.agent/docs/agentic/*`
 
@@ -465,12 +476,18 @@ This is important because the repo already has too many workflow-like artifacts.
 - Define the generation commands and output locations.
 - Log metrics for cache hits/misses and stable artifact reuse.
 
-#### Phase 3: advisor/executor loop
+#### Phase 3: harness comparison
 
-- Define the Pi advisor/executor workflow around atlas-harness-backed operations.
-- Advisor remains tool-less.
-- Executor uses atlas-harness for file/process/git/workspace capabilities.
-- Add clear trigger rules for when advisor is called automatically.
+- Compare CLI-Anything and atlas-harness against the same concrete needs:
+  - file and process control
+  - inspectability
+  - JSON and agent-native output
+  - codebase awareness
+  - safety and rule enforcement
+  - extension burden
+  - maintenance burden
+- Record whether atlas-harness has unique value worth continuing to build.
+- Narrow atlas-harness scope if only a subset of features is uniquely valuable.
 
 #### Phase 4: retrieval and skill stubs
 
@@ -481,19 +498,19 @@ This is important because the repo already has too many workflow-like artifacts.
 
 #### Phase 5: validation and operating docs
 
-- Validate the workflow end to end with a simple realistic task.
+- Validate the selected workflow path end to end with a simple realistic task.
 - Write concise operator instructions for:
   - launching Pi for Pax Fluxia
-  - where atlas-harness is invoked from
+  - where the evaluated harness is invoked from
   - where stable context artifacts live
   - how advisor triggers work
   - how to disable caching/metrics
   - how to reindex retrieval later
 - Include a short migration note explaining the relationship between:
   - Pi
+  - CLI-Anything
   - atlas-harness
   - `entire`
-  - existing `.agent/workflows/`
 
 #### Recommended concrete landing points
 
@@ -736,11 +753,11 @@ The editor must sit on the same shared map data model that fixtures and future a
 
 ## Recommended Execution Order
 
-1. Install and bootstrap the workflow stack around Pi + published atlas-harness.
+1. Evaluate CLI-Anything first and determine whether atlas-harness has unique value worth preserving.
 2. Create the repo-local context-pack/cache foundation and its config surface.
 3. Normalize stable inputs and establish deterministic invalidation plus metrics.
 4. Produce the doc audit++ reduction plan and canonical-context shortlist that the cache layer will consume.
-5. Integrate Pi around the repo-local context/cache layer instead of bypassing it.
+5. Integrate Pi around the repo-local context/cache layer and the evaluated harness choice instead of bypassing them.
 6. Add retrieval indexing and changed-file refresh flow.
 7. Add OpenSpace-based skill harvest and post-mortem capture.
 8. Continue the shared-truth game workstreams in parallel:
@@ -757,7 +774,7 @@ This sequence is deliberate: if we keep doing game and architecture work before 
 
 The next strong planning updates should focus on:
 
-1. the workflow-first Pi + atlas-harness installation/setup pass
+1. the CLI-Anything-first harness evaluation pass
 2. the caching implementation pass, grounded in the repo-local context-pack approach
 3. the doc audit++ and prompts/rules synthesis pass
 4. the rendering-ideas consolidation ledger
@@ -768,8 +785,9 @@ The next strong planning updates should focus on:
 ## Defaults And Assumptions
 
 - Codex Desktop remains the main human-facing shell.
-- Pi is the intended orchestrator, and it should be integrated around repo-owned context artifacts.
-- atlas-harness should be consumed from the published installed package line only.
+- CLI-Anything is now the priority harness candidate to evaluate.
+- Pi remains the orchestration candidate and should be integrated around repo-owned context artifacts.
+- atlas-harness should be consumed from the published installed package line only during evaluation and kept only if it proves unique value.
 - The first caching pass should target local deterministic context reuse even if provider-side caching support is absent or limited.
 - Generated cache state should not be treated as source-of-truth project documentation.
 - Multiple render families will remain in the repo, but not all should remain equally exposed in the main UI.

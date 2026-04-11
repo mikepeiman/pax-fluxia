@@ -4,9 +4,10 @@
 
 Install the workflow foundation for Pax Fluxia so future coding, documentation, rendering, and architecture work can run through one coherent stack:
 
-- Pi orchestrates
+- CLI-Anything is evaluated first as the primary harness candidate
+- Pi remains the orchestration candidate
 - repo-local context/cache artifacts supply stable project understanding
-- `atlas-harness` executes and enforces
+- `atlas-harness` is kept only if it proves unique value
 - LightRAG and OpenSpace plug in later without competing with canonical project truth
 
 ## Scope Of This Spec
@@ -19,6 +20,7 @@ This spec covers the first concrete setup pass only:
 - prepare the configuration surface Pi will consume later
 
 This spec does not yet install Pi or retrieval/memory systems in full.
+This spec now also treats harness choice as an explicit evaluation process rather than a settled atlas-harness-first architecture.
 
 ## Canonical Ownership
 
@@ -28,13 +30,20 @@ This spec does not yet install Pi or retrieval/memory systems in full.
 
 ### Orchestration
 
-- Pi is the intended orchestrator.
+- Pi is the intended orchestration candidate.
 - Pi should consume repo-owned artifacts rather than re-derive project understanding ad hoc.
+
+### Harness evaluation
+
+- CLI-Anything is the primary harness candidate to evaluate:
+  - [CLI-Anything](https://clianything.net/)
+- atlas-harness is the comparative local candidate.
+- Continued atlas-harness development is justified only if it offers unique value worth preserving.
 
 ### Execution and enforcement
 
-- `atlas-harness` remains the execution and enforcement boundary.
-- It owns workspace operations, file/process/git access, and methodology enforcement.
+- During evaluation, atlas-harness remains the current configured execution path in Pax Fluxia.
+- After evaluation, the chosen harness boundary should own workspace operations and command abstraction.
 
 ### Hook/event layer
 
@@ -87,7 +96,6 @@ Re-evaluate Entire after Pi installation and initial workflow shakedown.
 
 ### Treat As Transitional
 
-- `.agent/workflows/`
 - broad prompt/research corpora under `.agent/docs/agentic/`
 
 ### Rule
@@ -97,6 +105,22 @@ Do not create a parallel workflow forest. New workflow logic should land in:
 - `.agent/agentic/` for static agentic config and manifests
 - `tools/agentic/` for deterministic generators and benchmarks
 - `.agent-harness/` for generated cache state and metrics
+
+## Harness Evaluation Criteria
+
+CLI-Anything and atlas-harness should be compared against:
+
+- command-surface quality for agents
+- JSON and structured output quality
+- software/control breadth
+- codebase awareness
+- project-aware rule enforcement
+- safety and guardrails
+- setup complexity
+- maintenance burden
+- extensibility burden
+
+Atlas-harness should survive only if its unique strengths are worth continuing to build.
 
 ## Step 2: Concrete Install Contract
 
@@ -195,11 +219,10 @@ This slice is complete when:
 - LightRAG indexing
 - OpenSpace skill harvest
 - volatile task-pack generation
-- workflow retirement or archival of `.agent/workflows/`
 
 ## Follow-On Work After This Slice
 
-1. Install Pi around these repo-owned artifacts.
+1. Evaluate CLI-Anything against atlas-harness and decide the retained harness boundary.
 2. Add retrieval and memory integrations that consume canonical artifacts.
-3. Reduce `.agent/workflows/` and prompt/research sprawl.
+3. Reduce prompt/research sprawl.
 4. Extend the context packer with volatile task-time artifacts.
