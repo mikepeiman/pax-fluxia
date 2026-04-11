@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "id": "stable-instructions",
+      "title": "Stable Instructions",
+      "description": "Master agent instructions and atlas-harness usage guidance.",
+      "output": "stable-instructions.md",
+      "sources": [
+        ".agent/AGENT.md",
+        ".agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md"
+      ]
+    },
+    {
+      "id": "stable-coding-policy",
+      "title": "Stable Coding Policy",
+      "description": "High-signal implementation rules and local coding policy inputs.",
+      "output": "stable-coding-policy.md",
+      "sources": [
+        ".agent/rules/hard-rules.md",
+        ".agent/rules/verification-first.md",
+        ".agent/rules/document-everything.md",
+        ".agent/rules/no-duplicate-implementations.md",
+        ".cursor/rules/pax-fluxia-agent-core.mdc",
+        ".cursor/rules/game-tuning-no-magic-numbers.mdc"
+      ]
+    },
+    {
+      "id": "stable-project-architecture",
+      "title": "Stable Project Architecture",
+      "description": "Compact architecture and mechanics references used across many tasks.",
+      "output": "stable-project-architecture.md",
+      "sources": [
+        ".atlas/00_PHYSICAL_MAP.md",
+        ".atlas/DECISIONS.md",
+        ".atlas/MECHANICS.md",
+        ".agent/docs/project/TERRITORY_PIPELINE_STATUS.md"
+      ]
+    },
+    {
+      "id": "stable-workflow-stack",
+      "title": "Stable Workflow Stack",
+      "description": "Current workflow surface inventory and concrete installation contract.",
+      "output": "stable-workflow-stack.md",
+      "sources": [
+        ".agent/docs/project/implementation-plans/2026-04-11/WORKFLOW_SURFACE_INVENTORY_2026-04-11.md",
+        ".agent/docs/project/implementation-plans/2026-04-11/WORKFLOW_INSTALLATION_SPEC_2026-04-11.md"
+      ]
+    }
+  ]
+}

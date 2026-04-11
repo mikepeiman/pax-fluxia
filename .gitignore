@@ -8,3 +8,5 @@ package
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.agent-harness/context-cache/
+.agent-harness/metrics/

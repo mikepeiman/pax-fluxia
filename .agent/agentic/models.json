@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "classes": {
+    "cheap": {
+      "provider": null,
+      "model": null,
+      "status": "unassigned",
+      "intendedUse": "bookkeeping, inventories, low-risk summarization"
+    },
+    "balanced": {
+      "provider": null,
+      "model": null,
+      "status": "unassigned",
+      "intendedUse": "default implementation and medium-complexity execution"
+    },
+    "premium": {
+      "provider": null,
+      "model": null,
+      "status": "unassigned",
+      "intendedUse": "advisor, architectural review, complex synthesis"
+    },
+    "local": {
+      "provider": null,
+      "model": null,
+      "status": "unassigned",
+      "intendedUse": "offline or workstation-local execution when appropriate"
+    }
+  },
+  "note": "Populate concrete provider/model identifiers during Pi installation. Project logic should depend on class keys, not provider-specific IDs."
+}

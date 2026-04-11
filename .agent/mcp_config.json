@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "atlas-harness": {
-      "command": "bun",
-      "args": ["run", "C:/Users/mikep/Desktop/WebDev/atlas-harness/src/index.ts", "--transport", "stdio"]
+      "command": "atlas-harness",
+      "args": [
+        "--transport",
+        "mcp"
+      ]
     }
   }
 }

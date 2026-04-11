@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "localMemoization": true,
+  "providerCaching": false,
+  "metricsLogging": true,
+  "tokenEstimation": "chars_div_4",
+  "paths": {
+    "artifactsDir": ".agent-harness/context-cache/artifacts",
+    "cacheManifest": ".agent-harness/context-cache/cache-manifest.json",
+    "metricsLog": ".agent-harness/metrics/context-build.jsonl",
+    "benchmarkReport": ".agent-harness/metrics/context-benchmark-latest.md"
+  }
+}
