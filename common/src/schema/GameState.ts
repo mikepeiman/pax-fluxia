@@ -65,22 +65,24 @@ export type StarSchema = SchemaType<typeof StarSchema>;
 // Connection Schema
 // ============================================================================
 
+export const PointSchema = schema({
+    x: "number",
+    y: "number",
+}, "PointSchema");
+export type PointSchema = SchemaType<typeof PointSchema>;
+
 export const ConnectionSchema = schema({
     sourceId: "string",
     targetId: "string",
     distance: "number",
+    lanePathKind: "string",
+    laneWaypoints: { array: PointSchema },
 }, "ConnectionSchema");
 export type ConnectionSchema = SchemaType<typeof ConnectionSchema>;
 
 // ============================================================================
 // Territory Polygon (for Voronoi)
 // ============================================================================
-
-export const PointSchema = schema({
-    x: "number",
-    y: "number",
-}, "PointSchema");
-export type PointSchema = SchemaType<typeof PointSchema>;
 
 export const TerritorySchema = schema({
     playerId: "string",

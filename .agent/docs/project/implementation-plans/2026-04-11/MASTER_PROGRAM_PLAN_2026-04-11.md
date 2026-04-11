@@ -692,6 +692,16 @@ These remain active and must not get lost while the agentic-support layer is bui
 - Eliminate SP/MP divergence for lane-path consumption.
 - Keep future authoritative map/editor data models in `/common`.
 
+#### Same-day progress
+
+- shared `Connection` and `ConnectionSchema` now carry lane-path data
+- server room state now preserves shared lane paths for standard maps and enriches debug maps through the shared mapgen solver
+- multiplayer client now normalizes and seeds lane-cache state from server truth instead of silently dropping back to chord-only behavior
+- a first shared fixture registry now exists in:
+  - `common/src/fixtureMaps.ts`
+- dedicated implementation note:
+  - `.agent/docs/project/implementation-plans/2026-04-11/COMMON_LANE_PARITY_AND_FIXTURE_FOUNDATION_2026-04-11.md`
+
 ### Curated fixture maps
 
 Introduce deterministic small maps in `/common` to support:
@@ -701,6 +711,13 @@ Introduce deterministic small maps in `/common` to support:
 - parity verification
 - future automated checks
 - custom-map-editor regression
+
+#### Same-day progress
+
+- landed the first foundation only:
+  - a canonical shared fixture registry in `/common`
+  - initial entries reference existing curated saved-map assets
+- intentionally did **not** overreach into a fake finished loader/editor pipeline in the same slice
 
 ### Territory render-family program
 

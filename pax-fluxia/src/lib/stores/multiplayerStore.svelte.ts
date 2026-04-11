@@ -10,6 +10,8 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { TickEvents, TransferEvent } from '@pax/common';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { audioManager } from '$lib/services/audioManager.svelte';
+import { clearLanePolylineCache } from '$lib/lanes/lanePolylineCache';
+import { seedLaneCacheFromConnections } from '$lib/lanes/laneConnectionSync';
 
 /** Options forwarded to Colyseus `create('game_room', opts)` (host map setup). */
 export type CreateRoomOptions = {
@@ -231,6 +233,7 @@ function leaveRoom(): void {
     restartVoteInfo = null;
     startVoteInfo = null;
     chatMessages = [];
+    clearLanePolylineCache();
 }
 
 function disconnect(): void {
@@ -505,17 +508,9 @@ function syncStateFromRoom(state: any): void {
     stars = starArray;
 
     // Convert connections array
-    const connArray: StarConnection[] = [];
-    if (state.connections) {
-        state.connections.forEach((conn: any) => {
-            connArray.push({
-                sourceId: conn.sourceId,
-                targetId: conn.targetId,
-                distance: conn.distance
-            });
-        });
-    }
-    connections = connArray;
+    connections = state.connections
+        ? seedLaneCacheFromConnections(state.connections) as StarConnection[]
+        : [];
 }
 
 // ============================================================================

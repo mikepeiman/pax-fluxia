@@ -7,12 +7,13 @@ import {
     GameRoomState,
     PlayerSchema,
     StarSchema,
-    ConnectionSchema
+    ConnectionSchema,
+    PointSchema,
 } from "../schema/GameState.schema";
 
 // Import shared game logic from @pax/common
 import { GameEngine, STAR_TYPE_STATS, DEFAULT_ENGINE_CONFIG } from "@pax/common";
-import { generateMap } from "@pax/common/mapgen";
+import { attachLaneWaypointsToConnections, generateMap, type LanePathKind, type MapConnection, type MapLaneMode } from "@pax/common/mapgen";
 import type { EngineConfig } from "@pax/common";
 import { log } from '../utils/logger';
 
@@ -41,6 +42,15 @@ interface RoomOptions {
     // Phase A: Full gameplay config from client
     gameplayConfig?: Partial<EngineConfig>;
 }
+
+type LaneGameplayConfig = {
+    MODIFIED_VORONOI_STAR_MARGIN?: number;
+    MAPGEN_LANE_MARGIN_PX?: number;
+    /** @deprecated Combined into `MAPGEN_LANE_MARGIN_PX` on client; server migrates if margin absent */
+    MAPGEN_LANE_BUFFER_PX?: number;
+    MAPGEN_LANE_MODE?: MapLaneMode;
+    MAPGEN_LANE_CURVE_VS_PRUNE_BIAS?: number;
+};
 
 // Message types from client
 type MessageType =
@@ -746,6 +756,9 @@ export class GameRoom extends Room {
         this.addConnection('star-b', 'star-c');
         this.addConnection('star-c', 'star-a');
         this.addConnection('star-a', 'star-d');
+
+        const { mapLaneMode, laneMarginPx } = this.getLaneGenerationOptions();
+        this.attachLaneDataToExistingConnections(mapLaneMode, laneMarginPx);
     }
 
     private initStandardMap() {
@@ -753,24 +766,7 @@ export class GameRoom extends Room {
         const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
 
         // Delegate placement + connections to shared mapgen
-        const gc = this.roomOptions.gameplayConfig as
-            | {
-                  MODIFIED_VORONOI_STAR_MARGIN?: number;
-                  MAPGEN_LANE_MARGIN_PX?: number;
-                  /** @deprecated Combined into `MAPGEN_LANE_MARGIN_PX` on client; server migrates if margin absent */
-                  MAPGEN_LANE_BUFFER_PX?: number;
-                  MAPGEN_LANE_MODE?: 'straight' | 'curved';
-                  MAPGEN_LANE_CURVE_VS_PRUNE_BIAS?: number;
-              }
-            | undefined;
-        const msr = gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-        const laneMargin =
-            gc?.MAPGEN_LANE_MARGIN_PX
-            ?? (gc?.MAPGEN_LANE_BUFFER_PX != null ? msr + gc.MAPGEN_LANE_BUFFER_PX : 75);
-        const curveVsPruneBias = Math.min(
-            1,
-            Math.max(0, gc?.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
-        );
+        const { msr, laneMarginPx, curveVsPruneBias, mapLaneMode } = this.getLaneGenerationOptions();
         const result = generateMap({
             width: 1600,
             height: 900,
@@ -781,9 +777,9 @@ export class GameRoom extends Room {
             maxLinksPerStar: this.roomOptions.maxLinks ?? 6,
             boardFit: this.roomOptions.mapBoardFit ?? 0,
             mapgenStarMarginPx: msr,
-            mapgenLaneMarginPx: laneMargin,
+            mapgenLaneMarginPx: laneMarginPx,
             mapgenLaneCurveVsPruneBias: curveVsPruneBias,
-            mapLaneMode: gc?.MAPGEN_LANE_MODE ?? 'curved',
+            mapLaneMode,
         });
 
         log.sys('GameRoom', `Map: ${result.positions.length} stars, ${result.connections.length} connections (hex r=${result.hexRadius}, ${result.width}x${result.height})`);
@@ -812,7 +808,7 @@ export class GameRoom extends Room {
 
         // Create connection schemas from shared result
         for (const conn of result.connections) {
-            this.addConnection(conn.sourceId, conn.targetId);
+            this.addConnection(conn.sourceId, conn.targetId, conn.distance, conn.laneWaypoints, conn.lanePathKind);
         }
     }
 
@@ -842,24 +838,107 @@ export class GameRoom extends Room {
         this.state.stars.set(id, star);
     }
 
-    private addConnection(sourceId: string, targetId: string) {
+    private getLaneGenerationOptions(): {
+        msr: number;
+        laneMarginPx: number;
+        curveVsPruneBias: number;
+        mapLaneMode: MapLaneMode;
+    } {
+        const gc = this.roomOptions.gameplayConfig as LaneGameplayConfig | undefined;
+        const msr = gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+        const laneMarginPx =
+            gc?.MAPGEN_LANE_MARGIN_PX
+            ?? (gc?.MAPGEN_LANE_BUFFER_PX != null ? msr + gc.MAPGEN_LANE_BUFFER_PX : 75);
+        const curveVsPruneBias = Math.min(
+            1,
+            Math.max(0, gc?.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+        );
+
+        return {
+            msr,
+            laneMarginPx,
+            curveVsPruneBias,
+            mapLaneMode: gc?.MAPGEN_LANE_MODE ?? 'curved',
+        };
+    }
+
+    private attachLaneDataToExistingConnections(mode: MapLaneMode, laneMarginPx: number) {
+        const stars = Array.from(this.state.stars.values()).map((star) => ({
+            id: star.id,
+            x: star.x,
+            y: star.y,
+        }));
+        const seen = new Set<string>();
+        const uniConnections: MapConnection[] = [];
+
+        for (let index = 0; index < this.state.connections.length; index++) {
+            const connection = this.state.connections[index];
+            const a = connection.sourceId <= connection.targetId ? connection.sourceId : connection.targetId;
+            const b = connection.sourceId <= connection.targetId ? connection.targetId : connection.sourceId;
+            const key = `${a}|${b}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            uniConnections.push({
+                sourceId: a,
+                targetId: b,
+                distance: connection.distance,
+            });
+        }
+
+        attachLaneWaypointsToConnections(stars, uniConnections, mode, laneMarginPx);
+        this.state.connections.splice(0, this.state.connections.length);
+        for (const connection of uniConnections) {
+            this.addConnection(
+                connection.sourceId,
+                connection.targetId,
+                connection.distance,
+                connection.laneWaypoints,
+                connection.lanePathKind,
+            );
+        }
+    }
+
+    private addConnection(
+        sourceId: string,
+        targetId: string,
+        distanceOverride?: number,
+        laneWaypoints?: Array<[number, number]>,
+        lanePathKind?: LanePathKind,
+    ) {
         const source = this.state.stars.get(sourceId);
         const target = this.state.stars.get(targetId);
         if (!source || !target) return;
 
-        const distance = Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+        const distance = distanceOverride ?? Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+
+        const assignLaneData = (
+            connection: ConnectionSchema,
+            waypoints?: Array<[number, number]>,
+            pathKind?: LanePathKind,
+        ) => {
+            connection.lanePathKind = pathKind ?? "";
+            if (!waypoints || waypoints.length < 2) return;
+            for (const [x, y] of waypoints) {
+                const point = new PointSchema();
+                point.x = x;
+                point.y = y;
+                connection.laneWaypoints.push(point);
+            }
+        };
 
         // Add bidirectional
         const conn1 = new ConnectionSchema();
         conn1.sourceId = sourceId;
         conn1.targetId = targetId;
         conn1.distance = distance;
+        assignLaneData(conn1, laneWaypoints, lanePathKind);
         this.state.connections.push(conn1);
 
         const conn2 = new ConnectionSchema();
         conn2.sourceId = targetId;
         conn2.targetId = sourceId;
         conn2.distance = distance;
+        assignLaneData(conn2, laneWaypoints ? [...laneWaypoints].reverse() : undefined, lanePathKind);
         this.state.connections.push(conn2);
     }
 

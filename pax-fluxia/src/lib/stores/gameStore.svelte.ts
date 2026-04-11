@@ -49,6 +49,7 @@ import {
     canonicalUniConnections,
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
+import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
 
 // ============================================================================
 // Constants
@@ -322,11 +323,7 @@ function toGameState(s: GameRoomState): GameState {
         icon: star.icon,
     }));
 
-    const connections = Array.from(s.connections).map(c => ({
-        sourceId: c.sourceId,
-        targetId: c.targetId,
-        distance: c.distance,
-    }));
+    const connections = toLaneAwareConnections(Array.from(s.connections));
 
     // Find winner
     let winnerPlayer: PlayerState | null = null;
