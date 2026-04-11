@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "name": "lane_clearance_triplet",
+    "createdAt": "2026-04-11T23:05:00.000Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 220,
+      "y": 450,
+      "ownerId": "human-player",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 980,
+      "y": 450,
+      "ownerId": "ai-1",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 600,
+      "y": 410,
+      "ownerId": "ai-2",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 220,
+      "y": 220,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 20,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 980,
+      "y": 220,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 20,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-0",
+      "targetId": "star-1",
+      "distance": 760
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-3",
+      "distance": 230
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-4",
+      "distance": 230
+    }
+  ]
+}

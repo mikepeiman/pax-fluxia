@@ -20,6 +20,38 @@ export interface FixtureMapDescriptor {
 
 export const FIXTURE_MAPS: FixtureMapDescriptor[] = [
     {
+        id: 'lane_clearance_triplet',
+        name: 'Lane Clearance Triplet',
+        purpose: 'Minimal curved-lane clearance case with one blocker star near the centerline and two anchored ownership clusters.',
+        tags: ['fixtures', 'lanes', 'curved-lanes', 'parity', 'hand-authored'],
+        resourcePath: 'common/resources/fixture-maps/lane_clearance_triplet.json',
+        notes: [
+            'Use this first when validating curved lane serialization and centerline reuse in territory/FX.',
+            'The middle blocker star should force a visible detour when curved lanes are enabled.',
+        ],
+    },
+    {
+        id: 'same_owner_disconnect_gap',
+        name: 'Same-Owner Disconnect Gap',
+        purpose: 'Simple same-owner non-connected stress case for disconnect buffers, enemy bridge behavior, and frontier pressure.',
+        tags: ['fixtures', 'disconnect', 'frontiers', 'hand-authored'],
+        resourcePath: 'common/resources/fixture-maps/same_owner_disconnect_gap.json',
+        notes: [
+            'Two human stars share ownership but are intentionally not lane-connected.',
+            'The center and right-side enemy holdings should make disconnect behavior obvious.',
+        ],
+    },
+    {
+        id: 'world_edge_frontier',
+        name: 'World Edge Frontier',
+        purpose: 'Near-border territory case for world-boundary frontiers, border rendering, and edge stability.',
+        tags: ['fixtures', 'world-edge', 'frontiers', 'hand-authored'],
+        resourcePath: 'common/resources/fixture-maps/world_edge_frontier.json',
+        notes: [
+            'Use this to inspect owner-to-world border handling and edge-adjacent fill continuity.',
+        ],
+    },
+    {
         id: 'lane_clearance_curvy',
         name: 'Lane Clearance - Curvy',
         purpose: 'Curved-lane clearance case for lane-path parity, territory corridor sampling, and travel-path validation.',

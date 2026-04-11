@@ -718,6 +718,32 @@ Introduce deterministic small maps in `/common` to support:
   - a canonical shared fixture registry in `/common`
   - initial entries reference existing curated saved-map assets
 - intentionally did **not** overreach into a fake finished loader/editor pipeline in the same slice
+- added three small hand-authored fixture maps for immediate renderer/parity use:
+  - `lane_clearance_triplet`
+  - `same_owner_disconnect_gap`
+  - `world_edge_frontier`
+- saved audit note:
+  - `.agent/docs/project/implementation-plans/2026-04-11/ERROR_AUDIT_AND_FIXTURE_MAPS_2026-04-11.md`
+
+### Territory/client error audit
+
+This round also cleaned the main active territory/client compile drift:
+
+- legacy geometry mode leftovers were converted into explicit compatibility wrappers
+- old frontier helper utilities were brought up to the canonical identity-bearing geometry contract
+- transition polyline interpolation now preserves canonical frontier metadata instead of assuming lightweight legacy shapes
+- `ModifiedVoronoiRenderer` tuple typing was normalized
+
+Validation result:
+
+- `pax-fluxia` TypeScript compile now passes
+- `common` TypeScript compile passes
+- `pax-server` TypeScript compile passes
+
+Remaining validation limitation:
+
+- `vitest` / Vite still hit Windows `spawn EPERM` in this Codex runner context
+- that is now the main environmental blocker for test execution in this slice, not a live TypeScript-contract problem
 
 ### Territory render-family program
 

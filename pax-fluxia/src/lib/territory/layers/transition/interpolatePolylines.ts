@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// interpolatePolylines.ts — CDF-based Optimal Transport border interpolation
+// interpolatePolylines.ts - CDF-based Optimal Transport border interpolation
 // ---------------------------------------------------------------------------
 //
 // Core principle: Borders Lead, Fills Follow.
@@ -19,10 +19,10 @@
 // Static polylines (identical in prev and next) pass through unchanged.
 // Spawned/vanished polylines fade from/to their midpoint.
 //
-// All functions are pure — no PIXI, no state, no side effects.
+// All functions are pure - no PIXI, no state, no side effects.
 // ---------------------------------------------------------------------------
 
-import type { FrontierPolylineShape } from '../../contracts/GeometryContracts';
+import type { CanonicalFrontierPolyline } from '../../contracts/GeometryContracts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,6 +30,8 @@ import type { FrontierPolylineShape } from '../../contracts/GeometryContracts';
 
 export interface MatchedPolylinePair {
     ownerPairKey: string;
+    prevShape?: CanonicalFrontierPolyline;
+    nextShape?: CanonicalFrontierPolyline;
     prev: [number, number][];
     next: [number, number][];
     status: 'static' | 'drifted' | 'spawned' | 'vanished';
@@ -62,16 +64,14 @@ function buildArcLengthCDF(points: [number, number][]): Float64Array {
             cdf[i] /= totalLength;
         }
     }
-    cdf[n - 1] = 1.0; // Ensure exact 1.0 at end
+    cdf[n - 1] = 1.0;
 
     return cdf;
 }
 
 /**
- * Evaluate a polyline at a given arc-fraction u ∈ [0, 1].
+ * Evaluate a polyline at a given arc-fraction u in [0, 1].
  * Uses the CDF to find the correct segment and interpolates within it.
- * This is the inverse CDF lookup: given a fraction of total length,
- * return the 2D position on the polyline.
  */
 function evaluateAtArcFraction(
     points: [number, number][],
@@ -83,7 +83,6 @@ function evaluateAtArcFraction(
     if (n === 1 || u <= 0) return [points[0][0], points[0][1]];
     if (u >= 1) return [points[n - 1][0], points[n - 1][1]];
 
-    // Binary search for the segment containing u
     let lo = 0;
     let hi = n - 1;
     while (lo < hi - 1) {
@@ -92,7 +91,6 @@ function evaluateAtArcFraction(
         else hi = mid;
     }
 
-    // Interpolate within segment [lo, hi]
     const segFrac = cdf[hi] - cdf[lo];
     const t = segFrac > 1e-12 ? (u - cdf[lo]) / segFrac : 0;
 
@@ -106,25 +104,6 @@ function evaluateAtArcFraction(
 // OT-based polyline interpolation
 // ---------------------------------------------------------------------------
 
-/**
- * Interpolate between two polylines using 1D optimal transport.
- *
- * For N output samples at uniform arc-fractions u = i/(N-1):
- *   prevPos = evaluateAtArcFraction(prev, u)
- *   nextPos = evaluateAtArcFraction(next, u)
- *   output[i] = (1-t) * prevPos + t * nextPos
- *
- * Properties:
- * - Monotone mapping: order is preserved (no self-crossing)
- * - Mass-preserving: each "fraction of border length" maps to the same
- *   fraction on the other border
- * - Smooth drift: nearby points map to nearby points
- *
- * @param prev Source polyline (at t=0)
- * @param next Target polyline (at t=1)
- * @param t Progress [0, 1]
- * @param sampleCount Number of output vertices
- */
 export function otInterpolatePolyline(
     prev: [number, number][],
     next: [number, number][],
@@ -151,77 +130,72 @@ export function otInterpolatePolyline(
 // Match polylines by ownerPairKey
 // ---------------------------------------------------------------------------
 
-/**
- * Match previous and next frontier polylines by their ownerPairKey.
- * Returns matched pairs classified as:
- * - static:   same key, same points → pass through unchanged (zero jitter)
- * - drifted:  same key, different points → CDF-interpolate
- * - spawned:  only in next → fade in from midpoint
- * - vanished: only in prev → fade out to midpoint
- */
 export function matchPolylinesByKey(
-    prev: readonly FrontierPolylineShape[],
-    next: readonly FrontierPolylineShape[],
+    prev: readonly CanonicalFrontierPolyline[],
+    next: readonly CanonicalFrontierPolyline[],
 ): MatchedPolylinePair[] {
-    // Build multimaps — multiple segments can share the same ownerPairKey
-    const prevMap = new Map<string, [number, number][][]>();
+    const prevMap = new Map<string, CanonicalFrontierPolyline[]>();
     for (const p of prev) {
         const arr = prevMap.get(p.ownerPairKey);
-        if (arr) arr.push(p.points);
-        else prevMap.set(p.ownerPairKey, [p.points]);
+        if (arr) arr.push(p);
+        else prevMap.set(p.ownerPairKey, [p]);
     }
 
-    const nextMap = new Map<string, [number, number][][]>();
+    const nextMap = new Map<string, CanonicalFrontierPolyline[]>();
     for (const n of next) {
         const arr = nextMap.get(n.ownerPairKey);
-        if (arr) arr.push(n.points);
-        else nextMap.set(n.ownerPairKey, [n.points]);
+        if (arr) arr.push(n);
+        else nextMap.set(n.ownerPairKey, [n]);
     }
 
     const result: MatchedPolylinePair[] = [];
 
-    // Persisting/static/drifted + vanished (iterate prev)
     for (const [key, prevSegments] of prevMap) {
         const nextSegments = nextMap.get(key);
         if (nextSegments) {
-            // Match segment-by-segment by index
             const maxLen = Math.max(prevSegments.length, nextSegments.length);
             for (let i = 0; i < maxLen; i++) {
                 if (i >= prevSegments.length) {
-                    // Extra in next → spawned
-                    const mid = polylineMidpoint(nextSegments[i]);
+                    const nextShape = nextSegments[i];
+                    const mid = polylineMidpoint(nextShape.points);
                     result.push({
                         ownerPairKey: key,
+                        nextShape,
                         prev: [mid, mid],
-                        next: nextSegments[i],
+                        next: nextShape.points,
                         status: 'spawned',
                     });
                 } else if (i >= nextSegments.length) {
-                    // Extra in prev → vanished
-                    const mid = polylineMidpoint(prevSegments[i]);
+                    const prevShape = prevSegments[i];
+                    const mid = polylineMidpoint(prevShape.points);
                     result.push({
                         ownerPairKey: key,
-                        prev: prevSegments[i],
+                        prevShape,
+                        prev: prevShape.points,
                         next: [mid, mid],
                         status: 'vanished',
                     });
                 } else {
-                    const isStatic = arePolylinesSame(prevSegments[i], nextSegments[i]);
+                    const prevShape = prevSegments[i];
+                    const nextShape = nextSegments[i];
+                    const isStatic = arePolylinesSame(prevShape.points, nextShape.points);
                     result.push({
                         ownerPairKey: key,
-                        prev: prevSegments[i],
-                        next: nextSegments[i],
+                        prevShape,
+                        nextShape,
+                        prev: prevShape.points,
+                        next: nextShape.points,
                         status: isStatic ? 'static' : 'drifted',
                     });
                 }
             }
         } else {
-            // Vanished: all segments collapse to midpoint
-            for (const prevPts of prevSegments) {
-                const mid = polylineMidpoint(prevPts);
+            for (const prevShape of prevSegments) {
+                const mid = polylineMidpoint(prevShape.points);
                 result.push({
                     ownerPairKey: key,
-                    prev: prevPts,
+                    prevShape,
+                    prev: prevShape.points,
                     next: [mid, mid],
                     status: 'vanished',
                 });
@@ -229,15 +203,15 @@ export function matchPolylinesByKey(
         }
     }
 
-    // Spawned (in next but not in prev)
     for (const [key, nextSegments] of nextMap) {
         if (!prevMap.has(key)) {
-            for (const nextPts of nextSegments) {
-                const mid = polylineMidpoint(nextPts);
+            for (const nextShape of nextSegments) {
+                const mid = polylineMidpoint(nextShape.points);
                 result.push({
                     ownerPairKey: key,
+                    nextShape,
                     prev: [mid, mid],
-                    next: nextPts,
+                    next: nextShape.points,
                     status: 'spawned',
                 });
             }
@@ -251,43 +225,39 @@ export function matchPolylinesByKey(
 // Full interpolation pipeline
 // ---------------------------------------------------------------------------
 
-/**
- * Interpolate between previous and next frontier polylines at progress `t`.
- * Returns interpolated polylines in FrontierPolylineShape format.
- *
- * - Static polylines: pass through unchanged (zero jitter)
- * - Drifted: CDF-parameterized optimal transport interpolation
- * - Spawned: fade in from midpoint via OT
- * - Vanished: fade out to midpoint via OT
- */
 export function interpolateMatchedPolylines(
-    prev: readonly FrontierPolylineShape[],
-    next: readonly FrontierPolylineShape[],
+    prev: readonly CanonicalFrontierPolyline[],
+    next: readonly CanonicalFrontierPolyline[],
     t: number,
-): FrontierPolylineShape[] {
-    // Edge cases: snap to source or target
-    if (t <= 0) return prev.map(p => ({ ownerPairKey: p.ownerPairKey, points: [...p.points] }));
-    if (t >= 1) return next.map(p => ({ ownerPairKey: p.ownerPairKey, points: [...p.points] }));
+): CanonicalFrontierPolyline[] {
+    if (t <= 0) return prev.map(clonePolyline);
+    if (t >= 1) return next.map(clonePolyline);
 
     const matched = matchPolylinesByKey(prev, next);
-    const result: FrontierPolylineShape[] = [];
+    const result: CanonicalFrontierPolyline[] = [];
 
     for (const pair of matched) {
+        const prototype = pair.nextShape ?? pair.prevShape ?? {
+            frontierId: `frontier:${pair.ownerPairKey}`,
+            ownerA: pair.ownerPairKey.split('|')[0] ?? 'unknown',
+            ownerB: pair.ownerPairKey.split('|')[1] ?? '__world__',
+            ownerPairKey: pair.ownerPairKey,
+            confidence: 1,
+        };
+
         if (pair.status === 'static') {
-            // Unchanged polyline — pass through with zero jitter
             result.push({
-                ownerPairKey: pair.ownerPairKey,
-                points: pair.next,
+                ...prototype,
+                points: clonePoints(pair.next),
             });
             continue;
         }
 
-        // Drifted, spawned, or vanished — OT interpolation
         const sampleCount = Math.max(pair.prev.length, pair.next.length, 4);
         const interpolated = otInterpolatePolyline(pair.prev, pair.next, t, sampleCount);
 
         result.push({
-            ownerPairKey: pair.ownerPairKey,
+            ...prototype,
             points: interpolated,
         });
     }
@@ -299,10 +269,10 @@ export function interpolateMatchedPolylines(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Compute the geometric midpoint of a polyline. */
 export function polylineMidpoint(points: [number, number][]): [number, number] {
     if (points.length === 0) return [0, 0];
-    let sx = 0, sy = 0;
+    let sx = 0;
+    let sy = 0;
     for (const [x, y] of points) {
         sx += x;
         sy += y;
@@ -310,7 +280,6 @@ export function polylineMidpoint(points: [number, number][]): [number, number] {
     return [sx / points.length, sy / points.length];
 }
 
-/** Check if two polylines have the same points (within epsilon). */
 function arePolylinesSame(
     a: [number, number][],
     b: [number, number][],
@@ -323,4 +292,15 @@ function arePolylinesSame(
         }
     }
     return true;
+}
+
+function clonePolyline(polyline: CanonicalFrontierPolyline): CanonicalFrontierPolyline {
+    return {
+        ...polyline,
+        points: clonePoints(polyline.points),
+    };
+}
+
+function clonePoints(points: [number, number][]): [number, number][] {
+    return points.map(([x, y]) => [x, y]);
 }

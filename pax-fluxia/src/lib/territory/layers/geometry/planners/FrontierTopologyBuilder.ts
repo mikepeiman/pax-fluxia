@@ -1,5 +1,5 @@
 import type {
-    FrontierPolylineShape,
+    CanonicalFrontierPolyline,
     TerritoryRegionShape,
     SharedFrontierMap,
 } from '../GeometryMode';
@@ -10,35 +10,31 @@ import type {
 export function buildTerritoryRegionShapes(
     geometry: TerritoryGeometryData,
 ): TerritoryRegionShape[] {
-    return geometry.mergedTerritories.map((territory) => ({
+    return geometry.mergedTerritories.map((territory, index) => ({
+        regionId: `legacy-region:${territory.ownerId}:${index}`,
         ownerId: territory.ownerId,
         points: territory.points,
+        confidence: 1,
     }));
 }
 
 export function buildFrontierPolylineShapes(
     geometry: TerritoryGeometryData,
-): FrontierPolylineShape[] {
-    // Include BOTH inter-owner shared polylines AND world-boundary polylines.
-    // The compiler produces both: sharedPolylines (Red↔Blue borders) and
-    // worldBorderPolylines (Red↔world edges). Both are needed for complete
-    // border rendering.
-    const all: FrontierPolylineShape[] = [];
-    for (const polyline of geometry.sharedPolylines) {
-        all.push({ ownerPairKey: polyline.ownerPairKey, points: polyline.points });
+): CanonicalFrontierPolyline[] {
+    const all: CanonicalFrontierPolyline[] = [];
+    for (const [index, polyline] of geometry.sharedPolylines.entries()) {
+        all.push(buildCanonicalPolyline('frontier', polyline.ownerPairKey, polyline.points, index));
     }
-    for (const polyline of geometry.worldBorderPolylines) {
-        all.push({ ownerPairKey: polyline.ownerPairKey, points: polyline.points });
+    for (const [index, polyline] of geometry.worldBorderPolylines.entries()) {
+        all.push(buildCanonicalPolyline('world-border', polyline.ownerPairKey, polyline.points, index));
     }
     return all;
 }
 
 export function buildSharedFrontierMap(
-    polylines: readonly FrontierPolylineShape[],
+    polylines: readonly CanonicalFrontierPolyline[],
 ): SharedFrontierMap {
-    // D-90: ownerPairKey is NOT unique — two owners can share multiple
-    // disconnected border segments. Accumulate arrays, never overwrite.
-    const map = new Map<string, FrontierPolylineShape[]>();
+    const map = new Map<string, CanonicalFrontierPolyline[]>();
     for (const p of polylines) {
         const arr = map.get(p.ownerPairKey);
         if (arr) {
@@ -48,4 +44,21 @@ export function buildSharedFrontierMap(
         }
     }
     return map;
+}
+
+function buildCanonicalPolyline(
+    prefix: 'frontier' | 'world-border',
+    ownerPairKey: string,
+    points: [number, number][],
+    index: number,
+): CanonicalFrontierPolyline {
+    const [ownerA = 'unknown', ownerB = '__world__'] = ownerPairKey.split('|');
+    return {
+        frontierId: `${prefix}:${ownerPairKey}:${index}`,
+        ownerA,
+        ownerB,
+        ownerPairKey,
+        points,
+        confidence: 1,
+    };
 }

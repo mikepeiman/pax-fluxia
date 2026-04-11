@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "name": "same_owner_disconnect_gap",
+    "createdAt": "2026-04-11T23:05:00.000Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 240,
+      "y": 300,
+      "ownerId": "human-player",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 240,
+      "y": 620,
+      "ownerId": "human-player",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 540,
+      "y": 460,
+      "ownerId": "ai-1",
+      "starType": "yellow",
+      "activeShips": 50,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 860,
+      "y": 300,
+      "ownerId": "ai-2",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 860,
+      "y": 620,
+      "ownerId": "ai-2",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-2",
+      "targetId": "star-3",
+      "distance": 357.770876399966
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-4",
+      "distance": 357.770876399966
+    },
+    {
+      "sourceId": "star-3",
+      "targetId": "star-4",
+      "distance": 320
+    }
+  ]
+}

@@ -168,6 +168,51 @@ Use shell fallback for file reads when the atlas-harness file tool is unavailabl
 - failed initialization produces a specific and actionable health error instead of a null-object crash
 - a lightweight health check makes it obvious when file services are ready
 
+### 2026-04-11 A3. Workspace auto-open fell back to `C:\\WINDOWS\\system32` and broke file tools
+
+- Status: open
+- Category: tool initialization failure
+- Surface: workspace binding / auto-open behavior
+
+#### Verified observation
+
+During a later file-read attempt in this same project session, atlas-harness returned:
+
+```text
+No workspace open and auto-open from CWD failed: EPERM: operation not permitted, mkdir 'C:\WINDOWS\system32\.agent-harness'
+```
+
+This was followed by file-read failures such as:
+
+```text
+null is not an object (evaluating 'fileService.read')
+```
+
+The active project workspace was actually:
+
+```text
+C:\Users\mikep\Desktop\WebDev\pax-fluxia
+```
+
+So the auto-open attempt was resolving against an invalid/non-project current directory for atlas-harness purposes.
+
+#### Impact
+
+- file tools became unavailable even though the project workspace itself was valid
+- work had to fall back to direct shell reads again
+- the agent could not trust atlas-harness file operations without re-proving workspace state
+
+#### Workaround
+
+- fall back to direct shell reads in the affected thread
+- re-check atlas-harness workspace binding before trusting file tools
+
+#### Desired fix or success condition
+
+- atlas-harness should reliably bind to the actual project workspace in Codex MCP sessions
+- if auto-open fails from an invalid CWD, the error should point clearly at the workspace-binding problem
+- `fileService.read` should never remain in a null-crash state after the root workspace-open failure
+
 ### 2026-04-11 S1. Error reporting should better separate wrapper failures from package-runtime failures
 
 - Status: open

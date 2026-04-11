@@ -186,7 +186,7 @@ function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
 }
 
 interface MergedPolygon {
-    points: number[][]; // [[x,y], ...] closed polygon
+    points: [number, number][]; // [[x,y], ...] closed polygon
     ownerId: string;
     clusterIdx: number;
     color: { hex: number; rgb: [number, number, number] };
@@ -323,7 +323,7 @@ function mergeSameOwnerCells(
         for (let startIdx = 0; startIdx < edges.length; startIdx++) {
             if (used.has(startIdx)) continue;
 
-            const chain: number[][] = [];
+            const chain: [number, number][] = [];
             const e0 = edges[startIdx];
             used.add(startIdx);
             chain.push([e0.x1, e0.y1]);
@@ -456,8 +456,8 @@ function interiorAngle(pts: number[][], i: number): number {
  * B(t) = (1-t)²·P0 + 2(1-t)t·P1 + t²·P2
  */
 function quadBezier(
-    p0: number[], p1: number[], p2: number[], t: number,
-): number[] {
+    p0: [number, number], p1: [number, number], p2: [number, number], t: number,
+): [number, number] {
     const u = 1 - t;
     return [
         u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
@@ -465,7 +465,7 @@ function quadBezier(
     ];
 }
 
-function pushPtDedupe(out: number[][], p: number[], epsSq: number): void {
+function pushPtDedupe(out: [number, number][], p: [number, number], epsSq: number): void {
     const last = out[out.length - 1];
     if (!last) {
         out.push(p);
@@ -509,7 +509,7 @@ function smoothSharpVertices(
             pts[0][1] === pts[pts.length - 1][1];
         if (isClosed) pts = pts.slice(0, -1);
 
-        const newPts: number[][] = [];
+        const newPts: [number, number][] = [];
         const len = pts.length;
         if (len < 3) continue;
 
@@ -557,11 +557,11 @@ function smoothSharpVertices(
                     0.45,
                     Math.max(0.06, 0.08 + arcStrength * 0.55),
                 );
-                const p0: number[] = [
+                const p0: [number, number] = [
                     curr[0] + f * (prev[0] - curr[0]),
                     curr[1] + f * (prev[1] - curr[1]),
                 ];
-                const p2: number[] = [
+                const p2: [number, number] = [
                     curr[0] + f * (next[0] - curr[0]),
                     curr[1] + f * (next[1] - curr[1]),
                 ];
@@ -576,7 +576,7 @@ function smoothSharpVertices(
                     }
                 }
 
-                const controlPt: number[] = [
+                const controlPt: [number, number] = [
                     curr[0] + arcStrength * (nearestStar.x - curr[0]),
                     curr[1] + arcStrength * (nearestStar.y - curr[1]),
                 ];
