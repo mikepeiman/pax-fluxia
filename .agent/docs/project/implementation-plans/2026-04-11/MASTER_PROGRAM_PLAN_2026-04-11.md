@@ -830,3 +830,42 @@ Main synthesis:
   - preserve analytical power
   - move enforcement into tooling
   - use Pax Fluxia as a bounded real-world proving loop
+
+---
+
+## Codex Windows Shell Stabilization Note
+
+This round produced a more precise diagnosis of the Codex-on-Windows command failure pattern:
+
+- the interactive IDE terminal can run normal commands including `atlas-harness`
+- the Codex command runner fails selectively on some executables with `Access is denied`
+- sandbox logs point to ACL setup failure against the Codex WindowsApps resource directory
+
+Most important concrete evidence:
+
+- `rg` in the command runner resolves to the Codex app-bundled binary under `C:\Program Files\WindowsApps\OpenAI.Codex...`
+- sandbox log records:
+  - `grant read ACE failed ... SetNamedSecurityInfoW failed: 5`
+- direct `node.exe` from `C:\Program Files\nodejs\node.exe` also failed in the command runner with `Access is denied`
+- direct `bun.exe` worked
+- a normal user-space `rg.exe` inside the Cursor install ran successfully in the command runner
+
+Immediate remediation applied outside the repo in `C:\Users\mikep\.codex\config.toml`:
+
+- removed the experimental top-level `sandbox_mode = "danger-full-access"` change
+- changed the Windows sandbox mode from:
+  - `sandbox = "elevated"`
+- to:
+  - `sandbox = "unelevated"`
+  - `sandbox_private_desktop = false`
+
+Why this was chosen:
+
+- it targets the Windows-specific sandbox layer that matches the actual failure mode
+- it is a narrower and safer fix than forcing global danger-full-access
+- it aligns with the observed issue: sandboxed child-process launch context diverges from the normal interactive terminal
+
+Important limitation:
+
+- this change cannot be validated inside the current thread because the current command runner was launched under the prior sandbox settings
+- a full Codex restart is required before the new Windows sandbox mode is actually exercised
