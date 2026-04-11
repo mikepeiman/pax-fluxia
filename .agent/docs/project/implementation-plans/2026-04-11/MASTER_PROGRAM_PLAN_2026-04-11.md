@@ -881,3 +881,40 @@ Current interpretation:
 
 - the Windows sandbox change materially improved the runner environment
 - the remaining issue is now narrower and appears specific to Codex-bundled `rg` resolution under WindowsApps
+
+---
+
+## PRISM Original Corpus Reassessment
+
+This round incorporated the fuller original PRISM corpus from the external Obsidian vault, not just the reduced in-repo descendants.
+
+Saved note:
+
+- `.agent/docs/project/implementation-plans/2026-04-11/PRISM_ORIGINAL_CORPUS_REVIEW_2026-04-11.md`
+
+Main reassessment:
+
+- the repository docs had unintentionally compressed PRISM into methodology + Atlas + harness thinking
+- the original corpus makes clear PRISM is fundamentally a **visual IDE / AST bridge / Trinity product vision**
+- Atlas, DART, and harnesses are support systems and enabling substrate, not the full center of gravity
+
+Most important preserved truths from the original corpus:
+
+- the Translation Gap thesis
+- the Trinity:
+  - Structure
+  - State
+  - Flow
+- DIALECT as a real specification protocol, not just prompt advice
+- the AST Bridge as the technical crux
+- the companion-tool wedge as the sane product path
+- protected regions and visual error overlays as major practical differentiators
+
+Most important caution:
+
+- the original corpus contains energizing but risky absolutist/founder rhetoric
+- engineering planning should preserve the core ideas without inheriting all of the certainty language
+
+Strategic implication:
+
+- going forward, PRISM product vision and Atlas/harness/workflow substrate should be documented and reasoned about as distinct but connected layers
