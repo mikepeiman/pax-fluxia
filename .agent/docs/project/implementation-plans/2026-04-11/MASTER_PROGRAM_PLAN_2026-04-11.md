@@ -918,3 +918,45 @@ Most important caution:
 Strategic implication:
 
 - going forward, PRISM product vision and Atlas/harness/workflow substrate should be documented and reasoned about as distinct but connected layers
+
+---
+
+## Workflow Status Checkpoint
+
+Current status against the workflow plan:
+
+### Completed
+
+- workflow surface inventory
+- workflow installation spec
+- repo-local context-pack/cache foundation
+- cache toggles/config surface
+- deterministic stable artifact builder
+- cache manifest and metrics outputs
+- benchmark path for cold vs warm runs
+- Bun normalization for the repo scripts touched in the workflow slice
+- Entire review and explicit retain/eject framing
+- Codex Windows shell remediation to restore most basic command execution
+
+### Not yet completed
+
+- CLI-Anything installation and real evaluation pass
+- Pi installation and integration
+- LightRAG integration
+- OpenSpace integration
+- final harness decision:
+  - CLI-Anything
+  - atlas-harness
+  - or a split role between them
+- end-to-end workflow validation through the final chosen stack
+
+### Current practical interpretation
+
+The workflow groundwork is in place, but the new workflow stack is **not yet fully installed and integrated**.
+
+The project is currently in the gap between:
+
+- having the substrate ready
+- and wiring in the new orchestration / harness / retrieval layers
+
+So yes: workflow installation and integration work still remains.
