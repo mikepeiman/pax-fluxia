@@ -12,6 +12,23 @@ import type { DepartBehavior, TravelBehavior, PhaseResult, PhaseContext } from '
 import { easeInOutQuad, applyTravelEasing } from './easing';
 import { pointAtArcFraction, tangentAtArcFraction } from '$lib/lanes/laneGeometry';
 
+function buildFullJourneyPolyline(ship: VisualShipState): [number, number][] | undefined {
+    const poly = ship.lanePolyline;
+    if (!poly || poly.length < 2) return undefined;
+    const out: [number, number][] = [[ship.departFromX, ship.departFromY]];
+    for (const point of poly) {
+        const prev = out[out.length - 1];
+        if (
+            prev &&
+            Math.hypot(prev[0] - point[0], prev[1] - point[1]) < 1e-6
+        ) {
+            continue;
+        }
+        out.push([point[0], point[1]]);
+    }
+    return out.length >= 2 ? out : undefined;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // DEPART BEHAVIORS
 // ════════════════════════════════════════════════════════════════════════════
@@ -50,6 +67,15 @@ export const bezierDepart: DepartBehavior = {
             ctx.travelEasing as any,
             ctx.travelEasingPower,
         );
+
+        const journeyPolyline = ctx.followLanePath
+            ? buildFullJourneyPolyline(ship)
+            : undefined;
+        if (journeyPolyline && journeyPolyline.length >= 2) {
+            const p = pointAtArcFraction(journeyPolyline, eased);
+            const scale = 0.8 + 0.1 * Math.min(rawProgress * 3, 1);
+            return { x: p.x, y: p.y, scale, alpha: 1, done: rawProgress >= 1 };
+        }
 
         // Bezier control point for curved arc
         const dx = ship.laneEndX - ship.departFromX;

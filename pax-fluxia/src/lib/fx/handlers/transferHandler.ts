@@ -12,7 +12,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { getOrbitSlot } from '$lib/utils/render.utils';
 import type { FXHandler } from '../FXRegistry';
 import { isTraceArmed, traceTransferSetup } from '$lib/debug/travelTrace';
-import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
 import {
     assignShipLaneGeometry,
@@ -47,7 +47,7 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             y: target.y,
             radius: target.radius,
         };
-        const rawPoly = getLanePolyline(event.sourceId, event.targetId);
+        const rawPoly = getDirectedLanePolyline(event.sourceId, event.targetId);
         let pretrimmed: [number, number][] | undefined;
         if (rawPoly && rawPoly.length >= 2) {
             const t = trimLanePolylineToStarRims(rawPoly, sourceRef, targetRef, 5);

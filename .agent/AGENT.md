@@ -56,6 +56,7 @@ When removing, renaming, or commenting out any symbol:
 
 **Daily queue protocol**: create or update `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
 **Requested file protocol**: if the user asks to create, save, update, or place a file, write the file before replying as though it exists. Never answer with “I’m writing it now” or imply the file is saved unless it is already on disk at the stated path.
+**Major self-regression protocol**: if you introduce a major bug and then fix it, automatically save a dated post-mortem under `.agent/docs/project/process/` and summarize the cause, the mistaken reasoning, the diagnostic method, and the rule derived from it.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`

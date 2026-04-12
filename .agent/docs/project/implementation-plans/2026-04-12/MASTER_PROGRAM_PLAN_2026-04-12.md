@@ -9,6 +9,16 @@
 
 ## This round
 
+- Saved the directed-path regression post-mortem at `.agent/docs/project/process/POST_MORTEM_2026-04-12_DIRECTED_LANE_PATH_REGRESSION.md`.
+- Added an explicit AGENT rule to auto-save post-mortems for major self-introduced regressions after they are fixed.
+- Found the remaining reason ships were still not visibly following curved lanes:
+  - current live config uses `TRAVEL_MODE = "bezier"`
+  - that behavior was still bypassing lane polylines and taking the whole journey as a single bezier pass
+- Fixed that at the behavior layer so `bezier` travel now follows the lane polyline when one exists.
+- Fixed the last undirected transfer-path read in `transferHandler.ts`.
+- Reduced the near-full board-fit placement cliff:
+  - before: same seed, `boardFit 0.95` -> `0` curved lanes, `1.0` -> `88`
+  - after: same seed, `boardFit 0.95` -> `86` curved lanes, `1.0` -> `88`
 - Added a directed-lane read path in the runtime so undirected cached polylines reverse correctly for direction-sensitive consumers.
 - Applied that directed path to:
   - ship travel geometry

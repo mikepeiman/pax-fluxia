@@ -246,6 +246,9 @@ export function generateStarPositions(config: {
 }): { positions: MapPosition[]; hexRadius: number; width: number; height: number; paddingX: number; paddingY: number } {
     const { totalStars, spacingMultiplier = 1.0, boardFit = 0 } = config;
     const fullBoardFit = boardFit >= 0.999;
+    const nearFullBoardBlend = fullBoardFit
+        ? 1
+        : Math.max(0, Math.min(1, (boardFit - 0.9) / 0.1));
     const scaleFactor = Math.max(1, spacingMultiplier);
     const width = Math.round(config.width * scaleFactor);
     const height = Math.round(config.height * scaleFactor);
@@ -253,8 +256,12 @@ export function generateStarPositions(config: {
     // Dynamic padding
     const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
     const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-    const paddingX = fullBoardFit ? 0 : Math.round(basePaddingX * scaleFactor);
-    const paddingY = fullBoardFit ? 0 : Math.round(basePaddingY * scaleFactor);
+    const paddingX = fullBoardFit
+        ? 0
+        : Math.round(basePaddingX * scaleFactor * (1 - nearFullBoardBlend));
+    const paddingY = fullBoardFit
+        ? 0
+        : Math.round(basePaddingY * scaleFactor * (1 - nearFullBoardBlend));
 
     // Adaptive hex radius
     let hexRadius = config.hexRadius ?? 60;
