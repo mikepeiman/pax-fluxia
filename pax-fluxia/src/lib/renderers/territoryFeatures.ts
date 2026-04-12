@@ -115,6 +115,8 @@ export function computeCorridorVirtuals(
     count?: number,
     lanePolylineResolver: (a: string, b: string) => [number, number][] | undefined = getLanePolyline,
     includeCrossOwnerMidpointPair = GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+    includeSameOwnerDistributedSamples = true,
+    includeCrossOwnerDistributedSamples = true,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,
@@ -124,6 +126,8 @@ export function computeCorridorVirtuals(
         count,
         lanePolylineResolver,
         includeCrossOwnerMidpointPair,
+        includeSameOwnerDistributedSamples,
+        includeCrossOwnerDistributedSamples,
     );
     return canonicalizeVirtualSites(built as VirtualSite[]);
 }

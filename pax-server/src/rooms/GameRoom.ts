@@ -90,7 +90,7 @@ export class GameRoom extends Room {
             log.sys('GameRoom', `onCreate: players=${options.playerCount || 4}, map=${options.mapType || 'standard'}`);
 
             // Seat reservation for proxied deployments
-            this.seatReservationTimeout = 30;
+            this.seatReservationTimeout = 120;
 
             // Prevent Colyseus from auto-disposing room when host leaves
             this.autoDispose = false;

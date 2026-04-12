@@ -814,7 +814,10 @@ export function renderModifiedVoronoi(
 
     const virtualStars: StarState[] = [];
     const virtualStarSource = new Map<string, string>(); // virtual ID → anchor star (cluster/color)
-    if (corridorEnabled && connections && connections.length > 0) {
+    const contestMidpointEnabled =
+        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true;
+
+    if ((corridorEnabled || contestMidpointEnabled) && connections && connections.length > 0) {
         const ownedForCx = stars.filter((s): s is StarState => Boolean(s.ownerId));
         const corridorSites = buildCorridorVirtualSites(
             ownedForCx,
@@ -823,7 +826,9 @@ export function renderModifiedVoronoi(
             cxWeight,
             cxCount > 0 ? cxCount : undefined,
             getLanePolyline,
-            GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+            contestMidpointEnabled,
+            corridorEnabled,
+            corridorEnabled,
         );
         let virtualIdx = 0;
         for (const site of corridorSites) {

@@ -9,6 +9,22 @@
 
 ## This round
 
+- Saved a focused regression analysis at `.agent/docs/project/implementation-plans/2026-04-12/MAPGEN_RUNTIME_REGRESSION_ANALYSIS_2026-04-12.md` covering:
+  - `87714db4`
+  - `460c0f93`
+  - `6ccfdf48`
+  - `af0e2d87`
+  - `9b14357a`
+- Confirmed the runtime is truly using live `/common` through workspace symlinks, so the board-fill/lane issues were not stale-package artifacts.
+- Corrected `Board Fill = 100%` again in `common/src/mapgen/placement.ts`: it now uses the real full board instead of the old padded interior area.
+- Refined `common/src/mapgen/lanePolylines.ts` again: low margin stays mostly straight, blocker-near chords can now curve softly outward, and inward bend fallback is no longer preferred.
+- Confirmed via direct probes:
+  - 100% board fill now reaches actual corner anchors (`25/25` and `1575/875` on 1600x900)
+  - medium lane settings produce substantial curved-lane output again
+  - high margin + max curve-vs-prune bias is still an open tuning case
+- Separated contested-lane midpoint virtual stars into a discrete runtime behavior so they can stay active even when main CX corridors are disabled.
+- Added lobby retry handling for `seat reservation expired` in `multiplayerStore.svelte.ts`.
+- Increased `GameRoom` seat reservation timeout from 30s to 120s.
 - Saved the standalone Main Menu handoff for the parallel UI worktree at `.agent/docs/project/implementation-plans/2026-04-12/MAIN_MENU_UI_REDESIGN_PLAN_2026-04-12.md`.
 - Added a hard requested-file protocol to `.agent/AGENT.md` after a process miss where I referenced a file before it was actually written; documented in `.agent/docs/project/process/POST_MORTEM_2026-04-12_REQUESTED_FILE_NOT_SAVED.md`.
 - Board fill at 100% is now truly corner-anchored in `common/src/mapgen/placement.ts`; it no longer uses nearest-hex corner approximations or post-fit scaling for the full-fill case.

@@ -48,6 +48,21 @@ function chordClearOfObstacles(
     return true;
 }
 
+function nearestObstacleDistanceToChord(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    obstacles: Array<{ x: number; y: number }>,
+): number {
+    let nearest = Infinity;
+    for (const obstacle of obstacles) {
+        const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
+        if (d < nearest) nearest = d;
+    }
+    return nearest;
+}
+
 /** Dense-enough sample along polyline segments vs obstacles. */
 function polylineClearOfObstacles(
     pts: Array<[number, number]>,
@@ -198,6 +213,41 @@ function searchBulge(
     return best;
 }
 
+function searchBulgeWithCap(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    obstacles: Array<{ x: number; y: number }>,
+    minDist: number,
+    bulgeSign: 1 | -1,
+    dCap: number,
+): number {
+    const chord = hypot(bx - ax, by - ay);
+    if (chord < 1 || dCap <= 0) return 0;
+    let lo = 0;
+    let hi = Math.max(0, dCap);
+    let best = 0;
+    for (let iter = 0; iter < 14; iter++) {
+        const mid = (lo + hi) * 0.5;
+        const mx = (ax + bx) * 0.5;
+        const my = (ay + by) * 0.5;
+        const ux = (bx - ax) / chord;
+        const uy = (by - ay) / chord;
+        const px = -uy * bulgeSign;
+        const py = ux * bulgeSign;
+        const cx = mx + px * mid;
+        const cy = my + py * mid;
+        if (bezierSamplesClear(ax, ay, cx, cy, bx, by, obstacles, minDist)) {
+            best = mid;
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    return best;
+}
+
 function trySingleKinkDetour(
     ax: number, ay: number,
     bx: number, by: number,
@@ -255,7 +305,7 @@ function preferredBulgeSigns(
     bx: number,
     by: number,
     obstacles: Array<{ x: number; y: number }>,
-): readonly [1 | -1, 1 | -1] {
+): Array<1 | -1> {
     if (obstacles.length === 0) return [1, -1];
     let nearest: { x: number; y: number } | null = null;
     let nearestDist = Infinity;
@@ -276,7 +326,7 @@ function preferredBulgeSigns(
     const mx = (ax + bx) * 0.5;
     const my = (ay + by) * 0.5;
     const obstacleSide = (nearest.x - mx) * px + (nearest.y - my) * py;
-    return obstacleSide >= 0 ? [-1, 1] : [1, -1];
+    return obstacleSide >= 0 ? [-1] : [1];
 }
 
 function solveAdaptiveWaypoints(
@@ -292,7 +342,46 @@ function solveAdaptiveWaypoints(
         chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
         && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
-    if (okStraight) return straight;
+    if (okStraight) {
+        const nearestObstacleDist = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
+        const chord = hypot(bx - ax, by - ay);
+        const softCurveBand =
+            clearancePx <= 0
+                ? 0
+                : Math.min(160, Math.max(30, clearancePx * 0.9));
+        const softCurveEligible =
+            Number.isFinite(nearestObstacleDist)
+            && chord > 120
+            && nearestObstacleDist < clearancePx + softCurveBand;
+        if (softCurveEligible) {
+            const closenessRatio = Math.max(
+                0,
+                Math.min(1, 1 - (nearestObstacleDist - clearancePx) / Math.max(softCurveBand, 1)),
+            );
+            const softBulgeCap = Math.min(
+                140,
+                Math.max(20, chord * (0.06 + 0.18 * closenessRatio)),
+            );
+            for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
+                const best = searchBulgeWithCap(
+                    ax,
+                    ay,
+                    bx,
+                    by,
+                    obstacles,
+                    Math.max(0, clearancePx),
+                    bulgeSign,
+                    softBulgeCap,
+                );
+                if (best < chord * 0.015) continue;
+                const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
+                if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) continue;
+                if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
+                return cand;
+            }
+        }
+        return straight;
+    }
 
     for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);

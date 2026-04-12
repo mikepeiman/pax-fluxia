@@ -6,6 +6,10 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Completed This Slice
 
+- [x] Save a focused runtime investigation note at `.agent/docs/project/implementation-plans/2026-04-12/MAPGEN_RUNTIME_REGRESSION_ANALYSIS_2026-04-12.md`.
+- [x] Correct 100% board fill to use the actual full board instead of the old padded interior area.
+- [x] Split contested-lane midpoint virtual stars into a discrete runtime behavior that can stay active even when main CX corridors are off.
+- [x] Add lobby-room retry handling for `seat reservation expired` failures and increase `GameRoom` seat reservations to 120 seconds.
 - [x] Save the standalone Main Menu parallel-agent handoff at `.agent/docs/project/implementation-plans/2026-04-12/MAIN_MENU_UI_REDESIGN_PLAN_2026-04-12.md`.
 - [x] Add an explicit requested-file rule to `.agent/AGENT.md` and document the failure in a post-mortem after the UI handoff file was not saved before being referenced.
 - [x] Restore 100% board fill to true corner anchoring instead of corner-ish nearest-hex placement.
@@ -51,17 +55,18 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 ## In Progress
 
 - [ ] Verify the standalone Main Menu redesign in the parallel worktree using the saved handoff doc.
-- [ ] Verify 100% board fill in-app across several random seeds now that corner anchors are exact.
-- [ ] Verify curved lanes only detour when needed and always bend away from blockers.
+- [ ] Verify 100% board fill in-app across several random seeds now that corner anchors are truly on the full board, not the padded interior.
+- [ ] Verify curved lanes now appear again at practical lane settings and only detour outward away from blockers.
 - [ ] Verify nonlinear lane rendering is smooth on-screen with no visible joints or star-end overlap artifacts.
 - [ ] Verify transport, attack surge, and conquest travel now all follow the same published lane path when nonlinear lanes exist.
-- [ ] Verify the contested-lane midpoint-vstar toggle produces the intended A/B change in corridor ownership behavior.
-- [ ] Verify the room browser actually shows the persistent public room on the default dev port.
+- [ ] Verify the contested-lane midpoint toggle behaves independently of main CX and no longer pushes unrelated fronts inward.
+- [ ] Verify the room browser actually shows the persistent public room on the default dev port and survives seat-expiry churn.
 
 ## Top Queue
 
 - [ ] Verify visually that territory fills now repaint live with star ownership colors across the active territory families.
 - [ ] Verify the exact-corner 100% board-fill path and restore sub-100% feel if any placement regression remains.
+- [ ] Tune the remaining high-margin + max-bias lane case, which still under-produces curves even after the current fix.
 - [ ] Verify the restored curved-lane semantics on several random seeds and tune bend preference if any inward curves remain.
 - [ ] Verify the new smooth nonlinear lane rendering against real generated maps, not just compile/smoke tests.
 - [ ] Verify the public room appears in discovery on the default dev port and remains joinable without seat-expiration churn.

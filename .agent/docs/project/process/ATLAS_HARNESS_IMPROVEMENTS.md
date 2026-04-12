@@ -65,6 +65,49 @@ Keep speculation separate from verified facts.
 
 ## Active Entries
 
+### 2026-04-12 A5. `file_read` still fails in-session during ordinary documentation work
+
+- Status: open
+- Category: tool initialization failure
+- Surface: MCP file service
+
+#### Verified observation
+
+During routine project-doc maintenance in this session, atlas-harness `file_read` failed again with:
+
+```text
+null is not an object (evaluating 'fileService.read')
+```
+
+This happened while attempting to read:
+
+- `.agent/docs/project/sessions/notes/SESSION_2026-04-12.md`
+- `.agent/docs/project/implementation-plans/2026-04-12/MASTER_PROGRAM_PLAN_2026-04-12.md`
+- `.agent/docs/project/features/FEATURE_AND_TASK_QUEUE_2026-04-12.md`
+
+The same failure class had already been observed earlier in the session family, so this is not a one-off.
+
+#### Impact
+
+- breaks ordinary doc maintenance, not just code editing
+- forces fallback to PowerShell reads even when atlas-harness should be the safer/cleaner tool surface
+- makes harness comparison difficult because the file-service layer can fail before higher-level evaluation even starts
+
+#### Workaround
+
+- use plain PowerShell or other non-atlas file reads for the affected task
+- continue logging each recurrence with the exact surface and task type
+
+#### Desired fix or success condition
+
+- atlas-harness should expose a reliable initialization/health state for `fileService`
+- `file_read` should fail with a specific startup-state error if the service is unavailable
+- ordinary text/doc reads should be boringly reliable
+
+#### Notes
+
+- this failure happened after the broader Windows shell situation had already improved, so it should not be conflated with the earlier Codex sandbox command-execution issue
+
 ### 2026-04-11 A1. Sandboxed agent shell produced a false negative for direct `atlas-harness` invocation
 
 - Status: resolved

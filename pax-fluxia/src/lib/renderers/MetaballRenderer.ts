@@ -200,7 +200,10 @@ function buildCorridorSamples(
     strengthMult: number,
 ): InfluenceSample[] {
     if (!connections?.length) return [];
-    if (!GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) return [];
+    const corridorEnabled = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true;
+    const contestMidpointEnabled =
+        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true;
+    if (!corridorEnabled && !contestMidpointEnabled) return [];
 
     const spacing = Math.max(12, GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60);
     const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
@@ -214,7 +217,9 @@ function buildCorridorSamples(
         cxWeight,
         cxCount > 0 ? cxCount : undefined,
         getLanePolyline,
-        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+        contestMidpointEnabled,
+        corridorEnabled,
+        corridorEnabled,
     );
 
     const out: InfluenceSample[] = [];

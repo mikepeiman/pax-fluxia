@@ -1035,16 +1035,12 @@
       </label>
     </div>
   </div>
-  <div
-    class="var-row indent"
-    class:disabled={!cxOn}
-    title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}>
+  <div class="var-row indent">
     <div class="row-top">
       <span class="var-name">Contest midpoint pair</span>
       <label class="lock-toggle">
         <input
           type="checkbox"
-          disabled={!cxOn}
           checked={panel.cxContestMidpointVstars ??
             GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
             true}

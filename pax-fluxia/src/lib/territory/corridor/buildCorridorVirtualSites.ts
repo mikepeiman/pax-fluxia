@@ -117,6 +117,8 @@ export function buildCorridorVirtualSites(
     count?: number,
     lanePolylineResolver?: (a: string, b: string) => [number, number][] | undefined,
     includeCrossOwnerMidpointPair = true,
+    includeSameOwnerDistributedSamples = true,
+    includeCrossOwnerDistributedSamples = true,
 ): BuiltCorridorVirtualSite[] {
     if (ownedStars.length === 0 || connections.length === 0) return [];
 
@@ -159,6 +161,11 @@ export function buildCorridorVirtualSites(
 
         const sameOwner = starA.ownerId === starB.ownerId;
         const halfArc = usePoly ? pathLen * 0.5 : null;
+
+        if (sameOwner && !includeSameOwnerDistributedSamples) continue;
+        if (!sameOwner && !includeCrossOwnerMidpointPair && !includeCrossOwnerDistributedSamples) {
+            continue;
+        }
 
         if (!sameOwner && includeCrossOwnerMidpointPair) {
             const midpointOffset = Math.min(
@@ -211,6 +218,7 @@ export function buildCorridorVirtualSites(
 
         for (let i = 1; i <= nSites; i++) {
             const t = i / (nSites + 1);
+            if (!sameOwner && !includeCrossOwnerDistributedSamples) continue;
             if (!sameOwner && Math.abs(t - 0.5) < 0.16) continue;
             let x: number;
             let y: number;

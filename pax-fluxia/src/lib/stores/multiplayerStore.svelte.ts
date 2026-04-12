@@ -379,12 +379,26 @@ async function joinLobby(): Promise<void> {
 
         } catch (err: any) {
             const status = err?.code ?? err?.status ?? err?.statusCode;
-            const isRetryable = status === 503 || String(err).includes('503');
+            const message = String(err?.message ?? err ?? '');
+            const isSeatExpired = /seat reservation expired/i.test(message);
+            const isRetryable = isSeatExpired || status === 503 || String(err).includes('503');
 
             if (isRetryable && attempt < LOBBY_MAX_RETRIES) {
                 const delayMs = LOBBY_BASE_DELAY_MS * Math.pow(2, attempt);
-                lobbyStatus = `Server restarting, retrying... (${attempt + 1}/${LOBBY_MAX_RETRIES})`;
-                log.net('RoomBrowser', `503 — retry ${attempt + 1}/${LOBBY_MAX_RETRIES} in ${delayMs}ms`);
+                lobbyStatus = isSeatExpired
+                    ? `Refreshing public lobby... (${attempt + 1}/${LOBBY_MAX_RETRIES})`
+                    : `Server restarting, retrying... (${attempt + 1}/${LOBBY_MAX_RETRIES})`;
+                log.net(
+                    'RoomBrowser',
+                    `${isSeatExpired ? 'Seat expired' : '503'} — retry ${attempt + 1}/${LOBBY_MAX_RETRIES} in ${delayMs}ms`,
+                );
+                if (lobbyRoom) {
+                    try {
+                        lobbyRoom.leave();
+                    } catch {}
+                    lobbyRoom = null;
+                    isLobbyConnected = false;
+                }
                 await new Promise(resolve => setTimeout(resolve, delayMs));
                 continue;
             }
