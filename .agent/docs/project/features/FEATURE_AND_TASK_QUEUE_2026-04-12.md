@@ -33,6 +33,7 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [ ] Fix live player-color desync so territory fills repaint with the same colors as owned stars during in-game hue adjustment.
 - [ ] Verify in-app that the new unified player-color widget feels legitimate and trustworthy after the structural cleanup.
 - [ ] Keep validating that the selected player swatch, AI row highlight, and actual in-game/player-lobby color stay aligned.
+- [x] Repair the Main Menu parser/syntax regressions from the recent UI rewrite so the menu is runnable again.
 
 ## Top Queue
 

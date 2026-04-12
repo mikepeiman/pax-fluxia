@@ -609,7 +609,9 @@
         <div class="bg-picker">
             <button
                 class="bg-picker-toggle"
-                onclick={() =>BG
+                onclick={() => (bgOpen = !bgOpen)}
+            >
+                BG
             </button>
             {#if bgOpen}
                 <div
@@ -890,7 +892,9 @@
                                     {/if}
                                     <button
                                         class="reshuffle-btn"
-                                        onclick={() =>Reshuffle</button>
+                                        onclick={() => {
+                                            previewSeed += 1;
+                                        }}>Reshuffle</button>
                                 </div>
                             </div>
                         {:else if mapMode === "classic"}
