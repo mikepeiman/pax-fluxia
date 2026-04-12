@@ -1402,7 +1402,7 @@
                     <div class="mp-section-compact">
                         <h3 class="section-heading">MULTIPLAYER</h3>
 
-                        {#if multiplayerStore.isConnected || multiplayerStore.isLobbyConnected}
+                        {#if multiplayerStore.isConnected}
                             <div class="room-info-bar">
                                 <div class="room-id-block">
                                     <span class="room-label">ROOM</span>

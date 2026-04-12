@@ -213,3 +213,17 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 7. Queue-discipline request:
    - "Have you been updating `C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\.agent\\docs\\project\\implementation-plans\\2026-04-12\\FEATURE_AND_TASK_QUEUE_2026-04-12.md`?"
    - "Catch up if you have not; lossless record of ALL my task instructions, feature ideas, suggestions, comments."
+
+8. MP follow-up after transport fix:
+   - public-room transport bug was fixed, but the Main Menu still incorrectly treated lobby-browser connection as joined-room membership
+   - symptom report:
+     - `Vote To Start` shown immediately on entering Main Menu
+     - button yellow/inactive
+     - room appears unnamed with `0/4`
+     - cannot join because client thinks it is already in the room
+     - leave button does nothing
+   - fix direction:
+     - separate `isLobbyConnected` from true joined-room state
+     - room-membership UI must depend only on real `isConnected`
+9. Router warning report:
+   - `Avoid using history.pushState(...) and history.replaceState(...) as these will conflict with SvelteKit's router. Use the pushState and replaceState imports from $app/navigation instead.`

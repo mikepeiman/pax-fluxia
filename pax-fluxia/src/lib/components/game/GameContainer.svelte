@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { pushState, replaceState } from "$app/navigation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -300,12 +301,12 @@
   // Push a history entry so Android back button fires popstate
   if (typeof window !== "undefined") {
     // Ensure we have a base history entry to pop against
-    history.replaceState({ pax: "base" }, "");
-    history.pushState({ pax: "game" }, "");
+    replaceState("", { pax: "base" });
+    pushState("", { pax: "game" });
 
     window.addEventListener("popstate", (e) => {
       // Always re-push so we never actually leave the page
-      history.pushState({ pax: "game" }, "");
+      pushState("", { pax: "game" });
 
       // Close overlays in priority order
       if (showSettingsPanel) {
