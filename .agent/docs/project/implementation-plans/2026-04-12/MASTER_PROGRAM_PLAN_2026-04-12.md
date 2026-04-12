@@ -9,6 +9,23 @@
 
 ## This round
 
+- Followed up on the user's correction that yesterday's mapgen hardening already existed:
+  - confirmed the hardening is real in `common/src/mapgen/connections.ts` via `ensureConnectedGraph(...)`
+  - treated that as a constraint instead of re-solving the same problem blindly
+- Hardened lane-margin behavior on top of that existing connectivity model:
+  - topology prune clearance is now capped so lane-margin pruning stays secondary to traversal connectivity
+  - lane solver now scales clearance by chord length so short/direct local links are not over-curved by large global lane margins
+  - curve/detour solving now progressively relaxes toward a visible legal path before falling back to a raw straight chord
+- Re-ran the seeded diagnostics after the hardening:
+  - `bunx tsc -p common/tsconfig.json --noEmit --pretty false` passed
+  - `bun run debug:lane-margin -- --seed-count 3` passed
+  - deterministic sweep now shows no unsafe straight fallbacks under the solver's actual clearance target
+  - deterministic spot checks stayed at one connected component across tested margins `0, 45, 80, 95, 160, 230`
+- Updated `tools/debug/diagnose-lane-margin.ts` so diagnostics now distinguish:
+  - full configured-margin blockage
+  - solver-clearance blockage
+  - true unsafe straight fallback
+
 - Audited the full transit-variable surface from controls plus active config after the user correctly flagged an incomplete report.
 - Restored the motion-shaping layer on top of lane-path truth instead of keeping travel pinned to the centerline:
   - `TRAVEL_FOLLOW_LANE_PATHS` now gates the runtime again

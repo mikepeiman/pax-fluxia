@@ -101,23 +101,31 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Top Queue
 
+- [x] Re-confirm yesterday's mapgen hardening instead of re-fixing it blindly, and keep the post-`connections.ts` connectivity restoration as a hard constraint.
+- [x] Harden lane-margin behavior so topology pruning stays soft, seeded sweeps stay fully connected, and medium/high lane margins no longer collapse the graph.
+- [x] Rework the lane-margin diagnostics so "unsafe straight" is measured against the actual chord-length-scaled solver clearance rather than the old full-margin assumption.
 - [ ] Verify in-app that no conquest or transfer can now appear to happen across a missing visible connection.
 - [ ] Verify in-app that `TRAVEL_ARC_INTENSITY`, `DEPART_ARC_INTENSITY`, and `ARRIVAL_ARC_INTENSITY` visibly affect curved-lane transit again in transfer and conquest flows.
 - [ ] Hand the full active transit-variable list to the parallel UI owner so currently-unsurfaced travel/conquest controls can be exposed without drift.
 - [ ] Verify in-app that order arrows, issued orders, attack surge, transport travel, and conquest travel all use the corrected directed lane path.
 - [ ] Verify in-app that `bezier`-mode travel now visibly rides curved lanes in standard transfer and conquest flows.
 - [ ] Continue tuning the remaining `boardFit` interaction now that the worst `0.95 -> 1.0` cliff is reduced (`0` curved -> `86` curved at 0.95 on the same seed).
-- [ ] Replace the lane solver's unsafe straight fallback at medium/high lane margins with a valid outward curve, valid detour, or explicit prune behavior.
+- [ ] Verify in-app that the new lane-margin hardening reads sensibly on real maps:
+  - short/direct lanes staying straight more often
+  - medium settings producing visible curves
+  - high settings no longer erasing traversal
 - [ ] Use `bun run debug:lane-margin` after each lane-solver change to keep the regression measurable.
 - [ ] Verify visually that territory fills now repaint live with star ownership colors across the active territory families.
 - [ ] Verify the exact-corner 100% board-fill path and restore sub-100% feel if any placement regression remains.
-- [ ] Tune the remaining high-margin + max-bias lane case, which still under-produces curves even after the current fix.
+- [ ] Tune the remaining high-margin + max-bias lane case now that the graph stays intact but curve density is intentionally softer.
 - [ ] Verify the restored curved-lane semantics on several random seeds and tune bend preference if any inward curves remain.
 - [ ] Verify the new smooth nonlinear lane rendering against real generated maps, not just compile/smoke tests.
 - [ ] Verify the public room appears in discovery on the default dev port and remains joinable without seat-expiration churn.
 - [ ] Evaluate the new opt-in metaball geometry-fill mode in-game and decide whether it should remain optional or become the default.
 - [ ] Decide how `Custom` maps should evolve from selector-only into the future custom-map workflow.
 - [ ] Continue the Main Menu space-efficiency pass so all four `Game & Map` widgets feel equally intentional and the live preview maintains a true full-fit thumbnail with no obscured content.
+- [ ] Design the next-pass DX constraint replacement/refinement after refreshing the exact original intent and current runtime meaning of `DX Distance` / `DX Weight`.
+- [ ] Queue contested-lane midpoint-pair tunables for the UI owner after the control-panel refactor settles.
 - [ ] Revisit `Lane Shape` again if the new version still feels too utility-heavy once used in motion, not just in a static screenshot.
 - [ ] Audit the full in-game controls surface for any remaining mixed padding, mixed heights, mixed outline rules, or subsection-organization misses.
 - [ ] Add a preservation discipline around surfaced UI settings so future refactors do not silently remove existing user-facing controls.

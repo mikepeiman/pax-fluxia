@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { generateMap, pointToSegmentDistance } from '../../common/src/mapgen/index.ts';
+import { effectiveLaneClearanceForChord } from '../../common/src/mapgen/lanePolylines.ts';
 import type { MapGenConfig } from '../../common/src/mapgen/types.ts';
 
 type JsonMap = Record<string, unknown>;
@@ -12,8 +13,9 @@ interface SeedRow {
     connectionCount: number;
     curvedCount: number;
     straightCount: number;
-    blockedChordCount: number;
-    blockedChordCurvedCount: number;
+    configuredBlockedChordCount: number;
+    solverBlockedChordCount: number;
+    solverBlockedChordCurvedCount: number;
     unsafeStraightCount: number;
     minChordClearancePx: number;
     medianChordClearancePx: number;
@@ -35,7 +37,8 @@ interface AggregatedRow {
     maxCurvedCount: number;
     avgUnsafeStraightCount: number;
     maxUnsafeStraightCount: number;
-    avgBlockedChordCount: number;
+    avgConfiguredBlockedChordCount: number;
+    avgSolverBlockedChordCount: number;
 }
 
 interface DiagnoseOptions {
@@ -218,8 +221,9 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
     const positionsById = new Map(nodes.map((node) => [node.id, node]));
     const chordClearances: number[] = [];
     let curvedCount = 0;
-    let blockedChordCount = 0;
-    let blockedChordCurvedCount = 0;
+    let configuredBlockedChordCount = 0;
+    let solverBlockedChordCount = 0;
+    let solverBlockedChordCurvedCount = 0;
     let unsafeStraightCount = 0;
     const unsafeEdges: SeedRow['sampleUnsafeEdges'] = [];
 
@@ -242,13 +246,16 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
         }
 
         chordClearances.push(nearestChordClearance);
-        const blocked = nearestChordClearance < margin;
+        const solverClearance = effectiveLaneClearanceForChord(connection.distance, margin);
+        const blockedByConfiguredMargin = nearestChordClearance < margin;
+        const blockedBySolverClearance = nearestChordClearance < solverClearance;
         const curved = connection.lanePathKind === 'curved';
 
         if (curved) curvedCount += 1;
-        if (blocked) blockedChordCount += 1;
-        if (blocked && curved) blockedChordCurvedCount += 1;
-        if (blocked && !curved) {
+        if (blockedByConfiguredMargin) configuredBlockedChordCount += 1;
+        if (blockedBySolverClearance) solverBlockedChordCount += 1;
+        if (blockedBySolverClearance && curved) solverBlockedChordCurvedCount += 1;
+        if (blockedBySolverClearance && !curved) {
             unsafeStraightCount += 1;
             if (unsafeEdges.length < 5) {
                 unsafeEdges.push({
@@ -267,8 +274,9 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
         connectionCount: result.connections.length,
         curvedCount,
         straightCount: result.connections.length - curvedCount,
-        blockedChordCount,
-        blockedChordCurvedCount,
+        configuredBlockedChordCount,
+        solverBlockedChordCount,
+        solverBlockedChordCurvedCount,
         unsafeStraightCount,
         minChordClearancePx: round(Math.min(...chordClearances)),
         medianChordClearancePx: round(median(chordClearances)),
@@ -297,7 +305,8 @@ function aggregateRows(rows: SeedRow[]): AggregatedRow[] {
             maxCurvedCount: Math.max(...bucket.map((row) => row.curvedCount)),
             avgUnsafeStraightCount: round(mean(bucket.map((row) => row.unsafeStraightCount))),
             maxUnsafeStraightCount: Math.max(...bucket.map((row) => row.unsafeStraightCount)),
-            avgBlockedChordCount: round(mean(bucket.map((row) => row.blockedChordCount))),
+            avgConfiguredBlockedChordCount: round(mean(bucket.map((row) => row.configuredBlockedChordCount))),
+            avgSolverBlockedChordCount: round(mean(bucket.map((row) => row.solverBlockedChordCount))),
         }));
 }
 
@@ -346,16 +355,16 @@ function writeOutputs(options: DiagnoseOptions, seedRows: SeedRow[], aggregates:
         '',
         `- Peak average curved-lane count occurs around margin ${peakCurved.margin}px with ${peakCurved.avgCurvedCount} curved connections on average.`,
         firstUnsafe
-            ? `- Unsafe straight fallbacks begin at margin ${firstUnsafe.margin}px, which means the solver is returning straight paths for chords whose nearest star clearance is below the configured lane margin.`
+            ? `- Unsafe straight fallbacks begin at margin ${firstUnsafe.margin}px, using the solver's chord-length-scaled lane-clearance target.`
             : '- No unsafe straight fallbacks were observed in this sweep.',
         `- Effective topology prune clearance is margin * (1 - bias), so with the current bias ${round(options.bias, 3)} it tops out at ${round((1 - options.bias) * Math.max(...options.margins))} px.`,
         '',
         '## Sweep Summary',
         '',
-        '| margin | eff prune px | avg conn | avg curved | avg blocked chords | avg unsafe straight | conn range |',
-        '| ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
+        '| margin | eff prune px | avg conn | avg curved | avg configured-blocked | avg solver-blocked | avg unsafe straight | conn range |',
+        '| ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
         ...aggregates.map((row) =>
-            `| ${row.margin} | ${row.effectiveTopologyClearancePx} | ${row.avgConnectionCount} | ${row.avgCurvedCount} | ${row.avgBlockedChordCount} | ${row.avgUnsafeStraightCount} | ${row.minConnectionCount}-${row.maxConnectionCount} |`,
+            `| ${row.margin} | ${row.effectiveTopologyClearancePx} | ${row.avgConnectionCount} | ${row.avgCurvedCount} | ${row.avgConfiguredBlockedChordCount} | ${row.avgSolverBlockedChordCount} | ${row.avgUnsafeStraightCount} | ${row.minConnectionCount}-${row.maxConnectionCount} |`,
         ),
         '',
     ];
