@@ -1040,6 +1040,35 @@
     class:disabled={!cxOn}
     title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}>
     <div class="row-top">
+      <span class="var-name">Contest midpoint pair</span>
+      <label class="lock-toggle">
+        <input
+          type="checkbox"
+          disabled={!cxOn}
+          checked={panel.cxContestMidpointVstars ??
+            GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+            true}
+          onchange={(e) => {
+            const v = (e.target as HTMLInputElement).checked;
+            debouncedConfigUpdate(
+              "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
+              "cxContestMidpointVstars",
+              v,
+            );
+          }} />
+        {(panel.cxContestMidpointVstars ??
+          GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+          true)
+          ? "On"
+          : "Off"}
+      </label>
+    </div>
+  </div>
+  <div
+    class="var-row indent"
+    class:disabled={!cxOn}
+    title={!cxOn ? "Turn CX Corridors on to edit these values." : ""}>
+    <div class="row-top">
       <span class="var-name">CX Count</span><span class="val"
         >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) === 0
           ? "Auto"

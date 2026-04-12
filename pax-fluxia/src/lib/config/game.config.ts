@@ -435,6 +435,7 @@ interface GameConfigType {
     MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
     TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
     TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier vs starMargin² (0.0-2.0, default 0.5)
+    TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: boolean; // Add paired midpoint contest vstars on cross-owner lanes
     MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
     TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier vs starMargin² (0.0-2.0, default 0.3)
@@ -903,7 +904,7 @@ const _rawConfig: GameConfigType = {
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 0,
     /** Follow published lane polylines for ship motion when enabled */
-    TRAVEL_FOLLOW_LANE_PATHS: false,
+    TRAVEL_FOLLOW_LANE_PATHS: true,
 
     /** Stream departure: ships depart at even intervals (tickMs / shipsToTransfer) instead of jittered burst */
     DEPART_STAGGER: true,
@@ -1345,6 +1346,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_CX_COUNT: 0,
     /** Corridor vstar weight multiplier vs starMargin² (0.0-2.0) */
     TERRITORY_CX_WEIGHT: 0.5,
+    /** Paired midpoint vstars keep contested lanes meeting on the lane instead of letting third parties intrude. */
+    TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: true,
     /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
     MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     /** Max distance between same-owner stars for disconnect injection (px) */

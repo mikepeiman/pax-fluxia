@@ -43,22 +43,19 @@ export function renderConnections(
 
     // Collect all lane segments (reused for both shadow and foreground passes)
     const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    const smoothPaths: [number, number][][] = [];
 
     connections.forEach((conn) => {
         const source = starsById.get(conn.sourceId);
         const target = starsById.get(conn.targetId);
         if (!source || !target) return;
 
+        const ringGap = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
+        const trimPad = Math.max(0, ringGap - Math.min(source.radius, target.radius));
         const poly = getLanePolyline(conn.sourceId, conn.targetId);
         if (poly && poly.length > 2) {
-            for (let i = 0; i < poly.length - 1; i++) {
-                segments.push({
-                    x1: poly[i][0],
-                    y1: poly[i][1],
-                    x2: poly[i + 1][0],
-                    y2: poly[i + 1][1],
-                });
-            }
+            const trimmed = trimLanePolylineToStarRims(poly, source, target, trimPad);
+            if (trimmed.length >= 2) smoothPaths.push(trimmed);
             return;
         }
 
@@ -74,7 +71,6 @@ export function renderConnections(
         const gaps: [number, number][] = [];
 
         // Gap at source and target — use visual ownership-ring radius for terminus blending
-        const ringGap = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
         const srcGap = ringGap / laneDist;
         const tgtGap = ringGap / laneDist;
         gaps.push([0, srcGap]);
@@ -144,6 +140,15 @@ export function renderConnections(
         connectionGraphics.moveTo(seg.x1, seg.y1);
         connectionGraphics.lineTo(seg.x2, seg.y2);
     }
+    for (const path of smoothPaths) {
+        strokeSmoothLanePath(connectionGraphics, path, {
+            color: 0x000000,
+            width: shadowWidth,
+            alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+            cap: 'round',
+            join: 'round',
+        });
+    }
     connectionGraphics.stroke({
         color: 0x000000,
         width: shadowWidth,
@@ -155,6 +160,15 @@ export function renderConnections(
     for (const seg of segments) {
         connectionGraphics.moveTo(seg.x1, seg.y1);
         connectionGraphics.lineTo(seg.x2, seg.y2);
+    }
+    for (const path of smoothPaths) {
+        strokeSmoothLanePath(connectionGraphics, path, {
+            color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
+            width: GAME_CONFIG.CONNECTION_WIDTH,
+            alpha: GAME_CONFIG.CONNECTION_ALPHA,
+            cap: 'round',
+            join: 'round',
+        });
     }
     connectionGraphics.stroke({
         color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
@@ -175,6 +189,37 @@ export interface OrderArrowState {
     isLocalPlayerStar: (star: StarState) => boolean;
     /** Get all stars for deferred order cleanup */
     snapshotStars: StarState[];
+}
+
+function strokeSmoothLanePath(
+    graphics: PIXI.Graphics,
+    pts: ReadonlyArray<readonly [number, number]>,
+    stroke: PIXI.StrokeInput,
+): void {
+    if (pts.length < 2) return;
+    graphics.beginPath();
+    graphics.moveTo(pts[0][0], pts[0][1]);
+    if (pts.length === 2) {
+        graphics.lineTo(pts[1][0], pts[1][1]);
+        graphics.stroke(stroke);
+        return;
+    }
+    for (let i = 1; i < pts.length - 1; i++) {
+        const [cx, cy] = pts[i];
+        const [nx, ny] = pts[i + 1];
+        const midX = (cx + nx) * 0.5;
+        const midY = (cy + ny) * 0.5;
+        graphics.quadraticCurveTo(cx, cy, midX, midY);
+    }
+    const penultimate = pts[pts.length - 2];
+    const last = pts[pts.length - 1];
+    graphics.quadraticCurveTo(
+        penultimate[0],
+        penultimate[1],
+        last[0],
+        last[1],
+    );
+    graphics.stroke(stroke);
 }
 
 function strokePolyline(

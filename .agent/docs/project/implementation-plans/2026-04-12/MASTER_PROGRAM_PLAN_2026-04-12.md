@@ -9,6 +9,19 @@
 
 ## This round
 
+- Saved the standalone Main Menu handoff for the parallel UI worktree at `.agent/docs/project/implementation-plans/2026-04-12/MAIN_MENU_UI_REDESIGN_PLAN_2026-04-12.md`.
+- Added a hard requested-file protocol to `.agent/AGENT.md` after a process miss where I referenced a file before it was actually written; documented in `.agent/docs/project/process/POST_MORTEM_2026-04-12_REQUESTED_FILE_NOT_SAVED.md`.
+- Board fill at 100% is now truly corner-anchored in `common/src/mapgen/placement.ts`; it no longer uses nearest-hex corner approximations or post-fit scaling for the full-fill case.
+- Curved-lane semantics in `common/src/mapgen/lanePolylines.ts` were restored to straight-first when the chord is clear, with blocker-aware bend ordering when a detour is required.
+- Nonlinear lane rendering in `pax-fluxia/src/lib/renderers/LaneRenderer.ts` now trims paths to star rims and strokes them as smooth curves instead of visibly segmented centerline joints.
+- Transport/attack-surge/conquest runtime pathing moved closer to one shared truth:
+  - attack surge direction now uses lane heading in `GameCanvas.svelte`
+  - ship travel now always consumes lane polylines in `ShipRenderer.ts`
+  - conquest travel and arrowhead modes now attach lane geometry from the published lane path when available
+- Added a territory runtime toggle for contested-lane midpoint pair virtual stars:
+  - config key `TERRITORY_CX_CONTEST_MIDPOINT_VSTARS`
+  - settings wiring in `ControlsSection-Territory.svelte`
+  - propagation through corridor builders / territory renderers
 - Standardized the daily clean execution queue at `.agent/docs/project/features/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`.
 - Created today's queue file and logged the active UI/color/lane/metaball work there.
 - Added the daily queue protocol to `.agent/AGENT.md`.

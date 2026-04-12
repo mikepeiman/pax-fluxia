@@ -6,6 +6,14 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Completed This Slice
 
+- [x] Save the standalone Main Menu parallel-agent handoff at `.agent/docs/project/implementation-plans/2026-04-12/MAIN_MENU_UI_REDESIGN_PLAN_2026-04-12.md`.
+- [x] Add an explicit requested-file rule to `.agent/AGENT.md` and document the failure in a post-mortem after the UI handoff file was not saved before being referenced.
+- [x] Restore 100% board fill to true corner anchoring instead of corner-ish nearest-hex placement.
+- [x] Restore curved-lane semantics to straight-first when the chord is clear, with blocker-aware bend direction when a detour is required.
+- [x] Render nonlinear lanes as smooth stroked arcs trimmed to star rims instead of visibly segmented centerline joints.
+- [x] Make transport and attack-surge heading use published lane path geometry in the active renderer/runtime path.
+- [x] Move conquest travel and arrowhead travel onto published lane-path geometry when nonlinear lanes exist.
+- [x] Add a territory toggle for contested-lane midpoint pair virtual stars so cross-owner corridor behavior can be A/B tested.
 - [x] Create and standardize the daily `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` workflow.
 - [x] Add the daily queue protocol and harness-comparison protocol to `.agent/AGENT.md`.
 - [x] Split Main Menu into three primary panels:
@@ -42,30 +50,29 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## In Progress
 
-- [ ] Verify live player-color repaint so territory fills, stars, and MP lobby colors all stay in sync during in-game adjustment.
-- [ ] Verify in-app that the new unified player-color widget feels legitimate and trustworthy after the structural cleanup.
+- [ ] Verify the standalone Main Menu redesign in the parallel worktree using the saved handoff doc.
+- [ ] Verify 100% board fill in-app across several random seeds now that corner anchors are exact.
+- [ ] Verify curved lanes only detour when needed and always bend away from blockers.
+- [ ] Verify nonlinear lane rendering is smooth on-screen with no visible joints or star-end overlap artifacts.
+- [ ] Verify transport, attack surge, and conquest travel now all follow the same published lane path when nonlinear lanes exist.
+- [ ] Verify the contested-lane midpoint-vstar toggle produces the intended A/B change in corridor ownership behavior.
 - [ ] Verify the room browser actually shows the persistent public room on the default dev port.
-- [ ] Keep validating that the selected player swatch, AI row highlight, and actual in-game/player-lobby color stay aligned.
-- [ ] Verify the new floating topbar stays compact, readable, and non-overlapping with the BG selector / audio / gear controls.
-- [ ] Verify the `Adjust color` popover closes on outside click and Escape, and that the HSL controls feel standard rather than bespoke.
 
 ## Top Queue
 
 - [ ] Verify visually that territory fills now repaint live with star ownership colors across the active territory families.
-- [ ] Refine any remaining Main Menu spacing roughness after the three-panel redesign once the user has seen it.
-- [ ] Recheck the board-fill-at-100% behavior on corner-heavy random maps and decide whether the corner-anchor special case is sufficient.
-- [ ] Recheck the new curved-lane preference on several random seeds to make sure curved mode is visibly producing curves.
-- [ ] Confirm the new lane curvature preference is visible in-app and not silently falling back to straight chords.
+- [ ] Verify the exact-corner 100% board-fill path and restore sub-100% feel if any placement regression remains.
+- [ ] Verify the restored curved-lane semantics on several random seeds and tune bend preference if any inward curves remain.
+- [ ] Verify the new smooth nonlinear lane rendering against real generated maps, not just compile/smoke tests.
+- [ ] Verify the public room appears in discovery on the default dev port and remains joinable without seat-expiration churn.
 - [ ] Evaluate the new opt-in metaball geometry-fill mode in-game and decide whether it should remain optional or become the default.
 - [ ] Decide how `Custom` maps should evolve from selector-only into the future custom-map workflow.
-- [ ] Verify the public room appears in discovery on the default dev port and remains joinable without seat-expiration churn.
 
 ## Next Technical Queue
 
-- [ ] Ships must follow lane paths, including curved lanes.
+- [ ] Finish any remaining travel holdouts so every conquest mode uses lane-path truth consistently.
 - [ ] Order arrows must follow lane paths, including curved lanes.
 - [ ] Update CX corridors so competing players also meet across the lane midpoint instead of allowing third-party intrusion.
-- [ ] Eliminate visibly angular non-straight lane paths; published non-straight lanes should read as curves.
 - [ ] Evaluate and tune the new metaball geometry-fill option so fill respects actual owned region boundaries without losing the desired look.
 - [ ] Add further tunables for metaball fill behavior if the new ownership toggle alone is not sufficient.
 - [ ] Implement and compare at least two metaball conquest transition options in-game.

@@ -111,6 +111,9 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { getLanePolyline } from "$lib/lanes/lanePolylineCache";
+    import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
+    import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
 
     // ============================================================================
     // PixiJS Application
@@ -1689,13 +1692,19 @@
                         const aStar = starsById.get(attackerId);
                         const dStar = starsById.get(combat.defenderId);
                         if (aStar && dStar) {
-                            const dx = dStar.x - aStar.x;
-                            const dy = dStar.y - aStar.y;
-                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            const rawLane = getLanePolyline(attackerId, combat.defenderId);
+                            const trimmedLane = rawLane && rawLane.length >= 2
+                                ? trimLanePolylineToStarRims(rawLane, aStar, dStar, 5)
+                                : undefined;
+                            const heading = computeLaneHeadingForNearside(
+                                aStar,
+                                dStar,
+                                trimmedLane && trimmedLane.length >= 2 ? trimmedLane : undefined,
+                            );
                             activeSurges.set(attackerId, {
                                 startTime: fxOrchestrator.gameTime,
-                                dirX: dx / dist,
-                                dirY: dy / dist,
+                                dirX: heading.ndx,
+                                dirY: heading.ndy,
                             });
                         }
                     }

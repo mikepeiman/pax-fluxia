@@ -1,6 +1,7 @@
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { GAME_CONFIG } from '$lib/config/game.config';
 
 export interface VirtualSite {
     x: number;
@@ -113,6 +114,7 @@ export function computeCorridorVirtuals(
     weightMultiplier = 0.5,
     count?: number,
     lanePolylineResolver: (a: string, b: string) => [number, number][] | undefined = getLanePolyline,
+    includeCrossOwnerMidpointPair = GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,
@@ -121,6 +123,7 @@ export function computeCorridorVirtuals(
         weightMultiplier,
         count,
         lanePolylineResolver,
+        includeCrossOwnerMidpointPair,
     );
     return canonicalizeVirtualSites(built as VirtualSite[]);
 }

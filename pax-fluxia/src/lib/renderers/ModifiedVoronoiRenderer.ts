@@ -823,6 +823,7 @@ export function renderModifiedVoronoi(
             cxWeight,
             cxCount > 0 ? cxCount : undefined,
             getLanePolyline,
+            GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
         );
         let virtualIdx = 0;
         for (const site of corridorSites) {

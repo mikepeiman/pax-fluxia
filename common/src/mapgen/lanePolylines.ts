@@ -249,6 +249,36 @@ function chaikinSmoothOpenPolyline(
     return out;
 }
 
+function preferredBulgeSigns(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    obstacles: Array<{ x: number; y: number }>,
+): readonly [1 | -1, 1 | -1] {
+    if (obstacles.length === 0) return [1, -1];
+    let nearest: { x: number; y: number } | null = null;
+    let nearestDist = Infinity;
+    for (const obstacle of obstacles) {
+        const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
+        if (d < nearestDist) {
+            nearest = obstacle;
+            nearestDist = d;
+        }
+    }
+    if (!nearest) return [1, -1];
+
+    const chord = hypot(bx - ax, by - ay) || 1;
+    const ux = (bx - ax) / chord;
+    const uy = (by - ay) / chord;
+    const px = -uy;
+    const py = ux;
+    const mx = (ax + bx) * 0.5;
+    const my = (ay + by) * 0.5;
+    const obstacleSide = (nearest.x - mx) * px + (nearest.y - my) * py;
+    return obstacleSide >= 0 ? [-1, 1] : [1, -1];
+}
+
 function solveAdaptiveWaypoints(
     ax: number, ay: number,
     bx: number, by: number,
@@ -262,10 +292,9 @@ function solveAdaptiveWaypoints(
         chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
         && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
+    if (okStraight) return straight;
 
-    // Prefer a true curve when possible so curved mode visibly reads as curved,
-    // but keep the straight chord as the last-clear fallback.
-    for (const bulgeSign of [1, -1] as const) {
+    for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
         if (best < hypot(bx - ax, by - ay) * 0.015) continue;
         const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
@@ -273,8 +302,6 @@ function solveAdaptiveWaypoints(
         if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
         return cand;
     }
-
-    if (okStraight) return straight;
 
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) {

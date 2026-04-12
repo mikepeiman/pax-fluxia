@@ -282,7 +282,7 @@ export function renderTravelingShips(
         departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY ?? 0,
         arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY ?? 0,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP ?? 12,
-        followLanePath: GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? false,
+        followLanePath: true,
     };
 
     // Animation speed scaling: multiply elapsed by speedMultiplier
@@ -598,9 +598,7 @@ export function renderShips(
 
             let dirX = 0, dirY = 0;
             if (targetStar) {
-                const rawLane = (GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? false)
-                    ? getLanePolyline(star.id, targetStar.id)
-                    : undefined;
+                const rawLane = getLanePolyline(star.id, targetStar.id);
                 const trimmedLane = rawLane && rawLane.length >= 2
                     ? trimLanePolylineToStarRims(rawLane, star, targetStar, 5)
                     : undefined;

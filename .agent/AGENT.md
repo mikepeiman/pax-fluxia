@@ -55,6 +55,7 @@ When removing, renaming, or commenting out any symbol:
 | Implementation Plans* | `.agent/docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
 
 **Daily queue protocol**: create or update `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
+**Requested file protocol**: if the user asks to create, save, update, or place a file, write the file before replying as though it exists. Never answer with “I’m writing it now” or imply the file is saved unless it is already on disk at the stated path.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`

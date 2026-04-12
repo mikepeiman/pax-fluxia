@@ -15,6 +15,7 @@
 import type { VisualShipState } from '$lib/utils/render.utils';
 import { getOrbitSlot, getOuterOrbitRadius } from '$lib/utils/render.utils';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { assignShipLaneGeometry } from '$lib/lanes/applyLaneTravelPath';
 
 // ============================================================================
 // Strategy Interface
@@ -178,9 +179,6 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
 
     const baseLaneStartX = attackerStar.x + ndx * (attackerStar.radius + 5);
     const baseLaneStartY = attackerStar.y + ndy * (attackerStar.radius + 5);
-    const baseLaneEndX = conqueredStar.x - ndx * (conqueredStar.radius + 5);
-    const baseLaneEndY = conqueredStar.y - ndy * (conqueredStar.radius + 5);
-
     const convStartX = attackerStar.x + (conqueredStar.x - attackerStar.x) * convergencePointFrac;
     const convStartY = attackerStar.y + (conqueredStar.y - attackerStar.y) * convergencePointFrac;
     const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePointFrac;
@@ -190,11 +188,21 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
     const departFraction = GAME_CONFIG.DEPART_FRACTION ?? 0.3;
     const departDuration = halfTick * departFraction;
     const travelDuration = halfTick * (1 - departFraction);
-    const jitterMax = GAME_CONFIG.DEPART_JITTER_MS ?? 80;
-    const laneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
 
     const departing: VisualShipState[] = [];
     const n = conquestShips.length;
+    const sourceRef = {
+        id: attackerStarId,
+        x: attackerStar.x,
+        y: attackerStar.y,
+        radius: attackerStar.radius,
+    };
+    const targetRef = {
+        id: conqueredStarId,
+        x: conqueredStar.x,
+        y: conqueredStar.y,
+        radius: conqueredStar.radius,
+    };
     for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
 
@@ -218,38 +226,41 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
         ship.departTime = now + i * perShipStagger;
         ship.travelDuration = travelDuration;
         ship.departDuration = departDuration;
+        assignShipLaneGeometry(ship, sourceRef, targetRef);
 
-        if (convergence >= 1) {
-            ship.laneStartX = effectiveLaneStartX;
-            ship.laneStartY = effectiveLaneStartY;
-        } else {
-            ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
-            ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
-        }
+        if (!ship.lanePolyline || ship.lanePolyline.length < 2) {
+            if (convergence >= 1) {
+                ship.laneStartX = effectiveLaneStartX;
+                ship.laneStartY = effectiveLaneStartY;
+            } else {
+                ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
+                ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
+            }
 
-        // Lane end depends on engulf mode
-        const engulfMode = GAME_CONFIG.ARROW_ENGULF_MODE ?? 'fan';
-        const engulfRadius = GAME_CONFIG.ARROW_ENGULF_RADIUS ?? 50;
-        if (engulfMode === 'fan') {
-            // Fan: ships arrive surrounding target, spread out from approach angle
-            const arrivalAngle = Math.atan2(-ndy, -ndx) + ((i / Math.max(n - 1, 1)) - 0.5) * Math.PI * 1.6;
-            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
-            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
-        } else if (engulfMode === 'ring') {
-            // Ring: evenly distributed around the full circle
-            const arrivalAngle = (i / n) * Math.PI * 2;
-            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
-            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
-        } else if (engulfMode === 'swarm') {
-            // Swarm: random scattered positions around the target
-            const rAngle = Math.random() * Math.PI * 2;
-            const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
-            ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
-            ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
-        } else {
-            // Collapse: all converge to the star edge from the lane direction
-            ship.laneEndX = slotEndX;
-            ship.laneEndY = slotEndY;
+            // Lane end depends on engulf mode
+            const engulfMode = GAME_CONFIG.ARROW_ENGULF_MODE ?? 'fan';
+            const engulfRadius = GAME_CONFIG.ARROW_ENGULF_RADIUS ?? 50;
+            if (engulfMode === 'fan') {
+                // Fan: ships arrive surrounding target, spread out from approach angle
+                const arrivalAngle = Math.atan2(-ndy, -ndx) + ((i / Math.max(n - 1, 1)) - 0.5) * Math.PI * 1.6;
+                ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+                ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+            } else if (engulfMode === 'ring') {
+                // Ring: evenly distributed around the full circle
+                const arrivalAngle = (i / n) * Math.PI * 2;
+                ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+                ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+            } else if (engulfMode === 'swarm') {
+                // Swarm: random scattered positions around the target
+                const rAngle = Math.random() * Math.PI * 2;
+                const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
+                ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
+                ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
+            } else {
+                // Collapse: all converge to the star edge from the lane direction
+                ship.laneEndX = slotEndX;
+                ship.laneEndY = slotEndY;
+            }
         }
 
         ship.laneOffset = 0; // No random offset — slots handle distribution
@@ -321,6 +332,18 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
 
     const departing: VisualShipState[] = [];
     const n = conquestShips.length;
+    const sourceRef = {
+        id: attackerStarId,
+        x: attackerStar.x,
+        y: attackerStar.y,
+        radius: attackerStar.radius,
+    };
+    const targetRef = {
+        id: conqueredStarId,
+        x: conqueredStar.x,
+        y: conqueredStar.y,
+        radius: conqueredStar.radius,
+    };
 
     // Tick-bound stagger: auto = proportional to tick; manual = ARROW_STAGGER_MS
     const autoStagger = GAME_CONFIG.ARROW_STAGGER_AUTO ?? true;
@@ -359,36 +382,35 @@ function conquestArrowhead(ctx: ConquestTransferContext): ConquestTransferResult
         // ── Lane endpoints with wedge offset ──
         // Leader converges to lane center; trailing ships have perpendicular spread
         // Depth stagger: trailing ships start slightly behind the leader
-        const depthOffset = Math.abs(fracInFormation) * taper;
-        ship.laneStartX = laneStartX + perpX * wedgeOffset - ndx * depthOffset * 20;
-        ship.laneStartY = laneStartY + perpY * wedgeOffset - ndy * depthOffset * 20;
+        ship.departFromX = ship.x;
+        ship.departFromY = ship.y;
+        assignShipLaneGeometry(ship, sourceRef, targetRef);
 
-        // End positions depend on engulf mode
-        if (engulfMode === 'fan') {
-            // Fan: ships arrive surrounding the target at engulfRadius
-            const arrivalAngle = Math.atan2(-ndy, -ndx) + fracInFormation * Math.PI * 0.8;
-            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
-            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
-        } else if (engulfMode === 'ring') {
-            // Ring: evenly distributed around the full circle
-            const arrivalAngle = (i / n) * Math.PI * 2;
-            ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
-            ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
-        } else if (engulfMode === 'swarm') {
-            // Swarm: random scattered positions around the target
-            const rAngle = Math.random() * Math.PI * 2;
-            const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
-            ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
-            ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
-        } else {
-            // Collapse: all converge to the star edge from the lane direction
-            ship.laneEndX = laneEndX + perpX * wedgeOffset * 0.3;
-            ship.laneEndY = laneEndY + perpY * wedgeOffset * 0.3;
+        if (!ship.lanePolyline || ship.lanePolyline.length < 2) {
+            const depthOffset = Math.abs(fracInFormation) * taper;
+            ship.laneStartX = laneStartX + perpX * wedgeOffset - ndx * depthOffset * 20;
+            ship.laneStartY = laneStartY + perpY * wedgeOffset - ndy * depthOffset * 20;
+
+            if (engulfMode === 'fan') {
+                const arrivalAngle = Math.atan2(-ndy, -ndx) + fracInFormation * Math.PI * 0.8;
+                ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+                ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+            } else if (engulfMode === 'ring') {
+                const arrivalAngle = (i / n) * Math.PI * 2;
+                ship.laneEndX = conqueredStar.x + Math.cos(arrivalAngle) * engulfRadius;
+                ship.laneEndY = conqueredStar.y + Math.sin(arrivalAngle) * engulfRadius;
+            } else if (engulfMode === 'swarm') {
+                const rAngle = Math.random() * Math.PI * 2;
+                const rDist = (0.4 + Math.random() * 0.6) * engulfRadius;
+                ship.laneEndX = conqueredStar.x + Math.cos(rAngle) * rDist;
+                ship.laneEndY = conqueredStar.y + Math.sin(rAngle) * rDist;
+            } else {
+                ship.laneEndX = laneEndX + perpX * wedgeOffset * 0.3;
+                ship.laneEndY = laneEndY + perpY * wedgeOffset * 0.3;
+            }
         }
 
         ship.laneOffset = wedgeOffset * 0.5; // Minor wobble around wedge position
-        ship.departFromX = ship.x;
-        ship.departFromY = ship.y;
         ship.state = 'departing';
         ship.fromStarId = attackerStarId;
         ship.toStarId = conqueredStarId;

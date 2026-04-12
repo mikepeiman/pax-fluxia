@@ -332,6 +332,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'corridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
     { panelKey: 'cxCount', configKey: 'TERRITORY_CX_COUNT' },
     { panelKey: 'cxWeight', configKey: 'TERRITORY_CX_WEIGHT' },
+    { panelKey: 'cxContestMidpointVstars', configKey: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS' },
     { panelKey: 'disconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
     { panelKey: 'disconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
     { panelKey: 'dxWeight', configKey: 'TERRITORY_DX_WEIGHT' },

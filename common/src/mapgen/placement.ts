@@ -68,41 +68,17 @@ function minDistToSelected(hex: HexCoord, selected: HexCoord[]): number {
 }
 
 function pickBoardFitCornerSeeds(
-    hexes: HexCoord[],
     width: number,
     height: number,
     paddingX: number,
     paddingY: number,
 ): HexCoord[] {
-    if (hexes.length < 4) return [];
-
-    const corners: HexCoord[] = [
+    return [
         { x: paddingX + BOARD_FIT_INSET, y: paddingY + BOARD_FIT_INSET },
         { x: width - paddingX - BOARD_FIT_INSET, y: paddingY + BOARD_FIT_INSET },
         { x: paddingX + BOARD_FIT_INSET, y: height - paddingY - BOARD_FIT_INSET },
         { x: width - paddingX - BOARD_FIT_INSET, y: height - paddingY - BOARD_FIT_INSET },
     ];
-
-    const used = new Set<string>();
-    const seeds: HexCoord[] = [];
-    for (const corner of corners) {
-        let best: HexCoord | null = null;
-        let bestScore = Infinity;
-        for (const hex of hexes) {
-            const key = `${hex.x},${hex.y}`;
-            if (used.has(key)) continue;
-            const score = dist(hex, corner);
-            if (score < bestScore) {
-                bestScore = score;
-                best = hex;
-            }
-        }
-        if (best) {
-            used.add(`${best.x},${best.y}`);
-            seeds.push(best);
-        }
-    }
-    return seeds;
 }
 
 /**
@@ -297,18 +273,29 @@ export function generateStarPositions(config: {
     const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
     const minSpacing = physicsMinSpacing * spacingMultiplier;
 
-    const cornerSeeds = boardFit >= 0.999 && totalStars >= 4
-        ? pickBoardFitCornerSeeds(hexes, width, height, paddingX, paddingY)
-        : [];
-    const raw = selectPositions(
-        hexes,
-        totalStars,
-        minSpacing,
-        physicsMinSpacing,
-        boardFit,
-        cornerSeeds,
-    );
-    const positions = applyBoardFit(raw, width, height, paddingX, paddingY, boardFit);
+    let positions: MapPosition[];
+    if (boardFit >= 0.999) {
+        const cornerSeeds = totalStars >= 4
+            ? pickBoardFitCornerSeeds(width, height, paddingX, paddingY)
+            : [];
+        positions = selectPositions(
+            hexes,
+            totalStars,
+            minSpacing,
+            physicsMinSpacing,
+            1,
+            cornerSeeds,
+        );
+    } else {
+        const raw = selectPositions(
+            hexes,
+            totalStars,
+            minSpacing,
+            physicsMinSpacing,
+            boardFit,
+        );
+        positions = applyBoardFit(raw, width, height, paddingX, paddingY, boardFit);
+    }
 
     return { positions, hexRadius, width, height, paddingX, paddingY };
 }
