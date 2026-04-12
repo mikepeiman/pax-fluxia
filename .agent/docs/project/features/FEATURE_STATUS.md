@@ -9,6 +9,38 @@
 
 ---
 
+## Active Queue â€” 2026-04-12
+
+This is the current working queue distilled from the last two days of rendering, palette, map, and multiplayer discussions.
+
+### Immediate / next
+
+- Palette live-update parity: in-game player-color changes update star ownership colors, but territory fills remain stale and desynced.
+- Main Menu map tabs: add `Custom` alongside `Random | Classic`.
+- Main Menu map controls: widen the section and compact/reorganize sliders for better density and legibility.
+- Main Menu lane-path toggle polish: make the `Straight | Curved` segmented control match the surrounding menu colors and styling.
+- Always-on public MP room: design and implement a persistent public room that always appears in room discovery.
+- Dev workflow convenience: when running the SP/client dev stack, also bring up `pax-server` via `bun run dev:node` where appropriate.
+
+### Rendering / lane fidelity
+
+- Ships should follow actual lane paths, including curved lanes.
+- Order arrows should follow lane paths, including curved lanes.
+- Curved-lane publication should avoid visible angular bends; if a lane is non-straight, the exposed path should read as curved.
+- CX corridors spec update: apply corridor control not only to same-owner corridors, but also to competing-owner corridors using per-owner midpoint virtual stars so third-party regions do not intrude on the lane.
+
+### Territory / metaball
+
+- Metaball steady-state fill does not yet reliably match actual owned territory boundaries.
+- Metaball conquest transition is still missing and needs a controlled in-game bakeoff of candidate approaches rather than one unexamined implementation.
+
+### Map tooling
+
+- Fixture map foundation exists, but still needs loader/validator polish and active use in renderer comparison.
+- Full custom map editor remains a major planned feature and is increasingly important for reproducible territory/corridor/conquest testing.
+
+---
+
 ## Legend
 
 | Symbol | Meaning |
