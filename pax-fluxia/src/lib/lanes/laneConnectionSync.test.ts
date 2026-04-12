@@ -5,7 +5,11 @@ import {
     seedLaneCacheFromConnections,
     toLaneAwareConnection,
 } from '$lib/lanes/laneConnectionSync';
-import { clearLanePolylineCache, getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import {
+    clearLanePolylineCache,
+    getDirectedLanePolyline,
+    getLanePolyline,
+} from '$lib/lanes/lanePolylineCache';
 
 describe('laneConnectionSync', () => {
     afterEach(() => {
@@ -77,6 +81,16 @@ describe('laneConnectionSync', () => {
             [0, 0],
             [50, 25],
             [100, 0],
+        ]);
+        expect(getDirectedLanePolyline('star-a', 'star-b')).toEqual([
+            [0, 0],
+            [50, 25],
+            [100, 0],
+        ]);
+        expect(getDirectedLanePolyline('star-b', 'star-a')).toEqual([
+            [100, 0],
+            [50, 25],
+            [0, 0],
         ]);
     });
 });

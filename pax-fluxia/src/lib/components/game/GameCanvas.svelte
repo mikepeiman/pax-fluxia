@@ -111,7 +111,7 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
-    import { getLanePolyline } from "$lib/lanes/lanePolylineCache";
+    import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
 
@@ -1692,7 +1692,7 @@
                         const aStar = starsById.get(attackerId);
                         const dStar = starsById.get(combat.defenderId);
                         if (aStar && dStar) {
-                            const rawLane = getLanePolyline(attackerId, combat.defenderId);
+                            const rawLane = getDirectedLanePolyline(attackerId, combat.defenderId);
                             const trimmedLane = rawLane && rawLane.length >= 2
                                 ? trimLanePolylineToStarRims(rawLane, aStar, dStar, 5)
                                 : undefined;

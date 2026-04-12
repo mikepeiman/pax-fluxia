@@ -17,7 +17,7 @@ import * as PIXI from 'pixi.js';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from './RenderContext';
-import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import {
     polylineTotalLength,
     pointAtArcLength,
@@ -52,7 +52,7 @@ export function renderConnections(
 
         const ringGap = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
         const trimPad = Math.max(0, ringGap - Math.min(source.radius, target.radius));
-        const poly = getLanePolyline(conn.sourceId, conn.targetId);
+        const poly = getDirectedLanePolyline(conn.sourceId, conn.targetId);
         if (poly && poly.length > 2) {
             const trimmed = trimLanePolylineToStarRims(poly, source, target, trimPad);
             if (trimmed.length >= 2) smoothPaths.push(trimmed);
@@ -243,7 +243,7 @@ function resolveArrowPath(
     const extraPad = GAME_CONFIG.ARROW_PATH_PADDING ?? 0;
     const trimPad = 10 + extraPad;
     const rawPolyline = (GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS ?? false)
-        ? getLanePolyline(source.id, target.id)
+        ? getDirectedLanePolyline(source.id, target.id)
         : undefined;
     const basePath: ReadonlyArray<readonly [number, number]> =
         rawPolyline && rawPolyline.length >= 2

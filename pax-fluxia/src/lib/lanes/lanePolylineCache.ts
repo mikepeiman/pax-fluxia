@@ -69,3 +69,16 @@ export function rebuildLanePolylineCache(
 export function getLanePolyline(sourceId: string, targetId: string): [number, number][] | undefined {
     return cache.get(edgeKey(sourceId, targetId));
 }
+
+export function getDirectedLanePolyline(
+    sourceId: string,
+    targetId: string,
+): [number, number][] | undefined {
+    const poly = cache.get(edgeKey(sourceId, targetId));
+    if (!poly || poly.length < 2) return poly;
+    if (sourceId <= targetId) return poly;
+    return poly
+        .slice()
+        .reverse()
+        .map((point) => [point[0], point[1]] as [number, number]);
+}

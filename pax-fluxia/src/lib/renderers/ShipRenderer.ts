@@ -35,7 +35,7 @@ import {
     TRAVEL_BEHAVIORS,
 } from '$lib/fx/phases/behaviors';
 import type { PhaseContext } from '$lib/fx/phases/travelTypes';
-import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
 import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
 import type { ColorUtils } from './RenderContext';
@@ -598,7 +598,7 @@ export function renderShips(
 
             let dirX = 0, dirY = 0;
             if (targetStar) {
-                const rawLane = getLanePolyline(star.id, targetStar.id);
+                const rawLane = getDirectedLanePolyline(star.id, targetStar.id);
                 const trimmedLane = rawLane && rawLane.length >= 2
                     ? trimLanePolylineToStarRims(rawLane, star, targetStar, 5)
                     : undefined;

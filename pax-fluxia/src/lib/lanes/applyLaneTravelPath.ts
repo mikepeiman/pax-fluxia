@@ -4,7 +4,7 @@
 
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { VisualShipState } from '$lib/utils/render.utils';
-import { getLanePolyline } from './lanePolylineCache';
+import { getDirectedLanePolyline } from './lanePolylineCache';
 import { pointAtArcFraction, trimLanePolylineToStarRims } from './laneGeometry';
 
 function resolveTrimmedPolyline(
@@ -13,7 +13,7 @@ function resolveTrimmedPolyline(
     pretrimmed?: [number, number][],
 ): [number, number][] | undefined {
     if (pretrimmed && pretrimmed.length >= 2) return pretrimmed;
-    const rawPoly = getLanePolyline(source.id, target.id);
+    const rawPoly = getDirectedLanePolyline(source.id, target.id);
     if (!rawPoly || rawPoly.length < 2) return undefined;
     const t = trimLanePolylineToStarRims(rawPoly, source, target, 5);
     return t.length >= 2 ? t : undefined;

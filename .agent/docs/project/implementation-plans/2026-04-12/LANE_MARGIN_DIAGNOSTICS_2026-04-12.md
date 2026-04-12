@@ -47,6 +47,13 @@ The system moves through three regimes:
 - middle margin: many blocked chords become curved
 - high margin: blocked chords spike, but curves collapse and most lanes revert to straight fallback
 
+5. `boardFit` is also interacting with lane behavior far too sharply.
+Using the same seed and current live settings:
+- `boardFit = 0.95` produced `0` curved lanes
+- `boardFit = 1.0` produced `88` curved lanes
+
+That is too dramatic to treat as normal variation. It is a real cross-knob bug and a strong clue that the placement geometry at the full-board case is pushing the lane solver into a very different regime.
+
 ## Key Evidence
 
 From `.agent-harness/metrics/lane-margin-diagnostics-latest.md`:

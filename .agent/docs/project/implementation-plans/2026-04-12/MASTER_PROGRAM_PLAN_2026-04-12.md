@@ -9,6 +9,13 @@
 
 ## This round
 
+- Added a directed-lane read path in the runtime so undirected cached polylines reverse correctly for direction-sensitive consumers.
+- Applied that directed path to:
+  - ship travel geometry
+  - conquest travel geometry
+  - order arrows
+  - attack-surge heading
+- Confirmed the second clue the user reported: with the same seed and current live settings, `boardFit 0.95` produced `0` curved lanes while `boardFit 1.0` produced `88`, so the board-fill interaction is a real bug and not just visual noise.
 - Added a reusable lane-margin diagnostics command at `bun run debug:lane-margin`.
 - Saved the current evidence at `.agent/docs/project/implementation-plans/2026-04-12/LANE_MARGIN_DIAGNOSTICS_2026-04-12.md`.
 - Confirmed via seeded sweeps that the current weird lane-margin banding is primarily a lane-solver problem, not large-scale topology pruning:
