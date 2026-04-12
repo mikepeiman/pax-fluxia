@@ -12,6 +12,11 @@ import type { DepartBehavior, TravelBehavior, PhaseResult, PhaseContext } from '
 import { easeInOutQuad, applyTravelEasing } from './easing';
 import { pointAtArcFraction, tangentAtArcFraction } from '$lib/lanes/laneGeometry';
 
+function getOffsetSeed(ship: VisualShipState, fallback = 6): number {
+    if (Math.abs(ship.laneOffset) > 1e-3) return ship.laneOffset;
+    return (ship.id % 2 === 0 ? 1 : -1) * fallback;
+}
+
 function buildFullJourneyPolyline(ship: VisualShipState): [number, number][] | undefined {
     const poly = ship.lanePolyline;
     if (!poly || poly.length < 2) return undefined;
@@ -29,6 +34,37 @@ function buildFullJourneyPolyline(ship: VisualShipState): [number, number][] | u
     return out.length >= 2 ? out : undefined;
 }
 
+function sampleSpine(
+    ship: VisualShipState,
+    progress: number,
+    followLanePath: boolean,
+): { x: number; y: number; perpX: number; perpY: number } {
+    const poly = followLanePath ? ship.lanePolyline : undefined;
+    if (poly && poly.length >= 2) {
+        const p = pointAtArcFraction(poly, progress);
+        const { tx, ty } = tangentAtArcFraction(poly, progress);
+        const len = Math.hypot(tx, ty) || 1;
+        return {
+            x: p.x,
+            y: p.y,
+            perpX: -ty / len,
+            perpY: tx / len,
+        };
+    }
+
+    const x = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * progress;
+    const y = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * progress;
+    const laneNdx = ship.laneEndX - ship.laneStartX;
+    const laneNdy = ship.laneEndY - ship.laneStartY;
+    const laneDist = Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
+    return {
+        x,
+        y,
+        perpX: -laneNdy / laneDist,
+        perpY: laneNdx / laneDist,
+    };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // DEPART BEHAVIORS
 // ════════════════════════════════════════════════════════════════════════════
@@ -36,12 +72,27 @@ function buildFullJourneyPolyline(ship: VisualShipState): [number, number][] | u
 /** ORB depart: converge to lane start, fade alpha for merge into orb */
 export const orbDepart: DepartBehavior = {
     name: 'orb',
-    interpolate(ship: VisualShipState, elapsed: number, _ctx: PhaseContext): PhaseResult {
+    interpolate(ship: VisualShipState, elapsed: number, ctx: PhaseContext): PhaseResult {
         const departProgress = Math.min(1, elapsed / (ship.departDuration || SHIP_ANIM.DEPART_DURATION));
         const eased = easeInOutQuad(departProgress);
 
-        const x = ship.departFromX + (ship.laneStartX - ship.departFromX) * eased;
-        const y = ship.departFromY + (ship.laneStartY - ship.departFromY) * eased;
+        const dx = ship.laneStartX - ship.departFromX;
+        const dy = ship.laneStartY - ship.departFromY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const perpX = -dy / dist;
+        const perpY = dx / dist;
+        const departBulge =
+            Math.sin(eased * Math.PI) *
+            ctx.departArcIntensity *
+            getOffsetSeed(ship, 8);
+        const x =
+            ship.departFromX +
+            dx * eased +
+            perpX * departBulge;
+        const y =
+            ship.departFromY +
+            dy * eased +
+            perpY * departBulge;
         const scale = 0.8 + 0.1 * eased;
 
         let alpha = 1;
@@ -73,8 +124,22 @@ export const bezierDepart: DepartBehavior = {
             : undefined;
         if (journeyPolyline && journeyPolyline.length >= 2) {
             const p = pointAtArcFraction(journeyPolyline, eased);
+            const { tx, ty } = tangentAtArcFraction(journeyPolyline, eased);
+            const len = Math.hypot(tx, ty) || 1;
+            const perpX = -ty / len;
+            const perpY = tx / len;
+            const bulge =
+                Math.sin(rawProgress * Math.PI) *
+                ctx.travelArcIntensity *
+                getOffsetSeed(ship, 8);
             const scale = 0.8 + 0.1 * Math.min(rawProgress * 3, 1);
-            return { x: p.x, y: p.y, scale, alpha: 1, done: rawProgress >= 1 };
+            return {
+                x: p.x + perpX * bulge,
+                y: p.y + perpY * bulge,
+                scale,
+                alpha: 1,
+                done: rawProgress >= 1,
+            };
         }
 
         // Bezier control point for curved arc
@@ -101,12 +166,27 @@ export const bezierDepart: DepartBehavior = {
 /** LANE depart: classic convergence to lane start point */
 export const laneDepart: DepartBehavior = {
     name: 'lane',
-    interpolate(ship: VisualShipState, elapsed: number, _ctx: PhaseContext): PhaseResult {
+    interpolate(ship: VisualShipState, elapsed: number, ctx: PhaseContext): PhaseResult {
         const departProgress = Math.min(1, elapsed / (ship.departDuration || SHIP_ANIM.DEPART_DURATION));
         const eased = easeInOutQuad(departProgress);
 
-        const x = ship.departFromX + (ship.laneStartX - ship.departFromX) * eased;
-        const y = ship.departFromY + (ship.laneStartY - ship.departFromY) * eased;
+        const dx = ship.laneStartX - ship.departFromX;
+        const dy = ship.laneStartY - ship.departFromY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const perpX = -dy / dist;
+        const perpY = dx / dist;
+        const departBulge =
+            Math.sin(eased * Math.PI) *
+            ctx.departArcIntensity *
+            getOffsetSeed(ship, 6);
+        const x =
+            ship.departFromX +
+            dx * eased +
+            perpX * departBulge;
+        const y =
+            ship.departFromY +
+            dy * eased +
+            perpY * departBulge;
         const scale = 0.8 + 0.1 * eased;
 
         return { x, y, scale, alpha: 1, done: departProgress >= 1 };
@@ -155,6 +235,21 @@ function computeWobbleWithPerp(
     return { edgeFade, wobble };
 }
 
+function computeLaneTravelOffset(
+    ship: VisualShipState,
+    travelProgress: number,
+    edgeFade: number,
+    wobble: number,
+    travelArcIntensity: number,
+): number {
+    const spread = ship.laneOffset * edgeFade;
+    const arcBulge =
+        Math.sin(travelProgress * Math.PI) *
+        travelArcIntensity *
+        getOffsetSeed(ship, 6);
+    return spread + arcBulge + wobble;
+}
+
 /** ORB travel: straight lane interpolation with configurable easing + wobble */
 export const orbTravel: TravelBehavior = {
     name: 'orb',
@@ -163,36 +258,24 @@ export const orbTravel: TravelBehavior = {
         // Use configurable easing (same as lane travel) instead of hardcoded cubic
         const eased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const poly = ctx.followLanePath ? ship.lanePolyline : undefined;
-        let baseX: number;
-        let baseY: number;
-        let perpX: number;
-        let perpY: number;
-        let edgeFade: number;
-        let wobble: number;
-        if (poly && poly.length >= 2) {
-            const p = pointAtArcFraction(poly, eased);
-            baseX = p.x;
-            baseY = p.y;
-            const { tx, ty } = tangentAtArcFraction(poly, eased);
-            const len = Math.hypot(tx, ty) || 1;
-            perpX = -ty / len;
-            perpY = tx / len;
-            const w = computeWobbleWithPerp(ship, travelProgress, ctx.wobbleAmp, perpX, perpY);
-            edgeFade = w.edgeFade;
-            wobble = w.wobble;
-        } else {
-            baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * eased;
-            baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * eased;
-            const w = computeWobble(ship, travelProgress, ctx.wobbleAmp);
-            perpX = w.perpX;
-            perpY = w.perpY;
-            edgeFade = w.edgeFade;
-            wobble = w.wobble;
-        }
+        const spine = sampleSpine(ship, eased, ctx.followLanePath);
+        const w = computeWobbleWithPerp(
+            ship,
+            travelProgress,
+            ctx.wobbleAmp,
+            spine.perpX,
+            spine.perpY,
+        );
+        const lateralOffset = computeLaneTravelOffset(
+            ship,
+            travelProgress,
+            w.edgeFade,
+            w.wobble,
+            ctx.travelArcIntensity,
+        );
 
-        const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
-        const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
+        const x = spine.x + spine.perpX * lateralOffset;
+        const y = spine.y + spine.perpY * lateralOffset;
 
         return { x, y, scale: 0.9, alpha: 1, done: travelProgress >= 1 };
     },
@@ -205,36 +288,24 @@ export const laneTravel: TravelBehavior = {
         const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
         const laneEased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const poly = ctx.followLanePath ? ship.lanePolyline : undefined;
-        let baseX: number;
-        let baseY: number;
-        let perpX: number;
-        let perpY: number;
-        let edgeFade: number;
-        let wobble: number;
-        if (poly && poly.length >= 2) {
-            const p = pointAtArcFraction(poly, laneEased);
-            baseX = p.x;
-            baseY = p.y;
-            const { tx, ty } = tangentAtArcFraction(poly, laneEased);
-            const len = Math.hypot(tx, ty) || 1;
-            perpX = -ty / len;
-            perpY = tx / len;
-            const w = computeWobbleWithPerp(ship, travelProgress, ctx.wobbleAmp, perpX, perpY);
-            edgeFade = w.edgeFade;
-            wobble = w.wobble;
-        } else {
-            baseX = ship.laneStartX + (ship.laneEndX - ship.laneStartX) * laneEased;
-            baseY = ship.laneStartY + (ship.laneEndY - ship.laneStartY) * laneEased;
-            const w = computeWobble(ship, travelProgress, ctx.wobbleAmp);
-            perpX = w.perpX;
-            perpY = w.perpY;
-            edgeFade = w.edgeFade;
-            wobble = w.wobble;
-        }
+        const spine = sampleSpine(ship, laneEased, ctx.followLanePath);
+        const w = computeWobbleWithPerp(
+            ship,
+            travelProgress,
+            ctx.wobbleAmp,
+            spine.perpX,
+            spine.perpY,
+        );
+        const lateralOffset = computeLaneTravelOffset(
+            ship,
+            travelProgress,
+            w.edgeFade,
+            w.wobble,
+            ctx.travelArcIntensity,
+        );
 
-        const x = baseX + perpX * (ship.laneOffset * edgeFade + wobble);
-        const y = baseY + perpY * (ship.laneOffset * edgeFade + wobble);
+        const x = spine.x + spine.perpX * lateralOffset;
+        const y = spine.y + spine.perpY * lateralOffset;
 
         return { x, y, scale: 0.9, alpha: 1, done: travelProgress >= 1 };
     },

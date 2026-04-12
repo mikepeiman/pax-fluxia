@@ -9,6 +9,26 @@
 
 ## This round
 
+- Audited the full transit-variable surface from controls plus active config after the user correctly flagged an incomplete report.
+- Restored the motion-shaping layer on top of lane-path truth instead of keeping travel pinned to the centerline:
+  - `TRAVEL_FOLLOW_LANE_PATHS` now gates the runtime again
+  - `TRAVEL_ARC_INTENSITY` now affects curved-lane transit instead of being flattened
+  - `DEPART_ARC_INTENSITY` now shapes departure toward the lane
+  - `ARRIVAL_ARC_INTENSITY` now shapes settle entry
+  - conquest-travel ships now get nonzero lane spread so those controls can express there too
+- Saved the post-mortem at `.agent/docs/project/process/POST_MORTEM_2026-04-12_TRANSIT_TUNING_FLATTENED_BY_LANE_FIX.md`
+- Added a matching motion-surface preservation rule to `.agent/AGENT.md`
+- Verified by me:
+  - `bunx tsc -p C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\tsconfig.json --noEmit --pretty false`
+  - result: passed, exit code `0`
+  - direct behavior probe shows nonzero lateral displacement with arc controls active on curved lanes
+- Fixed the current `GameSettingsPanel.svelte` runtime error:
+  - `applyTimingBindingsAndLocks()` assumed the local `recalcAnimLocks...` helpers returned objects
+  - the legacy panel still had duplicate local helpers that returned `undefined`, unlike the shared `panelSync.ts` versions
+  - patched the local helpers to return update objects and added defensive `?? {}` guards at the call sites
+- Confirmed the fix with:
+  - `bunx tsc -p C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\tsconfig.json --noEmit --pretty false`
+  - result: passed, exit code `0`
 - Saved the directed-path regression post-mortem at `.agent/docs/project/process/POST_MORTEM_2026-04-12_DIRECTED_LANE_PATH_REGRESSION.md`.
 - Added an explicit AGENT rule to auto-save post-mortems for major self-introduced regressions after they are fixed.
 - Found the remaining reason ships were still not visibly following curved lanes:
@@ -61,7 +81,7 @@
   - config key `TERRITORY_CX_CONTEST_MIDPOINT_VSTARS`
   - settings wiring in `ControlsSection-Territory.svelte`
   - propagation through corridor builders / territory renderers
-- Standardized the daily clean execution queue at `.agent/docs/project/features/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`.
+- Standardized the daily clean execution queue at `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`.
 - Created today's queue file and logged the active UI/color/lane/metaball work there.
 - Added the daily queue protocol to `.agent/AGENT.md`.
 - Added a standing harness-comparison protocol to `.agent/AGENT.md`: every future tool snag should be classified against `atlas-harness`, CLI-Anything, Pi integration, or the Codex shell/environment.

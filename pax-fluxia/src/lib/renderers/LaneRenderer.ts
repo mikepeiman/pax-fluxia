@@ -44,21 +44,9 @@ export function renderConnections(
     // Collect all lane segments (reused for both shadow and foreground passes)
     const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
     const smoothPaths: [number, number][][] = [];
+    const ringGapForLane = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
 
-    connections.forEach((conn) => {
-        const source = starsById.get(conn.sourceId);
-        const target = starsById.get(conn.targetId);
-        if (!source || !target) return;
-
-        const ringGap = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
-        const trimPad = Math.max(0, ringGap - Math.min(source.radius, target.radius));
-        const poly = getDirectedLanePolyline(conn.sourceId, conn.targetId);
-        if (poly && poly.length > 2) {
-            const trimmed = trimLanePolylineToStarRims(poly, source, target, trimPad);
-            if (trimmed.length >= 2) smoothPaths.push(trimmed);
-            return;
-        }
-
+    function collectStraightSegments(source: StarState, target: StarState): void {
         const dx = target.x - source.x;
         const dy = target.y - source.y;
         const laneDist = Math.sqrt(dx * dx + dy * dy);
@@ -66,52 +54,48 @@ export function renderConnections(
 
         const ndx = dx / laneDist;
         const ndy = dy / laneDist;
-
-        // Collect gap intervals [tStart, tEnd] along the lane (0..1 parameterization)
         const gaps: [number, number][] = [];
 
-        // Gap at source and target — use visual ownership-ring radius for terminus blending
-        const srcGap = ringGap / laneDist;
-        const tgtGap = ringGap / laneDist;
+        const srcGap = ringGapForLane / laneDist;
+        const tgtGap = ringGapForLane / laneDist;
         gaps.push([0, srcGap]);
         gaps.push([1 - tgtGap, 1]);
 
-        // Check all other stars for proximity to this lane
         for (const star of stars) {
-            if (star.id === conn.sourceId || star.id === conn.targetId) continue;
+            if (star.id === source.id || star.id === target.id) continue;
 
             const ax = star.x - source.x;
             const ay = star.y - source.y;
             const t = (ax * ndx + ay * ndy) / laneDist;
-
             if (t <= 0 || t >= 1) continue;
 
             const projX = source.x + ndx * t * laneDist;
             const projY = source.y + ndy * t * laneDist;
             const perpDist = Math.sqrt((star.x - projX) ** 2 + (star.y - projY) ** 2);
-
-            // Use ownership-ring radius for intervening star clearance too
-            const clearance = ringGap + 6;
+            const clearance = ringGapForLane + 6;
             if (perpDist < clearance) {
-                const halfChord = Math.sqrt(Math.max(0, clearance * clearance - perpDist * perpDist));
+                const halfChord = Math.sqrt(
+                    Math.max(0, clearance * clearance - perpDist * perpDist),
+                );
                 const gapStart = Math.max(0, t - halfChord / laneDist);
                 const gapEnd = Math.min(1, t + halfChord / laneDist);
                 gaps.push([gapStart, gapEnd]);
             }
         }
 
-        // Sort gaps by start and merge overlapping
         gaps.sort((a, b) => a[0] - b[0]);
         const merged: [number, number][] = [];
         for (const gap of gaps) {
             if (merged.length > 0 && gap[0] <= merged[merged.length - 1][1]) {
-                merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], gap[1]);
+                merged[merged.length - 1][1] = Math.max(
+                    merged[merged.length - 1][1],
+                    gap[1],
+                );
             } else {
                 merged.push([...gap]);
             }
         }
 
-        // Collect segments between gaps
         let segStart = 0;
         for (const [gStart, gEnd] of merged) {
             if (segStart < gStart) {
@@ -132,6 +116,28 @@ export function renderConnections(
                 y2: target.y,
             });
         }
+    }
+
+    connections.forEach((conn) => {
+        const source = starsById.get(conn.sourceId);
+        const target = starsById.get(conn.targetId);
+        if (!source || !target) return;
+
+        const trimPad = Math.max(
+            0,
+            ringGapForLane - Math.min(source.radius, target.radius),
+        );
+        const poly = getDirectedLanePolyline(conn.sourceId, conn.targetId);
+        if (poly && poly.length > 2) {
+            const trimmed = trimLanePolylineToStarRims(poly, source, target, trimPad);
+            if (trimmed.length >= 2) {
+                smoothPaths.push(trimmed);
+                return;
+            }
+            collectStraightSegments(source, target);
+            return;
+        }
+        collectStraightSegments(source, target);
     });
 
     // Pass 1: Dark shadow/border
@@ -253,7 +259,17 @@ function resolveArrowPath(
                   [target.x, target.y],
               ];
     const trimmed = trimLanePolylineToStarRims(basePath, source, target, trimPad);
-    return trimmed.length >= 2 ? trimmed : undefined;
+    if (trimmed.length >= 2) return trimmed;
+    const straightFallback = trimLanePolylineToStarRims(
+        [
+            [source.x, source.y],
+            [target.x, target.y],
+        ],
+        source,
+        target,
+        trimPad,
+    );
+    return straightFallback.length >= 2 ? straightFallback : undefined;
 }
 
 function computeArrowHeadPoints(
@@ -270,6 +286,161 @@ function computeArrowHeadPoints(
         wing2X: tipX - headLen * Math.cos(angle + spread),
         wing2Y: tipY - headLen * Math.sin(angle + spread),
     };
+}
+
+type ArrowPoint = { x: number; y: number };
+
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
+
+function pointFromTip(tipX: number, tipY: number, angle: number, distance: number): ArrowPoint {
+    return {
+        x: tipX - distance * Math.cos(angle),
+        y: tipY - distance * Math.sin(angle),
+    };
+}
+
+function computeArrowHeadPolygon(
+    tipX: number,
+    tipY: number,
+    angle: number,
+    headLen: number,
+    spreadDeg: number,
+): ArrowPoint[] {
+    const { wing1X, wing1Y, wing2X, wing2Y } = computeArrowHeadPoints(
+        tipX,
+        tipY,
+        angle,
+        headLen,
+        spreadDeg,
+    );
+    const notch = clamp01(GAME_CONFIG.ARROW_HEAD_NOTCH ?? 0.2);
+    const style = GAME_CONFIG.ARROW_HEAD_STYLE ?? 'triangle';
+    const spineBack = pointFromTip(
+        tipX,
+        tipY,
+        angle,
+        headLen * (0.62 + notch * 0.32),
+    );
+    const deepBack = pointFromTip(
+        tipX,
+        tipY,
+        angle,
+        headLen * (0.88 + notch * 0.22),
+    );
+    const leftInset = pointFromTip(
+        tipX,
+        tipY,
+        angle - ((spreadDeg * Math.PI) / 180) * 0.4,
+        headLen * 0.48,
+    );
+    const rightInset = pointFromTip(
+        tipX,
+        tipY,
+        angle + ((spreadDeg * Math.PI) / 180) * 0.4,
+        headLen * 0.48,
+    );
+
+    if (style === 'chevron') {
+        return [
+            { x: tipX, y: tipY },
+            { x: wing1X, y: wing1Y },
+            spineBack,
+            { x: wing2X, y: wing2Y },
+        ];
+    }
+    if (style === 'kite') {
+        return [
+            { x: tipX, y: tipY },
+            { x: wing1X, y: wing1Y },
+            deepBack,
+            { x: wing2X, y: wing2Y },
+        ];
+    }
+    if (style === 'spear') {
+        return [
+            { x: tipX, y: tipY },
+            { x: wing1X, y: wing1Y },
+            leftInset,
+            deepBack,
+            rightInset,
+            { x: wing2X, y: wing2Y },
+        ];
+    }
+    return [
+        { x: tipX, y: tipY },
+        { x: wing1X, y: wing1Y },
+        { x: wing2X, y: wing2Y },
+    ];
+}
+
+function tracePolygon(graphics: PIXI.Graphics, points: ArrowPoint[]): void {
+    if (points.length < 3) return;
+    graphics.beginPath();
+    graphics.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        graphics.lineTo(points[i].x, points[i].y);
+    }
+    graphics.closePath();
+}
+
+function getArrowForceFactor(source: StarState): number {
+    const maxShips = Math.max(1, GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ?? 250);
+    const intensity = clamp01(GAME_CONFIG.ARROW_FORCE_INTENSITY ?? 0);
+    return clamp01((source.activeShips ?? 0) / maxShips) * intensity;
+}
+
+function drawArrowShaft(
+    graphics: PIXI.Graphics,
+    shaftPath: ReadonlyArray<readonly [number, number]>,
+    colorUtils: ColorUtils,
+    color: number,
+    lineWidth: number,
+    arrowAlpha: number,
+    forceFactor: number,
+): void {
+    if (shaftPath.length < 2) return;
+
+    const steps = Math.max(1, Math.round(GAME_CONFIG.ARROW_SHAFT_STEPS ?? 1));
+    if (steps === 1) {
+        strokePolyline(graphics, shaftPath, {
+            color,
+            width: lineWidth * (1 + forceFactor * 0.24),
+            alpha: clamp01(arrowAlpha + forceFactor * 0.16),
+            cap: 'round',
+            join: 'round',
+        });
+        return;
+    }
+
+    const totalLen = polylineTotalLength(shaftPath as [number, number][]);
+    if (totalLen <= 0) return;
+    const flowSpeed = Math.max(0, GAME_CONFIG.ARROW_FLOW_SPEED ?? 0);
+    const flowPhase = flowSpeed > 0 ? (performance.now() * 0.001 * flowSpeed) % 1 : 0;
+
+    for (let stepIndex = 0; stepIndex < steps; stepIndex++) {
+        const startDist = (totalLen * stepIndex) / steps;
+        const endDist = (totalLen * (stepIndex + 1)) / steps;
+        const segment = slicePolylineBetweenDistances(shaftPath, startDist, endDist);
+        if (segment.length < 2) continue;
+
+        const tipBias = (stepIndex + 1) / steps;
+        const animatedPosition = (((stepIndex + 0.5) / steps) + flowPhase) % 1;
+        const flowGlow = 1 - Math.min(Math.abs(animatedPosition - 0.82) / 0.24, 1);
+        const lightBoost = clamp01(0.12 + tipBias * 0.34 + flowGlow * 0.24 + forceFactor * 0.28);
+        const segmentColor = colorUtils.getLightenedColor(color, lightBoost);
+        const segmentAlpha = clamp01(
+            arrowAlpha * (0.5 + tipBias * 0.5) + flowGlow * 0.14 + forceFactor * 0.18,
+        );
+        strokePolyline(graphics, segment, {
+            color: segmentColor,
+            width: lineWidth * (0.82 + tipBias * 0.24 + forceFactor * 0.22),
+            alpha: segmentAlpha,
+            cap: 'round',
+            join: 'round',
+        });
+    }
 }
 
 /**
@@ -322,16 +493,16 @@ export function renderOrderArrows(
         const target = stars.find((s) => s.id === tId);
         if (!source || !target) return;
 
-        const padding = 10;
         const headLen = GAME_CONFIG.ARROW_HEAD_SIZE ?? 30;
         const lineWidth = GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6;
         const arrowAlpha = GAME_CONFIG.ARROW_ALPHA ?? 0.6;
         const color = colorUtils.getPlayerColor(source.ownerId);
+        const forceFactor = getArrowForceFactor(source);
         const path = resolveArrowPath(source, target);
         if (!path) return;
 
         const totalLen = polylineTotalLength(path);
-        if (totalLen <= padding) return;
+        if (totalLen <= 10) return;
 
         const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
         const baseDist = Math.max(0, tipDist - headLen);
@@ -343,12 +514,16 @@ export function renderOrderArrows(
         );
         const angle = Math.atan2(tangent.ty, tangent.tx);
         const spreadDeg = GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ?? 30;
-        const { wing1X, wing1Y, wing2X, wing2Y } = computeArrowHeadPoints(
+        const headPoints = computeArrowHeadPolygon(
             tip.x,
             tip.y,
             angle,
             headLen,
             spreadDeg,
+        );
+        const headColor = colorUtils.getLightenedColor(
+            color,
+            clamp01(0.22 + forceFactor * 0.45),
         );
 
         const outlineW = GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0;
@@ -357,39 +532,48 @@ export function renderOrderArrows(
             const outlineAlpha = GAME_CONFIG.ARROW_OUTLINE_ALPHA ?? arrowAlpha;
             strokePolyline(linkGraphics, shaftPath, {
                 color: outlineColor,
-                width: lineWidth + outlineW * 2,
-                alpha: outlineAlpha,
+                width: (lineWidth * (1 + forceFactor * 0.24)) + outlineW * 2,
+                alpha: clamp01(outlineAlpha + forceFactor * 0.12),
                 cap: 'round',
                 join: 'round',
             });
-            linkGraphics.beginPath();
-            linkGraphics.moveTo(tip.x, tip.y);
-            linkGraphics.lineTo(wing1X, wing1Y);
-            linkGraphics.lineTo(wing2X, wing2Y);
-            linkGraphics.closePath();
+            tracePolygon(linkGraphics, headPoints);
             linkGraphics.stroke({
                 color: outlineColor,
                 width: outlineW,
-                alpha: outlineAlpha,
+                alpha: clamp01(outlineAlpha + forceFactor * 0.12),
                 join: 'round',
             });
         }
 
-        strokePolyline(linkGraphics, shaftPath, {
+        drawArrowShaft(
+            linkGraphics,
+            shaftPath,
+            colorUtils,
             color,
-            width: lineWidth,
-            alpha: arrowAlpha,
-            cap: 'round',
-            join: 'round',
-        });
+            lineWidth,
+            arrowAlpha,
+            forceFactor,
+        );
 
-        linkGraphics.beginPath();
-        linkGraphics.moveTo(tip.x, tip.y);
-        linkGraphics.lineTo(wing1X, wing1Y);
-        linkGraphics.lineTo(wing2X, wing2Y);
-        linkGraphics.closePath();
-        const headAlpha = GAME_CONFIG.ARROW_HEAD_ALPHA ?? arrowAlpha;
-        linkGraphics.fill({ color, alpha: headAlpha });
+        tracePolygon(linkGraphics, headPoints);
+        const headAlpha = clamp01((GAME_CONFIG.ARROW_HEAD_ALPHA ?? arrowAlpha) + forceFactor * 0.16);
+        linkGraphics.fill({ color: headColor, alpha: headAlpha });
+
+        const headVfxAlpha = clamp01(
+            (GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0) * (0.7 + forceFactor * 0.9),
+        );
+        if (headVfxAlpha > 0) {
+            linkGraphics.circle(
+                tip.x,
+                tip.y,
+                headLen * (0.42 + forceFactor * 0.18),
+            );
+            linkGraphics.fill({
+                color: colorUtils.getLightenedColor(headColor, 0.4),
+                alpha: headVfxAlpha,
+            });
+        }
     });
 
     // ── Deferred Orders (dashed) ─────────────────────────────────────────
@@ -456,19 +640,25 @@ export function renderOrderArrows(
         );
         const angle = Math.atan2(tangent.ty, tangent.tx);
         const spreadDeg = GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ?? 30;
-        const { wing1X, wing1Y, wing2X, wing2Y } = computeArrowHeadPoints(
+        const headPoints = computeArrowHeadPolygon(
             tip.x,
             tip.y,
             angle,
             headLen,
             spreadDeg,
         );
+        const headColor = colorUtils.getLightenedColor(humanColor, 0.2);
 
-        linkGraphics.beginPath();
-        linkGraphics.moveTo(tip.x, tip.y);
-        linkGraphics.lineTo(wing1X, wing1Y);
-        linkGraphics.lineTo(wing2X, wing2Y);
-        linkGraphics.closePath();
-        linkGraphics.fill({ color: humanColor, alpha: arrowAlpha * 0.85 });
+        tracePolygon(linkGraphics, headPoints);
+        linkGraphics.fill({ color: headColor, alpha: arrowAlpha * 0.85 });
+
+        const headVfxAlpha = clamp01((GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0) * 0.7);
+        if (headVfxAlpha > 0) {
+            linkGraphics.circle(tip.x, tip.y, headLen * 0.34);
+            linkGraphics.fill({
+                color: colorUtils.getLightenedColor(headColor, 0.45),
+                alpha: headVfxAlpha,
+            });
+        }
     });
 }

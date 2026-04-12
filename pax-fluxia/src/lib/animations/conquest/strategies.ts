@@ -203,6 +203,7 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
         y: conqueredStar.y,
         radius: conqueredStar.radius,
     };
+    const travelLaneOffsetPx = GAME_CONFIG.LANE_OFFSET_PX ?? 8;
     for (let i = 0; i < n; i++) {
         const ship = conquestShips[i];
 
@@ -263,7 +264,9 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
             }
         }
 
-        ship.laneOffset = 0; // No random offset — slots handle distribution
+        const formationFrac =
+            n > 1 ? i / (n - 1) - 0.5 : 0;
+        ship.laneOffset = formationFrac * travelLaneOffsetPx * 2;
         ship.staggerDelay = 0;
         ship.ownerId = newOwner;
         ship.targetIndex = i; // Pre-assign orbit index for direct landing

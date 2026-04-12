@@ -282,7 +282,7 @@ export function renderTravelingShips(
         departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY ?? 0,
         arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY ?? 0,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP ?? 12,
-        followLanePath: true,
+        followLanePath: GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? true,
     };
 
     // Animation speed scaling: multiply elapsed by speedMultiplier
@@ -406,10 +406,29 @@ export function renderTravelingShips(
                     }
                     ship.settleStartTime = state.gameNowMs + staggerOffset;
                     ship.settleStartAngle = arrAngle;
-                    ship.settleStartRadius = arrR;
-                    ship.x = destStar.x + Math.cos(ship.settleStartAngle) * arrR;
-                    ship.y = destStar.y + Math.sin(ship.settleStartAngle) * arrR;
-                    if (isTrackedShip(ship.id)) traceTravelToOrbit(ship.id, ship.x, ship.y, arrAngle, arrR, destStar.x, destStar.y);
+                    const arrivalArcExtra =
+                        (phaseCtx.arrivalArcIntensity ?? 0) *
+                        Math.max(6, Math.abs(ship.laneOffset || 0));
+                    ship.settleStartRadius = arrR + arrivalArcExtra;
+                    ship.x =
+                        destStar.x +
+                        Math.cos(ship.settleStartAngle) *
+                            ship.settleStartRadius;
+                    ship.y =
+                        destStar.y +
+                        Math.sin(ship.settleStartAngle) *
+                            ship.settleStartRadius;
+                    if (isTrackedShip(ship.id)) {
+                        traceTravelToOrbit(
+                            ship.id,
+                            ship.x,
+                            ship.y,
+                            arrAngle,
+                            ship.settleStartRadius,
+                            destStar.x,
+                            destStar.y,
+                        );
+                    }
                     destShips.push(ship);
                     state.visualShips.set(destStar.id, destShips);
 

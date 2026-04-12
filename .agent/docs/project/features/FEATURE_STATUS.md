@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Authority:** The long-lived tracker is this file under `.agent/docs/project/features/`. The clean daily execution queue lives in `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`. Legacy stubs (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) redirect here.
+**Authority:** The long-lived tracker is this file under `.agent/docs/project/features/`. The clean daily execution queue lives in `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`. Legacy stubs (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) redirect here.
 
 **Main body last updated:** 2026-02-16  
 **Last consolidated:** 2026-04-08 — Former parallel trackers **deduplicated** into **Supplement** (IDs MC- / RG- / TR- / FI-); verbatim appendices removed. Unique facts retained; long FG2 bullet list **referenced**, not duplicated.

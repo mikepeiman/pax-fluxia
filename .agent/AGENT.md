@@ -49,14 +49,15 @@ When removing, renaming, or commenting out any symbol:
 |------|-------|
 | Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_IDEAS.md` |
 | Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
-| Daily active queue | `.agent/docs/project/features/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
+| Daily active queue | `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
 | Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
 | Implementation Plans* | `.agent/docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
 
-**Daily queue protocol**: create or update `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
+**Daily queue protocol**: create or update `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. Dated work lives in the matching dated folder. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
 **Requested file protocol**: if the user asks to create, save, update, or place a file, write the file before replying as though it exists. Never answer with “I’m writing it now” or imply the file is saved unless it is already on disk at the stated path.
 **Major self-regression protocol**: if you introduce a major bug and then fix it, automatically save a dated post-mortem under `.agent/docs/project/process/` and summarize the cause, the mistaken reasoning, the diagnostic method, and the rule derived from it.
+**Motion-surface protocol**: before changing any visual-motion path logic, enumerate every surfaced and active config variable affecting that motion surface. Preserve or explicitly retire each one. Path truth must not silently flatten motion shaping.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
