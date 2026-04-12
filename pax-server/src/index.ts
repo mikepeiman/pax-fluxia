@@ -3,17 +3,22 @@
 // Using default uWebSocketsTransport (required for HTTP matchmaker routes)
 // ============================================================================
 
-import { Server, LobbyRoom, matchMaker } from "colyseus";
+import { Server, LobbyRoom, matchMaker } from "@colyseus/core";
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
+import { PatchedBunWebSockets } from "./transport/PatchedBunWebSockets";
 
 const PORT = Number(process.env.PORT) || 2567;
 
-log.sys('Init', 'Initializing Colyseus server with uWebSocketsTransport (default)...');
+log.sys('Init', 'Initializing Colyseus server with patched Bun WebSockets transport...');
 
-// Create server using default transport (uWebSockets.js - works with matchmaker)
-const gameServer = new Server();
+// Use a local patched transport because the published Bun transport currently
+// parses websocket upgrade paths with the query string attached, which causes
+// valid seat reservations to be rejected as expired on room connect.
+const gameServer = new Server({
+    transport: new PatchedBunWebSockets(),
+});
 
 log.sys('Init', 'Server instance created, defining rooms...');
 
@@ -69,11 +74,16 @@ async function ensurePersistentPublicRoom(): Promise<void> {
 // Start the server
 gameServer.listen(PORT).then(() => {
     log.sys('Init', `Pax Fluxia Server running on port ${PORT}`);
-    log.sys('Init', `Transport: uWebSocketsTransport (default)`);
+    log.sys('Init', `Transport: PatchedBunWebSockets`);
     log.sys('Init', `WebSocket: ws://127.0.0.1:${PORT}`);
     log.sys('Init', `HTTP: http://127.0.0.1:${PORT}`);
     void ensurePersistentPublicRoom();
 }).catch((err) => {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    if (code === 'EADDRINUSE') {
+        log.error('Init', `Server failed to start: port ${PORT} is already in use`, err);
+        return;
+    }
     log.error('Init', 'Server failed to start', err);
 });
 

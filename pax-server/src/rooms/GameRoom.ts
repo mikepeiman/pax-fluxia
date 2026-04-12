@@ -2,7 +2,7 @@
 // Pax Fluxia - Game Room (Colyseus)
 // ============================================================================
 
-import { Room, Client } from "colyseus";
+import { Room, Client } from "@colyseus/core";
 import {
     GameRoomState,
     PlayerSchema,

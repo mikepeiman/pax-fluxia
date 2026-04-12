@@ -7,15 +7,11 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Server, LobbyRoom } from "colyseus";
-// NOTE: Do NOT import WebSocketTransport here!
-// Letting Server.getDefaultTransport() handle it via dynamicImport ensures
-// a single @colyseus/core module instance. Importing ws-transport explicitly
-// causes bun to resolve @colyseus/core as a SEPARATE module instance,
-// giving ws-transport its own matchMaker singleton with an empty rooms map.
+import { Server, LobbyRoom } from "@colyseus/core";
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
+import { PatchedBunWebSockets } from "./transport/PatchedBunWebSockets";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 2567;
@@ -32,6 +28,7 @@ const NO_CACHE_HEADERS = {
 };
 
 const gameServer = new Server({
+    transport: new PatchedBunWebSockets(),
     express: (app: any) => {
         // Serve built SPA static files (hashed chunks cache forever by default)
         app.use(express.static(CLIENT_DIR));
@@ -66,6 +63,11 @@ gameServer.define("test_room", TestRoom)
 gameServer.listen(PORT).then(() => {
     log.sys("Init", `🚀 Pax Fluxia PRODUCTION on port ${PORT}`);
 }).catch((err) => {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    if (code === "EADDRINUSE") {
+        log.error("Init", `Server failed to start: port ${PORT} is already in use`, err);
+        process.exit(1);
+    }
     log.error("Init", "Server failed to start", err);
     process.exit(1);
 });

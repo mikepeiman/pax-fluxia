@@ -144,3 +144,12 @@
 - Use the persistent public room in a real browser pass on the default dev port.
 - Evaluate the new metaball geometry-fill option in-game before deciding whether it should stay optional or become the default.
 - Continue with the queued lane/arrows/metaball work once the player-color foundation feels stable.
+- MP public-room detour is now fixed on the normal local dev path:
+  - root cause was the published Bun Colyseus transport parsing websocket room ids from `pathname + search`
+  - local patched transport added at `pax-server/src/transport/PatchedBunWebSockets.ts`
+  - validated with real `@colyseus/sdk` calls:
+    - `joinOrCreate("lobby")`
+    - room listing reception
+    - `create("game_room")`
+    - `joinById(publicRoom.roomId)`
+  - canonical note: `.agent/docs/project/implementation-plans/2026-04-12/MP_PUBLIC_ROOM_TRANSPORT_FIX_2026-04-12.md`

@@ -147,7 +147,7 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Multiplayer / Workflow Queue
 
-- [ ] Verify the persistent public room in the live browser list against the running client stack on the default dev port.
+- [x] Verify the persistent public room against the live SDK/default dev port path.
 - [ ] Verify the combined `bun run dev` flow in normal day-to-day use.
 - [ ] Keep running the CLI-Anything vs `atlas-harness` evaluation during real Pax Fluxia work.
 - [ ] On every tooling snag, classify the friction explicitly:

@@ -1,5 +1,5 @@
 // Minimal test room - simplest possible room for debugging WebSocket handshake
-import { Room, Client } from "colyseus";
+import { Room, Client } from "@colyseus/core";
 import { MinimalState, MinimalPlayerSchema } from "../schema/MinimalState";
 import { log } from "../utils/logger";
 
