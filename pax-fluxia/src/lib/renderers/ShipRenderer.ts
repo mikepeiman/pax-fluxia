@@ -35,6 +35,9 @@ import {
     TRAVEL_BEHAVIORS,
 } from '$lib/fx/phases/behaviors';
 import type { PhaseContext } from '$lib/fx/phases/travelTypes';
+import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
+import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
 import type { ColorUtils } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 
@@ -279,6 +282,7 @@ export function renderTravelingShips(
         departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY ?? 0,
         arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY ?? 0,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP ?? 12,
+        followLanePath: GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? false,
     };
 
     // Animation speed scaling: multiply elapsed by speedMultiplier
@@ -594,11 +598,19 @@ export function renderShips(
 
             let dirX = 0, dirY = 0;
             if (targetStar) {
-                dirX = targetStar.x - star.x;
-                dirY = targetStar.y - star.y;
-                const dist = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
-                dirX /= dist;
-                dirY /= dist;
+                const rawLane = (GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? false)
+                    ? getLanePolyline(star.id, targetStar.id)
+                    : undefined;
+                const trimmedLane = rawLane && rawLane.length >= 2
+                    ? trimLanePolylineToStarRims(rawLane, star, targetStar, 5)
+                    : undefined;
+                const heading = computeLaneHeadingForNearside(
+                    star,
+                    targetStar,
+                    trimmedLane && trimmedLane.length >= 2 ? trimmedLane : undefined,
+                );
+                dirX = heading.ndx;
+                dirY = heading.ndy;
             }
 
             ships.forEach((ship, i) => {

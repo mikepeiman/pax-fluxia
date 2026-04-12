@@ -129,6 +129,7 @@ interface GameConfigType {
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
+    TRAVEL_FOLLOW_LANE_PATHS: boolean; // Follow published lane polylines for travel/surge when available
     // Travel animation mode
     TRAVEL_MODE: 'bezier' | 'lane';  // 'bezier' = single-pass arc, 'lane' = old convergence+straight
     // Travel easing controls
@@ -262,6 +263,10 @@ interface GameConfigType {
     ARROW_SHAFT_WIDTH: number;
     /** Arrow shaft alpha (0-1, default 0.6) */
     ARROW_ALPHA: number;
+    /** When true, order arrows follow lane polylines instead of straight chords */
+    ORDER_ARROWS_FOLLOW_LANE_PATHS: boolean;
+    /** Extra arc-length padding from each star rim before arrow path starts/ends (px) */
+    ARROW_PATH_PADDING: number;
     /** Deferred arrow dash length in px (default 15) */
     ARROW_DASH_LENGTH: number;
     /** Deferred arrow dash gap in px (default 10) */
@@ -274,6 +279,8 @@ interface GameConfigType {
     ARROW_OUTLINE_COLOR: number;
     /** Arrow outline alpha (default = ARROW_ALPHA) */
     ARROW_OUTLINE_ALPHA: number;
+    /** Arrowhead wing spread angle in degrees (default 30) */
+    ARROW_HEAD_SPREAD_DEG: number;
     /** Damaged ship render scale multiplier (default 0.7) */
     DAMAGED_SHIP_SCALE: number;
 
@@ -893,6 +900,8 @@ const _rawConfig: GameConfigType = {
     ARRIVAL_SPREAD: 1.1,
     /** Amplitude of sinusoidal wobble on travel path (px) */
     WOBBLE_AMP: 0,
+    /** Follow published lane polylines for ship motion when enabled */
+    TRAVEL_FOLLOW_LANE_PATHS: false,
 
     /** Stream departure: ships depart at even intervals (tickMs / shipsToTransfer) instead of jittered burst */
     DEPART_STAGGER: true,
@@ -1101,12 +1110,15 @@ const _rawConfig: GameConfigType = {
     ARROW_HEAD_SIZE: 30,
     ARROW_SHAFT_WIDTH: 6,
     ARROW_ALPHA: 0.6,
+    ORDER_ARROWS_FOLLOW_LANE_PATHS: false,
+    ARROW_PATH_PADDING: 0,
     ARROW_DASH_LENGTH: 15,
     ARROW_DASH_GAP: 10,
     ARROW_HEAD_ALPHA: 0.6,
     ARROW_OUTLINE_WIDTH: 0,
     ARROW_OUTLINE_COLOR: 0x000000,
     ARROW_OUTLINE_ALPHA: 0.6,
+    ARROW_HEAD_SPREAD_DEG: 30,
     DAMAGED_SHIP_SCALE: 0.7,
 
 

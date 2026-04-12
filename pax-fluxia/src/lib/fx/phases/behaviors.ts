@@ -137,7 +137,7 @@ export const orbTravel: TravelBehavior = {
         // Use configurable easing (same as lane travel) instead of hardcoded cubic
         const eased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const poly = ship.lanePolyline;
+        const poly = ctx.followLanePath ? ship.lanePolyline : undefined;
         let baseX: number;
         let baseY: number;
         let perpX: number;
@@ -179,7 +179,7 @@ export const laneTravel: TravelBehavior = {
         const travelProgress = Math.min(1, elapsed / (ship.travelDuration * ctx.travelDurationMult));
         const laneEased = applyTravelEasing(travelProgress, ctx.travelEasing as any, ctx.travelEasingPower);
 
-        const poly = ship.lanePolyline;
+        const poly = ctx.followLanePath ? ship.lanePolyline : undefined;
         let baseX: number;
         let baseY: number;
         let perpX: number;

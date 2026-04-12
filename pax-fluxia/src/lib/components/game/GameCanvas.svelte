@@ -2520,7 +2520,22 @@
 
     // The animation loop handles rendering, no need for $effect
 
+    function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+        const el = target as HTMLElement | null;
+        if (!el) return false;
+        const tag = el.tagName;
+        return (
+            tag === "INPUT" ||
+            tag === "TEXTAREA" ||
+            tag === "SELECT" ||
+            el.isContentEditable
+        );
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
+        if (isEditableKeyboardTarget(event.target)) {
+            return;
+        }
         if (event.key === "Escape") {
             clearSelection();
         } else if (event.key === "Home") {
@@ -2548,6 +2563,9 @@
     }
 
     function handleKeyUp(event: KeyboardEvent) {
+        if (isEditableKeyboardTarget(event.target)) {
+            return;
+        }
         if (event.key === " " || event.code === "Space") {
             event.preventDefault();
         }

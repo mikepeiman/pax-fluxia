@@ -18,6 +18,13 @@ import type { StarState, StarConnection } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from './RenderContext';
 import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import {
+    polylineTotalLength,
+    pointAtArcLength,
+    slicePolylineBetweenDistances,
+    tangentAtArcFraction,
+    trimLanePolylineToStarRims,
+} from '$lib/lanes/laneGeometry';
 
 // ── Connection Lanes ────────────────────────────────────────────────────────
 
@@ -170,6 +177,56 @@ export interface OrderArrowState {
     snapshotStars: StarState[];
 }
 
+function strokePolyline(
+    graphics: PIXI.Graphics,
+    pts: ReadonlyArray<readonly [number, number]>,
+    stroke: PIXI.StrokeInput,
+): void {
+    if (pts.length < 2) return;
+    graphics.beginPath();
+    graphics.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+        graphics.lineTo(pts[i][0], pts[i][1]);
+    }
+    graphics.stroke(stroke);
+}
+
+function resolveArrowPath(
+    source: StarState,
+    target: StarState,
+): [number, number][] | undefined {
+    const extraPad = GAME_CONFIG.ARROW_PATH_PADDING ?? 0;
+    const trimPad = 10 + extraPad;
+    const rawPolyline = (GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS ?? false)
+        ? getLanePolyline(source.id, target.id)
+        : undefined;
+    const basePath: ReadonlyArray<readonly [number, number]> =
+        rawPolyline && rawPolyline.length >= 2
+            ? rawPolyline
+            : [
+                  [source.x, source.y],
+                  [target.x, target.y],
+              ];
+    const trimmed = trimLanePolylineToStarRims(basePath, source, target, trimPad);
+    return trimmed.length >= 2 ? trimmed : undefined;
+}
+
+function computeArrowHeadPoints(
+    tipX: number,
+    tipY: number,
+    angle: number,
+    headLen: number,
+    spreadDeg: number,
+): { wing1X: number; wing1Y: number; wing2X: number; wing2Y: number } {
+    const spread = (spreadDeg * Math.PI) / 180;
+    return {
+        wing1X: tipX - headLen * Math.cos(angle - spread),
+        wing1Y: tipY - headLen * Math.sin(angle - spread),
+        wing2X: tipX - headLen * Math.cos(angle + spread),
+        wing2Y: tipY - headLen * Math.sin(angle + spread),
+    };
+}
+
 /**
  * Render order arrows (confirmed + pending + deferred).
  * Mutates pendingOrders and deferredOrders to clean up stale entries.
@@ -220,68 +277,74 @@ export function renderOrderArrows(
         const target = stars.find((s) => s.id === tId);
         if (!source || !target) return;
 
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const angle = Math.atan2(dy, dx);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
         const padding = 10;
         const headLen = GAME_CONFIG.ARROW_HEAD_SIZE ?? 30;
         const lineWidth = GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6;
         const arrowAlpha = GAME_CONFIG.ARROW_ALPHA ?? 0.6;
-
-        const startDist = source.radius + padding;
-        const fullEndDist = dist - (target.radius + padding);
-        const endDist = startDist + (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
-
-        const startX = source.x + Math.cos(angle) * startDist;
-        const startY = source.y + Math.sin(angle) * startDist;
-        const endX = source.x + Math.cos(angle) * endDist;
-        const arrowBaseX = source.x + Math.cos(angle) * (endDist - headLen);
-        const arrowBaseY = source.y + Math.sin(angle) * (endDist - headLen);
-
         const color = colorUtils.getPlayerColor(source.ownerId);
+        const path = resolveArrowPath(source, target);
+        if (!path) return;
 
-        // Shaft
+        const totalLen = polylineTotalLength(path);
+        if (totalLen <= padding) return;
+
+        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
+        const baseDist = Math.max(0, tipDist - headLen);
+        const shaftPath = slicePolylineBetweenDistances(path, 0, baseDist);
+        const tip = pointAtArcLength(path, tipDist);
+        const tangent = tangentAtArcFraction(
+            path,
+            totalLen > 0 ? tipDist / totalLen : 1,
+        );
+        const angle = Math.atan2(tangent.ty, tangent.tx);
+        const spreadDeg = GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ?? 30;
+        const { wing1X, wing1Y, wing2X, wing2Y } = computeArrowHeadPoints(
+            tip.x,
+            tip.y,
+            angle,
+            headLen,
+            spreadDeg,
+        );
+
+        const outlineW = GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0;
+        if (outlineW > 0) {
+            const outlineColor = GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000;
+            const outlineAlpha = GAME_CONFIG.ARROW_OUTLINE_ALPHA ?? arrowAlpha;
+            strokePolyline(linkGraphics, shaftPath, {
+                color: outlineColor,
+                width: lineWidth + outlineW * 2,
+                alpha: outlineAlpha,
+                cap: 'round',
+                join: 'round',
+            });
+            linkGraphics.beginPath();
+            linkGraphics.moveTo(tip.x, tip.y);
+            linkGraphics.lineTo(wing1X, wing1Y);
+            linkGraphics.lineTo(wing2X, wing2Y);
+            linkGraphics.closePath();
+            linkGraphics.stroke({
+                color: outlineColor,
+                width: outlineW,
+                alpha: outlineAlpha,
+                join: 'round',
+            });
+        }
+
+        strokePolyline(linkGraphics, shaftPath, {
+            color,
+            width: lineWidth,
+            alpha: arrowAlpha,
+            cap: 'round',
+            join: 'round',
+        });
+
         linkGraphics.beginPath();
-        linkGraphics.moveTo(startX, startY);
-        linkGraphics.lineTo(arrowBaseX, arrowBaseY);
-        linkGraphics.stroke({ color, width: lineWidth, alpha: arrowAlpha, cap: 'round' });
-
-        // Arrowhead
-        const tipX = endX;
-        const tipY = source.y + Math.sin(angle) * endDist;
-        const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
-        const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
-        const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
-        const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
-
-        linkGraphics.beginPath();
-        linkGraphics.moveTo(tipX, tipY);
+        linkGraphics.moveTo(tip.x, tip.y);
         linkGraphics.lineTo(wing1X, wing1Y);
         linkGraphics.lineTo(wing2X, wing2Y);
         linkGraphics.closePath();
         const headAlpha = GAME_CONFIG.ARROW_HEAD_ALPHA ?? arrowAlpha;
         linkGraphics.fill({ color, alpha: headAlpha });
-
-        // Arrow outline (F-166)
-        const outlineW = GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0;
-        if (outlineW > 0) {
-            const outlineColor = GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000;
-            const outlineAlpha = GAME_CONFIG.ARROW_OUTLINE_ALPHA ?? arrowAlpha;
-            // Shaft outline
-            linkGraphics.beginPath();
-            linkGraphics.moveTo(startX, startY);
-            linkGraphics.lineTo(arrowBaseX, arrowBaseY);
-            linkGraphics.stroke({ color: outlineColor, width: lineWidth + outlineW * 2, alpha: outlineAlpha, cap: 'round' });
-            // Head outline
-            linkGraphics.beginPath();
-            linkGraphics.moveTo(tipX, tipY);
-            linkGraphics.lineTo(wing1X, wing1Y);
-            linkGraphics.lineTo(wing2X, wing2Y);
-            linkGraphics.closePath();
-            linkGraphics.stroke({ color: outlineColor, width: outlineW, alpha: outlineAlpha });
-        }
     });
 
     // ── Deferred Orders (dashed) ─────────────────────────────────────────
@@ -311,57 +374,53 @@ export function renderOrderArrows(
         const target = stars.find((s) => s.id === tId);
         if (!source || !target) return;
 
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const angle = Math.atan2(dy, dx);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const padding = 10;
         const headLen = Math.round((GAME_CONFIG.ARROW_HEAD_SIZE ?? 30) * 0.67);
         const lineWidth = Math.round((GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6) * 0.67);
         const arrowAlpha = (GAME_CONFIG.ARROW_ALPHA ?? 0.6) * 0.67;
-
-        const startDist = source.radius + padding;
-        const fullEndDist = dist - (target.radius + padding);
-        const endDist = startDist + (fullEndDist - startDist) * GAME_CONFIG.ARROW_LENGTH_FRACTION;
-
-        const endX = source.x + Math.cos(angle) * endDist;
-        const endY = source.y + Math.sin(angle) * endDist;
+        const path = resolveArrowPath(source, target);
+        if (!path) return;
+        const totalLen = polylineTotalLength(path);
+        if (totalLen <= 1) return;
+        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
+        const baseDist = Math.max(0, tipDist - headLen);
 
         // Dashed line segments
         const dashLen = GAME_CONFIG.ARROW_DASH_LENGTH ?? 15;
         const gapLen = GAME_CONFIG.ARROW_DASH_GAP ?? 10;
-        const totalLen = endDist - startDist;
         let currentDist = 0;
         const humanColor = 0x4488ff;
 
-        while (currentDist < totalLen - headLen) {
-            const segStart = startDist + currentDist;
-            const segEnd = Math.min(segStart + dashLen, startDist + totalLen - headLen);
-
-            const x1 = source.x + Math.cos(angle) * segStart;
-            const y1 = source.y + Math.sin(angle) * segStart;
-            const x2 = source.x + Math.cos(angle) * segEnd;
-            const y2 = source.y + Math.sin(angle) * segEnd;
-
-            linkGraphics.beginPath();
-            linkGraphics.moveTo(x1, y1);
-            linkGraphics.lineTo(x2, y2);
-            linkGraphics.stroke({ color: humanColor, width: lineWidth, alpha: arrowAlpha, cap: 'round' });
-
+        while (currentDist < baseDist) {
+            const segEnd = Math.min(currentDist + dashLen, baseDist);
+            const segment = slicePolylineBetweenDistances(path, currentDist, segEnd);
+            strokePolyline(linkGraphics, segment, {
+                color: humanColor,
+                width: lineWidth,
+                alpha: arrowAlpha,
+                cap: 'round',
+                join: 'round',
+            });
             currentDist += dashLen + gapLen;
         }
 
         // Small arrowhead
-        const tipX = endX;
-        const tipY = endY;
-        const wing1X = tipX - headLen * Math.cos(angle - Math.PI / 6);
-        const wing1Y = tipY - headLen * Math.sin(angle - Math.PI / 6);
-        const wing2X = tipX - headLen * Math.cos(angle + Math.PI / 6);
-        const wing2Y = tipY - headLen * Math.sin(angle + Math.PI / 6);
+        const tip = pointAtArcLength(path, tipDist);
+        const tangent = tangentAtArcFraction(
+            path,
+            totalLen > 0 ? tipDist / totalLen : 1,
+        );
+        const angle = Math.atan2(tangent.ty, tangent.tx);
+        const spreadDeg = GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ?? 30;
+        const { wing1X, wing1Y, wing2X, wing2Y } = computeArrowHeadPoints(
+            tip.x,
+            tip.y,
+            angle,
+            headLen,
+            spreadDeg,
+        );
 
         linkGraphics.beginPath();
-        linkGraphics.moveTo(tipX, tipY);
+        linkGraphics.moveTo(tip.x, tip.y);
         linkGraphics.lineTo(wing1X, wing1Y);
         linkGraphics.lineTo(wing2X, wing2Y);
         linkGraphics.closePath();

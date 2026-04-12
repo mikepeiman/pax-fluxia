@@ -235,6 +235,7 @@
     );
 
     let showAIDetails = $state(false);
+    let showColorPalette = $state(false);
     let showPlayerPaletteAdvanced = $state(false);
 
     // F-168: Random map preview thumbnail — uses real generateMap() engine via gameStore

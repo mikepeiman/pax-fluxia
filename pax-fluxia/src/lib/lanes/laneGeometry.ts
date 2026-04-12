@@ -53,6 +53,53 @@ export function pointAtArcFraction(
     return pointAtArcLength(pts, uu * total);
 }
 
+export function slicePolylineBetweenDistances(
+    pts: ReadonlyArray<readonly [number, number]>,
+    startDist: number,
+    endDist: number,
+): [number, number][] {
+    if (pts.length < 2) return pts.map((p) => [p[0], p[1]] as [number, number]);
+    const total = polylineTotalLength(pts);
+    if (total < EPS) return pts.map((p) => [p[0], p[1]] as [number, number]);
+
+    const start = Math.max(0, Math.min(total, startDist));
+    const end = Math.max(start, Math.min(total, endDist));
+    const out: [number, number][] = [];
+    const first = pointAtArcLength(pts, start);
+    out.push([first.x, first.y]);
+
+    let walked = 0;
+    for (let i = 1; i < pts.length; i++) {
+        const ax = pts[i - 1][0];
+        const ay = pts[i - 1][1];
+        const bx = pts[i][0];
+        const by = pts[i][1];
+        const segLen = Math.hypot(bx - ax, by - ay);
+        const segStart = walked;
+        const segEnd = walked + segLen;
+        walked = segEnd;
+
+        if (segLen < EPS || segEnd <= start || segStart >= end) continue;
+
+        if (segStart >= start && segEnd <= end) {
+            out.push([bx, by]);
+        } else {
+            const from = Math.max(start, segStart);
+            const to = Math.min(end, segEnd);
+            if (to <= from) continue;
+            const tTo = (to - segStart) / segLen;
+            out.push([ax + (bx - ax) * tTo, ay + (by - ay) * tTo]);
+        }
+    }
+
+    const last = pointAtArcLength(pts, end);
+    const tail = out[out.length - 1];
+    if (!tail || Math.hypot(tail[0] - last.x, tail[1] - last.y) > 1e-6) {
+        out.push([last.x, last.y]);
+    }
+    return out;
+}
+
 /** Unit tangent at arc fraction u (0..1). */
 export function tangentAtArcFraction(
     pts: ReadonlyArray<readonly [number, number]>,

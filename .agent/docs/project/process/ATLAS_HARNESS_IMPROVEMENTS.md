@@ -318,3 +318,26 @@ This keeps the comparison honest and prevents judging atlas-harness only against
 ## Resolved Entries
 
 - 2026-04-11 A1. Sandboxed agent shell produced a false negative for direct `atlas-harness` invocation
+
+## Active Entries
+
+### 2026-04-11 A2. Atlas file and git wrappers intermittently initialize as null in live sessions
+
+#### Observed behavior
+
+- `mcp__atlas_harness__file_readRange` failed repeatedly with:
+  - `null is not an object (evaluating 'fileService.readRange')`
+- `mcp__atlas_harness__git_status` failed in the same session with:
+  - `null is not an object (evaluating 'gitWrapper.status')`
+
+#### Practical impact
+
+- forces fallbacks to raw shell reads for routine inspection
+- slows down work precisely when atlas-harness is meant to reduce command fragility
+- weakens confidence in atlas-harness as the default reliable inspection layer during workflow evaluation
+
+#### Improvement direction
+
+- add a first-class server health/init guard before exposing file/git methods
+- return a targeted initialization error instead of a null-object runtime error
+- expose a lightweight `health` or `services` status method that reports which subsystems are ready

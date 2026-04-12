@@ -1052,3 +1052,33 @@ This is important because it means Pi now sits around the repo-owned context-pac
   - compare CLI-Anything and atlas-harness on real tasks
   - decide whether CLI-Hub or additional CLI-Anything components are needed
   - add retrieval and memory layers later
+
+## Feature batch implementation update
+
+This slice handled the immediate blockers first, then landed the first opt-in curved-lane presentation controls.
+
+### Completed now
+
+- fixed the `showColorPalette` runtime crash in `MainMenu.svelte`
+- blocked gameplay hotkeys while typing in editable fields inside the game shell/canvas
+- added an opt-in `Ships follow lane paths` toggle
+- added an opt-in `Arrows follow lane paths` toggle
+- added first supporting arrow tunables:
+  - `Arrow Path Padding`
+  - `Arrowhead Spread`
+
+### Architectural shape used
+
+- no duplicate travel system was introduced
+- ship travel already stores lane polylines when available; this slice adds a runtime gate so those paths can be used or ignored
+- order arrows now resolve from one path source:
+  - lane polyline when enabled and available
+  - otherwise trimmed straight chord fallback
+
+### What remains next in this batch
+
+- verify live feel of curved ship travel and curved arrows in-game
+- update lane publication so any non-straight lane is smoothly curved, never visibly angular
+- implement cross-owner CX midpoint virtual stars
+- fix metaball steady-state fill so visible fill footprint matches actual region ownership
+- build two scoped metaball conquest transition candidates for in-game comparison
