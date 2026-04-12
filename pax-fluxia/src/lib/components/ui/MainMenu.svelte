@@ -268,7 +268,15 @@
         generatePreview();
     });
 
-    const playerPaletteHues = $derived(
+    const activePlayerPaletteHues = $derived(
+        generatePlayerPaletteHues(
+            hueOffset,
+            playerCount,
+            colorSat / 100,
+            colorLig / 100,
+        ),
+    );
+    const fullPlayerPaletteHues = $derived(
         generatePlayerPaletteHues(
             hueOffset,
             PLAYER_PALETTE_SIZE,
@@ -295,7 +303,12 @@
         }
 
         for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
-            const nextHue = playerPaletteHues[i] ?? playerConfigs[i]?.hue ?? 0;
+            const nextHue =
+                (i < playerCount
+                    ? activePlayerPaletteHues[i]
+                    : fullPlayerPaletteHues[i]) ??
+                playerConfigs[i]?.hue ??
+                0;
             if (playerConfigs[i].hue !== nextHue) {
                 playerConfigs[i].hue = nextHue;
             }
@@ -939,11 +952,11 @@
                                 <span
                                     class="identity-swatch"
                                     style="background: {hslToHex(
-                                        playerPaletteHues[0] ?? hueOffset,
+                                        activePlayerPaletteHues[0] ?? hueOffset,
                                     )}"
                                 ></span>
                                 <div class="identity-palette-preview">
-                                    {#each playerPaletteHues.slice(0, playerCount) as hue, index}
+                                    {#each activePlayerPaletteHues as hue, index}
                                         <span
                                             class="identity-palette-chip"
                                             style="background: {hslToHex(hue)}"
@@ -1019,7 +1032,7 @@
                         </div>
 
                         <div class="menu-palette-preview">
-                            {#each playerPaletteHues as hue, index}
+                            {#each activePlayerPaletteHues as hue, index}
                                 <div class="menu-palette-preview__slot">
                                     <span
                                         class="menu-palette-preview__swatch"
@@ -1144,7 +1157,7 @@
                                 </div>
                             </div>
                             <div class="menu-palette-preview" transition:fly={{ y: -8, duration: 150 }}>
-                                {#each playerPaletteHues as hue, index}
+                                {#each activePlayerPaletteHues as hue, index}
                                     <div class="menu-palette-preview__slot">
                                         <span
                                             class="menu-palette-preview__swatch"
@@ -1158,7 +1171,7 @@
 
                         <div class="ai-grid">
                             {#each playerConfigs as cfg, i}
-                                {#if i > 0}
+                                {#if i > 0 && i < playerCount}
                                     <div class="ai-row">
                                         <span
                                             class="ai-color-dot"

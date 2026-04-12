@@ -1066,6 +1066,8 @@ This slice handled the immediate blockers first, then landed the first opt-in cu
 - added first supporting arrow tunables:
   - `Arrow Path Padding`
   - `Arrowhead Spread`
+- replaced the unstable player-palette effect loop with direct input-driven application
+- changed palette generation to deterministic even division by active player count, with a contrast-first slot order
 
 ### Architectural shape used
 
@@ -1077,6 +1079,7 @@ This slice handled the immediate blockers first, then landed the first opt-in cu
 
 ### What remains next in this batch
 
+- verify that live in-game palette changes now repaint correctly after the Svelte effect loop fix
 - verify live feel of curved ship travel and curved arrows in-game
 - update lane publication so any non-straight lane is smoothly curved, never visibly angular
 - implement cross-owner CX midpoint virtual stars

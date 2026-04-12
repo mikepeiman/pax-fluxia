@@ -622,6 +622,11 @@ function setTickInterval(ms: number): void {
 
 function applyPlayerColors(colors: string[]): void {
     if (colors.length === 0) return;
+    const unchanged =
+        players.length > 0 &&
+        players.every((player, index) => player.color === (colors[index] ?? player.color));
+    if (unchanged) return;
+
     players = players.map((player, index) => ({
         ...player,
         color: colors[index] ?? player.color,

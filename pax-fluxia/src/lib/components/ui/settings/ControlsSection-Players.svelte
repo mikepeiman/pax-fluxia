@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
     import {
@@ -37,13 +38,24 @@
         ),
     );
 
-    $effect(() => {
+    function persistAndApplyPalette(): void {
         savePlayerPaletteSettings({
             anchorHue,
             saturation,
             lightness,
         });
-        activeGameStore.applyPlayerColors(paletteHex);
+        activeGameStore.applyPlayerColors(
+            buildPlayerPaletteHex(
+                anchorHue,
+                PLAYER_PALETTE_SIZE,
+                saturation,
+                lightness,
+            ),
+        );
+    }
+
+    onMount(() => {
+        persistAndApplyPalette();
     });
 </script>
 
@@ -68,6 +80,7 @@
         step="1"
         bind:value={anchorHue}
         style="--hue: {anchorHue}"
+        oninput={() => persistAndApplyPalette()}
     />
 </div>
 
@@ -95,6 +108,7 @@
                 max="100"
                 step="1"
                 bind:value={saturation}
+                oninput={() => persistAndApplyPalette()}
             />
         </div>
         <div class="var-row compact-row">
@@ -108,6 +122,7 @@
                 max="70"
                 step="1"
                 bind:value={lightness}
+                oninput={() => persistAndApplyPalette()}
             />
         </div>
     </div>

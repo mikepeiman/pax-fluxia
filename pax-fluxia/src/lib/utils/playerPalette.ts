@@ -1,9 +1,4 @@
-import {
-    GAME_LIG,
-    GAME_SAT,
-    deltaE00,
-    hslToLab,
-} from '$lib/utils/colorDistance';
+import { GAME_LIG, GAME_SAT } from '$lib/utils/colorDistance';
 
 export const PLAYER_PALETTE_SIZE = 6;
 export const PLAYER_PALETTE_STORAGE_KEY = 'pax-fluxia-player-palette';
@@ -21,16 +16,18 @@ export const PLAYER_PALETTE_DEFAULTS: PlayerPaletteSettings = {
     lightness: 55,
 };
 
-const IDEAL_SLOT_OFFSETS = [0, 180, 120, 300, 60, 240, 30, 210, 150, 330, 90, 270];
+const SPREAD_ORDERS: Record<number, number[]> = {
+    1: [0],
+    2: [0, 1],
+    3: [0, 2, 1],
+    4: [0, 2, 1, 3],
+    5: [0, 2, 4, 1, 3],
+    6: [0, 3, 1, 4, 2, 5],
+};
 
 function normalizeHue(hue: number): number {
     const wrapped = hue % 360;
     return wrapped < 0 ? wrapped + 360 : wrapped;
-}
-
-function circularHueDistance(a: number, b: number): number {
-    const diff = Math.abs(normalizeHue(a) - normalizeHue(b));
-    return Math.min(diff, 360 - diff);
 }
 
 function toHexChannel(value: number): string {
@@ -98,71 +95,15 @@ export function generatePlayerPaletteHues(
 ): number[] {
     const normalizedAnchor = normalizeHue(anchorHue);
     const targetCount = Math.max(1, Math.min(count, PLAYER_PALETTE_SIZE));
-    const chosen = [normalizedAnchor];
-    const chosenLabs = [hslToLab(normalizedAnchor, saturation, lightness)];
-    const candidates: { hue: number; lab: [number, number, number] }[] = [];
+    void saturation;
+    void lightness;
 
-    for (let hue = 0; hue < 360; hue += PLAYER_HUE_STEP_DEGREES) {
-        const normalizedHue = normalizeHue(hue);
-        if (normalizedHue === normalizedAnchor) continue;
-        candidates.push({
-            hue: normalizedHue,
-            lab: hslToLab(normalizedHue, saturation, lightness),
-        });
-    }
-
-    while (chosen.length < targetCount && candidates.length > 0) {
-        const targetHue = normalizeHue(
-            normalizedAnchor +
-                IDEAL_SLOT_OFFSETS[Math.min(chosen.length, IDEAL_SLOT_OFFSETS.length - 1)],
-        );
-        let bestIndex = 0;
-        let bestScore = -Infinity;
-        let bestHueDistance = -Infinity;
-        let bestTargetDistance = Infinity;
-
-        for (let i = 0; i < candidates.length; i++) {
-            const candidate = candidates[i];
-            let minDeltaE = Infinity;
-            for (const lab of chosenLabs) {
-                const score = deltaE00(
-                    candidate.lab[0],
-                    candidate.lab[1],
-                    candidate.lab[2],
-                    lab[0],
-                    lab[1],
-                    lab[2],
-                );
-                if (score < minDeltaE) minDeltaE = score;
-            }
-
-            const minHueDistance = chosen.reduce(
-                (minDistance, existingHue) =>
-                    Math.min(minDistance, circularHueDistance(candidate.hue, existingHue)),
-                180,
-            );
-            const targetDistance = circularHueDistance(candidate.hue, targetHue);
-
-            if (
-                minDeltaE > bestScore ||
-                (Math.abs(minDeltaE - bestScore) < 0.001 &&
-                    (minHueDistance > bestHueDistance ||
-                        (minHueDistance === bestHueDistance &&
-                            targetDistance < bestTargetDistance)))
-            ) {
-                bestIndex = i;
-                bestScore = minDeltaE;
-                bestHueDistance = minHueDistance;
-                bestTargetDistance = targetDistance;
-            }
-        }
-
-        const winner = candidates.splice(bestIndex, 1)[0];
-        chosen.push(winner.hue);
-        chosenLabs.push(winner.lab);
-    }
-
-    return chosen;
+    const step = 360 / targetCount;
+    const baseSlots = Array.from({ length: targetCount }, (_, index) =>
+        normalizeHue(normalizedAnchor + step * index),
+    );
+    const order = SPREAD_ORDERS[targetCount] ?? baseSlots.map((_, index) => index);
+    return order.map((index) => baseSlots[index] ?? normalizedAnchor);
 }
 
 export function buildPlayerPaletteHex(

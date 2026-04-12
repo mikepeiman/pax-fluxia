@@ -1258,6 +1258,14 @@ function updateSettings(partial: Partial<GameSettings>): void {
 }
 
 function applyPlayerColors(colors: string[]): void {
+    const currentColors = state
+        ? Array.from(state.players.values()).map((player) => player.color)
+        : snapshot?.players.map((player) => player.color) ?? [];
+    const unchanged =
+        currentColors.length > 0 &&
+        currentColors.every((color, index) => color === (colors[index] ?? color));
+    if (unchanged) return;
+
     settings = { ...settings, playerColors: colors };
     if (!state) return;
 
