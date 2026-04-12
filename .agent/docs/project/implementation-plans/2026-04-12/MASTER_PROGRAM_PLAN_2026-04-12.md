@@ -153,6 +153,12 @@
     - `create("game_room")`
     - `joinById(publicRoom.roomId)`
   - canonical note: `.agent/docs/project/implementation-plans/2026-04-12/MP_PUBLIC_ROOM_TRANSPORT_FIX_2026-04-12.md`
+- Added a dedicated ruler diagnostic tool to support lane-margin debugging:
+  - debug-panel activation
+  - star/lane/free-point snap priority
+  - visible line on canvas
+  - midpoint px label tag
+  - HSLA controls in the debug panel
 - Follow-up client-state correction:
   - Main Menu no longer treats lobby-browser connection as if it were joined-room membership
   - SvelteKit router warning addressed by replacing direct `history.*State` usage with `$app/navigation`

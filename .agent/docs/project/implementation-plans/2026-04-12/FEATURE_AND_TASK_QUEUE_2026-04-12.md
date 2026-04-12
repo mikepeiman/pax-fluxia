@@ -214,6 +214,16 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
    - "Have you been updating `C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\.agent\\docs\\project\\implementation-plans\\2026-04-12\\FEATURE_AND_TASK_QUEUE_2026-04-12.md`?"
    - "Catch up if you have not; lossless record of ALL my task instructions, feature ideas, suggestions, comments."
 
+8. Lane-margin diagnostics tool request:
+   - add a Ruler tool activated from the debug panel
+   - click once for start vertex, once for end vertex
+   - if within hitbox of a star, snap to the star
+   - if within hitbox of a lane, snap to the nearest point on that lane
+   - use it to diagnose the lane-margin constraint visually and numerically
+   - render a visible ruler line on the canvas
+   - expose HSLA controls for the ruler inside the debug panel subsection
+   - show the measured px length as an on-canvas midpoint label tag
+
 8. MP follow-up after transport fix:
    - public-room transport bug was fixed, but the Main Menu still incorrectly treated lobby-browser connection as joined-room membership
    - symptom report:

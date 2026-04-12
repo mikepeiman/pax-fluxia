@@ -111,9 +111,16 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import {
+        getRulerCssColor,
+        getRulerMeasurement,
+        rulerTool,
+        type RulerPoint,
+    } from "$lib/territory/devtools/rulerTool";
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
+    import { get } from "svelte/store";
 
     // ============================================================================
     // PixiJS Application
@@ -138,6 +145,7 @@
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
+    let rulerLabel: PIXI.Text | null = null;
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
@@ -1069,6 +1077,19 @@
                 debugGraphics,
                 voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
             );
+            rulerLabel = new PIXI.Text({
+                text: "",
+                style: {
+                    fontFamily: "Consolas, Monaco, monospace",
+                    fontSize: 12,
+                    fill: 0xffffff,
+                    fontWeight: "700",
+                    align: "center",
+                },
+            });
+            rulerLabel.anchor.set(0.5);
+            rulerLabel.visible = false;
+            stageParent.addChild(rulerLabel);
         }
 
         debugGraphics.clear();
@@ -1091,6 +1112,8 @@
 
             debugGraphics.stroke({ width: 1, color: 0x00ff00, alpha: 0.3 });
         }
+
+        renderRulerOverlay(debugGraphics);
     }
 
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
@@ -1829,6 +1852,14 @@
     // Track last hitTest result to suppress duplicate logs
     let lastHitStarId: string | null | undefined = undefined; // undefined = never set
 
+    function transposePoint(x: number, y: number): { x: number; y: number } {
+        if (!mapTranspose.active) return { x, y };
+        return {
+            x: y,
+            y: mapTranspose.mapWidth - x,
+        };
+    }
+
     function hitTestStar(screenX: number, screenY: number): StarState | null {
         // Use activeGameStore for unified star access
         const stars = activeGameStore.stars as StarState[];
@@ -1882,11 +1913,230 @@
         return nearest;
     }
 
+    function projectPointToSegment(
+        px: number,
+        py: number,
+        ax: number,
+        ay: number,
+        bx: number,
+        by: number,
+    ): { x: number; y: number; distance: number } {
+        const dx = bx - ax;
+        const dy = by - ay;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq <= 1e-6) {
+            return {
+                x: ax,
+                y: ay,
+                distance: Math.hypot(px - ax, py - ay),
+            };
+        }
+        const t = Math.max(
+            0,
+            Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq),
+        );
+        const x = ax + dx * t;
+        const y = ay + dy * t;
+        return {
+            x,
+            y,
+            distance: Math.hypot(px - x, py - y),
+        };
+    }
+
+    function buildVisibleLanePolyline(
+        source: StarState,
+        target: StarState,
+    ): [number, number][] {
+        const raw =
+            getDirectedLanePolyline(source.id, target.id) ?? [
+                [source.x, source.y],
+                [target.x, target.y],
+            ];
+        const displayPolyline = raw.map(([x, y]) => {
+            const p = transposePoint(x, y);
+            return [p.x, p.y] as [number, number];
+        });
+        const sourceRef = {
+            x: mapTranspose.x(source),
+            y: mapTranspose.y(source),
+            radius: source.radius,
+        };
+        const targetRef = {
+            x: mapTranspose.x(target),
+            y: mapTranspose.y(target),
+            radius: target.radius,
+        };
+        const ringGapForLane =
+            GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
+        const trimPad = Math.max(
+            0,
+            ringGapForLane - Math.min(source.radius, target.radius),
+        );
+        return trimLanePolylineToStarRims(
+            displayPolyline,
+            sourceRef,
+            targetRef,
+            trimPad,
+        );
+    }
+
+    function hitTestLanePoint(screenX: number, screenY: number): RulerPoint | null {
+        const { x, y } = screenToWorld(screenX, screenY);
+        const stars = activeGameStore.stars as StarState[];
+        const starsById = new Map(stars.map((star) => [star.id, star] as const));
+        const seen = new Set<string>();
+        const laneHitboxPx = get(rulerTool).laneHitboxPx;
+        let best:
+            | {
+                  x: number;
+                  y: number;
+                  distance: number;
+                  laneKey: string;
+                  laneLabel: string;
+              }
+            | null = null;
+
+        for (const connection of activeGameStore.connections as StarConnection[]) {
+            const a =
+                connection.sourceId <= connection.targetId
+                    ? connection.sourceId
+                    : connection.targetId;
+            const b =
+                connection.sourceId <= connection.targetId
+                    ? connection.targetId
+                    : connection.sourceId;
+            const laneKey = `${a}|${b}`;
+            if (seen.has(laneKey)) continue;
+            seen.add(laneKey);
+
+            const source = starsById.get(a);
+            const target = starsById.get(b);
+            if (!source || !target) continue;
+
+            const polyline = buildVisibleLanePolyline(source, target);
+            if (polyline.length < 2) continue;
+
+            for (let i = 1; i < polyline.length; i++) {
+                const [ax, ay] = polyline[i - 1];
+                const [bx, by] = polyline[i];
+                const projection = projectPointToSegment(x, y, ax, ay, bx, by);
+                if (projection.distance > laneHitboxPx) continue;
+                if (!best || projection.distance < best.distance) {
+                    best = {
+                        x: projection.x,
+                        y: projection.y,
+                        distance: projection.distance,
+                        laneKey,
+                        laneLabel: `${a} ↔ ${b}`,
+                    };
+                }
+            }
+        }
+
+        if (!best) return null;
+        return {
+            x: best.x,
+            y: best.y,
+            snapKind: "lane",
+            laneKey: best.laneKey,
+            laneLabel: best.laneLabel,
+        };
+    }
+
+    function resolveRulerPoint(screenX: number, screenY: number): RulerPoint {
+        const star = hitTestStar(screenX, screenY);
+        if (star) {
+            return {
+                x: mapTranspose.x(star),
+                y: mapTranspose.y(star),
+                snapKind: "star",
+                starId: star.id,
+            };
+        }
+
+        const lanePoint = hitTestLanePoint(screenX, screenY);
+        if (lanePoint) return lanePoint;
+
+        const world = screenToWorld(screenX, screenY);
+        return {
+            x: world.x,
+            y: world.y,
+            snapKind: "free",
+        };
+    }
+
+    function renderRulerOverlay(graphics: PIXI.Graphics): void {
+        const state = get(rulerTool);
+        const measurement = getRulerMeasurement(state);
+        const color = getRulerCssColor(state);
+
+        if (!state.start) {
+            if (rulerLabel) rulerLabel.visible = false;
+            return;
+        }
+
+        const drawPoint = (point: RulerPoint) => {
+            graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
+            graphics.fill({ color, alpha: Math.max(0.18, state.color.a * 0.28) });
+            graphics.stroke({ color, width: 2, alpha: state.color.a });
+
+            graphics.moveTo(point.x - 10, point.y);
+            graphics.lineTo(point.x + 10, point.y);
+            graphics.moveTo(point.x, point.y - 10);
+            graphics.lineTo(point.x, point.y + 10);
+            graphics.stroke({ color, width: 1.5, alpha: Math.max(0.65, state.color.a) });
+        };
+
+        drawPoint(state.start);
+
+        if (!measurement || !state.end) {
+            if (rulerLabel) rulerLabel.visible = false;
+            return;
+        }
+
+        graphics.moveTo(state.start.x, state.start.y);
+        graphics.lineTo(state.end.x, state.end.y);
+        graphics.stroke({ color, width: 2.5, alpha: state.color.a });
+        drawPoint(state.end);
+
+        if (!rulerLabel) return;
+        rulerLabel.text = `${measurement.distance.toFixed(2)} px`;
+        rulerLabel.style.fill = color;
+        rulerLabel.position.set(measurement.midX, measurement.midY - 18);
+        rulerLabel.visible = true;
+
+        const paddingX = 8;
+        const paddingY = 4;
+        const boxW = rulerLabel.width + paddingX * 2;
+        const boxH = rulerLabel.height + paddingY * 2;
+        graphics.roundRect(
+            rulerLabel.x - boxW * 0.5,
+            rulerLabel.y - boxH * 0.5,
+            boxW,
+            boxH,
+            6,
+        );
+        graphics.fill({ color: 0x050812, alpha: 0.82 });
+        graphics.stroke({ color, width: 1, alpha: Math.max(0.7, state.color.a) });
+    }
+
     function handlePointerDown(event: PointerEvent) {
         if (!app) return;
         log.input(
             `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY}) ptrType=${event.pointerType}`,
         );
+
+        if (get(rulerTool).enabled && event.button === 0 && !isSpaceHeld) {
+            const rect = canvasContainer.getBoundingClientRect();
+            const point = resolveRulerPoint(
+                event.clientX - rect.left,
+                event.clientY - rect.top,
+            );
+            rulerTool.placePoint(point);
+            event.preventDefault();
+            return;
+        }
 
         // Track active pointers for multi-touch
         activePointers.set(event.pointerId, {

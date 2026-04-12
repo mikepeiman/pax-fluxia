@@ -3,6 +3,7 @@
     import type { TransitionDebugBundle } from '$lib/territory/devtools/TransitionSnapshotRecorder';
     import { downloadBundle, downloadAllBundles } from '$lib/territory/devtools/TransitionBundleSerializer';
     import { overlayConfig } from '$lib/territory/devtools/overlayConfig';
+    import { getRulerMeasurement, rulerTool } from '$lib/territory/devtools/rulerTool';
 
     interface Props {
         onClose: () => void;
@@ -34,6 +35,26 @@
     function togglePolylineSamples() {
         overlayPolylineSamples = !overlayPolylineSamples;
         overlayConfig.showPolylineSamples = overlayPolylineSamples;
+    }
+
+    function toggleRuler() {
+        rulerTool.toggle();
+    }
+
+    function clearRuler() {
+        rulerTool.clear();
+    }
+
+    function setRulerColor(key: 'h' | 's' | 'l' | 'a', value: string) {
+        rulerTool.setColor(key, Number(value));
+    }
+
+    function formatPoint(point: { x: number; y: number; snapKind: string; starId?: string; laneLabel?: string } | null): string {
+        if (!point) return 'unset';
+        const base = `${point.x.toFixed(1)}, ${point.y.toFixed(1)} (${point.snapKind})`;
+        if (point.starId) return `${base} • ${point.starId}`;
+        if (point.laneLabel) return `${base} • ${point.laneLabel}`;
+        return base;
     }
 
     // ── Recorder state ─────────────────────────────────────────────────────
@@ -142,6 +163,60 @@
                     <span class="ol-dot" style="background:#cc88ff"></span><span>Polyline samples</span>
                 </div>
             {/if}
+        </section>
+
+        <section class="section">
+            <div class="section-title">Ruler</div>
+            <div class="row">
+                <label class="toggle-label">
+                    <input type="checkbox" checked={$rulerTool.enabled} onchange={toggleRuler} />
+                    <span class="toggle-text" class:active={$rulerTool.enabled}>
+                        {$rulerTool.enabled ? 'Ruler ON' : 'Ruler OFF'}
+                    </span>
+                </label>
+                <button
+                    class="action-btn small"
+                    disabled={!$rulerTool.start && !$rulerTool.end}
+                    onclick={clearRuler}
+                >
+                    Clear
+                </button>
+            </div>
+            <div class="info-text">
+                Click the canvas to place start and end vertices. Star hitbox wins first, then nearest lane point inside the lane hitbox.
+            </div>
+            <div class="ruler-readout">
+                <div><span>Start</span><span>{formatPoint($rulerTool.start)}</span></div>
+                <div><span>End</span><span>{formatPoint($rulerTool.end)}</span></div>
+                {#if getRulerMeasurement($rulerTool)}
+                    <div><span>Distance</span><span>{getRulerMeasurement($rulerTool)?.distance.toFixed(2)} px</span></div>
+                    <div><span>Δx / Δy</span><span>{getRulerMeasurement($rulerTool)?.dx.toFixed(2)} / {getRulerMeasurement($rulerTool)?.dy.toFixed(2)}</span></div>
+                {:else if $rulerTool.start}
+                    <div><span>Status</span><span>Awaiting end point</span></div>
+                {/if}
+            </div>
+            <div class="ruler-controls">
+                <label>
+                    <span>H</span>
+                    <input type="range" min="0" max="360" value={$rulerTool.color.h} oninput={(e) => setRulerColor('h', (e.currentTarget as HTMLInputElement).value)} />
+                    <strong>{$rulerTool.color.h.toFixed(0)}°</strong>
+                </label>
+                <label>
+                    <span>S</span>
+                    <input type="range" min="0" max="100" value={$rulerTool.color.s} oninput={(e) => setRulerColor('s', (e.currentTarget as HTMLInputElement).value)} />
+                    <strong>{$rulerTool.color.s.toFixed(0)}%</strong>
+                </label>
+                <label>
+                    <span>L</span>
+                    <input type="range" min="0" max="100" value={$rulerTool.color.l} oninput={(e) => setRulerColor('l', (e.currentTarget as HTMLInputElement).value)} />
+                    <strong>{$rulerTool.color.l.toFixed(0)}%</strong>
+                </label>
+                <label>
+                    <span>A</span>
+                    <input type="range" min="0.05" max="1" step="0.01" value={$rulerTool.color.a} oninput={(e) => setRulerColor('a', (e.currentTarget as HTMLInputElement).value)} />
+                    <strong>{$rulerTool.color.a.toFixed(2)}</strong>
+                </label>
+            </div>
         </section>
 
         <!-- Recorder section -->
@@ -383,6 +458,56 @@
         font-size: 0.68rem;
         color: rgba(160, 160, 180, 0.6);
         line-height: 1.45;
+    }
+
+    .ruler-readout {
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
+        font-size: 0.68rem;
+        color: rgba(220, 220, 240, 0.84);
+    }
+
+    .ruler-readout > div {
+        display: grid;
+        grid-template-columns: 68px 1fr;
+        gap: 8px;
+        align-items: start;
+    }
+
+    .ruler-readout > div > span:first-child {
+        color: rgba(180, 130, 255, 0.72);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.62rem;
+    }
+
+    .ruler-controls {
+        margin-top: 10px;
+        display: grid;
+        gap: 6px;
+    }
+
+    .ruler-controls label {
+        display: grid;
+        grid-template-columns: 16px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        font-size: 0.68rem;
+        color: rgba(220, 220, 240, 0.82);
+    }
+
+    .ruler-controls input[type="range"] {
+        width: 100%;
+    }
+
+    .ruler-controls strong {
+        min-width: 44px;
+        text-align: right;
+        font-size: 0.64rem;
+        color: rgba(200, 175, 255, 0.9);
+        font-family: monospace;
     }
 
     /* Buttons */
