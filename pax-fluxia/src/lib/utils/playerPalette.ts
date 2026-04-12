@@ -19,15 +19,6 @@ export const PLAYER_PALETTE_DEFAULTS: PlayerPaletteSettings = {
     nudges: Array.from({ length: PLAYER_PALETTE_SIZE }, () => 0),
 };
 
-const SPREAD_ORDERS: Record<number, number[]> = {
-    1: [0],
-    2: [0, 1],
-    3: [0, 2, 1],
-    4: [0, 2, 1, 3],
-    5: [0, 2, 4, 1, 3],
-    6: [0, 3, 1, 4, 2, 5],
-};
-
 export function normalizeHue(hue: number): number {
     const wrapped = hue % 360;
     return wrapped < 0 ? wrapped + 360 : wrapped;
@@ -118,12 +109,8 @@ export function generatePlayerPaletteHues(
     void lightness;
 
     const step = 360 / targetCount;
-    const baseSlots = Array.from({ length: targetCount }, (_, index) =>
-        normalizeHue(normalizedAnchor + step * index),
-    );
-    const order = SPREAD_ORDERS[targetCount] ?? baseSlots.map((_, index) => index);
-    return order.map((index, orderedIndex) =>
-        normalizeHue((baseSlots[index] ?? normalizedAnchor) + (nudges[orderedIndex] ?? 0)),
+    return Array.from({ length: targetCount }, (_, index) =>
+        normalizeHue(normalizedAnchor + step * index + (nudges[index] ?? 0)),
     );
 }
 

@@ -263,11 +263,35 @@
     );
 
     let showAIDetails = $state(false);
-    let showPlayerPaletteAdvanced = $state(false);
     let showPaletteNudgePopover = $state(false);
+    let paletteAdjustButtonEl: HTMLButtonElement | null = null;
+    let paletteAdjustPopoverEl: HTMLDivElement | null = null;
     let selectedPaletteIndex = $state(
         Math.max(0, Math.min(loadSetting("selectedPaletteIndex", 0), PLAYER_PALETTE_SIZE - 1)),
     );
+
+    onMount(() => {
+        const handlePointerDown = (event: MouseEvent) => {
+            if (!showPaletteNudgePopover) return;
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (paletteAdjustButtonEl?.contains(target)) return;
+            if (paletteAdjustPopoverEl?.contains(target)) return;
+            showPaletteNudgePopover = false;
+        };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                showPaletteNudgePopover = false;
+            }
+        };
+
+        document.addEventListener("mousedown", handlePointerDown, true);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown, true);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    });
 
     // F-168: Random map preview thumbnail Ã¢â‚¬â€ uses real generateMap() engine via gameStore
     let thumbnailUrl = $state('');
@@ -364,14 +388,13 @@
     let confirmJoinTarget = $state<RoomListing | null>(null);
     let selectedTakeOverId = $state<string | null>(null);
 
-    // Auto-refresh room list when MP tab is visible
+    // Keep the public room browser alive while the menu is open.
     $effect(() => {
-        if (gameMode === "mp" && !multiplayerStore.isConnected) {
+        if (!multiplayerStore.isConnected) {
             multiplayerStore.startRoomPolling();
             return () => multiplayerStore.stopRoomPolling();
-        } else {
-            multiplayerStore.stopRoomPolling();
         }
+        multiplayerStore.stopRoomPolling();
     });
     // Actions
     function saveAllSettings() {
@@ -605,55 +628,6 @@
             <rect width="100%" height="100%" fill="url(#hexPattern)" />
         </svg>
 
-        <!-- Background picker (floating top-right) -->
-        <div class="bg-picker">
-            <button
-                class="bg-picker-toggle"
-                onclick={() => (bgOpen = !bgOpen)}
-            >
-                BG
-            </button>
-            {#if bgOpen}
-                <div
-                    class="bg-picker-dropdown"
-                    transition:fly={{ y: -8, duration: 150 }}
-                >
-                    <button
-                        class="bg-thumb-btn"
-                        class:active={!bgImage}
-                        onclick={() => {
-                            bgImage = "";
-                            bgOpen = false;
-                        }}
-                    >
-                        <span class="bg-thumb-none">None</span>
-                        <span class="bg-thumb-label">Default</span>
-                    </button>
-                    {#each bgImages as img}
-                        <button
-                            class="bg-thumb-btn"
-                            class:active={bgImage === img}
-                            onclick={() => {
-                                bgImage = img;
-                                bgOpen = false;
-                            }}
-                        >
-                            <img
-                                src="/assets/{img}"
-                                alt={img}
-                                class="bg-thumb-img"
-                                loading="lazy"
-                            />
-                            <span class="bg-thumb-label"
-                                >{img
-                                    .replace(/\.(png|jpe?g|webp|avif)$/i, "")
-                                    .replace(/^pax-fluxia-/, "")}</span
-                            >
-                        </button>
-                    {/each}
-                </div>
-            {/if}
-        </div>
         <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
             <!-- Title -->
             <header class="title-block">
@@ -674,6 +648,87 @@
             >
                 <span class="btn-glow"></span>QUICK START
             </button>
+
+            <div class="menu-topbar">
+                <div class="bg-picker">
+                    <button
+                        class="bg-picker-toggle"
+                        onclick={() => (bgOpen = !bgOpen)}
+                    >
+                        BG
+                    </button>
+                    {#if bgOpen}
+                        <div
+                            class="bg-picker-dropdown"
+                            transition:fly={{ y: -8, duration: 150 }}
+                        >
+                            <button
+                                class="bg-thumb-btn"
+                                class:active={!bgImage}
+                                onclick={() => {
+                                    bgImage = "";
+                                    bgOpen = false;
+                                }}
+                            >
+                                <span class="bg-thumb-none">None</span>
+                                <span class="bg-thumb-label">Default</span>
+                            </button>
+                            {#each bgImages as img}
+                                <button
+                                    class="bg-thumb-btn"
+                                    class:active={bgImage === img}
+                                    onclick={() => {
+                                        bgImage = img;
+                                        bgOpen = false;
+                                    }}
+                                >
+                                    <img
+                                        src="/assets/{img}"
+                                        alt={img}
+                                        class="bg-thumb-img"
+                                        loading="lazy"
+                                    />
+                                    <span class="bg-thumb-label"
+                                        >{img
+                                            .replace(/\.(png|jpe?g|webp|avif)$/i, "")
+                                            .replace(/^pax-fluxia-/, "")}</span
+                                    >
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+                <div class="menu-topbar__right">
+                    <div class="audio-compact audio-compact--topbar">
+                        <button
+                            class="mute-btn"
+                            class:muted={audioManager.muted}
+                            onclick={() =>
+                                (audioManager.muted = !audioManager.muted)}
+                        >{audioManager.muted ? "Muted" : "Audio"}</button>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            disabled={audioManager.muted}
+                            value={audioManager.masterVolume}
+                            oninput={(e) =>
+                                audioManager.setMasterVolume(
+                                    +(e.target as HTMLInputElement).value,
+                                )}
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        class="settings-gear-btn"
+                        onclick={() => (showAudioSettings = true)}
+                        title="Open audio settings"
+                    >
+                        ⚙
+                    </button>
+                </div>
+            </div>
 
             <!-- Main grid -->
             <div class="menu-columns">
@@ -1142,7 +1197,7 @@
                 <section class="col-players panel compact-players">
                     <h3 class="section-heading">PLAYERS</h3>
 
-                    <div class="identity-audio-row identity-audio-row--players">
+                    <div class="identity-row identity-row--players">
                         <div class="identity-widget">
                             <span class="identity-badge">Commander</span>
                             <input
@@ -1153,26 +1208,6 @@
                                 maxlength="20"
                             />
                         </div>
-                        <div class="audio-compact">
-                            <button
-                                class="mute-btn"
-                                class:muted={audioManager.muted}
-                                onclick={() =>
-                                    (audioManager.muted = !audioManager.muted)}
-                            >{audioManager.muted ? "Muted" : "Audio"}</button>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                disabled={audioManager.muted}
-                                value={audioManager.masterVolume}
-                                oninput={(e) =>
-                                    audioManager.setMasterVolume(
-                                        +(e.target as HTMLInputElement).value,
-                                    )}
-                            />
-                        </div>
                     </div>
 
                     <div class="player-colors-card player-colors-card--panel">
@@ -1181,29 +1216,19 @@
                                 <span class="player-colors-card__title"
                                     >Player Colors</span
                                 >
-                                <span class="player-colors-card__subtitle"
-                                    >One real palette widget for local, AI, and
-                                    multiplayer colors.</span
-                                >
                             </div>
                             <div class="player-colors-card__actions">
                                 <button
                                     type="button"
-                                    class="player-colors-card__icon"
+                                    class="player-colors-card__adjust-btn"
                                     class:is-active={showPaletteNudgePopover}
+                                    bind:this={paletteAdjustButtonEl}
                                     onclick={() =>
                                         (showPaletteNudgePopover =
                                             !showPaletteNudgePopover)}
-                                    title="Open hue nudge controls"
-                                >+/-15 deg</button>
-                                <button
-                                    class="toggle-details-btn"
-                                    onclick={() =>
-                                        (showPlayerPaletteAdvanced =
-                                            !showPlayerPaletteAdvanced)}
-                                    title="Advanced palette controls"
+                                    title="Adjust player color"
                                 >
-                                    {showPlayerPaletteAdvanced ? "v" : ">"}
+                                    Adjust color
                                 </button>
                             </div>
                         </div>
@@ -1258,18 +1283,17 @@
                         {#if showPaletteNudgePopover}
                             <div
                                 class="player-colors-card__popover"
+                                bind:this={paletteAdjustPopoverEl}
                                 transition:fly={{ y: -6, duration: 150 }}
                             >
                                 <div class="player-colors-card__focus-header">
                                     <span class="player-colors-card__focus-label">
-                                        P{selectedPaletteIndex + 1} hue nudge
+                                        P{selectedPaletteIndex + 1} HSL
                                     </span>
-                                    <span class="player-colors-card__focus-value">{(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0 ? "+" : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0} deg</span>
+                                    <span class="player-colors-card__focus-value">{Math.round(selectedPaletteHue)} deg</span>
                                 </div>
                                 <div class="player-colors-card__row player-colors-card__row--nudge">
-                                    <label class="player-colors-card__label"
-                                        >Nudge</label
-                                    >
+                                    <label class="player-colors-card__label">Hue nudge</label>
                                     <input
                                         type="range"
                                         min={-PLAYER_HUE_NUDGE_LIMIT}
@@ -1286,7 +1310,29 @@
                                                 ),
                                             )}
                                     />
-                                    <span class="value">{Math.round(selectedPaletteHue)} deg</span>
+                                    <span class="value">{(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0 ? "+" : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0} deg</span>
+                                </div>
+                                <div class="player-colors-card__row">
+                                    <label class="player-colors-card__label">Saturation</label>
+                                    <input
+                                        type="range"
+                                        min="40"
+                                        max="100"
+                                        step="1"
+                                        bind:value={colorSat}
+                                    />
+                                    <span class="value">{colorSat}%</span>
+                                </div>
+                                <div class="player-colors-card__row">
+                                    <label class="player-colors-card__label">Lightness</label>
+                                    <input
+                                        type="range"
+                                        min="30"
+                                        max="70"
+                                        step="1"
+                                        bind:value={colorLig}
+                                    />
+                                    <span class="value">{colorLig}%</span>
                                 </div>
                                 <button
                                     type="button"
@@ -1297,34 +1343,6 @@
                                 >
                                     Reset selected nudge
                                 </button>
-                            </div>
-                        {/if}
-
-                        {#if showPlayerPaletteAdvanced}
-                            <div
-                                class="color-palette-row"
-                                transition:fly={{ y: -8, duration: 150 }}
-                            >
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">SAT</span>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="100"
-                                        bind:value={colorSat}
-                                    />
-                                    <span class="value">{colorSat}%</span>
-                                </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">LUM</span>
-                                    <input
-                                        type="range"
-                                        min="30"
-                                        max="70"
-                                        bind:value={colorLig}
-                                    />
-                                    <span class="value">{colorLig}%</span>
-                                </div>
                             </div>
                         {/if}
                     </div>
@@ -1349,11 +1367,6 @@
                                         class:is-selected={selectedPaletteIndex === i}
                                         onclick={() => selectPaletteIndex(i)}
                                     >
-                                        <span
-                                            class="ai-color-dot"
-                                            style="background: {getPlayerColorHex(i)}"
-                                            title={"Player " + (i + 1)}
-                                        ></span>
                                         <span class="ai-slot-label">P{i + 1}</span>
                                         <select
                                             class="ai-select-mini"
@@ -1389,7 +1402,7 @@
                     <div class="mp-section-compact">
                         <h3 class="section-heading">MULTIPLAYER</h3>
 
-                        {#if multiplayerStore.isConnected}
+                        {#if multiplayerStore.isConnected || multiplayerStore.isLobbyConnected}
                             <div class="room-info-bar">
                                 <div class="room-id-block">
                                     <span class="room-label">ROOM</span>
@@ -1416,10 +1429,6 @@
                                             multiplayerStore.localSessionId}
                                     >
                                         <span class="slot-index">{i + 1}</span>
-                                        <span
-                                            class="player-dot"
-                                            style:background-color={player.color}
-                                        ></span>
                                         <span class="player-name">
                                             {player.name}
                                         </span>
@@ -1863,9 +1872,7 @@
 
     /* Ã¢â€â‚¬Ã¢â€â‚¬ Background Picker (top-right action bar) Ã¢â€â‚¬Ã¢â€â‚¬ */
     .bg-picker {
-        position: fixed;
-        top: 12px;
-        right: 12px;
+        position: relative;
         z-index: 120;
         display: flex;
         align-items: center;
@@ -1933,11 +1940,51 @@
         word-break: break-all;
     }
 
+    .menu-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(8, 16, 32, 0.72);
+        border: 1px solid rgba(100, 200, 255, 0.12);
+        backdrop-filter: blur(10px);
+    }
+    .menu-topbar__right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+    .audio-compact--topbar {
+        padding: 4px 8px;
+        background: rgba(10, 20, 40, 0.48);
+        border: 1px solid rgba(100, 200, 255, 0.12);
+        border-radius: 8px;
+    }
+    .settings-gear-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(10, 20, 40, 0.62);
+        border: 1px solid rgba(100, 200, 255, 0.16);
+        color: #cdefff;
+        cursor: pointer;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    .settings-gear-btn:hover {
+        border-color: rgba(100, 200, 255, 0.4);
+        color: #fff;
+    }
+
     /* Ã¢â€â‚¬Ã¢â€â‚¬ Menu Container Ã¢â€â‚¬Ã¢â€â‚¬ */
     .menu-container {
         position: relative;
         z-index: 1;
-        width: min(92vw, 1880px);
+        width: min(96vw, 2040px);
         max-width: none;
         padding: 0 28px 40px;
     }
@@ -1974,8 +2021,8 @@
     /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Two-Column Grid Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     .menu-columns {
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr) minmax(320px, 0.95fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr) minmax(340px, 0.95fr);
+        gap: 16px;
         align-items: stretch;
     }
 
@@ -2349,7 +2396,7 @@
         border-color: rgba(0, 200, 255, 0.22);
     }
 
-    .identity-audio-row--players {
+    .identity-row--players {
         margin-top: 0;
         margin-bottom: 14px;
     }
@@ -2713,22 +2760,26 @@
         position: relative;
         margin-bottom: 16px;
     }
-    .player-colors-card__icon {
+    .player-colors-card__adjust-btn {
         background: rgba(10, 20, 40, 0.6);
         border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
-        color: rgba(200, 220, 255, 0.72);
+        border-radius: 6px;
+        color: rgba(200, 220, 255, 0.78);
         cursor: pointer;
-        font-size: 0.9rem;
-        padding: 4px 10px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 6px 10px;
         font-family: inherit;
+        text-transform: uppercase;
         transition: all 0.15s;
     }
-    .player-colors-card__icon:hover {
+    .player-colors-card__adjust-btn:hover {
         border-color: rgba(100, 200, 255, 0.3);
         color: #fff;
+        background: rgba(14, 28, 52, 0.88);
     }
-    .player-colors-card__icon.is-active {
+    .player-colors-card__adjust-btn.is-active {
         border-color: rgba(0, 220, 255, 0.45);
         color: #dff6ff;
         background: rgba(0, 100, 180, 0.18);
@@ -2794,9 +2845,6 @@
         font-size: 0.78rem;
         font-weight: 700;
         color: #dff6ff;
-    }
-    .player-colors-card__row--nudge {
-        margin-bottom: 0;
     }
     .player-colors-card__reset {
         justify-self: start;

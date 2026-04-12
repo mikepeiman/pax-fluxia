@@ -18,6 +18,7 @@ import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 
 // ============================================================================
 // Mode Detection
@@ -368,6 +369,7 @@ function applyPlayerColors(colors: string[]): void {
     } else {
         gameStore.applyPlayerColors(colors);
     }
+    bumpTerritoryVisualConfig();
 }
 
 // ============================================================================

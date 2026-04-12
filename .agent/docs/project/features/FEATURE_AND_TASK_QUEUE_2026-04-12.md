@@ -27,20 +27,38 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [x] Strengthen cross-owner corridor seeding by placing explicit midpoint-adjacent virtual sites for both owners.
 - [x] Add targeted fixture maps for cross-owner midpoint corridors and future metaball conquest-lane evaluation.
 - [x] Add an opt-in `Metaball fill follows geometry ownership` control for region-masked fill behavior.
+- [x] Normalize the Main Menu player palette to even hue spacing with per-player nudges.
+- [x] Move BG/audio/global settings into a thin floating topbar above Game Setup.
+- [x] Remove the redundant visible player-color indicators from the AI and multiplayer slot rows.
+- [x] Make the room browser visible whenever the lobby channel is live, not only after joining a game room.
+- [x] Add a seat-reservation-expired retry path when joining MP rooms.
+- [x] Bias curved lane generation toward actual curved polylines instead of straight fallbacks when curved mode is active.
+- [x] Special-case 100% board fill to anchor corner stars before scaling the rest of the map.
+- [x] Replace the old hue-nudge button with a proper `Adjust color` popover that exposes HSL controls and closes on outside click / Escape.
+- [x] Remove the redundant duplicate color-indicator surfaces so the palette widget is the single visible player-color representation.
+- [x] Move the audio widget into the floating topbar with the BG selector and gear icon instead of leaving it in the Players panel.
+- [x] Normalize the Main Menu palette spacing to a simple even division with per-player nudges instead of the earlier glitch-prone spread logic.
+- [x] Restore live territory redraw invalidation when player colors change so fills repaint with the selected palette.
 
 ## In Progress
 
-- [ ] Fix live player-color desync so territory fills repaint with the same colors as owned stars during in-game hue adjustment.
+- [ ] Verify live player-color repaint so territory fills, stars, and MP lobby colors all stay in sync during in-game adjustment.
 - [ ] Verify in-app that the new unified player-color widget feels legitimate and trustworthy after the structural cleanup.
+- [ ] Verify the room browser actually shows the persistent public room on the default dev port.
 - [ ] Keep validating that the selected player swatch, AI row highlight, and actual in-game/player-lobby color stay aligned.
-- [x] Repair the Main Menu parser/syntax regressions from the recent UI rewrite so the menu is runnable again.
+- [ ] Verify the new floating topbar stays compact, readable, and non-overlapping with the BG selector / audio / gear controls.
+- [ ] Verify the `Adjust color` popover closes on outside click and Escape, and that the HSL controls feel standard rather than bespoke.
 
 ## Top Queue
 
 - [ ] Verify visually that territory fills now repaint live with star ownership colors across the active territory families.
 - [ ] Refine any remaining Main Menu spacing roughness after the three-panel redesign once the user has seen it.
+- [ ] Recheck the board-fill-at-100% behavior on corner-heavy random maps and decide whether the corner-anchor special case is sufficient.
+- [ ] Recheck the new curved-lane preference on several random seeds to make sure curved mode is visibly producing curves.
+- [ ] Confirm the new lane curvature preference is visible in-app and not silently falling back to straight chords.
 - [ ] Evaluate the new opt-in metaball geometry-fill mode in-game and decide whether it should remain optional or become the default.
 - [ ] Decide how `Custom` maps should evolve from selector-only into the future custom-map workflow.
+- [ ] Verify the public room appears in discovery on the default dev port and remains joinable without seat-expiration churn.
 
 ## Next Technical Queue
 

@@ -71,6 +71,7 @@ let gameHistory = $state<GameHistoryEntry[]>([]);
 let availableRooms = $state<RoomListing[]>([]);
 let isFetchingRooms = $state(false);
 let lobbyStatus = $state<string | null>(null);
+let isLobbyConnected = $state(false);
 
 // Restart vote tracking
 let restartVoteInfo = $state<{ votes: number; needed: number; voters: string[] } | null>(null);
@@ -191,13 +192,13 @@ async function joinRoom(targetRoomId: string, takeOverId?: string): Promise<bool
 
     isConnecting = true;
     connectionError = null;
+    const joinOpts: Record<string, string> = {};
+    if (playerName) joinOpts.name = playerName;
+    if (playerColor) joinOpts.color = playerColor;
+    if (takeOverId) joinOpts.takeOverId = takeOverId;
 
     try {
         log.net('Room', `Joining room: ${targetRoomId}${takeOverId ? ` (takeover: ${takeOverId})` : ''}`);
-        const joinOpts: Record<string, string> = {};
-        if (playerName) joinOpts.name = playerName;
-        if (playerColor) joinOpts.color = playerColor;
-        if (takeOverId) joinOpts.takeOverId = takeOverId;
         room = await client.joinById(targetRoomId, joinOpts);
         roomId = room.roomId;
         localSessionId = room.sessionId;
@@ -207,8 +208,27 @@ async function joinRoom(targetRoomId: string, takeOverId?: string): Promise<bool
         setupRoomListeners();
         return true;
     } catch (err) {
+        const message = String((err as any)?.message ?? err ?? '');
+        const isSeatExpired = /seat reservation expired/i.test(message);
         connectionError = `Failed to join room: ${err}`;
         log.error('Room', 'Join failed', err);
+        if (isSeatExpired) {
+            log.net('Room', 'Seat reservation expired — refreshing lobby and retrying once');
+            try {
+                await fetchRooms();
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                room = await client.joinById(targetRoomId, joinOpts);
+                roomId = room.roomId;
+                localSessionId = room.sessionId;
+                isConnected = true;
+                log.success('Room', `Joined after retry: ${roomId}`);
+                setupRoomListeners();
+                return true;
+            } catch (retryErr) {
+                connectionError = `Failed to join room: ${retryErr}`;
+                log.error('Room', 'Retry join failed', retryErr);
+            }
+        }
         return false;
     } finally {
         isConnecting = false;
@@ -305,6 +325,7 @@ async function joinLobby(): Promise<void> {
             lobbyRoom = await client.joinOrCreate("lobby", {
                 filter: { name: "game_room" }
             });
+            isLobbyConnected = true;
 
             // Success — clear retry status
             lobbyStatus = null;
@@ -349,6 +370,7 @@ async function joinLobby(): Promise<void> {
 
             lobbyRoom.onLeave(() => {
                 lobbyRoom = null;
+                isLobbyConnected = false;
                 log.net('RoomBrowser', 'Left lobby room');
             });
 
@@ -385,6 +407,7 @@ function leaveLobby(): void {
         lobbyRoom.leave();
         lobbyRoom = null;
     }
+    isLobbyConnected = false;
 }
 
 // Legacy aliases for backward compat with MainMenu
@@ -760,9 +783,10 @@ export const multiplayerStore = {
     disconnect,
 
     // Room browser
-    get availableRooms() { return availableRooms; },
-    get isFetchingRooms() { return isFetchingRooms; },
-    get lobbyStatus() { return lobbyStatus; },
+        get availableRooms() { return availableRooms; },
+        get isFetchingRooms() { return isFetchingRooms; },
+        get isLobbyConnected() { return isLobbyConnected; },
+        get lobbyStatus() { return lobbyStatus; },
     fetchRooms,
     startRoomPolling,
     stopRoomPolling,

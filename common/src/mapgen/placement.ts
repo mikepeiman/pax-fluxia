@@ -67,6 +67,44 @@ function minDistToSelected(hex: HexCoord, selected: HexCoord[]): number {
     return m;
 }
 
+function pickBoardFitCornerSeeds(
+    hexes: HexCoord[],
+    width: number,
+    height: number,
+    paddingX: number,
+    paddingY: number,
+): HexCoord[] {
+    if (hexes.length < 4) return [];
+
+    const corners: HexCoord[] = [
+        { x: paddingX + BOARD_FIT_INSET, y: paddingY + BOARD_FIT_INSET },
+        { x: width - paddingX - BOARD_FIT_INSET, y: paddingY + BOARD_FIT_INSET },
+        { x: paddingX + BOARD_FIT_INSET, y: height - paddingY - BOARD_FIT_INSET },
+        { x: width - paddingX - BOARD_FIT_INSET, y: height - paddingY - BOARD_FIT_INSET },
+    ];
+
+    const used = new Set<string>();
+    const seeds: HexCoord[] = [];
+    for (const corner of corners) {
+        let best: HexCoord | null = null;
+        let bestScore = Infinity;
+        for (const hex of hexes) {
+            const key = `${hex.x},${hex.y}`;
+            if (used.has(key)) continue;
+            const score = dist(hex, corner);
+            if (score < bestScore) {
+                bestScore = score;
+                best = hex;
+            }
+        }
+        if (best) {
+            used.add(`${best.x},${best.y}`);
+            seeds.push(best);
+        }
+    }
+    return seeds;
+}
+
 /**
  * Select `count` positions from a hex grid with minimum spacing.
  * `placementUniformity` blends farthest-point (maximin) picks vs random valid picks: 1 = even spread,
@@ -85,6 +123,7 @@ export function selectPositions(
     minSpacing: number,
     absoluteMinSpacing: number = 50,
     placementUniformity: number = 1,
+    seedPositions: HexCoord[] = [],
 ): MapPosition[] {
     const u = Math.max(0, Math.min(1, placementUniformity));
     const floor = Math.max(absoluteMinSpacing, 50);
@@ -93,12 +132,25 @@ export function selectPositions(
     while (spacing >= floor) {
         const pool = shuffled(hexes);
         const selected: HexCoord[] = [];
+        const seeded = new Set<string>();
 
         if (pool.length === 0) break;
 
-        const seedIdx = Math.floor(Math.random() * pool.length);
-        selected.push(pool[seedIdx]!);
-        pool.splice(seedIdx, 1);
+        for (const seed of seedPositions) {
+            if (selected.length >= count) break;
+            const key = `${seed.x},${seed.y}`;
+            if (seeded.has(key)) continue;
+            selected.push(seed);
+            seeded.add(key);
+            const idx = pool.findIndex((hex) => hex.x === seed.x && hex.y === seed.y);
+            if (idx >= 0) pool.splice(idx, 1);
+        }
+
+        if (selected.length === 0) {
+            const seedIdx = Math.floor(Math.random() * pool.length);
+            selected.push(pool[seedIdx]!);
+            pool.splice(seedIdx, 1);
+        }
 
         while (selected.length < count && pool.length > 0) {
             const candidates = pool.filter(h => selected.every(s => dist(s, h) >= spacing));
@@ -245,7 +297,17 @@ export function generateStarPositions(config: {
     const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
     const minSpacing = physicsMinSpacing * spacingMultiplier;
 
-    const raw = selectPositions(hexes, totalStars, minSpacing, physicsMinSpacing, boardFit);
+    const cornerSeeds = boardFit >= 0.999 && totalStars >= 4
+        ? pickBoardFitCornerSeeds(hexes, width, height, paddingX, paddingY)
+        : [];
+    const raw = selectPositions(
+        hexes,
+        totalStars,
+        minSpacing,
+        physicsMinSpacing,
+        boardFit,
+        cornerSeeds,
+    );
     const positions = applyBoardFit(raw, width, height, paddingX, paddingY, boardFit);
 
     return { positions, hexRadius, width, height, paddingX, paddingY };

@@ -24,18 +24,21 @@
 - The map-mode selector now includes `Custom`.
 - Slider/control density in the setup surface was tightened and the `Straight | Curved` lane-path selector was restyled to match the main menu language.
 - Player-color setup was consolidated into one visible widget in the `Players` panel, with hue nudge hidden behind a compact popover trigger.
+- The player-color popover now exposes real HSL adjustments instead of a bespoke `+/-15 deg` affordance, and it closes like a normal popover on outside click / Escape.
 - The old duplicate visible palette and AI surfaces were removed from active circulation instead of merely being left as parallel UI.
 - The last visible Main Menu text corruption was cleaned up, and the commander color is no longer presented as a second competing selection surface outside the main palette card.
+- The floating topbar now carries the BG selector, audio control, and settings gear so those controls are not pushed into the Players panel.
 - `GameCanvas` now flushes territory renderer caches on territory-config changes, and metaball cache fingerprints now include player-color fingerprints so live palette changes can invalidate stale fills.
 - Room listing and room metadata now support a persistent public anchor room and a public label.
 - `pax-server` now creates a persistent `Public Room` on startup, and `multiplayerStore` sorts that room to the top of discovery.
 - The root Bun dev workflow now includes a combined client + server launcher via `tools/dev/dev-full.ts`.
-- Shared lane generation now smooths kink-detour fallbacks into true curved published polylines when the smoothed path still satisfies clearance.
+- Shared lane generation now smooths kink-detour fallbacks into true curved published polylines when the smoothed path still satisfies clearance, and the 100% board-fill path now anchors corner stars before scaling the rest of the map.
 - Cross-owner corridor generation now explicitly seeds one virtual site per owner near the lane midpoint, rather than relying only on distributed side-split samples.
 - Added two new fixture maps in `/common` for:
   - cross-owner midpoint corridor behavior
   - future metaball conquest-lane transition evaluation
 - Added an opt-in `Metaball fill follows geometry ownership` territory control so metaball fill can be evaluated against actual region footprints instead of only real-star field agreement.
+- Live palette changes now force territory visual invalidation so fills and stars repaint together rather than drifting apart.
 - Validation completed:
   - `bunx tsc -p common/tsconfig.json --noEmit --pretty false`
   - `bunx tsc -p pax-fluxia/tsconfig.json --noEmit --pretty false`
@@ -48,6 +51,7 @@
 
 - Verify visually that Main Menu previews, AI rows, lobby colors, stars, and territory fills now agree in both SP and MP.
 - Keep the current palette/UI slice honest by confirming that the consolidated player-color widget truly feels authoritative in-app.
+- Verify that the new HSL popover and floating topbar feel like standard UI instead of bespoke utility scaffolding.
 - Use the persistent public room in a real browser pass on the default dev port.
 - Evaluate the new metaball geometry-fill option in-game before deciding whether it should stay optional or become the default.
 - Continue with the queued lane/arrows/metaball work once the player-color foundation feels stable.

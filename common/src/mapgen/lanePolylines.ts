@@ -262,8 +262,9 @@ function solveAdaptiveWaypoints(
         chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
         && polylineClearOfObstacles(straight, obstacles, clearancePx)
         && !polylineCrossesPlaced(straight, placed, starCenters);
-    if (okStraight) return straight;
 
+    // Prefer a true curve when possible so curved mode visibly reads as curved,
+    // but keep the straight chord as the last-clear fallback.
     for (const bulgeSign of [1, -1] as const) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
         if (best < hypot(bx - ax, by - ay) * 0.015) continue;
@@ -272,6 +273,8 @@ function solveAdaptiveWaypoints(
         if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
         return cand;
     }
+
+    if (okStraight) return straight;
 
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) {
