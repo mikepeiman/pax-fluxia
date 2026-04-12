@@ -9,6 +9,12 @@
 
 ## This round
 
+- Added a reusable lane-margin diagnostics command at `bun run debug:lane-margin`.
+- Saved the current evidence at `.agent/docs/project/implementation-plans/2026-04-12/LANE_MARGIN_DIAGNOSTICS_2026-04-12.md`.
+- Confirmed via seeded sweeps that the current weird lane-margin banding is primarily a lane-solver problem, not large-scale topology pruning:
+  - with live `curve-vs-prune` bias `1.0`, effective topology prune clearance is `0`
+  - connection count stays essentially flat across the sweep
+  - unsafe straight fallback starts around `60px` and becomes catastrophic around `95px+`
 - Saved a focused regression analysis at `.agent/docs/project/implementation-plans/2026-04-12/MAPGEN_RUNTIME_REGRESSION_ANALYSIS_2026-04-12.md` covering:
   - `87714db4`
   - `460c0f93`

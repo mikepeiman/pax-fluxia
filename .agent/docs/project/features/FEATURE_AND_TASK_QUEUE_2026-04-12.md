@@ -6,6 +6,8 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Completed This Slice
 
+- [x] Add a reusable lane-margin sweep diagnostic at `tools/debug/diagnose-lane-margin.ts` plus the root command `bun run debug:lane-margin`.
+- [x] Save a focused evidence note at `.agent/docs/project/implementation-plans/2026-04-12/LANE_MARGIN_DIAGNOSTICS_2026-04-12.md`.
 - [x] Save a focused runtime investigation note at `.agent/docs/project/implementation-plans/2026-04-12/MAPGEN_RUNTIME_REGRESSION_ANALYSIS_2026-04-12.md`.
 - [x] Correct 100% board fill to use the actual full board instead of the old padded interior area.
 - [x] Split contested-lane midpoint virtual stars into a discrete runtime behavior that can stay active even when main CX corridors are off.
@@ -64,6 +66,8 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Top Queue
 
+- [ ] Replace the lane solver's unsafe straight fallback at medium/high lane margins with a valid outward curve, valid detour, or explicit prune behavior.
+- [ ] Use `bun run debug:lane-margin` after each lane-solver change to keep the regression measurable.
 - [ ] Verify visually that territory fills now repaint live with star ownership colors across the active territory families.
 - [ ] Verify the exact-corner 100% board-fill path and restore sub-100% feel if any placement regression remains.
 - [ ] Tune the remaining high-margin + max-bias lane case, which still under-produces curves even after the current fix.
