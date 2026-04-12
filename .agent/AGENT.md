@@ -49,9 +49,12 @@ When removing, renaming, or commenting out any symbol:
 |------|-------|
 | Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_IDEAS.md` |
 | Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
+| Daily active queue | `.agent/docs/project/features/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
 | Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
 | Implementation Plans* | `.agent/docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
+
+**Daily queue protocol**: create or update `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
 ### 2.6 Session Memory
 - **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
 - **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
@@ -164,6 +167,16 @@ One domain = one implementation pattern. Never introduce a second implementation
 ### Git
 Use `git ac "message"` alias. Run commands separately, never `&&`.
 **⛔ NEVER push to `live` branch.** Commit working state FIRST.
+
+### Harness Comparison Protocol
+- Treat `atlas-harness` and CLI-Anything evaluation as an ongoing process during real Pax Fluxia work.
+- Whenever a tool snag, deficiency, or workflow slowdown appears, explicitly classify it as one of:
+  - `atlas-harness` issue
+  - CLI-Anything issue or gap
+  - Pi integration issue
+  - Codex shell or environment issue
+- Log the finding in the current day's queue/session docs.
+- If the issue materially informs `atlas-harness` quality, also add it to `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`.
 
 ### Browser
 **⛔ NEVER open browser/subagent unless user gives explicit permission.**

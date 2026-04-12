@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "metaball_conquest_lane_push",
+    "createdAt": "2026-04-12T14:45:00.000Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 240,
+      "y": 460,
+      "ownerId": "human-player",
+      "starType": "blue",
+      "activeShips": 90,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 980,
+      "y": 460,
+      "ownerId": "ai-1",
+      "starType": "red",
+      "activeShips": 55,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 420,
+      "y": 260,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 35,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 420,
+      "y": 660,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 35,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 800,
+      "y": 260,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 28,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-5",
+      "x": 800,
+      "y": 660,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 28,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-6",
+      "x": 610,
+      "y": 460,
+      "ownerId": "neutral",
+      "starType": "white",
+      "activeShips": 24,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-0",
+      "targetId": "star-6",
+      "distance": 370
+    },
+    {
+      "sourceId": "star-6",
+      "targetId": "star-1",
+      "distance": 370
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-2",
+      "distance": 269.0724809414742
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-3",
+      "distance": 269.0724809414742
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-4",
+      "distance": 269.0724809414742
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-5",
+      "distance": 269.0724809414742
+    }
+  ]
+}

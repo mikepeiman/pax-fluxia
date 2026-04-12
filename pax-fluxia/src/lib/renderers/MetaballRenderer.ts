@@ -339,6 +339,23 @@ function buildFingerprint(stars: StarState[], gameTick: number | undefined): str
     return fp;
 }
 
+function buildColorFingerprint(
+    stars: StarState[],
+    colorUtils: ColorUtils,
+): string {
+    const seenOwners = new Set<string>();
+    let fp = '';
+
+    for (const star of stars) {
+        const ownerId = star.ownerId;
+        if (!ownerId || seenOwners.has(ownerId)) continue;
+        seenOwners.add(ownerId);
+        fp += `${ownerId}:${colorUtils.getPlayerColor(ownerId)}|`;
+    }
+
+    return fp;
+}
+
 // ── Border geometry: merge collinear grid edges, chain, Chaikin, stroke joins ─
 
 const EPS = 1e-4;
@@ -661,7 +678,10 @@ function renderMetaballImpl(
     ensureMetaballParenting(container, blurUnifiesBorders, blurStrengthCfg);
     if (!territoryGraphics || !borderGraphics) return;
 
-    const fingerprint = buildFingerprint(stars, gameTick) + `:${worldWidth}:${worldHeight}`;
+    const fingerprint =
+        buildFingerprint(stars, gameTick) +
+        `:${worldWidth}:${worldHeight}` +
+        `:colors:${buildColorFingerprint(stars, colorUtils)}`;
     if (fingerprint === cachedFingerprint) {
         applyBlurFilter();
         return;
@@ -696,6 +716,7 @@ function renderMetaballImpl(
     const falloffFn = FALLOFF_MAP[falloffType] ?? falloffInverseSquare;
     const fillSatMult = GAME_CONFIG.METABALL_SATURATION ?? 1.0;
     const fillLightMult = GAME_CONFIG.METABALL_LIGHTNESS ?? 1.0;
+    const fillFollowsGeom = GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ?? false;
     const borderSatMult = GAME_CONFIG.METABALL_BORDER_SATURATION ?? 1.0;
     const borderLightMult = GAME_CONFIG.METABALL_BORDER_LIGHTNESS ?? 1.0;
     const chaikinPasses = Math.max(0, Math.min(4, Math.round(GAME_CONFIG.METABALL_CHAIKIN_PASSES ?? 0)));
@@ -834,30 +855,33 @@ function renderMetaballImpl(
 
             if (!wGeom) continue;
 
-            const wReal = resolveMetaballCellWinner(
-                infReal,
-                numPlayers,
-                px,
-                py,
-                ownedStars,
-                clusterMap,
-                msrPx,
-                dominanceFilterOn,
-                dominanceMinActive,
-            );
-            if (!wReal || wReal.maxPlayer !== wGeom.maxPlayer) {
-                dbgFillSkipRealGeomMismatch++;
-                continue;
+            if (!fillFollowsGeom) {
+                const wReal = resolveMetaballCellWinner(
+                    infReal,
+                    numPlayers,
+                    px,
+                    py,
+                    ownedStars,
+                    clusterMap,
+                    msrPx,
+                    dominanceFilterOn,
+                    dominanceMinActive,
+                );
+                if (!wReal || wReal.maxPlayer !== wGeom.maxPlayer) {
+                    dbgFillSkipRealGeomMismatch++;
+                    continue;
+                }
             }
 
             const geomPlayer = wGeom.maxPlayer;
-            const maxInf = infReal[geomPlayer];
+            const fillInfluence = fillFollowsGeom ? infGeom : infReal;
+            const maxInf = fillInfluence[geomPlayer];
             let secondInf = 0;
             let secondPlayer = -1;
             for (let p = 0; p < numPlayers; p++) {
                 if (p === geomPlayer) continue;
-                if (infReal[p] > secondInf) {
-                    secondInf = infReal[p];
+                if (fillInfluence[p] > secondInf) {
+                    secondInf = fillInfluence[p];
                     secondPlayer = p;
                 }
             }

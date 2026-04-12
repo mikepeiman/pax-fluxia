@@ -239,6 +239,82 @@ The failing global launcher reported Bun remap corruption language that strongly
 
 ### 2026-04-11 S2. Atlas Harness would benefit from an explicit health-check surface
 
+### 2026-04-12 A4. `file_readRange` still crashes with null `fileService` in active project session
+
+- Status: open
+- Category: tool initialization failure
+- Surface: atlas-harness MCP file line-range reads
+
+#### Verified observation
+
+Attempting to read line ranges from:
+
+- `pax-fluxia/src/lib/components/ui/MainMenu.svelte`
+
+through the atlas file tool failed repeatedly with:
+
+```text
+null is not an object (evaluating 'fileService.readRange')
+```
+
+This occurred in a valid Pax Fluxia workspace where the same file was immediately readable through PowerShell fallback.
+
+#### Impact
+
+- blocked precise line-based inspection during a live UI refactor
+- forced fallback to shell reads and a bulk-edit workaround
+- prevented atlas-harness from serving as the trusted surgical read surface it is meant to provide
+
+#### Workaround
+
+- use shell-based file reads when range reads fail
+- continue the refactor via alternate tooling, then record the failure here
+
+#### Desired fix or success condition
+
+- `file_readRange` should either work or fail with a workspace/service initialization error that explains what must be re-opened or re-initialized
+- `fileService` should not remain in a null-crash state after startup
+- an explicit atlas-harness readiness/health command should expose file-service status before read operations are attempted
+
+### 2026-04-12 A5. `file_patchLines` crashes with null `fileService` during live refactor work
+
+- Status: open
+- Category: tool initialization failure
+- Surface: atlas-harness MCP surgical file editing
+
+#### Verified observation
+
+Attempting to use the atlas file patch tool against:
+
+- `pax-fluxia/src/lib/components/ui/MainMenu.svelte`
+
+failed with:
+
+```text
+null is not an object (evaluating 'fileService.patchLines')
+```
+
+This happened in the same valid project workspace where shell-based edits and `apply_patch` alternatives continued to work.
+
+#### Impact
+
+- blocked the preferred line-range editing path during a large UI cleanup
+- forced fallback to scripted text replacement for damaged spans
+- reduced trust that atlas-harness can serve as the safe surgical editor during exactly the kind of refactor it should help with
+
+#### Workaround
+
+- use `apply_patch` where possible
+- fall back to deterministic shell scripting when atlas file patch tools are unavailable
+
+#### Desired fix or success condition
+
+- `file_patchLines` should either work or fail with a concrete initialization/health error
+- file read and file patch readiness should be surfaced together in a single harness health report
+- null-object crashes should never be the first signal an agent receives from a core file tool
+
+### 2026-04-11 S2. Atlas Harness would benefit from an explicit health-check surface
+
 - Status: open
 - Category: ergonomics or observability shortcoming
 - Surface: diagnostics and operator confidence

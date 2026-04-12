@@ -258,12 +258,24 @@ export interface RoomListing {
         maxPlayers?: number;
         phase?: string;
         hostName?: string;
+        isPublicAnchor?: boolean;
+        publicRoomLabel?: string | null;
         starsPerPlayer?: number;
         shipsPerStar?: number;
         tick?: number;
         playerNames?: string[];
         aiPlayers?: { sessionId: string; name: string; color: string }[];
     };
+}
+
+function sortRoomListings(rooms: RoomListing[]): RoomListing[] {
+    return [...rooms].sort((a, b) => {
+        const aPublic = a.metadata?.isPublicAnchor ? 1 : 0;
+        const bPublic = b.metadata?.isPublicAnchor ? 1 : 0;
+        if (aPublic !== bPublic) return bPublic - aPublic;
+        if (a.clients !== b.clients) return b.clients - a.clients;
+        return (a.metadata?.hostName || a.roomId).localeCompare(b.metadata?.hostName || b.roomId);
+    });
 }
 // ────────────────────────────────────────────────────────────────────────────
 // Lobby Room — built-in Colyseus LobbyRoom for realtime room listing
@@ -299,13 +311,13 @@ async function joinLobby(): Promise<void> {
 
             // Full room list on initial join
             lobbyRoom.onMessage("rooms", (rooms: any[]) => {
-                availableRooms = rooms.map((r: any) => ({
+                availableRooms = sortRoomListings(rooms.map((r: any) => ({
                     roomId: r.roomId,
                     name: r.name || r.roomId,
                     clients: r.clients,
                     maxClients: r.maxClients,
                     metadata: r.metadata,
-                }));
+                })));
                 log.net('RoomBrowser', `Lobby: received ${availableRooms.length} rooms`);
                 isFetchingRooms = false;
             });
@@ -325,6 +337,7 @@ async function joinLobby(): Promise<void> {
                 } else {
                     availableRooms = [...availableRooms, entry];
                 }
+                availableRooms = sortRoomListings(availableRooms);
                 log.net('RoomBrowser', `Lobby: room updated/added ${roomId} (${availableRooms.length} total)`);
             });
 

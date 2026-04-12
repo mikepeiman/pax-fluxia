@@ -8,9 +8,10 @@
         "pax-server"
     ],
     "scripts": {
-        "dev": "bun run --workspaces --if-present dev",
+        "dev": "bun tools/dev/dev-full.ts",
+        "dev:full": "bun tools/dev/dev-full.ts",
         "dev:client": "bun --cwd pax-fluxia run dev",
-        "dev:server": "bun --cwd pax-server run dev",
+        "dev:server": "bun --cwd pax-server run dev:node",
         "build": "bun run --workspaces --if-present build",
         "agentic:pi": "pi",
         "agentic:context:build": "bun tools/agentic/build-context-pack.ts",

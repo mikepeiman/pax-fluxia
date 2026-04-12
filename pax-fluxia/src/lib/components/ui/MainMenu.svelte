@@ -51,13 +51,13 @@
         GAME_CONFIG.BG_IMAGE_URL = bgImage;
         saveVisuals(visuals);
     });
-    // BG images are a static manifest — no fetch needed
+    // BG images are a static manifest Ã¢â‚¬â€ no fetch needed
     let bgImages = $state<string[]>(BG_IMAGES);
 
     // Chat UI state
     let chatOpen = $state(false);
     let chatInput = $state("");
-    // â”€â”€ Game Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Game mode
     // Auto-switch to MP when connected
     let gameMode = $state<"sp" | "mp">(
         multiplayerStore.isConnected
@@ -102,8 +102,7 @@
             gameMode = "mp";
         }
     });
-
-    // â”€â”€ Settings (localStorage-persisted) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Settings (localStorage-persisted)
     function loadSetting<T>(key: string, defaultValue: T): T {
         if (typeof window === "undefined") return defaultValue;
         const stored = localStorage.getItem(`pax-fluxia-${key}`);
@@ -122,7 +121,7 @@
         localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
     }
 
-    /** HSL hue → hex using current palette sat/lig settings */
+    /** HSL hue Ã¢â€ â€™ hex using current palette sat/lig settings */
     function hslToHex(hue: number): string {
         return hslToHexBase(hue, colorSat / 100, colorLig / 100);
     }
@@ -152,12 +151,15 @@
     // Config state
     let showMobileOptions = $state(false);
     let gameSetupOpen = $state(false);
-    let mapMode = $state<"random" | "classic">(
+    let mapMode = $state<"random" | "classic" | "custom">(
         loadSetting("mapMode", "random"),
     );
     let mapType = $state(loadSetting("mapType", "standard"));
     let selectedClassicMap = $state<string | null>(
         loadSetting("selectedClassicMap", null),
+    );
+    let selectedCustomMap = $state<string | null>(
+        loadSetting("selectedCustomMap", null),
     );
     let showHowToPlay = $state(false);
     let showControls = $state(false);
@@ -179,7 +181,7 @@
     let neutralShipsPerStar = $state(loadSetting("neutralShipsPerStar", 10));
     let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
 
-    /** Lane preview + new game — synced with Map & Grid panel (localStorage). */
+    /** Lane preview + new game Ã¢â‚¬â€ synced with Map & Grid panel (localStorage). */
     function readLaneKnobsFromPanel() {
         const p = loadPanelSettings(panelDefaultsFromConfig());
         const modeRaw = p.mapgenLaneMode;
@@ -261,13 +263,13 @@
     );
 
     let showAIDetails = $state(false);
-    let showColorPalette = $state(false);
     let showPlayerPaletteAdvanced = $state(false);
+    let showPaletteNudgePopover = $state(false);
     let selectedPaletteIndex = $state(
         Math.max(0, Math.min(loadSetting("selectedPaletteIndex", 0), PLAYER_PALETTE_SIZE - 1)),
     );
 
-    // F-168: Random map preview thumbnail — uses real generateMap() engine via gameStore
+    // F-168: Random map preview thumbnail Ã¢â‚¬â€ uses real generateMap() engine via gameStore
     let thumbnailUrl = $state('');
     let previewSeed = $state(0); // incremented to trigger reshuffle
 
@@ -371,12 +373,12 @@
             multiplayerStore.stopRoomPolling();
         }
     });
-
-    // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Actions
     function saveAllSettings() {
         saveSetting("mapMode", mapMode);
         saveSetting("mapType", mapType);
         saveSetting("selectedClassicMap", selectedClassicMap);
+        saveSetting("selectedCustomMap", selectedCustomMap);
         saveSetting("playerCount", playerCount);
         saveSetting("difficulty", difficulty);
         saveSetting("starsPerPlayer", starsPerPlayer);
@@ -412,6 +414,14 @@
 
     function resetSelectedPaletteNudge(): void {
         setSelectedPaletteNudge(0);
+    }
+
+    function getClassicMaps() {
+        return gameStore.savedMaps.filter((map) => Boolean((map as any).builtIn));
+    }
+
+    function getCustomMaps() {
+        return gameStore.savedMaps.filter((map) => !Boolean((map as any).builtIn));
     }
 
     function getPlayerColorHex(index: number): string {
@@ -459,15 +469,21 @@
 
     function startSPGame() {
         saveAllSettings();
-        // If classic map selected, load it first
-        if (mapMode === "classic" && selectedClassicMap) {
+        const selectedSavedMapName =
+            mapMode === "classic"
+                ? selectedClassicMap
+                : mapMode === "custom"
+                  ? selectedCustomMap
+                  : null;
+
+        if (selectedSavedMapName) {
             const allMaps = gameStore.savedMaps;
-            const classicMap = allMaps.find(
-                (m) => m.metadata.name === selectedClassicMap,
+            const savedMap = allMaps.find(
+                (m) => m.metadata.name === selectedSavedMapName,
             );
-            if (classicMap) {
+            if (savedMap) {
                 applyConfig();
-                gameStore.loadSavedMap(classicMap);
+                gameStore.loadSavedMap(savedMap);
                 gameStore.restart();
                 visible = false;
                 return;
@@ -477,13 +493,19 @@
         gameStore.restart();
         visible = false;
     }
-
-    // â”€â”€ MP handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // MP handlers
     import { buildEngineConfig } from "$lib/config/game.config";
 
     async function handleCreateRoom() {
         saveAllSettings();
         applyConfig();
+
+        if (mapMode === "custom") {
+            multiplayerStore.playerName = playerName || "Commander";
+            multiplayerStore.playerColor = getPlayerColorHex(0);
+            multiplayerStore.fetchRooms();
+            return;
+        }
 
         const selectedMap =
             MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
@@ -552,7 +574,7 @@
         style:background-size={bgImage ? "cover" : "auto"}
         style:background-position={bgImage ? "center" : "auto"}
     >
-        <!-- Hex grid overlay — inline SVG with pattern -->
+        <!-- Hex grid overlay; inline SVG pattern -->
         <svg
             class="hex-grid-overlay"
             xmlns="http://www.w3.org/2000/svg"
@@ -587,10 +609,7 @@
         <div class="bg-picker">
             <button
                 class="bg-picker-toggle"
-                onclick={() => (bgOpen = !bgOpen)}
-                title="Change background"
-            >
-                🖼️
+                onclick={() =>BG
             </button>
             {#if bgOpen}
                 <div
@@ -605,7 +624,7 @@
                             bgOpen = false;
                         }}
                     >
-                        <span class="bg-thumb-none">∅</span>
+                        <span class="bg-thumb-none">None</span>
                         <span class="bg-thumb-label">Default</span>
                     </button>
                     {#each bgImages as img}
@@ -634,7 +653,7 @@
             {/if}
         </div>
         <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
-            <!-- ═══ Title ═══ -->
+            <!-- Title -->
             <header class="title-block">
                 <h1 class="title">
                     <span class="pax">PAX</span>
@@ -651,13 +670,12 @@
                     startSPGame();
                 }}
             >
-                <span class="btn-glow"></span>
-                ▶ QUICK START
+                <span class="btn-glow"></span>QUICK START
             </button>
 
-            <!-- ═══ Two-Column Grid ═══ -->
+            <!-- Main grid -->
             <div class="menu-columns">
-                <!-- ── Shared Game Setup (always visible) ── -->
+                <!-- Shared Game Setup -->
                 <section class="col-setup panel">
                     <h2 class="section-heading">GAME SETUP</h2>
 
@@ -671,14 +689,21 @@
                                 onclick={() => {
                                     mapMode = "random";
                                     mapType = "standard";
-                                }}>🎲 RANDOM</button
+                                }}>RANDOM</button
                             >
                             <button
                                 class="map-tab"
                                 class:active={mapMode === "classic"}
                                 onclick={() => {
                                     mapMode = "classic";
-                                }}>🗺️ CLASSIC</button
+                                }}>CLASSIC</button
+                            >
+                            <button
+                                class="map-tab"
+                                class:active={mapMode === "custom"}
+                                onclick={() => {
+                                    mapMode = "custom";
+                                }}>CUSTOM</button
                             >
                         </div>
                     </div>
@@ -761,7 +786,7 @@
                                 </div>
                                 <div class="config-row-3">
                                     <div class="config-item">
-                                        <label title="Matches Map & Grid → Lane clearance">Lane path</label>
+                                        <label title="Matches Map & Grid -> Lane clearance">Lane path</label>
                                         <div
                                             class="map-lane-mode-segment"
                                             role="group"
@@ -861,19 +886,17 @@
                                     {#if thumbnailUrl}
                                         <img src={thumbnailUrl} alt="Map preview" class="map-thumb-img" />
                                     {:else}
-                                        <div class="map-thumb-placeholder">Generating…</div>
+                                        <div class="map-thumb-placeholder">Generating...</div>
                                     {/if}
                                     <button
                                         class="reshuffle-btn"
-                                        onclick={() => { previewSeed += 1; }}
-                                        title="Generate new random layout"
-                                    >🔀 Reshuffle</button>
+                                        onclick={() =>Reshuffle</button>
                                 </div>
                             </div>
-                        {:else}
+                        {:else if mapMode === "classic"}
                             <!-- Classic Map Cards -->
                             <div class="classic-map-grid">
-                                {#each gameStore.savedMaps as m}
+                                {#each getClassicMaps() as m}
                                     {@const xs = m.stars.map((s) => s.x)}
                                     {@const ys = m.stars.map((s) => s.y)}
                                     {@const pad = 20}
@@ -944,13 +967,96 @@
                                             >{m.metadata.name}</span
                                         >
                                         <span class="classic-card-info"
-                                            >{m.stars.length}★</span
+                                            >{m.stars.length} stars</span
                                         >
                                     </div>
                                 {/each}
-                                {#if gameStore.savedMaps.length === 0}
+                                {#if getClassicMaps().length === 0}
                                     <div class="no-maps-msg">
-                                        No maps loaded yet
+                                        No classic maps loaded yet
+                                    </div>
+                                {/if}
+                            </div>
+                        {:else}
+                            <div class="classic-map-grid">
+                                {#each getCustomMaps() as m}
+                                    {@const xs = m.stars.map((s) => s.x)}
+                                    {@const ys = m.stars.map((s) => s.y)}
+                                    {@const pad = 20}
+                                    {@const minX = Math.min(...xs) - pad}
+                                    {@const minY = Math.min(...ys) - pad}
+                                    {@const maxX = Math.max(...xs) + pad}
+                                    {@const maxY = Math.max(...ys) + pad}
+                                    {@const vw = maxX - minX || 100}
+                                    {@const vh = maxY - minY || 100}
+                                    {@const starMap = Object.fromEntries(
+                                        m.stars.map((s) => [s.id, s]),
+                                    )}
+                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                    <div
+                                        class="classic-map-card"
+                                        class:selected={selectedCustomMap ===
+                                            m.metadata.name}
+                                        onclick={() => {
+                                            selectedCustomMap =
+                                                m.metadata.name;
+                                        }}
+                                    >
+                                        <svg
+                                            class="classic-map-thumb"
+                                            viewBox="{minX} {minY} {vw} {vh}"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            {#each m.connections as conn}
+                                                {@const src =
+                                                    starMap[conn.sourceId]}
+                                                {@const tgt =
+                                                    starMap[conn.targetId]}
+                                                {#if src && tgt}
+                                                    <line
+                                                        x1={src.x}
+                                                        y1={src.y}
+                                                        x2={tgt.x}
+                                                        y2={tgt.y}
+                                                        stroke={selectedCustomMap ===
+                                                        m.metadata.name
+                                                            ? "#4488ff55"
+                                                            : "#334466"}
+                                                        stroke-width={Math.max(
+                                                            1,
+                                                            vw * 0.006,
+                                                        )}
+                                                    />
+                                                {/if}
+                                            {/each}
+                                            {#each m.stars as star}
+                                                <circle
+                                                    cx={star.x}
+                                                    cy={star.y}
+                                                    r={Math.max(2, vw * 0.015)}
+                                                    fill={star.ownerId ===
+                                                    "neutral"
+                                                        ? "#666"
+                                                        : `hsl(${(m.stars.indexOf(star) * 60) % 360}, 70%, 60%)`}
+                                                    opacity={selectedCustomMap ===
+                                                    m.metadata.name
+                                                        ? 1
+                                                        : 0.7}
+                                                />
+                                            {/each}
+                                        </svg>
+                                        <span class="classic-card-label"
+                                            >{m.metadata.name}</span
+                                        >
+                                        <span class="classic-card-info"
+                                            >{m.stars.length} stars</span
+                                        >
+                                    </div>
+                                {/each}
+                                {#if getCustomMaps().length === 0}
+                                    <div class="no-maps-msg">
+                                        No custom maps saved yet
                                     </div>
                                 {/if}
                             </div>
@@ -1005,27 +1111,36 @@
 
                     <div class="section-divider"></div>
 
-                    <!-- Commander Identity + Audio (compact row) -->
-                    <div class="identity-audio-row">
+
+                    <div class="start-actions-row">
+                        <button
+                            class="start-btn start-btn-primary"
+                            onclick={() => {
+                                audioManager.play("click");
+                                startSPGame();
+                            }}
+                        >
+                            <span class="btn-glow"></span>START
+                        </button>
+                        <button
+                            class="start-btn mp-create-btn-main"
+                            onclick={() => {
+                                audioManager.play("click");
+                                handleCreateRoom();
+                            }}
+                        >
+                            <span class="btn-glow"></span>CREATE LOBBY
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Players and Multiplayer -->
+                <section class="col-players panel compact-players">
+                    <h3 class="section-heading">PLAYERS</h3>
+
+                    <div class="identity-audio-row identity-audio-row--players">
                         <div class="identity-widget">
-                            <div class="identity-palette-stack">
-                                <span
-                                    class="identity-swatch"
-                                    style="background: {getPlayerColorHex(0)}"
-                                ></span>
-                                <div class="identity-palette-preview">
-                                    {#each activePlayerPaletteHues as hue, index}
-                                        <button
-                                            type="button"
-                                            class="identity-palette-chip"
-                                            class:is-selected={selectedPaletteIndex === index}
-                                            style="background: {getPlayerColorHex(index)}"
-                                            title={"Player " + (index + 1)}
-                                            onclick={() => selectPaletteIndex(index)}
-                                        ></button>
-                                    {/each}
-                                </div>
-                            </div>
+                            <span class="identity-badge">Commander</span>
                             <input
                                 type="text"
                                 class="identity-name-input"
@@ -1038,11 +1153,9 @@
                             <button
                                 class="mute-btn"
                                 class:muted={audioManager.muted}
-                                onclick={() => audioManager.toggleMute()}
-                                title={audioManager.muted ? "Unmute" : "Mute"}
-                            >
-                                {audioManager.muted ? "🔇" : "🔊"}
-                            </button>
+                                onclick={() =>
+                                    (audioManager.muted = !audioManager.muted)}
+                            >{audioManager.muted ? "Muted" : "Audio"}</button>
                             <input
                                 type="range"
                                 min="0"
@@ -1058,20 +1171,37 @@
                         </div>
                     </div>
 
-                    <div class="player-colors-card">
+                    <div class="player-colors-card player-colors-card--panel">
                         <div class="player-colors-card__header">
-                            <span class="player-colors-card__title"
-                                >PLAYER COLORS</span
-                            >
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() =>
-                                    (showPlayerPaletteAdvanced =
-                                        !showPlayerPaletteAdvanced)}
-                                title="Advanced palette controls"
-                            >
-                                {showPlayerPaletteAdvanced ? "▾" : "▸"}
-                            </button>
+                            <div class="player-colors-card__heading">
+                                <span class="player-colors-card__title"
+                                    >Player Colors</span
+                                >
+                                <span class="player-colors-card__subtitle"
+                                    >One real palette widget for local, AI, and
+                                    multiplayer colors.</span
+                                >
+                            </div>
+                            <div class="player-colors-card__actions">
+                                <button
+                                    type="button"
+                                    class="player-colors-card__icon"
+                                    class:is-active={showPaletteNudgePopover}
+                                    onclick={() =>
+                                        (showPaletteNudgePopover =
+                                            !showPaletteNudgePopover)}
+                                    title="Open hue nudge controls"
+                                >+/-15 deg</button>
+                                <button
+                                    class="toggle-details-btn"
+                                    onclick={() =>
+                                        (showPlayerPaletteAdvanced =
+                                            !showPlayerPaletteAdvanced)}
+                                    title="Advanced palette controls"
+                                >
+                                    {showPlayerPaletteAdvanced ? "v" : ">"}
+                                </button>
+                            </div>
                         </div>
 
                         <div class="player-colors-card__row">
@@ -1087,8 +1217,17 @@
                                 bind:value={hueOffset}
                                 style="--hue: {hueOffset}"
                             />
-                            <span class="value"
-                                >{Math.round(hueOffset)}°</span
+                            <span class="value">{Math.round(hueOffset)} deg</span>
+                        </div>
+
+                        <div class="player-colors-card__selection">
+                            <span class="player-colors-card__selection-label"
+                                >Selected</span
+                            >
+                            <span class="player-colors-card__selection-value"
+                                >P{selectedPaletteIndex + 1} | {Math.round(
+                                    selectedPaletteHue,
+                                )} deg</span
                             >
                         </div>
 
@@ -1112,45 +1251,50 @@
                             {/each}
                         </div>
 
-                        <div class="player-colors-card__focus">
-                            <div class="player-colors-card__focus-header">
-                                <span class="player-colors-card__focus-label">
-                                    P{selectedPaletteIndex + 1} Hue
-                                </span>
-                                <span class="player-colors-card__focus-value">
-                                    {Math.round(selectedPaletteHue)}°
-                                </span>
-                            </div>
-                            <div class="player-colors-card__row player-colors-card__row--nudge">
-                                <label class="player-colors-card__label"
-                                    >Hue Nudge</label
-                                >
-                                <input
-                                    type="range"
-                                    min={-PLAYER_HUE_NUDGE_LIMIT}
-                                    max={PLAYER_HUE_NUDGE_LIMIT}
-                                    step="1"
-                                    value={playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0}
-                                    oninput={(event) =>
-                                        setSelectedPaletteNudge(
-                                            Number((event.currentTarget as HTMLInputElement).value),
-                                        )}
-                                />
-                                <span class="value">
-                                    {(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0
-                                        ? "+"
-                                        : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0}°
-                                </span>
-                            </div>
-                            <button
-                                type="button"
-                                class="player-colors-card__reset"
-                                onclick={resetSelectedPaletteNudge}
-                                disabled={(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) === 0}
+                        {#if showPaletteNudgePopover}
+                            <div
+                                class="player-colors-card__popover"
+                                transition:fly={{ y: -6, duration: 150 }}
                             >
-                                Reset P{selectedPaletteIndex + 1} nudge
-                            </button>
-                        </div>
+                                <div class="player-colors-card__focus-header">
+                                    <span class="player-colors-card__focus-label">
+                                        P{selectedPaletteIndex + 1} hue nudge
+                                    </span>
+                                    <span class="player-colors-card__focus-value">{(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0 ? "+" : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0} deg</span>
+                                </div>
+                                <div class="player-colors-card__row player-colors-card__row--nudge">
+                                    <label class="player-colors-card__label"
+                                        >Nudge</label
+                                    >
+                                    <input
+                                        type="range"
+                                        min={-PLAYER_HUE_NUDGE_LIMIT}
+                                        max={PLAYER_HUE_NUDGE_LIMIT}
+                                        step="1"
+                                        value={playerConfigs[selectedPaletteIndex]
+                                            ?.hueNudge ?? 0}
+                                        oninput={(event) =>
+                                            setSelectedPaletteNudge(
+                                                Number(
+                                                    (
+                                                        event.currentTarget as HTMLInputElement
+                                                    ).value,
+                                                ),
+                                            )}
+                                    />
+                                    <span class="value">{Math.round(selectedPaletteHue)} deg</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="player-colors-card__reset"
+                                    onclick={resetSelectedPaletteNudge}
+                                    disabled={(playerConfigs[selectedPaletteIndex]
+                                        ?.hueNudge ?? 0) === 0}
+                                >
+                                    Reset selected nudge
+                                </button>
+                            </div>
+                        {/if}
 
                         {#if showPlayerPaletteAdvanced}
                             <div
@@ -1181,122 +1325,36 @@
                         {/if}
                     </div>
 
-                    <div class="start-actions-row">
-                        <button
-                            class="start-btn start-btn-primary"
-                            onclick={() => {
-                                audioManager.play("click");
-                                startSPGame();
-                            }}
-                        >
-                            <span class="btn-glow"></span>
-                            ▶ START
-                        </button>
-                        <button
-                            class="start-btn mp-create-btn-main"
-                            onclick={() => {
-                                audioManager.play("click");
-                                handleCreateRoom();
-                            }}
-                        >
-                            <span class="btn-glow"></span>
-                            🌐 CREATE LOBBY
-                        </button>
-                    </div>
-                </section>
-
-                <!-- ── RIGHT: Opponents + Multiplayer ── -->
-                <section class="col-right panel compact-right">
-                    <!-- AI Opponents (condensed) -->
-                    <div class="ai-section-compact">
+                    <div class="players-ai-card">
                         <div class="ai-header-row">
-                            <span class="section-heading-inline">AI</span>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() =>
-                                    (showColorPalette = !showColorPalette)}
-                                title="Player palette">👥</button
-                            >
+                            <span class="section-heading-inline">AI Modes</span>
                             <button
                                 class="toggle-details-btn"
                                 onclick={() => (showAIDetails = !showAIDetails)}
-                                >{showAIDetails ? "▾" : "▸"}</button
+                                title="Show advanced AI strategy control"
                             >
+                                {showAIDetails ? "v" : ">"}
+                            </button>
                         </div>
-
-                        {#if showColorPalette}
-                            <div
-                                class="color-palette-row"
-                                transition:fly={{ y: -8, duration: 150 }}
-                            >
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">ANCHOR</span>
-                                    <input
-                                        class="hue-slider"
-                                        type="range"
-                                        min="0"
-                                        max="359"
-                                        step="1"
-                                        bind:value={hueOffset}
-                                        style="--hue: {hueOffset}"
-                                    />
-                                    <span class="value">{Math.round(hueOffset)}°</span>
-                                </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">SAT</span>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="100"
-                                        bind:value={colorSat}
-                                    />
-                                    <span class="value">{colorSat}%</span>
-                                </div>
-                                <div class="hue-offset-inline">
-                                    <span class="mini-label">LUM</span>
-                                    <input
-                                        type="range"
-                                        min="30"
-                                        max="70"
-                                        bind:value={colorLig}
-                                    />
-                                    <span class="value">{colorLig}%</span>
-                                </div>
-                            </div>
-                            <div class="menu-palette-preview" transition:fly={{ y: -8, duration: 150 }}>
-                                {#each activePlayerPaletteHues as hue, index}
-                                    <button
-                                        type="button"
-                                        class="menu-palette-preview__slot"
-                                        class:is-selected={selectedPaletteIndex === index}
-                                        onclick={() => selectPaletteIndex(index)}
-                                    >
-                                        <span
-                                            class="menu-palette-preview__swatch"
-                                            style="background: {getPlayerColorHex(index)}"
-                                        ></span>
-                                        <span class="menu-palette-preview__label">P{index + 1}</span>
-                                    </button>
-                                {/each}
-                            </div>
-                        {/if}
 
                         <div class="ai-grid">
                             {#each playerConfigs as cfg, i}
                                 {#if i > 0 && i < playerCount}
-                                    <div class="ai-row">
+                                    <div
+                                        class="ai-row"
+                                        class:is-selected={selectedPaletteIndex === i}
+                                        onclick={() => selectPaletteIndex(i)}
+                                    >
                                         <span
                                             class="ai-color-dot"
-                                            style="background: {hslToHex(
-                                                playerConfigs[i].hue,
-                                            )}"
+                                            style="background: {getPlayerColorHex(i)}"
                                             title={"Player " + (i + 1)}
                                         ></span>
+                                        <span class="ai-slot-label">P{i + 1}</span>
                                         <select
                                             class="ai-select-mini"
-                                            bind:value={
-                                                playerConfigs[i].difficulty
-                                            }
+                                            onclick={(event) => event.stopPropagation()}
+                                            bind:value={playerConfigs[i].difficulty}
                                         >
                                             {#each DIFFICULTIES as d}<option
                                                     value={d}>{d}</option
@@ -1305,9 +1363,8 @@
                                         {#if showAIDetails}
                                             <select
                                                 class="ai-select-mini"
-                                                bind:value={
-                                                    playerConfigs[i].strategy
-                                                }
+                                                onclick={(event) => event.stopPropagation()}
+                                                bind:value={playerConfigs[i].strategy}
                                             >
                                                 {#each AI_STRATEGIES as s}<option
                                                         value={s.id}
@@ -1320,6 +1377,9 @@
                             {/each}
                         </div>
                     </div>
+                </section>
+                <section class="col-right panel compact-right">
+
 
                     <!-- Multiplayer -->
                     <div class="mp-section-compact">
@@ -1425,7 +1485,7 @@
                                     class="chat-toggle"
                                     onclick={() => (chatOpen = !chatOpen)}
                                 >
-                                    💬 {chatOpen ? "Hide" : "Chat"}
+                                    {chatOpen ? "Hide Chat" : "Chat"}
                                     {#if multiplayerStore.chatMessages.length > 0}<span
                                             class="chat-count"
                                             >{multiplayerStore.chatMessages
@@ -1501,6 +1561,10 @@
                                 <button
                                     class="mp-action-btn mp-create-btn"
                                     onclick={handleCreateRoom}
+                                    disabled={mapMode === "custom"}
+                                    title={mapMode === "custom"
+                                        ? "Custom map lobbies are not wired yet"
+                                        : "Create multiplayer room"}
                                     >CREATE ROOM</button
                                 >
                                 <div class="join-inline">
@@ -1518,6 +1582,11 @@
                                     >
                                 </div>
                             </div>
+                            {#if mapMode === "custom"}
+                                <div class="lobby-status-msg">
+                                    Custom maps currently launch in single-player only.
+                                </div>
+                            {/if}
                             <div class="mp-section room-browser">
                                 <div class="browser-header">
                                     <span class="mini-label">BROWSE</span>
@@ -1548,17 +1617,26 @@
                                                 <div class="room-card-top">
                                                     <span class="room-host"
                                                         >{room.metadata
-                                                            ?.hostName ||
+                                                            ?.publicRoomLabel ||
+                                                            room.metadata
+                                                                ?.hostName ||
                                                             "Unknown"}</span
                                                     >
-                                                    <span
-                                                        class="room-phase badge {room
-                                                            .metadata?.phase ||
-                                                            'lobby'}"
-                                                        >{room.metadata
-                                                            ?.phase ||
-                                                            "lobby"}</span
-                                                    >
+                                                    <div class="room-card-badges">
+                                                        {#if room.metadata?.isPublicAnchor}
+                                                            <span class="badge public"
+                                                                >PUBLIC</span
+                                                            >
+                                                        {/if}
+                                                        <span
+                                                            class="room-phase badge {room
+                                                                .metadata?.phase ||
+                                                                'lobby'}"
+                                                            >{room.metadata
+                                                                ?.phase ||
+                                                                "lobby"}</span
+                                                        >
+                                                    </div>
                                                 </div>
                                                 <div class="room-card-mid">
                                                     <span class="room-map"
@@ -1567,12 +1645,12 @@
                                                             "?"}</span
                                                     >
                                                     <span class="room-detail"
-                                                        >⭐ {room.metadata
+                                                        >Stars {room.metadata
                                                             ?.starsPerPlayer ||
                                                             "?"}/p</span
                                                     >
                                                     <span class="room-detail"
-                                                        >🚀 {room.metadata
+                                                        >Ships {room.metadata
                                                             ?.shipsPerStar ||
                                                             "?"}/star</span
                                                     >
@@ -1603,11 +1681,7 @@
                                     </div>
                                 {/if}
                             </div>
-                            {#if multiplayerStore.lobbyStatus}<div
-                                    class="lobby-status-msg"
-                                >
-                                    ⏳ {multiplayerStore.lobbyStatus}
-                                </div>{/if}
+                            {#if multiplayerStore.lobbyStatus}<div class="lobby-status-msg">Status: {multiplayerStore.lobbyStatus}</div>{/if}
                             {#if multiplayerStore.connectionError}<div
                                     class="error-msg"
                                 >
@@ -1637,12 +1711,13 @@
             <h3>Join Room?</h3>
             <p>
                 Host: <strong
-                    >{confirmJoinTarget.metadata?.hostName || "Unknown"}</strong
+                    >{confirmJoinTarget.metadata?.publicRoomLabel ||
+                        confirmJoinTarget.metadata?.hostName ||
+                        "Unknown"}</strong
                 >
             </p>
             <p>
-                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players
-                • {confirmJoinTarget.metadata?.mapType || "standard"}
+                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players - {confirmJoinTarget.metadata?.mapType || "standard"}
             </p>
 
             {#if confirmJoinTarget.metadata?.phase === "playing" && confirmJoinTarget.metadata?.aiPlayers?.length}
@@ -1706,49 +1781,43 @@
 />
 
 <style>
-    /* ═══════════════════════════════════════════════════════════════ */
-    /*  MAIN MENU — TWO-COLUMN LAYOUT (F-128)                       */
-    /* ═══════════════════════════════════════════════════════════════ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
+    /* Main menu layout */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 
     :global(body) {
         margin: 0;
         background: #050510;
-    }
-
-    .map-lane-mode-segment {
-        display: flex;
+    }    .map-lane-mode-segment {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
         width: 100%;
-        border-radius: 6px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(0, 0, 0, 0.35);
     }
     .map-lane-mode-segment__btn {
         margin: 0;
-        flex: 1 1 0;
         min-width: 0;
-        min-height: 30px;
-        padding: 6px 10px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #9aa;
-        background: transparent;
-        border: none;
+        min-height: 34px;
+        padding: 8px 10px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0;
+        color: rgba(200, 220, 255, 0.5);
+        background: rgba(10, 20, 40, 0.6);
+        border: 1px solid rgba(100, 200, 255, 0.1);
+        border-radius: 4px;
         cursor: pointer;
-        transition:
-            background 0.12s,
-            color 0.12s;
+        transition: all 0.15s;
+        font-family: inherit;
     }
     .map-lane-mode-segment__btn:hover {
-        color: #e2e8f0;
-        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #fff;
     }
     .map-lane-mode-segment__btn--active {
-        color: #ecfdf5;
-        background: rgba(74, 222, 128, 0.22);
-    }
-    .map-lane-mode-segment__btn + .map-lane-mode-segment__btn {
-        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        color: #00eeff;
+        background: rgba(0, 100, 200, 0.2);
+        border-color: #00ccff;
     }
 
     .menu-fullscreen {
@@ -1788,7 +1857,7 @@
         z-index: 0;
     }
 
-    /* ── Background Picker (top-right action bar) ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Background Picker (top-right action bar) Ã¢â€â‚¬Ã¢â€â‚¬ */
     .bg-picker {
         position: fixed;
         top: 12px;
@@ -1860,16 +1929,16 @@
         word-break: break-all;
     }
 
-    /* ── Menu Container ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Menu Container Ã¢â€â‚¬Ã¢â€â‚¬ */
     .menu-container {
         position: relative;
         z-index: 1;
-        width: 70%;
+        width: min(92vw, 1880px);
         max-width: none;
-        padding: 0 48px 40px;
+        padding: 0 28px 40px;
     }
 
-    /* ── Title ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Title Ã¢â€â‚¬Ã¢â€â‚¬ */
     .title-block {
         text-align: center;
         margin-bottom: 16px;
@@ -1898,11 +1967,11 @@
         filter: drop-shadow(0 0 12px rgba(0, 220, 255, 0.4));
     }
 
-    /* ═══ Two-Column Grid ═══ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Two-Column Grid Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     .menu-columns {
         display: grid;
-        grid-template-columns: 1.5fr 1fr;
-        gap: 24px;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr) minmax(320px, 0.95fr);
+        gap: 18px;
         align-items: stretch;
     }
 
@@ -1910,7 +1979,7 @@
         background: rgba(8, 16, 32, 0.85);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 12px;
-        padding: 24px;
+        padding: 20px;
         backdrop-filter: blur(12px);
         display: flex;
         flex-direction: column;
@@ -1933,7 +2002,7 @@
         margin: 16px 0;
     }
 
-    /* ── Labels ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Labels Ã¢â€â‚¬Ã¢â€â‚¬ */
     .control-group label,
     .config-item label {
         display: block;
@@ -1950,9 +2019,10 @@
         font-weight: 400;
     }
 
-    /* ── Map Mode Tabs ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Map Mode Tabs Ã¢â€â‚¬Ã¢â€â‚¬ */
     .map-mode-tabs {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 4px;
         margin-bottom: 8px;
     }
@@ -1982,14 +2052,14 @@
         box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
     }
 
-    /* ── Map Columns Content ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Map Columns Content Ã¢â€â‚¬Ã¢â€â‚¬ */
     .map-columns {
         min-height: 100px;
     }
     .map-col-content {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
     .random-map-preview {
         background: rgba(10, 20, 40, 0.4);
@@ -2037,7 +2107,7 @@
         color: #93c5fd;
     }
 
-    /* ── Classic Map Cards ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Classic Map Cards Ã¢â€â‚¬Ã¢â€â‚¬ */
     .classic-map-grid {
         display: flex;
         flex-wrap: wrap;
@@ -2113,22 +2183,27 @@
         width: 100%;
     }
 
-    /* ── Config rows (3-across) ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Config rows (3-across) Ã¢â€â‚¬Ã¢â€â‚¬ */
     .config-row-3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        margin-top: 16px;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .config-item {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
     }
 
     .slider-container {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 6px;
     }
     .slider-container input[type="range"] {
         flex: 1;
-        height: 8px;
+        height: 6px;
         -webkit-appearance: none;
         appearance: none;
         background: rgba(100, 200, 255, 0.15);
@@ -2145,7 +2220,7 @@
         box-shadow: 0 0 6px rgba(0, 200, 255, 0.4);
     }
     .value {
-        font-size: 0.95rem;
+        font-size: 0.88rem;
         color: #00cccc;
         font-weight: 600;
         min-width: 40px;
@@ -2188,7 +2263,7 @@
         color: #00eeff;
     }
 
-    /* ── Identity + Audio ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Identity + Audio Ã¢â€â‚¬Ã¢â€â‚¬ */
     .identity-audio-row {
         display: flex;
         align-items: center;
@@ -2200,6 +2275,18 @@
         align-items: center;
         gap: 8px;
         flex: 1;
+    }
+    .identity-badge {
+        flex-shrink: 0;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(100, 200, 255, 0.18);
+        background: rgba(20, 36, 66, 0.72);
+        color: #89d9ff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
     }
     .identity-palette-stack {
         display: flex;
@@ -2254,6 +2341,15 @@
         color: rgba(200, 220, 255, 0.25);
     }
 
+    .compact-players {
+        border-color: rgba(0, 200, 255, 0.22);
+    }
+
+    .identity-audio-row--players {
+        margin-top: 0;
+        margin-bottom: 14px;
+    }
+
     .audio-compact {
         display: flex;
         align-items: center;
@@ -2301,7 +2397,7 @@
         background: rgba(0, 255, 255, 0.2);
     }
 
-    /* ── Options ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Options Ã¢â€â‚¬Ã¢â€â‚¬ */
     .options-row {
         display: flex;
         gap: 20px;
@@ -2322,7 +2418,7 @@
         height: 18px;
     }
 
-    /* ── Saved Maps ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Saved Maps Ã¢â€â‚¬Ã¢â€â‚¬ */
     .saved-maps-list {
         display: flex;
         flex-direction: column;
@@ -2391,7 +2487,7 @@
         color: #fca5a5;
     }
 
-    /* ── START GAME ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ START GAME Ã¢â€â‚¬Ã¢â€â‚¬ */
     .start-btn {
         position: relative;
         width: 100%;
@@ -2439,7 +2535,7 @@
         padding-top: 24px;
     }
 
-    /* ═══ RIGHT COLUMN ═══ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â RIGHT COLUMN Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     .ai-section {
         margin-bottom: 4px;
     }
@@ -2580,6 +2676,95 @@
         letter-spacing: 0.08em;
         color: rgba(200, 220, 255, 0.72);
     }
+    .player-colors-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+    .player-colors-card__heading {
+        display: grid;
+        gap: 4px;
+    }
+    .player-colors-card__title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: #dff6ff;
+        text-transform: uppercase;
+    }
+    .player-colors-card__subtitle {
+        font-size: 0.68rem;
+        line-height: 1.4;
+        color: rgba(190, 215, 240, 0.68);
+        max-width: 280px;
+    }
+    .player-colors-card__actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .player-colors-card--panel {
+        position: relative;
+        margin-bottom: 16px;
+    }
+    .player-colors-card__icon {
+        background: rgba(10, 20, 40, 0.6);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+        border-radius: 4px;
+        color: rgba(200, 220, 255, 0.72);
+        cursor: pointer;
+        font-size: 0.9rem;
+        padding: 4px 10px;
+        font-family: inherit;
+        transition: all 0.15s;
+    }
+    .player-colors-card__icon:hover {
+        border-color: rgba(100, 200, 255, 0.3);
+        color: #fff;
+    }
+    .player-colors-card__icon.is-active {
+        border-color: rgba(0, 220, 255, 0.45);
+        color: #dff6ff;
+        background: rgba(0, 100, 180, 0.18);
+    }
+    .player-colors-card__selection {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin: 2px 2px 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(8, 18, 36, 0.4);
+        border: 1px solid rgba(90, 200, 255, 0.1);
+    }
+    .player-colors-card__selection-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        color: rgba(185, 220, 255, 0.72);
+        text-transform: uppercase;
+    }
+    .player-colors-card__selection-value {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #dff6ff;
+    }
+    .player-colors-card__popover {
+        position: absolute;
+        top: 54px;
+        right: 0;
+        z-index: 3;
+        width: min(300px, 100%);
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 10px;
+        background: rgba(7, 15, 30, 0.96);
+        border: 1px solid rgba(90, 200, 255, 0.18);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
     .player-colors-card__focus {
         display: grid;
         gap: 8px;
@@ -2628,6 +2813,11 @@
         cursor: default;
     }
 
+    .players-ai-card {
+        display: grid;
+        gap: 10px;
+    }
+
     .player-config-list {
         display: flex;
         flex-direction: column;
@@ -2663,7 +2853,7 @@
         box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
     }
 
-    /* ── Multiplayer ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Multiplayer Ã¢â€â‚¬Ã¢â€â‚¬ */
     .mp-label {
         display: block;
         font-size: 0.85rem;
@@ -2690,6 +2880,10 @@
         cursor: pointer;
         transition: all 0.15s;
         text-transform: uppercase;
+    }
+    .mp-action-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
     }
     .mp-create-btn {
         background: rgba(0, 100, 200, 0.15);
@@ -2778,7 +2972,16 @@
     .room-card-top {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
         margin-bottom: 2px;
+    }
+    .room-card-badges {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
     .room-host {
         font-size: 0.7rem;
@@ -2860,7 +3063,7 @@
         padding: 0;
     }
     .copy-btn::after {
-        content: "📋";
+        content: "Copy";
     }
     .player-count-badge {
         font-size: 0.65rem;
@@ -2914,6 +3117,10 @@
     .badge.lobby {
         background: rgba(0, 200, 200, 0.1);
         color: #00ccaa;
+    }
+    .badge.public {
+        background: rgba(255, 215, 0, 0.12);
+        color: #facc15;
     }
     .badge.playing {
         background: rgba(0, 255, 100, 0.1);
@@ -2991,7 +3198,7 @@
         }
     }
 
-    /* ═══ Join Modal ═══ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Join Modal Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     .confirm-overlay {
         position: fixed;
         inset: 0;
@@ -3075,8 +3282,8 @@
         border-radius: 50%;
     }
 
-    /* ═══ Mobile ═══ */
-    /* ── Subtitle ── */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Mobile Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Subtitle Ã¢â€â‚¬Ã¢â€â‚¬ */
     .subtitle {
         font-size: 0.9rem;
         letter-spacing: 0.4em;
@@ -3086,7 +3293,7 @@
         text-shadow: 0 0 10px rgba(0, 150, 255, 0.2);
     }
 
-    /* ── Quick Start ── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Quick Start Ã¢â€â‚¬Ã¢â€â‚¬ */
     .quick-start {
         margin-top: 8px;
         margin-bottom: 8px;
@@ -3095,8 +3302,8 @@
         letter-spacing: 0.2em;
     }
 
-    /* ═══ Condensed Right Column ═══ */
-    /* ═══ Condensed Right Column ═══ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Condensed Right Column Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Condensed Right Column Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     .compact-right {
         padding: 24px;
         border: 2px solid rgba(120, 0, 255, 0.5);
@@ -3133,6 +3340,19 @@
         padding: 8px 12px;
         border-radius: 6px;
         background: rgba(10, 20, 40, 0.4);
+        border: 1px solid transparent;
+        transition:
+            border-color 0.15s ease,
+            background 0.15s ease;
+        cursor: pointer;
+    }
+    .ai-row:hover {
+        border-color: rgba(100, 200, 255, 0.2);
+        background: rgba(10, 20, 40, 0.55);
+    }
+    .ai-row.is-selected {
+        border-color: rgba(0, 220, 255, 0.45);
+        background: rgba(0, 90, 180, 0.18);
     }
     .ai-color-dot {
         width: 18px;
@@ -3141,6 +3361,13 @@
         border: 1px solid rgba(255, 255, 255, 0.22);
         box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
         flex-shrink: 0;
+    }
+    .ai-slot-label {
+        min-width: 24px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: rgba(220, 236, 255, 0.82);
     }
     .ai-select-mini {
         flex: 1;
@@ -3162,7 +3389,7 @@
         margin-top: 4px;
     }
 
-    /* ═══ Mobile ═══ */
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Mobile Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     @media (max-width: 768px) {
         .menu-fullscreen {
             justify-content: flex-start;
@@ -3204,7 +3431,7 @@
         }
     }
 
-    /* ── Dual action buttons ───────────────────────────────────────── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Dual action buttons Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
     .start-actions-row {
         display: flex;
         gap: 8px;
@@ -3230,7 +3457,7 @@
         ) !important;
     }
 
-    /* ── Numbered Slot Grid ──────────────────────────────────────── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Numbered Slot Grid Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
     .slot-grid {
         display: flex;
         flex-direction: column;
@@ -3266,7 +3493,7 @@
         gap: 4px;
     }
 
-    /* ── Vote to start ──────────────────────────────────────────── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vote to start Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
     .vote-btn {
         background: linear-gradient(
             135deg,
@@ -3284,7 +3511,7 @@
         padding: 2px 8px;
     }
 
-    /* ── Lobby Chat ─────────────────────────────────────────────── */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Lobby Chat Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
     .lobby-chat-section {
         margin-top: 8px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);

@@ -40,6 +40,8 @@ interface RoomOptions {
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
     playerColors?: string[];
+    isPublicAnchor?: boolean;
+    publicRoomLabel?: string;
     // Phase A: Full gameplay config from client
     gameplayConfig?: Partial<EngineConfig>;
 }
@@ -291,6 +293,16 @@ export class GameRoom extends Room {
             }
         });
         if (!anyHumansConnected && !this.disposeTimer) {
+            if (this.roomOptions.isPublicAnchor) {
+                log.net('GameRoom', 'Public room is empty - keeping persistent anchor room alive');
+                if (this.state.phase !== "lobby") {
+                    this.executeRestart();
+                } else {
+                    this.stopTick();
+                    this.updateListingMetadata();
+                }
+                return;
+            }
             log.net('GameRoom', `No human players remaining — starting ${this.DISPOSE_GRACE_MS / 1000}s dispose timer`);
             this.stopTick();
             this.updateListingMetadata();
@@ -371,7 +383,7 @@ export class GameRoom extends Room {
     /** Update room listing metadata for public browser */
     private updateListingMetadata() {
         let humanCount = 0;
-        let hostName = 'Unknown';
+        let hostName = this.roomOptions.publicRoomLabel || 'Unknown';
         const playerNames: string[] = [];
         const aiPlayers: { sessionId: string; name: string; color: string }[] = [];
         this.state.players.forEach((p, sid) => {
@@ -386,6 +398,8 @@ export class GameRoom extends Room {
             maxPlayers: this.maxClients,
             phase: this.state.phase,
             hostName,
+            isPublicAnchor: !!this.roomOptions.isPublicAnchor,
+            publicRoomLabel: this.roomOptions.publicRoomLabel || null,
             starsPerPlayer: this.roomOptions.starsPerPlayer || 3,
             shipsPerStar: this.roomOptions.shipsPerStar || 10,
             tick: this.state.tick,

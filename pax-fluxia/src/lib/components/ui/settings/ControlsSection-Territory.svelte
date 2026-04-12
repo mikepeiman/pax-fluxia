@@ -625,6 +625,30 @@
           debouncedConfigUpdate("METABALL_THRESHOLD", "metaballThreshold", v);
         }} />
     </div>
+    <label
+      class="toggle-row"
+      title="When on, metaball fill uses the geometry ownership field so the fill footprint stays aligned with the actual claimed region and border shape.">
+      <input
+        type="checkbox"
+        checked={panel.metaballFillFollowsGeom ??
+          GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
+          false}
+        onchange={(e) => {
+          const v = (e.target as HTMLInputElement).checked;
+          debouncedConfigUpdate(
+            "METABALL_FILL_FOLLOWS_GEOM",
+            "metaballFillFollowsGeom",
+            v,
+          );
+        }} />
+      <span class="var-name">Fill follows geometry ownership</span><span
+        class="val"
+        >{(panel.metaballFillFollowsGeom ??
+          GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
+          false)
+          ? "On"
+          : "Off"}</span>
+    </label>
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Strength multiplier</span><span class="val"

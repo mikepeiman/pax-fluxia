@@ -1,6 +1,6 @@
 # Feature & Regression Tracker
 
-**Authority:** The **active** tracker is this file under `.agent/docs/project/features/`. Legacy stubs (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) redirect here.
+**Authority:** The long-lived tracker is this file under `.agent/docs/project/features/`. The clean daily execution queue lives in `FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md`. Legacy stubs (`.atlas/FEATURE_STATUS.md`, `pax-fluxia/.atlas/FEATURE_STATUS.md`) redirect here.
 
 **Main body last updated:** 2026-02-16  
 **Last consolidated:** 2026-04-08 — Former parallel trackers **deduplicated** into **Supplement** (IDs MC- / RG- / TR- / FI-); verbatim appendices removed. Unique facts retained; long FG2 bullet list **referenced**, not duplicated.
@@ -15,12 +15,10 @@ This is the current working queue distilled from the last two days of rendering,
 
 ### Immediate / next
 
-- Palette live-update parity: in-game player-color changes update star ownership colors, but territory fills remain stale and desynced.
-- Main Menu map tabs: add `Custom` alongside `Random | Classic`.
-- Main Menu map controls: widen the section and compact/reorganize sliders for better density and legibility.
-- Main Menu lane-path toggle polish: make the `Straight | Curved` segmented control match the surrounding menu colors and styling.
-- Always-on public MP room: design and implement a persistent public room that always appears in room discovery.
-- Dev workflow convenience: when running the SP/client dev stack, also bring up `pax-server` via `bun run dev:node` where appropriate.
+- Palette live-update parity: verify that territory fills are now invalidated and repaint correctly during live player-color changes.
+- Main Menu follow-through: verify the new three-panel layout and unified player-color widget visually in-app.
+- Public-room follow-through: verify the persistent public room appears first in the live room browser on the default dev stack.
+- Dev workflow follow-through: verify the combined root `bun run dev` flow in normal use.
 
 ### Rendering / lane fidelity
 

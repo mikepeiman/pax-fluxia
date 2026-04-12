@@ -3,7 +3,7 @@
 // Using default uWebSocketsTransport (required for HTTP matchmaker routes)
 // ============================================================================
 
-import { Server, LobbyRoom } from "colyseus";
+import { Server, LobbyRoom, matchMaker } from "colyseus";
 import { GameRoom } from "./rooms/GameRoom";
 import { TestRoom } from "./rooms/TestRoom";
 import { log } from "./utils/logger";
@@ -48,12 +48,31 @@ gameServer.define("test_room", TestRoom)
 
 log.sys('Init', 'Rooms defined: lobby, game_room, test_room');
 
+async function ensurePersistentPublicRoom(): Promise<void> {
+    try {
+        const room = await matchMaker.createRoom("game_room", {
+            isPublicAnchor: true,
+            publicRoomLabel: "Public Room",
+            playerCount: 6,
+            mapType: "standard",
+            starsPerPlayer: 5,
+            shipsPerStar: 50,
+            starSpacing: 1,
+            mapBoardFit: 0.55,
+        });
+        log.sys('Init', `Persistent public room ready: ${room.roomId}`);
+    } catch (err) {
+        log.error('Init', 'Failed to create persistent public room', err);
+    }
+}
+
 // Start the server
 gameServer.listen(PORT).then(() => {
     log.sys('Init', `Pax Fluxia Server running on port ${PORT}`);
     log.sys('Init', `Transport: uWebSocketsTransport (default)`);
     log.sys('Init', `WebSocket: ws://127.0.0.1:${PORT}`);
     log.sys('Init', `HTTP: http://127.0.0.1:${PORT}`);
+    void ensurePersistentPublicRoom();
 }).catch((err) => {
     log.error('Init', 'Server failed to start', err);
 });

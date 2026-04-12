@@ -20,6 +20,28 @@ export interface FixtureMapDescriptor {
 
 export const FIXTURE_MAPS: FixtureMapDescriptor[] = [
     {
+        id: 'cross_owner_midpoint_corridor',
+        name: 'Cross-Owner Midpoint Corridor',
+        purpose: 'Competing-owner lane with a nearby third faction to verify that both owners meet on the lane midpoint and the third faction does not intrude through the corridor.',
+        tags: ['fixtures', 'corridors', 'cross-owner', 'territory', 'hand-authored'],
+        resourcePath: 'common/resources/fixture-maps/cross_owner_midpoint_corridor.json',
+        notes: [
+            'Use this to evaluate cross-owner CX midpoint seeding and border contact along the connecting lane.',
+            'The yellow faction near the lane should pressure the corridor without stealing the midpoint join between blue and red.',
+        ],
+    },
+    {
+        id: 'metaball_conquest_lane_push',
+        name: 'Metaball Conquest Lane Push',
+        purpose: 'Simple conquest lane with a neutral center star for comparing metaball fill behavior and future conquest transition options.',
+        tags: ['fixtures', 'metaball', 'conquest', 'transitions', 'hand-authored'],
+        resourcePath: 'common/resources/fixture-maps/metaball_conquest_lane_push.json',
+        notes: [
+            'Use this when evaluating how attacker influence should travel through a neutral midpoint and into the defender region.',
+            'The center star is intentionally neutral so the conquest handoff can be staged cleanly.',
+        ],
+    },
+    {
         id: 'lane_clearance_triplet',
         name: 'Lane Clearance Triplet',
         purpose: 'Minimal curved-lane clearance case with one blocker star near the centerline and two anchored ownership clusters.',

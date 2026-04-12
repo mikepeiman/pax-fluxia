@@ -229,6 +229,26 @@ function trySingleKinkDetour(
     return null;
 }
 
+function chaikinSmoothOpenPolyline(
+    pts: Array<[number, number]>,
+    passes: number = 2,
+): Array<[number, number]> {
+    let out = pts.slice();
+    for (let pass = 0; pass < passes; pass++) {
+        if (out.length < 3) return out;
+        const next: Array<[number, number]> = [out[0]];
+        for (let i = 0; i < out.length - 1; i++) {
+            const [x0, y0] = out[i];
+            const [x1, y1] = out[i + 1];
+            next.push([x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25]);
+            next.push([x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75]);
+        }
+        next.push(out[out.length - 1]);
+        out = next;
+    }
+    return out;
+}
+
 function solveAdaptiveWaypoints(
     ax: number, ay: number,
     bx: number, by: number,
@@ -254,7 +274,16 @@ function solveAdaptiveWaypoints(
     }
 
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
-    if (kink) return kink;
+    if (kink) {
+        const smoothed = chaikinSmoothOpenPolyline(kink, 2);
+        if (
+            polylineClearOfObstacles(smoothed, obstacles, clearancePx)
+            && !polylineCrossesPlaced(smoothed, placed, starCenters)
+        ) {
+            return smoothed;
+        }
+        return kink;
+    }
 
     // Last resort: chord (preserves clearance vs stars; may cross another lane in pathological maps)
     return straight;

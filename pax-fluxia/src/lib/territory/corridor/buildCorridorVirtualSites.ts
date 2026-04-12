@@ -89,6 +89,22 @@ function clampWeight(weight: number, fallback: number): number {
     return weight;
 }
 
+function pointAlongConnection(
+    t: number,
+    usePoly: boolean,
+    poly: ReadonlyArray<readonly [number, number]> | undefined,
+    pathLen: number,
+    ax: number,
+    ay: number,
+    dx: number,
+    dy: number,
+): { x: number; y: number } {
+    if (usePoly && poly) {
+        return pointOnPolylineAtArcLength(poly, t * pathLen);
+    }
+    return { x: ax + dx * t, y: ay + dy * t };
+}
+
 /**
  * Corridor virtual sites along map connections (same- or cross-owner).
  * Skips edges where either endpoint has no owner (e.g. neutral-only handling TBD).
@@ -143,8 +159,58 @@ export function buildCorridorVirtualSites(
         const sameOwner = starA.ownerId === starB.ownerId;
         const halfArc = usePoly ? pathLen * 0.5 : null;
 
+        if (!sameOwner) {
+            const midpointOffset = Math.min(
+                Math.max(spacingPx * 0.35, 10),
+                Math.max(pathLen * 0.18, 12),
+            );
+            const leftT = Math.max(0.15, (pathLen * 0.5 - midpointOffset) / pathLen);
+            const rightT = Math.min(0.85, (pathLen * 0.5 + midpointOffset) / pathLen);
+            const leftPoint = pointAlongConnection(
+                leftT,
+                usePoly,
+                poly,
+                pathLen,
+                starA.x,
+                starA.y,
+                dx,
+                dy,
+            );
+            const rightPoint = pointAlongConnection(
+                rightT,
+                usePoly,
+                poly,
+                pathLen,
+                starA.x,
+                starA.y,
+                dx,
+                dy,
+            );
+            sites.push({
+                x: leftPoint.x,
+                y: leftPoint.y,
+                weight,
+                ownerId: starA.ownerId,
+                kind: 'corridor',
+                sourceStarA: starA.id,
+                sourceStarB: starB.id,
+                anchorStarId: starA.id,
+            });
+            sites.push({
+                x: rightPoint.x,
+                y: rightPoint.y,
+                weight,
+                ownerId: starB.ownerId,
+                kind: 'corridor',
+                sourceStarA: starA.id,
+                sourceStarB: starB.id,
+                anchorStarId: starB.id,
+            });
+        }
+
         for (let i = 1; i <= nSites; i++) {
             const t = i / (nSites + 1);
+            if (!sameOwner && Math.abs(t - 0.5) < 0.16) continue;
             let x: number;
             let y: number;
             let crossT: number;

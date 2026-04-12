@@ -822,6 +822,20 @@
             : false;
     let mapIsPortrait = false; // Set when stars first load
 
+    function resetTerritoryRenderCaches() {
+        resetVoronoiCache();
+        resetMetaballCache();
+        resetPixelTerritoryCache();
+        resetLaneTerritoryCache();
+        resetContourTerritoryCache();
+        resetModifiedVoronoiCache();
+        resetPowerVoronoiCache();
+        resetPVV2DY4Cache();
+        resetPVV3Cache();
+        resetTerritoryEngineCaches();
+        resetDistanceFieldTerritoryCache();
+    }
+
     /** Toggle the transpose flag — 90° CCW rotation matching physical device rotation */
     function transposeStarCoordinates() {
         // Set map width BEFORE toggling so the axis flip uses pre-transpose width
@@ -830,15 +844,7 @@
         // Flip the map orientation flag
         mapIsPortrait = !mapIsPortrait;
         // Reset territory caches since display positions changed
-        resetVoronoiCache();
-        resetMetaballCache();
-        resetPixelTerritoryCache();
-        resetLaneTerritoryCache();
-        resetContourTerritoryCache();
-        resetModifiedVoronoiCache();
-        resetPowerVoronoiCache();
-        resetTerritoryEngineCaches();
-        resetDistanceFieldTerritoryCache();
+        resetTerritoryRenderCaches();
         // Clear ALL visual ship positions so they re-spawn at transposed coords
         // (ships store x/y, laneStartX/Y, laneEndX/Y in old coordinate space)
         visualDamagedShips.clear();
@@ -1115,15 +1121,7 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
-            resetVoronoiCache();
-            resetMetaballCache();
-            resetPixelTerritoryCache();
-            resetLaneTerritoryCache();
-            resetContourTerritoryCache();
-            resetModifiedVoronoiCache();
-            resetPowerVoronoiCache();
-            resetTerritoryEngineCaches();
-            resetDistanceFieldTerritoryCache();
+            resetTerritoryRenderCaches();
             activeSurges.clear();
             nextShipId = 0;
             starShipCounts.clear();
@@ -1205,6 +1203,7 @@
             territoryConfigFp !== (globalThis as any).__lastTerritoryConfigFp;
         if (configChanged)
             (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
+        if (configChanged) resetTerritoryRenderCaches();
 
         if (
             isPausedNow &&

@@ -281,6 +281,8 @@ interface GameConfigType {
     ARROW_OUTLINE_ALPHA: number;
     /** Arrowhead wing spread angle in degrees (default 30) */
     ARROW_HEAD_SPREAD_DEG: number;
+    /** When true, metaball fill follows geometry ownership instead of requiring real-star and geom agreement */
+    METABALL_FILL_FOLLOWS_GEOM: boolean;
     /** Damaged ship render scale multiplier (default 0.7) */
     DAMAGED_SHIP_SCALE: number;
 
@@ -1119,6 +1121,7 @@ const _rawConfig: GameConfigType = {
     ARROW_OUTLINE_COLOR: 0x000000,
     ARROW_OUTLINE_ALPHA: 0.6,
     ARROW_HEAD_SPREAD_DEG: 30,
+    METABALL_FILL_FOLLOWS_GEOM: false,
     DAMAGED_SHIP_SCALE: 0.7,
 
 
