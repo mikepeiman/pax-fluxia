@@ -327,6 +327,8 @@ This keeps the comparison honest and prevents judging atlas-harness only against
 
 - `mcp__atlas_harness__file_readRange` failed repeatedly with:
   - `null is not an object (evaluating 'fileService.readRange')`
+- `mcp__atlas_harness__file_read` also failed in a later session with:
+  - `null is not an object (evaluating 'fileService.read')`
 - `mcp__atlas_harness__git_status` failed in the same session with:
   - `null is not an object (evaluating 'gitWrapper.status')`
 

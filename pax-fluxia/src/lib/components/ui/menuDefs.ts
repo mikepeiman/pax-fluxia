@@ -8,6 +8,7 @@
 import type { GameSettings } from '$lib/types/game.types';
 import {
     PLAYER_PALETTE_DEFAULTS,
+    clampPlayerHueNudge,
     hslHueToHex,
     generatePlayerPaletteHues,
 } from '$lib/utils/playerPalette';
@@ -29,6 +30,7 @@ export const AI_STRATEGIES = [
 
 export interface PlayerConfig {
     hue: number;       // 0-360 HSL hue
+    hueNudge: number;
     isAI: boolean;
     difficulty: string;
     strategy: string;
@@ -45,6 +47,7 @@ export function makeDefaultPlayerConfigs(
     const palette = generatePlayerPaletteHues(anchorHue);
     return Array.from({ length: count }, (_, i) => ({
         hue: palette[i % palette.length],
+        hueNudge: clampPlayerHueNudge(0),
         isAI: i > 0,
         difficulty: 'Normal',
         strategy: 'default',

@@ -39,6 +39,7 @@ interface RoomOptions {
     minLinks?: number;
     maxLinks?: number;
     retainOrderOnConquest?: boolean;
+    playerColors?: string[];
     // Phase A: Full gameplay config from client
     gameplayConfig?: Partial<EngineConfig>;
 }
@@ -153,9 +154,11 @@ export class GameRoom extends Room {
             player.id = `player-${playerIndex}`;
             player.sessionId = client.sessionId;
             player.name = options.name || `Player ${playerIndex + 1}`;
-            player.color = (options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
-                ? options.color
-                : PLAYER_COLORS[playerIndex % PLAYER_COLORS.length];
+            const configuredColor = this.getConfiguredPlayerColor(playerIndex);
+            player.color = configuredColor
+                ?? ((options.color && /^#[0-9a-fA-F]{6}$/.test(options.color))
+                    ? options.color
+                    : PLAYER_COLORS[playerIndex % PLAYER_COLORS.length]);
             player.isAI = false;
             player.isEliminated = false;
             player.isConnected = true;
@@ -170,7 +173,9 @@ export class GameRoom extends Room {
             }
 
             // Enforce min 30deg hue separation against existing players
-            player.color = this.enforceHueSeparation(player.color);
+            if (!configuredColor) {
+                player.color = this.enforceHueSeparation(player.color);
+            }
 
             this.state.players.set(client.sessionId, player);
             this.state.playerCount = this.state.players.size;
@@ -356,6 +361,11 @@ export class GameRoom extends Room {
             }
         });
         return shifted ? this.hueToHex(myHue) : hex;
+    }
+
+    private getConfiguredPlayerColor(index: number): string | null {
+        const color = this.roomOptions.playerColors?.[index];
+        return typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
     }
 
     /** Update room listing metadata for public browser */
@@ -704,14 +714,17 @@ export class GameRoom extends Room {
             aiPlayer.id = `ai-${i}`;
             aiPlayer.sessionId = `ai-session-${i}`;
             aiPlayer.name = `AI ${i}`;
-            aiPlayer.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+            const configuredColor = this.getConfiguredPlayerColor(i);
+            aiPlayer.color = configuredColor ?? PLAYER_COLORS[i % PLAYER_COLORS.length];
             aiPlayer.isAI = true;
             aiPlayer.isEliminated = false;
             aiPlayer.isConnected = true;
             this.state.players.set(aiPlayer.sessionId, aiPlayer);
 
             // Enforce min 30deg hue separation against humans and other AIs
-            aiPlayer.color = this.enforceHueSeparation(aiPlayer.color);
+            if (!configuredColor) {
+                aiPlayer.color = this.enforceHueSeparation(aiPlayer.color);
+            }
         }
 
         this.state.playerCount = this.state.players.size;

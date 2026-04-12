@@ -27,8 +27,11 @@
     } from "./menuDefs";
     import {
         PLAYER_PALETTE_SIZE,
+        PLAYER_HUE_NUDGE_LIMIT,
+        clampPlayerHueNudge,
         generatePlayerPaletteHues,
         loadPlayerPaletteSettings,
+        normalizePlayerPaletteNudges,
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
     import RangeDual from "./RangeDual.svelte";
@@ -77,7 +80,7 @@
         multiplayerStore.playerName = playerName || "Commander";
     });
     $effect(() => {
-        const hex = hslToHex(playerConfigs[0]?.hue ?? 210);
+        const hex = getPlayerColorHex(0);
         multiplayerStore.playerColor = hex;
     });
 
@@ -125,6 +128,26 @@
     }
 
     const storedPaletteSettings = loadPlayerPaletteSettings();
+
+    function sanitizePlayerConfigs(input: PlayerConfig[], anchorHue: number): PlayerConfig[] {
+        const normalized = makeDefaultPlayerConfigs(PLAYER_PALETTE_SIZE, anchorHue);
+        const source = Array.isArray(input) ? input : [];
+        const storedNudges = normalizePlayerPaletteNudges(storedPaletteSettings.nudges);
+
+        for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
+            normalized[i] = {
+                ...normalized[i],
+                hueNudge: clampPlayerHueNudge(
+                    source[i]?.hueNudge ?? storedNudges[i] ?? normalized[i].hueNudge,
+                ),
+                difficulty: source[i]?.difficulty ?? normalized[i].difficulty,
+                strategy: source[i]?.strategy ?? normalized[i].strategy,
+                isAI: i > 0,
+            };
+        }
+
+        return normalized;
+    }
 
     // Config state
     let showMobileOptions = $state(false);
@@ -211,9 +234,12 @@
     }
 
     let playerConfigs = $state(
-        loadSetting(
-            "playerConfigs",
-            makeDefaultPlayerConfigs(loadSetting("playerCount", 6)),
+        sanitizePlayerConfigs(
+            loadSetting(
+                "playerConfigs",
+                makeDefaultPlayerConfigs(loadSetting("playerCount", 6)),
+            ),
+            storedPaletteSettings.anchorHue,
         ),
     );
     let tickDuration = $state(
@@ -237,6 +263,9 @@
     let showAIDetails = $state(false);
     let showColorPalette = $state(false);
     let showPlayerPaletteAdvanced = $state(false);
+    let selectedPaletteIndex = $state(
+        Math.max(0, Math.min(loadSetting("selectedPaletteIndex", 0), PLAYER_PALETTE_SIZE - 1)),
+    );
 
     // F-168: Random map preview thumbnail — uses real generateMap() engine via gameStore
     let thumbnailUrl = $state('');
@@ -268,38 +297,37 @@
         generatePreview();
     });
 
+    const fullPaletteNudges = $derived(
+        normalizePlayerPaletteNudges(
+            Array.from({ length: PLAYER_PALETTE_SIZE }, (_, index) => playerConfigs[index]?.hueNudge ?? 0),
+        ),
+    );
     const activePlayerPaletteHues = $derived(
         generatePlayerPaletteHues(
             hueOffset,
             playerCount,
-            colorSat / 100,
-            colorLig / 100,
+            fullPaletteNudges.slice(0, playerCount),
         ),
     );
     const fullPlayerPaletteHues = $derived(
         generatePlayerPaletteHues(
             hueOffset,
             PLAYER_PALETTE_SIZE,
-            colorSat / 100,
-            colorLig / 100,
+            fullPaletteNudges,
         ),
+    );
+    const selectedPaletteHue = $derived(
+        (selectedPaletteIndex < playerCount
+            ? activePlayerPaletteHues[selectedPaletteIndex]
+            : fullPlayerPaletteHues[selectedPaletteIndex]) ?? hueOffset,
     );
 
     $effect(() => {
-        if (playerConfigs.length !== PLAYER_PALETTE_SIZE) {
-            const normalized = makeDefaultPlayerConfigs(
-                PLAYER_PALETTE_SIZE,
-                hueOffset,
-            );
-            for (let i = 0; i < Math.min(playerConfigs.length, normalized.length); i++) {
-                normalized[i] = {
-                    ...normalized[i],
-                    difficulty:
-                        playerConfigs[i]?.difficulty ?? normalized[i].difficulty,
-                    strategy: playerConfigs[i]?.strategy ?? normalized[i].strategy,
-                };
-            }
-            playerConfigs = normalized;
+        if (
+            playerConfigs.length !== PLAYER_PALETTE_SIZE ||
+            playerConfigs.some((cfg) => typeof cfg?.hueNudge !== "number")
+        ) {
+            playerConfigs = sanitizePlayerConfigs(playerConfigs, hueOffset);
         }
 
         for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
@@ -315,10 +343,15 @@
             playerConfigs[i].isAI = i > 0;
         }
 
+        if (selectedPaletteIndex >= playerCount) {
+            selectedPaletteIndex = Math.max(0, playerCount - 1);
+        }
+
         savePlayerPaletteSettings({
             anchorHue: hueOffset,
             saturation: colorSat,
             lightness: colorLig,
+            nudges: fullPaletteNudges,
         });
     });
 
@@ -363,7 +396,33 @@
         saveSetting("playerName", playerName);
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
+        saveSetting("selectedPaletteIndex", selectedPaletteIndex);
         persistMenuLaneKnobs();
+    }
+
+    function selectPaletteIndex(index: number): void {
+        selectedPaletteIndex = Math.max(0, Math.min(index, Math.max(0, playerCount - 1)));
+    }
+
+    function setSelectedPaletteNudge(value: number): void {
+        const clamped = clampPlayerHueNudge(value);
+        if (playerConfigs[selectedPaletteIndex]?.hueNudge === clamped) return;
+        playerConfigs[selectedPaletteIndex].hueNudge = clamped;
+    }
+
+    function resetSelectedPaletteNudge(): void {
+        setSelectedPaletteNudge(0);
+    }
+
+    function getPlayerColorHex(index: number): string {
+        const hue =
+            (index < playerCount ? activePlayerPaletteHues[index] : fullPlayerPaletteHues[index]) ??
+            hueOffset;
+        return hslToHex(hue);
+    }
+
+    function getConfiguredPlayerColors(count: number): string[] {
+        return Array.from({ length: count }, (_, index) => getPlayerColorHex(index));
     }
 
     function applyConfig() {
@@ -389,7 +448,7 @@
             starSpacing: starSpacing,
             mapBoardFit,
             gameSpeed: tickDuration,
-            playerColors: playerConfigs.map((cfg) => hslToHex(cfg.hue)),
+            playerColors: getConfiguredPlayerColors(playerCount),
             neutralStarCount,
             neutralShipsPerStar,
             specialStarPercentage,
@@ -443,11 +502,12 @@
             maxLinks,
             retainOrderOnConquest,
             gameplayConfig,
+            playerColors: getConfiguredPlayerColors(playerCount),
         });
 
         // Also set player identity on the store
         multiplayerStore.playerName = playerName || "Commander";
-        multiplayerStore.playerColor = hslToHex(playerConfigs[0]?.hue ?? 210);
+        multiplayerStore.playerColor = getPlayerColorHex(0);
     }
 
     async function handleJoinRoom() {
@@ -951,17 +1011,18 @@
                             <div class="identity-palette-stack">
                                 <span
                                     class="identity-swatch"
-                                    style="background: {hslToHex(
-                                        activePlayerPaletteHues[0] ?? hueOffset,
-                                    )}"
+                                    style="background: {getPlayerColorHex(0)}"
                                 ></span>
                                 <div class="identity-palette-preview">
                                     {#each activePlayerPaletteHues as hue, index}
-                                        <span
+                                        <button
+                                            type="button"
                                             class="identity-palette-chip"
-                                            style="background: {hslToHex(hue)}"
+                                            class:is-selected={selectedPaletteIndex === index}
+                                            style="background: {getPlayerColorHex(index)}"
                                             title={"Player " + (index + 1)}
-                                        ></span>
+                                            onclick={() => selectPaletteIndex(index)}
+                                        ></button>
                                     {/each}
                                 </div>
                             </div>
@@ -1033,16 +1094,62 @@
 
                         <div class="menu-palette-preview">
                             {#each activePlayerPaletteHues as hue, index}
-                                <div class="menu-palette-preview__slot">
+                                <button
+                                    type="button"
+                                    class="menu-palette-preview__slot"
+                                    class:is-selected={selectedPaletteIndex === index}
+                                    onclick={() => selectPaletteIndex(index)}
+                                    title={"Select Player " + (index + 1) + " color"}
+                                >
                                     <span
                                         class="menu-palette-preview__swatch"
-                                        style="background: {hslToHex(hue)}"
+                                        style="background: {getPlayerColorHex(index)}"
                                     ></span>
                                     <span class="menu-palette-preview__label"
                                         >P{index + 1}</span
                                     >
-                                </div>
+                                </button>
                             {/each}
+                        </div>
+
+                        <div class="player-colors-card__focus">
+                            <div class="player-colors-card__focus-header">
+                                <span class="player-colors-card__focus-label">
+                                    P{selectedPaletteIndex + 1} Hue
+                                </span>
+                                <span class="player-colors-card__focus-value">
+                                    {Math.round(selectedPaletteHue)}°
+                                </span>
+                            </div>
+                            <div class="player-colors-card__row player-colors-card__row--nudge">
+                                <label class="player-colors-card__label"
+                                    >Hue Nudge</label
+                                >
+                                <input
+                                    type="range"
+                                    min={-PLAYER_HUE_NUDGE_LIMIT}
+                                    max={PLAYER_HUE_NUDGE_LIMIT}
+                                    step="1"
+                                    value={playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0}
+                                    oninput={(event) =>
+                                        setSelectedPaletteNudge(
+                                            Number((event.currentTarget as HTMLInputElement).value),
+                                        )}
+                                />
+                                <span class="value">
+                                    {(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0
+                                        ? "+"
+                                        : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0}°
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                class="player-colors-card__reset"
+                                onclick={resetSelectedPaletteNudge}
+                                disabled={(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) === 0}
+                            >
+                                Reset P{selectedPaletteIndex + 1} nudge
+                            </button>
                         </div>
 
                         {#if showPlayerPaletteAdvanced}
@@ -1158,13 +1265,18 @@
                             </div>
                             <div class="menu-palette-preview" transition:fly={{ y: -8, duration: 150 }}>
                                 {#each activePlayerPaletteHues as hue, index}
-                                    <div class="menu-palette-preview__slot">
+                                    <button
+                                        type="button"
+                                        class="menu-palette-preview__slot"
+                                        class:is-selected={selectedPaletteIndex === index}
+                                        onclick={() => selectPaletteIndex(index)}
+                                    >
                                         <span
                                             class="menu-palette-preview__swatch"
-                                            style="background: {hslToHex(hue)}"
+                                            style="background: {getPlayerColorHex(index)}"
                                         ></span>
                                         <span class="menu-palette-preview__label">P{index + 1}</span>
-                                    </div>
+                                    </button>
                                 {/each}
                             </div>
                         {/if}
@@ -2109,11 +2221,20 @@
         gap: 4px;
     }
     .identity-palette-chip {
+        appearance: none;
+        background: transparent;
         width: 14px;
         height: 14px;
         border-radius: 50%;
         border: 1px solid rgba(255, 255, 255, 0.18);
         box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+        padding: 0;
+        cursor: pointer;
+    }
+    .identity-palette-chip.is-selected {
+        transform: scale(1.18);
+        border-color: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.5), 0 0 10px rgba(0, 200, 255, 0.42);
     }
     .identity-name-input {
         flex: 1;
@@ -2424,6 +2545,8 @@
         padding: 0 2px 8px;
     }
     .menu-palette-preview__slot {
+        appearance: none;
+        border: 1px solid transparent;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -2431,6 +2554,19 @@
         padding: 6px 4px;
         border-radius: 6px;
         background: rgba(10, 20, 40, 0.26);
+        cursor: pointer;
+        transition:
+            border-color 0.15s ease,
+            box-shadow 0.15s ease,
+            transform 0.15s ease;
+    }
+    .menu-palette-preview__slot:hover {
+        border-color: rgba(120, 220, 255, 0.22);
+    }
+    .menu-palette-preview__slot.is-selected {
+        border-color: rgba(0, 220, 255, 0.55);
+        box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.28);
+        transform: translateY(-1px);
     }
     .menu-palette-preview__swatch {
         width: 22px;
@@ -2443,6 +2579,53 @@
         font-size: 0.58rem;
         letter-spacing: 0.08em;
         color: rgba(200, 220, 255, 0.72);
+    }
+    .player-colors-card__focus {
+        display: grid;
+        gap: 8px;
+        margin: 0 2px 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(8, 18, 36, 0.46);
+        border: 1px solid rgba(90, 200, 255, 0.1);
+    }
+    .player-colors-card__focus-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+    .player-colors-card__focus-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        color: rgba(185, 220, 255, 0.72);
+        text-transform: uppercase;
+    }
+    .player-colors-card__focus-value {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #dff6ff;
+    }
+    .player-colors-card__row--nudge {
+        margin-bottom: 0;
+    }
+    .player-colors-card__reset {
+        justify-self: start;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(100, 200, 255, 0.18);
+        background: rgba(10, 20, 40, 0.55);
+        color: rgba(220, 238, 255, 0.86);
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: border-color 0.15s ease, opacity 0.15s ease;
+    }
+    .player-colors-card__reset:hover:not(:disabled) {
+        border-color: rgba(120, 220, 255, 0.38);
+    }
+    .player-colors-card__reset:disabled {
+        opacity: 0.45;
+        cursor: default;
     }
 
     .player-config-list {
