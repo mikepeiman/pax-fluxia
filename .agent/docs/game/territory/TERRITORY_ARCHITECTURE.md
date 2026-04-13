@@ -28,6 +28,9 @@ Ownership → Geometry → Transition → Presentation
 > [!IMPORTANT]
 > During a conquest transition, **fills and frontiers stay locked together**: at every frame, neither may snap ahead or lag behind the other. Implementation must use **one** transition clock and **one** plan; separate fill and border transition *algorithms* running on different timelines are **not** allowed for the shipped path (they caused divergence and bugs).
 
+> [!IMPORTANT]
+> Ownership-layer input invariant: by the time territory code runs, every live star must have an `ownerId`. Missing or empty owner IDs from map inputs are normalized to `"neutral"` during game initialization so neutral territory holds space in every renderer.
+
 ### Core design position (from 2026-04-04 design review)
 
 A conquest transition is a transformation of the **shared frontier graph**, not of independent owner polygons. Only the frontier spans that actually change should move; unchanged spans remain fixed. Region loops are **rebuilt** from interpolated frontier geometry each frame — this is what preserves the planar-partition invariant (no gaps, no overlaps, borders aligned).

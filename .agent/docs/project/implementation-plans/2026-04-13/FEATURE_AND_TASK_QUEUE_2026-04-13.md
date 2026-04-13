@@ -29,6 +29,8 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [x] Add the `METABALL_BURST_BOUNDARY_BASIS` control and conditional Conquest-panel affordance so the new six-slice mode can choose between `t0_region_contour`, `per_ray_contour_hits`, and `approximate_radius`.
 - [x] Refactor the Metaball family scene builder into shared base-context + transition-mode dispatch helpers so the lane-push and six-slice modes share the same star/CX/DX sample assembly.
 - [x] Add focused tests for transition-mode coercion, Metaball six-slice burst sample generation, target-star suppression during burst mode, and boundary-basis cache differences; re-run `vitest`, `tsc`, and `build`.
+- [x] Lock the gameplay ownership rule that all stars must hold territory space at runtime: update the mechanics/territory specs so missing or empty map `ownerId` values are normalized to `neutral` at game init instead of remaining truly unowned.
+- [x] Add a shared init-time ownership normalizer and run it after client and server map initialization so any ownerless stars are converted to `neutral` before gameplay, stats, or territory rendering begin.
 
 ## Follow-Ups
 

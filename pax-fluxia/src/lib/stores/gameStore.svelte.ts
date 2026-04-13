@@ -32,6 +32,9 @@ import {
     DEFAULT_ENGINE_CONFIG,
     generateMap,
     generateConnections,
+    NEUTRAL_OWNER_ID,
+    normalizeInitialOwnerId,
+    normalizeUnownedStarsToNeutral,
 } from '@pax/common';
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
@@ -429,7 +432,7 @@ function createDebugStar(id: string, x: number, y: number, ownerId: string): voi
     star.id = id;
     star.x = x;
     star.y = y;
-    star.ownerId = ownerId;
+    star.ownerId = normalizeInitialOwnerId(ownerId);
     star.starType = 'grey';
     star.activeShips = GAME_CONFIG.STARTING_SHIPS;
     star.damagedShips = 0;
@@ -1073,8 +1076,9 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const factionRemap = new Map<string, string>();
     const mapFactions = new Set<string>();
     for (const s of map.stars) {
-        if (s.ownerId && s.ownerId !== 'neutral' && s.ownerId !== '') {
-            mapFactions.add(s.ownerId);
+        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
+        if (normalizedOwnerId !== NEUTRAL_OWNER_ID) {
+            mapFactions.add(normalizedOwnerId);
         }
     }
 
@@ -1121,8 +1125,11 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const offsetY = needsScale ? targetH * 0.075 : 0;
 
     map.stars.forEach((s: MapDefinition['stars'][0]) => {
-        const isNeutral = !s.ownerId || s.ownerId === 'neutral' || s.ownerId === '';
-        const ownerId = isNeutral ? 'neutral' : (factionRemap.get(s.ownerId) ?? s.ownerId);
+        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
+        const ownerId =
+            normalizedOwnerId === NEUTRAL_OWNER_ID
+                ? NEUTRAL_OWNER_ID
+                : (factionRemap.get(normalizedOwnerId) ?? normalizedOwnerId);
         const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
         const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
         const star = new StarSchema();
@@ -1211,6 +1218,13 @@ function initializeState(): void {
         }
     } else {
         initStandardMap(playerIds);
+    }
+
+    const normalizedUnownedCount = normalizeUnownedStarsToNeutral(state!.stars.values());
+    if (normalizedUnownedCount > 0) {
+        console.warn(
+            `[INIT] Normalized ${normalizedUnownedCount} unowned star(s) to neutral ownership at game init`,
+        );
     }
 
     // Snapshot map for restart (F-71)

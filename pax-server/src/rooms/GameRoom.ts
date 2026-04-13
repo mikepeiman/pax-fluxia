@@ -12,7 +12,13 @@ import {
 } from "../schema/GameState.schema";
 
 // Import shared game logic from @pax/common
-import { GameEngine, STAR_TYPE_STATS, DEFAULT_ENGINE_CONFIG } from "@pax/common";
+import {
+    GameEngine,
+    STAR_TYPE_STATS,
+    DEFAULT_ENGINE_CONFIG,
+    normalizeInitialOwnerId,
+    normalizeUnownedStarsToNeutral,
+} from "@pax/common";
 import { attachLaneWaypointsToConnections, generateMap, type LanePathKind, type MapConnection, type MapLaneMode } from "@pax/common/mapgen";
 import type { EngineConfig } from "@pax/common";
 import { log } from '../utils/logger';
@@ -751,6 +757,14 @@ export class GameRoom extends Room {
             this.initStandardMap();
         }
 
+        const normalizedUnownedCount = normalizeUnownedStarsToNeutral(this.state.stars.values());
+        if (normalizedUnownedCount > 0) {
+            log.game(
+                'GameRoom',
+                `Normalized ${normalizedUnownedCount} unowned star(s) to neutral ownership at game init`,
+            );
+        }
+
         log.sys('GameRoom', `Map initialized: ${this.state.stars.size} stars, ${this.state.connections.length} connections`);
 
         // Tally initial player stats so leaderboard shows correct values immediately
@@ -845,7 +859,7 @@ export class GameRoom extends Room {
         star.id = id;
         star.x = x;
         star.y = y;
-        star.ownerId = ownerId;
+        star.ownerId = normalizeInitialOwnerId(ownerId);
         star.starType = starType;
         star.activeShips = this.roomOptions.shipsPerStar ?? 40;
         star.damagedShips = 0;

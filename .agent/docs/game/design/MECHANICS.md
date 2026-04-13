@@ -57,16 +57,15 @@ Each star type has a **2× bonus** in one specialty. All other multipliers are 1
 
 ### Star Ownership States
 
-Every star has one of three ownership states. All territory rendering, geometry computation, and Voronoi diagram construction must account for all three:
+Every runtime star has one of two ownership states. Territory rendering, geometry computation, and Voronoi-style ownership fields must treat both as real owners that hold space:
 
 | State | `ownerId` | Territory Rendering | Description |
 |-------|-----------|-------------------|-------------|
 | **Player-Owned** | Player ID (human or AI) | Player color fill, full alpha | Star belongs to a player. Produces ships, accepts orders. |
-| **Neutral** | `"neutral"` | Neutral color fill, reduced or zero alpha | Star is contested or belongs to no player. Has ships, can be conquered. Participates in territory geometry (has a Voronoi cell). |
-| **Unowned** | `null` / empty | No fill, zero alpha | Star exists on map but has no owner at all. Must still participate in Voronoi computation (to give neighboring stars correct cell shapes) but produces no visible territory fill. |
+| **Neutral** | `"neutral"` | Neutral color fill, reduced or zero alpha | Star belongs to the neutral faction. It can start with zero or more ships, can be conquered, and must participate in territory geometry with ownership weight. |
 
 > [!IMPORTANT]
-> **Neutral ≠ Unowned.** Neutral stars have an active ownership identity (`"neutral"`) and participate in territory geometry with their own cells. Unowned stars have no ownership identity but must still be included in Voronoi diagrams — omitting them inflates neighboring cells incorrectly.
+> **Blanket initialization rule:** `null`, empty, or missing `ownerId` is not a valid live gameplay state. During game initialization, any such star must be normalized to `"neutral"` before play begins so neutral territory holds space everywhere on the map.
 
 ---
 

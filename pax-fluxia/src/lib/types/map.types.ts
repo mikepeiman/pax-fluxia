@@ -36,7 +36,7 @@ export interface MapDefinition {
     id: StarId;
     x: number;
     y: number;
-    ownerId: PlayerId;
+    ownerId?: PlayerId;
     starType: StarType;
     activeShips?: number;
     damagedShips?: number;
