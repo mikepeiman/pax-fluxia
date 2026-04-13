@@ -9,6 +9,7 @@
 
 ## This round
 
+- Saved a reusable repository-wide LOC audit prompt and operating recipe at `.agent/docs/project/implementation-plans/2026-04-12/LOC_AUDIT_AGENT_PROMPT_AND_RECIPE_2026-04-12.md` so equivalent agents can run a high-value architectural/value sweep with explicit refresh discipline rather than vague summarization.
 - Followed up on the user's correction that yesterday's mapgen hardening already existed:
   - confirmed the hardening is real in `common/src/mapgen/connections.ts` via `ensureConnectedGraph(...)`
   - treated that as a constraint instead of re-solving the same problem blindly

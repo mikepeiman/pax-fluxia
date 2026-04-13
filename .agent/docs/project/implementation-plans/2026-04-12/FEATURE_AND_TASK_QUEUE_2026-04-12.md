@@ -6,6 +6,7 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 ## Completed This Slice
 
+- [x] Save a reusable repository-wide LOC audit prompt and operating recipe at `.agent/docs/project/implementation-plans/2026-04-12/LOC_AUDIT_AGENT_PROMPT_AND_RECIPE_2026-04-12.md`.
 - [x] Fix the renderer breach where a logical curved connection could become invisible if its trimmed curved path collapsed below 2 points.
 - [x] Add a straight-line fallback in `LaneRenderer.ts` so logical connections remain visible even when curved-path trimming collapses.
 - [x] Add the same straight fallback for order-arrow path resolution so arrows do not silently disappear on the same edge case.
@@ -161,6 +162,7 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 
 - `FEATURE_STATUS.md` still contains useful history, but this file is the cleaner active queue for today.
 - Dated work now lives in the matching dated folder by rule; this queue is the canonical daily queue location for 2026-04-12.
+- The saved LOC-audit prompt/recipe for equivalent survey agents lives beside this queue in today's dated implementation-plans folder.
 - The top priority remains color/UI trust first, then lane fidelity, then territory/metaball work.
 - As of this round, `atlas-harness` is directly callable in the Codex shell, while CLI-Anything is still gated through Pi and cannot yet be fairly exercised here because Pi command execution is blocked by an inactive provider account.
 - This file now also serves as the lossless day-scoped record of user task instructions, feature ideas, suggestions, and comments that arrived during execution.
