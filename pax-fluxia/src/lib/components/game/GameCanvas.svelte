@@ -26,6 +26,7 @@
     } from "$lib/types/game.types";
     import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
+    import { territoryTransitions } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
         initShipRendering,
@@ -105,8 +106,10 @@
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
+    import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
+    import type { OwnershipSnapshot } from "$lib/territory/contracts/OwnershipContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -163,6 +166,71 @@
 
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
+
+    function clampUnitInterval(value: number): number {
+        return Math.max(0, Math.min(1, value));
+    }
+
+    function buildActiveRenderFamilyTransition(
+        nowMs: number,
+    ): RenderFamilyActiveTransition | null {
+        const events = territoryTransitions
+            .getActiveEntries()
+            .map((entry) => {
+                const durationMs = Math.max(1, entry.durationMs);
+                const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
+                return {
+                    event: entry.event,
+                    startedAtMs: entry.startTimeMs,
+                    durationMs,
+                    rawProgress,
+                    progress: clampUnitInterval(rawProgress),
+                };
+            })
+            .filter((event) => event.rawProgress < 1)
+            .sort((a, b) => a.startedAtMs - b.startedAtMs);
+
+        if (events.length === 0) return null;
+
+        const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
+        const durationMs = Math.max(...events.map((event) => event.durationMs));
+        const rawProgress = Math.max(...events.map((event) => event.rawProgress));
+
+        return {
+            conquestEvents: events.map((event) => event.event),
+            events,
+            startedAtMs,
+            durationMs,
+            rawProgress,
+            progress: clampUnitInterval(rawProgress),
+        };
+    }
+
+    function buildRenderFamilyOwnershipSnapshot(
+        stars: ReadonlyArray<StarState>,
+        activeTransition: RenderFamilyActiveTransition | null,
+    ): OwnershipSnapshot {
+        const starOwners = new Map<string, string>();
+        for (const star of stars) {
+            if (star.ownerId) {
+                starOwners.set(star.id, star.ownerId);
+            }
+        }
+
+        return {
+            version: "render-family-live",
+            starOwners,
+            contestedLaneIds: [],
+            conquestEvents:
+                activeTransition?.events.map((entry) => ({
+                    starId: entry.event.starId,
+                    previousOwner: entry.event.previousOwner,
+                    newOwner: entry.event.newOwner,
+                    atMs: entry.startedAtMs,
+                })) ?? [],
+            virtualStars: [],
+        };
+    }
 
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
     let canonicalBridge: GameCanvasBridge | null = null;
@@ -1386,6 +1454,10 @@
                                 fam = getRenderFamily("metaball")!;
                             }
                             const mf = fam as MetaballFamily;
+                            const activeTransition =
+                                buildActiveRenderFamilyTransition(
+                                    fxOrchestrator.gameTime,
+                                );
                             mf.update(
                                 buildRenderFamilyInput({
                                     stars,
@@ -1395,6 +1467,14 @@
                                     worldHeight: GAME_HEIGHT,
                                     nowMs: fxOrchestrator.gameTime,
                                     gameTick: activeGameStore.currentTick,
+                                    ownership:
+                                        buildRenderFamilyOwnershipSnapshot(
+                                            stars,
+                                            activeTransition,
+                                        ),
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    tunableKeys: mf.tunableKeys,
                                 }),
                             );
                             if (mf.displayRoot.parent !== voronoiContainer) {

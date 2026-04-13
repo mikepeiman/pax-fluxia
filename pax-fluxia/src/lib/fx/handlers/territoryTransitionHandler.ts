@@ -28,6 +28,8 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 // ── Transition State ─────────────────────────────────────────────────────────
 
 export interface TerritoryTransitionEntry {
+    /** Full conquest payload for family-level renderers. */
+    event: ConquestEvent;
     /** Star that was conquered */
     starId: string;
     /** Attacker star IDs (origin positions for virtual star lerp) */
@@ -64,6 +66,11 @@ export class TerritoryTransitionState {
             if (!entry.consumed) result.push(entry);
         }
         return result;
+    }
+
+    /** Get all active transitions (consumed or not) for family-level renderers. */
+    getActiveEntries(): TerritoryTransitionEntry[] {
+        return [...this._pending.values()];
     }
 
     /** Mark a transition as consumed by the renderer */
@@ -115,13 +122,18 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
     priority: 200,
 
     handle(event: ConquestEvent, ctx: FXContext): void {
-        // Only record if territory overlay is enabled
-        if (!GAME_CONFIG.TERRITORY_ENGINE_ENABLED) return;
-
-        const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+        let transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+        if (
+            GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK &&
+            ctx.effectiveTickMs > 0 &&
+            transitionMs > ctx.effectiveTickMs
+        ) {
+            transitionMs = ctx.effectiveTickMs;
+        }
         if (transitionMs <= 0) return; // Instant transitions, no animation needed
 
         territoryTransitions.add({
+            event,
             starId: event.starId,
             attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],
             previousOwner: event.previousOwner,

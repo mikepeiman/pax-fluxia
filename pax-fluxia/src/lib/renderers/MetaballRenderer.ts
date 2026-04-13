@@ -79,6 +79,8 @@ function ensureMetaballParenting(
 export interface MetaballRenderOptions {
     /** When set, enables combat/recency border boosts from Star lastCombatTick / lastAttackTick */
     gameTick?: number;
+    /** Explicit family-built influence scene; when present the renderer skips legacy sample discovery. */
+    sceneInput?: MetaballSceneInput;
 }
 
 // ── Falloff Functions ──────────────────────────────────────────────────────
@@ -179,7 +181,8 @@ function applyBorderHSL(
 
 // ── Influence samples ─────────────────────────────────────────────────────
 
-interface InfluenceSample {
+export interface MetaballInfluenceSample {
+    id?: string;
     x: number;
     y: number;
     playerIdx: number;
@@ -189,17 +192,30 @@ interface InfluenceSample {
     disconnectVirtual?: boolean;
 }
 
-function starStrength(s: StarState, strengthMult: number): number {
+export interface MetaballSceneInput {
+    ownedStars: ReadonlyArray<StarState>;
+    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>;
+    playerColors: ReadonlyArray<readonly [number, number, number]>;
+    clusterShips: ReadonlyArray<number>;
+    samples: ReadonlyArray<MetaballInfluenceSample>;
+    fingerprint?: string;
+}
+
+export function computeMetaballStarStrength(
+    s: StarState,
+    strengthMult: number,
+): number {
     return (0.5 + Math.min(2.0, Math.log2(Math.max(1, s.activeShips + s.damagedShips)) * 0.2)) * strengthMult;
 }
 
 function buildCorridorSamples(
     connections: StarConnection[] | undefined,
     starById: Map<string, StarState>,
-    clusterMap: Map<string, { clusterIdx: number; ownerId: string }>,
+    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>,
     strengthMult: number,
-): InfluenceSample[] {
-    if (!connections?.length) return [];
+): MetaballInfluenceSample[] {
+    const connectionList = connections ?? [];
+    if (connectionList.length === 0) return [];
     const corridorEnabled = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true;
     const contestMidpointEnabled =
         GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true;
@@ -212,7 +228,7 @@ function buildCorridorSamples(
     const ownedStars = [...starById.values()].filter((s) => Boolean(s.ownerId));
     const sites = buildCorridorVirtualSites(
         ownedStars,
-        connections,
+        connectionList,
         spacing,
         cxWeight,
         cxCount > 0 ? cxCount : undefined,
@@ -222,7 +238,7 @@ function buildCorridorSamples(
         corridorEnabled,
     );
 
-    const out: InfluenceSample[] = [];
+    const out: MetaballInfluenceSample[] = [];
     for (const site of sites) {
         const sa = starById.get(site.sourceStarA);
         const sb = starById.get(site.sourceStarB);
@@ -232,7 +248,10 @@ function buildCorridorSamples(
         if (playerIdx === undefined) continue;
 
         const str =
-            ((starStrength(sa, strengthMult) + starStrength(sb, strengthMult)) / 2) * site.weight;
+            ((computeMetaballStarStrength(sa, strengthMult) +
+                computeMetaballStarStrength(sb, strengthMult)) /
+                2) *
+            site.weight;
         out.push({
             x: site.x,
             y: site.y,
@@ -251,23 +270,23 @@ function buildDisconnectSamples(
     allStars: StarState[],
     ownedStars: StarState[],
     connections: StarConnection[] | undefined,
-    clusterMap: Map<string, { clusterIdx: number; ownerId: string }>,
+    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>,
     strengthMult: number,
     starById: Map<string, StarState>,
-): InfluenceSample[] {
-    if (!connections?.length) return [];
+): MetaballInfluenceSample[] {
     if (!GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) return [];
 
+    const connectionList = connections ?? [];
     const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
     const dxW = GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3;
     const virtuals = computeDisconnectVirtuals(
         ownedStars,
         allStars,
-        connections,
+        connectionList,
         maxDist,
         dxW,
     );
-    const out: InfluenceSample[] = [];
+    const out: MetaballInfluenceSample[] = [];
 
     for (const v of virtuals) {
         let nearestEnemy: StarState | null = null;
@@ -288,7 +307,9 @@ function buildDisconnectSamples(
         const sb = starById.get(v.sourceStarB);
         if (!sa || !sb) continue;
         const str =
-            ((starStrength(sa, strengthMult) + starStrength(sb, strengthMult)) / 2) *
+            ((computeMetaballStarStrength(sa, strengthMult) +
+                computeMetaballStarStrength(sb, strengthMult)) /
+                2) *
             v.weight;
 
         out.push({
@@ -321,7 +342,11 @@ function combatActivityBucket(s: StarState, gameTick: number | undefined): numbe
     return 0;
 }
 
-function buildFingerprint(stars: StarState[], gameTick: number | undefined): string {
+function buildFingerprint(
+    stars: StarState[],
+    gameTick: number | undefined,
+    sceneFingerprint?: string,
+): string {
     let fp = '';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}:${shipInfluenceBucket(s)}:${combatActivityBucket(s, gameTick)}|`;
@@ -336,12 +361,16 @@ function buildFingerprint(stars: StarState[], gameTick: number | undefined): str
     fp += `:${GAME_CONFIG.METABALL_SATURATION}:${GAME_CONFIG.METABALL_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_SATURATION}:${GAME_CONFIG.METABALL_BORDER_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.METABALL_CHAIKIN_PASSES}`;
+    fp += `:${GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ? 1 : 0}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS}:${GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
     fp += `:msr${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
-    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
+    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
     fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    if (sceneFingerprint) {
+        fp += `:scene:${sceneFingerprint}`;
+    }
     return fp;
 }
 
@@ -403,7 +432,7 @@ function segmentNearHotCombat(
     gameTick: number | undefined,
     combatWindowTicks: number,
     ownedStars: StarState[],
-    clusterMap: Map<string, { clusterIdx: number; ownerId: string }>,
+    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>,
     proximityPx: number,
 ): boolean {
     if (gameTick === undefined || combatWindowTicks <= 0) return false;
@@ -437,7 +466,7 @@ function resolveMetaballCellWinner(
     px: number,
     py: number,
     ownedStars: StarState[],
-    clusterMap: Map<string, { clusterIdx: number; ownerId: string }>,
+    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>,
     msrPx: number,
     dominanceFilterOn: boolean,
     dominanceMinActive: number,
@@ -669,7 +698,9 @@ function renderMetaballImpl(
     connections?: StarConnection[],
     options?: MetaballRenderOptions,
 ): void {
-    const show = GAME_CONFIG.TERRITORY_METABALL;
+    const show =
+        GAME_CONFIG.TERRITORY_RENDER_MODE === 'metaball' ||
+        GAME_CONFIG.TERRITORY_METABALL;
     const gameTick = options?.gameTick;
     const blurStrengthCfg = Math.max(0, GAME_CONFIG.METABALL_BLUR ?? 0);
     const blurUnifiesBorders = !!GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS;
@@ -684,8 +715,9 @@ function renderMetaballImpl(
     ensureMetaballParenting(container, blurUnifiesBorders, blurStrengthCfg);
     if (!territoryGraphics || !borderGraphics) return;
 
+    const sceneInput = options?.sceneInput;
     const fingerprint =
-        buildFingerprint(stars, gameTick) +
+        buildFingerprint(stars, gameTick, sceneInput?.fingerprint) +
         `:${worldWidth}:${worldHeight}` +
         `:colors:${buildColorFingerprint(stars, colorUtils)}`;
     if (fingerprint === cachedFingerprint) {
@@ -694,7 +726,9 @@ function renderMetaballImpl(
     }
     cachedFingerprint = fingerprint;
 
-    const ownedStars = stars.filter(s => s.ownerId);
+    const ownedStars = sceneInput
+        ? [...sceneInput.ownedStars]
+        : stars.filter(s => s.ownerId);
     if (ownedStars.length === 0) {
         if (metaballLayer) metaballLayer.visible = false;
         else {
@@ -734,37 +768,46 @@ function renderMetaballImpl(
     const starById = new Map<string, StarState>();
     for (const s of ownedStars) starById.set(s.id, s);
 
-    const clusterMap = findConnectedClustersOptimized(
-        ownedStars,
-        connections ?? [],
-        starById,
-    );
+    const clusterMap = sceneInput
+        ? sceneInput.clusterMap
+        : findConnectedClustersOptimized(ownedStars, connections ?? [], starById);
 
     const clusterValues = Array.from(clusterMap.values());
-    const numClusters =
-        clusterValues.length > 0
-            ? Math.max(...clusterValues.map(c => c.clusterIdx)) + 1
-            : 0;
+    const numClusters = sceneInput
+        ? sceneInput.playerColors.length
+        : clusterValues.length > 0
+          ? Math.max(...clusterValues.map(c => c.clusterIdx)) + 1
+          : 0;
 
-    const clusterOwnerMap = new Map<number, string>();
-    for (const [, info] of clusterMap) {
-        if (!clusterOwnerMap.has(info.clusterIdx)) {
-            clusterOwnerMap.set(info.clusterIdx, info.ownerId);
-        }
-    }
+    const playerColors: [number, number, number][] = sceneInput
+        ? sceneInput.playerColors.map((color) => [color[0], color[1], color[2]])
+        : (() => {
+              const clusterOwnerMap = new Map<number, string>();
+              for (const [, info] of clusterMap) {
+                  if (!clusterOwnerMap.has(info.clusterIdx)) {
+                      clusterOwnerMap.set(info.clusterIdx, info.ownerId);
+                  }
+              }
 
-    const playerColors: [number, number, number][] = new Array(numClusters);
-    for (const [ci, ownerId] of clusterOwnerMap) {
-        playerColors[ci] = hexToRGB(colorUtils.getPlayerColor(ownerId));
-    }
+              const colors: [number, number, number][] = new Array(numClusters);
+              for (const [ci, ownerId] of clusterOwnerMap) {
+                  colors[ci] = hexToRGB(colorUtils.getPlayerColor(ownerId));
+              }
+              return colors;
+          })();
 
-    const clusterShips = new Float32Array(numClusters);
-    for (const s of ownedStars) {
-        const ci = clusterMap.get(s.id)?.clusterIdx;
-        if (ci !== undefined) {
-            clusterShips[ci] += (s.activeShips ?? 0) + (s.damagedShips ?? 0);
-        }
-    }
+    const clusterShips = sceneInput
+        ? Float32Array.from(sceneInput.clusterShips)
+        : (() => {
+              const ships = new Float32Array(numClusters);
+              for (const s of ownedStars) {
+                  const ci = clusterMap.get(s.id)?.clusterIdx;
+                  if (ci !== undefined) {
+                      ships[ci] += (s.activeShips ?? 0) + (s.damagedShips ?? 0);
+                  }
+              }
+              return ships;
+          })();
 
     const combatProximityCfg = GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ?? 0;
     const combatProximityPx =
@@ -781,23 +824,28 @@ function renderMetaballImpl(
     const cols = Math.ceil(gridW / cellSize);
     const rows = Math.ceil(gridH / cellSize);
 
-    const starData: InfluenceSample[] = ownedStars.map(s => ({
-        x: s.x,
-        y: s.y,
-        playerIdx: clusterMap.get(s.id)?.clusterIdx ?? 0,
-        strength: starStrength(s, strengthMult),
-    }));
-    starData.push(...buildCorridorSamples(connections, starById, clusterMap, strengthMult));
-    starData.push(
-        ...buildDisconnectSamples(
-            stars,
-            ownedStars,
-            connections,
-            clusterMap,
-            strengthMult,
-            starById,
-        ),
-    );
+    const starData: MetaballInfluenceSample[] = sceneInput
+        ? [...sceneInput.samples]
+        : (() => {
+              const data: MetaballInfluenceSample[] = ownedStars.map(s => ({
+                  x: s.x,
+                  y: s.y,
+                  playerIdx: clusterMap.get(s.id)?.clusterIdx ?? 0,
+                  strength: computeMetaballStarStrength(s, strengthMult),
+              }));
+              data.push(...buildCorridorSamples(connections, starById, clusterMap, strengthMult));
+              data.push(
+                  ...buildDisconnectSamples(
+                      stars,
+                      ownedStars,
+                      connections,
+                      clusterMap,
+                      strengthMult,
+                      starById,
+                  ),
+              );
+              return data;
+          })();
 
     /**
      * - **ownerGridGeom** — `infGeom` (stars + CX + DX) → borders.

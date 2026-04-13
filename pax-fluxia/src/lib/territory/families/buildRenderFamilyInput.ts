@@ -1,5 +1,29 @@
+import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
-import type { RenderFamilyInput } from './RenderFamilyTypes';
+import type {
+    RenderFamilyInput,
+    RenderFamilyTunableValue,
+} from './RenderFamilyTypes';
+
+function collectRenderFamilyTunables(params: {
+    tunableKeys?: readonly string[];
+    configSource?: Record<string, unknown>;
+}): ReadonlyMap<string, RenderFamilyTunableValue> {
+    if (!params.tunableKeys?.length) {
+        return new Map();
+    }
+
+    const configSource =
+        params.configSource ??
+        (GAME_CONFIG as unknown as Record<string, unknown>);
+    const tunables = new Map<string, RenderFamilyTunableValue>();
+
+    for (const key of params.tunableKeys) {
+        tunables.set(key, configSource[key] as RenderFamilyTunableValue);
+    }
+
+    return tunables;
+}
 
 export function buildRenderFamilyInput(params: {
     stars: StarState[];
@@ -8,15 +32,24 @@ export function buildRenderFamilyInput(params: {
     worldHeight: number;
     nowMs: number;
     gameTick?: number;
+    ownership?: RenderFamilyInput['ownership'];
+    renderer?: RenderFamilyInput['renderer'];
+    activeTransition?: RenderFamilyInput['activeTransition'];
+    tunableKeys?: readonly string[];
+    configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
     return {
-        ownership: null,
+        ownership: params.ownership ?? null,
         nowMs: params.nowMs,
         gameTick: params.gameTick,
         stars: params.stars,
         lanes: params.lanes,
         world: { width: params.worldWidth, height: params.worldHeight },
-        tunables: new Map(),
-        activeTransition: null,
+        tunables: collectRenderFamilyTunables({
+            tunableKeys: params.tunableKeys,
+            configSource: params.configSource,
+        }),
+        renderer: params.renderer,
+        activeTransition: params.activeTransition ?? null,
     };
 }
