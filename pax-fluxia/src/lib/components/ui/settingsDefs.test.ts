@@ -19,6 +19,7 @@ describe('settingsDefs', () => {
         expect(derivePanelKey('BASE_TICK_MS')).toBe('baseTickMs');
         expect(derivePanelKey('DF_ALPHA')).toBe('dfAlpha');
         expect(derivePanelKey('SHOW_HEX_GRID')).toBe('showHexGrid');
+        expect(derivePanelKey('METABALL_BURST_BOUNDARY_BASIS')).toBe('metaballBurstBoundaryBasis');
     });
 
     it('entries without explicit panelKey auto-derive correctly', () => {

@@ -112,7 +112,7 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
     { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Starting Voronoi weight of the loser\'s retreating virtual star. Higher = loser territory stays larger at the start of the transition. 0 = use default (starMargin²).' },
     { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Ending Voronoi weight of the loser\'s retreating virtual star. 0 = territory dissolves completely. Higher = loser retains some territory area at transition end.' },
-    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the loser\'s power fade from Power Start to Power End. 0 = uses Loser Travel duration. Controls how fast the losing territory dissolves.' },
+    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the transition-vstar influence lerp. Metaball uses it for victor/loser weight timing; legacy VS uses it for loser fade. 0 = uses the active travel duration.' },
 ];
 
 // ── Star Label Slider Definitions ───────────────────────────────────────────
@@ -558,6 +558,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'VS_POWER_LERP_DURATION_MS' },
     { configKey: 'VS_BIND_TO_TICK' },
     { configKey: 'VS_TRANSITION_MODE' },
+    { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

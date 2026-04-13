@@ -7,6 +7,7 @@ import type {
     RenderFamilyTunableValue,
 } from '../RenderFamilyTypes';
 import { buildMetaballScene } from './buildMetaballScene';
+import { reconcileMetaballConquestCache } from './metaballConquestTransitions';
 
 function makeStar(params: {
     id: string;
@@ -137,6 +138,7 @@ describe('buildMetaballScene', () => {
                 lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 100 }],
                 activeTransition: makeConquestTransition(),
                 tunables: {
+                    VS_TRANSITION_MODE: 'metaball_lane_push',
                     MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
                     MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
                 },
@@ -160,5 +162,93 @@ describe('buildMetaballScene', () => {
         );
         expect(advancingSample?.playerIdx).toBe(attackerBase?.playerIdx);
         expect(advancingSample?.strength ?? 0).toBeGreaterThan(0);
+    });
+
+    it('builds six-slice burst samples and suppresses the conquered base star until completion', () => {
+        const stars = [
+            makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 100, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'old-north', x: 100, y: 110, ownerId: 'red' }),
+            makeStar({ id: 'old-south', x: 115, y: -60, ownerId: 'red' }),
+        ];
+
+        const input = makeInput({
+            stars,
+            lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 100 }],
+            activeTransition: makeConquestTransition(),
+            tunables: {
+                VS_TRANSITION_MODE: 'metaball_six_slice_burst',
+                MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+                METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour',
+            },
+        });
+        const conquestCache = new Map();
+        reconcileMetaballConquestCache({
+            input,
+            colorUtils,
+            conquestCache,
+        });
+
+        const scene = buildMetaballScene(input, colorUtils, conquestCache);
+        const ids = scene.samples.map((sample) => sample.id ?? '');
+
+        expect(conquestCache.size).toBe(1);
+        expect(ids.includes('star:target')).toBe(false);
+        expect(ids.filter((id) => id.includes(':victor:'))).toHaveLength(1);
+        expect(ids.filter((id) => id.includes(':burst:'))).toHaveLength(5);
+    });
+
+    it('caches different burst distances for different boundary basis modes', () => {
+        const stars = [
+            makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 100, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'old-north', x: 100, y: 180, ownerId: 'red' }),
+            makeStar({ id: 'old-east', x: 190, y: 20, ownerId: 'red' }),
+        ];
+
+        const contourInput = makeInput({
+            stars,
+            lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 100 }],
+            activeTransition: makeConquestTransition(),
+            tunables: {
+                VS_TRANSITION_MODE: 'metaball_six_slice_burst',
+                METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour',
+                MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+            },
+        });
+        const approximateInput = makeInput({
+            stars,
+            lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 100 }],
+            activeTransition: makeConquestTransition(),
+            tunables: {
+                VS_TRANSITION_MODE: 'metaball_six_slice_burst',
+                METABALL_BURST_BOUNDARY_BASIS: 'approximate_radius',
+                MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+            },
+        });
+        const contourCache = new Map();
+        const approximateCache = new Map();
+
+        reconcileMetaballConquestCache({
+            input: contourInput,
+            colorUtils,
+            conquestCache: contourCache,
+        });
+        reconcileMetaballConquestCache({
+            input: approximateInput,
+            colorUtils,
+            conquestCache: approximateCache,
+        });
+
+        const contourDistance = [...contourCache.values()][0]?.commonBurstDistancePx ?? 0;
+        const approximateDistance =
+            [...approximateCache.values()][0]?.commonBurstDistancePx ?? 0;
+
+        expect(contourDistance).toBeGreaterThan(0);
+        expect(approximateDistance).toBeGreaterThan(0);
+        expect(approximateDistance).not.toBe(contourDistance);
     });
 });

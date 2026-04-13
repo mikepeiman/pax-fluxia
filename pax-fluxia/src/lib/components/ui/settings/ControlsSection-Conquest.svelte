@@ -1,6 +1,10 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { ANIM_SLIDERS } from "../settingsDefs";
+    import {
+        METABALL_BURST_BOUNDARY_BASIS_OPTIONS,
+        coerceVsTransitionModeForRenderMode,
+    } from "$lib/territory/transitions/territoryTransitionModes";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     const VS_SLIDERS = ANIM_SLIDERS.filter((slider) => slider.group === "VS Transition");
@@ -34,6 +38,24 @@
         lockRatioToTick,
         lockRatioToAnimSpeed,
     }: Props = $props();
+
+    let activeRenderMode = $derived(
+        (panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "territory_canonical") as string,
+    );
+    let activeTransitionMode = $derived(
+        coerceVsTransitionModeForRenderMode(
+            activeRenderMode,
+            (panel.vsTransitionMode ?? GAME_CONFIG.VS_TRANSITION_MODE ?? null) as
+                | string
+                | null,
+        ),
+    );
+    let showMetaballBurstBoundaryBasis = $derived(
+        activeRenderMode === "metaball" &&
+            activeTransitionMode === "metaball_six_slice_burst",
+    );
 </script>
 
 <CategoryThemeBar category="conquest" onApply={() => syncFromConfig?.()} />
@@ -446,29 +468,27 @@
     </div>
 {/if}
 
-<h4 class="sub-heading">VS Transition</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ghost Mode</span>
-        <span class="val">{panel.vsTransitionMode ?? "no_loser"}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={panel.vsTransitionMode ?? "no_loser"}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            GAME_CONFIG.VS_TRANSITION_MODE = value as any;
-            updatePanel("vsTransitionMode", value);
-        }}
-    >
-        <option value="dual_ghost">Dual Ghost</option>
-        <option value="no_loser">No Loser Ghost</option>
-        <option value="no_ghosts">No Ghosts</option>
-        <option value="matched_ease">Matched Ease</option>
-        <option value="sequential">Sequential</option>
-        <option value="linear">Linear</option>
-    </select>
+<h4 class="sub-heading">Transition Controls</h4>
+<div class="row-hint">
+    Territory selects the active transition mode. These controls tune timing and
+    influence for Metaball conquest transitions and the legacy VS path.
 </div>
+
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            GAME_CONFIG.VS_BIND_TO_TICK = value;
+            updatePanel("vsBindToTick", value);
+        }}
+    />
+    <span class="var-name">Bind VS timing to tick</span>
+    <span class="val">
+        {(panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true) ? "On" : "Off"}
+    </span>
+</label>
 
 {#each VS_SLIDERS as slider}
     <div class="var-row" class:locked={animLockModes[slider.key] != null}>
@@ -516,6 +536,34 @@
         />
     </div>
 {/each}
+
+{#if showMetaballBurstBoundaryBasis}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Burst Boundary Basis</span>
+            <span class="val">
+                {panel.metaballBurstBoundaryBasis ??
+                    GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
+                    "t0_region_contour"}
+            </span>
+        </div>
+        <select
+            class="mode-select"
+            value={panel.metaballBurstBoundaryBasis ??
+                GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
+                "t0_region_contour"}
+            onchange={(event) => {
+                const value = (event.target as HTMLSelectElement).value;
+                GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS = value as any;
+                updatePanel("metaballBurstBoundaryBasis", value);
+            }}
+        >
+            {#each METABALL_BURST_BOUNDARY_BASIS_OPTIONS as option}
+                <option value={option.id}>{option.label}</option>
+            {/each}
+        </select>
+    </div>
+{/if}
 
 <style>
     @import "./panel-shared.css";

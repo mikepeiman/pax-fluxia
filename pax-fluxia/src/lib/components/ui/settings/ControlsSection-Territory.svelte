@@ -14,6 +14,10 @@
     familyRegistryEpoch,
     getRegisteredFamilyAdapterModeIds,
   } from "$lib/territory/families/renderFamilyRegistry";
+  import {
+    coerceVsTransitionModeForRenderMode,
+    getTransitionModeOptionsForRenderMode,
+  } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -396,6 +400,20 @@
     return raw;
   }
 
+  function resolveActiveTransitionModeId(): string {
+    return coerceVsTransitionModeForRenderMode(
+      resolveActiveStyleId(),
+      (panel.vsTransitionMode ?? GAME_CONFIG.VS_TRANSITION_MODE ?? null) as
+        | string
+        | null,
+    );
+  }
+
+  function showLegacyVsTransitionModeSelector(): boolean {
+    const activeStyle = resolveActiveStyleId();
+    return activeStyle === "power_voronoi" || activeStyle === "pvv2_dy4";
+  }
+
   function rendererModules(): Array<
     TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
   > {
@@ -594,6 +612,34 @@
               >USE_RENDER_FAMILIES (family gate)</span>
           </label>
         </div>
+
+        {#if showLegacyVsTransitionModeSelector()}
+          <div
+            class="axis-row"
+            style="--accent: #22d3ee; --accent-bg: rgba(34,211,238,0.15)">
+            <span class="axis-label">Transition</span>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:0;">
+              <select
+                class="mode-select"
+                value={resolveActiveTransitionModeId()}
+                onchange={(event) => {
+                  const value = (event.target as HTMLSelectElement).value;
+                  debouncedConfigUpdate(
+                    "VS_TRANSITION_MODE",
+                    "vsTransitionMode",
+                    value,
+                  );
+                }}>
+                {#each getTransitionModeOptionsForRenderMode(resolveActiveStyleId()) as option}
+                  <option value={option.id}>{option.label}</option>
+                {/each}
+              </select>
+              <div class="axis-note">
+                Legacy VS transition mode for the active Voronoi renderer.
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -700,6 +746,23 @@
         metaball renderer.
       </p>
     </div>
+    <div class="var-row">
+      <div class="row-top">
+        <span class="var-name">Transition Mode</span>
+        <span class="val">{resolveActiveTransitionModeId()}</span>
+      </div>
+      <select
+        class="mode-select"
+        value={resolveActiveTransitionModeId()}
+        onchange={(event) => {
+          const value = (event.target as HTMLSelectElement).value;
+          debouncedConfigUpdate("VS_TRANSITION_MODE", "vsTransitionMode", value);
+        }}>
+        {#each getTransitionModeOptionsForRenderMode("metaball") as option}
+          <option value={option.id}>{option.label}</option>
+        {/each}
+      </select>
+    </div>
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
@@ -708,7 +771,7 @@
       <strong>CX Corridors</strong>
       adds lane influence for Metaball; <strong>DX Disconnect</strong> inserts
       paired enemy virtuals around the Euclidean midpoint of disconnected same-owner
-      stars.
+      stars. Conquest timing controls stay in the Conquest panel.
     </div>
     <div class="var-row">
       <div class="row-top">

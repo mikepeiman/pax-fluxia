@@ -3,6 +3,10 @@ import { renderMetaball, resetMetaballCache } from '$lib/renderers/MetaballRende
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { RenderFamily, RenderFamilyInput, RenderFamilyOutput } from '../RenderFamilyTypes';
 import { buildMetaballScene } from './buildMetaballScene';
+import {
+    reconcileMetaballConquestCache,
+    type MetaballConquestCacheEntry,
+} from './metaballConquestTransitions';
 
 const METABALL_TUNABLE_KEYS = [
     'MODIFIED_VORONOI_STAR_MARGIN',
@@ -17,6 +21,14 @@ const METABALL_TUNABLE_KEYS = [
     'TERRITORY_TRANSITION_MS',
     'TERRITORY_TRANSITION_BIND_TO_TICK',
     'BASE_TICK_MS',
+    'VS_VICTOR_TRAVEL_MS',
+    'VS_LOSER_TRAVEL_MS',
+    'VS_POWER_LERP_START',
+    'VS_POWER_LERP_END',
+    'VS_POWER_LERP_DURATION_MS',
+    'VS_BIND_TO_TICK',
+    'VS_TRANSITION_MODE',
+    'METABALL_BURST_BOUNDARY_BASIS',
     'METABALL_INFLUENCE_RADIUS',
     'METABALL_FALLOFF',
     'METABALL_BLEND_SHARPNESS',
@@ -54,6 +66,7 @@ export class MetaballFamily implements RenderFamily {
 
     private readonly root = new PIXI.Container();
     private readonly colorUtils: ColorUtils;
+    private readonly conquestCache = new Map<string, MetaballConquestCacheEntry>();
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -65,7 +78,16 @@ export class MetaballFamily implements RenderFamily {
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
-        const sceneInput = buildMetaballScene(input, this.colorUtils);
+        reconcileMetaballConquestCache({
+            input,
+            colorUtils: this.colorUtils,
+            conquestCache: this.conquestCache,
+        });
+        const sceneInput = buildMetaballScene(
+            input,
+            this.colorUtils,
+            this.conquestCache,
+        );
         renderMetaball(
             [...input.stars],
             this.root,
@@ -83,6 +105,7 @@ export class MetaballFamily implements RenderFamily {
 
     dispose(): void {
         resetMetaballCache();
+        this.conquestCache.clear();
         this.root.removeChildren();
     }
 }

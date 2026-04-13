@@ -22,6 +22,13 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [x] Make the conquered target star's Metaball contribution transition-aware and strengthen the advancing/retreating transient samples so the first conquest handoff is materially visible instead of snapping to the already-conquered target.
 - [x] Re-run focused Metaball/DX tests plus full client `tsc` and `build` after the transition-path fix.
 - [x] Write a project post-mortem for the transition path failure and the earlier "implemented without real runtime verification" mistake.
+- [x] Unify territory/conquest control ownership for transition tuning: move renderer-specific `VS_TRANSITION_MODE` selection into Territory, keep numeric `VS_*` tuning in Conquest, and surface `VS_BIND_TO_TICK` instead of leaving it hidden.
+- [x] Expand the shared transition-mode config contract so `VS_TRANSITION_MODE` can carry contextual Metaball modes (`metaball_lane_push`, `metaball_six_slice_burst`) without breaking legacy PV/VS paths.
+- [x] Wire the full `VS_*` conquest tuning surface into Metaball scene building so victor travel, loser travel, power lerp start/end, lerp duration, and tick binding all affect Metaball conquest motion.
+- [x] Add a cached six-slice Metaball conquest mode that records a `T0` boundary snapshot, orients six 60-degree rays from the primary attacker tangent, spawns one victor vstar per attacker, and emits five loser burst vstars along the non-lane rays.
+- [x] Add the `METABALL_BURST_BOUNDARY_BASIS` control and conditional Conquest-panel affordance so the new six-slice mode can choose between `t0_region_contour`, `per_ray_contour_hits`, and `approximate_radius`.
+- [x] Refactor the Metaball family scene builder into shared base-context + transition-mode dispatch helpers so the lane-push and six-slice modes share the same star/CX/DX sample assembly.
+- [x] Add focused tests for transition-mode coercion, Metaball six-slice burst sample generation, target-star suppression during burst mode, and boundary-basis cache differences; re-run `vitest`, `tsc`, and `build`.
 
 ## Follow-Ups
 
@@ -31,3 +38,5 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [ ] User-verify that the settings column open/closed state now survives reloads on desktop.
 - [ ] User-verify that a Metaball conquest now visibly morphs instead of snapping instantly.
 - [ ] If the handoff is still too subtle or too strong, tune the target-star ramp and transient sample strengths from this unified baseline instead of reintroducing a second Metaball runtime path.
+- [ ] User-compare `Lane Push` versus `Six-Slice Burst` in live gameplay and decide which should become the default Metaball conquest mode.
+- [ ] If `Six-Slice Burst` reads too soft or too explosive, tune the shared `VS_*` timings and the `METABALL_BURST_BOUNDARY_BASIS` distance basis before adding any new transition families.
