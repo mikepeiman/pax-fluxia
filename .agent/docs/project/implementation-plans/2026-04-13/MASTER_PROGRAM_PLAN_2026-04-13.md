@@ -88,6 +88,10 @@
   - insert a vertex on that exact shortest path
   - push the vertex to the requested Lane Margin and not beyond it
   - repeat deterministically for the next blocker if needed
+- Corrected the first deterministic-remap regression:
+  - the first version over-pruned because it failed too early on multi-blocker cases
+  - added explicit clearance epsilon to stop floating-point reinsertion loops
+  - changed curved conversion to conservative deterministic corner-rounding instead of over-aggressive smoothing
 - The audit now records:
   - chord minimum clearance
   - final minimum clearance
@@ -114,6 +118,9 @@
   - `LM 175` -> `components 1`, `override 10`
   - `LM 230` -> `components 1`, `override 19`
   - `LM 245` -> `components 1`, `override 23`
+- Follow-up frozen-map validation after correcting the over-pruning regression:
+  - `LM 100`, curved mode -> `54 connections`, `6 curved`, `0 audit violations`
+  - `LM 175`, curved mode -> `31 connections`, `9 curved`, `9 connectivity-restoration edges`, `0 audit violations`
 
 ## Next likely moves
 

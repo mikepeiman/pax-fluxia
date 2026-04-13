@@ -58,6 +58,13 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - vertex inserted on that shortest path
   - vertex pushed to the requested Lane Margin and not beyond it
   - repeated deterministically if another blocker still violates the constraint
+- [x] Correct the first deterministic-remap regression:
+  - remove fail-fast multi-blocker pruning
+  - add explicit clearance epsilon to stop floating-point reinsertion loops
+  - replace overly-aggressive curved smoothing with conservative deterministic corner-rounding
+- [x] Revalidate frozen-map curved mode after the correction:
+  - `LM 100` -> `54 connections`, `6 curved`, `0 audit violations`
+  - `LM 175` -> `31 connections`, `9 curved`, `9 connectivity-restoration edges`, `0 audit violations`
 - [x] Trace the lane-visibility divergence from authoritative map truth through schema/state/cache/rendering instead of patching the renderer blindly.
 - [x] Confirm the shared layer already carries lane-path truth (`laneWaypoints`, `lanePathKind`) in `/common` types and Colyseus schema.
 - [x] Identify the SP architecture gap: generated/rebuilt lane truth was being seeded into the cache without being written back onto authoritative `state.connections`.

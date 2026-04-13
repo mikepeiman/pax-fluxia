@@ -37,6 +37,14 @@ When a straight chord violates `Lane Margin`:
 
 This replaces the earlier generic bulge-search behavior.
 
+Correction applied in the follow-up pass:
+
+- the first deterministic version over-pruned because it failed too early on multi-blocker cases
+- the corrected version now:
+  - iterates across multiple blockers on the same lane
+  - uses a small explicit clearance epsilon to avoid floating-point reinsertion loops
+  - converts angular remaps into curved lanes with conservative deterministic corner-rounding
+
 ## Deterministic Findings
 
 ### 1. False-positive curves were real
@@ -115,6 +123,24 @@ The key change is that high-LM connectivity restoration is now explicit and audi
   - `24 straight`
   - `0 curved`
   - `23 connectivity overrides`
+
+## Follow-up Validation
+
+After correcting the over-pruning regression in the first deterministic version:
+
+- `LM 100`, adjusted style `curved`
+  - `components = 1`
+  - `54 connections`
+  - `48 straight`
+  - `6 curved`
+  - `0 audit violations`
+- `LM 175`, adjusted style `curved`
+  - `components = 1`
+  - `31 connections`
+  - `22 straight`
+  - `9 curved`
+  - `9 explicit connectivity-restoration edges`
+  - `0 audit violations`
 
 ## Current Interpretation
 

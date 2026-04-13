@@ -50,6 +50,7 @@ export interface LaneDecisionTrace {
 
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
+const CLEARANCE_EPSILON_PX = 0.1;
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -74,7 +75,7 @@ function chordClearOfObstacles(
     minDist: number,
 ): boolean {
     for (const o of obstacles) {
-        if (pointToSegmentDistance(o.x, o.y, ax, ay, bx, by) < minDist) return false;
+        if (pointToSegmentDistance(o.x, o.y, ax, ay, bx, by) < minDist - CLEARANCE_EPSILON_PX) return false;
     }
     return true;
 }
@@ -126,7 +127,7 @@ function polylineClearOfObstacles(
             const px = x1 + (x2 - x1) * t;
             const py = y1 + (y2 - y1) * t;
             for (const o of obstacles) {
-                if (hypot(px - o.x, py - o.y) < minDist) return false;
+                if (hypot(px - o.x, py - o.y) < minDist - CLEARANCE_EPSILON_PX) return false;
             }
         }
     }
@@ -269,9 +270,9 @@ function trySingleKinkDetour(
     starCenters: Array<{ x: number; y: number }>,
 ): Array<[number, number]> | null {
     let current: Array<[number, number]> = [[ax, ay], [bx, by]];
-    for (let iteration = 0; iteration < 4; iteration++) {
+    for (let iteration = 0; iteration < 24; iteration++) {
         const witness = sortedObstacleWitnessesToPolyline(current, obstacles)
-            .find((candidate) => candidate.distance < minDist);
+            .find((candidate) => candidate.distance < minDist - CLEARANCE_EPSILON_PX);
         if (!witness) {
             if (polylineCrossesPlaced(current, placed, starCenters)) return null;
             return current;
@@ -299,7 +300,6 @@ function trySingleKinkDetour(
             if (i === witness.segmentIndex) next.push(vertex);
         }
         next.push(current[current.length - 1]!);
-        if (!polylineClearOfObstacles(next, obstacles, minDist)) return null;
         current = next;
     }
     if (!polylineClearOfObstacles(current, obstacles, minDist)) return null;
@@ -378,32 +378,39 @@ function tryAdjustedPath(
 
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) {
-        const curved = kink.length === 3
-            ? buildQuadraticWaypointsViaControl(ax, ay, kink[1]![0], kink[1]![1], bx, by)
-            : chaikinSmoothOpenPolyline(kink, 2);
-        const minimumClearancePx = minimumObstacleDistanceToPolyline(curved, obstacles);
-        if (
-            polylineClearOfObstacles(curved, obstacles, clearancePx)
-            && !polylineCrossesPlaced(curved, placed, starCenters)
-        ) {
+        const roundedCandidates = [0.3, 0.22, 0.16, 0.12, 0.08, 0.05, 0.035, 0.025, 0.015]
+            .map((fraction) => roundPolylineWithQuadraticCorners(kink, fraction));
+        const curvedCandidates = kink.length === 3
+            ? [
+                ...roundedCandidates,
+                buildQuadraticWaypointsViaControl(ax, ay, kink[1]![0], kink[1]![1], bx, by),
+            ]
+            : roundedCandidates;
+        for (const curved of curvedCandidates) {
+            const minimumClearancePx = minimumObstacleDistanceToPolyline(curved, obstacles);
+            if (
+                polylineClearOfObstacles(curved, obstacles, clearancePx)
+                && !polylineCrossesPlaced(curved, placed, starCenters)
+            ) {
+                trace?.attempts.push({
+                    candidateKind: 'curved',
+                    minimumClearancePx,
+                    requiredClearancePx: clearancePx,
+                    waypointCount: curved.length,
+                    accepted: true,
+                    reason: 'accepted_via_deterministic_vertex',
+                });
+                return { waypoints: curved, kind: 'curved' };
+            }
             trace?.attempts.push({
                 candidateKind: 'curved',
                 minimumClearancePx,
                 requiredClearancePx: clearancePx,
                 waypointCount: curved.length,
-                accepted: true,
-                reason: 'accepted_via_deterministic_vertex',
+                accepted: false,
+                reason: 'deterministic_vertex_curve_failed',
             });
-            return { waypoints: curved, kind: 'curved' };
         }
-        trace?.attempts.push({
-            candidateKind: 'curved',
-            minimumClearancePx,
-            requiredClearancePx: clearancePx,
-            waypointCount: curved.length,
-            accepted: false,
-            reason: 'deterministic_vertex_curve_failed',
-        });
     } else {
         trace?.attempts.push({
             candidateKind: 'curved',
@@ -725,6 +732,62 @@ function buildFallbackBridgeCandidates(
         }
     }
     out.sort((left, right) => left.distance - right.distance);
+    return out;
+}
+
+function normalizeVector(dx: number, dy: number): [number, number] {
+    const len = hypot(dx, dy) || 1;
+    return [dx / len, dy / len];
+}
+
+function sampleQuadraticSegment(
+    ax: number,
+    ay: number,
+    cx: number,
+    cy: number,
+    bx: number,
+    by: number,
+    steps: number = 8,
+): Array<[number, number]> {
+    const out: Array<[number, number]> = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        out.push(quadBezierPoint(ax, ay, cx, cy, bx, by, t));
+    }
+    return out;
+}
+
+function roundPolylineWithQuadraticCorners(
+    pts: Array<[number, number]>,
+    fraction: number,
+): Array<[number, number]> {
+    if (pts.length < 3) return pts.slice();
+    const out: Array<[number, number]> = [pts[0]!];
+    let carryStart = pts[0]!;
+    for (let i = 1; i < pts.length - 1; i++) {
+        const prev = pts[i - 1]!;
+        const curr = pts[i]!;
+        const next = pts[i + 1]!;
+        const [prevNx, prevNy] = normalizeVector(prev[0] - curr[0], prev[1] - curr[1]);
+        const [nextNx, nextNy] = normalizeVector(next[0] - curr[0], next[1] - curr[1]);
+        const prevLen = hypot(prev[0] - curr[0], prev[1] - curr[1]);
+        const nextLen = hypot(next[0] - curr[0], next[1] - curr[1]);
+        const prevTrim = Math.min(prevLen * fraction, prevLen * 0.5);
+        const nextTrim = Math.min(nextLen * fraction, nextLen * 0.5);
+        const inPoint: [number, number] = [curr[0] + prevNx * prevTrim, curr[1] + prevNy * prevTrim];
+        const outPoint: [number, number] = [curr[0] + nextNx * nextTrim, curr[1] + nextNy * nextTrim];
+
+        if (hypot(inPoint[0] - carryStart[0], inPoint[1] - carryStart[1]) > 1e-6) {
+            out.push(inPoint);
+        }
+        const curve = sampleQuadraticSegment(inPoint[0], inPoint[1], curr[0], curr[1], outPoint[0], outPoint[1]);
+        out.push(...curve.slice(1));
+        carryStart = outPoint;
+    }
+    const last = pts[pts.length - 1]!;
+    if (hypot(last[0] - out[out.length - 1]![0], last[1] - out[out.length - 1]![1]) > 1e-6) {
+        out.push(last);
+    }
     return out;
 }
 

@@ -99,6 +99,7 @@ interface AuditResult {
 
 const ROOT = path.resolve(import.meta.dir, '..', '..');
 const DEFAULT_METRICS_DIR = path.join(ROOT, '.agent-harness', 'metrics');
+const CLEARANCE_EPSILON_PX = 0.1;
 const CURRENT_SETTINGS_PATH = path.join(
     ROOT,
     'common',
@@ -412,11 +413,11 @@ function auditConnections(nodes: Connectable[], options: AuditOptions): AuditRes
         let classification: AuditedConnection['classification'];
         if (trace.finalReason === 'connectivity_override_best_clearance') {
             classification = 'connectivity_override_straight';
-        } else if ((connection.lanePathKind ?? 'straight') === 'straight' && chordMinClearancePx < options.laneMarginPx) {
+        } else if ((connection.lanePathKind ?? 'straight') === 'straight' && chordMinClearancePx < options.laneMarginPx - CLEARANCE_EPSILON_PX) {
             classification = 'false_negative_straight';
-        } else if ((connection.lanePathKind ?? 'straight') !== 'straight' && chordMinClearancePx >= options.laneMarginPx) {
+        } else if ((connection.lanePathKind ?? 'straight') !== 'straight' && chordMinClearancePx >= options.laneMarginPx - CLEARANCE_EPSILON_PX) {
             classification = 'false_positive_curve';
-        } else if (finalMinClearancePx < options.laneMarginPx) {
+        } else if (finalMinClearancePx < options.laneMarginPx - CLEARANCE_EPSILON_PX) {
             classification = 'adjusted_but_still_violating';
         } else if ((connection.lanePathKind ?? 'straight') === 'straight') {
             classification = 'ok_straight';
