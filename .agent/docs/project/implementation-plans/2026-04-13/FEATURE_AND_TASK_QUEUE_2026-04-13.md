@@ -7,8 +7,8 @@ Keep the active 2026-04-13 execution queue in one dated place.
 ## Completed This Slice
 
 - [x] Eliminate the separate modal debug surface as the primary ruler entrypoint.
-- [x] Add a unified Diagnostics Bar opened from the existing right-hand Debug section.
-- [x] Move ruler workflow into the unified diagnostics flow instead of a hidden floating modal.
+- [x] Remove the later separate Diagnostics Bar experiment from the active game UI.
+- [x] Move ruler workflow into the regular right-hand Debug section instead of a second diagnostics surface.
 - [x] Add persistent vs transient ruler measurement modes.
 - [x] Add measurement logging with:
   - snapped stars / lane labels
@@ -16,13 +16,13 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - current Lane Margin at capture time
   - actual lane-state classification from authoritative map truth
   - user-overridable lane-state tag (`straight`, `bent`, `curved`, `missing`)
-- [x] Add unified diagnostics controls for:
+- [x] Add regular diagnostics-panel controls for:
   - ruler
   - live canvas overlay
   - transition snapshot recorder
-- [x] Make diagnostics-bar height part of the camera viewport budget so opening diagnostics refits the board instead of only obscuring it.
+- [x] Add a dedicated bottom-right ruler icon that toggles ruler mode and opens the Debug section.
+- [x] Keep the diagnostics-related viewport/pan corrections so the board remains navigable when overlays are present.
 - [x] Relax vertical pan clamping so the board is less vertically constrained, especially while diagnostics are open.
-- [x] Compress the diagnostics surface into a shorter bottom bar instead of a tall bottom panel.
 - [x] Move lane feasibility fully into shared geometry instead of allowing a post-connectivity lane rewrite.
 - [x] Remove reduced-clearance lane solving and invalid straight fallback from shared lane geometry.
 - [x] Split lane result classes into `straight`, `angular`, and `curved`.
@@ -58,7 +58,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Top Queue
 
-- [ ] Playtest the new Diagnostics Bar layout for space pressure and determine whether it should split into bottom bar + auxiliary top strip at narrower widths.
+- [ ] Playtest the ruler icon + regular Debug section flow and verify it is faster than the removed diagnostics-surface workflow.
 - [ ] Add lane-key copy/export actions from the ruler measurement log if the diagnostic workflow needs faster issue filing.
 - [ ] Verify in-app that lanes no longer disappear visually at higher lane margins while mechanics remain connected.
 - [ ] Verify in-app that SP and MP now both present the same visible lane truth on the same map/settings.

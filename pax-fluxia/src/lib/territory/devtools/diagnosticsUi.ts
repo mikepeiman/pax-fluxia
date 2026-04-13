@@ -3,11 +3,13 @@ import { writable } from "svelte/store";
 export interface DiagnosticsUiState {
     open: boolean;
     height: number;
+    focusSectionNonce: number;
 }
 
 const store = writable<DiagnosticsUiState>({
     open: false,
     height: 0,
+    focusSectionNonce: 0,
 });
 
 function setOpen(open: boolean): void {
@@ -20,6 +22,7 @@ function setOpen(open: boolean): void {
 
 function toggle(): void {
     store.update((state) => ({
+        ...state,
         open: !state.open,
         height: state.open ? 0 : state.height,
     }));
@@ -32,9 +35,18 @@ function setHeight(height: number): void {
     }));
 }
 
+function requestControlsOpen(): void {
+    store.update((state) => ({
+        ...state,
+        open: true,
+        focusSectionNonce: state.focusSectionNonce + 1,
+    }));
+}
+
 export const diagnosticsUi = {
     subscribe: store.subscribe,
     setOpen,
     setHeight,
     toggle,
+    requestControlsOpen,
 };

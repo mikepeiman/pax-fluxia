@@ -693,6 +693,16 @@
         | "audio"
         | "debug";
 
+    interface Props {
+        forceOpenSection?: SectionId | null;
+        forceOpenSectionNonce?: number;
+    }
+
+    let {
+        forceOpenSection = null,
+        forceOpenSectionNonce = 0,
+    }: Props = $props();
+
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
     function loadOpenSections(): SectionId[] {
         if (typeof window === "undefined") return [];
@@ -710,21 +720,30 @@
     // Set for O(1) membership checks
     let openSections = $derived(new Set(sectionOrder));
 
-    function toggleSection(id: SectionId) {
-        const idx = sectionOrder.indexOf(id);
-        if (idx >= 0) {
-            // Already open — close it
-            sectionOrder = sectionOrder.filter((s) => s !== id);
-        } else {
-            // Open — add to end (most recent = rendered first)
-            sectionOrder = [...sectionOrder, id];
-        }
+    function persistSectionOrder() {
         if (typeof window !== "undefined") {
             localStorage.setItem(
                 ACTIVE_SECTION_KEY,
                 JSON.stringify(sectionOrder),
             );
         }
+    }
+
+    function openSection(id: SectionId) {
+        sectionOrder = [...sectionOrder.filter((s) => s !== id), id];
+        persistSectionOrder();
+    }
+
+    function toggleSection(id: SectionId) {
+        const idx = sectionOrder.indexOf(id);
+        if (idx >= 0) {
+            // Already open — close it
+            sectionOrder = sectionOrder.filter((s) => s !== id);
+        } else {
+            openSection(id);
+            return;
+        }
+        persistSectionOrder();
     }
 
     // Most recently opened sections first
@@ -867,6 +886,17 @@
     let visibleSections = $derived(
         sections.filter((s) => TIER_RANK[s.tier] <= TIER_RANK[activeTier]),
     );
+
+    let lastForceOpenSectionNonce = $state(-1);
+    $effect(() => {
+        if (!forceOpenSection) return;
+        if (forceOpenSectionNonce === lastForceOpenSectionNonce) return;
+        lastForceOpenSectionNonce = forceOpenSectionNonce;
+        if (activeTier !== "developer") {
+            setTier("developer");
+        }
+        openSection(forceOpenSection);
+    });
 </script>
 
 <div class="controls-panel" use:nudgeSliders>

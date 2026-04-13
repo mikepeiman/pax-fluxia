@@ -1,39 +1,25 @@
 <script lang="ts">
     import { gameStore } from "$lib/stores/gameStore.svelte";
-    import {
-        armTrace,
-        forceDownloadTrace,
-        isTraceArmed,
-        isTraceCapturing,
-    } from "$lib/debug/travelTrace";
 
     interface Props {
         onSettingsClick?: () => void;
         onHelpClick?: () => void;
         onFitViewport?: () => void;
+        onRulerToggle?: () => void;
+        rulerActive?: boolean;
     }
 
-    let { onSettingsClick, onHelpClick, onFitViewport }: Props = $props();
+    let {
+        onSettingsClick,
+        onHelpClick,
+        onFitViewport,
+        onRulerToggle,
+        rulerActive = false,
+    }: Props = $props();
 
     const isInGame = $derived(gameStore.currentView === "game");
-    const isInMenu = $derived(gameStore.currentView === "menu");
-    let traceArmed = $state(false);
-    let traceCapturing = $state(false);
-
-    function handleArmTrace() {
-        armTrace();
-        traceArmed = true;
-        traceCapturing = false;
-    }
-
-    function handleDownloadTrace() {
-        forceDownloadTrace();
-        traceArmed = false;
-        traceCapturing = false;
-    }
 </script>
 
-<!-- Persistent top bar — always visible across all views -->
 <div class="top-bar" class:in-game={isInGame}>
     <div class="top-bar-left">
         {#if isInGame}
@@ -54,30 +40,6 @@
     </div>
 
     <div class="top-bar-right">
-        {#if isInGame}
-            <!-- Hidden 2026-02-19: developer debug tool, not user-facing
-            <button
-                class="top-bar-btn trace-btn"
-                class:armed={traceArmed}
-                class:capturing={traceCapturing}
-                onclick={handleArmTrace}
-                title="Arm travel trace — captures next transfer event"
-            >
-                {traceArmed
-                    ? "🔴 ARMED"
-                    : traceCapturing
-                      ? "⏺ CAPTURING"
-                      : "🎯 Trace"}
-            </button>
-            <button
-                class="top-bar-btn trace-btn"
-                onclick={handleDownloadTrace}
-                title="Download trace data"
-            >
-                📥 DL
-            </button>
-            -->
-        {/if}
         {#if onSettingsClick}
             <button
                 class="top-bar-btn icon-btn"
@@ -90,14 +52,23 @@
     </div>
 </div>
 
-<!-- Fit-to-viewport button — fixed bottom-right, left of help -->
+{#if onRulerToggle}
+    <button
+        class="ruler-fab"
+        class:active={rulerActive}
+        onclick={onRulerToggle}
+        title={rulerActive ? "Turn Ruler Off" : "Turn Ruler On"}
+    >
+        📏
+    </button>
+{/if}
+
 {#if onFitViewport}
     <button class="fit-fab" onclick={onFitViewport} title="Fit to Viewport (F)">
         ⛶
     </button>
 {/if}
 
-<!-- Help button — fixed bottom-right, always visible -->
 {#if onHelpClick}
     <button class="help-fab" onclick={onHelpClick} title="Help & Controls">
         ?
@@ -181,33 +152,6 @@
         background: rgba(255, 255, 255, 0.05);
     }
 
-    .trace-btn {
-        font-size: 0.6rem;
-        padding: 3px 8px;
-        margin-right: 4px;
-    }
-
-    .trace-btn.armed {
-        border-color: rgba(255, 60, 60, 0.5);
-        color: #ff6666;
-    }
-
-    .trace-btn.capturing {
-        border-color: rgba(255, 165, 0, 0.5);
-        color: #ffa500;
-        animation: pulse 1s infinite;
-    }
-
-    @keyframes pulse {
-        0%,
-        100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.5;
-        }
-    }
-
     .icon-btn {
         font-size: 1.1rem;
         padding: 4px 8px;
@@ -218,11 +162,11 @@
         font-size: 0.65rem;
     }
 
-    /* Help FAB — fixed bottom-right */
-    .help-fab {
+    .help-fab,
+    .fit-fab,
+    .ruler-fab {
         position: fixed;
         bottom: 20px;
-        right: 20px;
         width: 36px;
         height: 36px;
         border-radius: 50%;
@@ -230,49 +174,44 @@
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.15);
         color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        z-index: 200;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .help-fab {
+        right: 20px;
         font-family: "Exo", sans-serif;
         font-size: 1rem;
         font-weight: 700;
-        cursor: pointer;
-        z-index: 200;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
-    .help-fab:hover {
-        color: #fff;
-        border-color: rgba(0, 255, 255, 0.4);
-        background: rgba(20, 20, 30, 0.9);
-        box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
-    }
-
-    /* Fit-to-viewport FAB — left of help */
     .fit-fab {
-        position: fixed;
-        bottom: 20px;
         right: 64px;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: rgba(20, 20, 30, 0.7);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: rgba(255, 255, 255, 0.4);
         font-size: 1rem;
-        cursor: pointer;
-        z-index: 200;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
-    .fit-fab:hover {
+    .ruler-fab {
+        right: 108px;
+        font-size: 1rem;
+    }
+
+    .help-fab:hover,
+    .fit-fab:hover,
+    .ruler-fab:hover {
         color: #fff;
         border-color: rgba(0, 255, 255, 0.4);
         background: rgba(20, 20, 30, 0.9);
         box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+    }
+
+    .ruler-fab.active {
+        color: #57f8ff;
+        border-color: rgba(87, 248, 255, 0.5);
+        background: rgba(20, 20, 30, 0.95);
+        box-shadow: 0 0 14px rgba(87, 248, 255, 0.2);
     }
 </style>

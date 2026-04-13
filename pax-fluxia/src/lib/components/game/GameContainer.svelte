@@ -14,7 +14,6 @@
   import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
-  import DiagnosticsBar from "$lib/components/ui/DiagnosticsBar.svelte";
   import StatusBar from "$lib/components/ui/StatusBar.svelte";
   import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
@@ -22,6 +21,7 @@
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
   import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
+  import { rulerTool } from "$lib/territory/devtools/rulerTool";
 
   let gameCanvasRef: any = $state(null);
 
@@ -225,6 +225,25 @@
   let isResizing = $state(false);
   let settingsPanelWidth = $state(loadSettingsPanelWidth());
   let isSettingsResizing = $state(false);
+  let forceOpenSettingsSection = $state<"debug" | null>(null);
+  let forceOpenSettingsSectionNonce = $state(0);
+
+  function revealSettingsSection(section: "debug") {
+    forceOpenSettingsSection = section;
+    forceOpenSettingsSectionNonce += 1;
+  }
+
+  function toggleRulerDiagnostics() {
+    const nextEnabled = !rulerTool.getState().enabled;
+    rulerTool.setEnabled(nextEnabled);
+    if (nextEnabled) {
+      diagnosticsUi.requestControlsOpen();
+      setSettingsPanelOpen(true);
+      revealSettingsSection("debug");
+      return;
+    }
+    diagnosticsUi.setOpen(false);
+  }
 
   function startResize(e: PointerEvent) {
     e.preventDefault();
@@ -398,11 +417,11 @@
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
       : undefined}
+    onRulerToggle={gameStore.currentView === "game"
+      ? toggleRulerDiagnostics
+      : undefined}
+    rulerActive={gameStore.currentView === "game" ? $rulerTool.enabled : false}
   />
-
-  {#if gameStore.currentView === "game" && $diagnosticsUi.open}
-    <DiagnosticsBar />
-  {/if}
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />
@@ -495,7 +514,10 @@
             title="Close Settings">✕</button
           >
           <div class="panel-section section-tuning">
-            <GameSettingsPanel />
+            <GameSettingsPanel
+              forceOpenSection={forceOpenSettingsSection}
+              forceOpenSectionNonce={forceOpenSettingsSectionNonce}
+            />
           </div>
         </div>
       {/if}

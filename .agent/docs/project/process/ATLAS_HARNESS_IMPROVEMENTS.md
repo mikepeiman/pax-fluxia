@@ -65,6 +65,47 @@ Keep speculation separate from verified facts.
 
 ## Active Entries
 
+### 2026-04-13 A6. Workspace file tools still initialize from `C:\WINDOWS\system32` in some Codex calls
+
+- Status: open
+- Category: tool initialization failure
+- Surface: MCP workspace binding / file service bootstrap
+
+#### Verified observation
+
+At the start of this diagnostics UI slice, `atlas-harness file_read` again failed before reading any repo file. The first error was:
+
+```text
+No workspace open and auto-open from CWD failed: EPERM: operation not permitted, mkdir 'C:\WINDOWS\system32\.agent-harness'
+```
+
+Follow-on reads then failed with:
+
+```text
+null is not an object (evaluating 'fileService.read')
+```
+
+The live repository cwd for the task was:
+
+```text
+C:\Users\mikep\Desktop\WebDev\pax-fluxia
+```
+
+#### Impact
+
+- ordinary file reads become unavailable even though the repo is already open in the active Codex thread
+- tool selection gets forced back to raw shell reads
+- this reduces the value of atlas-harness precisely in the “read local code quickly and safely” path where it should be strongest
+
+#### Workaround
+
+- use direct PowerShell `Get-Content` / `Select-String` in the repo workdir for the current slice
+
+#### Desired fix or success condition
+
+- atlas-harness file tools should bind to the actual thread workspace root, not `C:\WINDOWS\system32`
+- if workspace bootstrap fails, the error should stop there cleanly instead of cascading into `fileService.read` null-object failures
+
 ### 2026-04-12 A5. `file_read` still fails in-session during ordinary documentation work
 
 - Status: open
