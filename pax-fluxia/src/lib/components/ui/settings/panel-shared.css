@@ -1,24 +1,42 @@
-/* ── Shared Panel Styles ──────────────────────────────────────────────────
- * Common CSS for all ControlsSection-*.svelte sub-components.
- * Import via: @import './panel-shared.css';
- * ─────────────────────────────────────────────────────────────────────── */
+/* Shared panel styles for ControlsSection-* components. */
 
-/* ── Sub-headings ── */
 .sub-heading {
-    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #8ab;
-    margin: 6px 0 2px;
-    padding-bottom: 3px;
+    letter-spacing: 0.14em;
+    color: rgba(186, 210, 232, 0.82);
 }
 
-/* ── Variable Row ── */
+.sub-heading:first-of-type {
+    margin-top: 2px;
+    padding-top: 0;
+    border-top: none;
+}
+
 .var-row {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 3px 4px;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.var-row:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.045);
 }
 
 .var-row.disabled {
@@ -34,22 +52,25 @@
     color: #888;
 }
 
-/* ── Row Label + Value ── */
 .row-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
 }
 
 .var-name {
     font-size: 12px;
-    color: #ccc;
+    font-weight: 600;
+    line-height: 1.25;
+    color: rgba(236, 242, 249, 0.9);
 }
 
 .val {
     font-size: 11px;
-    color: #889;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    color: rgba(150, 193, 228, 0.92);
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    white-space: nowrap;
 }
 
 .val-group {
@@ -58,7 +79,6 @@
     align-items: center;
 }
 
-/* ── Toggle Label (checkbox + label) ── */
 .toggle-label {
     display: flex;
     align-items: center;
@@ -67,7 +87,6 @@
     font-size: 12px;
 }
 
-/* ── Toggle Switch (ON/OFF slider) ── */
 .toggle-switch {
     position: relative;
     display: inline-block;
@@ -84,10 +103,7 @@
 .toggle-slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background-color: rgba(255, 255, 255, 0.15);
     border-radius: 14px;
     transition: 0.2s;
@@ -105,58 +121,64 @@
     transition: 0.2s;
 }
 
-.toggle-switch input:checked+.toggle-slider {
+.toggle-switch input:checked + .toggle-slider {
     background-color: #4ade80;
 }
 
-.toggle-switch input:checked+.toggle-slider::before {
+.toggle-switch input:checked + .toggle-slider::before {
     transform: translateX(15px);
 }
 
-/* ── Toggle Row (inline toggle with label) ── */
 .toggle-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 3px 4px;
-    border-radius: 4px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.026);
     cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
 }
 
 .toggle-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.045);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* ── Range Slider ── */
 input[type="range"] {
     width: 100%;
-    height: 5px;
+    height: 6px;
     appearance: none;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
     outline: none;
-    margin: 2px 0;
+    margin: 2px 0 1px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     appearance: none;
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: #4ade80;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.14);
     cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.65);
     background: #4ade80;
+    box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.14);
     cursor: pointer;
 }
 
-/* ── Checkbox ── */
 input[type="checkbox"] {
     accent-color: #4ade80;
     cursor: pointer;
@@ -164,14 +186,15 @@ input[type="checkbox"] {
     height: 14px;
 }
 
-/* ── Styled Select (dropdown) ── */
 .mode-select {
     background: rgba(255, 255, 255, 0.06);
     color: #ddd;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 5px;
+    border-radius: 7px;
     font-size: 11px;
-    padding: 3px 8px;
+    min-height: 32px;
+    width: 100%;
+    padding: 6px 10px;
     cursor: pointer;
     font-family: inherit;
     appearance: none;
@@ -179,7 +202,7 @@ input[type="checkbox"] {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 6px center;
-    padding-right: 20px;
+    padding-right: 24px;
 }
 
 .mode-select:focus {
@@ -192,11 +215,10 @@ input[type="checkbox"] {
     color: #ddd;
 }
 
-/* ── Action Buttons ── */
 .btn-xs {
-    padding: 3px 8px;
+    padding: 6px 10px;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     color: #aab;
     font-size: 10px;
@@ -210,7 +232,6 @@ input[type="checkbox"] {
     color: #fff;
 }
 
-/* ── Lock Button ── */
 .lock-btn {
     width: 24px;
     height: 24px;
@@ -242,10 +263,10 @@ input[type="checkbox"] {
     opacity: 0.5;
 }
 
-/* ── Log Controls ── */
 .log-actions {
     display: flex;
-    gap: 4px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .log-label {
@@ -258,11 +279,10 @@ input[type="checkbox"] {
     color: #667;
 }
 
-/* ── Export/Import ── */
 .btn-export {
     padding: 4px 8px;
     border: 1px solid rgba(74, 222, 128, 0.3);
-    border-radius: 4px;
+    border-radius: 6px;
     background: rgba(74, 222, 128, 0.1);
     color: #4ade80;
     font-size: 10px;
@@ -276,7 +296,7 @@ input[type="checkbox"] {
 .btn-import {
     padding: 4px 8px;
     border: 1px solid rgba(100, 180, 255, 0.3);
-    border-radius: 4px;
+    border-radius: 6px;
     background: rgba(100, 180, 255, 0.1);
     color: #88bbff;
     font-size: 10px;
@@ -287,16 +307,14 @@ input[type="checkbox"] {
     background: rgba(100, 180, 255, 0.2);
 }
 
-/* ── Future/Placeholder ── */
 .future-desc {
     font-size: 9px;
     color: #667;
     padding: 0 6px 2px;
 }
 
-/* ── Compact variant ── */
 .var-row.compact {
-    padding: 1px 4px;
+    padding: 6px 8px;
 }
 
 .var-row.compact .row-top {
@@ -311,9 +329,8 @@ input[type="checkbox"] {
     font-size: 10px;
 }
 
-/* ── Orb Pair ── */
 .orb-pair {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
 }

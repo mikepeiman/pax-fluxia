@@ -4,10 +4,9 @@
         SOUND_LABELS,
         ALL_SOUND_TYPES,
         type SoundType,
-        type AudioTheme,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
-    import type { SoundFileEntry } from "$lib/config/soundManifest";
+    import { MENU_THEME_OPTIONS, type MenuTheme } from "./menuTheme";
 
     const CONQUEST_TYPES: SoundType[] = [
         "conquest",
@@ -15,14 +14,22 @@
         "conquest_scatter",
         "conquest_complete",
     ];
-    const NON_CONQUEST_TYPES = ALL_SOUND_TYPES.filter(
-        (t) => !CONQUEST_TYPES.includes(t),
-    );
+    const NON_CONQUEST_TYPES = ALL_SOUND_TYPES.filter((type) => !CONQUEST_TYPES.includes(type));
 
-    // Track which dropdown is open (by SoundType key)
-    let openDropdown = $state<string | null>(null);
+    interface Props {
+        visible: boolean;
+        menuTheme: MenuTheme;
+        onMenuThemeChange: (theme: MenuTheme) => void;
+        onClose: () => void;
+    }
 
-    function toggleDropdown(type: string) {
+    let { visible, menuTheme, onMenuThemeChange, onClose }: Props = $props();
+
+    let openDropdown = $state<SoundType | null>(null);
+    let showSavePrompt = $state(false);
+    let saveThemeName = $state("");
+
+    function toggleDropdown(type: SoundType) {
         openDropdown = openDropdown === type ? null : type;
     }
 
@@ -31,30 +38,35 @@
         openDropdown = null;
     }
 
-    function previewFile(path: string, e: MouseEvent) {
-        e.stopPropagation();
-        // Play the file directly without changing the assignment
+    function previewFile(path: string, event: MouseEvent) {
+        event.stopPropagation();
         const audio = new Audio(`/sounds/${path}`);
         audio.volume = audioManager.masterVolume * 0.6;
-        audio.play().catch(() => {});
+        void audio.play().catch(() => {});
     }
 
-    function handleClickOutside(e: MouseEvent) {
-        const target = e.target as HTMLElement;
-        if (!target.closest(".file-picker")) {
+    function closeTransientUI() {
+        openDropdown = null;
+        showSavePrompt = false;
+    }
+
+    function handleClickInside(event: MouseEvent) {
+        const target = event.target as HTMLElement | null;
+        if (!target?.closest(".file-picker")) openDropdown = null;
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+        if (!visible || event.key !== "Escape") return;
+        if (openDropdown) {
             openDropdown = null;
+            return;
         }
+        if (showSavePrompt) {
+            showSavePrompt = false;
+            return;
+        }
+        onClose();
     }
-
-    // Props
-    interface Props {
-        visible: boolean;
-        onClose: () => void;
-    }
-    let { visible, onClose }: Props = $props();
-
-    let showSavePrompt = $state(false);
-    let saveThemeName = $state("");
 
     function handleSaveTheme() {
         if (!saveThemeName.trim()) return;
@@ -64,8 +76,7 @@
     }
 
     function handleApplyTheme(name: string) {
-        const themes = audioManager.getAllThemes();
-        const theme = themes.find((t) => t.name === name);
+        const theme = audioManager.getAllThemes().find((entry) => entry.name === name);
         if (theme) audioManager.applyAudioTheme(theme);
     }
 
@@ -74,417 +85,304 @@
     }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 {#if visible}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class="modal-overlay"
-        onclick={onClose}
+        onclick={() => {
+            closeTransientUI();
+            onClose();
+        }}
         transition:fade={{ duration: 150 }}
     >
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="modal-content"
-            onclick={(e) => {
-                e.stopPropagation();
-                handleClickOutside(e);
+            data-theme={menuTheme}
+            onclick={(event) => {
+                event.stopPropagation();
+                handleClickInside(event);
             }}
-            transition:fly={{ y: 20, duration: 200 }}
+            transition:fly={{ y: 20, duration: 220 }}
         >
             <div class="modal-header">
-                <h2>Audio Settings</h2>
+                <div>
+                    <p class="eyebrow">Settings</p>
+                    <h2>Command Deck</h2>
+                    <p class="subtitle">Tune menu appearance and battle audio from one surface.</p>
+                </div>
+
                 <div class="header-actions">
-                    <button
-                        class="reset-btn"
-                        onclick={() => audioManager.resetDefaults()}
-                        title="Reset all to defaults">↺ Reset</button
-                    >
-                    <button class="close-btn" onclick={onClose}>×</button>
+                    <button type="button" class="btn btn-ghost" onclick={() => audioManager.resetDefaults()}>
+                        Reset Audio
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-close" onclick={onClose} aria-label="Close settings">
+                        X
+                    </button>
                 </div>
             </div>
 
             <div class="settings-body">
-                <!-- Master Toggle + Volume -->
-                <div class="setting-row master-row">
-                    <label class="master-toggle">
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <p class="eyebrow">Appearance</p>
+                            <h3>Menu Theme</h3>
+                        </div>
+                        <p class="copy">Switch the command surface live. Your choice is saved automatically.</p>
+                    </div>
+
+                    <div class="theme-grid">
+                        {#each MENU_THEME_OPTIONS as option}
+                            <button
+                                type="button"
+                                class="theme-card"
+                                class:selected={menuTheme === option.id}
+                                onclick={() => onMenuThemeChange(option.id)}
+                            >
+                                <span>{option.label}</span>
+                                <small>{option.summary}</small>
+                            </button>
+                        {/each}
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <p class="eyebrow">Master</p>
+                            <h3>Output</h3>
+                        </div>
+                    </div>
+
+                    <label class="toggle">
                         <input
                             type="checkbox"
                             checked={!audioManager.muted}
                             onchange={() => audioManager.toggleMute()}
                         />
-                        <span class="toggle-label">Sound Enabled</span>
+                        <span>Sound Enabled</span>
                     </label>
-                </div>
 
-                <div class="setting-row" class:disabled={audioManager.muted}>
-                    <div class="setting-header">
-                        <span class="setting-name">Master Volume</span>
-                        <span class="setting-value"
-                            >{Math.round(
-                                audioManager.masterVolume * 100,
-                            )}%</span
-                        >
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={audioManager.masterVolume}
-                        oninput={(e) =>
-                            audioManager.setMasterVolume(
-                                +(e.target as HTMLInputElement).value,
-                            )}
-                        disabled={audioManager.muted}
-                    />
-                </div>
-
-                <div class="divider"></div>
-
-                <!-- Per-Sound Volume Sliders (non-conquest) -->
-                {#each NON_CONQUEST_TYPES as stype}
-                    <div
-                        class="setting-row"
-                        class:disabled={audioManager.muted}
-                    >
+                    <div class="setting-row" class:disabled={audioManager.muted}>
                         <div class="setting-header">
-                            <span class="setting-name"
-                                >{SOUND_LABELS[stype]}</span
-                            >
-                            <span class="setting-value"
-                                >{Math.round(
-                                    audioManager.soundVolumes[stype] * 100,
-                                )}%</span
-                            >
-                            <button
-                                class="test-btn"
-                                onclick={() => audioManager.preview(stype)}
-                                disabled={audioManager.muted}>Test</button
-                            >
+                            <span class="setting-name">Master Volume</span>
+                            <span class="setting-value">{Math.round(audioManager.masterVolume * 100)}%</span>
                         </div>
                         <input
                             type="range"
                             min="0"
                             max="1"
                             step="0.05"
-                            value={audioManager.soundVolumes[stype]}
-                            oninput={(e) =>
-                                audioManager.setSoundVolume(
-                                    stype,
-                                    +(e.target as HTMLInputElement).value,
-                                )}
+                            value={audioManager.masterVolume}
+                            oninput={(event) =>
+                                audioManager.setMasterVolume(+(event.target as HTMLInputElement).value)}
                             disabled={audioManager.muted}
                         />
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div
-                            class="file-picker"
-                            class:disabled={audioManager.muted}
-                        >
-                            <div
-                                class="file-picker-trigger"
-                                onclick={() => toggleDropdown(stype)}
-                            >
-                                <span class="file-picker-label">
-                                    {audioManager
-                                        .getAvailableFiles(stype)
-                                        .find(
-                                            (f) =>
-                                                f.path ===
-                                                audioManager.soundFiles[stype],
-                                        )?.label ??
-                                        audioManager.soundFiles[stype]}
-                                </span>
-                                <span class="file-picker-arrow"
-                                    >{openDropdown === stype ? "▲" : "▼"}</span
-                                >
-                            </div>
-                            {#if openDropdown === stype}
-                                <div class="file-picker-menu">
-                                    {#each audioManager.getAvailableFiles(stype) as entry}
-                                        <div
-                                            class="file-picker-item"
-                                            class:selected={entry.path ===
-                                                audioManager.soundFiles[stype]}
-                                        >
-                                            <span
-                                                class="file-picker-item-label"
-                                                onclick={() =>
-                                                    selectFile(
-                                                        stype,
-                                                        entry.path,
-                                                    )}
-                                            >
-                                                {entry.label}
-                                                <span
-                                                    class="file-picker-item-cat"
-                                                    >({entry.category})</span
-                                                >
-                                            </span>
-                                            <button
-                                                class="file-picker-play"
-                                                onclick={(e) =>
-                                                    previewFile(entry.path, e)}
-                                                title="Preview this sound"
-                                                >▶</button
-                                            >
-                                        </div>
-                                    {/each}
-                                </div>
-                            {/if}
-                        </div>
-                        <div class="offset-row">
-                            <span class="offset-label">Offset</span>
-                            <input
-                                type="range"
-                                min="0"
-                                max="2"
-                                step="0.01"
-                                value={audioManager.soundOffsets[stype]}
-                                oninput={(e) =>
-                                    audioManager.setSoundOffset(
-                                        stype,
-                                        +(e.target as HTMLInputElement).value,
-                                    )}
-                                disabled={audioManager.muted}
-                                class="offset-slider"
-                            />
-                            <span class="offset-value"
-                                >{audioManager.soundOffsets[stype].toFixed(
-                                    2,
-                                )}s</span
-                            >
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <p class="eyebrow">Audio</p>
+                            <h3>Core Cues</h3>
                         </div>
                     </div>
-                {/each}
 
-                <!-- ═══ CONQUEST SOUNDS GROUP ═══ -->
-                <div class="conquest-group" class:disabled={audioManager.muted}>
-                    <div class="conquest-group-header">
-                        <span class="conquest-group-title">Conquest Sounds</span
-                        >
-                        <label class="toggle-inline conquest-toggle">
-                            <input
-                                type="checkbox"
-                                checked={audioManager.separateConquestSounds}
-                                onchange={(e) =>
-                                    audioManager.setSeparateConquestSounds(
-                                        (e.target as HTMLInputElement).checked,
-                                    )}
-                                disabled={audioManager.muted}
-                            />
-                            <span class="toggle-label">Separate</span>
-                            <span class="toggle-hint"
-                                >{audioManager.separateConquestSounds
-                                    ? "3 distinct"
-                                    : "1 generic"}</span
-                            >
-                        </label>
-                    </div>
-
-                    {#each CONQUEST_TYPES as stype}
-                        {@const isSubtype = stype !== "conquest"}
-                        {@const isInactive = isSubtype
-                            ? !audioManager.separateConquestSounds
-                            : audioManager.separateConquestSounds}
-                        <div
-                            class="setting-row"
-                            class:disabled={audioManager.muted}
-                            class:conquest-inactive={isInactive}
-                        >
+                    {#each NON_CONQUEST_TYPES as soundType}
+                        <div class="setting-row" class:disabled={audioManager.muted}>
                             <div class="setting-header">
-                                <span class="setting-name"
-                                    >{SOUND_LABELS[stype]}</span
-                                >
-                                <span class="setting-value"
-                                    >{Math.round(
-                                        audioManager.soundVolumes[stype] * 100,
-                                    )}%</span
-                                >
+                                <span class="setting-name">{SOUND_LABELS[soundType]}</span>
+                                <span class="setting-value">{Math.round(audioManager.soundVolumes[soundType] * 100)}%</span>
                                 <button
-                                    class="test-btn"
-                                    onclick={() => audioManager.preview(stype)}
-                                    disabled={audioManager.muted}>Test</button
+                                    type="button"
+                                    class="btn btn-inline"
+                                    onclick={() => audioManager.preview(soundType)}
+                                    disabled={audioManager.muted}
                                 >
+                                    Test
+                                </button>
                             </div>
+
                             <input
                                 type="range"
                                 min="0"
                                 max="1"
                                 step="0.05"
-                                value={audioManager.soundVolumes[stype]}
-                                oninput={(e) =>
-                                    audioManager.setSoundVolume(
-                                        stype,
-                                        +(e.target as HTMLInputElement).value,
-                                    )}
+                                value={audioManager.soundVolumes[soundType]}
+                                oninput={(event) =>
+                                    audioManager.setSoundVolume(soundType, +(event.target as HTMLInputElement).value)}
                                 disabled={audioManager.muted}
                             />
-                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                                class="file-picker"
-                                class:disabled={audioManager.muted}
-                            >
-                                <div
-                                    class="file-picker-trigger"
-                                    onclick={() => toggleDropdown(stype)}
-                                >
-                                    <span class="file-picker-label">
+
+                            <div class="file-picker" class:disabled={audioManager.muted}>
+                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                <div class="picker-trigger" onclick={() => toggleDropdown(soundType)}>
+                                    <span class="picker-label">
                                         {audioManager
-                                            .getAvailableFiles(stype)
-                                            .find(
-                                                (f) =>
-                                                    f.path ===
-                                                    audioManager.soundFiles[
-                                                        stype
-                                                    ],
-                                            )?.label ??
-                                            audioManager.soundFiles[stype]}
+                                            .getAvailableFiles(soundType)
+                                            .find((file) => file.path === audioManager.soundFiles[soundType])?.label ??
+                                            audioManager.soundFiles[soundType]}
                                     </span>
-                                    <span class="file-picker-arrow"
-                                        >{openDropdown === stype
-                                            ? "▲"
-                                            : "▼"}</span
-                                    >
+                                    <span class="picker-arrow">{openDropdown === soundType ? "UP" : "DOWN"}</span>
                                 </div>
-                                {#if openDropdown === stype}
-                                    <div class="file-picker-menu">
-                                        {#each audioManager.getAvailableFiles(stype) as entry}
-                                            <div
-                                                class="file-picker-item"
-                                                class:selected={entry.path ===
-                                                    audioManager.soundFiles[
-                                                        stype
-                                                    ]}
-                                            >
-                                                <span
-                                                    class="file-picker-item-label"
-                                                    onclick={() =>
-                                                        selectFile(
-                                                            stype,
-                                                            entry.path,
-                                                        )}
-                                                >
+
+                                {#if openDropdown === soundType}
+                                    <div class="picker-menu">
+                                        {#each audioManager.getAvailableFiles(soundType) as entry}
+                                            <div class="picker-item" class:selected={entry.path === audioManager.soundFiles[soundType]}>
+                                                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                                                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                                <span class="picker-item__label" onclick={() => selectFile(soundType, entry.path)}>
                                                     {entry.label}
-                                                    <span
-                                                        class="file-picker-item-cat"
-                                                        >({entry.category})</span
-                                                    >
+                                                    <small>({entry.category})</small>
                                                 </span>
                                                 <button
-                                                    class="file-picker-play"
-                                                    onclick={(e) =>
-                                                        previewFile(
-                                                            entry.path,
-                                                            e,
-                                                        )}
-                                                    title="Preview this sound"
-                                                    >▶</button
+                                                    type="button"
+                                                    class="btn btn-inline"
+                                                    onclick={(event) => previewFile(entry.path, event)}
                                                 >
+                                                    Play
+                                                </button>
                                             </div>
                                         {/each}
                                     </div>
                                 {/if}
                             </div>
+
                             <div class="offset-row">
-                                <span class="offset-label">Offset</span>
+                                <span>Offset</span>
                                 <input
+                                    class="offset-slider"
                                     type="range"
                                     min="0"
                                     max="2"
                                     step="0.01"
-                                    value={audioManager.soundOffsets[stype]}
-                                    oninput={(e) =>
-                                        audioManager.setSoundOffset(
-                                            stype,
-                                            +(e.target as HTMLInputElement)
-                                                .value,
-                                        )}
+                                    value={audioManager.soundOffsets[soundType]}
+                                    oninput={(event) =>
+                                        audioManager.setSoundOffset(soundType, +(event.target as HTMLInputElement).value)}
                                     disabled={audioManager.muted}
-                                    class="offset-slider"
                                 />
-                                <span class="offset-value"
-                                    >{audioManager.soundOffsets[stype].toFixed(
-                                        2,
-                                    )}s</span
-                                >
+                                <span>{audioManager.soundOffsets[soundType].toFixed(2)}s</span>
                             </div>
                         </div>
                     {/each}
-                </div>
+                </section>
 
-                <div class="divider"></div>
+                <section class="section section-accent" class:disabled={audioManager.muted}>
+                    <div class="section-head section-head-inline">
+                        <div>
+                            <p class="eyebrow">Audio</p>
+                            <h3>Conquest Signals</h3>
+                        </div>
 
-                <!-- Audio Themes -->
-                <div class="theme-section">
-                    <div class="setting-header">
-                        <span
-                            class="setting-name"
-                            style="font-size:0.9rem; color:#0ff;"
-                            >Audio Themes</span
-                        >
+                        <label class="toggle toggle-inline">
+                            <input
+                                type="checkbox"
+                                checked={audioManager.separateConquestSounds}
+                                onchange={(event) =>
+                                    audioManager.setSeparateConquestSounds((event.target as HTMLInputElement).checked)}
+                                disabled={audioManager.muted}
+                            />
+                            <span>Split Variants</span>
+                            <small>{audioManager.separateConquestSounds ? "3 distinct" : "1 generic"}</small>
+                        </label>
                     </div>
 
-                    <div class="theme-row">
-                        <select
-                            class="theme-select"
-                            value={audioManager.selectedThemeName}
-                            onchange={(e) =>
-                                handleApplyTheme(
-                                    (e.target as HTMLSelectElement).value,
-                                )}
-                        >
-                            <option value="">— Select theme —</option>
-                            {#each audioManager.getAllThemes() as theme}
-                                <option value={theme.name}
-                                    >{theme.name}{theme.builtIn
-                                        ? " ★"
-                                        : ""}</option
+                    {#each CONQUEST_TYPES as soundType}
+                        {@const isSubtype = soundType !== "conquest"}
+                        {@const isInactive = isSubtype ? !audioManager.separateConquestSounds : audioManager.separateConquestSounds}
+
+                        <div class="setting-row" class:disabled={audioManager.muted} class:inactive={isInactive}>
+                            <div class="setting-header">
+                                <span class="setting-name">{SOUND_LABELS[soundType]}</span>
+                                <span class="setting-value">{Math.round(audioManager.soundVolumes[soundType] * 100)}%</span>
+                                <button
+                                    type="button"
+                                    class="btn btn-inline"
+                                    onclick={() => audioManager.preview(soundType)}
+                                    disabled={audioManager.muted}
                                 >
+                                    Test
+                                </button>
+                            </div>
+
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={audioManager.soundVolumes[soundType]}
+                                oninput={(event) =>
+                                    audioManager.setSoundVolume(soundType, +(event.target as HTMLInputElement).value)}
+                                disabled={audioManager.muted}
+                            />
+                        </div>
+                    {/each}
+                </section>
+
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <p class="eyebrow">Presets</p>
+                            <h3>Audio Themes</h3>
+                        </div>
+                    </div>
+
+                    <div class="preset-row">
+                        <select
+                            class="select"
+                            value={audioManager.selectedThemeName}
+                            onchange={(event) => handleApplyTheme((event.target as HTMLSelectElement).value)}
+                        >
+                            <option value="">Select theme</option>
+                            {#each audioManager.getAllThemes() as theme}
+                                <option value={theme.name}>{theme.name}{theme.builtIn ? " (built-in)" : ""}</option>
                             {/each}
                         </select>
+
                         <button
-                            class="test-btn"
+                            type="button"
+                            class="btn btn-inline"
                             onclick={() => {
                                 showSavePrompt = !showSavePrompt;
-                            }}>💾 Save</button
+                                openDropdown = null;
+                            }}
                         >
-                        {#if audioManager.selectedThemeName && !audioManager
-                                .getAllThemes()
-                                .find((t) => t.name === audioManager.selectedThemeName)?.builtIn}
-                            <button
-                                class="reset-btn"
-                                onclick={() =>
-                                    handleDeleteTheme(
-                                        audioManager.selectedThemeName,
-                                    )}>🗑</button
-                            >
+                            Save
+                        </button>
+
+                        {#if audioManager.selectedThemeName && !audioManager.getAllThemes().find((theme) => theme.name === audioManager.selectedThemeName)?.builtIn}
+                            <button type="button" class="btn btn-ghost" onclick={() => handleDeleteTheme(audioManager.selectedThemeName)}>
+                                Delete
+                            </button>
                         {/if}
                     </div>
 
                     {#if showSavePrompt}
-                        <div class="save-prompt">
+                        <div class="preset-row">
                             <input
                                 type="text"
-                                class="save-input"
-                                placeholder="Theme name..."
+                                class="select"
+                                placeholder="Theme name"
                                 bind:value={saveThemeName}
-                                onkeydown={(e) => {
-                                    if (e.key === "Enter") handleSaveTheme();
+                                onkeydown={(event) => {
+                                    if (event.key === "Enter") handleSaveTheme();
                                 }}
                             />
-                            <button class="test-btn" onclick={handleSaveTheme}
-                                >Save</button
-                            >
-                            <button
-                                class="test-btn"
-                                onclick={() => {
-                                    showSavePrompt = false;
-                                }}>Cancel</button
-                            >
+                            <button type="button" class="btn btn-inline" onclick={handleSaveTheme}>Save</button>
+                            <button type="button" class="btn btn-ghost" onclick={() => (showSavePrompt = false)}>
+                                Cancel
+                            </button>
                         </div>
                     {/if}
-                </div>
+                </section>
             </div>
         </div>
     </div>
@@ -493,427 +391,363 @@
 <style>
     .modal-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(2, 5, 12, 0.74);
+        backdrop-filter: blur(10px);
         z-index: 10000;
     }
 
     .modal-content {
-        background: #0a0f1e;
-        border: 1px solid #4488ff;
-        border-radius: 12px;
-        width: 420px;
-        max-width: 90vw;
-        max-height: 85vh;
+        --pf-text: #ecf5ff;
+        --pf-heading: #9fdfff;
+        --pf-muted: rgba(212, 229, 255, 0.68);
+        --pf-border: rgba(123, 195, 255, 0.22);
+        --pf-accent: #56d6ff;
+        --pf-accent-soft: rgba(109, 212, 255, 0.3);
+        --pf-bg: rgba(7, 14, 28, 0.96);
+        --pf-bg-soft: rgba(12, 20, 38, 0.9);
+        width: min(760px, 100%);
+        max-height: 88vh;
         overflow-y: auto;
-        box-shadow: 0 0 40px rgba(68, 136, 255, 0.2);
+        border-radius: 28px;
+        border: 1px solid var(--pf-border);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%), var(--pf-bg);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 28px 64px rgba(0, 0, 0, 0.42);
+        color: var(--pf-text);
+        font-family: "Rajdhani", sans-serif;
+    }
+
+    .modal-content[data-theme="neon"] {
+        --pf-text: #eaf8ff;
+        --pf-heading: #8fe9ff;
+        --pf-muted: rgba(216, 239, 255, 0.68);
+        --pf-border: rgba(89, 228, 255, 0.24);
+        --pf-accent: #7effe6;
+        --pf-accent-soft: rgba(126, 255, 230, 0.28);
+        --pf-bg: rgba(6, 14, 34, 0.96);
+        --pf-bg-soft: rgba(9, 22, 44, 0.9);
+    }
+
+    .modal-content[data-theme="mythic"] {
+        --pf-text: #f6eeff;
+        --pf-heading: #f0d0ff;
+        --pf-muted: rgba(238, 222, 255, 0.68);
+        --pf-border: rgba(220, 171, 255, 0.24);
+        --pf-accent: #ffce83;
+        --pf-accent-soft: rgba(255, 206, 131, 0.24);
+        --pf-bg: rgba(22, 15, 38, 0.96);
+        --pf-bg-soft: rgba(31, 20, 52, 0.9);
+    }
+
+    .modal-header,
+    .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
     }
 
     .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 20px;
-        border-bottom: 1px solid #1a2a40;
         position: sticky;
         top: 0;
-        background: #0a0f1e;
-        z-index: 1;
+        padding: 22px 24px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120%), var(--pf-bg);
+        z-index: 2;
     }
 
-    .modal-header h2 {
+    .eyebrow {
+        margin: 0 0 6px;
+        font-family: "Oxanium", sans-serif;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--pf-heading);
+    }
+
+    h2,
+    h3 {
         margin: 0;
-        font-family: "Orbitron", sans-serif;
-        font-size: 1.1rem;
-        color: #00ffff;
-        letter-spacing: 1px;
+        font-family: "Oxanium", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
 
-    .header-actions {
+    .subtitle,
+    .copy {
+        margin: 6px 0 0;
+        color: var(--pf-muted);
+        font-size: 0.95rem;
+    }
+
+    .header-actions,
+    .preset-row {
         display: flex;
         gap: 8px;
         align-items: center;
     }
 
-    .reset-btn {
-        background: rgba(255, 80, 80, 0.1);
-        border: 1px solid rgba(255, 80, 80, 0.3);
-        color: #f88;
-        padding: 4px 10px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-
-    .reset-btn:hover {
-        background: rgba(255, 80, 80, 0.2);
-        border-color: rgba(255, 80, 80, 0.5);
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        color: #667;
-        font-size: 1.5rem;
-        cursor: pointer;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-    }
-
-    .close-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
-    }
-
     .settings-body {
-        padding: 16px 20px;
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        gap: 16px;
+        padding: 18px 24px 24px;
+    }
+
+    .section {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120%), var(--pf-bg-soft);
+    }
+
+    .section-accent {
+        border-color: var(--pf-border);
+    }
+
+    .theme-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 12px;
+    }
+
+    .theme-card,
+    .btn,
+    .select,
+    .picker-trigger {
+        border: 1px solid var(--pf-border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--pf-text);
+    }
+
+    .theme-card,
+    .btn,
+    .select,
+    .picker-trigger,
+    input[type="range"] {
+        transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+    }
+
+    .theme-card {
+        display: grid;
+        gap: 6px;
+        min-height: 100px;
+        padding: 16px;
+        border-radius: 18px;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .theme-card span {
+        font-family: "Oxanium", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .theme-card small,
+    .toggle small,
+    .picker-item small {
+        color: var(--pf-muted);
+        font-size: 0.82rem;
+    }
+
+    .theme-card:hover,
+    .theme-card.selected,
+    .btn:hover,
+    .picker-trigger:hover,
+    .select:focus {
+        border-color: var(--pf-accent);
+        background: rgba(255, 255, 255, 0.08);
+        outline: none;
+    }
+
+    .theme-card.selected {
+        box-shadow: inset 0 0 0 1px var(--pf-accent-soft);
+    }
+
+    .toggle,
+    .setting-header,
+    .offset-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .toggle {
+        font-weight: 700;
+    }
+
+    .toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--pf-accent);
     }
 
     .setting-row {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        display: grid;
+        gap: 8px;
     }
 
-    .setting-row.disabled {
-        opacity: 0.4;
+    .setting-row.disabled,
+    .setting-row.inactive,
+    .file-picker.disabled,
+    .section.disabled {
+        opacity: 0.42;
         pointer-events: none;
     }
 
-    .master-toggle {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        cursor: pointer;
-    }
-
-    .master-toggle input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        accent-color: #00ffff;
-    }
-
-    .toggle-label {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.95rem;
-        color: #fff;
-    }
-
-    .setting-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
     .setting-name {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.8rem;
-        color: #aab;
         flex: 1;
+        color: rgba(236, 244, 255, 0.9);
+        font-weight: 700;
     }
 
-    .setting-value {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.75rem;
-        color: #00ffff;
-        min-width: 36px;
+    .setting-value,
+    .offset-row span:last-child {
+        min-width: 44px;
         text-align: right;
+        color: var(--pf-heading);
+        font-weight: 700;
     }
 
-    .test-btn {
-        background: rgba(0, 255, 255, 0.1);
-        border: 1px solid #00aaaa;
-        color: #00ffff;
-        padding: 3px 10px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.65rem;
-        border-radius: 4px;
+    .btn {
+        min-height: 34px;
+        padding: 0 12px;
+        border-radius: 12px;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         cursor: pointer;
-        transition: all 0.15s;
     }
 
-    .test-btn:hover:not(:disabled) {
-        background: rgba(0, 255, 255, 0.2);
+    .btn-inline {
+        min-width: 58px;
     }
 
-    .test-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
+    .btn-close {
+        width: 38px;
+        min-width: 38px;
+        padding: 0;
+    }
+
+    .file-picker {
+        position: relative;
+    }
+
+    .picker-trigger,
+    .select {
+        width: 100%;
+        min-height: 38px;
+        padding: 0 12px;
+        border-radius: 12px;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.92rem;
+    }
+
+    .picker-trigger {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .picker-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .picker-arrow {
+        margin-left: 10px;
+        color: var(--pf-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .picker-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 5;
+        display: grid;
+        gap: 2px;
+        max-height: 220px;
+        padding: 8px;
+        overflow-y: auto;
+        border-radius: 16px;
+        border: 1px solid var(--pf-border);
+        background: rgba(5, 12, 24, 0.98);
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    .picker-item {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 12px;
+    }
+
+    .picker-item.selected {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .picker-item__label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .offset-slider {
+        flex: 1;
     }
 
     input[type="range"] {
         width: 100%;
-        accent-color: #00ffff;
-        height: 6px;
-        background: #223355;
-        border-radius: 3px;
-        appearance: none;
+        accent-color: var(--pf-accent);
     }
 
-    input[type="range"]::-webkit-slider-thumb {
-        appearance: none;
-        width: 16px;
-        height: 16px;
-        background: #00ffff;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 0 8px #00ffff;
-    }
+    @media (max-width: 767px) {
+        .modal-overlay {
+            padding: 12px;
+        }
 
-    input[type="range"]:disabled {
-        opacity: 0.3;
-    }
+        .modal-content {
+            max-height: 92vh;
+            border-radius: 22px;
+        }
 
-    .divider {
-        height: 1px;
-        background: #1a2a40;
-        margin: 2px 0;
-    }
+        .modal-header,
+        .section-head,
+        .section-head-inline,
+        .preset-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
 
-    .theme-select {
-        width: 100%;
-        background: #0d1525;
-        border: 1px solid #223355;
-        color: #aab;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        border-radius: 4px;
-        appearance: auto;
-    }
-    .theme-select:focus {
-        border-color: #00aaaa;
-        outline: none;
-    }
+        .theme-grid {
+            grid-template-columns: 1fr;
+        }
 
-    /* ── Custom File Picker ── */
-    .file-picker {
-        position: relative;
-        width: 100%;
-    }
-    .file-picker.disabled {
-        opacity: 0.3;
-        pointer-events: none;
-    }
-    .file-picker-trigger {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #0d1525;
-        border: 1px solid #223355;
-        color: #aab;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-        user-select: none;
-    }
-    .file-picker-trigger:hover {
-        border-color: #00aaaa;
-    }
-    .file-picker-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        flex: 1;
-    }
-    .file-picker-arrow {
-        font-size: 0.55rem;
-        color: #667;
-        margin-left: 6px;
-    }
-    .file-picker-menu {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: #0a0f1e;
-        border: 1px solid #00aaaa;
-        border-radius: 4px;
-        margin-top: 2px;
-        max-height: 180px;
-        overflow-y: auto;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-    }
-    .file-picker-item {
-        display: flex;
-        align-items: center;
-        padding: 4px 8px;
-        cursor: pointer;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.7rem;
-        color: #aab;
-        border-bottom: 1px solid #111a2a;
-    }
-    .file-picker-item:last-child {
-        border-bottom: none;
-    }
-    .file-picker-item:hover {
-        background: rgba(0, 255, 255, 0.05);
-    }
-    .file-picker-item.selected {
-        background: rgba(0, 255, 255, 0.1);
-        color: #0ff;
-    }
-    .file-picker-item-label {
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .file-picker-item-cat {
-        color: #556;
-        font-size: 0.6rem;
-        margin-left: 4px;
-    }
-    .file-picker-play {
-        background: none;
-        border: 1px solid rgba(0, 255, 255, 0.3);
-        color: #0ff;
-        font-size: 0.6rem;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        margin-left: 6px;
-        transition: all 0.15s;
-    }
-    .file-picker-play:hover {
-        background: rgba(0, 255, 255, 0.15);
-        border-color: #0ff;
-        transform: scale(1.1);
-    }
+        .header-actions {
+            justify-content: space-between;
+        }
 
-    .theme-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .theme-row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-    .theme-row .theme-select {
-        flex: 1;
-    }
-
-    .save-prompt {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-    .save-input {
-        flex: 1;
-        background: #0d1525;
-        border: 1px solid #00aaaa;
-        color: #fff;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.75rem;
-        padding: 5px 8px;
-        border-radius: 4px;
-    }
-    .save-input::placeholder {
-        color: #556;
-    }
-    .save-input:focus {
-        outline: none;
-        border-color: #00ffff;
-        box-shadow: 0 0 6px rgba(0, 255, 255, 0.2);
-    }
-
-    /* Offset slider row */
-    .offset-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: 2px;
-        padding: 0 4px;
-    }
-    .offset-label {
-        font-size: 0.65rem;
-        color: #888;
-        min-width: 35px;
-    }
-    .offset-slider {
-        flex: 1;
-        height: 12px;
-    }
-    .offset-value {
-        font-size: 0.65rem;
-        color: #aaa;
-        min-width: 32px;
-        text-align: right;
-        font-family: "JetBrains Mono", monospace;
-    }
-
-    /* Conquest sounds toggle */
-    .toggle-inline {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-size: 0.8rem;
-    }
-    .toggle-inline input[type="checkbox"] {
-        width: 14px;
-        height: 14px;
-        accent-color: #0ff;
-    }
-    .toggle-hint {
-        font-size: 0.65rem;
-        color: #888;
-        margin-left: auto;
-    }
-
-    /* Conquest sounds group */
-    .conquest-group {
-        border: 1px solid rgba(0, 255, 255, 0.15);
-        border-radius: 6px;
-        padding: 8px;
-        margin-top: 4px;
-    }
-    .conquest-group-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 6px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid rgba(0, 255, 255, 0.1);
-    }
-    .conquest-group-title {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #0ff;
-        letter-spacing: 0.03em;
-    }
-    .conquest-toggle {
-        font-size: 0.7rem !important;
-    }
-    .conquest-inactive {
-        opacity: 0.3;
-        pointer-events: none;
+        .setting-header {
+            flex-wrap: wrap;
+        }
     }
 </style>

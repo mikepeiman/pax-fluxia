@@ -63,7 +63,7 @@
 
 <CategoryThemeBar category="audio" onApply={() => syncFromConfig?.()} />
 
-<!-- Master Toggle + Volume -->
+<h4 class="sub-heading">Master</h4>
 <div class="setting-row master-row">
     <label class="master-toggle">
         <input
@@ -98,6 +98,7 @@
     />
 </div>
 
+<h4 class="sub-heading">Event Sounds</h4>
 <!-- Per-Sound Volume + File + Offset (non-conquest) -->
 {#each NON_CONQUEST_TYPES as stype}
     <div class="setting-row" class:disabled={audioManager.muted}>
@@ -200,7 +201,7 @@
     </div>
 {/each}
 
-<!-- ═══ CONQUEST SOUNDS GROUP ═══ -->
+<h4 class="sub-heading">Conquest Sounds</h4>
 <div class="conquest-group" class:disabled={audioManager.muted}>
     <div class="conquest-group-header">
         <span class="conquest-group-title">Conquest Sounds</span>
@@ -357,8 +358,11 @@
     .setting-row {
         display: flex;
         flex-direction: column;
-        gap: 3px;
-        padding: 2px 0;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
     }
     .setting-row.disabled {
         opacity: 0.35;
@@ -393,9 +397,10 @@
         background: #0d1525;
         border: 1px solid #223355;
         color: #aab;
-        font-size: 0.65rem;
-        padding: 3px 6px;
-        border-radius: 3px;
+        font-size: 0.68rem;
+        min-height: 32px;
+        padding: 6px 8px;
+        border-radius: 7px;
         cursor: pointer;
         user-select: none;
     }
@@ -500,10 +505,11 @@
 
     /* ── Conquest group ── */
     .conquest-group {
-        border: 1px solid #223355;
-        border-radius: 4px;
-        padding: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 8px;
         margin-top: 4px;
+        background: rgba(255, 255, 255, 0.025);
     }
     .conquest-group.disabled {
         opacity: 0.35;

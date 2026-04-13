@@ -3,27 +3,42 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
-    // ControlsSection-BATTLE — In-Game Settings Controls: Battle
-    // Refactored to use panel state (reactive + theme-compatible)
-
-    const variables = COMBAT_VARIABLES;
-
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
+
     let { panel, updatePanel, syncFromConfig }: Props = $props();
 
-    function updateCombatValue(configKey: string, val: number) {
-        if (isNaN(val)) return;
-        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
-        if (panelKey) {
-            updatePanel(panelKey, val);
-        }
-        // Also write directly to GAME_CONFIG for immediate engine effect
-        (GAME_CONFIG as any)[configKey] = val;
-    }
+    const GROUPS: Array<{ label: string; keys: string[] }> = [
+        {
+            label: "Damage Model",
+            keys: [
+                "AGGRESSOR_ADVANTAGE",
+                "GLOBAL_DAMAGE_MODIFIER",
+                "LETHALITY",
+                "FORCE_RATIO_EFFECT",
+            ],
+        },
+        {
+            label: "Capture Rules",
+            keys: [
+                "CONQUEST_THRESHOLD",
+                "CONQUEST_TRANSFER_PERCENTAGE",
+                "RETREAT_CAPTURE_RATE",
+                "SCATTER_CAPTURE_RATE",
+                "SCATTER_DESTROY_RATE",
+            ],
+        },
+        {
+            label: "Damaged Ships",
+            keys: [
+                "RETREAT_DAMAGED_ACTIVATION_RATE",
+                "DAMAGED_SHIP_EFFECTIVENESS",
+            ],
+        },
+    ];
 
     function getCombatValue(configKey: string): number {
         const panelKey = CONFIG_TO_PANEL_KEY[configKey];
@@ -32,29 +47,45 @@
         }
         return (GAME_CONFIG as any)[configKey] as number;
     }
+
+    function updateCombatValue(configKey: string, value: number) {
+        if (Number.isNaN(value)) return;
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey) {
+            updatePanel(panelKey, value);
+        }
+        (GAME_CONFIG as any)[configKey] = value;
+    }
+
+    function varsFor(keys: string[]) {
+        return COMBAT_VARIABLES.filter((variable) => keys.includes(variable.key));
+    }
 </script>
 
 <CategoryThemeBar category="combat" onApply={() => syncFromConfig?.()} />
 
-{#each variables as v}
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">{v.label}</span>
-            <span class="val">{getCombatValue(v.key).toFixed(2)}</span>
+{#each GROUPS as group}
+    <h4 class="sub-heading">{group.label}</h4>
+    {#each varsFor(group.keys) as variable}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">{variable.label}</span>
+                <span class="val">{getCombatValue(variable.key).toFixed(2)}</span>
+            </div>
+            <input
+                type="range"
+                min={variable.min}
+                max={variable.max}
+                step={variable.step}
+                value={getCombatValue(variable.key)}
+                oninput={(event) =>
+                    updateCombatValue(
+                        variable.key,
+                        parseFloat((event.target as HTMLInputElement).value),
+                    )}
+            />
         </div>
-        <input
-            type="range"
-            min={v.min}
-            max={v.max}
-            step={v.step}
-            value={getCombatValue(v.key)}
-            oninput={(e) =>
-                updateCombatValue(
-                    v.key,
-                    parseFloat((e.target as HTMLInputElement).value),
-                )}
-        />
-    </div>
+    {/each}
 {/each}
 
 <style>

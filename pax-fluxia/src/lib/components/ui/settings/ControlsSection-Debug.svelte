@@ -298,12 +298,6 @@
 <style>
     @import "./panel-shared.css";
 
-    .sub-heading {
-        margin: 4px 0 6px;
-        font-size: 11px;
-        color: #8cf;
-        letter-spacing: 0.5px;
-    }
     .debug-btn {
         display: flex;
         align-items: center;

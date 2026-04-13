@@ -1,18 +1,18 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { generateMapThumbnail } from '$lib/utils/mapThumbnail';
+    import { fade, fly } from "svelte/transition";
+    import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
     import { gameStore } from "$lib/stores/gameStore.svelte";
-    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
     import {
         loadPanelSettings,
         savePanelSettings,
         panelDefaultsFromConfig,
+        loadVisuals,
+        saveVisuals,
     } from "$lib/components/ui/panelSync";
-    import { fade, fly } from "svelte/transition";
     import type { GameSettings } from "$lib/types/game.types";
-    import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
-    import type { RoomListing } from "$lib/stores/multiplayerStore.svelte";
-    import { loadVisuals, saveVisuals } from "$lib/components/ui/panelSync";
+    import { multiplayerStore, type RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
     import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
     import { log } from "$lib/utils/logger";
@@ -34,206 +34,56 @@
         normalizePlayerPaletteNudges,
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
-    import RangeDual from "./RangeDual.svelte";
+    import { BG_IMAGES } from "$lib/config/bgManifest";
+    import type { MenuTheme } from "./menuTheme";
+    import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
+    import GameMapPanel from "./main-menu/GameMapPanel.svelte";
+    import PlayersPanel from "./main-menu/PlayersPanel.svelte";
+    import MultiplayerPanel from "./main-menu/MultiplayerPanel.svelte";
+    import MenuCommandBar from "./main-menu/MenuCommandBar.svelte";
+
+    type MapMode = "random" | "classic" | "custom";
+    type MobileTab = "setup" | "players" | "multiplayer";
 
     let visible = $state(true);
-
-    import { BG_IMAGES } from "$lib/config/bgManifest";
+    let showAudioSettings = $state(false);
     let bgOpen = $state(false);
 
-    // Load initial visual defaults (which includes bgImage)
-    let visuals = loadVisuals();
+    const visuals = loadVisuals();
     let bgImage = $state(visuals.bgImage);
+    let menuTheme = $state<MenuTheme>(loadSetting<MenuTheme>("menuTheme", "imperial"));
+    let activeMobileTab = $state<MobileTab>("setup");
 
-    $effect(() => {
-        // Sync back to visuals block when changed in MainMenu
-        visuals.bgImage = bgImage;
-        GAME_CONFIG.BG_IMAGE_URL = bgImage;
-        saveVisuals(visuals);
-    });
-    // BG images are a static manifest Ã¢â‚¬â€ no fetch needed
-    let bgImages = $state<string[]>(BG_IMAGES);
-
-    // Chat UI state
-    let chatOpen = $state(false);
-    let chatInput = $state("");
-    // Game mode
-    // Auto-switch to MP when connected
-    let gameMode = $state<"sp" | "mp">(
-        multiplayerStore.isConnected
-            ? "mp"
-            : typeof localStorage !== "undefined" &&
-                localStorage.getItem("pax_gameMode") === "mp"
-              ? "mp"
-              : "sp",
-    );
-    let showAudioSettings = $state(false);
-
-    // Persist gameMode so MP tab survives reload
-    $effect(() => {
-        localStorage.setItem("pax_gameMode", gameMode);
-    });
-
-    // Auto-save player identity and sync to multiplayerStore
-    $effect(() => {
-        saveSetting("playerName", playerName);
-        multiplayerStore.playerName = playerName || "Commander";
-    });
-    $effect(() => {
-        const hex = getPlayerColorHex(0);
-        multiplayerStore.playerColor = hex;
-    });
-
-    // Watch multiplayer phase and transition to game when it starts
-    $effect(() => {
-        if (multiplayerStore.phase === "playing") {
-            log.sys(
-                "MainMenu",
-                "Multiplayer game started, transitioning to game view",
-            );
-            visible = false;
-            gameStore.setView("game");
-        }
-    });
-
-    // Auto-switch to MP mode when connected (e.g. after restart)
-    $effect(() => {
-        if (multiplayerStore.isConnected) {
-            gameMode = "mp";
-        }
-    });
-    // Settings (localStorage-persisted)
-    function loadSetting<T>(key: string, defaultValue: T): T {
-        if (typeof window === "undefined") return defaultValue;
-        const stored = localStorage.getItem(`pax-fluxia-${key}`);
-        if (stored) {
-            try {
-                return JSON.parse(stored) as T;
-            } catch {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
-
-    function saveSetting(key: string, value: any) {
-        if (typeof window === "undefined") return;
-        localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
-    }
-
-    /** HSL hue Ã¢â€ â€™ hex using current palette sat/lig settings */
-    function hslToHex(hue: number): string {
-        return hslToHexBase(hue, colorSat / 100, colorLig / 100);
-    }
-
-    const storedPaletteSettings = loadPlayerPaletteSettings();
-
-    function sanitizePlayerConfigs(input: PlayerConfig[], anchorHue: number): PlayerConfig[] {
-        const normalized = makeDefaultPlayerConfigs(PLAYER_PALETTE_SIZE, anchorHue);
-        const source = Array.isArray(input) ? input : [];
-        const storedNudges = normalizePlayerPaletteNudges(storedPaletteSettings.nudges);
-
-        for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
-            normalized[i] = {
-                ...normalized[i],
-                hueNudge: clampPlayerHueNudge(
-                    source[i]?.hueNudge ?? storedNudges[i] ?? normalized[i].hueNudge,
-                ),
-                difficulty: source[i]?.difficulty ?? normalized[i].difficulty,
-                strategy: source[i]?.strategy ?? normalized[i].strategy,
-                isAI: i > 0,
-            };
-        }
-
-        return normalized;
-    }
-
-    // Config state
-    let showMobileOptions = $state(false);
-    let gameSetupOpen = $state(false);
-    let mapMode = $state<"random" | "classic" | "custom">(
-        loadSetting("mapMode", "random"),
-    );
+    let mapMode = $state<MapMode>(loadSetting<MapMode>("mapMode", "random"));
     let mapType = $state(loadSetting("mapType", "standard"));
-    let selectedClassicMap = $state<string | null>(
-        loadSetting("selectedClassicMap", null),
-    );
-    let selectedCustomMap = $state<string | null>(
-        loadSetting("selectedCustomMap", null),
-    );
-    let showHowToPlay = $state(false);
-    let showControls = $state(false);
-    let playerCount = $state<GameSettings["playerCount"]>(
-        loadSetting("playerCount", 6),
-    );
-    let difficulty = $state(loadSetting("difficulty", "Normal"));
+    let selectedClassicMap = $state<string | null>(loadSetting("selectedClassicMap", null));
+    let selectedCustomMap = $state<string | null>(loadSetting("selectedCustomMap", null));
+
+    let playerCount = $state<GameSettings["playerCount"]>(loadSetting("playerCount", 6));
     let starsPerPlayer = $state(loadSetting("starsPerPlayer", 5));
     let shipsPerStar = $state(loadSetting("shipsPerStar", 40));
     let minLinks = $state(loadSetting("minLinks", 1));
     let maxLinks = $state(loadSetting("maxLinks", 6));
     let starSpacing = $state(loadSetting("starSpacing", 1.0));
     let mapBoardFit = $state(loadSetting("mapBoardFit", 0.55));
-    let retainOrderOnConquest = $state(
-        loadSetting("retainOrderOnConquest", true),
-    );
+    let retainOrderOnConquest = $state(loadSetting("retainOrderOnConquest", true));
     let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
     let neutralStarCount = $state(loadSetting("neutralStarCount", 0));
     let neutralShipsPerStar = $state(loadSetting("neutralShipsPerStar", 10));
     let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
-
-    /** Lane preview + new game Ã¢â‚¬â€ synced with Map & Grid panel (localStorage). */
-    function readLaneKnobsFromPanel() {
-        const p = loadPanelSettings(panelDefaultsFromConfig());
-        const modeRaw = p.mapgenLaneMode;
-        const mode: "straight" | "curved" =
-            modeRaw === "straight" || modeRaw === "curved"
-                ? modeRaw
-                : (GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved");
-        return {
-            msr: Math.round(
-                p.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-            ),
-            laneMargin: Math.round(
-                p.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
-            ),
-            curveVsPruneBias: Math.min(
-                1,
-                Math.max(
-                    0,
-                    p.mapgenLaneCurveVsPruneBias ??
-                        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
-                        0.55,
-                ),
-            ),
-            mode,
-        };
-    }
+    let tickDuration = $state(loadSetting("tickDuration", GAME_CONFIG.BASE_TICK_MS));
 
     let menuStarMargin = $state(45);
     let menuLaneMargin = $state(75);
     let menuCurveVsPruneBias = $state(0.55);
     let menuLaneMode = $state<"straight" | "curved">("curved");
 
-    onMount(() => {
-        const k = readLaneKnobsFromPanel();
-        menuStarMargin = k.msr;
-        menuLaneMargin = k.laneMargin;
-        menuCurveVsPruneBias = k.curveVsPruneBias;
-        menuLaneMode = k.mode;
-    });
-
-    function persistMenuLaneKnobs() {
-        const full = loadPanelSettings(panelDefaultsFromConfig());
-        full.starMargin = menuStarMargin;
-        full.mapgenLaneMarginPx = menuLaneMargin;
-        full.mapgenLaneCurveVsPruneBias = menuCurveVsPruneBias;
-        full.mapgenLaneMode = menuLaneMode;
-        savePanelSettings(full);
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
-        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
-        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
-    }
+    const storedPaletteSettings = loadPlayerPaletteSettings();
+    let playerName = $state(loadSetting("playerName", "Commander"));
+    let colorSat = $state(loadSetting("colorSat", storedPaletteSettings.saturation));
+    let colorLig = $state(loadSetting("colorLig", storedPaletteSettings.lightness));
+    let hueOffset = $state(loadSetting("hueOffset", storedPaletteSettings.anchorHue));
+    let showAIDetails = $state(false);
 
     let playerConfigs = $state(
         sanitizePlayerConfigs(
@@ -244,90 +94,26 @@
             storedPaletteSettings.anchorHue,
         ),
     );
-    let tickDuration = $state(
-        loadSetting("tickDuration", GAME_CONFIG.BASE_TICK_MS),
+
+    let thumbnailUrl = $state("");
+    let previewSeed = $state(0);
+    let selectedRoomId = $state<string | null>(null);
+    let confirmJoinTarget = $state<RoomListing | null>(null);
+    let selectedTakeOverId = $state<string | null>(null);
+
+    const selectedRoom = $derived(
+        multiplayerStore.availableRooms.find((room) => room.roomId === selectedRoomId) ?? null,
     );
-
-    // Player identity (persisted)
-    let playerName = $state(loadSetting("playerName", "Commander"));
-
-    // Global color palette controls (persisted)
-    let colorSat = $state(
-        loadSetting("colorSat", storedPaletteSettings.saturation),
-    );
-    let colorLig = $state(
-        loadSetting("colorLig", storedPaletteSettings.lightness),
-    );
-    let hueOffset = $state(
-        loadSetting("hueOffset", storedPaletteSettings.anchorHue),
-    );
-
-    let showAIDetails = $state(false);
-    let showPaletteNudgePopover = $state(false);
-    let paletteAdjustButtonEl: HTMLButtonElement | null = null;
-    let paletteAdjustPopoverEl: HTMLDivElement | null = null;
-    let selectedPaletteIndex = $state(
-        Math.max(0, Math.min(loadSetting("selectedPaletteIndex", 0), PLAYER_PALETTE_SIZE - 1)),
-    );
-
-    onMount(() => {
-        const handlePointerDown = (event: MouseEvent) => {
-            if (!showPaletteNudgePopover) return;
-            const target = event.target as Node | null;
-            if (!target) return;
-            if (paletteAdjustButtonEl?.contains(target)) return;
-            if (paletteAdjustPopoverEl?.contains(target)) return;
-            showPaletteNudgePopover = false;
-        };
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                showPaletteNudgePopover = false;
-            }
-        };
-
-        document.addEventListener("mousedown", handlePointerDown, true);
-        document.addEventListener("keydown", handleKeyDown);
-        return () => {
-            document.removeEventListener("mousedown", handlePointerDown, true);
-            document.removeEventListener("keydown", handleKeyDown);
-        };
-    });
-
-    // F-168: Random map preview thumbnail Ã¢â‚¬â€ uses real generateMap() engine via gameStore
-    let thumbnailUrl = $state('');
-    let previewSeed = $state(0); // incremented to trigger reshuffle
-
-    function generatePreview() {
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
-        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
-        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
-        const { stars, connections } = gameStore.generateMapPreview({
-            playerCount,
-            starsPerPlayer,
-            minLinksPerStar: minLinks,
-            maxLinksPerStar: maxLinks,
-            starSpacing,
-            mapBoardFit,
-            neutralStarCount,
-            specialStarPercentage,
-        });
-        thumbnailUrl = generateMapThumbnail(stars, connections, { width: 240, height: 135 });
-    }
-
-    $effect(() => {
-        // Regenerate when settings change or reshuffle is clicked
-        void playerCount; void starsPerPlayer; void minLinks; void maxLinks; void starSpacing; void mapBoardFit; void previewSeed;
-        void neutralStarCount; void specialStarPercentage;
-        void menuStarMargin; void menuLaneMargin; void menuCurveVsPruneBias; void menuLaneMode;
-        generatePreview();
-    });
 
     const fullPaletteNudges = $derived(
         normalizePlayerPaletteNudges(
-            Array.from({ length: PLAYER_PALETTE_SIZE }, (_, index) => playerConfigs[index]?.hueNudge ?? 0),
+            Array.from(
+                { length: PLAYER_PALETTE_SIZE },
+                (_, index) => playerConfigs[index]?.hueNudge ?? 0,
+            ),
         ),
     );
+
     const activePlayerPaletteHues = $derived(
         generatePlayerPaletteHues(
             hueOffset,
@@ -335,42 +121,99 @@
             fullPaletteNudges.slice(0, playerCount),
         ),
     );
+
     const fullPlayerPaletteHues = $derived(
-        generatePlayerPaletteHues(
-            hueOffset,
-            PLAYER_PALETTE_SIZE,
-            fullPaletteNudges,
-        ),
+        generatePlayerPaletteHues(hueOffset, PLAYER_PALETTE_SIZE, fullPaletteNudges),
     );
-    const selectedPaletteHue = $derived(
-        (selectedPaletteIndex < playerCount
-            ? activePlayerPaletteHues[selectedPaletteIndex]
-            : fullPlayerPaletteHues[selectedPaletteIndex]) ?? hueOffset,
+
+    const commandSummary = $derived(
+        `${getMapSummary()} - ${playerCount} players - ${starsPerPlayer} stars / player - ${shipsPerStar} ships / star - ${(tickDuration / 1000).toFixed(1)}s tick`,
     );
+
+    const selectedRoomLabel = $derived(
+        selectedRoom
+            ? selectedRoom.metadata?.publicRoomLabel ||
+              selectedRoom.metadata?.hostName ||
+              selectedRoom.name ||
+              selectedRoom.roomId
+            : null,
+    );
+
+    $effect(() => {
+        visuals.bgImage = bgImage;
+        GAME_CONFIG.BG_IMAGE_URL = bgImage;
+        saveVisuals(visuals);
+    });
+
+    $effect(() => {
+        saveSetting("menuTheme", menuTheme);
+    });
+
+    $effect(() => {
+        saveSetting("playerName", playerName);
+        multiplayerStore.playerName = playerName || "Commander";
+    });
+
+    $effect(() => {
+        multiplayerStore.playerColor = getPlayerColorHex(0);
+    });
+
+    $effect(() => {
+        if (multiplayerStore.phase === "playing") {
+            log.sys("MainMenu", "Multiplayer game started, transitioning to game view");
+            visible = false;
+            gameStore.setView("game");
+        }
+    });
+
+    $effect(() => {
+        if (multiplayerStore.isConnected) {
+            activeMobileTab = "multiplayer";
+        }
+    });
+
+    $effect(() => {
+        const rooms = multiplayerStore.availableRooms;
+        if (rooms.length === 0) {
+            selectedRoomId = null;
+            return;
+        }
+        if (!selectedRoomId || !rooms.some((room) => room.roomId === selectedRoomId)) {
+            selectedRoomId = rooms[0].roomId;
+        }
+    });
+
+    $effect(() => {
+        const aiPlayers =
+            confirmJoinTarget?.metadata?.phase === "playing"
+                ? confirmJoinTarget.metadata.aiPlayers
+                : undefined;
+        if (!aiPlayers?.length) {
+            selectedTakeOverId = null;
+            return;
+        }
+        if (!selectedTakeOverId || !aiPlayers.some((ai) => ai.sessionId === selectedTakeOverId)) {
+            selectedTakeOverId = aiPlayers[0].sessionId;
+        }
+    });
 
     $effect(() => {
         if (
             playerConfigs.length !== PLAYER_PALETTE_SIZE ||
-            playerConfigs.some((cfg) => typeof cfg?.hueNudge !== "number")
+            playerConfigs.some((config) => typeof config?.hueNudge !== "number")
         ) {
             playerConfigs = sanitizePlayerConfigs(playerConfigs, hueOffset);
         }
 
-        for (let i = 0; i < PLAYER_PALETTE_SIZE; i++) {
+        for (let index = 0; index < PLAYER_PALETTE_SIZE; index++) {
             const nextHue =
-                (i < playerCount
-                    ? activePlayerPaletteHues[i]
-                    : fullPlayerPaletteHues[i]) ??
-                playerConfigs[i]?.hue ??
+                (index < playerCount ? activePlayerPaletteHues[index] : fullPlayerPaletteHues[index]) ??
+                playerConfigs[index]?.hue ??
                 0;
-            if (playerConfigs[i].hue !== nextHue) {
-                playerConfigs[i].hue = nextHue;
+            if (playerConfigs[index].hue !== nextHue) {
+                playerConfigs[index].hue = nextHue;
             }
-            playerConfigs[i].isAI = i > 0;
-        }
-
-        if (selectedPaletteIndex >= playerCount) {
-            selectedPaletteIndex = Math.max(0, playerCount - 1);
+            playerConfigs[index].isAI = index > 0;
         }
 
         savePlayerPaletteSettings({
@@ -381,14 +224,23 @@
         });
     });
 
-    // MP Join state
-    let joinRoomId = $state("");
+    $effect(() => {
+        void playerCount;
+        void starsPerPlayer;
+        void minLinks;
+        void maxLinks;
+        void starSpacing;
+        void mapBoardFit;
+        void neutralStarCount;
+        void specialStarPercentage;
+        void menuStarMargin;
+        void menuLaneMargin;
+        void menuCurveVsPruneBias;
+        void menuLaneMode;
+        void previewSeed;
+        generatePreview();
+    });
 
-    // Room browser state
-    let confirmJoinTarget = $state<RoomListing | null>(null);
-    let selectedTakeOverId = $state<string | null>(null);
-
-    // Keep the public room browser alive while the menu is open.
     $effect(() => {
         if (!multiplayerStore.isConnected) {
             multiplayerStore.startRoomPolling();
@@ -396,14 +248,144 @@
         }
         multiplayerStore.stopRoomPolling();
     });
-    // Actions
+
+    onMount(() => {
+        const laneKnobs = readLaneKnobsFromPanel();
+        menuStarMargin = laneKnobs.msr;
+        menuLaneMargin = laneKnobs.laneMargin;
+        menuCurveVsPruneBias = laneKnobs.curveVsPruneBias;
+        menuLaneMode = laneKnobs.mode;
+
+        const handlePointerDown = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target?.closest(".background-picker")) {
+                bgOpen = false;
+            }
+        };
+
+        document.addEventListener("mousedown", handlePointerDown, true);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown, true);
+        };
+    });
+
+    function loadSetting<T>(key: string, defaultValue: T): T {
+        if (typeof window === "undefined") return defaultValue;
+        const stored = localStorage.getItem(`pax-fluxia-${key}`);
+        if (!stored) return defaultValue;
+        try {
+            return JSON.parse(stored) as T;
+        } catch {
+            return defaultValue;
+        }
+    }
+
+    function saveSetting(key: string, value: unknown) {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(`pax-fluxia-${key}`, JSON.stringify(value));
+    }
+
+    function hslToHex(hue: number): string {
+        return hslToHexBase(hue, colorSat / 100, colorLig / 100);
+    }
+
+    function sanitizePlayerConfigs(input: PlayerConfig[], anchorHue: number): PlayerConfig[] {
+        const normalized = makeDefaultPlayerConfigs(PLAYER_PALETTE_SIZE, anchorHue);
+        const source = Array.isArray(input) ? input : [];
+        const storedNudges = normalizePlayerPaletteNudges(storedPaletteSettings.nudges);
+
+        for (let index = 0; index < PLAYER_PALETTE_SIZE; index++) {
+            normalized[index] = {
+                ...normalized[index],
+                hueNudge: clampPlayerHueNudge(
+                    source[index]?.hueNudge ??
+                        storedNudges[index] ??
+                        normalized[index].hueNudge,
+                ),
+                difficulty: source[index]?.difficulty ?? normalized[index].difficulty,
+                strategy: source[index]?.strategy ?? normalized[index].strategy,
+                isAI: index > 0,
+            };
+        }
+
+        return normalized;
+    }
+
+    function readLaneKnobsFromPanel() {
+        const panelSettings = loadPanelSettings(panelDefaultsFromConfig());
+        const modeRaw = panelSettings.mapgenLaneMode;
+        const mode: "straight" | "curved" =
+            modeRaw === "straight" || modeRaw === "curved"
+                ? modeRaw
+                : (GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved");
+
+        return {
+            msr: Math.round(
+                panelSettings.starMargin ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                    45,
+            ),
+            laneMargin: Math.round(
+                panelSettings.mapgenLaneMarginPx ??
+                    GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
+                    75,
+            ),
+            curveVsPruneBias: Math.min(
+                1,
+                Math.max(
+                    0,
+                    panelSettings.mapgenLaneCurveVsPruneBias ??
+                        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
+                        0.55,
+                ),
+            ),
+            mode,
+        };
+    }
+
+    function persistMenuLaneKnobs() {
+        const panelSettings = loadPanelSettings(panelDefaultsFromConfig());
+        panelSettings.starMargin = menuStarMargin;
+        panelSettings.mapgenLaneMarginPx = menuLaneMargin;
+        panelSettings.mapgenLaneCurveVsPruneBias = menuCurveVsPruneBias;
+        panelSettings.mapgenLaneMode = menuLaneMode;
+        savePanelSettings(panelSettings);
+
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
+        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
+    }
+
+    function generatePreview() {
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
+        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
+
+        const { stars, connections } = gameStore.generateMapPreview({
+            playerCount,
+            starsPerPlayer,
+            minLinksPerStar: minLinks,
+            maxLinksPerStar: maxLinks,
+            starSpacing,
+            mapBoardFit,
+            neutralStarCount,
+            specialStarPercentage,
+        });
+
+        thumbnailUrl = generateMapThumbnail(stars, connections, {
+            width: 240,
+            height: 135,
+        });
+    }
+
     function saveAllSettings() {
         saveSetting("mapMode", mapMode);
         saveSetting("mapType", mapType);
         saveSetting("selectedClassicMap", selectedClassicMap);
         saveSetting("selectedCustomMap", selectedCustomMap);
         saveSetting("playerCount", playerCount);
-        saveSetting("difficulty", difficulty);
         saveSetting("starsPerPlayer", starsPerPlayer);
         saveSetting("shipsPerStar", shipsPerStar);
         saveSetting("minLinks", minLinks);
@@ -421,22 +403,7 @@
         saveSetting("playerName", playerName);
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
-        saveSetting("selectedPaletteIndex", selectedPaletteIndex);
         persistMenuLaneKnobs();
-    }
-
-    function selectPaletteIndex(index: number): void {
-        selectedPaletteIndex = Math.max(0, Math.min(index, Math.max(0, playerCount - 1)));
-    }
-
-    function setSelectedPaletteNudge(value: number): void {
-        const clamped = clampPlayerHueNudge(value);
-        if (playerConfigs[selectedPaletteIndex]?.hueNudge === clamped) return;
-        playerConfigs[selectedPaletteIndex].hueNudge = clamped;
-    }
-
-    function resetSelectedPaletteNudge(): void {
-        setSelectedPaletteNudge(0);
     }
 
     function getClassicMaps() {
@@ -447,15 +414,29 @@
         return gameStore.savedMaps.filter((map) => !Boolean((map as any).builtIn));
     }
 
-    function getPlayerColorHex(index: number): string {
-        const hue =
+    function getPlayerHue(index: number): number {
+        return (
             (index < playerCount ? activePlayerPaletteHues[index] : fullPlayerPaletteHues[index]) ??
-            hueOffset;
-        return hslToHex(hue);
+            hueOffset
+        );
+    }
+
+    function getPlayerColorHex(index: number): string {
+        return hslToHex(getPlayerHue(index));
     }
 
     function getConfiguredPlayerColors(count: number): string[] {
         return Array.from({ length: count }, (_, index) => getPlayerColorHex(index));
+    }
+
+    function getMapSummary(): string {
+        if (mapMode === "classic") {
+            return selectedClassicMap || "Classic map";
+        }
+        if (mapMode === "custom") {
+            return selectedCustomMap || "Custom map";
+        }
+        return "Random sector";
     }
 
     function applyConfig() {
@@ -470,15 +451,14 @@
         GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
         GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
 
-        const selectedMap =
-            MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
+        const selectedMap = MAP_DEFS.find((map) => map.id === mapType) ?? MAP_DEFS[0];
 
         gameStore.updateSettings({
             playerCount,
             mapType: selectedMap.mapType,
             minLinksPerStar: minLinks,
             maxLinksPerStar: maxLinks,
-            starSpacing: starSpacing,
+            starSpacing,
             mapBoardFit,
             gameSpeed: tickDuration,
             playerColors: getConfiguredPlayerColors(playerCount),
@@ -500,9 +480,8 @@
                   : null;
 
         if (selectedSavedMapName) {
-            const allMaps = gameStore.savedMaps;
-            const savedMap = allMaps.find(
-                (m) => m.metadata.name === selectedSavedMapName,
+            const savedMap = gameStore.savedMaps.find(
+                (map) => map.metadata.name === selectedSavedMapName,
             );
             if (savedMap) {
                 applyConfig();
@@ -512,12 +491,11 @@
                 return;
             }
         }
+
         applyConfig();
         gameStore.restart();
         visible = false;
     }
-    // MP handlers
-    import { buildEngineConfig } from "$lib/config/game.config";
 
     async function handleCreateRoom() {
         saveAllSettings();
@@ -530,12 +508,9 @@
             return;
         }
 
-        const selectedMap =
-            MAP_DEFS.find((m) => m.id === mapType) ?? MAP_DEFS[0];
-
+        const selectedMap = MAP_DEFS.find((map) => map.id === mapType) ?? MAP_DEFS[0];
         const gameplayConfig = buildEngineConfig();
 
-        // Wire ALL setup variables to MP room (F-65)
         await multiplayerStore.createRoom({
             playerCount,
             mapType: selectedMap.mapType,
@@ -550,33 +525,21 @@
             playerColors: getConfiguredPlayerColors(playerCount),
         });
 
-        // Also set player identity on the store
         multiplayerStore.playerName = playerName || "Commander";
         multiplayerStore.playerColor = getPlayerColorHex(0);
     }
 
-    async function handleJoinRoom() {
-        if (!joinRoomId.trim()) return;
-        await multiplayerStore.joinRoom(joinRoomId.trim());
-    }
-
-    function handleLeaveRoom() {
-        multiplayerStore.leaveRoom();
-    }
-
-    function handleStartGame() {
-        multiplayerStore.startGame();
-    }
-
-    function copyRoomId() {
-        if (multiplayerStore.roomId) {
-            navigator.clipboard.writeText(multiplayerStore.roomId);
+    async function handleJoinSelectedRoom() {
+        if (!selectedRoom) return;
+        if (selectedRoom.metadata?.phase === "playing") {
+            confirmJoinTarget = selectedRoom;
+            return;
         }
+        await multiplayerStore.joinRoomById(selectedRoom.roomId);
     }
 
     async function handleConfirmJoin() {
         if (!confirmJoinTarget) return;
-        // Pass takeOverId for in-progress games (AI takeover)
         const takeOver =
             confirmJoinTarget.metadata?.phase === "playing"
                 ? selectedTakeOverId || undefined
@@ -585,6 +548,51 @@
         confirmJoinTarget = null;
         selectedTakeOverId = null;
     }
+
+    function triggerStartAction() {
+        audioManager.play("click");
+        startSPGame();
+    }
+
+    function triggerCreateLobbyAction() {
+        audioManager.play("click");
+        void handleCreateRoom();
+    }
+
+    function triggerJoinSelectedAction() {
+        audioManager.play("click");
+        void handleJoinSelectedRoom();
+    }
+
+    function handleMapModeChange(mode: MapMode) {
+        mapMode = mode;
+        if (mode === "random") {
+            mapType = "standard";
+        }
+    }
+
+    function updatePlayerName(value: string) {
+        playerName = value;
+    }
+
+    function updatePlayerDifficulty(index: number, value: string) {
+        if (!playerConfigs[index]) return;
+        playerConfigs[index].difficulty = value;
+    }
+
+    function updatePlayerStrategy(index: number, value: string) {
+        if (!playerConfigs[index]) return;
+        playerConfigs[index].strategy = value;
+    }
+
+    function updatePlayerHueNudge(index: number, value: number) {
+        if (!playerConfigs[index]) return;
+        playerConfigs[index].hueNudge = clampPlayerHueNudge(value);
+    }
+
+    function resetPlayerHueNudge(index: number) {
+        updatePlayerHueNudge(index, 0);
+    }
 </script>
 
 {#if visible}
@@ -592,12 +600,12 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class="menu-fullscreen"
+        data-theme={menuTheme}
         transition:fade
         style:background-image={bgImage ? `url(/assets/${bgImage})` : "none"}
         style:background-size={bgImage ? "cover" : "auto"}
         style:background-position={bgImage ? "center" : "auto"}
     >
-        <!-- Hex grid overlay; inline SVG pattern -->
         <svg
             class="hex-grid-overlay"
             xmlns="http://www.w3.org/2000/svg"
@@ -605,1110 +613,266 @@
             height="100%"
         >
             <defs>
-                <pattern
-                    id="hexPattern"
-                    width="56"
-                    height="100"
-                    patternUnits="userSpaceOnUse"
-                >
+                <pattern id="hexPattern" width="56" height="100" patternUnits="userSpaceOnUse">
                     <path
                         d="M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="1.0"
+                        stroke-width="1"
                     />
                     <path
                         d="M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="1.0"
+                        stroke-width="1"
                     />
                 </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#hexPattern)" />
         </svg>
 
-        <div class="menu-container" transition:fly={{ y: 20, duration: 400 }}>
-            <!-- Title -->
+        <div class="menu-shell" transition:fly={{ y: 20, duration: 260 }}>
             <header class="title-block">
                 <h1 class="title">
                     <span class="pax">PAX</span>
                     <span class="fluxia">FLUXIA</span>
                 </h1>
-                <div class="subtitle">TERRITORY CONTROL STRATEGY</div>
+                <p class="subtitle">Territory Control Strategy</p>
             </header>
 
-            <!-- Quick-start (visible without scrolling on mobile) -->
-            <button
-                class="start-btn quick-start"
-                onclick={() => {
-                    audioManager.play("click");
-                    startSPGame();
+            <MenuUtilityTopbar
+                bgOpen={bgOpen}
+                bgImage={bgImage}
+                bgImages={BG_IMAGES}
+                muted={audioManager.muted}
+                masterVolume={audioManager.masterVolume}
+                onToggleBackgrounds={() => (bgOpen = !bgOpen)}
+                onSelectBackground={(image) => {
+                    bgImage = image;
+                    bgOpen = false;
                 }}
-            >
-                <span class="btn-glow"></span>QUICK START
-            </button>
+                onToggleMute={() => (audioManager.muted = !audioManager.muted)}
+                onSetVolume={(value) => audioManager.setMasterVolume(value)}
+                onOpenSettings={() => (showAudioSettings = true)}
+            />
 
-            <div class="menu-topbar">
-                <div class="bg-picker">
-                    <button
-                        class="bg-picker-toggle"
-                        onclick={() => (bgOpen = !bgOpen)}
-                    >
-                        BG
-                    </button>
-                    {#if bgOpen}
-                        <div
-                            class="bg-picker-dropdown"
-                            transition:fly={{ y: -8, duration: 150 }}
-                        >
-                            <button
-                                class="bg-thumb-btn"
-                                class:active={!bgImage}
-                                onclick={() => {
-                                    bgImage = "";
-                                    bgOpen = false;
-                                }}
-                            >
-                                <span class="bg-thumb-none">None</span>
-                                <span class="bg-thumb-label">Default</span>
-                            </button>
-                            {#each bgImages as img}
-                                <button
-                                    class="bg-thumb-btn"
-                                    class:active={bgImage === img}
-                                    onclick={() => {
-                                        bgImage = img;
-                                        bgOpen = false;
-                                    }}
-                                >
-                                    <img
-                                        src="/assets/{img}"
-                                        alt={img}
-                                        class="bg-thumb-img"
-                                        loading="lazy"
-                                    />
-                                    <span class="bg-thumb-label"
-                                        >{img
-                                            .replace(/\.(png|jpe?g|webp|avif)$/i, "")
-                                            .replace(/^pax-fluxia-/, "")}</span
-                                    >
-                                </button>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
-                <div class="menu-topbar__right">
-                    <div class="audio-compact audio-compact--topbar">
-                        <button
-                            class="mute-btn"
-                            class:muted={audioManager.muted}
-                            onclick={() =>
-                                (audioManager.muted = !audioManager.muted)}
-                        >{audioManager.muted ? "Muted" : "Audio"}</button>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.05"
-                            disabled={audioManager.muted}
-                            value={audioManager.masterVolume}
-                            oninput={(e) =>
-                                audioManager.setMasterVolume(
-                                    +(e.target as HTMLInputElement).value,
-                                )}
-                        />
-                    </div>
-                    <button
-                        type="button"
-                        class="settings-gear-btn"
-                        onclick={() => (showAudioSettings = true)}
-                        title="Open audio settings"
-                    >
-                        ⚙
-                    </button>
-                </div>
+            <div class="mobile-tabs">
+                <button
+                    type="button"
+                    class="mobile-tabs__button"
+                    class:is-active={activeMobileTab === "setup"}
+                    onclick={() => (activeMobileTab = "setup")}
+                >
+                    Setup
+                </button>
+                <button
+                    type="button"
+                    class="mobile-tabs__button"
+                    class:is-active={activeMobileTab === "players"}
+                    onclick={() => (activeMobileTab = "players")}
+                >
+                    Players
+                </button>
+                <button
+                    type="button"
+                    class="mobile-tabs__button"
+                    class:is-active={activeMobileTab === "multiplayer"}
+                    onclick={() => (activeMobileTab = "multiplayer")}
+                >
+                    Multiplayer
+                </button>
             </div>
 
-            <!-- Main grid -->
-            <div class="menu-columns">
-                <!-- Shared Game Setup -->
-                <section class="col-setup panel">
-                    <h2 class="section-heading">GAME SETUP</h2>
+            <div class="desktop-panels">
+                <GameMapPanel
+                    mapMode={mapMode}
+                    selectedClassicMap={selectedClassicMap}
+                    selectedCustomMap={selectedCustomMap}
+                    starsPerPlayer={starsPerPlayer}
+                    shipsPerStar={shipsPerStar}
+                    minLinks={minLinks}
+                    maxLinks={maxLinks}
+                    starSpacing={starSpacing}
+                    mapBoardFit={mapBoardFit}
+                    menuStarMargin={menuStarMargin}
+                    menuLaneMargin={menuLaneMargin}
+                    menuCurveVsPruneBias={menuCurveVsPruneBias}
+                    menuLaneMode={menuLaneMode}
+                    neutralStarCount={neutralStarCount}
+                    neutralShipsPerStar={neutralShipsPerStar}
+                    specialStarPercentage={specialStarPercentage}
+                    tickDuration={tickDuration}
+                    thumbnailUrl={thumbnailUrl}
+                    classicMaps={getClassicMaps()}
+                    customMaps={getCustomMaps()}
+                    onMapModeChange={handleMapModeChange}
+                    onClassicMapSelect={(name) => (selectedClassicMap = name)}
+                    onCustomMapSelect={(name) => (selectedCustomMap = name)}
+                    onStarsPerPlayerChange={(value) => (starsPerPlayer = value)}
+                    onShipsPerStarChange={(value) => (shipsPerStar = value)}
+                    onMinLinksChange={(value) => (minLinks = value)}
+                    onMaxLinksChange={(value) => (maxLinks = value)}
+                    onStarSpacingChange={(value) => (starSpacing = value)}
+                    onMapBoardFitChange={(value) => (mapBoardFit = value)}
+                    onLaneModeChange={(value) => {
+                        menuLaneMode = value;
+                        persistMenuLaneKnobs();
+                    }}
+                    onStarMarginChange={(value) => {
+                        menuStarMargin = value;
+                        persistMenuLaneKnobs();
+                    }}
+                    onLaneMarginChange={(value) => {
+                        menuLaneMargin = value;
+                        persistMenuLaneKnobs();
+                    }}
+                    onCurveVsPruneBiasChange={(value) => {
+                        menuCurveVsPruneBias = value;
+                        persistMenuLaneKnobs();
+                    }}
+                    onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
+                    onNeutralStarCountChange={(value) => (neutralStarCount = value)}
+                    onNeutralShipsPerStarChange={(value) => (neutralShipsPerStar = value)}
+                    onTickDurationChange={(value) => (tickDuration = value)}
+                    onReshuffle={() => (previewSeed += 1)}
+                />
 
-                    <!-- Map Mode Tabs -->
-                    <div class="control-group">
-                        <label>MAP</label>
-                        <div class="map-mode-tabs">
-                            <button
-                                class="map-tab"
-                                class:active={mapMode === "random"}
-                                onclick={() => {
-                                    mapMode = "random";
-                                    mapType = "standard";
-                                }}>RANDOM</button
-                            >
-                            <button
-                                class="map-tab"
-                                class:active={mapMode === "classic"}
-                                onclick={() => {
-                                    mapMode = "classic";
-                                }}>CLASSIC</button
-                            >
-                            <button
-                                class="map-tab"
-                                class:active={mapMode === "custom"}
-                                onclick={() => {
-                                    mapMode = "custom";
-                                }}>CUSTOM</button
-                            >
-                        </div>
-                    </div>
+                <PlayersPanel
+                    playerCount={playerCount}
+                    playerOptions={PLAYERS}
+                    playerName={playerName}
+                    playerConfigs={playerConfigs}
+                    difficultyOptions={DIFFICULTIES}
+                    strategyOptions={AI_STRATEGIES}
+                    showAIDetails={showAIDetails}
+                    hueOffset={hueOffset}
+                    colorSat={colorSat}
+                    colorLig={colorLig}
+                    playerHueLimit={PLAYER_HUE_NUDGE_LIMIT}
+                    getPlayerColorHex={getPlayerColorHex}
+                    getPlayerHue={getPlayerHue}
+                    onPlayerCountChange={(count) => (playerCount = count)}
+                    onPlayerNameChange={updatePlayerName}
+                    onToggleAIDetails={() => (showAIDetails = !showAIDetails)}
+                    onHueOffsetChange={(value) => (hueOffset = value)}
+                    onColorSatChange={(value) => (colorSat = value)}
+                    onColorLigChange={(value) => (colorLig = value)}
+                    onPlayerDifficultyChange={updatePlayerDifficulty}
+                    onPlayerStrategyChange={updatePlayerStrategy}
+                    onPlayerHueNudgeChange={updatePlayerHueNudge}
+                    onResetPlayerHueNudge={resetPlayerHueNudge}
+                />
 
-                    <!-- Map Columns -->
-                    <div class="map-columns">
-                        {#if mapMode === "random"}
-                            <!-- Random Map Settings -->
-                            <div class="map-col-content">
-                                <div class="config-row-3">
-                                    <div class="config-item">
-                                        <label>Stars per player</label>
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="1"
-                                                max="20"
-                                                bind:value={starsPerPlayer}
-                                            />
-                                            <span class="value"
-                                                >{starsPerPlayer}</span
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label
-                                            >Links <span
-                                                >[{minLinks}-{maxLinks}]</span
-                                            ></label
-                                        >
-                                        <div
-                                            class="slider-container"
-                                            style="padding: 0 4px;"
-                                        >
-                                            <RangeDual
-                                                bind:min={minLinks}
-                                                bind:max={maxLinks}
-                                                minLimit={1}
-                                                maxLimit={8}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label>Spacing</label>
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="0.5"
-                                                max="5.0"
-                                                step="0.1"
-                                                bind:value={starSpacing}
-                                            />
-                                            <span class="value"
-                                                >{starSpacing.toFixed(1)}x</span
-                                            >
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    class="config-row-3"
-                                    style="grid-template-columns: 1fr;"
-                                >
-                                    <div class="config-item">
-                                        <label title="Loose: natural cluster. Tight: stars scaled to fill the padded map area."
-                                            >Board fill</label
-                                        >
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="1"
-                                                step="0.05"
-                                                bind:value={mapBoardFit}
-                                            />
-                                            <span class="value"
-                                                >{Math.round(mapBoardFit * 100)}%</span
-                                            >
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="config-row-3">
-                                    <div class="config-item">
-                                        <label title="Matches Map & Grid -> Lane clearance">Lane path</label>
-                                        <div
-                                            class="map-lane-mode-segment"
-                                            role="group"
-                                            aria-label="Lane path: straight or curved"
-                                        >
-                                            <button
-                                                type="button"
-                                                class="map-lane-mode-segment__btn"
-                                                class:map-lane-mode-segment__btn--active={menuLaneMode ===
-                                                    "straight"}
-                                                aria-pressed={menuLaneMode === "straight"}
-                                                onclick={() => {
-                                                    menuLaneMode = "straight";
-                                                    persistMenuLaneKnobs();
-                                                }}>Straight</button
-                                            >
-                                            <button
-                                                type="button"
-                                                class="map-lane-mode-segment__btn"
-                                                class:map-lane-mode-segment__btn--active={menuLaneMode ===
-                                                    "curved"}
-                                                aria-pressed={menuLaneMode === "curved"}
-                                                onclick={() => {
-                                                    menuLaneMode = "curved";
-                                                    persistMenuLaneKnobs();
-                                                }}>Curve if needed</button
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label title="Territory / ownership boundary margin">MSR (px)</label>
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="500"
-                                                step="5"
-                                                bind:value={menuStarMargin}
-                                                oninput={() => persistMenuLaneKnobs()}
-                                            />
-                                            <span class="value">{menuStarMargin}</span>
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label title="Lane chords & centerlines vs other stars (mapgen)">Lane margin (px)</label>
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="250"
-                                                step="5"
-                                                bind:value={menuLaneMargin}
-                                                oninput={() => persistMenuLaneKnobs()}
-                                            />
-                                            <span class="value">{menuLaneMargin}</span>
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label title="0 = prune tight chords; 1 = keep edges for curves">Curve vs prune</label>
-                                        <div class="slider-container">
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="1"
-                                                step="0.05"
-                                                bind:value={menuCurveVsPruneBias}
-                                                oninput={() => persistMenuLaneKnobs()}
-                                            />
-                                            <span class="value">{menuCurveVsPruneBias.toFixed(2)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="config-row-3">
-                                    <div class="config-item">
-                                        <label>Special Stars</label>
-                                        <div class="slider-container">
-                                            <input type="range" min="0" max="100" step="5" bind:value={specialStarPercentage} />
-                                            <span class="value">{specialStarPercentage}%</span>
-                                        </div>
-                                    </div>
-                                    <div class="config-item">
-                                        <label>Neutral Stars</label>
-                                        <div class="slider-container">
-                                            <input type="range" min="0" max="50" step="1" bind:value={neutralStarCount} />
-                                            <span class="value">{neutralStarCount}</span>
-                                        </div>
-                                    </div>
-                                    <div class="config-item" style={neutralStarCount === 0 ? "opacity:0.4; pointer-events:none;" : ""}>
-                                        <label>Neutral Ships</label>
-                                        <div class="slider-container">
-                                            <input type="range" min="0" max="100" step="5" bind:value={neutralShipsPerStar} />
-                                            <span class="value">{neutralShipsPerStar}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="random-map-preview">
-                                    {#if thumbnailUrl}
-                                        <img src={thumbnailUrl} alt="Map preview" class="map-thumb-img" />
-                                    {:else}
-                                        <div class="map-thumb-placeholder">Generating...</div>
-                                    {/if}
-                                    <button
-                                        class="reshuffle-btn"
-                                        onclick={() => {
-                                            previewSeed += 1;
-                                        }}>Reshuffle</button>
-                                </div>
-                            </div>
-                        {:else if mapMode === "classic"}
-                            <!-- Classic Map Cards -->
-                            <div class="classic-map-grid">
-                                {#each getClassicMaps() as m}
-                                    {@const xs = m.stars.map((s) => s.x)}
-                                    {@const ys = m.stars.map((s) => s.y)}
-                                    {@const pad = 20}
-                                    {@const minX = Math.min(...xs) - pad}
-                                    {@const minY = Math.min(...ys) - pad}
-                                    {@const maxX = Math.max(...xs) + pad}
-                                    {@const maxY = Math.max(...ys) + pad}
-                                    {@const vw = maxX - minX || 100}
-                                    {@const vh = maxY - minY || 100}
-                                    {@const starMap = Object.fromEntries(
-                                        m.stars.map((s) => [s.id, s]),
-                                    )}
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div
-                                        class="classic-map-card"
-                                        class:selected={selectedClassicMap ===
-                                            m.metadata.name}
-                                        onclick={() => {
-                                            selectedClassicMap =
-                                                m.metadata.name;
-                                        }}
-                                    >
-                                        <svg
-                                            class="classic-map-thumb"
-                                            viewBox="{minX} {minY} {vw} {vh}"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            {#each m.connections as conn}
-                                                {@const src =
-                                                    starMap[conn.sourceId]}
-                                                {@const tgt =
-                                                    starMap[conn.targetId]}
-                                                {#if src && tgt}
-                                                    <line
-                                                        x1={src.x}
-                                                        y1={src.y}
-                                                        x2={tgt.x}
-                                                        y2={tgt.y}
-                                                        stroke={selectedClassicMap ===
-                                                        m.metadata.name
-                                                            ? "#4488ff55"
-                                                            : "#334466"}
-                                                        stroke-width={Math.max(
-                                                            1,
-                                                            vw * 0.006,
-                                                        )}
-                                                    />
-                                                {/if}
-                                            {/each}
-                                            {#each m.stars as star}
-                                                <circle
-                                                    cx={star.x}
-                                                    cy={star.y}
-                                                    r={Math.max(2, vw * 0.015)}
-                                                    fill={star.ownerId ===
-                                                    "neutral"
-                                                        ? "#666"
-                                                        : `hsl(${(m.stars.indexOf(star) * 60) % 360}, 70%, 60%)`}
-                                                    opacity={selectedClassicMap ===
-                                                    m.metadata.name
-                                                        ? 1
-                                                        : 0.7}
-                                                />
-                                            {/each}
-                                        </svg>
-                                        <span class="classic-card-label"
-                                            >{m.metadata.name}</span
-                                        >
-                                        <span class="classic-card-info"
-                                            >{m.stars.length} stars</span
-                                        >
-                                    </div>
-                                {/each}
-                                {#if getClassicMaps().length === 0}
-                                    <div class="no-maps-msg">
-                                        No classic maps loaded yet
-                                    </div>
-                                {/if}
-                            </div>
-                        {:else}
-                            <div class="classic-map-grid">
-                                {#each getCustomMaps() as m}
-                                    {@const xs = m.stars.map((s) => s.x)}
-                                    {@const ys = m.stars.map((s) => s.y)}
-                                    {@const pad = 20}
-                                    {@const minX = Math.min(...xs) - pad}
-                                    {@const minY = Math.min(...ys) - pad}
-                                    {@const maxX = Math.max(...xs) + pad}
-                                    {@const maxY = Math.max(...ys) + pad}
-                                    {@const vw = maxX - minX || 100}
-                                    {@const vh = maxY - minY || 100}
-                                    {@const starMap = Object.fromEntries(
-                                        m.stars.map((s) => [s.id, s]),
-                                    )}
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                    <div
-                                        class="classic-map-card"
-                                        class:selected={selectedCustomMap ===
-                                            m.metadata.name}
-                                        onclick={() => {
-                                            selectedCustomMap =
-                                                m.metadata.name;
-                                        }}
-                                    >
-                                        <svg
-                                            class="classic-map-thumb"
-                                            viewBox="{minX} {minY} {vw} {vh}"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                            {#each m.connections as conn}
-                                                {@const src =
-                                                    starMap[conn.sourceId]}
-                                                {@const tgt =
-                                                    starMap[conn.targetId]}
-                                                {#if src && tgt}
-                                                    <line
-                                                        x1={src.x}
-                                                        y1={src.y}
-                                                        x2={tgt.x}
-                                                        y2={tgt.y}
-                                                        stroke={selectedCustomMap ===
-                                                        m.metadata.name
-                                                            ? "#4488ff55"
-                                                            : "#334466"}
-                                                        stroke-width={Math.max(
-                                                            1,
-                                                            vw * 0.006,
-                                                        )}
-                                                    />
-                                                {/if}
-                                            {/each}
-                                            {#each m.stars as star}
-                                                <circle
-                                                    cx={star.x}
-                                                    cy={star.y}
-                                                    r={Math.max(2, vw * 0.015)}
-                                                    fill={star.ownerId ===
-                                                    "neutral"
-                                                        ? "#666"
-                                                        : `hsl(${(m.stars.indexOf(star) * 60) % 360}, 70%, 60%)`}
-                                                    opacity={selectedCustomMap ===
-                                                    m.metadata.name
-                                                        ? 1
-                                                        : 0.7}
-                                                />
-                                            {/each}
-                                        </svg>
-                                        <span class="classic-card-label"
-                                            >{m.metadata.name}</span
-                                        >
-                                        <span class="classic-card-info"
-                                            >{m.stars.length} stars</span
-                                        >
-                                    </div>
-                                {/each}
-                                {#if getCustomMaps().length === 0}
-                                    <div class="no-maps-msg">
-                                        No custom maps saved yet
-                                    </div>
-                                {/if}
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="section-divider"></div>
-
-                    <!-- Shared Settings -->
-                    <div class="config-row-3">
-                        <div class="control-group">
-                            <label>PLAYERS</label>
-                            <div class="button-row">
-                                {#each PLAYERS as p}
-                                    <button
-                                        class:active={playerCount === p}
-                                        onclick={() => (playerCount = p)}
-                                        >{p}</button
-                                    >
-                                {/each}
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Ships per star</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="200"
-                                    step="10"
-                                    bind:value={shipsPerStar}
-                                />
-                                <span class="value">{shipsPerStar}</span>
-                            </div>
-                        </div>
-                        <div class="config-item">
-                            <label>Tick Duration</label>
-                            <div class="slider-container">
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="3000"
-                                    step="250"
-                                    bind:value={tickDuration}
-                                />
-                                <span class="value"
-                                    >{(tickDuration / 1000).toFixed(1)}s</span
-                                >
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="section-divider"></div>
-
-
-                    <div class="start-actions-row">
-                        <button
-                            class="start-btn start-btn-primary"
-                            onclick={() => {
-                                audioManager.play("click");
-                                startSPGame();
-                            }}
-                        >
-                            <span class="btn-glow"></span>START
-                        </button>
-                        <button
-                            class="start-btn mp-create-btn-main"
-                            onclick={() => {
-                                audioManager.play("click");
-                                handleCreateRoom();
-                            }}
-                        >
-                            <span class="btn-glow"></span>CREATE LOBBY
-                        </button>
-                    </div>
-                </section>
-
-                <!-- Players and Multiplayer -->
-                <section class="col-players panel compact-players">
-                    <h3 class="section-heading">PLAYERS</h3>
-
-                    <div class="identity-row identity-row--players">
-                        <div class="identity-widget">
-                            <span class="identity-badge">Commander</span>
-                            <input
-                                type="text"
-                                class="identity-name-input"
-                                bind:value={playerName}
-                                placeholder="Commander..."
-                                maxlength="20"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="player-colors-card player-colors-card--panel">
-                        <div class="player-colors-card__header">
-                            <div class="player-colors-card__heading">
-                                <span class="player-colors-card__title"
-                                    >Player Colors</span
-                                >
-                            </div>
-                            <div class="player-colors-card__actions">
-                                <button
-                                    type="button"
-                                    class="player-colors-card__adjust-btn"
-                                    class:is-active={showPaletteNudgePopover}
-                                    bind:this={paletteAdjustButtonEl}
-                                    onclick={() =>
-                                        (showPaletteNudgePopover =
-                                            !showPaletteNudgePopover)}
-                                    title="Adjust player color"
-                                >
-                                    Adjust color
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="player-colors-card__row">
-                            <label class="player-colors-card__label"
-                                >Anchor Hue</label
-                            >
-                            <input
-                                class="hue-slider player-colors-card__slider"
-                                type="range"
-                                min="0"
-                                max="359"
-                                step="1"
-                                bind:value={hueOffset}
-                                style="--hue: {hueOffset}"
-                            />
-                            <span class="value">{Math.round(hueOffset)} deg</span>
-                        </div>
-
-                        <div class="player-colors-card__selection">
-                            <span class="player-colors-card__selection-label"
-                                >Selected</span
-                            >
-                            <span class="player-colors-card__selection-value"
-                                >P{selectedPaletteIndex + 1} | {Math.round(
-                                    selectedPaletteHue,
-                                )} deg</span
-                            >
-                        </div>
-
-                        <div class="menu-palette-preview">
-                            {#each activePlayerPaletteHues as hue, index}
-                                <button
-                                    type="button"
-                                    class="menu-palette-preview__slot"
-                                    class:is-selected={selectedPaletteIndex === index}
-                                    onclick={() => selectPaletteIndex(index)}
-                                    title={"Select Player " + (index + 1) + " color"}
-                                >
-                                    <span
-                                        class="menu-palette-preview__swatch"
-                                        style="background: {getPlayerColorHex(index)}"
-                                    ></span>
-                                    <span class="menu-palette-preview__label"
-                                        >P{index + 1}</span
-                                    >
-                                </button>
-                            {/each}
-                        </div>
-
-                        {#if showPaletteNudgePopover}
-                            <div
-                                class="player-colors-card__popover"
-                                bind:this={paletteAdjustPopoverEl}
-                                transition:fly={{ y: -6, duration: 150 }}
-                            >
-                                <div class="player-colors-card__focus-header">
-                                    <span class="player-colors-card__focus-label">
-                                        P{selectedPaletteIndex + 1} HSL
-                                    </span>
-                                    <span class="player-colors-card__focus-value">{Math.round(selectedPaletteHue)} deg</span>
-                                </div>
-                                <div class="player-colors-card__row player-colors-card__row--nudge">
-                                    <label class="player-colors-card__label">Hue nudge</label>
-                                    <input
-                                        type="range"
-                                        min={-PLAYER_HUE_NUDGE_LIMIT}
-                                        max={PLAYER_HUE_NUDGE_LIMIT}
-                                        step="1"
-                                        value={playerConfigs[selectedPaletteIndex]
-                                            ?.hueNudge ?? 0}
-                                        oninput={(event) =>
-                                            setSelectedPaletteNudge(
-                                                Number(
-                                                    (
-                                                        event.currentTarget as HTMLInputElement
-                                                    ).value,
-                                                ),
-                                            )}
-                                    />
-                                    <span class="value">{(playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0) > 0 ? "+" : ""}{playerConfigs[selectedPaletteIndex]?.hueNudge ?? 0} deg</span>
-                                </div>
-                                <div class="player-colors-card__row">
-                                    <label class="player-colors-card__label">Saturation</label>
-                                    <input
-                                        type="range"
-                                        min="40"
-                                        max="100"
-                                        step="1"
-                                        bind:value={colorSat}
-                                    />
-                                    <span class="value">{colorSat}%</span>
-                                </div>
-                                <div class="player-colors-card__row">
-                                    <label class="player-colors-card__label">Lightness</label>
-                                    <input
-                                        type="range"
-                                        min="30"
-                                        max="70"
-                                        step="1"
-                                        bind:value={colorLig}
-                                    />
-                                    <span class="value">{colorLig}%</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="player-colors-card__reset"
-                                    onclick={resetSelectedPaletteNudge}
-                                    disabled={(playerConfigs[selectedPaletteIndex]
-                                        ?.hueNudge ?? 0) === 0}
-                                >
-                                    Reset selected nudge
-                                </button>
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="players-ai-card">
-                        <div class="ai-header-row">
-                            <span class="section-heading-inline">AI Modes</span>
-                            <button
-                                class="toggle-details-btn"
-                                onclick={() => (showAIDetails = !showAIDetails)}
-                                title="Show advanced AI strategy control"
-                            >
-                                {showAIDetails ? "v" : ">"}
-                            </button>
-                        </div>
-
-                        <div class="ai-grid">
-                            {#each playerConfigs as cfg, i}
-                                {#if i > 0 && i < playerCount}
-                                    <div
-                                        class="ai-row"
-                                        class:is-selected={selectedPaletteIndex === i}
-                                        onclick={() => selectPaletteIndex(i)}
-                                    >
-                                        <span class="ai-slot-label">P{i + 1}</span>
-                                        <select
-                                            class="ai-select-mini"
-                                            onclick={(event) => event.stopPropagation()}
-                                            bind:value={playerConfigs[i].difficulty}
-                                        >
-                                            {#each DIFFICULTIES as d}<option
-                                                    value={d}>{d}</option
-                                                >{/each}
-                                        </select>
-                                        {#if showAIDetails}
-                                            <select
-                                                class="ai-select-mini"
-                                                onclick={(event) => event.stopPropagation()}
-                                                bind:value={playerConfigs[i].strategy}
-                                            >
-                                                {#each AI_STRATEGIES as s}<option
-                                                        value={s.id}
-                                                        >{s.label}</option
-                                                    >{/each}
-                                            </select>
-                                        {/if}
-                                    </div>
-                                {/if}
-                            {/each}
-                        </div>
-                    </div>
-                </section>
-                <section class="col-right panel compact-right">
-
-
-                    <!-- Multiplayer -->
-                    <div class="mp-section-compact">
-                        <h3 class="section-heading">MULTIPLAYER</h3>
-
-                        {#if multiplayerStore.isConnected || multiplayerStore.isLobbyConnected}
-                            <div class="room-info-bar">
-                                <div class="room-id-block">
-                                    <span class="room-label">ROOM</span>
-                                    <code class="room-code"
-                                        >{multiplayerStore.roomId}</code
-                                    >
-                                    <button
-                                        class="copy-btn"
-                                        onclick={copyRoomId}
-                                        title="Copy Room ID"
-                                    ></button>
-                                </div>
-                                <div class="player-count-badge">
-                                    {multiplayerStore.playerCount} / {multiplayerStore.maxPlayers}
-                                </div>
-                            </div>
-
-                            <!-- Numbered Slot Grid -->
-                            <div class="slot-grid">
-                                {#each multiplayerStore.players as player, i}
-                                    <div
-                                        class="slot-row"
-                                        class:slot-you={player.sessionId ===
-                                            multiplayerStore.localSessionId}
-                                    >
-                                        <span class="slot-index">{i + 1}</span>
-                                        <span class="player-name">
-                                            {player.name}
-                                        </span>
-                                        <span class="slot-badges">
-                                            {#if player.sessionId === multiplayerStore.hostSessionId}<span
-                                                    class="badge host"
-                                                    >HOST</span
-                                                >{/if}
-                                            {#if player.sessionId === multiplayerStore.localSessionId}<span
-                                                    class="badge you">YOU</span
-                                                >{/if}
-                                            {#if player.isAI}<span
-                                                    class="badge ai">AI</span
-                                                >{/if}
-                                        </span>
-                                    </div>
-                                {/each}
-                                {#if multiplayerStore.players.length === 0}
-                                    <p class="waiting-text">
-                                        Waiting for players...
-                                    </p>
-                                {/if}
-                            </div>
-
-                            <!-- Lobby Actions -->
-                            <div class="lobby-actions">
-                                {#if multiplayerStore.isHost}
-                                    <button
-                                        class="start-btn"
-                                        onclick={handleStartGame}
-                                        ><span class="btn-glow"></span>START
-                                        GAME</button
-                                    >
-                                {:else}
-                                    <button
-                                        class="start-btn vote-btn"
-                                        onclick={() =>
-                                            multiplayerStore.voteToStart()}
-                                        ><span class="btn-glow"></span>VOTE TO
-                                        START</button
-                                    >
-                                    {#if multiplayerStore.startVoteInfo}
-                                        <span class="vote-progress">
-                                            {multiplayerStore.startVoteInfo
-                                                .votes}/{multiplayerStore
-                                                .startVoteInfo.needed} votes
-                                        </span>
-                                    {/if}
-                                {/if}
-                                <button
-                                    class="leave-btn"
-                                    onclick={handleLeaveRoom}>Leave Room</button
-                                >
-                                {#if multiplayerStore.isHost}
-                                    <button
-                                        class="leave-btn dispose-btn"
-                                        onclick={() =>
-                                            multiplayerStore.disposeRoom()}
-                                        >Dispose Room</button
-                                    >
-                                {/if}
-                            </div>
-
-                            <!-- Chat (collapsible) -->
-                            <div class="lobby-chat-section">
-                                <button
-                                    class="chat-toggle"
-                                    onclick={() => (chatOpen = !chatOpen)}
-                                >
-                                    {chatOpen ? "Hide Chat" : "Chat"}
-                                    {#if multiplayerStore.chatMessages.length > 0}<span
-                                            class="chat-count"
-                                            >{multiplayerStore.chatMessages
-                                                .length}</span
-                                        >{/if}
-                                </button>
-                                {#if chatOpen}
-                                    <div
-                                        class="chat-messages"
-                                        transition:fly={{
-                                            y: -8,
-                                            duration: 150,
-                                        }}
-                                    >
-                                        {#if multiplayerStore.chatMessages.length === 0}
-                                            <p class="waiting-text">
-                                                No messages yet
-                                            </p>
-                                        {:else}
-                                            {#each multiplayerStore.chatMessages as msg}
-                                                <div class="chat-msg">
-                                                    <span
-                                                        class="chat-sender"
-                                                        style:color={msg.senderColor}
-                                                        >{msg.senderName}</span
-                                                    >
-                                                    <span class="chat-text"
-                                                        >{msg.text}</span
-                                                    >
-                                                </div>
-                                            {/each}
-                                        {/if}
-                                    </div>
-                                    <div class="chat-input-bar">
-                                        <input
-                                            type="text"
-                                            class="chat-input"
-                                            placeholder="Type a message..."
-                                            bind:value={chatInput}
-                                            onkeydown={(e) => {
-                                                if (
-                                                    e.key === "Enter" &&
-                                                    chatInput.trim()
-                                                ) {
-                                                    multiplayerStore.sendChat(
-                                                        chatInput,
-                                                    );
-                                                    chatInput = "";
-                                                }
-                                            }}
-                                        />
-                                        <button
-                                            class="chat-send-btn"
-                                            onclick={() => {
-                                                if (chatInput.trim()) {
-                                                    multiplayerStore.sendChat(
-                                                        chatInput,
-                                                    );
-                                                    chatInput = "";
-                                                }
-                                            }}>Send</button
-                                        >
-                                    </div>
-                                {/if}
-                            </div>
-                        {:else if multiplayerStore.isConnecting}
-                            <div class="mp-loading">
-                                <div class="spinner"></div>
-                                <p>Connecting...</p>
-                            </div>
-                        {:else}
-                            <div class="mp-actions-compact">
-                                <button
-                                    class="mp-action-btn mp-create-btn"
-                                    onclick={handleCreateRoom}
-                                    disabled={mapMode === "custom"}
-                                    title={mapMode === "custom"
-                                        ? "Custom map lobbies are not wired yet"
-                                        : "Create multiplayer room"}
-                                    >CREATE ROOM</button
-                                >
-                                <div class="join-inline">
-                                    <input
-                                        type="text"
-                                        placeholder="Room ID..."
-                                        bind:value={joinRoomId}
-                                        class="room-input"
-                                    />
-                                    <button
-                                        class="mp-action-btn mp-join-btn"
-                                        onclick={handleJoinRoom}
-                                        disabled={!joinRoomId.trim()}
-                                        >JOIN</button
-                                    >
-                                </div>
-                            </div>
-                            {#if mapMode === "custom"}
-                                <div class="lobby-status-msg">
-                                    Custom maps currently launch in single-player only.
-                                </div>
-                            {/if}
-                            <div class="mp-section room-browser">
-                                <div class="browser-header">
-                                    <span class="mini-label">BROWSE</span>
-                                    <button
-                                        class="refresh-btn"
-                                        onclick={() =>
-                                            multiplayerStore.fetchRooms()}
-                                        disabled={multiplayerStore.isFetchingRooms}
-                                        >Refresh</button
-                                    >
-                                </div>
-                                {#if multiplayerStore.isFetchingRooms}
-                                    <p class="waiting-text">Scanning...</p>
-                                {:else if multiplayerStore.availableRooms.length === 0}
-                                    <p class="waiting-text">
-                                        No rooms available
-                                    </p>
-                                {:else}
-                                    <div class="room-list">
-                                        {#each multiplayerStore.availableRooms as room}
-                                            <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                            <div
-                                                class="room-card"
-                                                onclick={() =>
-                                                    (confirmJoinTarget = room)}
-                                            >
-                                                <div class="room-card-top">
-                                                    <span class="room-host"
-                                                        >{room.metadata
-                                                            ?.publicRoomLabel ||
-                                                            room.metadata
-                                                                ?.hostName ||
-                                                            "Unknown"}</span
-                                                    >
-                                                    <div class="room-card-badges">
-                                                        {#if room.metadata?.isPublicAnchor}
-                                                            <span class="badge public"
-                                                                >PUBLIC</span
-                                                            >
-                                                        {/if}
-                                                        <span
-                                                            class="room-phase badge {room
-                                                                .metadata?.phase ||
-                                                                'lobby'}"
-                                                            >{room.metadata
-                                                                ?.phase ||
-                                                                "lobby"}</span
-                                                        >
-                                                    </div>
-                                                </div>
-                                                <div class="room-card-mid">
-                                                    <span class="room-map"
-                                                        >{room.metadata
-                                                            ?.mapType ||
-                                                            "?"}</span
-                                                    >
-                                                    <span class="room-detail"
-                                                        >Stars {room.metadata
-                                                            ?.starsPerPlayer ||
-                                                            "?"}/p</span
-                                                    >
-                                                    <span class="room-detail"
-                                                        >Ships {room.metadata
-                                                            ?.shipsPerStar ||
-                                                            "?"}/star</span
-                                                    >
-                                                    {#if room.metadata?.phase === "playing" && room.metadata?.tick}
-                                                        <span
-                                                            class="room-detail tick-badge"
-                                                            >T{room.metadata
-                                                                .tick}</span
-                                                        >
-                                                    {/if}
-                                                </div>
-                                                <div class="room-card-bottom">
-                                                    <span class="room-slots"
-                                                        >{room.clients}/{room.maxClients}
-                                                        players</span
-                                                    >
-                                                </div>
-                                                {#if room.metadata?.playerNames?.length}
-                                                    <div class="room-players">
-                                                        {#each room.metadata.playerNames as pname}<span
-                                                                class="player-chip"
-                                                                >{pname}</span
-                                                            >{/each}
-                                                    </div>
-                                                {/if}
-                                            </div>
-                                        {/each}
-                                    </div>
-                                {/if}
-                            </div>
-                            {#if multiplayerStore.lobbyStatus}<div class="lobby-status-msg">Status: {multiplayerStore.lobbyStatus}</div>{/if}
-                            {#if multiplayerStore.connectionError}<div
-                                    class="error-msg"
-                                >
-                                    {multiplayerStore.connectionError}
-                                </div>{/if}
-                        {/if}
-                    </div>
-                </section>
+                <MultiplayerPanel
+                    mapMode={mapMode}
+                    selectedRoomId={selectedRoomId}
+                    onSelectRoom={(roomId) => (selectedRoomId = roomId)}
+                />
             </div>
+
+            <div class="mobile-panel">
+                {#if activeMobileTab === "setup"}
+                    <GameMapPanel
+                        mapMode={mapMode}
+                        selectedClassicMap={selectedClassicMap}
+                        selectedCustomMap={selectedCustomMap}
+                        starsPerPlayer={starsPerPlayer}
+                        shipsPerStar={shipsPerStar}
+                        minLinks={minLinks}
+                        maxLinks={maxLinks}
+                        starSpacing={starSpacing}
+                        mapBoardFit={mapBoardFit}
+                        menuStarMargin={menuStarMargin}
+                        menuLaneMargin={menuLaneMargin}
+                        menuCurveVsPruneBias={menuCurveVsPruneBias}
+                        menuLaneMode={menuLaneMode}
+                        neutralStarCount={neutralStarCount}
+                        neutralShipsPerStar={neutralShipsPerStar}
+                        specialStarPercentage={specialStarPercentage}
+                        tickDuration={tickDuration}
+                        thumbnailUrl={thumbnailUrl}
+                        classicMaps={getClassicMaps()}
+                        customMaps={getCustomMaps()}
+                        onMapModeChange={handleMapModeChange}
+                        onClassicMapSelect={(name) => (selectedClassicMap = name)}
+                        onCustomMapSelect={(name) => (selectedCustomMap = name)}
+                        onStarsPerPlayerChange={(value) => (starsPerPlayer = value)}
+                        onShipsPerStarChange={(value) => (shipsPerStar = value)}
+                        onMinLinksChange={(value) => (minLinks = value)}
+                        onMaxLinksChange={(value) => (maxLinks = value)}
+                        onStarSpacingChange={(value) => (starSpacing = value)}
+                        onMapBoardFitChange={(value) => (mapBoardFit = value)}
+                        onLaneModeChange={(value) => {
+                            menuLaneMode = value;
+                            persistMenuLaneKnobs();
+                        }}
+                        onStarMarginChange={(value) => {
+                            menuStarMargin = value;
+                            persistMenuLaneKnobs();
+                        }}
+                        onLaneMarginChange={(value) => {
+                            menuLaneMargin = value;
+                            persistMenuLaneKnobs();
+                        }}
+                        onCurveVsPruneBiasChange={(value) => {
+                            menuCurveVsPruneBias = value;
+                            persistMenuLaneKnobs();
+                        }}
+                        onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
+                        onNeutralStarCountChange={(value) => (neutralStarCount = value)}
+                        onNeutralShipsPerStarChange={(value) => (neutralShipsPerStar = value)}
+                        onTickDurationChange={(value) => (tickDuration = value)}
+                        onReshuffle={() => (previewSeed += 1)}
+                    />
+                {:else if activeMobileTab === "players"}
+                    <PlayersPanel
+                        playerCount={playerCount}
+                        playerOptions={PLAYERS}
+                        playerName={playerName}
+                        playerConfigs={playerConfigs}
+                        difficultyOptions={DIFFICULTIES}
+                        strategyOptions={AI_STRATEGIES}
+                        showAIDetails={showAIDetails}
+                        hueOffset={hueOffset}
+                        colorSat={colorSat}
+                        colorLig={colorLig}
+                        playerHueLimit={PLAYER_HUE_NUDGE_LIMIT}
+                        getPlayerColorHex={getPlayerColorHex}
+                        getPlayerHue={getPlayerHue}
+                        onPlayerCountChange={(count) => (playerCount = count)}
+                        onPlayerNameChange={updatePlayerName}
+                        onToggleAIDetails={() => (showAIDetails = !showAIDetails)}
+                        onHueOffsetChange={(value) => (hueOffset = value)}
+                        onColorSatChange={(value) => (colorSat = value)}
+                        onColorLigChange={(value) => (colorLig = value)}
+                        onPlayerDifficultyChange={updatePlayerDifficulty}
+                        onPlayerStrategyChange={updatePlayerStrategy}
+                        onPlayerHueNudgeChange={updatePlayerHueNudge}
+                        onResetPlayerHueNudge={resetPlayerHueNudge}
+                    />
+                {:else}
+                    <MultiplayerPanel
+                        mapMode={mapMode}
+                        selectedRoomId={selectedRoomId}
+                        onSelectRoom={(roomId) => (selectedRoomId = roomId)}
+                    />
+                {/if}
+            </div>
+
+            <MenuCommandBar
+                summary={commandSummary}
+                selectedRoomLabel={selectedRoomLabel}
+                startDisabled={multiplayerStore.isConnected}
+                createDisabled={mapMode === "custom" || multiplayerStore.isConnected}
+                joinDisabled={!selectedRoom || multiplayerStore.isConnected}
+                onStart={triggerStartAction}
+                onCreateLobby={triggerCreateLobbyAction}
+                onJoinSelected={triggerJoinSelectedAction}
+            />
         </div>
     </div>
 {/if}
 
-<!-- Join Confirmation Modal -->
 {#if confirmJoinTarget}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1720,17 +884,19 @@
             selectedTakeOverId = null;
         }}
     >
-        <div class="confirm-dialog" onclick={(e) => e.stopPropagation()}>
+        <div class="confirm-dialog" onclick={(event) => event.stopPropagation()}>
             <h3>Join Room?</h3>
             <p>
-                Host: <strong
-                    >{confirmJoinTarget.metadata?.publicRoomLabel ||
+                Host:
+                <strong>
+                    {confirmJoinTarget.metadata?.publicRoomLabel ||
                         confirmJoinTarget.metadata?.hostName ||
-                        "Unknown"}</strong
-                >
+                        "Unknown"}
+                </strong>
             </p>
             <p>
-                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players - {confirmJoinTarget.metadata?.mapType || "standard"}
+                {confirmJoinTarget.clients}/{confirmJoinTarget.maxClients} players -
+                {confirmJoinTarget.metadata?.mapType || "standard"}
             </p>
 
             {#if confirmJoinTarget.metadata?.phase === "playing" && confirmJoinTarget.metadata?.aiPlayers?.length}
@@ -1742,45 +908,33 @@
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
                                 class="ai-chip"
-                                class:selected={selectedTakeOverId ===
-                                    ai.sessionId}
-                                onclick={() =>
-                                    (selectedTakeOverId = ai.sessionId)}
+                                class:selected={selectedTakeOverId === ai.sessionId}
+                                onclick={() => (selectedTakeOverId = ai.sessionId)}
                             >
-                                <span
-                                    class="ai-color"
-                                    style="background: {ai.color}"
-                                ></span>
+                                <span class="ai-color" style={`background:${ai.color}`}></span>
                                 {ai.name}
                             </div>
                         {/each}
                     </div>
                 </div>
             {:else if confirmJoinTarget.metadata?.phase === "playing"}
-                <p class="error-msg" style="margin-top:0.5rem;">
-                    No AI players available to take over
-                </p>
+                <p class="error-msg">No AI players available to take over.</p>
             {/if}
 
             <div class="confirm-actions">
-                <button
-                    class="start-btn"
-                    onclick={handleConfirmJoin}
-                    disabled={confirmJoinTarget.metadata?.phase === "playing" &&
-                        !confirmJoinTarget.metadata?.aiPlayers?.length}
-                >
-                    <span class="btn-glow"></span>
-                    {confirmJoinTarget.metadata?.phase === "playing"
-                        ? "TAKE OVER"
-                        : "JOIN"}
+                <button type="button" class="confirm-primary" onclick={handleConfirmJoin}>
+                    {confirmJoinTarget.metadata?.phase === "playing" ? "Take Over" : "Join"}
                 </button>
                 <button
-                    class="leave-btn"
+                    type="button"
+                    class="confirm-secondary"
                     onclick={() => {
                         confirmJoinTarget = null;
                         selectedTakeOverId = null;
-                    }}>Cancel</button
+                    }}
                 >
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
@@ -1788,1867 +942,405 @@
 
 <AudioSettings
     visible={showAudioSettings}
+    menuTheme={menuTheme}
+    onMenuThemeChange={(theme) => (menuTheme = theme)}
     onClose={() => {
         showAudioSettings = false;
     }}
 />
 
 <style>
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    /* Main menu layout */
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
+    @import url("https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap");
 
     :global(body) {
         margin: 0;
         background: #050510;
-    }    .map-lane-mode-segment {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 4px;
-        width: 100%;
-    }
-    .map-lane-mode-segment__btn {
-        margin: 0;
-        min-width: 0;
-        min-height: 34px;
-        padding: 8px 10px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        letter-spacing: 0;
-        color: rgba(200, 220, 255, 0.5);
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.1);
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
-        font-family: inherit;
-    }
-    .map-lane-mode-segment__btn:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
-    }
-    .map-lane-mode-segment__btn--active {
-        color: #00eeff;
-        background: rgba(0, 100, 200, 0.2);
-        border-color: #00ccff;
     }
 
     .menu-fullscreen {
+        --pf-text: #ecf5ff;
+        --pf-heading: #9fdfff;
+        --pf-muted: rgba(212, 229, 255, 0.64);
+        --pf-muted-strong: rgba(232, 241, 255, 0.84);
+        --pf-border-soft: rgba(123, 195, 255, 0.18);
+        --pf-accent-soft: rgba(109, 212, 255, 0.62);
+        --pf-accent-strong: #56d6ff;
+        --pf-control-bg: rgba(10, 22, 40, 0.74);
+        --pf-cta-start-a: rgba(19, 115, 214, 0.92);
+        --pf-cta-start-b: rgba(20, 177, 207, 0.92);
+        --pf-panel-pad: 20px;
+        --pf-card-pad: 16px;
+        --pf-panel-radius: 24px;
+        --pf-card-radius: 16px;
+        --pf-control-h: 44px;
+        --pf-pill-h: 40px;
         position: fixed;
         inset: 0;
-        width: 100vw;
-        min-height: 100vh;
-        background: radial-gradient(
-                ellipse at 30% 25%,
-                rgba(40, 10, 60, 0.15) 0%,
-                transparent 50%
-            ),
-            radial-gradient(
-                ellipse at 70% 75%,
-                rgba(10, 30, 60, 0.15) 0%,
-                transparent 50%
-            ),
-            #050510;
-        background-size: cover;
-        background-position: center;
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-start;
-        padding-top: 5vh;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 24px;
         overflow-y: auto;
-        z-index: 100;
-        font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
-        color: #e0e0e0;
+        background:
+            radial-gradient(circle at 18% 20%, rgba(255, 173, 92, 0.18), transparent 30%),
+            radial-gradient(circle at 78% 22%, rgba(104, 130, 255, 0.18), transparent 36%),
+            radial-gradient(circle at 50% 85%, rgba(87, 190, 255, 0.12), transparent 30%),
+            rgba(3, 7, 14, 0.9);
+        background-blend-mode: screen, screen, screen, normal;
+        color: var(--pf-text);
+        font-family: "Rajdhani", sans-serif;
+    }
+
+    .menu-fullscreen[data-theme="neon"] {
+        --pf-text: #eaf8ff;
+        --pf-heading: #8fe9ff;
+        --pf-muted: rgba(216, 239, 255, 0.62);
+        --pf-muted-strong: rgba(236, 245, 255, 0.88);
+        --pf-border-soft: rgba(89, 228, 255, 0.22);
+        --pf-accent-soft: rgba(125, 255, 198, 0.66);
+        --pf-accent-strong: #7effe6;
+        --pf-control-bg: rgba(8, 18, 42, 0.82);
+        --pf-cta-start-a: rgba(0, 128, 255, 0.9);
+        --pf-cta-start-b: rgba(0, 232, 255, 0.9);
+    }
+
+    .menu-fullscreen[data-theme="mythic"] {
+        --pf-text: #f6eeff;
+        --pf-heading: #e6c0ff;
+        --pf-muted: rgba(238, 222, 255, 0.62);
+        --pf-muted-strong: rgba(248, 239, 255, 0.88);
+        --pf-border-soft: rgba(220, 171, 255, 0.18);
+        --pf-accent-soft: rgba(255, 194, 112, 0.52);
+        --pf-accent-strong: #ffce83;
+        --pf-control-bg: rgba(24, 16, 42, 0.78);
+        --pf-cta-start-a: rgba(143, 73, 255, 0.86);
+        --pf-cta-start-b: rgba(255, 137, 87, 0.86);
     }
 
     .hex-grid-overlay {
         position: absolute;
         inset: 0;
         pointer-events: none;
-        color: rgba(100, 200, 255, 0.04);
-        z-index: 0;
+        color: rgba(158, 209, 255, 0.05);
     }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Background Picker (top-right action bar) Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .bg-picker {
-        position: relative;
-        z-index: 120;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .bg-picker-toggle {
-        background: rgba(10, 20, 40, 0.7);
-        border: 1px solid rgba(100, 200, 255, 0.2);
-        border-radius: 8px;
-        padding: 6px 10px;
-        font-size: 1.2rem;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .bg-picker-toggle:hover {
-        border-color: rgba(100, 200, 255, 0.5);
-        background: rgba(10, 20, 40, 0.9);
-    }
-    .bg-picker-dropdown {
-        position: absolute;
-        right: 0;
-        top: calc(100% + 6px);
-        background: rgba(10, 15, 30, 0.95);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 10px;
-        padding: 8px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        max-width: 280px;
-        backdrop-filter: blur(12px);
-    }
-    .bg-thumb-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        background: transparent;
-        border: 2px solid transparent;
-        border-radius: 8px;
-        padding: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
-        width: 70px;
-    }
-    .bg-thumb-btn:hover,
-    .bg-thumb-btn.active {
-        border-color: rgba(0, 255, 255, 0.5);
-    }
-    .bg-thumb-img {
-        width: 60px;
-        height: 40px;
-        object-fit: cover;
-        border-radius: 4px;
-    }
-    .bg-thumb-none {
-        font-size: 1.5rem;
-        line-height: 40px;
-        color: #666;
-    }
-    .bg-thumb-label {
-        font-size: 0.6rem;
-        color: #888;
-        text-align: center;
-        word-break: break-all;
-    }
-
-    .menu-topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin: 0 0 12px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(8, 16, 32, 0.72);
-        border: 1px solid rgba(100, 200, 255, 0.12);
-        backdrop-filter: blur(10px);
-    }
-    .menu-topbar__right {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-left: auto;
-    }
-    .audio-compact--topbar {
-        padding: 4px 8px;
-        background: rgba(10, 20, 40, 0.48);
-        border: 1px solid rgba(100, 200, 255, 0.12);
-        border-radius: 8px;
-    }
-    .settings-gear-btn {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        background: rgba(10, 20, 40, 0.62);
-        border: 1px solid rgba(100, 200, 255, 0.16);
-        color: #cdefff;
-        cursor: pointer;
-        font-size: 1rem;
-        line-height: 1;
-    }
-    .settings-gear-btn:hover {
-        border-color: rgba(100, 200, 255, 0.4);
-        color: #fff;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Menu Container Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .menu-container {
+    .menu-shell {
         position: relative;
         z-index: 1;
-        width: min(96vw, 2040px);
-        max-width: none;
-        padding: 0 28px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        width: min(1640px, 100%);
     }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Title Ã¢â€â‚¬Ã¢â€â‚¬ */
     .title-block {
+        display: grid;
+        gap: 6px;
+        justify-items: center;
         text-align: center;
-        margin-bottom: 16px;
+        padding-top: 8px;
     }
+
     .title {
         margin: 0;
-        line-height: 1;
+        line-height: 0.95;
     }
-    .pax {
-        display: block;
-        font-size: clamp(2.4rem, 5vw, 3.5rem);
-        font-weight: 300;
-        letter-spacing: 0.5em;
-        color: #ddeeff;
-        text-shadow: 0 0 20px rgba(100, 180, 255, 0.3);
-    }
+
+    .pax,
     .fluxia {
         display: block;
-        font-size: clamp(3.5rem, 7vw, 5rem);
+        font-family: "Oxanium", sans-serif;
+        text-transform: uppercase;
+    }
+
+    .pax {
+        font-size: clamp(2.4rem, 4.5vw, 4rem);
+        font-weight: 300;
+        letter-spacing: 0.5em;
+        color: rgba(241, 248, 255, 0.9);
+    }
+
+    .fluxia {
+        font-size: clamp(3.6rem, 7vw, 5.8rem);
         font-weight: 800;
-        letter-spacing: 0.15em;
-        background: linear-gradient(180deg, #00ffff, #0099ff);
+        letter-spacing: 0.16em;
+        background: linear-gradient(180deg, #ffffff, var(--pf-accent-strong));
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         background-clip: text;
-        filter: drop-shadow(0 0 12px rgba(0, 220, 255, 0.4));
+        color: transparent;
+        filter: drop-shadow(0 0 18px rgba(86, 214, 255, 0.32));
     }
 
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Two-Column Grid Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    .menu-columns {
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.9fr) minmax(340px, 0.95fr);
-        gap: 16px;
-        align-items: stretch;
-    }
-
-    .panel {
-        background: rgba(8, 16, 32, 0.85);
-        border: 1px solid rgba(100, 200, 255, 0.12);
-        border-radius: 12px;
-        padding: 20px;
-        backdrop-filter: blur(12px);
-        display: flex;
-        flex-direction: column;
-    }
-
-    .section-heading {
-        font-size: 0.9rem;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        color: #00cccc;
-        margin: 0 0 16px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(0, 200, 200, 0.15);
-        text-transform: uppercase;
-    }
-
-    .section-divider {
-        height: 1px;
-        background: rgba(100, 200, 255, 0.08);
-        margin: 16px 0;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Labels Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .control-group label,
-    .config-item label {
-        display: block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.12em;
-        color: rgba(200, 220, 255, 0.5);
-        margin-bottom: 8px;
-        text-transform: uppercase;
-    }
-    .control-group label span,
-    .config-item label span {
-        color: rgba(0, 220, 220, 0.7);
-        font-weight: 400;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Map Mode Tabs Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .map-mode-tabs {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 4px;
-        margin-bottom: 8px;
-    }
-    .map-tab {
-        flex: 1;
-        padding: 12px 16px;
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        background: rgba(10, 20, 40, 0.6);
-        color: rgba(200, 220, 255, 0.5);
-        border: 1px solid rgba(100, 200, 255, 0.1);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-family: inherit;
-        text-transform: uppercase;
-    }
-    .map-tab:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
-    }
-    .map-tab.active {
-        background: rgba(0, 100, 200, 0.2);
-        border-color: #00ccff;
-        color: #00eeff;
-        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Map Columns Content Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .map-columns {
-        min-height: 100px;
-    }
-    .map-col-content {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-    .random-map-preview {
-        background: rgba(10, 20, 40, 0.4);
-        border: 1px solid rgba(100, 200, 255, 0.08);
-        border-radius: 8px;
-        padding: 8px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-    }
-    .map-thumb-img {
-        width: 100%;
-        max-width: 240px;
-        height: auto;
-        border-radius: 4px;
-        border: 1px solid rgba(100, 200, 255, 0.12);
-        display: block;
-    }
-    .map-thumb-placeholder {
-        width: 240px;
-        height: 135px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: rgba(255, 255, 255, 0.3);
-        font-size: 0.75rem;
-        font-style: italic;
-    }
-    .reshuffle-btn {
-        padding: 4px 12px;
-        background: rgba(100, 160, 255, 0.1);
-        border: 1px solid rgba(100, 160, 255, 0.2);
-        border-radius: 4px;
-        color: rgba(160, 200, 255, 0.8);
-        font-size: 0.72rem;
-        cursor: pointer;
-        transition: all 0.15s;
-        font-family: inherit;
-    }
-    .reshuffle-btn:hover {
-        background: rgba(100, 160, 255, 0.2);
-        border-color: rgba(100, 160, 255, 0.4);
-        color: #93c5fd;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Classic Map Cards Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .classic-map-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        max-height: 400px;
-        overflow-y: auto;
-        padding-right: 8px;
-    }
-    .classic-map-grid::-webkit-scrollbar {
-        width: 4px;
-    }
-    .classic-map-grid::-webkit-scrollbar-track {
-        background: rgba(10, 20, 40, 0.3);
-        border-radius: 2px;
-    }
-    .classic-map-grid::-webkit-scrollbar-thumb {
-        background: rgba(100, 200, 255, 0.2);
-        border-radius: 2px;
-    }
-    .classic-map-card {
-        width: calc(50% - 6px);
-        background: rgba(10, 20, 40, 0.5);
-        border: 1px solid rgba(100, 200, 255, 0.08);
-        border-radius: 8px;
-        padding: 10px;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-    }
-    .classic-map-card:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        background: rgba(10, 20, 40, 0.7);
-    }
-    .classic-map-card.selected {
-        border-color: #00ccff;
-        background: rgba(0, 100, 200, 0.15);
-        box-shadow: 0 0 12px rgba(0, 200, 255, 0.15);
-    }
-    .classic-map-thumb {
-        width: 100%;
-        height: 100px;
-        display: block;
-        background: rgba(5, 10, 20, 0.4);
-        border-radius: 4px;
-    }
-    .classic-card-label {
-        display: block;
-        font-size: 0.85rem;
-        color: rgba(200, 220, 255, 0.6);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-    .classic-map-card.selected .classic-card-label {
-        color: #00eeff;
-    }
-    .classic-card-info {
-        font-size: 0.75rem;
-        color: rgba(200, 220, 255, 0.35);
-    }
-    .no-maps-msg {
-        font-size: 1rem;
-        color: rgba(200, 220, 255, 0.3);
-        text-align: center;
-        padding: 24px;
-        width: 100%;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Config rows (3-across) Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .config-row-3 {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin-top: 10px;
-    }
-    .config-item {
-        display: grid;
-        gap: 4px;
-        min-width: 0;
-    }
-
-    .slider-container {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .slider-container input[type="range"] {
-        flex: 1;
-        height: 6px;
-        -webkit-appearance: none;
-        appearance: none;
-        background: rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
-        outline: none;
-    }
-    .slider-container input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #00ccff;
-        cursor: pointer;
-        box-shadow: 0 0 6px rgba(0, 200, 255, 0.4);
-    }
-    .value {
-        font-size: 0.88rem;
-        color: #00cccc;
-        font-weight: 600;
-        min-width: 40px;
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
-    .mini-label {
-        font-size: 0.75rem;
-        color: rgba(200, 220, 255, 0.4);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-
-    /* Button row (players) */
-    .button-row {
-        display: flex;
-        gap: 4px;
-    }
-    .button-row button {
-        flex: 1;
-        padding: 8px 0;
-        font-size: 0.95rem;
-        font-weight: 600;
-        background: rgba(10, 20, 40, 0.6);
-        color: rgba(200, 220, 255, 0.5);
-        border: 1px solid rgba(100, 200, 255, 0.1);
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
-        font-family: inherit;
-    }
-    .button-row button:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
-    }
-    .button-row button.active {
-        background: rgba(0, 100, 200, 0.2);
-        border-color: #00ccff;
-        color: #00eeff;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Identity + Audio Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .identity-audio-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-top: 4px;
-    }
-    .identity-widget {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex: 1;
-    }
-    .identity-badge {
-        flex-shrink: 0;
-        padding: 8px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(100, 200, 255, 0.18);
-        background: rgba(20, 36, 66, 0.72);
-        color: #89d9ff;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-    }
-    .identity-palette-stack {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
-    }
-    .identity-swatch {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.25);
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
-        flex-shrink: 0;
-    }
-    .identity-palette-preview {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .identity-palette-chip {
-        appearance: none;
-        background: transparent;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
-        padding: 0;
-        cursor: pointer;
-    }
-    .identity-palette-chip.is-selected {
-        transform: scale(1.18);
-        border-color: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.5), 0 0 10px rgba(0, 200, 255, 0.42);
-    }
-    .identity-name-input {
-        flex: 1;
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 6px;
-        padding: 10px 14px;
-        color: #e0e0e0;
-        font-family: inherit;
-        font-size: 0.95rem;
-        outline: none;
-    }
-    .identity-name-input:focus {
-        border-color: #00ccff;
-    }
-    .identity-name-input::placeholder {
-        color: rgba(200, 220, 255, 0.25);
-    }
-
-    .compact-players {
-        border-color: rgba(0, 200, 255, 0.22);
-    }
-
-    .identity-row--players {
-        margin-top: 0;
-        margin-bottom: 14px;
-    }
-
-    .audio-compact {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-    }
-    .audio-compact input[type="range"] {
-        width: 80px;
-        height: 6px;
-        -webkit-appearance: none;
-        appearance: none;
-        background: rgba(100, 200, 255, 0.15);
-        border-radius: 3px;
-        outline: none;
-    }
-    .audio-compact input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #00ccff;
-        cursor: pointer;
-    }
-    .mute-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.2rem;
-        cursor: pointer;
-        padding: 4px;
-        line-height: 1;
-    }
-    .mute-btn.muted {
-        opacity: 0.4;
-    }
-    .audio-open-btn {
-        background: rgba(0, 255, 255, 0.1);
-        border: 1px solid rgba(0, 170, 170, 0.4);
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1.2rem;
-        padding: 4px 8px;
-        transition: all 0.15s;
-    }
-    .audio-open-btn:hover {
-        background: rgba(0, 255, 255, 0.2);
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Options Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .options-row {
-        display: flex;
-        gap: 20px;
-        margin-top: 12px;
-        flex-wrap: wrap;
-    }
-    .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.85rem;
-        color: rgba(200, 220, 255, 0.5);
-        cursor: pointer;
-    }
-    .checkbox-label input[type="checkbox"] {
-        accent-color: #00ccff;
-        width: 18px;
-        height: 18px;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Saved Maps Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .saved-maps-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    .saved-map-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: rgba(10, 20, 40, 0.4);
-    }
-    .saved-map-name {
-        flex: 1;
-        font-size: 0.7rem;
-        color: #aaccff;
-    }
-    .saved-map-info {
-        font-size: 0.65rem;
-        color: rgba(200, 220, 255, 0.4);
-    }
-    .saved-map-btn {
-        background: transparent;
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
-        color: #aaccff;
-        cursor: pointer;
-        font-size: 0.7rem;
-        padding: 2px 6px;
-        transition: all 0.15s;
-    }
-    .saved-map-btn:hover {
-        border-color: rgba(100, 200, 255, 0.4);
-    }
-    .saved-map-btn.del:hover {
-        border-color: rgba(255, 80, 80, 0.4);
-        color: #fca5a5;
-    }
-    .saved-map-btn.default {
-        font-size: 0.85rem;
-        padding: 1px 4px;
-    }
-    .saved-map-btn.default.active {
-        color: #fbbf24;
-        border-color: rgba(251, 191, 36, 0.4);
-    }
-    .saved-map-row.is-default {
-        border-left: 2px solid rgba(251, 191, 36, 0.5);
-        padding-left: 4px;
-    }
-    .default-map-badge {
-        font-size: 0.6rem;
-        color: #fbbf24;
-        margin-left: 6px;
-    }
-    .clear-default-btn {
-        background: transparent;
-        border: none;
-        color: rgba(255, 100, 100, 0.6);
-        cursor: pointer;
-        font-size: 0.6rem;
-        padding: 0 2px;
-    }
-    .clear-default-btn:hover {
-        color: #fca5a5;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ START GAME Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .start-btn {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        align-self: end;
-        padding: 18px;
-        margin-top: 16px;
-        font-family: inherit;
-        font-size: 1.2rem;
-        font-weight: 800;
-        letter-spacing: 0.15em;
-        color: #fff;
-        background: linear-gradient(135deg, #0066cc, #00cccc);
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        overflow: hidden;
-        transition: all 0.2s;
-        text-transform: uppercase;
-    }
-    .start-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 20px rgba(0, 200, 255, 0.3);
-    }
-    .btn-glow {
-        position: absolute;
-        inset: -2px;
-        border-radius: 10px;
-        background: linear-gradient(
-            135deg,
-            rgba(0, 200, 255, 0.3),
-            rgba(0, 100, 200, 0.1)
-        );
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    .start-btn:hover .btn-glow {
-        opacity: 1;
-    }
-    .start-btn-primary {
-        font-size: 1.4rem;
-        padding: 24px;
-        margin-top: auto;
-        padding-top: 24px;
-    }
-
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â RIGHT COLUMN Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    .ai-section {
-        margin-bottom: 4px;
-    }
-    .player-config-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    .player-config-header label {
-        flex: 1;
-        font-size: 0.9rem;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        color: rgba(200, 220, 255, 0.5);
-        text-transform: uppercase;
+    .subtitle {
         margin: 0;
-    }
-    .toggle-details-btn {
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
-        color: rgba(200, 220, 255, 0.5);
-        cursor: pointer;
-        font-size: 0.85rem;
-        padding: 4px 10px;
-        font-family: inherit;
-        transition: all 0.15s;
-    }
-    .toggle-details-btn:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.88rem;
+        font-weight: 700;
+        letter-spacing: 0.36em;
+        text-transform: uppercase;
+        color: var(--pf-muted);
     }
 
-    .color-palette-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 8px;
-        background: rgba(10, 20, 40, 0.4);
-        border-radius: 6px;
-        margin-bottom: 6px;
-    }
-    .hue-offset-inline {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex: 1;
-        min-width: 100px;
-    }
-    .hue-offset-inline input[type="range"] {
-        flex: 1;
-        height: 3px;
-        -webkit-appearance: none;
-        appearance: none;
-        background: rgba(100, 200, 255, 0.15);
-        border-radius: 2px;
-    }
-    .hue-offset-inline .hue-slider {
-        background: linear-gradient(
-            to right,
-            hsl(0, 82%, 56%),
-            hsl(30, 82%, 56%),
-            hsl(60, 82%, 56%),
-            hsl(120, 82%, 56%),
-            hsl(180, 82%, 56%),
-            hsl(210, 82%, 56%),
-            hsl(270, 82%, 56%),
-            hsl(330, 82%, 56%),
-            hsl(360, 82%, 56%)
-        );
-        height: 6px;
-        border-radius: 999px;
-    }
-    .hue-offset-inline input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #00ccff;
-        cursor: pointer;
-    }
-    .hue-offset-inline .hue-slider::-webkit-slider-thumb {
-        width: 14px;
-        height: 14px;
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        background: hsl(var(--hue, 210), 82%, 56%);
-        box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
-    }
-    .hue-offset-inline .hue-slider::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        background: hsl(var(--hue, 210), 82%, 56%);
-        box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
-        cursor: pointer;
-    }
-    .menu-palette-preview {
+    .desktop-panels {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 6px;
-        padding: 0 2px 8px;
+        grid-template-columns: minmax(0, 1.56fr) minmax(320px, 0.96fr) minmax(280px, 0.82fr);
+        gap: 18px;
+        align-items: start;
     }
-    .menu-palette-preview__slot {
-        appearance: none;
-        border: 1px solid transparent;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 4px;
-        border-radius: 6px;
-        background: rgba(10, 20, 40, 0.26);
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            box-shadow 0.15s ease,
-            transform 0.15s ease;
+
+    .mobile-tabs,
+    .mobile-panel {
+        display: none;
     }
-    .menu-palette-preview__slot:hover {
-        border-color: rgba(120, 220, 255, 0.22);
+
+    :global(.menu-panel) {
+        border-radius: var(--pf-panel-radius);
+        border: 1px solid var(--pf-border-soft);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),
+            rgba(6, 12, 24, 0.84);
+        backdrop-filter: blur(18px);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 20px 44px rgba(0, 0, 0, 0.28);
+        padding: var(--pf-panel-pad);
     }
-    .menu-palette-preview__slot.is-selected {
-        border-color: rgba(0, 220, 255, 0.55);
-        box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.28);
-        transform: translateY(-1px);
-    }
-    .menu-palette-preview__swatch {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
-    }
-    .menu-palette-preview__label {
-        font-size: 0.58rem;
-        letter-spacing: 0.08em;
-        color: rgba(200, 220, 255, 0.72);
-    }
-    .player-colors-card__header {
+
+    :global(.menu-panel__header) {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 10px;
-    }
-    .player-colors-card__heading {
-        display: grid;
-        gap: 4px;
-    }
-    .player-colors-card__title {
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        color: #dff6ff;
-        text-transform: uppercase;
-    }
-    .player-colors-card__subtitle {
-        font-size: 0.68rem;
-        line-height: 1.4;
-        color: rgba(190, 215, 240, 0.68);
-        max-width: 280px;
-    }
-    .player-colors-card__actions {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-    .player-colors-card--panel {
-        position: relative;
-        margin-bottom: 16px;
-    }
-    .player-colors-card__adjust-btn {
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 6px;
-        color: rgba(200, 220, 255, 0.78);
-        cursor: pointer;
-        font-size: 0.74rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        padding: 6px 10px;
-        font-family: inherit;
-        text-transform: uppercase;
-        transition: all 0.15s;
-    }
-    .player-colors-card__adjust-btn:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
-        background: rgba(14, 28, 52, 0.88);
-    }
-    .player-colors-card__adjust-btn.is-active {
-        border-color: rgba(0, 220, 255, 0.45);
-        color: #dff6ff;
-        background: rgba(0, 100, 180, 0.18);
-    }
-    .player-colors-card__selection {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin: 2px 2px 10px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: rgba(8, 18, 36, 0.4);
-        border: 1px solid rgba(90, 200, 255, 0.1);
-    }
-    .player-colors-card__selection-label {
-        font-size: 0.68rem;
-        letter-spacing: 0.12em;
-        color: rgba(185, 220, 255, 0.72);
-        text-transform: uppercase;
-    }
-    .player-colors-card__selection-value {
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #dff6ff;
-    }
-    .player-colors-card__popover {
-        position: absolute;
-        top: 54px;
-        right: 0;
-        z-index: 3;
-        width: min(300px, 100%);
-        display: grid;
-        gap: 8px;
-        padding: 12px;
-        border-radius: 10px;
-        background: rgba(7, 15, 30, 0.96);
-        border: 1px solid rgba(90, 200, 255, 0.18);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    }
-    .player-colors-card__focus {
-        display: grid;
-        gap: 8px;
-        margin: 0 2px 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        background: rgba(8, 18, 36, 0.46);
-        border: 1px solid rgba(90, 200, 255, 0.1);
-    }
-    .player-colors-card__focus-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-    }
-    .player-colors-card__focus-label {
-        font-size: 0.72rem;
-        letter-spacing: 0.12em;
-        color: rgba(185, 220, 255, 0.72);
-        text-transform: uppercase;
-    }
-    .player-colors-card__focus-value {
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #dff6ff;
-    }
-    .player-colors-card__reset {
-        justify-self: start;
-        padding: 6px 10px;
-        border-radius: 6px;
-        border: 1px solid rgba(100, 200, 255, 0.18);
-        background: rgba(10, 20, 40, 0.55);
-        color: rgba(220, 238, 255, 0.86);
-        font-size: 0.72rem;
-        cursor: pointer;
-        transition: border-color 0.15s ease, opacity 0.15s ease;
-    }
-    .player-colors-card__reset:hover:not(:disabled) {
-        border-color: rgba(120, 220, 255, 0.38);
-    }
-    .player-colors-card__reset:disabled {
-        opacity: 0.45;
-        cursor: default;
+        gap: 16px;
     }
 
-    .players-ai-card {
-        display: grid;
-        gap: 10px;
-    }
-
-    .player-config-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .player-config-row.inline-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 12px;
-        border-radius: 6px;
-        background: rgba(10, 20, 40, 0.4);
-    }
-    .player-label-inline {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: rgba(200, 220, 255, 0.6);
-        min-width: 30px;
-    }
-    .inline-select {
-        flex: 1;
-        padding: 10px 12px;
-        font-size: 0.95rem;
-        font-family: inherit;
-        background: rgba(10, 30, 60, 0.6);
-        color: #aaccff;
-        border: 1px solid rgba(100, 200, 255, 0.2);
-        border-radius: 6px;
-        outline: none;
-    }
-    .inline-select:focus {
-        border-color: #00ccff;
-        box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Multiplayer Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .mp-label {
-        display: block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.12em;
-        color: rgba(200, 220, 255, 0.5);
-        text-transform: uppercase;
-        margin-bottom: 12px;
-    }
-    .mp-actions-compact {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 12px;
-    }
-    .mp-action-btn {
-        padding: 12px 16px;
-        font-family: inherit;
-        font-size: 0.95rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        border: 1px solid rgba(0, 200, 200, 0.3);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s;
-        text-transform: uppercase;
-    }
-    .mp-action-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-    .mp-create-btn {
-        background: rgba(0, 100, 200, 0.15);
-        color: #00ccff;
-    }
-    .mp-create-btn:hover {
-        background: rgba(0, 100, 200, 0.25);
-        border-color: #00ccff;
-    }
-    .mp-join-btn {
-        background: rgba(0, 100, 200, 0.1);
-        color: #00ccaa;
-        flex-shrink: 0;
-    }
-    .mp-join-btn:hover {
-        background: rgba(0, 100, 200, 0.2);
-    }
-    .mp-join-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-
-    .join-inline {
-        display: flex;
-        gap: 6px;
-    }
-    .room-input {
-        flex: 1;
-        padding: 10px 14px;
-        font-size: 0.95rem;
-        font-family: inherit;
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 6px;
-        color: #e0e0e0;
-        outline: none;
-    }
-    .room-input:focus {
-        border-color: #00ccff;
-    }
-    .room-input::placeholder {
-        color: rgba(200, 220, 255, 0.25);
-    }
-
-    .room-browser {
-        margin-top: 4px;
-    }
-    .browser-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
-    }
-    .refresh-btn {
-        background: rgba(10, 20, 40, 0.6);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-        border-radius: 4px;
-        color: rgba(200, 220, 255, 0.5);
-        cursor: pointer;
-        font-size: 0.6rem;
-        padding: 3px 8px;
-        font-family: inherit;
-    }
-    .refresh-btn:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-        color: #fff;
-    }
-    .room-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        max-height: 150px;
-        overflow-y: auto;
-    }
-    .room-card {
-        padding: 8px;
-        border-radius: 6px;
-        background: rgba(10, 20, 40, 0.5);
-        border: 1px solid rgba(100, 200, 255, 0.08);
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .room-card:hover {
-        border-color: rgba(100, 200, 255, 0.25);
-    }
-    .room-card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 2px;
-    }
-    .room-card-badges {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-    .room-host {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #aaccff;
-    }
-    .room-card-mid {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-    .room-map {
-        font-size: 0.6rem;
-        color: #00ccaa;
-        font-weight: 600;
-    }
-    .room-detail {
-        font-size: 0.6rem;
-        color: rgba(200, 220, 255, 0.4);
-    }
-    .room-card-bottom {
-        margin-top: 2px;
-    }
-    .room-slots {
-        font-size: 0.6rem;
-        color: rgba(200, 220, 255, 0.4);
-    }
-    .room-players {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-top: 4px;
-    }
-    .player-chip {
-        font-size: 0.55rem;
-        padding: 1px 6px;
-        border-radius: 3px;
-        background: rgba(100, 200, 255, 0.08);
-        color: rgba(200, 220, 255, 0.5);
-    }
-    .tick-badge {
-        color: #ffcc00;
-        font-weight: 600;
-    }
-
-    .room-info-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 8px;
-        background: rgba(10, 20, 40, 0.4);
-        border-radius: 6px;
-        margin-bottom: 6px;
-    }
-    .room-id-block {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .room-label {
-        font-size: 0.55rem;
-        color: rgba(200, 220, 255, 0.4);
-        letter-spacing: 0.1em;
-    }
-    .room-code {
-        font-size: 0.65rem;
-        color: #00ccff;
-        font-family: monospace;
-        background: rgba(0, 200, 255, 0.08);
-        padding: 2px 6px;
-        border-radius: 3px;
-    }
-    .copy-btn {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        font-size: 0.7rem;
-        color: rgba(200, 220, 255, 0.4);
-        padding: 0;
-    }
-    .copy-btn::after {
-        content: "Copy";
-    }
-    .player-count-badge {
-        font-size: 0.65rem;
-        font-weight: 600;
-        color: #00ccaa;
-    }
-    .players-list ul {
-        list-style: none;
+    :global(.menu-panel__eyebrow) {
         margin: 0;
-        padding: 0;
-    }
-    .player-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 3px 0;
-        font-size: 0.7rem;
-    }
-    .player-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    .player-name {
-        color: #e0e0e0;
-    }
-
-    .badge {
-        display: inline-block;
-        font-size: 0.5rem;
+        font-family: "Oxanium", sans-serif;
+        font-size: 1.08rem;
         font-weight: 700;
-        padding: 1px 4px;
-        border-radius: 3px;
-        margin-left: 4px;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .badge.host {
-        background: rgba(255, 200, 0, 0.2);
-        color: #ffcc00;
-    }
-    .badge.you {
-        background: rgba(0, 200, 255, 0.15);
-        color: #00ccff;
-    }
-    .badge.ai {
-        background: rgba(200, 200, 200, 0.1);
-        color: #888;
-    }
-    .badge.lobby {
-        background: rgba(0, 200, 200, 0.1);
-        color: #00ccaa;
-    }
-    .badge.public {
-        background: rgba(255, 215, 0, 0.12);
-        color: #facc15;
-    }
-    .badge.playing {
-        background: rgba(0, 255, 100, 0.1);
-        color: #00ff66;
+        color: var(--pf-heading);
     }
 
-    .lobby-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 8px;
-    }
-    .leave-btn {
-        padding: 6px 12px;
-        font-family: inherit;
-        font-size: 0.65rem;
-        background: rgba(255, 80, 80, 0.08);
-        border: 1px solid rgba(255, 80, 80, 0.2);
-        border-radius: 6px;
-        color: #fca5a5;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .leave-btn:hover {
-        background: rgba(255, 80, 80, 0.15);
-        border-color: rgba(255, 80, 80, 0.4);
-    }
-    .dispose-btn {
-        opacity: 0.6;
+    :global(.menu-panel__title) {
+        margin: 6px 0 0;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 1.22rem;
+        font-weight: 600;
+        color: var(--pf-muted);
     }
 
-    .waiting-text {
-        font-size: 0.65rem;
-        color: rgba(200, 220, 255, 0.3);
-        font-style: italic;
+    :global(.menu-shell input[type="range"]) {
+        accent-color: var(--pf-accent-strong);
     }
-    .error-msg {
-        font-size: 0.65rem;
-        color: #f87171;
-        margin-top: 4px;
-    }
-    .lobby-status-msg {
-        font-size: 0.65rem;
-        color: #ffcc00;
-        margin-top: 4px;
-    }
-    .connected-dot {
-        display: inline-block;
-        width: 6px;
+
+    :global(.menu-shell input[type="range"]::-webkit-slider-runnable-track) {
         height: 6px;
-        border-radius: 50%;
-        background: #00ff66;
-        margin-left: 6px;
-        vertical-align: middle;
-    }
-    .mp-loading {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        padding: 16px;
-        color: rgba(200, 220, 255, 0.5);
-    }
-    .spinner {
-        width: 24px;
-        height: 24px;
-        border: 2px solid rgba(0, 200, 255, 0.2);
-        border-top-color: #00ccff;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
     }
 
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Join Modal Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
+    :global(.menu-shell input[type="range"]::-webkit-slider-thumb) {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -5px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        background: var(--pf-accent-strong);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.24);
+    }
+
+    :global(.menu-shell input[type="range"]::-moz-range-track) {
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    :global(.menu-shell input[type="range"]::-moz-range-thumb) {
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        background: var(--pf-accent-strong);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.24);
+    }
+
     .confirm-overlay {
         position: fixed;
         inset: 0;
-        z-index: 200;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(2, 6, 14, 0.76);
+        backdrop-filter: blur(10px);
+        z-index: 40;
     }
+
     .confirm-dialog {
-        background: rgba(10, 15, 30, 0.95);
-        border: 1px solid rgba(100, 200, 255, 0.2);
-        border-radius: 12px;
-        padding: 20px;
-        max-width: 380px;
-        width: 90%;
+        width: min(460px, 100%);
+        padding: 24px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 38%),
+            rgba(5, 12, 24, 0.96);
+        color: var(--pf-text);
+        box-shadow: 0 24px 44px rgba(0, 0, 0, 0.34);
     }
+
     .confirm-dialog h3 {
-        margin: 0 0 8px;
-        color: #00ccff;
-        font-size: 1rem;
-        letter-spacing: 0.05em;
+        margin: 0 0 12px;
+        font-family: "Oxanium", sans-serif;
+        font-size: 1.15rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
+
     .confirm-dialog p {
-        margin: 4px 0;
-        font-size: 0.75rem;
-        color: rgba(200, 220, 255, 0.6);
-    }
-    .confirm-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 12px;
-    }
-    .confirm-actions .start-btn {
-        flex: 1;
-        padding: 10px;
-        font-size: 0.8rem;
-        margin: 0;
-    }
-    .confirm-actions .leave-btn {
-        flex-shrink: 0;
+        margin: 10px 0 0;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 1rem;
+        color: var(--pf-muted-strong);
     }
 
     .ai-select {
-        margin-top: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
+
     .ai-label {
-        font-size: 0.7rem;
-        color: rgba(200, 220, 255, 0.5);
-        margin: 0 0 6px;
+        margin: 0 0 10px;
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--pf-muted);
     }
+
     .ai-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-    }
-    .ai-chip {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: rgba(10, 20, 40, 0.5);
-        border: 1px solid rgba(100, 200, 255, 0.1);
-        cursor: pointer;
-        font-size: 0.65rem;
-        color: #aaccff;
-        transition: all 0.15s;
-    }
-    .ai-chip:hover {
-        border-color: rgba(100, 200, 255, 0.3);
-    }
-    .ai-chip.selected {
-        border-color: #00ccff;
-        background: rgba(0, 100, 200, 0.15);
-    }
-    .ai-color {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Mobile Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Subtitle Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .subtitle {
-        font-size: 0.9rem;
-        letter-spacing: 0.4em;
-        color: rgba(180, 210, 255, 0.7);
-        margin-top: 8px;
-        text-transform: uppercase;
-        text-shadow: 0 0 10px rgba(0, 150, 255, 0.2);
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Quick Start Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .quick-start {
-        margin-top: 8px;
-        margin-bottom: 8px;
-        padding: 10px;
-        font-size: 0.85rem;
-        letter-spacing: 0.2em;
-    }
-
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Condensed Right Column Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Condensed Right Column Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    .compact-right {
-        padding: 24px;
-        border: 2px solid rgba(120, 0, 255, 0.5);
-    }
-
-    .section-heading-inline {
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        color: #00cccc;
-        text-transform: uppercase;
-        margin-right: auto;
-    }
-
-    .ai-section-compact {
-        margin-bottom: 16px;
-    }
-    .ai-header-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-
-    .ai-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .ai-row {
-        display: flex;
-        align-items: center;
         gap: 10px;
-        padding: 8px 12px;
-        border-radius: 6px;
-        background: rgba(10, 20, 40, 0.4);
-        border: 1px solid transparent;
+    }
+
+    .ai-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid var(--pf-border-soft);
+        background: rgba(255, 255, 255, 0.04);
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.92rem;
+        font-weight: 700;
+        cursor: pointer;
         transition:
             border-color 0.15s ease,
-            background 0.15s ease;
-        cursor: pointer;
+            background 0.15s ease,
+            color 0.15s ease;
     }
-    .ai-row:hover {
-        border-color: rgba(100, 200, 255, 0.2);
-        background: rgba(10, 20, 40, 0.55);
+
+    .ai-chip.selected {
+        border-color: var(--pf-accent-soft);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--pf-text);
     }
-    .ai-row.is-selected {
-        border-color: rgba(0, 220, 255, 0.45);
-        background: rgba(0, 90, 180, 0.18);
+
+    .ai-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
     }
-    .ai-color-dot {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
-        flex-shrink: 0;
+
+    .confirm-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
     }
-    .ai-slot-label {
-        min-width: 24px;
-        font-size: 0.72rem;
+
+    .confirm-primary,
+    .confirm-secondary {
+        flex: 1;
+        min-height: 44px;
+        border-radius: 14px;
+        border: 1px solid var(--pf-border-soft);
+        font-family: "Rajdhani", sans-serif;
+        font-size: 0.98rem;
         font-weight: 700;
         letter-spacing: 0.08em;
-        color: rgba(220, 236, 255, 0.82);
-    }
-    .ai-select-mini {
-        flex: 1;
-        padding: 10px 12px;
-        font-size: 0.95rem;
-        font-family: inherit;
-        background: rgba(10, 30, 60, 0.6);
-        color: #aaccff;
-        border: 1px solid rgba(100, 200, 255, 0.2);
-        border-radius: 6px;
-        outline: none;
-    }
-    .ai-select-mini:focus {
-        border-color: #00ccff;
-        box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
+        text-transform: uppercase;
+        cursor: pointer;
     }
 
-    .mp-section-compact {
-        margin-top: 4px;
+    .confirm-primary {
+        background: linear-gradient(135deg, var(--pf-cta-start-a), var(--pf-cta-start-b));
+        color: #f8fcff;
     }
 
-    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Mobile Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-    @media (max-width: 768px) {
+    .confirm-secondary {
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--pf-text);
+    }
+
+    .error-msg {
+        margin-top: 14px;
+        color: #ffcdcd;
+        font-family: "Rajdhani", sans-serif;
+    }
+
+    @media (max-width: 1199px) {
+        .desktop-panels {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .desktop-panels :global(.game-map-panel) {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 767px) {
         .menu-fullscreen {
-            justify-content: flex-start;
-            padding-top: 16px;
+            padding: 16px 12px 92px;
         }
-        .menu-columns {
-            grid-template-columns: 1fr;
-        }
-        .config-row-3 {
-            grid-template-columns: 1fr 1fr;
-        }
-        .menu-container {
-            width: 100%;
-            padding: 16px;
-        }
-        .identity-audio-row {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .audio-compact {
-            justify-content: center;
-        }
-        .quick-start {
-            display: block;
-        }
-    }
-    @media (min-width: 769px) {
-        .quick-start {
+
+        .desktop-panels {
             display: none;
         }
-    }
-    @media (max-width: 480px) {
-        .config-row-3 {
-            grid-template-columns: 1fr;
-        }
-        .options-row {
-            flex-direction: column;
+
+        .mobile-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
         }
-    }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Dual action buttons Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .start-actions-row {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-    }
-    .start-actions-row .start-btn {
-        flex: 1;
-    }
-    .mp-create-btn-main {
-        background: linear-gradient(
-            -45deg,
-            rgba(200, 80, 255, 0.5),
-            rgba(120, 0, 255, 0.5)
-        ) !important;
-        border-color: rgba(80, 180, 255, 0.3) !important;
-    }
-    .mp-create-btn-main:hover {
-        border-color: rgba(80, 180, 255, 0.5) !important;
-        background: linear-gradient(
-            135deg,
-            rgba(200, 80, 255, 0.5),
-            rgba(120, 0, 255, 0.5)
-        ) !important;
-    }
+        .mobile-tabs__button {
+            min-height: 42px;
+            border-radius: 14px;
+            border: 1px solid var(--pf-border-soft);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--pf-muted-strong);
+            font-family: "Rajdhani", sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Numbered Slot Grid Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .slot-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin: 8px 0 4px;
-    }
-    .slot-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.02);
-        transition: background 0.15s;
-    }
-    .slot-row:hover {
-        background: rgba(255, 255, 255, 0.05);
-    }
-    .slot-you {
-        background: rgba(100, 200, 255, 0.06);
-        border: 1px solid rgba(100, 200, 255, 0.15);
-    }
-    .slot-index {
-        font-size: 0.6rem;
-        font-weight: 700;
-        color: rgba(255, 255, 255, 0.3);
-        min-width: 14px;
-        text-align: center;
-    }
-    .slot-badges {
-        margin-left: auto;
-        display: flex;
-        gap: 4px;
-    }
+        .mobile-tabs__button.is-active {
+            border-color: var(--pf-accent-soft);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--pf-text);
+        }
 
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Vote to start Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .vote-btn {
-        background: linear-gradient(
-            135deg,
-            rgba(255, 200, 0, 0.12),
-            rgba(255, 200, 0, 0.04)
-        ) !important;
-        border-color: rgba(255, 200, 0, 0.25) !important;
-    }
-    .vote-btn:hover {
-        border-color: rgba(255, 200, 0, 0.45) !important;
-    }
-    .vote-progress {
-        font-size: 0.6rem;
-        color: rgba(255, 200, 0, 0.7);
-        padding: 2px 8px;
-    }
-
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Lobby Chat Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-    .lobby-chat-section {
-        margin-top: 8px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        padding-top: 6px;
-    }
-    .chat-toggle {
-        font-family: inherit;
-        font-size: 0.65rem;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        color: rgba(255, 255, 255, 0.5);
-        padding: 4px 10px;
-        cursor: pointer;
-        transition: all 0.15s;
-        width: 100%;
-        text-align: left;
-    }
-    .chat-toggle:hover {
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.7);
-    }
-    .chat-count {
-        display: inline-block;
-        background: rgba(80, 180, 255, 0.2);
-        color: #7dd3fc;
-        font-size: 0.55rem;
-        padding: 0 5px;
-        border-radius: 8px;
-        margin-left: 4px;
-    }
-    .chat-messages {
-        max-height: 120px;
-        overflow-y: auto;
-        padding: 6px 0;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-    .chat-msg {
-        font-size: 0.6rem;
-        line-height: 1.3;
-        padding: 2px 6px;
-    }
-    .chat-sender {
-        font-weight: 600;
-        margin-right: 4px;
-    }
-    .chat-sender::after {
-        content: ":";
-    }
-    .chat-text {
-        color: rgba(255, 255, 255, 0.7);
-    }
-    .chat-input-bar {
-        display: flex;
-        gap: 4px;
-        margin-top: 4px;
-    }
-    .chat-input {
-        flex: 1;
-        padding: 4px 8px;
-        font-family: inherit;
-        font-size: 0.6rem;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        color: #e2e8f0;
-        outline: none;
-    }
-    .chat-input:focus {
-        border-color: rgba(100, 200, 255, 0.3);
-    }
-    .chat-send-btn {
-        padding: 4px 10px;
-        font-family: inherit;
-        font-size: 0.6rem;
-        background: rgba(80, 180, 255, 0.1);
-        border: 1px solid rgba(80, 180, 255, 0.2);
-        border-radius: 4px;
-        color: #7dd3fc;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .chat-send-btn:hover {
-        background: rgba(80, 180, 255, 0.2);
+        .mobile-panel {
+            display: block;
+        }
     }
 </style>
