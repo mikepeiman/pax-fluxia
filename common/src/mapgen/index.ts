@@ -12,8 +12,14 @@ export type {
     LanePathKind,
     LaneAdjustmentStyle,
 } from './types';
-export type { MapLaneMode } from './lanePolylines';
-export { computeLaneWaypoints, attachLaneWaypointsToConnections, buildLaneAwareConnections } from './lanePolylines';
+export type { MapLaneMode, LaneDecisionTrace, LaneAttemptTrace } from './lanePolylines';
+export {
+    computeLaneWaypoints,
+    attachLaneWaypointsToConnections,
+    buildLaneAwareConnections,
+    debugResolveLaneConnection,
+    effectiveLaneClearanceForChord,
+} from './lanePolylines';
 export { generateHexGrid, selectPositions, generateStarPositions } from './placement';
 export { generateConnections, listDelaunayConnections, pointToSegmentDistance } from './connections';
 

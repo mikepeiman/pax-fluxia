@@ -40,6 +40,18 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - margins `0, 35, 40, 45, 60, 80, 90, 120, 140, 160, 175, 230, 300`
   - `components: 1` across the sweep
   - `missingTruth: 0` across the sweep
+- [x] Add a fixed-map lane audit:
+  - `bun run debug:lane-audit`
+  - frozen-map JSON + SVG + markdown outputs
+  - exact per-lane chord clearance, final clearance, closest blocking star, closest point on lane, and decision reason
+- [x] Remove false-positive curves on the frozen map by making the straight chord the hard first decision.
+- [x] Prove the high-`Lane Margin` hard limit on the frozen map:
+  - at `LM 175+`, the strict all-pairs straight-only feasible graph is disconnected
+- [x] Encode the explicit hierarchy in shared geometry:
+  - straight if chord satisfies LM
+  - adjusted if chord fails and remap is enabled
+  - explicit best-clearance straight connectivity override only when the strict feasible graph is disconnected
+- [x] Add connectivity-override reporting to the lane audit so high-LM behavior is machine-checkable rather than guessed.
 - [x] Trace the lane-visibility divergence from authoritative map truth through schema/state/cache/rendering instead of patching the renderer blindly.
 - [x] Confirm the shared layer already carries lane-path truth (`laneWaypoints`, `lanePathKind`) in `/common` types and Colyseus schema.
 - [x] Identify the SP architecture gap: generated/rebuilt lane truth was being seeded into the cache without being written back onto authoritative `state.connections`.
@@ -58,11 +70,11 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Top Queue
 
-- [ ] Playtest the ruler icon + regular Debug section flow and verify it is faster than the removed diagnostics-surface workflow.
+- [ ] Verify in-app that high-LM connectivity-override edges are visually acceptable and fully honest in both SP and MP.
+- [ ] Decide whether connectivity-override edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.
 - [ ] Add lane-key copy/export actions from the ruler measurement log if the diagnostic workflow needs faster issue filing.
-- [ ] Verify in-app that lanes no longer disappear visually at higher lane margins while mechanics remain connected.
 - [ ] Verify in-app that SP and MP now both present the same visible lane truth on the same map/settings.
-- [ ] Continue lane geometry hardening so short direct lanes stay straight more often while adjusted detours remain outward and readable.
+- [ ] Continue lane geometry hardening so short direct lanes stay straight and adjusted detours remain outward and readable.
 - [ ] Surface the new adjusted-path style control in the UI once the UI branch is ready for tunables again.
 - [ ] Diagnose and redesign DX distance/weight semantics after refreshing the exact intended constraint.
 - [ ] Queue contested-lane midpoint tunables for the UI owner after the control-panel refactor settles.
@@ -73,3 +85,6 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - The target invariant is explicit:
   - connectivity is defined only by lane-aware map truth
   - visible lanes are drawn directly from that same truth
+- Current hard fact from the fixed-map audit:
+  - above roughly `LM 175` on the frozen test map, strict straight-only LM-compliant connectivity is impossible
+  - any fully connected result there requires either adjusted paths or explicit connectivity-override edges

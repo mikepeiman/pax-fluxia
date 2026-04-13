@@ -16,12 +16,34 @@ import { pointToSegmentDistance } from './connections';
 
 export type MapLaneMode = 'straight' | 'curved';
 
+export interface LaneAttemptTrace {
+    candidateKind: 'straight' | 'angular' | 'curved';
+    sign?: 1 | -1;
+    minimumClearancePx: number;
+    requiredClearancePx: number;
+    waypointCount: number;
+    accepted: boolean;
+    reason: string;
+}
+
+export interface LaneDecisionTrace {
+    requestedClearancePx: number;
+    effectiveClearancePx: number;
+    chordDistancePx: number;
+    chordMinClearancePx: number;
+    chordPassesRequested: boolean;
+    chordPassesEffective: boolean;
+    straightBlockedByClearance: boolean;
+    straightBlockedByLaneCross: boolean;
+    finalPathKind: LanePathKind | 'missing';
+    finalMinClearancePx: number;
+    finalPassesRequested: boolean;
+    finalReason: string;
+    attempts: LaneAttemptTrace[];
+}
+
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
-const SOFT_CURVE_MIN_CHORD_PX = 180;
-const SOFT_CURVE_BAND_MIN_PX = 10;
-const SOFT_CURVE_BAND_MAX_PX = 28;
-const SOFT_CURVE_BAND_SCALE = 0.22;
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -62,6 +84,23 @@ function nearestObstacleDistanceToChord(
     for (const obstacle of obstacles) {
         const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
         if (d < nearest) nearest = d;
+    }
+    return nearest;
+}
+
+function minimumObstacleDistanceToPolyline(
+    pts: Array<[number, number]>,
+    obstacles: Array<{ x: number; y: number }>,
+): number {
+    if (obstacles.length === 0) return Number.POSITIVE_INFINITY;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const obstacle of obstacles) {
+        for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i]!;
+            const [bx, by] = pts[i + 1]!;
+            const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
+            if (d < nearest) nearest = d;
+        }
     }
     return nearest;
 }
@@ -356,11 +395,8 @@ export function effectiveLaneClearanceForChord(
     chordPx: number,
     configuredClearancePx: number,
 ): number {
-    if (configuredClearancePx <= 0) return 0;
-    // Short, direct links should stay readable and local. Apply the full lane
-    // margin primarily to longer lanes where clearance has real visual value.
-    const lengthScaledCap = Math.max(18, chordPx * 0.32);
-    return Math.min(configuredClearancePx, lengthScaledCap);
+    void chordPx;
+    return Math.max(0, configuredClearancePx);
 }
 
 type LaneSolveResult = {
@@ -378,18 +414,81 @@ function tryAdjustedPath(
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
     adjustmentStyle: LaneAdjustmentStyle,
+    trace?: LaneDecisionTrace,
 ): LaneSolveResult | null {
     if (adjustmentStyle === 'angular') {
         const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
-        return kink ? { waypoints: kink, kind: 'angular' } : null;
+        if (!kink) {
+            trace?.attempts.push({
+                candidateKind: 'angular',
+                minimumClearancePx: 0,
+                requiredClearancePx: clearancePx,
+                waypointCount: 0,
+                accepted: false,
+                reason: 'no_valid_angular_detour',
+            });
+            return null;
+        }
+        trace?.attempts.push({
+            candidateKind: 'angular',
+            minimumClearancePx: minimumObstacleDistanceToPolyline(kink, obstacles),
+            requiredClearancePx: clearancePx,
+            waypointCount: kink.length,
+            accepted: true,
+            reason: 'accepted',
+        });
+        return { waypoints: kink, kind: 'angular' };
     }
 
     for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
-        if (best < hypot(bx - ax, by - ay) * 0.015) continue;
+        if (best < hypot(bx - ax, by - ay) * 0.015) {
+            trace?.attempts.push({
+                candidateKind: 'curved',
+                sign: bulgeSign,
+                minimumClearancePx: 0,
+                requiredClearancePx: clearancePx,
+                waypointCount: 0,
+                accepted: false,
+                reason: 'insufficient_bulge',
+            });
+            continue;
+        }
         const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
-        if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) continue;
-        if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
+        const minimumClearancePx = minimumObstacleDistanceToPolyline(cand, obstacles);
+        if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) {
+            trace?.attempts.push({
+                candidateKind: 'curved',
+                sign: bulgeSign,
+                minimumClearancePx,
+                requiredClearancePx: clearancePx,
+                waypointCount: cand.length,
+                accepted: false,
+                reason: 'clearance_fail',
+            });
+            continue;
+        }
+        if (polylineCrossesPlaced(cand, placed, starCenters)) {
+            trace?.attempts.push({
+                candidateKind: 'curved',
+                sign: bulgeSign,
+                minimumClearancePx,
+                requiredClearancePx: clearancePx,
+                waypointCount: cand.length,
+                accepted: false,
+                reason: 'lane_cross',
+            });
+            continue;
+        }
+        trace?.attempts.push({
+            candidateKind: 'curved',
+            sign: bulgeSign,
+            minimumClearancePx,
+            requiredClearancePx: clearancePx,
+            waypointCount: cand.length,
+            accepted: true,
+            reason: 'accepted',
+        });
         return { waypoints: cand, kind: 'curved' };
     }
 
@@ -397,12 +496,38 @@ function tryAdjustedPath(
     if (kink) {
         const [, control, ] = kink;
         const curved = buildQuadraticWaypointsViaControl(ax, ay, control[0], control[1], bx, by);
+        const minimumClearancePx = minimumObstacleDistanceToPolyline(curved, obstacles);
         if (
             polylineClearOfObstacles(curved, obstacles, clearancePx)
             && !polylineCrossesPlaced(curved, placed, starCenters)
         ) {
+            trace?.attempts.push({
+                candidateKind: 'curved',
+                minimumClearancePx,
+                requiredClearancePx: clearancePx,
+                waypointCount: curved.length,
+                accepted: true,
+                reason: 'accepted_via_quadratic_remap',
+            });
             return { waypoints: curved, kind: 'curved' };
         }
+        trace?.attempts.push({
+            candidateKind: 'curved',
+            minimumClearancePx,
+            requiredClearancePx: clearancePx,
+            waypointCount: curved.length,
+            accepted: false,
+            reason: 'quadratic_remap_failed',
+        });
+    } else {
+        trace?.attempts.push({
+            candidateKind: 'curved',
+            minimumClearancePx: 0,
+            requiredClearancePx: clearancePx,
+            waypointCount: 0,
+            accepted: false,
+            reason: 'no_valid_kink_seed',
+        });
     }
 
     return null;
@@ -417,58 +542,62 @@ function solveAdaptiveWaypoints(
     starCenters: Array<{ x: number; y: number }>,
     adjustmentStyle: LaneAdjustmentStyle,
     allowRemap: boolean,
+    trace?: LaneDecisionTrace,
 ): LaneSolveResult | null {
     const chord = hypot(bx - ax, by - ay);
     const effectiveClearancePx = effectiveLaneClearanceForChord(chord, clearancePx);
     const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
-    const okStraight =
-        chordClearOfObstacles(ax, ay, bx, by, obstacles, effectiveClearancePx)
-        && polylineClearOfObstacles(straight, obstacles, effectiveClearancePx)
-        && !polylineCrossesPlaced(straight, placed, starCenters);
+    const chordMinClearancePx = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
+    if (trace) {
+        trace.requestedClearancePx = clearancePx;
+        trace.effectiveClearancePx = effectiveClearancePx;
+        trace.chordDistancePx = chord;
+        trace.chordMinClearancePx = chordMinClearancePx;
+        trace.chordPassesRequested = chordMinClearancePx >= clearancePx;
+        trace.chordPassesEffective = chordMinClearancePx >= effectiveClearancePx;
+    }
+    const straightBlockedByClearance =
+        !chordClearOfObstacles(ax, ay, bx, by, obstacles, effectiveClearancePx)
+        || !polylineClearOfObstacles(straight, obstacles, effectiveClearancePx);
+    const straightBlockedByLaneCross = polylineCrossesPlaced(straight, placed, starCenters);
+    if (trace) {
+        trace.straightBlockedByClearance = straightBlockedByClearance;
+        trace.straightBlockedByLaneCross = straightBlockedByLaneCross;
+    }
+    const okStraight = !straightBlockedByClearance;
+    trace?.attempts.push({
+        candidateKind: 'straight',
+        minimumClearancePx: chordMinClearancePx,
+        requiredClearancePx: clearancePx,
+        waypointCount: straight.length,
+        accepted: okStraight,
+        reason: okStraight
+            ? 'accepted'
+            : straightBlockedByClearance && straightBlockedByLaneCross
+              ? 'blocked_by_clearance_and_lane_cross'
+              : straightBlockedByClearance
+                ? 'blocked_by_clearance'
+                : 'blocked_by_lane_cross',
+    });
     if (okStraight) {
-        const nearestObstacleDist = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
-        const softCurveBand =
-            effectiveClearancePx <= 0
-                ? 0
-                : Math.min(
-                    SOFT_CURVE_BAND_MAX_PX,
-                    Math.max(SOFT_CURVE_BAND_MIN_PX, effectiveClearancePx * SOFT_CURVE_BAND_SCALE),
-                );
-        const softCurveEligible =
-            Number.isFinite(nearestObstacleDist)
-            && chord >= SOFT_CURVE_MIN_CHORD_PX
-            && nearestObstacleDist < effectiveClearancePx + softCurveBand;
-        if (allowRemap && adjustmentStyle === 'curved' && softCurveEligible) {
-            const closenessRatio = Math.max(
-                0,
-                Math.min(1, 1 - (nearestObstacleDist - effectiveClearancePx) / Math.max(softCurveBand, 1)),
-            );
-            const softBulgeCap = Math.min(
-                140,
-                Math.max(20, chord * (0.06 + 0.18 * closenessRatio)),
-            );
-            for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
-                const best = searchBulgeWithCap(
-                    ax,
-                    ay,
-                    bx,
-                    by,
-                    obstacles,
-                    Math.max(0, effectiveClearancePx),
-                    bulgeSign,
-                    softBulgeCap,
-                );
-                if (best < chord * 0.015) continue;
-                const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
-                if (!polylineClearOfObstacles(cand, obstacles, effectiveClearancePx)) continue;
-                if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
-                return { waypoints: cand, kind: 'curved' };
-            }
+        if (trace) {
+            trace.finalPathKind = 'straight';
+            trace.finalMinClearancePx = chordMinClearancePx;
+            trace.finalPassesRequested = chordMinClearancePx >= clearancePx;
+            trace.finalReason = 'straight_clear';
         }
         return { waypoints: straight, kind: 'straight' };
     }
 
-    if (!allowRemap) return null;
+    if (!allowRemap) {
+        if (trace) {
+            trace.finalPathKind = 'missing';
+            trace.finalMinClearancePx = chordMinClearancePx;
+            trace.finalPassesRequested = chordMinClearancePx >= clearancePx;
+            trace.finalReason = 'blocked_and_remap_disabled';
+        }
+        return null;
+    }
 
     const strictSolved = tryAdjustedPath(
         ax,
@@ -480,9 +609,46 @@ function solveAdaptiveWaypoints(
         placed,
         starCenters,
         adjustmentStyle,
+        trace,
     );
-    if (strictSolved) return strictSolved;
+    if (strictSolved) {
+        if (trace) {
+            const finalMinClearancePx = minimumObstacleDistanceToPolyline(
+                strictSolved.waypoints,
+                obstacles,
+            );
+            trace.finalPathKind = strictSolved.kind;
+            trace.finalMinClearancePx = finalMinClearancePx;
+            trace.finalPassesRequested = finalMinClearancePx >= clearancePx;
+            trace.finalReason = 'adjusted_path_accepted';
+        }
+        return strictSolved;
+    }
+    if (trace) {
+        trace.finalPathKind = 'missing';
+        trace.finalMinClearancePx = chordMinClearancePx;
+        trace.finalPassesRequested = false;
+        trace.finalReason = 'no_valid_adjusted_path';
+    }
     return null;
+}
+
+function createLaneDecisionTrace(): LaneDecisionTrace {
+    return {
+        requestedClearancePx: 0,
+        effectiveClearancePx: 0,
+        chordDistancePx: 0,
+        chordMinClearancePx: 0,
+        chordPassesRequested: false,
+        chordPassesEffective: false,
+        straightBlockedByClearance: false,
+        straightBlockedByLaneCross: false,
+        finalPathKind: 'missing',
+        finalMinClearancePx: 0,
+        finalPassesRequested: false,
+        finalReason: 'unresolved',
+        attempts: [],
+    };
 }
 
 /**
@@ -525,6 +691,7 @@ function tryResolveLaneConnection(
     laneObstacleClearancePx: number,
     remapBias: number,
     adjustmentStyle: LaneAdjustmentStyle,
+    trace?: LaneDecisionTrace,
 ): MapConnection | null {
     const obstacles = nodes
         .filter((n) => n.id !== a.id && n.id !== b.id)
@@ -547,6 +714,7 @@ function tryResolveLaneConnection(
             starCenters,
             adjustmentStyle,
             remapBias > 0,
+            trace,
         );
         if (!resolved || resolved.waypoints.length < 2) return null;
         laneWaypoints = resolved.waypoints;
@@ -560,6 +728,33 @@ function tryResolveLaneConnection(
         laneWaypoints,
         lanePathKind,
     };
+}
+
+export function debugResolveLaneConnection(
+    a: Connectable,
+    b: Connectable,
+    nodes: Connectable[],
+    placed: Seg[],
+    starCenters: Array<{ x: number; y: number }>,
+    mode: MapLaneMode,
+    laneObstacleClearancePx: number,
+    remapBias: number,
+    adjustmentStyle: LaneAdjustmentStyle,
+): { connection: MapConnection | null; trace: LaneDecisionTrace } {
+    const trace = createLaneDecisionTrace();
+    const connection = tryResolveLaneConnection(
+        a,
+        b,
+        nodes,
+        placed,
+        starCenters,
+        mode,
+        laneObstacleClearancePx,
+        remapBias,
+        adjustmentStyle,
+        trace,
+    );
+    return { connection, trace };
 }
 
 function countConnectedComponents(
@@ -622,6 +817,80 @@ function buildComponentIndex(
     return componentIndex;
 }
 
+function buildFallbackBridgeCandidates(
+    nodes: Connectable[],
+    componentIndex: Map<string, number>,
+    acceptedKeys: Set<string>,
+): MapConnection[] {
+    const out: MapConnection[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]!;
+        for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j]!;
+            const key = a.id <= b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+            if (acceptedKeys.has(key)) continue;
+            const aComponent = componentIndex.get(a.id);
+            const bComponent = componentIndex.get(b.id);
+            if (aComponent === undefined || bComponent === undefined || aComponent === bComponent) continue;
+            out.push({
+                sourceId: a.id,
+                targetId: b.id,
+                distance: hypot(b.x - a.x, b.y - a.y),
+            });
+        }
+    }
+    out.sort((left, right) => left.distance - right.distance);
+    return out;
+}
+
+function buildConnectivityOverrideCandidates(
+    nodes: Connectable[],
+    componentIndex: Map<string, number>,
+    acceptedKeys: Set<string>,
+): Array<MapConnection & { chordMinClearancePx: number }> {
+    const out: Array<MapConnection & { chordMinClearancePx: number }> = [];
+    for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]!;
+        for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j]!;
+            const key = a.id <= b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+            if (acceptedKeys.has(key)) continue;
+            const aComponent = componentIndex.get(a.id);
+            const bComponent = componentIndex.get(b.id);
+            if (aComponent === undefined || bComponent === undefined || aComponent === bComponent) continue;
+            const obstacles = nodes
+                .filter((node) => node.id !== a.id && node.id !== b.id)
+                .map((node) => ({ x: node.x, y: node.y }));
+            out.push({
+                sourceId: a.id,
+                targetId: b.id,
+                distance: hypot(b.x - a.x, b.y - a.y),
+                chordMinClearancePx: nearestObstacleDistanceToChord(a.x, a.y, b.x, b.y, obstacles),
+            });
+        }
+    }
+    out.sort((left, right) => {
+        if (right.chordMinClearancePx !== left.chordMinClearancePx) {
+            return right.chordMinClearancePx - left.chordMinClearancePx;
+        }
+        return left.distance - right.distance;
+    });
+    return out;
+}
+
+function buildConnectivityOverrideConnection(
+    a: Connectable,
+    b: Connectable,
+): MapConnection {
+    return {
+        sourceId: a.id,
+        targetId: b.id,
+        distance: hypot(b.x - a.x, b.y - a.y),
+        laneWaypoints: [[a.x, a.y], [b.x, b.y]],
+        lanePathKind: 'straight',
+    };
+}
+
 export function buildLaneAwareConnections<T extends Connectable>(
     nodes: T[],
     preferredConnections: MapConnection[],
@@ -648,6 +917,12 @@ export function buildLaneAwareConnections<T extends Connectable>(
         .slice()
         .sort((left, right) => left.distance - right.distance);
 
+    const acceptResolved = (connection: MapConnection, a: Connectable, b: Connectable) => {
+        accepted.push(connection);
+        acceptedKeys.add(keyOf(connection.sourceId, connection.targetId));
+        placed.push(...polylineToSegments(connection.laneWaypoints ?? [[a.x, a.y], [b.x, b.y]]));
+    };
+
     const tryAccept = (connection: MapConnection): boolean => {
         const key = keyOf(connection.sourceId, connection.targetId);
         if (acceptedKeys.has(key)) return false;
@@ -666,9 +941,7 @@ export function buildLaneAwareConnections<T extends Connectable>(
             adjustmentStyle,
         );
         if (!resolved) return false;
-        accepted.push(resolved);
-        acceptedKeys.add(key);
-        placed.push(...polylineToSegments(resolved.laneWaypoints ?? [[a.x, a.y], [b.x, b.y]]));
+        acceptResolved(resolved, a, b);
         return true;
     };
 
@@ -689,6 +962,34 @@ export function buildLaneAwareConnections<T extends Connectable>(
                 if (tryAccept(connection)) {
                     progressed = true;
                 }
+            }
+            if (progressed) continue;
+            const fallbackCandidates = buildFallbackBridgeCandidates(
+                nodes,
+                componentIndex,
+                acceptedKeys,
+            );
+            for (const connection of fallbackCandidates) {
+                if (countConnectedComponents(nodes, accepted) <= 1) break;
+                if (tryAccept(connection)) {
+                    progressed = true;
+                    break;
+                }
+            }
+            if (progressed) continue;
+            const overrideCandidates = buildConnectivityOverrideCandidates(
+                nodes,
+                componentIndex,
+                acceptedKeys,
+            );
+            for (const connection of overrideCandidates) {
+                if (countConnectedComponents(nodes, accepted) <= 1) break;
+                const a = pos.get(connection.sourceId);
+                const b = pos.get(connection.targetId);
+                if (!a || !b) continue;
+                acceptResolved(buildConnectivityOverrideConnection(a, b), a, b);
+                progressed = true;
+                break;
             }
         }
     }

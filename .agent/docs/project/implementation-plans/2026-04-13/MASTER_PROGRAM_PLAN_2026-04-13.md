@@ -8,9 +8,9 @@
 
 ## This round
 
-- Replaced the separate hidden debug modal path with a unified diagnostics surface:
-  - right-hand Debug section now opens a bottom Diagnostics Bar
-  - removed the extra floating debug-FAB entrypoint
+- Replaced the separate hidden debug modal path with the normal Debug section plus a bottom-right ruler toggle:
+  - removed the separate diagnostics surface
+  - added a direct ruler entrypoint that opens Settings focused on Debug
 - Rebuilt the ruler tool around actual diagnostic workflow:
   - transient vs persistent measurement modes
   - per-measure capture log
@@ -22,11 +22,9 @@
   - ruler
   - live overlay toggles
   - snapshot recorder actions
-- Corrected the viewport/camera mismatch introduced by the diagnostics surface:
-  - diagnostics bar now publishes its actual height
-  - fit/center/clamp math treats that height as reserved bottom inset
+- Corrected the viewport/camera mismatch introduced by diagnostics UI:
+  - fit/center/clamp math now reserves bottom inset correctly
   - opening diagnostics triggers a real refit instead of just covering the board
-- Reduced the diagnostics bar vertical footprint and tightened header/control spacing so it behaves more like a bar than a panel.
 - Corrected the spec interpretation:
   - straight first
   - curve only when needed to satisfy Lane Margin
@@ -81,9 +79,38 @@
     - every tested map stayed `components: 1`
     - every generated connection had lane truth: `missingTruth: 0`
 
+## Fixed-map lane audit
+
+- Added a deterministic frozen-map audit:
+  - `bun run debug:lane-audit -- --saved-map common/resources/saved-maps/inner_circle_apr_13.json`
+- The audit now records:
+  - chord minimum clearance
+  - final minimum clearance
+  - closest blocking star
+  - closest point on final lane
+  - strict / adjusted / connectivity-override decision reason
+- The audit proved two separate facts:
+  - false-positive curves were real and are now removed on the frozen map
+  - at `Lane Margin 175+`, the strict all-pairs straight-only feasible graph on that frozen map is disconnected
+- That means the remaining behavior at high LM is no longer a hidden bug. It is an explicit hierarchy choice.
+- Encoded hierarchy:
+  1. keep a straight lane if the chord satisfies LM
+  2. if the chord fails and remap is enabled, try adjusted paths that satisfy LM
+  3. if the strict feasible graph is still disconnected, preserve traversal with an explicit best-clearance straight connectivity override
+  4. lane-count targets stay weaker than connectivity
+- Frozen-map audit sweep after the change:
+  - `LM 60` -> `components 1`, `override 0`
+  - `LM 90` -> `components 1`, `override 0`
+  - `LM 100` -> `components 1`, `override 0`
+  - `LM 145` -> `components 1`, `override 0`
+  - `LM 175` -> `components 1`, `override 10`
+  - `LM 230` -> `components 1`, `override 19`
+  - `LM 245` -> `components 1`, `override 23`
+
 ## Next likely moves
 
 - Verify in-app that high-margin lanes no longer disappear visually while mechanics still allow movement/attacks.
+- Decide whether connectivity-override edges need a distinct diagnostic or visual treatment.
 - Verify the same lane-path truth presentation in SP and MP.
 - Continue lane-geometry tuning, but keep all future changes anchored to authoritative connection truth first.
 - Hand the new adjusted-path-style tunable to the UI owner for surfacing once the panel refactor is ready.
