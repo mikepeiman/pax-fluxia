@@ -94,13 +94,10 @@
     function formatMeasurement(measurement: RulerMeasurement): string {
         const core = measurement.starPairLabel ?? measurement.relatedLaneLabel;
         if (core) return core;
-        return `${formatPoint(measurement.start)} → ${formatPoint(measurement.end)}`;
+        return `${formatPoint(measurement.start)} -> ${formatPoint(measurement.end)}`;
     }
 
-    function setRulerColor(
-        key: "h" | "s" | "l" | "a",
-        event: Event,
-    ) {
+    function setRulerColor(key: "h" | "s" | "l" | "a", event: Event) {
         rulerTool.setColor(
             key,
             Number((event.currentTarget as HTMLInputElement).value),
@@ -142,9 +139,11 @@
 
 <div class="diagnostics-bar" bind:this={barEl}>
     <div class="bar-header">
-        <div class="bar-heading">
+        <div>
             <div class="bar-title">Diagnostics</div>
-            <div class="bar-subtitle">LM {GAME_CONFIG.MAPGEN_LANE_MARGIN_PX}px</div>
+            <div class="bar-subtitle">
+                Lane Margin {GAME_CONFIG.MAPGEN_LANE_MARGIN_PX}px
+            </div>
         </div>
         <button class="bar-close" onclick={closeBar} title="Close diagnostics">
             ×
@@ -353,10 +352,8 @@
         z-index: 1200;
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        max-height: min(30vh, 226px);
-        padding: 8px 10px;
-        overflow: hidden;
+        gap: 10px;
+        padding: 12px 14px;
         background: rgba(8, 11, 20, 0.92);
         border: 1px solid rgba(120, 220, 255, 0.24);
         border-radius: 12px;
@@ -370,18 +367,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        min-height: 24px;
-    }
-
-    .bar-heading {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
+        gap: 12px;
     }
 
     .bar-title {
-        font-size: 0.74rem;
+        font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -389,36 +379,35 @@
     }
 
     .bar-subtitle {
-        font-size: 0.68rem;
+        margin-top: 2px;
+        font-size: 0.72rem;
         color: rgba(216, 239, 255, 0.72);
     }
 
     .bar-close {
-        width: 24px;
-        height: 24px;
+        width: 30px;
+        height: 30px;
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.06);
         color: #d8efff;
-        font-size: 0.9rem;
+        font-size: 1rem;
         cursor: pointer;
     }
 
     .bar-content {
         display: grid;
         grid-template-columns: minmax(420px, 2.2fr) minmax(220px, 1fr) minmax(220px, 1fr);
-        gap: 8px;
+        gap: 12px;
         align-items: start;
-        min-height: 0;
     }
 
     .diag-section {
-        min-height: 0;
-        padding: 8px;
+        min-height: 100%;
+        padding: 10px;
         border-radius: 10px;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        overflow: hidden;
     }
 
     .section-head {
@@ -426,8 +415,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 6px;
-        font-size: 0.68rem;
+        margin-bottom: 8px;
+        font-size: 0.74rem;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -438,13 +427,13 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 34px;
-        padding: 6px 10px;
+        min-height: 44px;
+        padding: 8px 12px;
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 10px;
         background: rgba(255, 255, 255, 0.06);
         color: #d8efff;
-        font-size: 0.74rem;
+        font-size: 0.82rem;
         font-weight: 700;
         cursor: pointer;
     }
@@ -490,13 +479,13 @@
     .ruler-controls {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
 
     .readout-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
+        gap: 8px;
     }
 
     .readout-grid.compact {
@@ -506,57 +495,57 @@
     .readout-grid div {
         display: flex;
         flex-direction: column;
-        gap: 1px;
-        padding: 6px;
+        gap: 2px;
+        padding: 8px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.04);
     }
 
     .readout-grid span {
-        font-size: 0.6rem;
+        font-size: 0.66rem;
         color: rgba(216, 239, 255, 0.65);
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
 
     .readout-grid strong {
-        font-size: 0.74rem;
+        font-size: 0.8rem;
         color: #ffffff;
     }
 
     .slider-grid {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 6px;
+        gap: 8px;
     }
 
     .slider-grid label {
         display: flex;
         flex-direction: column;
-        gap: 3px;
-        padding: 6px;
+        gap: 4px;
+        padding: 8px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.04);
     }
 
     .slider-grid span {
-        font-size: 0.58rem;
+        font-size: 0.66rem;
         color: rgba(216, 239, 255, 0.65);
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
 
     .slider-grid strong {
-        font-size: 0.68rem;
+        font-size: 0.74rem;
         color: #ffffff;
     }
 
     .measure-log {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        max-height: 84px;
-        margin-top: 8px;
+        gap: 8px;
+        max-height: 180px;
+        margin-top: 10px;
         overflow: auto;
         padding-right: 4px;
     }
@@ -564,30 +553,30 @@
     .measure-item {
         display: flex;
         flex-direction: column;
-        gap: 5px;
-        padding: 6px;
+        gap: 6px;
+        padding: 8px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .measure-title {
-        font-size: 0.72rem;
+        font-size: 0.78rem;
         font-weight: 700;
         color: #ffffff;
     }
 
     .measure-subtitle,
     .empty-note {
-        font-size: 0.62rem;
+        font-size: 0.68rem;
         color: rgba(216, 239, 255, 0.68);
     }
 
     .toggle-stack {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        font-size: 0.72rem;
+        gap: 8px;
+        font-size: 0.78rem;
     }
 
     .toggle-stack label {
