@@ -1,24 +1,38 @@
 <script lang="ts">
     import { AI_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
-    import { GAME_CONFIG, DEFAULT_GAME_CONFIG } from "$lib/config/game.config";
+    import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
-
-    // ControlsSection-AI — In-Game Settings Controls: AI Behavior
-    // Refactored to use panel state (reactive + theme-compatible)
-
-    const aiVariables = AI_VARIABLES;
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
+
     let { panel, updatePanel, syncFromConfig }: Props = $props();
 
-    // Per-variable enable/disable toggle (local UI state, not persisted)
-    let enabled = $state<Record<string, boolean>>(
-        Object.fromEntries(aiVariables.map((v) => [v.key, true])),
-    );
+    const GROUPS: Array<{ label: string; keys: string[] }> = [
+        {
+            label: "Aggression",
+            keys: [
+                "AI_MUST_ATTACK_RATIO",
+                "AI_ATTACK_UPPER_BOUNDS",
+                "AI_TACTICAL_AGGRESSION",
+                "AI_RANDOM_AGGRESSION",
+            ],
+        },
+        {
+            label: "Decision Tempo",
+            keys: [
+                "AI_ATTACK_STICKINESS",
+                "AI_EVALUATION_FREQUENCY",
+            ],
+        },
+    ];
+
+    function varsFor(keys: string[]) {
+        return AI_VARIABLES.filter((variable) => keys.includes(variable.key));
+    }
 
     function getAIValue(configKey: string): number {
         const panelKey = CONFIG_TO_PANEL_KEY[configKey];
@@ -28,94 +42,77 @@
         return (GAME_CONFIG as any)[configKey] as number;
     }
 
-    function updateAIValue(configKey: string, val: number) {
-        if (isNaN(val)) return;
+    function updateAIValue(configKey: string, value: number) {
+        if (Number.isNaN(value)) return;
         const panelKey = CONFIG_TO_PANEL_KEY[configKey];
         if (panelKey) {
-            updatePanel(panelKey, val);
+            updatePanel(panelKey, value);
         }
-        (GAME_CONFIG as any)[configKey] = val;
-    }
-
-    function toggle(configKey: string) {
-        const wasEnabled = enabled[configKey];
-        enabled = { ...enabled, [configKey]: !wasEnabled };
-        if (wasEnabled) {
-            // Disable: reset to default
-            const defaultVal = (DEFAULT_GAME_CONFIG as any)[configKey];
-            updateAIValue(configKey, defaultVal);
-        }
-        // Enable: current panel value is already correct
+        (GAME_CONFIG as any)[configKey] = value;
     }
 </script>
 
 <CategoryThemeBar category="ai" onApply={() => syncFromConfig?.()} />
 
-{#each aiVariables as v}
-    <div class="var-row" class:disabled={!enabled[v.key]}>
-        <div class="row-top">
-            <label class="toggle-label">
-                <input
-                    type="checkbox"
-                    checked={enabled[v.key]}
-                    onchange={() => toggle(v.key)}
-                />
-                <span class="var-name">{v.label}</span>
-            </label>
-            <span class="val">{getAIValue(v.key).toFixed(2)}</span>
+{#each GROUPS as group}
+    <h4 class="sub-heading">{group.label}</h4>
+    {#each varsFor(group.keys) as variable}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name">{variable.label}</span>
+                <span class="val">{getAIValue(variable.key).toFixed(2)}</span>
+            </div>
+            <input
+                type="range"
+                min={variable.min}
+                max={variable.max}
+                step={variable.step}
+                value={getAIValue(variable.key)}
+                oninput={(event) =>
+                    updateAIValue(
+                        variable.key,
+                        parseFloat((event.target as HTMLInputElement).value),
+                    )}
+            />
         </div>
-        <input
-            type="range"
-            min={v.min}
-            max={v.max}
-            step={v.step}
-            value={getAIValue(v.key)}
-            oninput={(e) =>
-                updateAIValue(
-                    v.key,
-                    parseFloat((e.target as HTMLInputElement).value),
-                )}
-            disabled={!enabled[v.key]}
-        />
-    </div>
+    {/each}
 {/each}
 
 <h4 class="sub-heading">Future Strategies</h4>
 <div class="var-row grayed">
     <div class="row-top">
-        <span class="var-name">🎯 Sniper</span><span class="val">—</span>
+        <span class="var-name">Sniper</span>
+        <span class="val">planned</span>
     </div>
-    <span class="future-desc">Targets weakest stars first</span>
+    <span class="future-desc">Prioritize exposed weak stars.</span>
 </div>
 <div class="var-row grayed">
     <div class="row-top">
-        <span class="var-name">🛡️ Turtle</span><span class="val">—</span>
+        <span class="var-name">Turtle</span>
+        <span class="val">planned</span>
     </div>
-    <span class="future-desc">Defensive posture, holds territory</span>
+    <span class="future-desc">Bias toward defense and retention.</span>
 </div>
 <div class="var-row grayed">
     <div class="row-top">
-        <span class="var-name">🌊 Swarm</span><span class="val">—</span>
+        <span class="var-name">Swarm</span>
+        <span class="val">planned</span>
     </div>
-    <span class="future-desc">Mass coordinated attacks</span>
+    <span class="future-desc">Coordinated mass attacks across fronts.</span>
 </div>
 <div class="var-row grayed">
     <div class="row-top">
-        <span class="var-name">🎲 Chaos</span><span class="val">—</span>
+        <span class="var-name">Chaos</span>
+        <span class="val">planned</span>
     </div>
-    <span class="future-desc">Unpredictable, random targets</span>
+    <span class="future-desc">Intentionally unstable target selection.</span>
 </div>
 <div class="var-row grayed">
     <div class="row-top">
-        <span class="var-name">🤝 Diplomat</span><span class="val">—</span>
+        <span class="var-name">Diplomat</span>
+        <span class="val">planned</span>
     </div>
-    <span class="future-desc">Avoids conflict, grows economy</span>
-</div>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">⚖️ Balanced</span><span class="val">—</span>
-    </div>
-    <span class="future-desc">Adapts to game state dynamically</span>
+    <span class="future-desc">Expand economically before escalating.</span>
 </div>
 
 <style>

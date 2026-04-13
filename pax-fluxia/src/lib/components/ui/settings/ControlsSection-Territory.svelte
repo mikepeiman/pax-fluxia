@@ -40,6 +40,37 @@
       false,
   );
 
+  type TerritorySystemModuleId =
+    | "all"
+    | "geometry"
+    | "render-mode"
+    | "architecture"
+    | "fill-transition";
+  type TerritoryRendererModuleId =
+    | "all"
+    | "metaball"
+    | "topology"
+    | "border-transition"
+    | "surface";
+
+  interface TerritoryModuleDef<T extends string> {
+    id: T;
+    label: string;
+    icon: string;
+  }
+
+  const TERRITORY_SYSTEM_MODULES: Array<
+    TerritoryModuleDef<Exclude<TerritorySystemModuleId, "all">>
+  > = [
+    { id: "geometry", label: "Geometry", icon: "◫" },
+    { id: "render-mode", label: "Mode", icon: "◎" },
+    { id: "architecture", label: "Architecture", icon: "⬢" },
+    { id: "fill-transition", label: "Fill", icon: "◌" },
+  ];
+
+  let activeSystemModule = $state<TerritorySystemModuleId>("all");
+  let activeRendererModule = $state<TerritoryRendererModuleId>("all");
+
   const METABALL_FALLOFF_OPTIONS = [
     {
       id: "inverse-square" as const,
@@ -365,6 +396,50 @@
     return raw;
   }
 
+  function rendererModules(): Array<
+    TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+  > {
+    const modules: Array<
+      TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+    > = [{ id: "topology", label: "Topology", icon: "⬡" }];
+
+    if (resolveActiveStyleId() === "metaball") {
+      modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
+    }
+
+    modules.push({
+      id: "border-transition",
+      label: "Borders",
+      icon: "◇",
+    });
+
+    if (
+      resolveActiveStyleId() === "territory_engine" ||
+      resolveActiveStyleId() === "territory_canonical"
+    ) {
+      modules.push({ id: "surface", label: "Surface", icon: "✦" });
+    }
+
+    return modules;
+  }
+
+  function showSystemModule(id: Exclude<TerritorySystemModuleId, "all">) {
+    return activeSystemModule === "all" || activeSystemModule === id;
+  }
+
+  function showRendererModule(id: Exclude<TerritoryRendererModuleId, "all">) {
+    return activeRendererModule === "all" || activeRendererModule === id;
+  }
+
+  $effect(() => {
+    if (
+      activeRendererModule !== "all" &&
+      !rendererModules().some((module) => module.id === activeRendererModule)
+    ) {
+      activeRendererModule = "all";
+    }
+  });
+
   /**
    * Handle geometry mode button clicks.
    * Since the architecture now has a single canonical mode, this simply
@@ -390,134 +465,241 @@
 
 <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 
-<!-- ── V3.2 Four-Axis Territory Card ── -->
-<div class="axis-card">
-  <h4 class="axis-card-title">Territory Presentation</h4>
-
-  <!-- Row 1: Geometry (teal) -->
-  <div
-    class="axis-row"
-    style="--accent: #2dd4bf; --accent-bg: rgba(45,212,191,0.15)">
-    <span class="axis-label">Geometry</span>
-    <div class="axis-buttons">
-      {#each GEOMETRY_OPTIONS as opt}
-        <button
-          class="axis-btn"
-          class:active={(panel.territoryGeometryMode ??
-            GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-            "unified_vector") === opt.id}
-          onclick={() => selectGeometryMode(opt.id)}>{opt.label}</button>
-      {/each}
-    </div>
+<div class="territory-section-shell territory-section-shell--system">
+  <div class="territory-section-head">
+    <h4 class="sub-heading territory-section-title">Territory System</h4>
+    <button
+      type="button"
+      class="territory-all-toggle"
+      class:active={activeSystemModule === "all"}
+      aria-label="Show all territory system modules"
+      onclick={() => {
+        activeSystemModule = "all";
+      }}></button>
   </div>
-
-  <!-- Row 2: All render modes (catalog) — purple / amber accent mix -->
-  <div
-    class="axis-row"
-    style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)">
-    <span class="axis-label">Render mode</span>
-    <div class="axis-buttons axis-buttons-wrap">
-      {#key $familyRegistryEpoch}
-        {#each getRenderModeOptions() as opt}
-          <button
-            type="button"
-            class="axis-btn"
-            class:active={resolveActiveStyleId() === opt.id}
-            disabled={!opt.selectable}
-            title={opt.disabledReason ?? opt.shortDescription ?? opt.label}
-            onclick={() => {
-              if (opt.selectable) selectTerritoryStyle(opt.id);
-            }}>{opt.label}</button>
-        {/each}
-      {/key}
-    </div>
+  <div class="territory-module-nav">
+    {#each TERRITORY_SYSTEM_MODULES as module}
+      <button
+        type="button"
+        class="territory-module-chip"
+        class:active={activeSystemModule === module.id}
+        onclick={() => {
+          activeSystemModule =
+            activeSystemModule === module.id ? "all" : module.id;
+        }}>
+        <span class="territory-module-chip__icon">{module.icon}</span>
+        <span>{module.label}</span>
+      </button>
+    {/each}
   </div>
+  <div class="territory-module-grid">
+    {#if showSystemModule("geometry")}
+      <div class="axis-card territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">Geometry</h4>
+          <p class="territory-card__intro">
+            Select the geometry pipeline that all maintained territory visuals
+            route through.
+          </p>
+        </div>
+        <div
+          class="axis-row"
+          style="--accent: #2dd4bf; --accent-bg: rgba(45,212,191,0.15)">
+          <span class="axis-label">Geometry</span>
+          <div class="axis-buttons">
+            {#each GEOMETRY_OPTIONS as opt}
+              <button
+                class="axis-btn"
+                class:active={(panel.territoryGeometryMode ??
+                  GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
+                  "unified_vector") === opt.id}
+                onclick={() => selectGeometryMode(opt.id)}>{opt.label}</button>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {/if}
 
-  {#if isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
-    <div
-      class="axis-note"
-      style="border-left: 3px solid #f59e0b; padding: 8px 10px; margin: 4px 0 8px; background: rgba(245,158,11,0.08);">
-      <strong>Deprecated mode active:</strong>
-      <code>{resolveActiveStyleId()}</code>
-      — hidden from the list above. Prefer PVV3 or PVV2 for maintained seams.
-      <span
-        style="display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap;">
-        <button
-          type="button"
-          class="axis-btn"
-          onclick={() => selectTerritoryStyle("vs_pvv3")}
-          >Switch to PVV3</button>
-        <button
-          type="button"
-          class="axis-btn"
-          onclick={() => selectTerritoryStyle("power_voronoi")}
-          >Switch to PVV2</button>
-      </span>
-    </div>
-  {/if}
+    {#if showSystemModule("render-mode")}
+      <div class="axis-card territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">Render Mode</h4>
+          <p class="territory-card__intro">
+            Choose the active renderer family and expose deprecated modes only
+            when you intentionally need to compare against them.
+          </p>
+        </div>
+        <div
+          class="axis-row"
+          style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)">
+          <span class="axis-label">Render mode</span>
+          <div class="axis-buttons axis-buttons-wrap">
+            {#key $familyRegistryEpoch}
+              {#each getRenderModeOptions() as opt}
+                <button
+                  type="button"
+                  class="axis-btn"
+                  class:active={resolveActiveStyleId() === opt.id}
+                  disabled={!opt.selectable}
+                  title={opt.disabledReason ?? opt.shortDescription ?? opt.label}
+                  onclick={() => {
+                    if (opt.selectable) selectTerritoryStyle(opt.id);
+                  }}>{opt.label}</button>
+              {/each}
+            {/key}
+          </div>
+        </div>
 
-  <div class="axis-row axis-row-compact">
-    <label class="render-family-gate">
-      <input
-        type="checkbox"
-        checked={panel.useRenderFamilies ??
-          GAME_CONFIG.USE_RENDER_FAMILIES ??
-          false}
-        onchange={(e) => {
-          const v = (e.target as HTMLInputElement).checked;
-          debouncedConfigUpdate("USE_RENDER_FAMILIES", "useRenderFamilies", v);
-        }} />
-      <span
-        title="When on, only modes with a registered RenderFamily adapter stay selectable (exempt: Off, Canonical). Metaball registers in-game."
-        >USE_RENDER_FAMILIES (family gate)</span>
-    </label>
-  </div>
+        {#if isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
+          <div
+            class="axis-note"
+            style="border-left: 3px solid #f59e0b; padding: 8px 10px; margin: 4px 0 8px; background: rgba(245,158,11,0.08);">
+            <strong>Deprecated mode active:</strong>
+            <code>{resolveActiveStyleId()}</code>
+            — hidden from the list above. Prefer PVV3 or PVV2 for maintained
+            seams.
+            <span
+              style="display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap;">
+              <button
+                type="button"
+                class="axis-btn"
+                onclick={() => selectTerritoryStyle("vs_pvv3")}
+                >Switch to PVV3</button>
+              <button
+                type="button"
+                class="axis-btn"
+                onclick={() => selectTerritoryStyle("power_voronoi")}
+                >Switch to PVV2</button>
+            </span>
+          </div>
+        {/if}
 
-  <!-- Row 3: Architecture Path (blue) -->
-  <div
-    class="axis-row"
-    style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)">
-    <span class="axis-label">Architecture</span>
-    <div class="axis-buttons">
-      {#each TERRITORY_ARCHITECTURE_PATH_OPTIONS as opt}
-        <button
-          class="axis-btn"
-          class:active={(panel.territoryArchitecturePath ??
-            GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ??
-            "clean") === opt.id}
-          onclick={() => updatePanel("territoryArchitecturePath", opt.id)}
-          >{opt.label}</button>
-      {/each}
-    </div>
-  </div>
-  <div class="axis-note">
-    Architecture toggle applies when Style is "Canonical Layered Runtime".
-  </div>
-  {#if resolveActiveStyleId() !== "territory_canonical" && resolveActiveStyleId() !== "none"}
-    <div class="axis-note">
-      Non-canonical render mode bypasses clean-layer routing for that path.
-    </div>
-  {/if}
+        <div class="axis-row axis-row-compact">
+          <label class="render-family-gate">
+            <input
+              type="checkbox"
+              checked={panel.useRenderFamilies ??
+                GAME_CONFIG.USE_RENDER_FAMILIES ??
+                false}
+              onchange={(e) => {
+                const v = (e.target as HTMLInputElement).checked;
+                debouncedConfigUpdate(
+                  "USE_RENDER_FAMILIES",
+                  "useRenderFamilies",
+                  v,
+                );
+              }} />
+            <span
+              title="When on, only modes with a registered RenderFamily adapter stay selectable (exempt: Off, Canonical). Metaball registers in-game."
+              >USE_RENDER_FAMILIES (family gate)</span>
+          </label>
+        </div>
+      </div>
+    {/if}
 
-  <!-- Row 4: Fill Transition (gold) -->
-  <div
-    class="axis-row"
-    style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)">
-    <span class="axis-label">Fill Transition</span>
-    <div class="axis-buttons">
-      {#each FILL_TRANSITION_OPTIONS as opt}
-        <button
-          class="axis-btn"
-          class:active={resolveActiveFillTransitionId() === opt.id}
-          onclick={() => selectFillTransition(opt.id)}>{opt.label}</button>
-      {/each}
-    </div>
+    {#if showSystemModule("architecture")}
+      <div class="axis-card territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">Architecture</h4>
+          <p class="territory-card__intro">
+            Control whether canonical rendering follows the clean route or the
+            legacy comparison path.
+          </p>
+        </div>
+        <div
+          class="axis-row"
+          style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)">
+          <span class="axis-label">Architecture</span>
+          <div class="axis-buttons">
+            {#each TERRITORY_ARCHITECTURE_PATH_OPTIONS as opt}
+              <button
+                class="axis-btn"
+                class:active={(panel.territoryArchitecturePath ??
+                  GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ??
+                  "clean") === opt.id}
+                onclick={() => updatePanel("territoryArchitecturePath", opt.id)}
+                >{opt.label}</button>
+            {/each}
+          </div>
+        </div>
+        <div class="axis-note">
+          Architecture toggle applies when Style is "Canonical Layered Runtime".
+        </div>
+        {#if resolveActiveStyleId() !== "territory_canonical" && resolveActiveStyleId() !== "none"}
+          <div class="axis-note">
+            Non-canonical render mode bypasses clean-layer routing for that path.
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if showSystemModule("fill-transition")}
+      <div class="axis-card territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">Fill Transition</h4>
+          <p class="territory-card__intro">
+            Decide how ownership fills interpolate through conquest and front
+            changes.
+          </p>
+        </div>
+        <div
+          class="axis-row"
+          style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)">
+          <span class="axis-label">Fill Transition</span>
+          <div class="axis-buttons">
+            {#each FILL_TRANSITION_OPTIONS as opt}
+              <button
+                class="axis-btn"
+                class:active={resolveActiveFillTransitionId() === opt.id}
+                onclick={() => selectFillTransition(opt.id)}>{opt.label}</button>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
-{#if resolveActiveStyleId() === "metaball"}
-  <div class="engine-control-group">
-    <h4 class="axis-card-title">Metaball (CPU grid)</h4>
+<div class="territory-section-shell territory-section-shell--renderer">
+  <div class="territory-section-head">
+    <h4 class="sub-heading territory-section-title">
+      Rendering &amp; Topology
+    </h4>
+    <button
+      type="button"
+      class="territory-all-toggle"
+      class:active={activeRendererModule === "all"}
+      aria-label="Show all territory rendering modules"
+      onclick={() => {
+        activeRendererModule = "all";
+      }}></button>
+  </div>
+  <div class="territory-module-nav">
+    {#each rendererModules() as module}
+      <button
+        type="button"
+        class="territory-module-chip"
+        class:active={activeRendererModule === module.id}
+        onclick={() => {
+          activeRendererModule =
+            activeRendererModule === module.id ? "all" : module.id;
+        }}>
+        <span class="territory-module-chip__icon">{module.icon}</span>
+        <span>{module.label}</span>
+      </button>
+    {/each}
+  </div>
+  <div class="territory-module-grid">
+
+{#if showRendererModule("metaball") && resolveActiveStyleId() === "metaball"}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Metaball (CPU grid)</h4>
+      <p class="territory-card__intro">
+        Tune field cost, influence shape, and border behavior for the active
+        metaball renderer.
+      </p>
+    </div>
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
@@ -831,7 +1013,7 @@
         }} />
     </div>
 
-    <h4 class="sub-heading">Combat &amp; fleet pressure</h4>
+    <h5 class="territory-inline-heading">Combat &amp; Fleet Pressure</h5>
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.72;margin-bottom:8px;">
@@ -983,9 +1165,20 @@
   </div>
 {/if}
 
+{#if showRendererModule("topology")}
+<div class="territory-module-card territory-module-stack">
+<h5 class="territory-inline-heading">Ownership &amp; Topology</h5>
 <!-- ── Territory Invariants (MSR / CX / DX) ── -->
 <div class="engine-control-group">
-  <h4 class="axis-card-title">Territory Invariants</h4>
+  <div class="territory-card__header">
+    <h4 class="axis-card-title">Territory Invariants</h4>
+    <p class="territory-card__intro">
+      Set the minimum owned footprint and the connection rules that determine
+      how fronts stay linked or deliberately split apart.
+    </p>
+  </div>
+
+  <h5 class="territory-inline-heading">Minimum Footprint</h5>
 
   <!-- MSR — Minimum Star Region -->
   <div
@@ -1008,6 +1201,8 @@
         debouncedConfigUpdate("MODIFIED_VORONOI_STAR_MARGIN", "starMargin", v);
       }} />
   </div>
+
+  <h5 class="territory-inline-heading">Corridors</h5>
 
   <!-- CX — Corridor Connection -->
   <div class="var-row">
@@ -1133,6 +1328,8 @@
       }} />
   </div>
 
+  <h5 class="territory-inline-heading">Disconnects</h5>
+
   <!-- DX — Disconnection Zones -->
   <div class="var-row">
     <div class="row-top">
@@ -1210,9 +1407,19 @@
       }} />
   </div>
 </div>
+</div>
+{/if}
 
 <!-- Border Transition Tuning -->
-<div class="engine-control-group">
+{#if showRendererModule("border-transition")}
+<div class="engine-control-group territory-module-card">
+  <div class="territory-card__header">
+    <h4 class="axis-card-title">Border Transition</h4>
+    <p class="territory-card__intro">
+      Control how frontiers resample, ease, and overshoot while borders react
+      to ownership changes.
+    </p>
+  </div>
   <div class="var-row">
     <div class="row-top">
       <span class="var-name">Transition Easing</span>
@@ -1307,91 +1514,109 @@
       }} />
   </div>
 </div>
+{/if}
 
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
-{#if resolveActiveStyleId() === "territory_engine" || resolveActiveStyleId() === "territory_canonical"}
-  {#if resolveActiveStyleId() === "territory_engine"}
-    <h4 class="sub-heading">⚙️ Legacy Engine Diagnostics</h4>
-    <div
-      class="row-bottom"
-      style="font-size: 10px; opacity: 0.6; padding: 2px 4px;">
-      Geometry engine computes territory boundaries from game state. All visual
-      styles consume its output.
+{#if showRendererModule("surface") &&
+  (resolveActiveStyleId() === "territory_engine" ||
+    resolveActiveStyleId() === "territory_canonical")}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">
+        {resolveActiveStyleId() === "territory_engine"
+          ? "Canonical / Engine Surface"
+          : "Canonical Surface"}
+      </h4>
+      <p class="territory-card__intro">
+        Refine fill, border, and diagnostic behavior for the canonical
+        territory surface.
+      </p>
     </div>
 
-    <h4 class="sub-heading">Shape / Motion</h4>
+    {#if resolveActiveStyleId() === "territory_engine"}
+      <h5 class="territory-inline-heading">Legacy Engine Diagnostics</h5>
+      <div
+        class="row-bottom"
+        style="font-size: 10px; opacity: 0.6; padding: 2px 4px;">
+        Geometry engine computes territory boundaries from game state. All visual
+        styles consume its output.
+      </div>
 
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Morph Control Points</span><span class="val"
-          >{panel.territoryMorphControlPoints ??
-            GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span>
+      <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
+
+      <div class="var-row">
+        <div class="row-top">
+          <span class="var-name">Morph Control Points</span><span class="val"
+            >{panel.territoryMorphControlPoints ??
+              GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span>
+        </div>
+        <input
+          type="range"
+          min="5"
+          max="300"
+          step="1"
+          value={panel.territoryMorphControlPoints ??
+            GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
+          oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            updatePanel("territoryMorphControlPoints", v);
+          }} />
       </div>
-      <input
-        type="range"
-        min="5"
-        max="300"
-        step="1"
-        value={panel.territoryMorphControlPoints ??
-          GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          updatePanel("territoryMorphControlPoints", v);
-        }} />
-    </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Morph Easing</span>
+      <div class="var-row">
+        <div class="row-top">
+          <span class="var-name">Morph Easing</span>
+        </div>
+        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
+          {#each MORPH_EASING_OPTIONS as easing}
+            <button
+              class="mini-btn"
+              class:active={(panel.dfMorphEasing ??
+                GAME_CONFIG.DF_MORPH_EASING ??
+                "linear") === easing.id}
+              onclick={() => updatePanel("dfMorphEasing", easing.id)}
+              >{easing.label}</button>
+          {/each}
+        </div>
       </div>
-      <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
-        {#each MORPH_EASING_OPTIONS as easing}
+      <div class="var-row">
+        <div class="row-top">
+          <span class="var-name">Boundary Mode</span><span class="val"
+            >{panel.territoryBoundaryMode ??
+              GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+              "smooth"}</span>
+        </div>
+        <div style="display:flex; gap:4px;">
           <button
             class="mini-btn"
-            class:active={(panel.dfMorphEasing ??
-              GAME_CONFIG.DF_MORPH_EASING ??
-              "linear") === easing.id}
-            onclick={() => updatePanel("dfMorphEasing", easing.id)}
-            >{easing.label}</button>
-        {/each}
+            class:active={(panel.territoryBoundaryMode ??
+              GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
+            onclick={() =>
+              debouncedConfigUpdate(
+                "TERRITORY_BOUNDARY_MODE",
+                "territoryBoundaryMode",
+                "segment",
+              )}>Segment</button>
+          <button
+            class="mini-btn"
+            class:active={(panel.territoryBoundaryMode ??
+              GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
+            onclick={() =>
+              debouncedConfigUpdate(
+                "TERRITORY_BOUNDARY_MODE",
+                "territoryBoundaryMode",
+                "smooth",
+              )}>Smooth</button>
+        </div>
       </div>
-    </div>
+    {/if}
+
+    <h5 class="territory-inline-heading">Fill &amp; Borders</h5>
+
     <div class="var-row">
       <div class="row-top">
-        <span class="var-name">Boundary Mode</span><span class="val"
-          >{panel.territoryBoundaryMode ??
-            GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
-            "smooth"}</span>
-      </div>
-      <div style="display:flex; gap:4px;">
-        <button
-          class="mini-btn"
-          class:active={(panel.territoryBoundaryMode ??
-            GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
-          onclick={() =>
-            debouncedConfigUpdate(
-              "TERRITORY_BOUNDARY_MODE",
-              "territoryBoundaryMode",
-              "segment",
-            )}>Segment</button>
-        <button
-          class="mini-btn"
-          class:active={(panel.territoryBoundaryMode ??
-            GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
-          onclick={() =>
-            debouncedConfigUpdate(
-              "TERRITORY_BOUNDARY_MODE",
-              "territoryBoundaryMode",
-              "smooth",
-            )}>Smooth</button>
-      </div>
-    </div>
-  {/if}
-
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Fill Alpha</span><span class="val"
-        >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
+        <span class="var-name">Fill Alpha</span><span class="val"
+          >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
     </div>
     <input
       type="range"
@@ -1524,7 +1749,9 @@
         debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
       }} />
   </div>
-  {#if resolveActiveStyleId() === "territory_engine"}
+    {#if resolveActiveStyleId() === "territory_engine"}
+      <h5 class="territory-inline-heading">Trace Inspector</h5>
+
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Trace Mode</span>
@@ -1581,8 +1808,8 @@
             }}>Reset</button>
         </div>
       </div>
-    {/if}
-    <div class="trace-panel">
+      {/if}
+      <div class="trace-panel">
       <div class="row-top">
         <span class="var-name">Trace Inspector</span>
         {#if $territoryTraceRun}
@@ -1674,29 +1901,201 @@
           Enable Trace Mode or Step Mode to capture a territory-engine run here.
         </div>
       {/if}
-    </div>
-  {/if}
+      </div>
+    {/if}
+  </div>
 {/if}
+
+</div>
+</div>
 
 <!-- Per-renderer settings removed — V3.1 uses three-concern architecture (Style + Fill Transition + Border Transition) -->
 
 <style>
   @import "./panel-shared.css";
+  .territory-section-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 16px;
+  }
+  .territory-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .territory-section-title {
+    flex: 1;
+    margin: 0;
+  }
+  .territory-all-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(7, 12, 24, 0.5);
+    color: rgba(240, 244, 248, 0.9);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+  .territory-all-toggle::after {
+    content: "All";
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .territory-all-toggle:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(16, 24, 40, 0.72);
+  }
+  .territory-all-toggle.active {
+    border-color: rgba(95, 211, 255, 0.42);
+    background: rgba(49, 105, 164, 0.26);
+    box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
+  }
+  .territory-module-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .territory-module-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(7, 12, 24, 0.45);
+    color: rgba(226, 232, 240, 0.84);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease;
+  }
+  .territory-module-chip:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(16, 24, 40, 0.72);
+    color: rgba(241, 245, 249, 0.98);
+  }
+  .territory-module-chip.active {
+    border-color: rgba(95, 211, 255, 0.42);
+    background: rgba(49, 105, 164, 0.26);
+    box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
+    color: rgba(248, 250, 252, 0.98);
+  }
+  .territory-module-chip__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .territory-module-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .territory-module-card {
+    height: auto;
+  }
+  .territory-module-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .territory-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 14px;
+  }
+  .territory-card__header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .territory-card__intro {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(188, 207, 224, 0.72);
+  }
+  .territory-inline-heading {
+    margin: 2px 0 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(168, 208, 239, 0.78);
+  }
+  .engine-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
+      rgba(16, 22, 34, 0.7);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  .row-bottom {
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(197, 214, 229, 0.68);
+  }
+  .lock-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(149, 211, 177, 0.9);
+  }
+  .lock-toggle input {
+    margin: 0;
+  }
+  @media (max-width: 900px) {
+    .territory-module-grid {
+      grid-template-columns: 1fr;
+    }
+  }
   /* ── V3.2 Axis Card Layout ── */
   .axis-card {
-    background: rgba(20, 20, 30, 0.6);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
+      rgba(16, 22, 34, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 10px 12px 8px;
-    margin: 4px 0 8px;
+    border-radius: 14px;
+    padding: 12px;
   }
   .axis-card-title {
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #ccc;
-    margin: 0 0 8px;
-    padding-bottom: 4px;
+    letter-spacing: 0.12em;
+    color: rgba(236, 242, 249, 0.92);
+    margin: 0;
+    padding-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
   .axis-row {
@@ -1793,16 +2192,6 @@
     letter-spacing: 0.3px;
     color: #888;
   }
-  .sub-heading {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #aaa;
-    margin: 12px 0 6px;
-    padding: 0 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding-bottom: 3px;
-  }
   .mode-btn {
     flex: 1;
     padding: 3px 6px;
@@ -1823,93 +2212,6 @@
     border-color: rgba(100, 200, 255, 0.4);
     color: #93c5fd;
     font-weight: 600;
-  }
-  .var-row {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 2px 4px;
-  }
-  .row-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .var-name {
-    font-size: 11px;
-    color: #ccc;
-  }
-  .val {
-    font-size: 10px;
-    color: #888;
-    font-family: monospace;
-  }
-  .mode-select {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ddd;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    font-size: 11px;
-    padding: 2px 6px;
-    cursor: pointer;
-  }
-  .mode-select:focus {
-    outline: 1px solid rgba(100, 180, 255, 0.5);
-  }
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 28px;
-    height: 14px;
-  }
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  .toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.15);
-    border-radius: 14px;
-    transition: 0.2s;
-  }
-  .toggle-slider::before {
-    position: absolute;
-    content: "";
-    height: 10px;
-    width: 10px;
-    left: 2px;
-    bottom: 2px;
-    background-color: white;
-    border-radius: 50%;
-    transition: 0.2s;
-  }
-  .toggle-switch input:checked + .toggle-slider {
-    background-color: #4ade80;
-  }
-  .toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(14px);
-  }
-  input[type="range"] {
-    width: 100%;
-    height: 4px;
-    appearance: none;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 2px;
-    outline: none;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #4ade80;
-    cursor: pointer;
   }
   .grayed {
     color: #888;

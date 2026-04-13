@@ -1,56 +1,51 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
-
-    // ControlsSection-TRAVEL â€” In-Game Settings Controls: Path & Easing
-    // Extracted from GameSettingsPanel.svelte
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
+
     let { panel, updatePanel, syncFromConfig }: Props = $props();
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
 <CategoryThemeBar category="travel" onApply={() => syncFromConfig?.()} />
 
-<h4 class="sub-heading">Mode & Easing</h4>
-<!-- Travel Animation Mode -->
+<h4 class="sub-heading">Travel Model</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Mode</span><span class="val"
-            >{panel.travelMode}</span
-        >
+        <span class="var-name">Travel Mode</span>
+        <span class="val">{panel.travelMode}</span>
     </div>
     <select
+        class="mode-select"
         value={panel.travelMode}
-        onchange={(e) => {
-            const v = (e.target as HTMLSelectElement).value;
-            GAME_CONFIG.TRAVEL_MODE = v as any;
-            updatePanel("travelMode", v);
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            GAME_CONFIG.TRAVEL_MODE = value as any;
+            updatePanel("travelMode", value);
         }}
-        style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
     >
         <option value="bezier">Bezier Arc</option>
-        <option value="lane">Lane (Classic)</option>
+        <option value="lane">Lane Spine</option>
     </select>
 </div>
-<!-- Travel Easing Controls -->
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Easing</span><span class="val"
-            >{panel.travelEasing}</span
-        >
+        <span class="var-name">Travel Easing</span>
+        <span class="val">{panel.travelEasing}</span>
     </div>
     <select
+        class="mode-select"
         value={panel.travelEasing}
-        onchange={(e) => {
-            const v = (e.target as HTMLSelectElement).value;
-            GAME_CONFIG.TRAVEL_EASING = v as any;
-            updatePanel("travelEasing", v);
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            GAME_CONFIG.TRAVEL_EASING = value as any;
+            updatePanel("travelEasing", value);
         }}
-        style="width:100%;background:#1a1e2a;color:#fff;border:1px solid #333;padding:4px;border-radius:4px;font-size:0.7rem;"
     >
         <option value="linear">Linear</option>
         <option value="easeIn">Ease In</option>
@@ -58,11 +53,11 @@
         <option value="easeInOut">Ease In-Out</option>
     </select>
 </div>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Easing Power</span><span class="val"
-            >{((panel.travelEasingPower ?? 0) as number).toFixed(1)}</span
-        >
+        <span class="var-name">Easing Power</span>
+        <span class="val">{((panel.travelEasingPower ?? 0) as number).toFixed(1)}</span>
     </div>
     <input
         type="range"
@@ -70,38 +65,37 @@
         max="5"
         step="0.1"
         value={panel.travelEasingPower}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.TRAVEL_EASING_POWER = v;
-            updatePanel("travelEasingPower", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.TRAVEL_EASING_POWER = value;
+            updatePanel("travelEasingPower", value);
         }}
     />
 </div>
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Travel Duration</span><span class="val"
-            >{((panel.travelDurationMult ?? 0) as number).toFixed(1)}×</span
-        >
+        <span class="var-name">Travel Duration</span>
+        <span class="val">{((panel.travelDurationMult ?? 0) as number).toFixed(2)}x tick</span>
     </div>
     <input
         type="range"
-        min="0.2"
-        max="3"
+        min="0.1"
+        max="10"
         step="0.1"
         value={panel.travelDurationMult}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.TRAVEL_DURATION_MULT = v;
-            updatePanel("travelDurationMult", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.TRAVEL_DURATION_MULT = value;
+            updatePanel("travelDurationMult", value);
         }}
     />
 </div>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Arc Intensity</span><span class="val"
-            >{((panel.travelArcIntensity ?? 0) as number).toFixed(2)}</span
-        >
+        <span class="var-name">Arc Intensity</span>
+        <span class="val">{((panel.travelArcIntensity ?? 0) as number).toFixed(2)}</span>
     </div>
     <input
         type="range"
@@ -109,93 +103,182 @@
         max="2"
         step="0.05"
         value={panel.travelArcIntensity}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.TRAVEL_ARC_INTENSITY = v;
-            updatePanel("travelArcIntensity", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.TRAVEL_ARC_INTENSITY = value;
+            updatePanel("travelArcIntensity", value);
         }}
     />
 </div>
-<div class="var-row">
-    <div class="row-top">
-        <label class="toggle-label"
-            ><span class="var-name">Depart Mode</span>
-            <select
-                value={panel.departMode}
-                onchange={(e) => {
-                    const val = (e.target as HTMLSelectElement).value;
-                    GAME_CONFIG.DEPART_MODE = val as
-                        | "lifo"
-                        | "fifo"
-                        | "nearside";
-                    updatePanel("departMode", val as any);
-                }}
-                style="margin-left:8px; background:#222; color:#fff; border:1px solid #555; padding:2px 4px; font-size:0.75rem;"
-            >
-                <option value="nearside">Nearside</option>
-                <option value="lifo">LIFO (newest)</option>
-                <option value="fifo">FIFO (oldest)</option>
-            </select>
-        </label>
-    </div>
-</div>
-<label class="toggle-row" style="margin-top:2px;">
+
+<label class="toggle-row">
     <input
         type="checkbox"
-        checked={panel.departStagger}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.DEPART_STAGGER = v;
-            updatePanel("departStagger", v);
+        checked={panel.travelFollowLanePaths ?? GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? false}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS = value;
+            updatePanel("travelFollowLanePaths", value);
         }}
     />
-    <span class="log-label" style="font-size:9px;"
-        >Stream Departure (even spacing)</span
-    >
+    <span class="var-name">Ships follow lane paths</span>
+    <span class="val">curve-aware</span>
 </label>
+
+<h4 class="sub-heading">Departure</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Settle Time</span><span class="val"
-            >{panel.settleDurationMs}ms</span
-        >
+        <span class="var-name">Depart Mode</span>
+        <span class="val">{panel.departMode}</span>
+    </div>
+    <select
+        class="mode-select"
+        value={panel.departMode}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            GAME_CONFIG.DEPART_MODE = value as "lifo" | "fifo" | "nearside";
+            updatePanel("departMode", value);
+        }}
+    >
+        <option value="nearside">Nearside</option>
+        <option value="lifo">LIFO (newest)</option>
+        <option value="fifo">FIFO (oldest)</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Depart Fraction</span>
+        <span class="val">{Math.round(((panel.departFraction ?? 0.5) as number) * 100)}%</span>
     </div>
     <input
         type="range"
         min="0"
-        max="2000"
-        step="10"
-        value={panel.settleDurationMs}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SETTLE_DURATION_MS = v;
-            updatePanel("settleDurationMs", v);
+        max="1"
+        step="0.05"
+        value={panel.departFraction ?? GAME_CONFIG.DEPART_FRACTION ?? 0.55}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.DEPART_FRACTION = value;
+            updatePanel("departFraction", value);
         }}
     />
 </div>
+
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={panel.departStagger}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            GAME_CONFIG.DEPART_STAGGER = value;
+            updatePanel("departStagger", value);
+        }}
+    />
+    <span class="var-name">Stream Departure</span>
+    <span class="val">even spacing</span>
+</label>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Arrival Spread</span><span class="val"
-            >{((panel.arrivalSpread ?? 0) as number).toFixed(1)}×</span
-        >
+        <span class="var-name">Depart Arc</span>
+        <span class="val">{((panel.departArcIntensity ?? 0) as number).toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1.5"
+        step="0.05"
+        value={panel.departArcIntensity ?? GAME_CONFIG.DEPART_ARC_INTENSITY ?? 0.1}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.DEPART_ARC_INTENSITY = value;
+            updatePanel("departArcIntensity", value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Depart Jitter</span>
+        <span class="val">{panel.departJitterMs}ms</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="500"
+        step="5"
+        value={panel.departJitterMs}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.DEPART_JITTER_MS = value;
+            updatePanel("departJitterMs", value);
+        }}
+    />
+</div>
+
+<h4 class="sub-heading">Arrival & Settle</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Settle Duration</span>
+        <span class="val">{panel.settleDurationMs}ms</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5000"
+        step="10"
+        value={panel.settleDurationMs}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.SETTLE_DURATION_MS = value;
+            updatePanel("settleDurationMs", value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrival Spread</span>
+        <span class="val">{((panel.arrivalSpread ?? 0) as number).toFixed(2)}x tick</span>
     </div>
     <input
         type="range"
         min="0"
         max="2"
-        step="0.1"
+        step="0.05"
         value={panel.arrivalSpread}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARRIVAL_SPREAD = v;
-            updatePanel("arrivalSpread", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.ARRIVAL_SPREAD = value;
+            updatePanel("arrivalSpread", value);
         }}
     />
 </div>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Wobble Amp</span><span class="val"
-            >{panel.wobbleAmp}px</span
-        >
+        <span class="var-name">Arrival Arc</span>
+        <span class="val">{((panel.arrivalArcIntensity ?? 0) as number).toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1.5"
+        step="0.05"
+        value={panel.arrivalArcIntensity ?? GAME_CONFIG.ARRIVAL_ARC_INTENSITY ?? 0.1}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.ARRIVAL_ARC_INTENSITY = value;
+            updatePanel("arrivalArcIntensity", value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Wobble Amplitude</span>
+        <span class="val">{panel.wobbleAmp}px</span>
     </div>
     <input
         type="range"
@@ -203,37 +286,19 @@
         max="40"
         step="1"
         value={panel.wobbleAmp}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.WOBBLE_AMP = v;
-            updatePanel("wobbleAmp", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.WOBBLE_AMP = value;
+            updatePanel("wobbleAmp", value);
         }}
     />
 </div>
+
+<h4 class="sub-heading">Lane Pathing</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Depart Jitter</span><span class="val"
-            >{panel.departJitterMs}ms</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="200"
-        step="5"
-        value={panel.departJitterMs}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.DEPART_JITTER_MS = v;
-            updatePanel("departJitterMs", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lane Offset</span><span class="val"
-            >{panel.laneOffsetPx ?? 8}px</span
-        >
+        <span class="var-name">Lane Offset</span>
+        <span class="val">{panel.laneOffsetPx ?? 8}px</span>
     </div>
     <input
         type="range"
@@ -241,18 +306,18 @@
         max="30"
         step="1"
         value={panel.laneOffsetPx ?? 8}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.LANE_OFFSET_PX = v;
-            updatePanel("laneOffsetPx", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.LANE_OFFSET_PX = value;
+            updatePanel("laneOffsetPx", value);
         }}
     />
 </div>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Lane Convergence</span><span class="val"
-            >{Math.round(((panel.laneConvergence ?? 1) as number) * 100)}%</span
-        >
+        <span class="var-name">Lane Convergence</span>
+        <span class="val">{Math.round(((panel.laneConvergence ?? 1) as number) * 100)}%</span>
     </div>
     <input
         type="range"
@@ -260,18 +325,18 @@
         max="1"
         step="0.05"
         value={panel.laneConvergence ?? 1}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.LANE_CONVERGENCE = v;
-            updatePanel("laneConvergence", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.LANE_CONVERGENCE = value;
+            updatePanel("laneConvergence", value);
         }}
     />
 </div>
+
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Convergence Point</span><span class="val"
-            >{panel.laneConvergencePoint ?? 0}%</span
-        >
+        <span class="var-name">Convergence Point</span>
+        <span class="val">{panel.laneConvergencePoint ?? 0}%</span>
     </div>
     <input
         type="range"
@@ -279,32 +344,126 @@
         max="100"
         step="5"
         value={panel.laneConvergencePoint ?? 0}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.LANE_CONVERGENCE_POINT = v;
-            updatePanel("laneConvergencePoint", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.LANE_CONVERGENCE_POINT = value;
+            updatePanel("laneConvergencePoint", value);
         }}
     />
 </div>
+
+<h4 class="sub-heading">Orbit Bias</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Orbit Density</span><span class="val"
-            >{((panel.orbitDensity ?? 0) as number).toFixed(1)}×</span
-        >
+        <span class="var-name">Orbit Density</span>
+        <span class="val">{((panel.orbitDensity ?? 0) as number).toFixed(1)}x</span>
     </div>
     <input
         type="range"
-        min="1.0"
-        max="4.0"
+        min="1"
+        max="4"
         step="0.1"
         value={panel.orbitDensity}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ORBIT_DENSITY = v;
-            updatePanel("orbitDensity", v);
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.ORBIT_DENSITY = value;
+            updatePanel("orbitDensity", value);
         }}
     />
 </div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Bias Strength</span>
+        <span class="val">{((panel.orbitBiasStrength ?? 0) as number).toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.orbitBiasStrength ?? GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0}
+        oninput={(event) => {
+            const value = +(event.target as HTMLInputElement).value;
+            GAME_CONFIG.ORBIT_BIAS_STRENGTH = value;
+            updatePanel("orbitBiasStrength", value);
+        }}
+    />
+</div>
+
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={panel.oscillate ?? GAME_CONFIG.ORBIT_BIAS_OSCILLATE ?? false}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            GAME_CONFIG.ORBIT_BIAS_OSCILLATE = value;
+            updatePanel("oscillate", value);
+        }}
+    />
+    <span class="var-name">Oscillate Bias</span>
+    <span class="val">min to max sweep</span>
+</label>
+
+{#if panel.oscillate ?? GAME_CONFIG.ORBIT_BIAS_OSCILLATE ?? false}
+    <div class="orb-pair">
+        <div class="var-row compact">
+            <div class="row-top">
+                <span class="var-name">Bias Min</span>
+                <span class="val">{((panel.oscMin ?? 0) as number).toFixed(2)}</span>
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={panel.oscMin ?? GAME_CONFIG.ORBIT_BIAS_MIN ?? 0}
+                oninput={(event) => {
+                    const value = +(event.target as HTMLInputElement).value;
+                    GAME_CONFIG.ORBIT_BIAS_MIN = value;
+                    updatePanel("oscMin", value);
+                }}
+            />
+        </div>
+        <div class="var-row compact">
+            <div class="row-top">
+                <span class="var-name">Bias Max</span>
+                <span class="val">{((panel.oscMax ?? 0) as number).toFixed(2)}</span>
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={panel.oscMax ?? GAME_CONFIG.ORBIT_BIAS_MAX ?? 0.95}
+                oninput={(event) => {
+                    const value = +(event.target as HTMLInputElement).value;
+                    GAME_CONFIG.ORBIT_BIAS_MAX = value;
+                    updatePanel("oscMax", value);
+                }}
+            />
+        </div>
+    </div>
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Oscillation Frequency</span>
+            <span class="val">{((panel.oscFreq ?? 0) as number).toFixed(2)}x tick</span>
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="0.05"
+            value={panel.oscFreq ?? GAME_CONFIG.ORBIT_BIAS_FREQ ?? 0.25}
+            oninput={(event) => {
+                const value = +(event.target as HTMLInputElement).value;
+                GAME_CONFIG.ORBIT_BIAS_FREQ = value;
+                updatePanel("oscFreq", value);
+            }}
+        />
+    </div>
+{/if}
 
 <style>
     @import "./panel-shared.css";

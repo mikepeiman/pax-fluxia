@@ -281,6 +281,20 @@ interface GameConfigType {
     ARROW_OUTLINE_ALPHA: number;
     /** Arrowhead wing spread angle in degrees (default 30) */
     ARROW_HEAD_SPREAD_DEG: number;
+    /** Arrowhead style variant: triangle, chevron, kite, or spear */
+    ARROW_HEAD_STYLE: 'triangle' | 'chevron' | 'kite' | 'spear';
+    /** Arrowhead rear-notch depth (0 = flat, 1 = deep notch) */
+    ARROW_HEAD_NOTCH: number;
+    /** Number of shaft gradient steps (1 = solid shaft) */
+    ARROW_SHAFT_STEPS: number;
+    /** Animated flow speed along the shaft (0 = static) */
+    ARROW_FLOW_SPEED: number;
+    /** Arrowhead glow / VFX alpha */
+    ARROW_HEAD_VFX_ALPHA: number;
+    /** How strongly arrow visuals react to attacking force size */
+    ARROW_FORCE_INTENSITY: number;
+    /** Ship count that reaches full force-reactive intensity */
+    ARROW_FORCE_INTENSITY_MAX_SHIPS: number;
     /** When true, metaball fill follows geometry ownership instead of requiring real-star and geom agreement */
     METABALL_FILL_FOLLOWS_GEOM: boolean;
     /** Damaged ship render scale multiplier (default 0.7) */
@@ -1122,6 +1136,13 @@ const _rawConfig: GameConfigType = {
     ARROW_OUTLINE_COLOR: 0x000000,
     ARROW_OUTLINE_ALPHA: 0.6,
     ARROW_HEAD_SPREAD_DEG: 30,
+    ARROW_HEAD_STYLE: 'triangle',
+    ARROW_HEAD_NOTCH: 0.2,
+    ARROW_SHAFT_STEPS: 6,
+    ARROW_FLOW_SPEED: 1.2,
+    ARROW_HEAD_VFX_ALPHA: 0.16,
+    ARROW_FORCE_INTENSITY: 0.4,
+    ARROW_FORCE_INTENSITY_MAX_SHIPS: 250,
     METABALL_FILL_FOLLOWS_GEOM: false,
     DAMAGED_SHIP_SCALE: 0.7,
 

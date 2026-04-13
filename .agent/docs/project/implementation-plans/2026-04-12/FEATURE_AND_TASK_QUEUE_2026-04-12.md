@@ -84,6 +84,12 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [x] Add subsection chips with icons beneath each expanded in-game settings section so long control panels can be filtered by sub-area.
 - [x] Restore and expand user-facing arrow-style controls with stepped shaft gradients, arrowhead-shape tuning, arrowhead VFX, and optional intensity scaling relative to attacking force size.
 - [x] Update the live arrow renderer so the new arrow-style settings materially affect the actual in-game arrows instead of existing only as dormant controls.
+- [x] Surface the previously-unsurfaced transit and conquest control handles in the in-game control panel for `DEPART_FRACTION`, `DEPART_ARC_INTENSITY`, `ARRIVAL_ARC_INTENSITY`, `ORBIT_BIAS_*`, `CONQUEST_FORCE_GLOW*`, and the related travel/surge timing controls already present in active config.
+- [x] Re-audit the in-game control panel information architecture so `Timing` owns only global clocks/bindings while `Travel`, `Surge`, and `Conquest` own their own semantic timing and motion controls.
+- [x] Add real subsection structure to the sparse control-panel sections (`AI`, `Economy`, `Rules`, `Audio`, `Logging`, `Players`) instead of leaving the subsection chip row underpowered or decorative.
+- [x] Normalize the control-panel subsection chip language with stronger section labels, more intentional subsection icons, and shared styling across the panel row system.
+- [x] Refactor the `Territory` control panel into a clearer multi-module layout so routing/system controls are separated from rendering/topology tuning and the subsection chip menu reflects the territory surface more honestly.
+- [x] Rework the `Territory` panel into local toggleable icon-tag sub-panels with a two-column toggle-tag grid, full-width module content, and per-section `All` reset, matching the interaction model used by the other refactored control panels.
 
 ## In Progress
 
@@ -98,6 +104,8 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [ ] Verify `Anchor Hue` and the `Strategy` toggle present as cleanly sized, cleanly aligned controls in the Players header row.
 - [ ] Verify the new settings subsection-chip pattern is genuinely faster to navigate during real play sessions, not just visually cleaner in static inspection.
 - [ ] Verify the new arrow-style controls feel expressive and legible across different ship counts, zoom levels, and background brightness.
+- [ ] Verify the newly-surfaced travel, surge, orbit-bias, conquest-glow, and conquest-timing controls all produce visible in-game effects and survived the section ownership reshuffle without drift.
+- [ ] Verify the refactored control-panel IA actually feels more semantic in use, especially around `Clocks & Binding`, `Travel`, `Surge & Orbs`, `Conquest`, and `Economy & Flow`.
 
 ## Top Queue
 
@@ -121,6 +129,8 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [ ] Revisit `Lane Shape` again if the new version still feels too utility-heavy once used in motion, not just in a static screenshot.
 - [ ] Audit the full in-game controls surface for any remaining mixed padding, mixed heights, mixed outline rules, or subsection-organization misses.
 - [ ] Add a preservation discipline around surfaced UI settings so future refactors do not silently remove existing user-facing controls.
+- [ ] Decide whether the shared `panel-shared.css` utility surface should stay as imported shared styles or be migrated into a lower-warning global tokenized stylesheet.
+- [ ] Use the new Pax Fluxia LOC audit prompt to run a full-project truth/ownership/drift audit with recurring context refresh and produce a source-of-truth map, semantic-lie inventory, and fake-configurability inventory.
 
 ## Next Technical Queue
 
@@ -205,3 +215,41 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 7. Queue-discipline request:
    - "Have you been updating `C:\\Users\\mikep\\Desktop\\WebDev\\pax-fluxia\\.agent\\docs\\project\\implementation-plans\\2026-04-12\\FEATURE_AND_TASK_QUEUE_2026-04-12.md`?"
    - "Catch up if you have not; lossless record of ALL my task instructions, feature ideas, suggestions, comments."
+8. Control-surface surfacing + commit strategy + IA audit:
+   - "Here are unsurfaced control surfaces that need in-game Control Panel UI handles:"
+   - "The full relevant variable set I audited is recorded in that post-mortem, including the active-but-unsurfaced config:"
+   - `DEPART_FRACTION`
+   - `DEPART_ARC_INTENSITY`
+   - `ARRIVAL_ARC_INTENSITY`
+   - `ORB_TRAVEL`
+   - `ORBIT_BIAS_*`
+   - `CONQUEST_LERP_DELAY_MS`
+   - `CONQUEST_COLOR_DELAY_TICKS`
+   - `CONQUEST_FLASH_TICKS`
+   - `CONQUEST_FORCE_GLOW*`
+   - `ATTACK_SURGE_*`
+   - `SURGE_PULSE_DURATION_MS`
+   - "What is your commit strategy? Have you been committing?"
+   - "The Setting Menu -> Control Panel Sections -> Subsections Icon Menu is incomplete. And the styling is poor."
+   - "Some sections need to be refactored into subsections."
+   - "You'll need to conduct a thorough audit of the entire controls section, each section inter- and intra-."
+   - "You can propose any major section changes, I'm open to it."
+   - "You can take initiative on any intra-section modularization into subsections, and reorganization of controls to be more semantic/categorical/sensible."
+9. Territory panel follow-up:
+   - "I see you missed the Territory Rendering panel."
+   - "Please do that one, and consider whether to break it up into 2-3 sub-panels."
+10. Territory interaction correction:
+   - "Ok, but you missed the main idea: all those sub-sections are supposed to be toggleable via icon-buttons, just like the other refactored Panels."
+   - "Be clever: make it a 2-col system, with `all` toggle in title row-right."
+   - "Every sub-section gets an icon toggle-tag, just as with the other Panels."
+11. Territory chip-layout clarification:
+   - "You misunderstood me completely about the Territory UI reorganization."
+   - "I was talking about the **NEW** feature of Panel sub-section chips/tags for toggling each sub-section itself visible/hidden."
+   - "I do not want two columns for all the sub-sections contents."
+   - "I want two columns of toggle tags for the sub-sections."
+   - "All content below will be full column width."
+12. Full-project audit prompt request:
+   - "If I conduct a LOC audit across the entire project, what would be the most beneficial, valuable questions we could have the surveying/auditing agent ask itself with every LOC, every function, every import/export, every file, every directory, every concept, every implicit assumption, etc?"
+   - "How would you structure and issue a prompt to an equivalent agent to conduct this audit?"
+   - "It must understand certain foundational context to start with, and must refresh key context every file, or every *x* LOC."
+   - "yes, do so"

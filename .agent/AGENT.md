@@ -170,6 +170,7 @@ One domain = one implementation pattern. Never introduce a second implementation
 ### Git
 Use `git ac "message"` alias. Run commands separately, never `&&`.
 **⛔ NEVER push to `live` branch.** Commit working state FIRST.
+**Commit discipline**: always create a Git commit for completed or materially updated work before yielding the turn. Do not leave substantive work only in the working tree. This is mandatory, not optional, and should not be treated as something to ask about.
 
 ### Harness Comparison Protocol
 - Treat `atlas-harness` and CLI-Anything evaluation as an ongoing process during real Pax Fluxia work.

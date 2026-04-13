@@ -260,24 +260,7 @@
         </div>
     </div>
 </div>
-<label class="toggle-row"
-    ><input
-        type="checkbox"
-        checked={panel.travelFollowLanePaths ??
-            GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ??
-            false}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS = v;
-            updatePanel("travelFollowLanePaths", v);
-        }}
-    />
-    <span class="var-name">🚀 Ships follow lane paths</span><span
-        class="val"
-        style="font-size:9px;opacity:0.6">travel + surge use curved lanes</span
-    ></label
->
-
+<h4 class="sub-heading">Labels & inspector</h4>
 <!-- Label Number Animation Mode -->
 <div class="var-row">
     <div class="row-top">
@@ -377,31 +360,6 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.ARROW_PATH_PADDING = v;
             updatePanel("arrowPathPadding", v);
-        }}
-    />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrowhead Spread</span><span class="val"
-            >{Math.round(
-                panel.arrowHeadSpreadDeg ??
-                    GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
-                    30,
-            )}°</span
-        >
-    </div>
-    <input
-        type="range"
-        min="10"
-        max="70"
-        step="1"
-        value={panel.arrowHeadSpreadDeg ??
-            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
-            30}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG = v;
-            updatePanel("arrowHeadSpreadDeg", v);
         }}
     />
 </div>

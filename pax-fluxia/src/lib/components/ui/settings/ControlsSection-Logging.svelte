@@ -23,7 +23,7 @@
 
 <CategoryThemeBar category="logging" onApply={() => syncFromConfig?.()} />
 
-
+<h4 class="sub-heading">Log Channels</h4>
 <div class="log-actions">
     <button
         class="btn-xs"

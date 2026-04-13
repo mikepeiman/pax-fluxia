@@ -258,7 +258,13 @@ export function generateConnections<T extends Connectable>(
 
     // ── Phase 4: Prune pass-through connections (straight chord vs stars only) ──
     const b = Math.min(1, Math.max(0, laneCurveVsPruneBias));
-    const clearance = Math.max(0, passThroughClearancePx * (1 - b));
+    // Connectivity and traversal come first. Phase 4 is only a topology softener,
+    // so cap its clearance well below the full lane margin instead of letting it
+    // erase large parts of the graph at medium/high lane-margin settings.
+    const clearance = Math.min(
+        40,
+        Math.max(0, passThroughClearancePx * (1 - b)),
+    );
 
     changed = true;
     while (changed) {

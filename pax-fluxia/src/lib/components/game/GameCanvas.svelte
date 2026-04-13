@@ -155,6 +155,8 @@
     let fpsLastTime = performance.now();
     let currentFps = $state(0);
     let totalVisualShips = $state(0);
+    let scaleRulerWorldPx = $state(100);
+    let scaleRulerScreenPx = $state(100);
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -392,6 +394,40 @@
             clearTimeout(longPressTimer);
             longPressTimer = null;
         }
+    }
+
+    function updateScaleRuler(effectiveScale: number) {
+        const candidates = [
+            10, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 800,
+            1000, 1200,
+        ];
+        const minScreenPx = 72;
+        const maxScreenPx = 180;
+        const targetScreenPx = 120;
+
+        let bestWorld = candidates[0];
+        let bestScreen = Math.max(1, bestWorld * effectiveScale);
+        let bestScore = Number.POSITIVE_INFINITY;
+
+        for (const worldPx of candidates) {
+            const screenPx = Math.max(1, worldPx * effectiveScale);
+            const distancePenalty = Math.abs(screenPx - targetScreenPx);
+            const rangePenalty =
+                screenPx < minScreenPx
+                    ? minScreenPx - screenPx
+                    : screenPx > maxScreenPx
+                      ? screenPx - maxScreenPx
+                      : 0;
+            const score = rangePenalty * 2 + distancePenalty;
+            if (score < bestScore) {
+                bestScore = score;
+                bestWorld = worldPx;
+                bestScreen = screenPx;
+            }
+        }
+
+        scaleRulerWorldPx = Math.round(bestWorld);
+        scaleRulerScreenPx = Math.round(bestScreen);
     }
 
     function getPinchDist(): number {
@@ -977,6 +1013,7 @@
         }
 
         clampPan();
+        updateScaleRuler(es);
     }
 
     function clampPan() {
@@ -2604,12 +2641,34 @@
     onwheel={handleWheel}
 ></div>
 
-<!-- FPS / Ship Count Overlay -->
-<div class="fps-overlay">
-    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
+<!-- Debug Overlay -->
+<div class="debug-overlay-bar">
+    <div class="fps-overlay">
+        {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
+    </div>
+    <div class="scale-ruler" aria-label={`Scale ruler: ${scaleRulerWorldPx} pixels`}>
+        <div class="scale-ruler__label">{scaleRulerWorldPx}px</div>
+        <div class="scale-ruler__bar" style={`width: ${scaleRulerScreenPx}px;`}>
+            <span class="scale-ruler__tick scale-ruler__tick--start"></span>
+            <span class="scale-ruler__tick scale-ruler__tick--mid"></span>
+            <span class="scale-ruler__tick scale-ruler__tick--end"></span>
+        </div>
+    </div>
 </div>
 
 <style>
+    .debug-overlay-bar {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 9999;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        pointer-events: none;
+        user-select: none;
+    }
+
     .game-canvas {
         position: absolute;
         inset: 0;
@@ -2629,10 +2688,6 @@
     }
 
     .fps-overlay {
-        position: fixed;
-        top: 8px;
-        left: 8px;
-        z-index: 9999;
         font-family: "Consolas", "Monaco", monospace;
         font-size: 11px;
         color: #0f0;
@@ -2642,8 +2697,46 @@
         pointer-events: none;
         user-select: none;
     }
+    .scale-ruler {
+        min-width: 112px;
+        font-family: "Consolas", "Monaco", monospace;
+        color: #8fd6ff;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 3px 10px 5px;
+        border-radius: 4px;
+    }
+    .scale-ruler__label {
+        font-size: 10px;
+        line-height: 1.1;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .scale-ruler__bar {
+        position: relative;
+        height: 10px;
+        border-top: 2px solid currentColor;
+    }
+    .scale-ruler__tick {
+        position: absolute;
+        top: -2px;
+        width: 1px;
+        height: 8px;
+        background: currentColor;
+    }
+    .scale-ruler__tick--start {
+        left: 0;
+    }
+    .scale-ruler__tick--mid {
+        left: 50%;
+        transform: translateX(-0.5px);
+        height: 6px;
+    }
+    .scale-ruler__tick--end {
+        right: 0;
+    }
     @media (max-width: 1024px) {
-        .fps-overlay {
+        .debug-overlay-bar {
             display: none;
         }
     }

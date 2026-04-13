@@ -18,6 +18,11 @@ export type MapLaneMode = 'straight' | 'curved';
 
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
+const SOFT_CURVE_MIN_CHORD_PX = 180;
+const SOFT_CURVE_BAND_MIN_PX = 10;
+const SOFT_CURVE_BAND_MAX_PX = 28;
+const SOFT_CURVE_BAND_SCALE = 0.22;
+const RELAXED_CLEARANCE_FACTORS = [0.85, 0.7, 0.55, 0.4, 0.25, 0.1, 0] as const;
 
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
@@ -265,9 +270,12 @@ function trySingleKinkDetour(
     const nx = -uy;
     const ny = ux;
     const dMax = Math.min(chord * 0.35, 180);
+    const preferredSigns = preferredBulgeSigns(ax, ay, bx, by, obstacles);
+    const kinkSigns: Array<1 | -1> =
+        preferredSigns.length === 1 ? [preferredSigns[0], preferredSigns[0] === 1 ? -1 : 1] : preferredSigns;
     for (let step = 0; step < 16; step++) {
         const off = (dMax * (step + 1)) / 16;
-        for (const sign of [1, -1] as const) {
+        for (const sign of kinkSigns) {
             const kx = mx + nx * off * sign;
             const ky = my + ny * off * sign;
             const pts: Array<[number, number]> = [[ax, ay], [kx, ky], [bx, by]];
@@ -329,60 +337,28 @@ function preferredBulgeSigns(
     return obstacleSide >= 0 ? [-1] : [1];
 }
 
-function solveAdaptiveWaypoints(
-    ax: number, ay: number,
-    bx: number, by: number,
+function effectiveLaneClearanceForChord(
+    chordPx: number,
+    configuredClearancePx: number,
+): number {
+    if (configuredClearancePx <= 0) return 0;
+    // Short, direct local links should not be forced into decorative detours by
+    // a large global lane-margin setting. Reserve the full margin for longer,
+    // more crowd-prone lanes where clearance meaningfully improves readability.
+    const lengthScaledCap = Math.max(18, chordPx * 0.32);
+    return Math.min(configuredClearancePx, lengthScaledCap);
+}
+
+function tryCurveOrDetour(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
     obstacles: Array<{ x: number; y: number }>,
     clearancePx: number,
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
-): Array<[number, number]> {
-    const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
-    const okStraight =
-        chordClearOfObstacles(ax, ay, bx, by, obstacles, clearancePx)
-        && polylineClearOfObstacles(straight, obstacles, clearancePx)
-        && !polylineCrossesPlaced(straight, placed, starCenters);
-    if (okStraight) {
-        const nearestObstacleDist = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
-        const chord = hypot(bx - ax, by - ay);
-        const softCurveBand =
-            clearancePx <= 0
-                ? 0
-                : Math.min(160, Math.max(30, clearancePx * 0.9));
-        const softCurveEligible =
-            Number.isFinite(nearestObstacleDist)
-            && chord > 120
-            && nearestObstacleDist < clearancePx + softCurveBand;
-        if (softCurveEligible) {
-            const closenessRatio = Math.max(
-                0,
-                Math.min(1, 1 - (nearestObstacleDist - clearancePx) / Math.max(softCurveBand, 1)),
-            );
-            const softBulgeCap = Math.min(
-                140,
-                Math.max(20, chord * (0.06 + 0.18 * closenessRatio)),
-            );
-            for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
-                const best = searchBulgeWithCap(
-                    ax,
-                    ay,
-                    bx,
-                    by,
-                    obstacles,
-                    Math.max(0, clearancePx),
-                    bulgeSign,
-                    softBulgeCap,
-                );
-                if (best < chord * 0.015) continue;
-                const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
-                if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) continue;
-                if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
-                return cand;
-            }
-        }
-        return straight;
-    }
-
+): Array<[number, number]> | null {
     for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
         if (best < hypot(bx - ax, by - ay) * 0.015) continue;
@@ -404,7 +380,97 @@ function solveAdaptiveWaypoints(
         return kink;
     }
 
-    // Last resort: chord (preserves clearance vs stars; may cross another lane in pathological maps)
+    return null;
+}
+
+function solveAdaptiveWaypoints(
+    ax: number, ay: number,
+    bx: number, by: number,
+    obstacles: Array<{ x: number; y: number }>,
+    clearancePx: number,
+    placed: Seg[],
+    starCenters: Array<{ x: number; y: number }>,
+): Array<[number, number]> {
+    const chord = hypot(bx - ax, by - ay);
+    const effectiveClearancePx = effectiveLaneClearanceForChord(chord, clearancePx);
+    const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
+    const okStraight =
+        chordClearOfObstacles(ax, ay, bx, by, obstacles, effectiveClearancePx)
+        && polylineClearOfObstacles(straight, obstacles, effectiveClearancePx)
+        && !polylineCrossesPlaced(straight, placed, starCenters);
+    if (okStraight) {
+        const nearestObstacleDist = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
+        const softCurveBand =
+            effectiveClearancePx <= 0
+                ? 0
+                : Math.min(
+                    SOFT_CURVE_BAND_MAX_PX,
+                    Math.max(SOFT_CURVE_BAND_MIN_PX, effectiveClearancePx * SOFT_CURVE_BAND_SCALE),
+                );
+        const softCurveEligible =
+            Number.isFinite(nearestObstacleDist)
+            && chord >= SOFT_CURVE_MIN_CHORD_PX
+            && nearestObstacleDist < effectiveClearancePx + softCurveBand;
+        if (softCurveEligible) {
+            const closenessRatio = Math.max(
+                0,
+                Math.min(1, 1 - (nearestObstacleDist - effectiveClearancePx) / Math.max(softCurveBand, 1)),
+            );
+            const softBulgeCap = Math.min(
+                140,
+                Math.max(20, chord * (0.06 + 0.18 * closenessRatio)),
+            );
+            for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
+                const best = searchBulgeWithCap(
+                    ax,
+                    ay,
+                    bx,
+                    by,
+                    obstacles,
+                    Math.max(0, effectiveClearancePx),
+                    bulgeSign,
+                    softBulgeCap,
+                );
+                if (best < chord * 0.015) continue;
+                const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
+                if (!polylineClearOfObstacles(cand, obstacles, effectiveClearancePx)) continue;
+                if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
+                return cand;
+            }
+        }
+        return straight;
+    }
+
+    const strictSolved = tryCurveOrDetour(
+        ax,
+        ay,
+        bx,
+        by,
+        obstacles,
+        effectiveClearancePx,
+        placed,
+        starCenters,
+    );
+    if (strictSolved) return strictSolved;
+
+    for (const factor of RELAXED_CLEARANCE_FACTORS) {
+        const relaxedClearance = Math.max(0, effectiveClearancePx * factor);
+        if (relaxedClearance >= effectiveClearancePx) continue;
+        const relaxedSolved = tryCurveOrDetour(
+            ax,
+            ay,
+            bx,
+            by,
+            obstacles,
+            relaxedClearance,
+            placed,
+            starCenters,
+        );
+        if (relaxedSolved) return relaxedSolved;
+    }
+
+    // Last resort: preserve the connection visibly even if we have to relax the
+    // lane-margin ambition all the way down to a straight chord.
     return straight;
 }
 

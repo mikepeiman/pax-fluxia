@@ -11,6 +11,10 @@ import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
+function isTickRelativeUnit(unit?: string): boolean {
+    return unit === '×tick' || unit === 'ticks';
+}
+
 // ── Storage Keys ────────────────────────────────────────────────────────────
 
 export const STORAGE_KEY = 'pax-fluxia-combat-tuning';
@@ -263,7 +267,7 @@ export function recalcAnimLocksOnTickChange(
             const ratio = lockRatios[key];
             if (ratio != null) {
                 const def = sliders.find(s => s.key === key);
-                let newVal = ratio * newTickMs;
+                let newVal = isTickRelativeUnit(def?.unit) ? ratio : ratio * newTickMs;
                 if (def && def.min != null && def.max != null) {
                     newVal = Math.max(def.min, Math.min(def.max, newVal));
                 }
