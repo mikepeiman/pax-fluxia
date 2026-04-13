@@ -25,6 +25,18 @@ Turn the lane-margin problem into a deterministic geometry audit on a frozen map
   - closest point on final lane
   - strict-vs-adjusted-vs-connectivity-override decision reason
 
+## Deterministic Remap Rule
+
+When a straight chord violates `Lane Margin`:
+
+1. Find the exact nearest blocking star-to-lane witness.
+2. Insert a vertex on that exact shortest path.
+3. Push that vertex outward to the requested `Lane Margin`, and not beyond it.
+4. Re-check the resulting lane.
+5. If another blocker still violates the constraint, repeat deterministically on the new worst witness.
+
+This replaces the earlier generic bulge-search behavior.
+
 ## Deterministic Findings
 
 ### 1. False-positive curves were real

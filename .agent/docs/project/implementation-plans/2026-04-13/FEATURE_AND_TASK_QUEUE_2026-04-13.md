@@ -53,6 +53,11 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - if chord fails: remap tries satisfying adjusted paths, prune mode rejects that lane and seeks replacement elsewhere
   - explicit graph-level connectivity restoration only when the strict feasible graph is disconnected
 - [x] Add connectivity-override reporting to the lane audit so high-LM behavior is machine-checkable rather than guessed.
+- [x] Replace the generic remap seed with a deterministic blocking-star vertex rule:
+  - exact nearest blocking star-to-lane witness
+  - vertex inserted on that shortest path
+  - vertex pushed to the requested Lane Margin and not beyond it
+  - repeated deterministically if another blocker still violates the constraint
 - [x] Trace the lane-visibility divergence from authoritative map truth through schema/state/cache/rendering instead of patching the renderer blindly.
 - [x] Confirm the shared layer already carries lane-path truth (`laneWaypoints`, `lanePathKind`) in `/common` types and Colyseus schema.
 - [x] Identify the SP architecture gap: generated/rebuilt lane truth was being seeded into the cache without being written back onto authoritative `state.connections`.

@@ -10,8 +10,11 @@
 // 4. If the strict feasible graph is disconnected, connectivity is restored explicitly
 //    at the graph layer, not by silently mutating renderer-only geometry.
 //
-// Solver bounds (deterministic): bulge binary search ≤14 iters; single-kink grid
-// ≤16 offsets × 2 signs; Bézier sample count 21; polyline segment interior samples <8.
+// Solver shape:
+// - derive the nearest blocking star-to-lane witness
+// - insert a vertex on that exact shortest path
+// - push the vertex to the requested lane margin and no farther
+// - repeat deterministically for remaining blockers when needed
 // ============================================================================
 
 import type { Connectable, LaneAdjustmentStyle, LanePathKind, MapConnection } from './types';
@@ -131,6 +134,14 @@ function polylineClearOfObstacles(
 }
 
 type Seg = { ax: number; ay: number; bx: number; by: number };
+type ObstacleWitness = {
+    obstacle: { x: number; y: number };
+    pointX: number;
+    pointY: number;
+    distance: number;
+    segmentIndex: number;
+    t: number;
+};
 
 function intersectionParams(
     ax: number, ay: number, bx: number, by: number,
@@ -183,45 +194,53 @@ function polylineToSegments(pts: Array<[number, number]>): Seg[] {
     return out;
 }
 
-function bezierSamplesClear(
-    ax: number, ay: number,
-    cx: number, cy: number,
-    bx: number, by: number,
-    obstacles: Array<{ x: number; y: number }>,
-    minDist: number,
-): boolean {
-    for (let i = 0; i <= 20; i++) {
-        const t = i / 20;
-        const [px, py] = quadBezierPoint(ax, ay, cx, cy, bx, by, t);
-        for (const o of obstacles) {
-            if (hypot(px - o.x, py - o.y) < minDist) return false;
-        }
+function nearestPointOnSegment(
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+): { x: number; y: number; distance: number; t: number } {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 1e-9) {
+        return { x: ax, y: ay, distance: hypot(px - ax, py - ay), t: 0 };
     }
-    return true;
+    const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    const t = Math.max(0, Math.min(1, rawT));
+    const x = ax + dx * t;
+    const y = ay + dy * t;
+    return { x, y, distance: hypot(px - x, py - y), t };
 }
 
-function buildBezierWaypoints(
-    ax: number, ay: number,
-    bx: number, by: number,
-    bulgeSign: 1 | -1,
-    bestD: number,
-): Array<[number, number]> {
-    const chord = hypot(bx - ax, by - ay);
-    const mx = (ax + bx) * 0.5;
-    const my = (ay + by) * 0.5;
-    const ux = (bx - ax) / chord;
-    const uy = (by - ay) / chord;
-    const px = -uy * bulgeSign;
-    const py = ux * bulgeSign;
-    const cx = mx + px * bestD;
-    const cy = my + py * bestD;
-    const steps = 16;
-    const out: Array<[number, number]> = [];
-    for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        out.push(quadBezierPoint(ax, ay, cx, cy, bx, by, t));
+function sortedObstacleWitnessesToPolyline(
+    pts: Array<[number, number]>,
+    obstacles: Array<{ x: number; y: number }>,
+): ObstacleWitness[] {
+    const witnesses: ObstacleWitness[] = [];
+    for (const obstacle of obstacles) {
+        let best: ObstacleWitness | null = null;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i]!;
+            const [bx, by] = pts[i + 1]!;
+            const nearest = nearestPointOnSegment(obstacle.x, obstacle.y, ax, ay, bx, by);
+            if (!best || nearest.distance < best.distance) {
+                best = {
+                    obstacle,
+                    pointX: nearest.x,
+                    pointY: nearest.y,
+                    distance: nearest.distance,
+                    segmentIndex: i,
+                    t: nearest.t,
+                };
+            }
+        }
+        if (best) witnesses.push(best);
     }
-    return out;
+    witnesses.sort((left, right) => left.distance - right.distance);
+    return witnesses;
 }
 
 function buildQuadraticWaypointsViaControl(
@@ -241,75 +260,6 @@ function buildQuadraticWaypointsViaControl(
     return out;
 }
 
-/** Largest feasible perpendicular offset (binary search) for one bulge sign. */
-function searchBulge(
-    ax: number, ay: number,
-    bx: number, by: number,
-    obstacles: Array<{ x: number; y: number }>,
-    minDist: number,
-    bulgeSign: 1 | -1,
-): number {
-    const chord = hypot(bx - ax, by - ay);
-    if (chord < 1) return 0;
-    const dMax = Math.min(chord * 0.38, 220);
-    let lo = 0;
-    let hi = dMax;
-    let best = 0;
-    for (let iter = 0; iter < 14; iter++) {
-        const mid = (lo + hi) * 0.5;
-        const mx = (ax + bx) * 0.5;
-        const my = (ay + by) * 0.5;
-        const ux = (bx - ax) / chord;
-        const uy = (by - ay) / chord;
-        const px = -uy * bulgeSign;
-        const py = ux * bulgeSign;
-        const cx = mx + px * mid;
-        const cy = my + py * mid;
-        if (bezierSamplesClear(ax, ay, cx, cy, bx, by, obstacles, minDist)) {
-            best = mid;
-            lo = mid;
-        } else {
-            hi = mid;
-        }
-    }
-    return best;
-}
-
-function searchBulgeWithCap(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    obstacles: Array<{ x: number; y: number }>,
-    minDist: number,
-    bulgeSign: 1 | -1,
-    dCap: number,
-): number {
-    const chord = hypot(bx - ax, by - ay);
-    if (chord < 1 || dCap <= 0) return 0;
-    let lo = 0;
-    let hi = Math.max(0, dCap);
-    let best = 0;
-    for (let iter = 0; iter < 14; iter++) {
-        const mid = (lo + hi) * 0.5;
-        const mx = (ax + bx) * 0.5;
-        const my = (ay + by) * 0.5;
-        const ux = (bx - ax) / chord;
-        const uy = (by - ay) / chord;
-        const px = -uy * bulgeSign;
-        const py = ux * bulgeSign;
-        const cx = mx + px * mid;
-        const cy = my + py * mid;
-        if (bezierSamplesClear(ax, ay, cx, cy, bx, by, obstacles, minDist)) {
-            best = mid;
-            lo = mid;
-        } else {
-            hi = mid;
-        }
-    }
-    return best;
-}
-
 function trySingleKinkDetour(
     ax: number, ay: number,
     bx: number, by: number,
@@ -318,30 +268,43 @@ function trySingleKinkDetour(
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
 ): Array<[number, number]> | null {
-    const chord = hypot(bx - ax, by - ay);
-    if (chord < 1) return null;
-    const mx = (ax + bx) * 0.5;
-    const my = (ay + by) * 0.5;
-    const ux = (bx - ax) / chord;
-    const uy = (by - ay) / chord;
-    const nx = -uy;
-    const ny = ux;
-    const dMax = Math.min(chord * 0.35, 180);
-    const preferredSigns = preferredBulgeSigns(ax, ay, bx, by, obstacles);
-    const kinkSigns: Array<1 | -1> =
-        preferredSigns.length === 1 ? [preferredSigns[0], preferredSigns[0] === 1 ? -1 : 1] : preferredSigns;
-    for (let step = 0; step < 16; step++) {
-        const off = (dMax * (step + 1)) / 16;
-        for (const sign of kinkSigns) {
-            const kx = mx + nx * off * sign;
-            const ky = my + ny * off * sign;
-            const pts: Array<[number, number]> = [[ax, ay], [kx, ky], [bx, by]];
-            if (!polylineClearOfObstacles(pts, obstacles, minDist)) continue;
-            if (polylineCrossesPlaced(pts, placed, starCenters)) continue;
-            return pts;
+    let current: Array<[number, number]> = [[ax, ay], [bx, by]];
+    for (let iteration = 0; iteration < 4; iteration++) {
+        const witness = sortedObstacleWitnessesToPolyline(current, obstacles)
+            .find((candidate) => candidate.distance < minDist);
+        if (!witness) {
+            if (polylineCrossesPlaced(current, placed, starCenters)) return null;
+            return current;
         }
+        const [segA, segB] = [current[witness.segmentIndex]!, current[witness.segmentIndex + 1]!];
+        const segDx = segB[0] - segA[0];
+        const segDy = segB[1] - segA[1];
+        const segLen = hypot(segDx, segDy) || 1;
+        let pushDx = witness.pointX - witness.obstacle.x;
+        let pushDy = witness.pointY - witness.obstacle.y;
+        let pushLen = hypot(pushDx, pushDy);
+        if (pushLen <= 1e-6) {
+            pushDx = -segDy / segLen;
+            pushDy = segDx / segLen;
+            pushLen = 1;
+        }
+        const delta = Math.max(0, minDist - witness.distance);
+        const vertex: [number, number] = [
+            witness.pointX + (pushDx / pushLen) * delta,
+            witness.pointY + (pushDy / pushLen) * delta,
+        ];
+        const next: Array<[number, number]> = [];
+        for (let i = 0; i < current.length - 1; i++) {
+            next.push(current[i]!);
+            if (i === witness.segmentIndex) next.push(vertex);
+        }
+        next.push(current[current.length - 1]!);
+        if (!polylineClearOfObstacles(next, obstacles, minDist)) return null;
+        current = next;
     }
-    return null;
+    if (!polylineClearOfObstacles(current, obstacles, minDist)) return null;
+    if (polylineCrossesPlaced(current, placed, starCenters)) return null;
+    return current;
 }
 
 function chaikinSmoothOpenPolyline(
@@ -362,36 +325,6 @@ function chaikinSmoothOpenPolyline(
         out = next;
     }
     return out;
-}
-
-function preferredBulgeSigns(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    obstacles: Array<{ x: number; y: number }>,
-): Array<1 | -1> {
-    if (obstacles.length === 0) return [1, -1];
-    let nearest: { x: number; y: number } | null = null;
-    let nearestDist = Infinity;
-    for (const obstacle of obstacles) {
-        const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
-        if (d < nearestDist) {
-            nearest = obstacle;
-            nearestDist = d;
-        }
-    }
-    if (!nearest) return [1, -1];
-
-    const chord = hypot(bx - ax, by - ay) || 1;
-    const ux = (bx - ax) / chord;
-    const uy = (by - ay) / chord;
-    const px = -uy;
-    const py = ux;
-    const mx = (ax + bx) * 0.5;
-    const my = (ay + by) * 0.5;
-    const obstacleSide = (nearest.x - mx) * px + (nearest.y - my) * py;
-    return obstacleSide >= 0 ? [-1] : [1];
 }
 
 export function effectiveLaneClearanceForChord(
@@ -443,62 +376,11 @@ function tryAdjustedPath(
         return { waypoints: kink, kind: 'angular' };
     }
 
-    for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
-        const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
-        if (best < hypot(bx - ax, by - ay) * 0.015) {
-            trace?.attempts.push({
-                candidateKind: 'curved',
-                sign: bulgeSign,
-                minimumClearancePx: 0,
-                requiredClearancePx: clearancePx,
-                waypointCount: 0,
-                accepted: false,
-                reason: 'insufficient_bulge',
-            });
-            continue;
-        }
-        const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
-        const minimumClearancePx = minimumObstacleDistanceToPolyline(cand, obstacles);
-        if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) {
-            trace?.attempts.push({
-                candidateKind: 'curved',
-                sign: bulgeSign,
-                minimumClearancePx,
-                requiredClearancePx: clearancePx,
-                waypointCount: cand.length,
-                accepted: false,
-                reason: 'clearance_fail',
-            });
-            continue;
-        }
-        if (polylineCrossesPlaced(cand, placed, starCenters)) {
-            trace?.attempts.push({
-                candidateKind: 'curved',
-                sign: bulgeSign,
-                minimumClearancePx,
-                requiredClearancePx: clearancePx,
-                waypointCount: cand.length,
-                accepted: false,
-                reason: 'lane_cross',
-            });
-            continue;
-        }
-        trace?.attempts.push({
-            candidateKind: 'curved',
-            sign: bulgeSign,
-            minimumClearancePx,
-            requiredClearancePx: clearancePx,
-            waypointCount: cand.length,
-            accepted: true,
-            reason: 'accepted',
-        });
-        return { waypoints: cand, kind: 'curved' };
-    }
-
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) {
-        const [, control, ] = kink;
-        const curved = buildQuadraticWaypointsViaControl(ax, ay, control[0], control[1], bx, by);
+        const curved = kink.length === 3
+            ? buildQuadraticWaypointsViaControl(ax, ay, kink[1]![0], kink[1]![1], bx, by)
+            : chaikinSmoothOpenPolyline(kink, 2);
         const minimumClearancePx = minimumObstacleDistanceToPolyline(curved, obstacles);
         if (
             polylineClearOfObstacles(curved, obstacles, clearancePx)
@@ -510,7 +392,7 @@ function tryAdjustedPath(
                 requiredClearancePx: clearancePx,
                 waypointCount: curved.length,
                 accepted: true,
-                reason: 'accepted_via_quadratic_remap',
+                reason: 'accepted_via_deterministic_vertex',
             });
             return { waypoints: curved, kind: 'curved' };
         }
@@ -520,7 +402,7 @@ function tryAdjustedPath(
             requiredClearancePx: clearancePx,
             waypointCount: curved.length,
             accepted: false,
-            reason: 'quadratic_remap_failed',
+            reason: 'deterministic_vertex_curve_failed',
         });
     } else {
         trace?.attempts.push({
@@ -529,7 +411,7 @@ function tryAdjustedPath(
             requiredClearancePx: clearancePx,
             waypointCount: 0,
             accepted: false,
-            reason: 'no_valid_kink_seed',
+            reason: 'no_valid_deterministic_vertex',
         });
     }
 

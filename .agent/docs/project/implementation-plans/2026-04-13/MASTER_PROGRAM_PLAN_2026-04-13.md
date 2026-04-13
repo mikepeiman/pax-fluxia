@@ -83,6 +83,11 @@
 
 - Added a deterministic frozen-map audit:
   - `bun run debug:lane-audit -- --saved-map common/resources/saved-maps/inner_circle_apr_13.json`
+- Replaced the generic remap seed in shared geometry with the deterministic blocker rule:
+  - find the exact nearest blocking star-to-lane witness
+  - insert a vertex on that exact shortest path
+  - push the vertex to the requested Lane Margin and not beyond it
+  - repeat deterministically for the next blocker if needed
 - The audit now records:
   - chord minimum clearance
   - final minimum clearance
