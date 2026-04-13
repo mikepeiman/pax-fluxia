@@ -187,6 +187,17 @@
             savePanelSettings,
         );
         syncRuntimeViewsFromConfig();
+        const affectsLaneTopology =
+            'MAPGEN_LANE_MARGIN_PX' in configPatch
+            || 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' in configPatch;
+        const affectsLanePaths =
+            affectsLaneTopology
+            || 'MAPGEN_LANE_MODE' in configPatch;
+        if (affectsLaneTopology) {
+            gameStore.rebuildConnectionsFromLaneClearance();
+        } else if (affectsLanePaths) {
+            gameStore.refreshLanePolylinesFromConfig();
+        }
     }
 
     function applyThemeValues(

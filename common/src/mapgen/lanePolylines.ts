@@ -22,8 +22,6 @@ const SOFT_CURVE_MIN_CHORD_PX = 180;
 const SOFT_CURVE_BAND_MIN_PX = 10;
 const SOFT_CURVE_BAND_MAX_PX = 28;
 const SOFT_CURVE_BAND_SCALE = 0.22;
-const RELAXED_CLEARANCE_FACTORS = [0.85, 0.7, 0.55, 0.4, 0.25, 0.1, 0] as const;
-
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -451,26 +449,7 @@ function solveAdaptiveWaypoints(
         starCenters,
     );
     if (strictSolved) return strictSolved;
-
-    for (const factor of RELAXED_CLEARANCE_FACTORS) {
-        const relaxedClearance = Math.max(0, effectiveClearancePx * factor);
-        if (relaxedClearance >= effectiveClearancePx) continue;
-        const relaxedSolved = tryCurveOrDetour(
-            ax,
-            ay,
-            bx,
-            by,
-            obstacles,
-            relaxedClearance,
-            placed,
-            starCenters,
-        );
-        if (relaxedSolved) return relaxedSolved;
-    }
-
-    // Last resort: preserve the connection visibly even if we cannot satisfy the
-    // full lane-margin ambition after progressively relaxing the detour solve.
-    return straight;
+    return [];
 }
 
 /**
@@ -499,6 +478,178 @@ export function computeLaneWaypoints(
         [],
         obstacleCenters,
     );
+}
+
+function tryResolveLaneConnection(
+    a: Connectable,
+    b: Connectable,
+    nodes: Connectable[],
+    placed: Seg[],
+    starCenters: Array<{ x: number; y: number }>,
+    mode: MapLaneMode,
+    laneObstacleClearancePx: number,
+): MapConnection | null {
+    const obstacles = nodes
+        .filter((n) => n.id !== a.id && n.id !== b.id)
+        .map((n) => ({ x: n.x, y: n.y }));
+    const clearance = Math.max(0, laneObstacleClearancePx);
+
+    let laneWaypoints: Array<[number, number]> = [];
+    let lanePathKind: LanePathKind = 'straight';
+    if (mode === 'straight') {
+        laneWaypoints = [[a.x, a.y], [b.x, b.y]];
+    } else {
+        laneWaypoints = solveAdaptiveWaypoints(
+            a.x,
+            a.y,
+            b.x,
+            b.y,
+            obstacles,
+            clearance,
+            placed,
+            starCenters,
+        );
+        if (laneWaypoints.length < 2) return null;
+        lanePathKind = laneWaypoints.length <= 2 ? 'straight' : 'curved';
+    }
+
+    return {
+        sourceId: a.id,
+        targetId: b.id,
+        distance: hypot(b.x - a.x, b.y - a.y),
+        laneWaypoints,
+        lanePathKind,
+    };
+}
+
+function countConnectedComponents(
+    nodes: Connectable[],
+    connections: MapConnection[],
+): number {
+    if (nodes.length === 0) return 0;
+    const adj = new Map<string, string[]>();
+    for (const node of nodes) adj.set(node.id, []);
+    for (const connection of connections) {
+        adj.get(connection.sourceId)?.push(connection.targetId);
+        adj.get(connection.targetId)?.push(connection.sourceId);
+    }
+    let components = 0;
+    const seen = new Set<string>();
+    for (const node of nodes) {
+        if (seen.has(node.id)) continue;
+        components++;
+        const stack = [node.id];
+        seen.add(node.id);
+        while (stack.length > 0) {
+            const current = stack.pop()!;
+            for (const next of adj.get(current) ?? []) {
+                if (seen.has(next)) continue;
+                seen.add(next);
+                stack.push(next);
+            }
+        }
+    }
+    return components;
+}
+
+function buildComponentIndex(
+    nodes: Connectable[],
+    connections: MapConnection[],
+): Map<string, number> {
+    const adj = new Map<string, string[]>();
+    for (const node of nodes) adj.set(node.id, []);
+    for (const connection of connections) {
+        adj.get(connection.sourceId)?.push(connection.targetId);
+        adj.get(connection.targetId)?.push(connection.sourceId);
+    }
+
+    const componentIndex = new Map<string, number>();
+    let componentId = 0;
+    for (const node of nodes) {
+        if (componentIndex.has(node.id)) continue;
+        const stack = [node.id];
+        componentIndex.set(node.id, componentId);
+        while (stack.length > 0) {
+            const current = stack.pop()!;
+            for (const next of adj.get(current) ?? []) {
+                if (componentIndex.has(next)) continue;
+                componentIndex.set(next, componentId);
+                stack.push(next);
+            }
+        }
+        componentId += 1;
+    }
+    return componentIndex;
+}
+
+export function buildLaneAwareConnections<T extends Connectable>(
+    nodes: T[],
+    preferredConnections: MapConnection[],
+    candidateConnections: MapConnection[],
+    mode: MapLaneMode,
+    laneObstacleClearancePx: number,
+): MapConnection[] {
+    const pos = new Map(nodes.map((n) => [n.id, n]));
+    const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
+    const accepted: MapConnection[] = [];
+    const placed: Seg[] = [];
+    const acceptedKeys = new Set<string>();
+    const keyOf = (sourceId: string, targetId: string) =>
+        sourceId <= targetId ? `${sourceId}|${targetId}` : `${targetId}|${sourceId}`;
+
+    const preferredSorted = preferredConnections
+        .slice()
+        .sort((left, right) => left.distance - right.distance);
+    const preferredKeys = new Set(preferredSorted.map((connection) => keyOf(connection.sourceId, connection.targetId)));
+    const candidateSorted = candidateConnections
+        .filter((connection) => !preferredKeys.has(keyOf(connection.sourceId, connection.targetId)))
+        .slice()
+        .sort((left, right) => left.distance - right.distance);
+
+    const tryAccept = (connection: MapConnection): boolean => {
+        const key = keyOf(connection.sourceId, connection.targetId);
+        if (acceptedKeys.has(key)) return false;
+        const a = pos.get(connection.sourceId);
+        const b = pos.get(connection.targetId);
+        if (!a || !b) return false;
+        const resolved = tryResolveLaneConnection(
+            a,
+            b,
+            nodes,
+            placed,
+            starCenters,
+            mode,
+            laneObstacleClearancePx,
+        );
+        if (!resolved) return false;
+        accepted.push(resolved);
+        acceptedKeys.add(key);
+        placed.push(...polylineToSegments(resolved.laneWaypoints ?? [[a.x, a.y], [b.x, b.y]]));
+        return true;
+    };
+
+    for (const connection of preferredSorted) {
+        tryAccept(connection);
+    }
+
+    if (countConnectedComponents(nodes, accepted) > 1) {
+        let progressed = true;
+        while (countConnectedComponents(nodes, accepted) > 1 && progressed) {
+            progressed = false;
+            const componentIndex = buildComponentIndex(nodes, accepted);
+            for (const connection of candidateSorted) {
+                if (countConnectedComponents(nodes, accepted) <= 1) break;
+                const aComponent = componentIndex.get(connection.sourceId);
+                const bComponent = componentIndex.get(connection.targetId);
+                if (aComponent === undefined || bComponent === undefined || aComponent === bComponent) continue;
+                if (tryAccept(connection)) {
+                    progressed = true;
+                }
+            }
+        }
+    }
+
+    return accepted;
 }
 
 export function attachLaneWaypointsToConnections<T extends Connectable>(
@@ -550,6 +701,7 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
                 placed,
                 starCenters,
             );
+            if (wp.length < 2) continue;
             pathKind = wp.length <= 2 ? 'straight' : 'curved';
         }
         c.laneWaypoints = wp;

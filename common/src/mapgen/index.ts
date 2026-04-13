@@ -12,14 +12,14 @@ export type {
     LanePathKind,
 } from './types';
 export type { MapLaneMode } from './lanePolylines';
-export { computeLaneWaypoints, attachLaneWaypointsToConnections } from './lanePolylines';
+export { computeLaneWaypoints, attachLaneWaypointsToConnections, buildLaneAwareConnections } from './lanePolylines';
 export { generateHexGrid, selectPositions, generateStarPositions } from './placement';
-export { generateConnections, pointToSegmentDistance } from './connections';
+export { generateConnections, listDelaunayConnections, pointToSegmentDistance } from './connections';
 
 import type { MapGenConfig, MapGenResult } from './types';
 import { generateStarPositions } from './placement';
-import { generateConnections } from './connections';
-import { attachLaneWaypointsToConnections } from './lanePolylines';
+import { generateConnections, listDelaunayConnections } from './connections';
+import { buildLaneAwareConnections } from './lanePolylines';
 import type { MapLaneMode } from './lanePolylines';
 
 /**
@@ -51,7 +51,7 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     const laneMarginPx = Math.max(0, config.mapgenLaneMarginPx ?? 75);
     const curveVsPruneBias = Math.min(1, Math.max(0, config.mapgenLaneCurveVsPruneBias ?? 0));
 
-    const connections = generateConnections(
+    const preferredConnections = generateConnections(
         nodes,
         Infinity,
         config.minLinksPerStar ?? 1,
@@ -61,7 +61,13 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
-    attachLaneWaypointsToConnections(nodes, connections, laneMode, laneMarginPx);
+    const connections = buildLaneAwareConnections(
+        nodes,
+        preferredConnections,
+        listDelaunayConnections(nodes, Infinity),
+        laneMode,
+        laneMarginPx,
+    );
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
 }

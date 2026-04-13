@@ -6,6 +6,16 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Completed This Slice
 
+- [x] Move lane feasibility fully into shared geometry instead of allowing a post-connectivity lane rewrite.
+- [x] Remove reduced-clearance lane solving and invalid straight fallback from shared lane geometry.
+- [x] Make `generateMap(...)` return the final lane-aware connection truth once, with no downstream `attachLaneWaypoints...` rewrite.
+- [x] Make live in-game lane adjustments use the same strict shared geometry builder as Main Menu generation.
+- [x] Make config imports/presets rebuild real lane geometry when lane keys change.
+- [x] Remove renderer-side connection-lane shortening so drawn lane paths come directly from authoritative connection truth.
+- [x] Validate the full failing range at shared mapgen level:
+  - margins `0, 35, 40, 45, 60, 80, 90, 120, 140, 160, 175, 230, 300`
+  - `components: 1` across the sweep
+  - `missingTruth: 0` across the sweep
 - [x] Trace the lane-visibility divergence from authoritative map truth through schema/state/cache/rendering instead of patching the renderer blindly.
 - [x] Confirm the shared layer already carries lane-path truth (`laneWaypoints`, `lanePathKind`) in `/common` types and Colyseus schema.
 - [x] Identify the SP architecture gap: generated/rebuilt lane truth was being seeded into the cache without being written back onto authoritative `state.connections`.
@@ -32,5 +42,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Notes
 
-- This slice was a truth-ownership correction, not just a renderer tweak.
-- The target invariant is now explicit: visual lanes must be derived from authoritative map truth, not a separate visibility heuristic.
+- This slice is now a strict shared-geometry correction, not a renderer interpretation tweak.
+- The target invariant is explicit:
+  - connectivity is defined only by lane-aware map truth
+  - visible lanes are drawn directly from that same truth

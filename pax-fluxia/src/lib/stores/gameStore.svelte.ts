@@ -31,8 +31,10 @@ import {
     PlayerSchema,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
+    buildLaneAwareConnections,
     generateMap,
     generateConnections,
+    listDelaunayConnections,
 } from '@pax/common';
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
@@ -46,7 +48,6 @@ import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualCon
 import type { LanePathKind, MapConnection, MapLaneMode } from '@pax/common/mapgen';
 import {
     seedLanePolylineCacheFromMapGen,
-    rebuildLanePolylineCache,
     canonicalUniConnections,
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
@@ -513,17 +514,23 @@ function syncLaneTruthIntoStateConnections(
 function refreshLanePolylinesFromConfig(): void {
     if (!state || state.stars.size < 2) return;
     const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const uni = canonicalUniConnections(state.connections).map((connection) => ({
+    const nodesById = new Map(nodes.map((node) => [node.id, node]));
+    const currentGraph = canonicalUniConnections(state.connections).map((connection) => ({
         sourceId: connection.sourceId,
         targetId: connection.targetId,
-        distance: 0,
+        distance: Math.hypot(
+            (nodesById.get(connection.targetId)?.x ?? 0) - (nodesById.get(connection.sourceId)?.x ?? 0),
+            (nodesById.get(connection.targetId)?.y ?? 0) - (nodesById.get(connection.sourceId)?.y ?? 0),
+        ),
     })) as MapConnection[];
-    const laneAware = rebuildLanePolylineCache(
+    const laneAware = buildLaneAwareConnections(
         nodes,
-        uni,
+        currentGraph,
+        listDelaunayConnections(nodes, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
     );
+    seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
     bumpTerritoryVisualConfig();
     snapshot = toGameState(state);
@@ -545,13 +552,15 @@ function rebuildConnectionsFromLaneClearance(): void {
         Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
     );
     /** Match `generateMap`: Phase 4 chord clearance × (1−bias); lane polylines use full lane margin. */
-    const uni = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias) as MapConnection[];
-    const laneAware = rebuildLanePolylineCache(
+    const preferred = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias) as MapConnection[];
+    const laneAware = buildLaneAwareConnections(
         nodes,
-        uni,
+        preferred,
+        listDelaunayConnections(nodes, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
     );
+    seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
     bumpTerritoryVisualConfig();
     snapshot = toGameState(state);
@@ -596,12 +605,14 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
-    const laneAware = rebuildLanePolylineCache(
+    const laneAware = buildLaneAwareConnections(
         nodesDbg,
-        uniDbg,
+        uniDbg as MapConnection[],
+        listDelaunayConnections(nodesDbg, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
     );
+    seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
 }
 
@@ -1225,17 +1236,23 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
         })));
     } else {
         const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+        const nodesSavedById = new Map(nodesSaved.map((node) => [node.id, node]));
         const uniSaved = canonicalUniConnections(state!.connections).map((connection) => ({
             sourceId: connection.sourceId,
             targetId: connection.targetId,
-            distance: 0,
+            distance: Math.hypot(
+                (nodesSavedById.get(connection.targetId)?.x ?? 0) - (nodesSavedById.get(connection.sourceId)?.x ?? 0),
+                (nodesSavedById.get(connection.targetId)?.y ?? 0) - (nodesSavedById.get(connection.sourceId)?.y ?? 0),
+            ),
         })) as MapConnection[];
-        const laneAware = rebuildLanePolylineCache(
+        const laneAware = buildLaneAwareConnections(
             nodesSaved,
             uniSaved,
+            listDelaunayConnections(nodesSaved, Infinity),
             (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
             laneDClearancePx(),
         );
+        seedLanePolylineCacheFromMapGen(laneAware);
         syncLaneTruthIntoStateConnections(laneAware);
     }
 }

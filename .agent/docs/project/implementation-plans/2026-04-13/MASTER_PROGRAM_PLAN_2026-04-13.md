@@ -8,6 +8,22 @@
 
 ## This round
 
+- Corrected the spec interpretation:
+  - straight first
+  - curve only when needed to satisfy Lane Margin
+  - prune that lane if no satisfying path exists
+  - preserve traversal by selecting other valid edges, not by forcing invalid fallback lanes
+- Removed the two geometry compromises that were undermining that spec:
+  - reduced-clearance solving below the requested Lane Margin
+  - unsafe straight fallback when no satisfying path existed
+- Removed the last shared-entrypoint rewrite:
+  - `generateMap(...)` now returns the final lane-aware connection graph once
+  - no post-build `attachLaneWaypointsToConnections(...)` pass remains
+- Corrected live-runtime propagation:
+  - Main Menu generation, in-game lane rebuilds, and config imports now all route through the same strict shared geometry builder
+- Corrected the render boundary:
+  - connection lanes are no longer shortened/mutated in the renderer
+  - drawn lane paths now come directly from authoritative connection truth
 - Traced the reported lane disappearance at high `Lane Margin` from `/common` outward instead of treating it as a purely visual problem.
 - Confirmed the shared architecture already supports authoritative lane-path truth:
   - `common/src/types.ts`
@@ -28,9 +44,9 @@
 - Validation run by me:
   - `bunx tsc -p pax-fluxia/tsconfig.json --noEmit --pretty false`
   - `bunx tsc -p common/tsconfig.json --noEmit --pretty false`
-  - direct runtime probe across lane margins `25, 60, 90, 120`
-    - every generated connection had lane truth
-    - none of the endpoint-trimmed visible paths collapsed
+  - direct shared-mapgen probe across lane margins `0, 35, 40, 45, 60, 80, 90, 120, 140, 160, 175, 230, 300`
+    - every tested map stayed `components: 1`
+    - every generated connection had lane truth: `missingTruth: 0`
 
 ## Next likely moves
 

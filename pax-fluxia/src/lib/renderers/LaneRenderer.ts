@@ -30,7 +30,7 @@ import {
 
 /**
  * Render lane connections between stars.
- * Draws only persisted connection truth plus endpoint trimming. Two-pass: shadow → foreground.
+ * Draws only connection truth. Two-pass: shadow → foreground.
  */
 export function renderConnections(
     connectionGraphics: PIXI.Graphics,
@@ -42,20 +42,14 @@ export function renderConnections(
     connectionGraphics.clear();
 
     const smoothPaths: [number, number][][] = [];
-    const ringGapForLane = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
-
     connections.forEach((conn) => {
         const source = starsById.get(conn.sourceId);
         const target = starsById.get(conn.targetId);
         if (!source || !target) return;
 
-        const trimPad = Math.max(
-            0,
-            ringGapForLane - Math.min(source.radius, target.radius),
-        );
         const truthPolyline = conn.laneWaypoints && conn.laneWaypoints.length >= 2
             ? conn.laneWaypoints
-            : getDirectedLanePolyline(conn.sourceId, conn.targetId);
+            : undefined;
         const basePath: ReadonlyArray<readonly [number, number]> =
             truthPolyline && truthPolyline.length >= 2
                 ? truthPolyline
@@ -63,22 +57,8 @@ export function renderConnections(
                     [source.x, source.y],
                     [target.x, target.y],
                 ];
-        const trimmed = trimLanePolylineToStarRims(basePath, source, target, trimPad);
-        if (trimmed.length >= 2) {
-            smoothPaths.push(trimmed);
-            return;
-        }
-        const straightFallback = trimLanePolylineToStarRims(
-            [
-                [source.x, source.y],
-                [target.x, target.y],
-            ],
-            source,
-            target,
-            trimPad,
-        );
-        if (straightFallback.length >= 2) {
-            smoothPaths.push(straightFallback);
+        if (basePath.length >= 2) {
+            smoothPaths.push(basePath.map(([x, y]) => [x, y]));
         }
     });
 

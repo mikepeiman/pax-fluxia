@@ -111,6 +111,68 @@ function ensureConnectedGraph<T extends Connectable>(
 // ---------------------------------------------------------------------------
 
 /**
+ * Build Delaunay adjacency lists with per-edge distances.
+ */
+function buildDelaunayAdjacency<T extends Connectable>(
+    nodes: T[],
+    maxDistance: number,
+): Map<string, { targetId: string; distance: number }[]> {
+    const points = nodes.map(n => [n.x, n.y] as [number, number]);
+    const delaunay = Delaunay.from(points);
+
+    const nodeEdges = new Map<string, { targetId: string; distance: number }[]>();
+    nodes.forEach(n => nodeEdges.set(n.id, []));
+
+    for (let i = 0; i < nodes.length; i++) {
+        for (const j of delaunay.neighbors(i)) {
+            if (i < j) {
+                const a = nodes[i];
+                const b = nodes[j];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist <= maxDistance) {
+                    nodeEdges.get(a.id)!.push({ targetId: b.id, distance: dist });
+                    nodeEdges.get(b.id)!.push({ targetId: a.id, distance: dist });
+                }
+            }
+        }
+    }
+
+    nodeEdges.forEach(edges => edges.sort((a, b) => a.distance - b.distance));
+    return nodeEdges;
+}
+
+/**
+ * List unique canonical Delaunay edges, shortest first.
+ */
+export function listDelaunayConnections<T extends Connectable>(
+    nodes: T[],
+    maxDistance: number = Infinity,
+): MapConnection[] {
+    if (nodes.length < 2) return [];
+
+    const nodeEdges = buildDelaunayAdjacency(nodes, maxDistance);
+    const seen = new Set<string>();
+    const out: MapConnection[] = [];
+
+    for (const node of nodes) {
+        for (const edge of nodeEdges.get(node.id) ?? []) {
+            const sourceId = node.id <= edge.targetId ? node.id : edge.targetId;
+            const targetId = node.id <= edge.targetId ? edge.targetId : node.id;
+            const key = `${sourceId}|${targetId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ sourceId, targetId, distance: edge.distance });
+        }
+    }
+
+    out.sort((a, b) => a.distance - b.distance);
+    return out;
+}
+
+/**
  * Generate connections between nodes using Delaunay triangulation.
  *
  * 5-phase algorithm:
@@ -143,33 +205,7 @@ export function generateConnections<T extends Connectable>(
 ): MapConnection[] {
     if (nodes.length < 2) return [];
 
-    // Delaunay triangulation
-    const points = nodes.map(n => [n.x, n.y] as [number, number]);
-    const delaunay = Delaunay.from(points);
-
-    // Build adjacency lists with distances
-    const nodeEdges = new Map<string, { targetId: string; distance: number }[]>();
-    nodes.forEach(n => nodeEdges.set(n.id, []));
-
-    for (let i = 0; i < nodes.length; i++) {
-        for (const j of delaunay.neighbors(i)) {
-            if (i < j) {
-                const a = nodes[i];
-                const b = nodes[j];
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist <= maxDistance) {
-                    nodeEdges.get(a.id)!.push({ targetId: b.id, distance: dist });
-                    nodeEdges.get(b.id)!.push({ targetId: a.id, distance: dist });
-                }
-            }
-        }
-    }
-
-    // Sort edges by distance (shortest first)
-    nodeEdges.forEach(edges => edges.sort((a, b) => a.distance - b.distance));
+    const nodeEdges = buildDelaunayAdjacency(nodes, maxDistance);
 
     const finalEdges = new Set<string>();
     const linkCount = new Map<string, number>();
