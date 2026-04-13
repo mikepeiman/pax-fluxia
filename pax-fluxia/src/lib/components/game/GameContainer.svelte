@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+  import { animationStore } from "$lib/stores/animationStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
   import MainMenu from "$lib/components/ui/MainMenu.svelte";
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
@@ -17,6 +18,15 @@
   import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
   import StatusBar from "$lib/components/ui/StatusBar.svelte";
   import StarNav from "$lib/components/ui/StarNav.svelte";
+  import {
+    applyPanelToConfig,
+    applyVisuals,
+    loadPanelSettings,
+    loadVisuals,
+    panelDefaultsFromConfig,
+    savePanelSettings,
+  } from "$lib/components/ui/panelSync";
+  import { GAME_CONFIG } from "$lib/config/game.config";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -47,6 +57,56 @@
     }
   }
 
+  const SETTINGS_PANEL_OPEN_STORAGE_KEY = "pax-settings-open";
+  const STARTUP_METABALL_PRESSURE_OFF = {
+    metaballCombatBorderTicks: 0,
+    metaballCombatBorderProximityPx: 0,
+    metaballCombatBorderWidthBoost: 0,
+    metaballCombatBorderAlphaBoost: 0,
+    metaballBorderForceRatio: 0,
+  } as const;
+
+  function loadSettingsPanelOpen(): boolean {
+    if (typeof window === "undefined") return false;
+    if (window.innerWidth < 1024) return false;
+    return localStorage.getItem(SETTINGS_PANEL_OPEN_STORAGE_KEY) === "true";
+  }
+
+  function buildStartupPanelSettings(): Record<string, any> {
+    const defaults = panelDefaultsFromConfig();
+    return {
+      ...loadPanelSettings(defaults),
+      ...STARTUP_METABALL_PRESSURE_OFF,
+    };
+  }
+
+  function bootstrapRuntimeSettings() {
+    if (typeof window === "undefined") return;
+
+    // Load the same persisted panel state the settings UI uses so render mode
+    // and other runtime-facing controls are correct before the panel mounts.
+    const startupPanel = buildStartupPanelSettings();
+    applyPanelToConfig(startupPanel);
+    savePanelSettings(startupPanel);
+
+    const visuals = loadVisuals();
+    applyVisuals(visuals);
+
+    const nextTick = startupPanel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
+    activeGameStore.updateTickInterval(nextTick);
+
+    if (startupPanel.bindAnimToTick) {
+      GAME_CONFIG.ANIMATION_SPEED_MS = nextTick;
+    }
+    if (startupPanel.territoryTransitionBindToTick) {
+      GAME_CONFIG.TERRITORY_TRANSITION_MS = nextTick;
+    }
+
+    animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
+  }
+
+  bootstrapRuntimeSettings();
+
   // ── Panel visibility states ──
   let menuTheme = $state<MenuTheme>(loadMenuTheme());
   let showAudioSettings = $state(false);
@@ -70,7 +130,7 @@
     });
   }
 
-  let showSettingsPanel = $state(false);
+  let showSettingsPanel = $state(loadSettingsPanelOpen());
   // Auto-pause: pause game when settings open, restore on close
   let pauseOnSettings = $state(
     typeof localStorage === "undefined" ||
@@ -82,7 +142,10 @@
     if (showSettingsPanel === nextOpen) return;
     showSettingsPanel = nextOpen;
     if (typeof localStorage !== "undefined") {
-      localStorage.setItem("pax-settings-open", String(showSettingsPanel));
+      localStorage.setItem(
+        SETTINGS_PANEL_OPEN_STORAGE_KEY,
+        String(showSettingsPanel),
+      );
     }
     if (pauseOnSettings && activeGameStore.phase === "playing") {
       if (showSettingsPanel) {

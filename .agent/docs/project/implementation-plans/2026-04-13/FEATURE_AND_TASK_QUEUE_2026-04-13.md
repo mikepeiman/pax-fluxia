@@ -14,9 +14,14 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [x] Recenter on the renderer branch purpose and wire the first family-driven metaball conquest transition path through `territoryTransitionHandler`, `GameCanvas`, `RenderFamilyInput`, `MetaballFamily`, and the new `buildMetaballScene.ts` scene builder.
 - [x] Replace the old single-point DX helper with a shared modular disconnect builder that emits deterministic paired enemy virtual sites around the Euclidean midpoint of disconnected same-owner stars.
 - [x] Add focused renderer tests for the new DX builder and the first metaball conquest transition sample path, then verify the slice with `bunx vitest` and `bunx tsc --noEmit`.
+- [x] Trace the startup settings regression where the game booted into PVV2DY4 until the settings panel was opened, identify that `GameSettingsPanel` was the only place persisted panel values were being applied into runtime config, and move that bootstrap into `GameContainer` so the renderer starts from persisted settings even with the panel closed.
+- [x] Restore persistence of the in-game settings column open/closed state by loading `pax-settings-open` during `GameContainer` startup instead of always hardcoding the settings column closed.
+- [x] Force the `Combat & Fleet Pressure` Metaball controls off at startup and in defaults (`METABALL_COMBAT_BORDER_TICKS`, `METABALL_COMBAT_BORDER_PROXIMITY_PX`, `METABALL_COMBAT_BORDER_WIDTH_BOOST`, `METABALL_COMBAT_BORDER_ALPHA_BOOST`, `METABALL_BORDER_FORCE_RATIO`) so this renderer branch stops paying perf cost for an undesired effect.
 
 ## Follow-Ups
 
 - [ ] User-verify that the imported Main Menu presentation issue is resolved in-app.
 - [ ] If any presentation issue remains, debug against the imported `0251` shell rather than the old local grid path.
-- [ ] Playtest the first metaball conquest transition in-app and tune the handoff feel now that the runtime path is wired.
+- [ ] User-verify that territory renderer selection now boots straight into the saved Metaball mode without requiring the settings panel to be opened.
+- [ ] User-verify that the settings column open/closed state now survives reloads on desktop.
+- [ ] Play one conquest and report whether the territory change looks smooth or abrupt so the first Metaball transition can be tuned from the new baseline.
