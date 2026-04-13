@@ -17,6 +17,11 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [x] Trace the startup settings regression where the game booted into PVV2DY4 until the settings panel was opened, identify that `GameSettingsPanel` was the only place persisted panel values were being applied into runtime config, and move that bootstrap into `GameContainer` so the renderer starts from persisted settings even with the panel closed.
 - [x] Restore persistence of the in-game settings column open/closed state by loading `pax-settings-open` during `GameContainer` startup instead of always hardcoding the settings column closed.
 - [x] Force the `Combat & Fleet Pressure` Metaball controls off at startup and in defaults (`METABALL_COMBAT_BORDER_TICKS`, `METABALL_COMBAT_BORDER_PROXIMITY_PX`, `METABALL_COMBAT_BORDER_WIDTH_BOOST`, `METABALL_COMBAT_BORDER_ALPHA_BOOST`, `METABALL_BORDER_FORCE_RATIO`) so this renderer branch stops paying perf cost for an undesired effect.
+- [x] Trace the "no visible transition even with `USE_RENDER_FAMILIES` on" report to the actual renderer path: ordinary `metaball` rendering was still gated on `USE_RENDER_FAMILIES`, and the family transition samples were being visually canceled by a full-strength conquered target sample at the destination star.
+- [x] Unify normal `metaball` rendering onto the family-built scene-input path in `GameCanvas` so conquest transitions no longer depend on the `USE_RENDER_FAMILIES` runtime gate.
+- [x] Make the conquered target star's Metaball contribution transition-aware and strengthen the advancing/retreating transient samples so the first conquest handoff is materially visible instead of snapping to the already-conquered target.
+- [x] Re-run focused Metaball/DX tests plus full client `tsc` and `build` after the transition-path fix.
+- [x] Write a project post-mortem for the transition path failure and the earlier "implemented without real runtime verification" mistake.
 
 ## Follow-Ups
 
@@ -24,4 +29,5 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [ ] If any presentation issue remains, debug against the imported `0251` shell rather than the old local grid path.
 - [ ] User-verify that territory renderer selection now boots straight into the saved Metaball mode without requiring the settings panel to be opened.
 - [ ] User-verify that the settings column open/closed state now survives reloads on desktop.
-- [ ] Play one conquest and report whether the territory change looks smooth or abrupt so the first Metaball transition can be tuned from the new baseline.
+- [ ] User-verify that a Metaball conquest now visibly morphs instead of snapping instantly.
+- [ ] If the handoff is still too subtle or too strong, tune the target-star ramp and transient sample strengths from this unified baseline instead of reintroducing a second Metaball runtime path.

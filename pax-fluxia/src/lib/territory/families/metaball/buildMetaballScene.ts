@@ -23,6 +23,11 @@ function easeOutCubic(t: number): number {
     return 1 - Math.pow(1 - clamped, 3);
 }
 
+function easeInCubic(t: number): number {
+    const clamped = clamp01(t);
+    return clamped * clamped * clamped;
+}
+
 function hexToRgb(hex: number): [number, number, number] {
     return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
 }
@@ -188,7 +193,7 @@ function buildConquestTransitionSamples(params: {
                     attackerStar.y +
                     (targetStar.y - attackerStar.y) * travel,
                 playerIdx: attackerClusterIdx,
-                strength: pairStrength * 0.7 * envelope,
+                strength: pairStrength * 0.9 * envelope,
             });
         }
 
@@ -216,7 +221,7 @@ function buildConquestTransitionSamples(params: {
             x: retreatX,
             y: retreatY,
             playerIdx: retreatClusterIdx,
-            strength: targetStrength * 0.65 * envelope,
+            strength: targetStrength * 0.9 * envelope,
         });
     }
 
@@ -306,16 +311,29 @@ export function buildMetaballScene(
         );
     }
 
+    const targetStrengthScaleByStarId = new Map<string, number>();
+    for (const transition of input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        const targetStar = allStarsById.get(conquest.starId);
+        if (!targetStar || targetStar.ownerId !== conquest.newOwner) continue;
+        targetStrengthScaleByStarId.set(
+            conquest.starId,
+            easeInCubic(clamp01(transition.progress)),
+        );
+    }
+
     const samples: MetaballInfluenceSample[] = [];
     for (const star of ownedStars) {
         const clusterInfo = clusterMap.get(star.id);
         if (!clusterInfo) continue;
+        const baseStrength = starStrengthById.get(star.id) ?? 0;
+        const transitionScale = targetStrengthScaleByStarId.get(star.id) ?? 1;
         samples.push({
             id: `star:${star.id}`,
             x: star.x,
             y: star.y,
             playerIdx: clusterInfo.clusterIdx,
-            strength: starStrengthById.get(star.id) ?? 0,
+            strength: baseStrength * transitionScale,
         });
     }
 

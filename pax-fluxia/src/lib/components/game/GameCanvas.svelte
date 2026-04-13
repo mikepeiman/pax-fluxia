@@ -55,7 +55,6 @@
         resetVoronoiCache,
     } from "$lib/renderers/VoronoiRenderer";
     import {
-        renderMetaballScene as renderMetaballModule,
         resetMetaballCache,
     } from "$lib/renderers/MetaballRenderer";
     import {
@@ -1328,11 +1327,7 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
-                if (
-                    (!GAME_CONFIG.USE_RENDER_FAMILIES ||
-                        activeMode !== "metaball") &&
-                    voronoiContainer
-                ) {
+                if (activeMode !== "metaball" && voronoiContainer) {
                     const mf = getRenderFamily("metaball");
                     if (
                         mf instanceof MetaballFamily &&
@@ -1441,58 +1436,43 @@
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
-                    case "metaball":
-                        if (
-                            GAME_CONFIG.USE_RENDER_FAMILIES &&
-                            voronoiContainer
-                        ) {
-                            let fam = getRenderFamily("metaball");
-                            if (!fam) {
-                                registerRenderFamily(
-                                    createMetaballFamily(colorUtils),
-                                );
-                                fam = getRenderFamily("metaball")!;
-                            }
-                            const mf = fam as MetaballFamily;
-                            const activeTransition =
-                                buildActiveRenderFamilyTransition(
-                                    fxOrchestrator.gameTime,
-                                );
-                            mf.update(
-                                buildRenderFamilyInput({
-                                    stars,
-                                    lanes: activeGameStore
-                                        .connections as StarConnection[],
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
-                                    nowMs: fxOrchestrator.gameTime,
-                                    gameTick: activeGameStore.currentTick,
-                                    ownership:
-                                        buildRenderFamilyOwnershipSnapshot(
-                                            stars,
-                                            activeTransition,
-                                        ),
-                                    renderer: app?.renderer ?? undefined,
-                                    activeTransition,
-                                    tunableKeys: mf.tunableKeys,
-                                }),
+                    case "metaball": {
+                        let fam = getRenderFamily("metaball");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballFamily(colorUtils),
                             );
-                            if (mf.displayRoot.parent !== voronoiContainer) {
-                                voronoiContainer.addChild(mf.displayRoot);
-                            }
-                            mf.displayRoot.visible = true;
-                        } else {
-                            renderMetaballModule(
-                                stars,
-                                voronoiContainer,
-                                colorUtils,
-                                GAME_WIDTH,
-                                GAME_HEIGHT,
-                                activeGameStore.connections as StarConnection[],
-                                activeGameStore.currentTick,
-                            );
+                            fam = getRenderFamily("metaball")!;
                         }
+                        const mf = fam as MetaballFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                            );
+                        mf.update(
+                            buildRenderFamilyInput({
+                                stars,
+                                lanes: activeGameStore
+                                    .connections as StarConnection[],
+                                worldWidth: GAME_WIDTH,
+                                worldHeight: GAME_HEIGHT,
+                                nowMs: fxOrchestrator.gameTime,
+                                gameTick: activeGameStore.currentTick,
+                                ownership: buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                                renderer: app?.renderer ?? undefined,
+                                activeTransition,
+                                tunableKeys: mf.tunableKeys,
+                            }),
+                        );
+                        if (mf.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(mf.displayRoot);
+                        }
+                        mf.displayRoot.visible = true;
                         break;
+                    }
                     case "pixel":
                         renderPixelTerritoryModule(
                             stars,
