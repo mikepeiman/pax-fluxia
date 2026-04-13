@@ -24,6 +24,9 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Add a second deterministic stress-test map:
   - `common/resources/saved-maps/lane_margin_cross_pressure_2p.json`
   - blockers above and below the same lane corridor
+- [x] Add two fuller authored two-player geometry test maps with permanent ruler fixtures for every lane:
+  - `common/resources/saved-maps/lane_margin_square_layers_2p.json`
+  - `common/resources/saved-maps/lane_margin_hex_layers_2p.json`
 - [x] Eliminate the separate modal debug surface as the primary ruler entrypoint.
 - [x] Remove the later separate Diagnostics Bar experiment from the active game UI.
 - [x] Move ruler workflow into the regular right-hand Debug section instead of a second diagnostics surface.
@@ -110,6 +113,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 ## Top Queue
 
 - [ ] Load `lane_margin_cross_pressure_2p` in-app and verify that authored connectivity stays fixed while only lane geometry changes.
+- [ ] Load `lane_margin_square_layers_2p` and `lane_margin_hex_layers_2p` in-app and verify that every permanent lane fixture remains readable while live Lane Margin changes reshape only lane geometry.
 - [ ] Load `lane_margin_ruler_2p` in-app and verify the permanent fixtures remain readable while lane geometry is rebuilt live.
 - [ ] Verify in-app that explicit connectivity-restoration edges are visually honest in both SP and MP.
 - [ ] Decide whether connectivity-restoration edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.
