@@ -49,9 +49,9 @@ export function rebuildLanePolylineCache(
     mode: MapLaneMode,
     /** Lane margin: minimum distance from sampled centerline to non-endpoint stars. */
     laneObstacleClearancePx: number,
-): void {
+): MapConnection[] {
     cache.clear();
-    if (nodes.length < 2 || uniConnections.length === 0) return;
+    if (nodes.length < 2 || uniConnections.length === 0) return [];
 
     const conns: MapConnection[] = uniConnections.map((c) => ({
         sourceId: c.sourceId,
@@ -64,6 +64,7 @@ export function rebuildLanePolylineCache(
             cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
         }
     }
+    return conns;
 }
 
 export function getLanePolyline(sourceId: string, targetId: string): [number, number][] | undefined {

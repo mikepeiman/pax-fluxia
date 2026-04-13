@@ -281,6 +281,20 @@ interface GameConfigType {
     ARROW_OUTLINE_ALPHA: number;
     /** Arrowhead wing spread angle in degrees (default 30) */
     ARROW_HEAD_SPREAD_DEG: number;
+    /** Arrowhead inner notch depth (0=solid triangle, 1=deep notch) */
+    ARROW_HEAD_NOTCH: number;
+    /** Arrowhead silhouette variant */
+    ARROW_HEAD_STYLE: 'triangle' | 'chevron' | 'kite' | 'spear';
+    /** Number of stepped shaft segments */
+    ARROW_SHAFT_STEPS: number;
+    /** Animated gradient/step flow speed */
+    ARROW_FLOW_SPEED: number;
+    /** Optional force-reactive intensity scaling (0-1) */
+    ARROW_FORCE_INTENSITY: number;
+    /** Force level that maps to full arrow intensity scaling */
+    ARROW_FORCE_INTENSITY_MAX_SHIPS: number;
+    /** Arrowhead VFX alpha */
+    ARROW_HEAD_VFX_ALPHA: number;
     /** When true, metaball fill follows geometry ownership instead of requiring real-star and geom agreement */
     METABALL_FILL_FOLLOWS_GEOM: boolean;
     /** Damaged ship render scale multiplier (default 0.7) */
@@ -1122,6 +1136,13 @@ const _rawConfig: GameConfigType = {
     ARROW_OUTLINE_COLOR: 0x000000,
     ARROW_OUTLINE_ALPHA: 0.6,
     ARROW_HEAD_SPREAD_DEG: 30,
+    ARROW_HEAD_NOTCH: 0.2,
+    ARROW_HEAD_STYLE: 'triangle',
+    ARROW_SHAFT_STEPS: 1,
+    ARROW_FLOW_SPEED: 0,
+    ARROW_FORCE_INTENSITY: 0,
+    ARROW_FORCE_INTENSITY_MAX_SHIPS: 250,
+    ARROW_HEAD_VFX_ALPHA: 0,
     METABALL_FILL_FOLLOWS_GEOM: false,
     DAMAGED_SHIP_SCALE: 0.7,
 

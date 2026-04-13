@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { StarId, PlayerId, StarType } from './game.types';
+import type { LanePathKind } from '@pax/common/mapgen';
 
 /**
  * Template-based map definition (parametric)
@@ -48,6 +49,8 @@ export interface MapDefinition {
     sourceId: StarId;
     targetId: StarId;
     distance?: number;
+    laneWaypoints?: Array<[number, number]>;
+    lanePathKind?: LanePathKind;
   }>;
   customRules?: Record<string, any>;
 }

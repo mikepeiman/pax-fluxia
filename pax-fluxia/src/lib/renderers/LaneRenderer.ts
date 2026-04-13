@@ -4,7 +4,7 @@
 //
 // Extracted from GameCanvas.svelte ~lines 892-1450.
 // Renders:
-//   1. Connection lanes (gap-aware, shadow + foreground 2-pass)
+//   1. Connection lanes (directly from persisted lane-path truth, shadow + foreground 2-pass)
 //   2. Order arrows (confirmed + pending, solid)
 //   3. Deferred order arrows (dashed)
 //
@@ -30,7 +30,7 @@ import {
 
 /**
  * Render lane connections between stars.
- * Gap-aware: lanes break around intervening stars. Two-pass: shadow → foreground.
+ * Draws only persisted connection truth plus endpoint trimming. Two-pass: shadow → foreground.
  */
 export function renderConnections(
     connectionGraphics: PIXI.Graphics,
@@ -41,82 +41,8 @@ export function renderConnections(
 ): void {
     connectionGraphics.clear();
 
-    // Collect all lane segments (reused for both shadow and foreground passes)
-    const segments: { x1: number; y1: number; x2: number; y2: number }[] = [];
     const smoothPaths: [number, number][][] = [];
     const ringGapForLane = GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
-
-    function collectStraightSegments(source: StarState, target: StarState): void {
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const laneDist = Math.sqrt(dx * dx + dy * dy);
-        if (laneDist < 1) return;
-
-        const ndx = dx / laneDist;
-        const ndy = dy / laneDist;
-        const gaps: [number, number][] = [];
-
-        const srcGap = ringGapForLane / laneDist;
-        const tgtGap = ringGapForLane / laneDist;
-        gaps.push([0, srcGap]);
-        gaps.push([1 - tgtGap, 1]);
-
-        for (const star of stars) {
-            if (star.id === source.id || star.id === target.id) continue;
-
-            const ax = star.x - source.x;
-            const ay = star.y - source.y;
-            const t = (ax * ndx + ay * ndy) / laneDist;
-            if (t <= 0 || t >= 1) continue;
-
-            const projX = source.x + ndx * t * laneDist;
-            const projY = source.y + ndy * t * laneDist;
-            const perpDist = Math.sqrt((star.x - projX) ** 2 + (star.y - projY) ** 2);
-            const clearance = ringGapForLane + 6;
-            if (perpDist < clearance) {
-                const halfChord = Math.sqrt(
-                    Math.max(0, clearance * clearance - perpDist * perpDist),
-                );
-                const gapStart = Math.max(0, t - halfChord / laneDist);
-                const gapEnd = Math.min(1, t + halfChord / laneDist);
-                gaps.push([gapStart, gapEnd]);
-            }
-        }
-
-        gaps.sort((a, b) => a[0] - b[0]);
-        const merged: [number, number][] = [];
-        for (const gap of gaps) {
-            if (merged.length > 0 && gap[0] <= merged[merged.length - 1][1]) {
-                merged[merged.length - 1][1] = Math.max(
-                    merged[merged.length - 1][1],
-                    gap[1],
-                );
-            } else {
-                merged.push([...gap]);
-            }
-        }
-
-        let segStart = 0;
-        for (const [gStart, gEnd] of merged) {
-            if (segStart < gStart) {
-                segments.push({
-                    x1: source.x + ndx * segStart * laneDist,
-                    y1: source.y + ndy * segStart * laneDist,
-                    x2: source.x + ndx * gStart * laneDist,
-                    y2: source.y + ndy * gStart * laneDist,
-                });
-            }
-            segStart = gEnd;
-        }
-        if (segStart < 1) {
-            segments.push({
-                x1: source.x + ndx * segStart * laneDist,
-                y1: source.y + ndy * segStart * laneDist,
-                x2: target.x,
-                y2: target.y,
-            });
-        }
-    }
 
     connections.forEach((conn) => {
         const source = starsById.get(conn.sourceId);
@@ -127,25 +53,37 @@ export function renderConnections(
             0,
             ringGapForLane - Math.min(source.radius, target.radius),
         );
-        const poly = getDirectedLanePolyline(conn.sourceId, conn.targetId);
-        if (poly && poly.length > 2) {
-            const trimmed = trimLanePolylineToStarRims(poly, source, target, trimPad);
-            if (trimmed.length >= 2) {
-                smoothPaths.push(trimmed);
-                return;
-            }
-            collectStraightSegments(source, target);
+        const truthPolyline = conn.laneWaypoints && conn.laneWaypoints.length >= 2
+            ? conn.laneWaypoints
+            : getDirectedLanePolyline(conn.sourceId, conn.targetId);
+        const basePath: ReadonlyArray<readonly [number, number]> =
+            truthPolyline && truthPolyline.length >= 2
+                ? truthPolyline
+                : [
+                    [source.x, source.y],
+                    [target.x, target.y],
+                ];
+        const trimmed = trimLanePolylineToStarRims(basePath, source, target, trimPad);
+        if (trimmed.length >= 2) {
+            smoothPaths.push(trimmed);
             return;
         }
-        collectStraightSegments(source, target);
+        const straightFallback = trimLanePolylineToStarRims(
+            [
+                [source.x, source.y],
+                [target.x, target.y],
+            ],
+            source,
+            target,
+            trimPad,
+        );
+        if (straightFallback.length >= 2) {
+            smoothPaths.push(straightFallback);
+        }
     });
 
     // Pass 1: Dark shadow/border
     const shadowWidth = GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
-    for (const seg of segments) {
-        connectionGraphics.moveTo(seg.x1, seg.y1);
-        connectionGraphics.lineTo(seg.x2, seg.y2);
-    }
     for (const path of smoothPaths) {
         strokeSmoothLanePath(connectionGraphics, path, {
             color: 0x000000,
@@ -163,10 +101,6 @@ export function renderConnections(
     });
 
     // Pass 2: Foreground lane stroke
-    for (const seg of segments) {
-        connectionGraphics.moveTo(seg.x1, seg.y1);
-        connectionGraphics.lineTo(seg.x2, seg.y2);
-    }
     for (const path of smoothPaths) {
         strokeSmoothLanePath(connectionGraphics, path, {
             color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
