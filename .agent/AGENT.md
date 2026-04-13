@@ -168,8 +168,9 @@ One domain = one implementation pattern. Never introduce a second implementation
 ## 5. Process
 
 ### Git
-Use `git ac "message"` alias. Run commands separately, never `&&`.
+Use `git ac "message"` alias. Run commands separately, never `&&` (fails in Powershell always).
 **⛔ NEVER push to `live` branch.** Commit working state FIRST.
+We ALWAYS have a dirty file of current settings; include this in commits without mention. `pax-fluxia\common\resources\settings-live\current-settings.json`
 
 ### Harness Comparison Protocol
 - Treat `atlas-harness` and CLI-Anything evaluation as an ongoing process during real Pax Fluxia work.
@@ -182,7 +183,7 @@ Use `git ac "message"` alias. Run commands separately, never `&&`.
 - If the issue materially informs `atlas-harness` quality, also add it to `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`.
 
 ### Browser
-**⛔ NEVER open browser/subagent unless user gives explicit permission.**
+**⛔ NEVER open browser/subagent unless user gives explicit permission.** (agent is 50X slower than human at this)
 
 ### Debugging — TRACE FIRST, ALWAYS
 **⚠️ MANDATORY: Do NOT speculate about causes before tracing the actual code path.**
