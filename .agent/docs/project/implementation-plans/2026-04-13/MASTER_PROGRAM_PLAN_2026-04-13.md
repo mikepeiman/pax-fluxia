@@ -24,6 +24,20 @@
 - Corrected the render boundary:
   - connection lanes are no longer shortened/mutated in the renderer
   - drawn lane paths now come directly from authoritative connection truth
+- Corrected the duplicate odd-lane failure mode:
+  - connection lanes are now canonicalized before drawing
+  - the same bidirectional lane is not rendered twice with diverging display geometry
+- Added explicit lane result classes:
+  - `straight`
+  - `angular`
+  - `curved`
+- Added shared geometry support for choosing how remapped lanes are represented:
+  - `angular`
+  - `curved`
+- Added repeatable diagnostics so hidden/mechanical-only lanes are machine-checkable:
+  - `bun run debug:lane-geometry`
+  - SVG snapshot + markdown summary + JSON report
+- Updated the lane-margin sweep so it distinguishes `angular` vs `curved` outcomes
 - Traced the reported lane disappearance at high `Lane Margin` from `/common` outward instead of treating it as a purely visual problem.
 - Confirmed the shared architecture already supports authoritative lane-path truth:
   - `common/src/types.ts`
@@ -53,3 +67,4 @@
 - Verify in-app that high-margin lanes no longer disappear visually while mechanics still allow movement/attacks.
 - Verify the same lane-path truth presentation in SP and MP.
 - Continue lane-geometry tuning, but keep all future changes anchored to authoritative connection truth first.
+- Hand the new adjusted-path-style tunable to the UI owner for surfacing once the panel refactor is ready.

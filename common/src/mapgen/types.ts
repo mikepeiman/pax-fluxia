@@ -15,7 +15,8 @@ export interface MapPosition {
  * Lane resolution class for motion and corridor sampling (not the same as `MapLaneMode`).
  * `straight` = chord polyline (two endpoints only). `curved` = Bézier samples or kinked polyline.
  */
-export type LanePathKind = 'straight' | 'curved';
+export type LanePathKind = 'straight' | 'angular' | 'curved';
+export type LaneAdjustmentStyle = 'angular' | 'curved';
 
 /**
  * A connection between two map nodes.
@@ -82,6 +83,8 @@ export interface MapGenConfig {
      * (lane-margin clearance vs other stars; avoid crossing other lane centerlines).
      */
     mapLaneMode?: 'straight' | 'curved';
+    /** How non-straight accepted lanes are represented once remapping is enabled. */
+    mapgenLaneAdjustedPathStyle?: LaneAdjustmentStyle;
     /**
      * 0..1 — **Phase 4 pass-through prune** strictness for the **straight chord** test only.
      * **0**: prune when chord is within lane margin (prefer different topology / Phase 5 bridges).

@@ -13,7 +13,7 @@ import {
 
 // Import shared game logic from @pax/common
 import { GameEngine, STAR_TYPE_STATS, DEFAULT_ENGINE_CONFIG } from "@pax/common";
-import { attachLaneWaypointsToConnections, generateMap, type LanePathKind, type MapConnection, type MapLaneMode } from "@pax/common/mapgen";
+import { buildLaneAwareConnections, generateMap, listDelaunayConnections, type LaneAdjustmentStyle, type LanePathKind, type MapConnection, type MapLaneMode } from "@pax/common/mapgen";
 import type { EngineConfig } from "@pax/common";
 import { log } from '../utils/logger';
 
@@ -53,6 +53,7 @@ type LaneGameplayConfig = {
     MAPGEN_LANE_BUFFER_PX?: number;
     MAPGEN_LANE_MODE?: MapLaneMode;
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS?: number;
+    MAPGEN_LANE_ADJUSTED_PATH_STYLE?: LaneAdjustmentStyle;
 };
 
 // Message types from client
@@ -784,8 +785,8 @@ export class GameRoom extends Room {
         this.addConnection('star-c', 'star-a');
         this.addConnection('star-a', 'star-d');
 
-        const { mapLaneMode, laneMarginPx } = this.getLaneGenerationOptions();
-        this.attachLaneDataToExistingConnections(mapLaneMode, laneMarginPx);
+        const { mapLaneMode, laneMarginPx, curveVsPruneBias, adjustedPathStyle } = this.getLaneGenerationOptions();
+        this.attachLaneDataToExistingConnections(mapLaneMode, laneMarginPx, curveVsPruneBias, adjustedPathStyle);
     }
 
     private initStandardMap() {
@@ -793,7 +794,7 @@ export class GameRoom extends Room {
         const starsPerPlayer = this.roomOptions.starsPerPlayer ?? 5;
 
         // Delegate placement + connections to shared mapgen
-        const { msr, laneMarginPx, curveVsPruneBias, mapLaneMode } = this.getLaneGenerationOptions();
+        const { msr, laneMarginPx, curveVsPruneBias, mapLaneMode, adjustedPathStyle } = this.getLaneGenerationOptions();
         const result = generateMap({
             width: 1600,
             height: 900,
@@ -806,6 +807,7 @@ export class GameRoom extends Room {
             mapgenStarMarginPx: msr,
             mapgenLaneMarginPx: laneMarginPx,
             mapgenLaneCurveVsPruneBias: curveVsPruneBias,
+            mapgenLaneAdjustedPathStyle: adjustedPathStyle,
             mapLaneMode,
         });
 
@@ -870,6 +872,7 @@ export class GameRoom extends Room {
         laneMarginPx: number;
         curveVsPruneBias: number;
         mapLaneMode: MapLaneMode;
+        adjustedPathStyle: LaneAdjustmentStyle;
     } {
         const gc = this.roomOptions.gameplayConfig as LaneGameplayConfig | undefined;
         const msr = gc?.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
@@ -886,10 +889,16 @@ export class GameRoom extends Room {
             laneMarginPx,
             curveVsPruneBias,
             mapLaneMode: gc?.MAPGEN_LANE_MODE ?? 'curved',
+            adjustedPathStyle: gc?.MAPGEN_LANE_ADJUSTED_PATH_STYLE ?? 'curved',
         };
     }
 
-    private attachLaneDataToExistingConnections(mode: MapLaneMode, laneMarginPx: number) {
+    private attachLaneDataToExistingConnections(
+        mode: MapLaneMode,
+        laneMarginPx: number,
+        remapBias: number = 1,
+        adjustedPathStyle: LaneAdjustmentStyle = 'curved',
+    ) {
         const stars = Array.from(this.state.stars.values()).map((star) => ({
             id: star.id,
             x: star.x,
@@ -912,9 +921,17 @@ export class GameRoom extends Room {
             });
         }
 
-        attachLaneWaypointsToConnections(stars, uniConnections, mode, laneMarginPx);
+        const laneAware = buildLaneAwareConnections(
+            stars,
+            uniConnections,
+            listDelaunayConnections(stars, Infinity),
+            mode,
+            laneMarginPx,
+            remapBias,
+            adjustedPathStyle,
+        );
         this.state.connections.splice(0, this.state.connections.length);
-        for (const connection of uniConnections) {
+        for (const connection of laneAware) {
             this.addConnection(
                 connection.sourceId,
                 connection.targetId,

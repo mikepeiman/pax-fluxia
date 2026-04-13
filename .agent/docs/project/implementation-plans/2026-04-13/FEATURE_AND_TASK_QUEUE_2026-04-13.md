@@ -8,10 +8,17 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 - [x] Move lane feasibility fully into shared geometry instead of allowing a post-connectivity lane rewrite.
 - [x] Remove reduced-clearance lane solving and invalid straight fallback from shared lane geometry.
+- [x] Split lane result classes into `straight`, `angular`, and `curved`.
+- [x] Add adjusted-path style support at shared mapgen level so remapped lanes can remain angular or be converted into sampled curve geometry.
 - [x] Make `generateMap(...)` return the final lane-aware connection truth once, with no downstream `attachLaneWaypoints...` rewrite.
 - [x] Make live in-game lane adjustments use the same strict shared geometry builder as Main Menu generation.
 - [x] Make config imports/presets rebuild real lane geometry when lane keys change.
 - [x] Remove renderer-side connection-lane shortening so drawn lane paths come directly from authoritative connection truth.
+- [x] Fix duplicate/offset lane rendering by canonicalizing bidirectional lane drawing and rendering the exact authoritative polyline instead of smoothing a second display path.
+- [x] Add authoritative lane audit/snapshot tooling:
+  - `bun run debug:lane-geometry`
+  - SVG snapshot + markdown + JSON outputs
+- [x] Update `debug:lane-margin` sweep output to distinguish `angular` vs `curved`.
 - [x] Validate the full failing range at shared mapgen level:
   - margins `0, 35, 40, 45, 60, 80, 90, 120, 140, 160, 175, 230, 300`
   - `components: 1` across the sweep
@@ -36,7 +43,8 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 - [ ] Verify in-app that lanes no longer disappear visually at higher lane margins while mechanics remain connected.
 - [ ] Verify in-app that SP and MP now both present the same visible lane truth on the same map/settings.
-- [ ] Continue lane geometry hardening so short direct lanes stay straight more often while curved detours remain outward and readable.
+- [ ] Continue lane geometry hardening so short direct lanes stay straight more often while adjusted detours remain outward and readable.
+- [ ] Surface the new adjusted-path style control in the UI once the UI branch is ready for tunables again.
 - [ ] Diagnose and redesign DX distance/weight semantics after refreshing the exact intended constraint.
 - [ ] Queue contested-lane midpoint tunables for the UI owner after the control-panel refactor settles.
 

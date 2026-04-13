@@ -11,6 +11,7 @@ interface SeedRow {
     margin: number;
     effectiveTopologyClearancePx: number;
     connectionCount: number;
+    angularCount: number;
     curvedCount: number;
     straightCount: number;
     configuredBlockedChordCount: number;
@@ -33,6 +34,7 @@ interface AggregatedRow {
     avgConnectionCount: number;
     minConnectionCount: number;
     maxConnectionCount: number;
+    avgAngularCount: number;
     avgCurvedCount: number;
     maxCurvedCount: number;
     avgUnsafeStraightCount: number;
@@ -220,6 +222,7 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
     }));
     const positionsById = new Map(nodes.map((node) => [node.id, node]));
     const chordClearances: number[] = [];
+    let angularCount = 0;
     let curvedCount = 0;
     let configuredBlockedChordCount = 0;
     let solverBlockedChordCount = 0;
@@ -250,8 +253,10 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
         const blockedByConfiguredMargin = nearestChordClearance < margin;
         const blockedBySolverClearance = nearestChordClearance < solverClearance;
         const curved = connection.lanePathKind === 'curved';
+        const angular = connection.lanePathKind === 'angular';
 
         if (curved) curvedCount += 1;
+        if (angular) angularCount += 1;
         if (blockedByConfiguredMargin) configuredBlockedChordCount += 1;
         if (blockedBySolverClearance) solverBlockedChordCount += 1;
         if (blockedBySolverClearance && curved) solverBlockedChordCurvedCount += 1;
@@ -272,8 +277,9 @@ function analyzeSeed(options: DiagnoseOptions, seed: number, margin: number): Se
         margin,
         effectiveTopologyClearancePx: round(margin * (1 - options.bias)),
         connectionCount: result.connections.length,
+        angularCount,
         curvedCount,
-        straightCount: result.connections.length - curvedCount,
+        straightCount: result.connections.length - curvedCount - angularCount,
         configuredBlockedChordCount,
         solverBlockedChordCount,
         solverBlockedChordCurvedCount,
@@ -301,6 +307,7 @@ function aggregateRows(rows: SeedRow[]): AggregatedRow[] {
             avgConnectionCount: round(mean(bucket.map((row) => row.connectionCount))),
             minConnectionCount: Math.min(...bucket.map((row) => row.connectionCount)),
             maxConnectionCount: Math.max(...bucket.map((row) => row.connectionCount)),
+            avgAngularCount: round(mean(bucket.map((row) => row.angularCount))),
             avgCurvedCount: round(mean(bucket.map((row) => row.curvedCount))),
             maxCurvedCount: Math.max(...bucket.map((row) => row.curvedCount)),
             avgUnsafeStraightCount: round(mean(bucket.map((row) => row.unsafeStraightCount))),
@@ -361,10 +368,10 @@ function writeOutputs(options: DiagnoseOptions, seedRows: SeedRow[], aggregates:
         '',
         '## Sweep Summary',
         '',
-        '| margin | eff prune px | avg conn | avg curved | avg configured-blocked | avg solver-blocked | avg unsafe straight | conn range |',
-        '| ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
+        '| margin | eff prune px | avg conn | avg angular | avg curved | avg configured-blocked | avg solver-blocked | avg unsafe straight | conn range |',
+        '| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
         ...aggregates.map((row) =>
-            `| ${row.margin} | ${row.effectiveTopologyClearancePx} | ${row.avgConnectionCount} | ${row.avgCurvedCount} | ${row.avgConfiguredBlockedChordCount} | ${row.avgSolverBlockedChordCount} | ${row.avgUnsafeStraightCount} | ${row.minConnectionCount}-${row.maxConnectionCount} |`,
+            `| ${row.margin} | ${row.effectiveTopologyClearancePx} | ${row.avgConnectionCount} | ${row.avgAngularCount} | ${row.avgCurvedCount} | ${row.avgConfiguredBlockedChordCount} | ${row.avgSolverBlockedChordCount} | ${row.avgUnsafeStraightCount} | ${row.minConnectionCount}-${row.maxConnectionCount} |`,
         ),
         '',
     ];

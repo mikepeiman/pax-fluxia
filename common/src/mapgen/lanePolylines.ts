@@ -11,7 +11,7 @@
 // ≤16 offsets × 2 signs; Bézier sample count 21; polyline segment interior samples <8.
 // ============================================================================
 
-import type { Connectable, LanePathKind, MapConnection } from './types';
+import type { Connectable, LaneAdjustmentStyle, LanePathKind, MapConnection } from './types';
 import { pointToSegmentDistance } from './connections';
 
 export type MapLaneMode = 'straight' | 'curved';
@@ -174,6 +174,23 @@ function buildBezierWaypoints(
     const cx = mx + px * bestD;
     const cy = my + py * bestD;
     const steps = 16;
+    const out: Array<[number, number]> = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        out.push(quadBezierPoint(ax, ay, cx, cy, bx, by, t));
+    }
+    return out;
+}
+
+function buildQuadraticWaypointsViaControl(
+    ax: number,
+    ay: number,
+    cx: number,
+    cy: number,
+    bx: number,
+    by: number,
+    steps: number = 20,
+): Array<[number, number]> {
     const out: Array<[number, number]> = [];
     for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -346,7 +363,12 @@ export function effectiveLaneClearanceForChord(
     return Math.min(configuredClearancePx, lengthScaledCap);
 }
 
-function tryCurveOrDetour(
+type LaneSolveResult = {
+    waypoints: Array<[number, number]>;
+    kind: LanePathKind;
+};
+
+function tryAdjustedPath(
     ax: number,
     ay: number,
     bx: number,
@@ -355,26 +377,32 @@ function tryCurveOrDetour(
     clearancePx: number,
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
-): Array<[number, number]> | null {
+    adjustmentStyle: LaneAdjustmentStyle,
+): LaneSolveResult | null {
+    if (adjustmentStyle === 'angular') {
+        const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
+        return kink ? { waypoints: kink, kind: 'angular' } : null;
+    }
+
     for (const bulgeSign of preferredBulgeSigns(ax, ay, bx, by, obstacles)) {
         const best = searchBulge(ax, ay, bx, by, obstacles, clearancePx, bulgeSign);
         if (best < hypot(bx - ax, by - ay) * 0.015) continue;
         const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
         if (!polylineClearOfObstacles(cand, obstacles, clearancePx)) continue;
         if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
-        return cand;
+        return { waypoints: cand, kind: 'curved' };
     }
 
     const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
     if (kink) {
-        const smoothed = chaikinSmoothOpenPolyline(kink, 2);
+        const [, control, ] = kink;
+        const curved = buildQuadraticWaypointsViaControl(ax, ay, control[0], control[1], bx, by);
         if (
-            polylineClearOfObstacles(smoothed, obstacles, clearancePx)
-            && !polylineCrossesPlaced(smoothed, placed, starCenters)
+            polylineClearOfObstacles(curved, obstacles, clearancePx)
+            && !polylineCrossesPlaced(curved, placed, starCenters)
         ) {
-            return smoothed;
+            return { waypoints: curved, kind: 'curved' };
         }
-        return kink;
     }
 
     return null;
@@ -387,7 +415,9 @@ function solveAdaptiveWaypoints(
     clearancePx: number,
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
-): Array<[number, number]> {
+    adjustmentStyle: LaneAdjustmentStyle,
+    allowRemap: boolean,
+): LaneSolveResult | null {
     const chord = hypot(bx - ax, by - ay);
     const effectiveClearancePx = effectiveLaneClearanceForChord(chord, clearancePx);
     const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
@@ -408,7 +438,7 @@ function solveAdaptiveWaypoints(
             Number.isFinite(nearestObstacleDist)
             && chord >= SOFT_CURVE_MIN_CHORD_PX
             && nearestObstacleDist < effectiveClearancePx + softCurveBand;
-        if (softCurveEligible) {
+        if (allowRemap && adjustmentStyle === 'curved' && softCurveEligible) {
             const closenessRatio = Math.max(
                 0,
                 Math.min(1, 1 - (nearestObstacleDist - effectiveClearancePx) / Math.max(softCurveBand, 1)),
@@ -432,13 +462,15 @@ function solveAdaptiveWaypoints(
                 const cand = buildBezierWaypoints(ax, ay, bx, by, bulgeSign, best);
                 if (!polylineClearOfObstacles(cand, obstacles, effectiveClearancePx)) continue;
                 if (polylineCrossesPlaced(cand, placed, starCenters)) continue;
-                return cand;
+                return { waypoints: cand, kind: 'curved' };
             }
         }
-        return straight;
+        return { waypoints: straight, kind: 'straight' };
     }
 
-    const strictSolved = tryCurveOrDetour(
+    if (!allowRemap) return null;
+
+    const strictSolved = tryAdjustedPath(
         ax,
         ay,
         bx,
@@ -447,9 +479,10 @@ function solveAdaptiveWaypoints(
         effectiveClearancePx,
         placed,
         starCenters,
+        adjustmentStyle,
     );
     if (strictSolved) return strictSolved;
-    return [];
+    return null;
 }
 
 /**
@@ -477,7 +510,9 @@ export function computeLaneWaypoints(
         laneObstacleClearancePx,
         [],
         obstacleCenters,
-    );
+        'curved',
+        true,
+    )?.waypoints ?? [];
 }
 
 function tryResolveLaneConnection(
@@ -488,6 +523,8 @@ function tryResolveLaneConnection(
     starCenters: Array<{ x: number; y: number }>,
     mode: MapLaneMode,
     laneObstacleClearancePx: number,
+    remapBias: number,
+    adjustmentStyle: LaneAdjustmentStyle,
 ): MapConnection | null {
     const obstacles = nodes
         .filter((n) => n.id !== a.id && n.id !== b.id)
@@ -499,7 +536,7 @@ function tryResolveLaneConnection(
     if (mode === 'straight') {
         laneWaypoints = [[a.x, a.y], [b.x, b.y]];
     } else {
-        laneWaypoints = solveAdaptiveWaypoints(
+        const resolved = solveAdaptiveWaypoints(
             a.x,
             a.y,
             b.x,
@@ -508,9 +545,12 @@ function tryResolveLaneConnection(
             clearance,
             placed,
             starCenters,
+            adjustmentStyle,
+            remapBias > 0,
         );
-        if (laneWaypoints.length < 2) return null;
-        lanePathKind = laneWaypoints.length <= 2 ? 'straight' : 'curved';
+        if (!resolved || resolved.waypoints.length < 2) return null;
+        laneWaypoints = resolved.waypoints;
+        lanePathKind = resolved.kind;
     }
 
     return {
@@ -588,6 +628,8 @@ export function buildLaneAwareConnections<T extends Connectable>(
     candidateConnections: MapConnection[],
     mode: MapLaneMode,
     laneObstacleClearancePx: number,
+    remapBias: number = 1,
+    adjustmentStyle: LaneAdjustmentStyle = 'curved',
 ): MapConnection[] {
     const pos = new Map(nodes.map((n) => [n.id, n]));
     const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
@@ -620,6 +662,8 @@ export function buildLaneAwareConnections<T extends Connectable>(
             starCenters,
             mode,
             laneObstacleClearancePx,
+            remapBias,
+            adjustmentStyle,
         );
         if (!resolved) return false;
         accepted.push(resolved);
@@ -691,7 +735,7 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
             wp = [[a.x, a.y], [b.x, b.y]];
             pathKind = 'straight';
         } else {
-            wp = solveAdaptiveWaypoints(
+            const resolved = solveAdaptiveWaypoints(
                 a.x,
                 a.y,
                 b.x,
@@ -700,9 +744,12 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
                 clearance,
                 placed,
                 starCenters,
+                'curved',
+                true,
             );
-            if (wp.length < 2) continue;
-            pathKind = wp.length <= 2 ? 'straight' : 'curved';
+            if (!resolved || resolved.waypoints.length < 2) continue;
+            wp = resolved.waypoints;
+            pathKind = resolved.kind;
         }
         c.laneWaypoints = wp;
         c.lanePathKind = pathKind;

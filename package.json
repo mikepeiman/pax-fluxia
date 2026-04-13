@@ -16,7 +16,8 @@
         "agentic:pi": "pi",
         "agentic:context:build": "bun tools/agentic/build-context-pack.ts",
         "agentic:context:benchmark": "bun tools/agentic/benchmark-context-cache.ts",
-        "debug:lane-margin": "bun tools/debug/diagnose-lane-margin.ts"
+        "debug:lane-margin": "bun tools/debug/diagnose-lane-margin.ts",
+        "debug:lane-geometry": "bun tools/debug/inspect-lane-geometry.ts"
     },
     "dependencies": {
         "txtgen": "^3.0.7"

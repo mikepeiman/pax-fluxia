@@ -328,6 +328,7 @@ interface GameConfigType {
      * then satisfies full **lane margin** on sampled paths. Does not relax lane margin itself.
      */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
+    MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'angular' | 'curved';
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -1168,6 +1169,8 @@ const _rawConfig: GameConfigType = {
 
     /** 0 = prune-first topology; 1 = keep edges for curved geometry (Phase 4 chord test scaled) */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
+
+    MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'curved',
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',

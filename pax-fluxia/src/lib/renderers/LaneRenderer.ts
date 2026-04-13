@@ -42,10 +42,16 @@ export function renderConnections(
     connectionGraphics.clear();
 
     const smoothPaths: [number, number][][] = [];
+    const seen = new Set<string>();
     connections.forEach((conn) => {
         const source = starsById.get(conn.sourceId);
         const target = starsById.get(conn.targetId);
         if (!source || !target) return;
+        const key = conn.sourceId <= conn.targetId
+            ? `${conn.sourceId}|${conn.targetId}`
+            : `${conn.targetId}|${conn.sourceId}`;
+        if (seen.has(key)) return;
+        seen.add(key);
 
         const truthPolyline = conn.laneWaypoints && conn.laneWaypoints.length >= 2
             ? conn.laneWaypoints
@@ -65,7 +71,7 @@ export function renderConnections(
     // Pass 1: Dark shadow/border
     const shadowWidth = GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
     for (const path of smoothPaths) {
-        strokeSmoothLanePath(connectionGraphics, path, {
+        strokePolyline(connectionGraphics, path, {
             color: 0x000000,
             width: shadowWidth,
             alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
@@ -82,7 +88,7 @@ export function renderConnections(
 
     // Pass 2: Foreground lane stroke
     for (const path of smoothPaths) {
-        strokeSmoothLanePath(connectionGraphics, path, {
+        strokePolyline(connectionGraphics, path, {
             color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
             width: GAME_CONFIG.CONNECTION_WIDTH,
             alpha: GAME_CONFIG.CONNECTION_ALPHA,

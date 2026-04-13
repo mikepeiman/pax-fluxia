@@ -496,6 +496,14 @@ function laneDClearancePx(): number {
     return Math.max(0, GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75);
 }
 
+function laneRemapBias(): number {
+    return Math.min(1, Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55));
+}
+
+function laneAdjustedPathStyle(): 'angular' | 'curved' {
+    return (GAME_CONFIG.MAPGEN_LANE_ADJUSTED_PATH_STYLE ?? 'curved') as 'angular' | 'curved';
+}
+
 function syncLaneTruthIntoStateConnections(
     uniConnections: Array<Pick<MapConnection, 'sourceId' | 'targetId' | 'distance' | 'laneWaypoints' | 'lanePathKind'>>,
 ): void {
@@ -529,6 +537,8 @@ function refreshLanePolylinesFromConfig(): void {
         listDelaunayConnections(nodes, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
+        laneRemapBias(),
+        laneAdjustedPathStyle(),
     );
     seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
@@ -547,10 +557,7 @@ function rebuildConnectionsFromLaneClearance(): void {
     const minL = settings.minLinksPerStar ?? 1;
     const maxL = settings.maxLinksPerStar ?? 5;
     const lm = laneDClearancePx();
-    const curveVsPruneBias = Math.min(
-        1,
-        Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
-    );
+    const curveVsPruneBias = laneRemapBias();
     /** Match `generateMap`: Phase 4 chord clearance × (1−bias); lane polylines use full lane margin. */
     const preferred = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias) as MapConnection[];
     const laneAware = buildLaneAwareConnections(
@@ -559,6 +566,8 @@ function rebuildConnectionsFromLaneClearance(): void {
         listDelaunayConnections(nodes, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
+        curveVsPruneBias,
+        laneAdjustedPathStyle(),
     );
     seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
@@ -611,6 +620,8 @@ function initDebugMap(playerIds: string[], variant: string): void {
         listDelaunayConnections(nodesDbg, Infinity),
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
+        laneRemapBias(),
+        laneAdjustedPathStyle(),
     );
     seedLanePolylineCacheFromMapGen(laneAware);
     syncLaneTruthIntoStateConnections(laneAware);
@@ -636,7 +647,7 @@ function generateMapPreview(opts: {
         sourceId: string;
         targetId: string;
         laneWaypoints?: [number, number][];
-        lanePathKind?: 'straight' | 'curved';
+        lanePathKind?: 'straight' | 'angular' | 'curved';
     }>;
 } {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
@@ -659,6 +670,7 @@ function generateMapPreview(opts: {
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
         ),
+        mapgenLaneAdjustedPathStyle: laneAdjustedPathStyle(),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
@@ -741,6 +753,7 @@ function initStandardMap(playerIds: string[]): void {
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
         ),
+        mapgenLaneAdjustedPathStyle: laneAdjustedPathStyle(),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
@@ -1251,6 +1264,8 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
             listDelaunayConnections(nodesSaved, Infinity),
             (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
             laneDClearancePx(),
+            laneRemapBias(),
+            laneAdjustedPathStyle(),
         );
         seedLanePolylineCacheFromMapGen(laneAware);
         syncLaneTruthIntoStateConnections(laneAware);

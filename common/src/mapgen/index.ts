@@ -10,6 +10,7 @@ export type {
     MapGenConfig,
     MapGenResult,
     LanePathKind,
+    LaneAdjustmentStyle,
 } from './types';
 export type { MapLaneMode } from './lanePolylines';
 export { computeLaneWaypoints, attachLaneWaypointsToConnections, buildLaneAwareConnections } from './lanePolylines';
@@ -61,12 +62,15 @@ export function generateMap(config: MapGenConfig): MapGenResult {
     );
 
     const laneMode: MapLaneMode = config.mapLaneMode ?? 'curved';
+    const laneAdjustmentStyle = config.mapgenLaneAdjustedPathStyle ?? 'curved';
     const connections = buildLaneAwareConnections(
         nodes,
         preferredConnections,
         listDelaunayConnections(nodes, Infinity),
         laneMode,
         laneMarginPx,
+        curveVsPruneBias,
+        laneAdjustmentStyle,
     );
 
     return { positions, connections, hexRadius, width, height, paddingX, paddingY };
