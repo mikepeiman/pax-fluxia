@@ -916,6 +916,12 @@ async function loadFilesystemMaps(): Promise<void> {
 // Trigger async filesystem load at module init
 loadFilesystemMaps();
 
+if (typeof window !== 'undefined') {
+    window.addEventListener('focus', () => {
+        void loadFilesystemMaps();
+    });
+}
+
 // Trigger async builtin maps load (fetch from /maps/)
 async function loadBuiltinMapsAsync(): Promise<void> {
     try {
