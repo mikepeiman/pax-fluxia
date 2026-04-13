@@ -20,6 +20,9 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - ruler
   - live canvas overlay
   - transition snapshot recorder
+- [x] Make diagnostics-bar height part of the camera viewport budget so opening diagnostics refits the board instead of only obscuring it.
+- [x] Relax vertical pan clamping so the board is less vertically constrained, especially while diagnostics are open.
+- [x] Compress the diagnostics surface into a shorter bottom bar instead of a tall bottom panel.
 - [x] Move lane feasibility fully into shared geometry instead of allowing a post-connectivity lane rewrite.
 - [x] Remove reduced-clearance lane solving and invalid straight fallback from shared lane geometry.
 - [x] Split lane result classes into `straight`, `angular`, and `curved`.

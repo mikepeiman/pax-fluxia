@@ -111,6 +111,7 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
     import {
         buildRulerMeasurement,
         getRulerCssColor,
@@ -209,6 +210,28 @@
         fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
     });
 
+    let lastDiagnosticsOpen = false;
+    let lastDiagnosticsHeight = 0;
+    $effect(() => {
+        const diagnostics = $diagnosticsUi;
+        if (!app) {
+            lastDiagnosticsOpen = diagnostics.open;
+            lastDiagnosticsHeight = diagnostics.height;
+            return;
+        }
+
+        const heightChanged = diagnostics.height !== lastDiagnosticsHeight;
+        const openChanged = diagnostics.open !== lastDiagnosticsOpen;
+        if (heightChanged || openChanged) {
+            handleResize();
+            if (diagnostics.open && !lastDiagnosticsOpen) {
+                centerAndFit();
+            }
+            lastDiagnosticsOpen = diagnostics.open;
+            lastDiagnosticsHeight = diagnostics.height;
+        }
+    });
+
     // F-107: When stars first populate, set map orientation and sync if needed
     let starsInitialized = false;
     $effect(() => {
@@ -284,15 +307,44 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
-    /** Height of the bottom UI overlay — now 0 because CSS Grid sizes the canvas container */
-    const BOTTOM_UI_INSET = 0;
+    function getBottomUiInsetPx(): number {
+        const diagnostics = get(diagnosticsUi);
+        return diagnostics.open ? diagnostics.height : 0;
+    }
+
+    function getViewportMetrics() {
+        if (!app) {
+            return {
+                width: 0,
+                height: 0,
+                usableHeight: 0,
+                centerX: 0,
+                centerY: 0,
+                bottomInset: 0,
+            };
+        }
+        const width = app.screen.width;
+        const height = app.screen.height;
+        const bottomInset = getBottomUiInsetPx();
+        const usableHeight = Math.max(120, height - bottomInset);
+        return {
+            width,
+            height,
+            usableHeight,
+            centerX: width * 0.5,
+            centerY: usableHeight * 0.5,
+            bottomInset,
+        };
+    }
 
     export function centerAndFit() {
         updateWorldBounds();
         if (app && app.stage) {
-            const cw = app.screen.width;
-            const ch = app.screen.height;
-            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+            const viewport = getViewportMetrics();
+            baseScale = Math.min(
+                viewport.width / contentWidth,
+                viewport.usableHeight / contentHeight,
+            );
         }
         // First call snaps instantly (no animation from 0,0)
         if (!cameraInitialized) {
@@ -327,15 +379,14 @@
         const sy = mapTranspose.y(star);
 
         // Derive target panOffset so star ends up centered
-        const cw = app.screen.width;
-        const ch = app.screen.height;
+        const viewport = getViewportMetrics();
         const es = baseScale * clampedZoom;
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
-        const desiredStageX = cw / 2 - sx * es;
-        const desiredStageY = ch / 2 - sy * es;
+        const baselineX = viewport.centerX - contentCenterX * es;
+        const baselineY = viewport.centerY - contentCenterY * es;
+        const desiredStageX = viewport.centerX - sx * es;
+        const desiredStageY = viewport.centerY - sy * es;
 
         targetZoom = clampedZoom;
         targetPanX = -(desiredStageX - baselineX) / es;
@@ -919,12 +970,13 @@
         updateWorldBounds();
 
         // Calculate base scale to fit content bounding box in container
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
+        const viewport = getViewportMetrics();
+        const containerWidth = viewport.width;
+        const containerHeight = viewport.height;
 
         baseScale = Math.min(
             containerWidth / contentWidth,
-            containerHeight / contentHeight,
+            viewport.usableHeight / contentHeight,
         );
 
         // Size nebula background to cover visible viewport (not just game world)
@@ -951,15 +1003,16 @@
         const canvasEl = canvasContainer;
         log.canvas(
             "handleResize",
-            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} usableH=${viewport.usableHeight.toFixed(0)} inset=${viewport.bottomInset.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
     }
 
     function applyZoomTransform() {
         if (!app) return;
 
-        const cw = app.screen.width;
-        const ch = app.screen.height;
+        const viewport = getViewportMetrics();
+        const cw = viewport.width;
+        const ch = viewport.height;
         const es = baseScale * zoomLevel;
 
         app.stage.scale.set(es, es);
@@ -967,8 +1020,8 @@
         // Center on content bounding box, then apply pan offset
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
+        const baselineX = viewport.centerX - contentCenterX * es;
+        const baselineY = viewport.centerY - contentCenterY * es;
 
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
@@ -993,15 +1046,19 @@
     function clampPan() {
         if (!app) return;
 
-        const cw = app.screen.width;
-        const ch = app.screen.height;
+        const viewport = getViewportMetrics();
+        const cw = viewport.width;
         const es = baseScale * zoomLevel;
         const scaledContentW = contentWidth * es;
         const scaledContentH = contentHeight * es;
 
-        // Only allow pan when zoomed-in content exceeds viewport
+        // Keep a small vertical slack even when the board almost fits so the
+        // map is easier to inspect under overlays and at low zoom.
         const overflowX = Math.max(0, (scaledContentW - cw) / 2);
-        const overflowY = Math.max(0, (scaledContentH - ch) / 2);
+        const overflowY = Math.max(
+            Math.max(24, viewport.bottomInset * 0.5),
+            (scaledContentH - viewport.usableHeight) / 2,
+        );
         const maxPanX = overflowX / es;
         const maxPanY = overflowY / es;
 
@@ -1011,8 +1068,8 @@
         // Reapply position after clamp
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
+        const baselineX = viewport.centerX - contentCenterX * es;
+        const baselineY = viewport.centerY - contentCenterY * es;
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
     }
@@ -1045,12 +1102,12 @@
         // Anchor: adjust pan so the same world point stays under cursor
         // Must match the transform in applyZoomTransform (content-centered)
         const effectiveScale = baseScale * zoomLevel;
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
+        const viewport = getViewportMetrics();
+        const containerWidth = viewport.width;
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
         const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
-        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
+        const baselineY = viewport.centerY - contentCenterY * effectiveScale;
 
         // worldBefore should remain under cursor after transform:
         // screenX = baselineX - panOffsetX * es + worldBefore.x * es

@@ -22,6 +22,11 @@
   - ruler
   - live overlay toggles
   - snapshot recorder actions
+- Corrected the viewport/camera mismatch introduced by the diagnostics surface:
+  - diagnostics bar now publishes its actual height
+  - fit/center/clamp math treats that height as reserved bottom inset
+  - opening diagnostics triggers a real refit instead of just covering the board
+- Reduced the diagnostics bar vertical footprint and tightened header/control spacing so it behaves more like a bar than a panel.
 - Corrected the spec interpretation:
   - straight first
   - curve only when needed to satisfy Lane Margin
