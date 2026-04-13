@@ -86,10 +86,15 @@ export interface MapGenConfig {
     /** How non-straight accepted lanes are represented once remapping is enabled. */
     mapgenLaneAdjustedPathStyle?: LaneAdjustmentStyle;
     /**
-     * 0..1 — **Phase 4 pass-through prune** strictness for the **straight chord** test only.
-     * **0**: prune when chord is within lane margin (prefer different topology / Phase 5 bridges).
-     * **1**: never prune on chord proximity; keep edges so the lane solver can use **curved** paths
-     * that still respect full lane margin on samples. **Lane margin** (`mapgenLaneMarginPx`) stays the hard clearance for drawn lanes.
+     * 0..1 remap-vs-prune bias for lanes whose straight chord violates `mapgenLaneMarginPx`.
+     *
+     * Hierarchy:
+     * 1. Full traversal connectivity is the winning constraint.
+     * 2. If a chord satisfies `mapgenLaneMarginPx`, keep it straight.
+     * 3. If a chord violates `mapgenLaneMarginPx`:
+     *    - low values bias toward pruning that lane and replacing connectivity elsewhere
+     *    - high values bias toward trying adjusted paths that satisfy the same clearance
+     * 4. Min/max link targets are weakest and may be exceeded or under-filled to preserve the above.
      */
     mapgenLaneCurveVsPruneBias?: number;
 }

@@ -91,13 +91,16 @@
   - strict / adjusted / connectivity-override decision reason
 - The audit proved two separate facts:
   - false-positive curves were real and are now removed on the frozen map
-  - at `Lane Margin 175+`, the strict all-pairs straight-only feasible graph on that frozen map is disconnected
-- That means the remaining behavior at high LM is no longer a hidden bug. It is an explicit hierarchy choice.
+  - at `Lane Margin 175+`, the strict feasible graph on that frozen map is disconnected
+- That means the remaining behavior at high LM is no longer a hidden bug. It is an explicit hierarchy decision.
 - Encoded hierarchy:
-  1. keep a straight lane if the chord satisfies LM
-  2. if the chord fails and remap is enabled, try adjusted paths that satisfy LM
-  3. if the strict feasible graph is still disconnected, preserve traversal with an explicit best-clearance straight connectivity override
-  4. lane-count targets stay weaker than connectivity
+  1. full traversal connectivity is the winning constraint
+  2. if the chord satisfies LM, keep it straight
+  3. if the chord violates LM:
+     - remap enabled: try adjusted paths that satisfy the same clearance
+     - remap disabled: reject that lane and seek replacement elsewhere
+  4. if the strict feasible graph is still disconnected, restore connectivity explicitly at the graph layer
+  5. lane-count targets stay weaker than the above
 - Frozen-map audit sweep after the change:
   - `LM 60` -> `components 1`, `override 0`
   - `LM 90` -> `components 1`, `override 0`
@@ -110,7 +113,7 @@
 ## Next likely moves
 
 - Verify in-app that high-margin lanes no longer disappear visually while mechanics still allow movement/attacks.
-- Decide whether connectivity-override edges need a distinct diagnostic or visual treatment.
+- Decide whether explicit connectivity-restoration edges need a distinct diagnostic or visual treatment.
 - Verify the same lane-path truth presentation in SP and MP.
 - Continue lane-geometry tuning, but keep all future changes anchored to authoritative connection truth first.
 - Hand the new adjusted-path-style tunable to the UI owner for surfacing once the panel refactor is ready.

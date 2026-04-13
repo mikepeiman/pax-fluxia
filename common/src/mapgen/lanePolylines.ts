@@ -1,11 +1,14 @@
 // ============================================================================
 // Lane polylines — centerlines between star centers (mapgen + runtime).
-// - `straight`: chord only.
-// - `curved`: straight chord when it satisfies **lane margin** vs other stars, does not
-//   cross existing lanes, and passes dense sampling; otherwise quadratic Bézier
-//   (both bulge directions), then a single-kink detour — curves satisfy the same
-//   clearance as straights (not decorative). Topology may still add edges whose chord
-//   fails clearance; those are curved here while sampled paths respect margin.
+//
+// Hierarchy:
+// 1. Full traversal connectivity wins globally.
+// 2. If a straight chord satisfies lane margin, keep it straight.
+// 3. If a straight chord violates lane margin:
+//    - remap enabled: try adjusted paths that satisfy the same clearance
+//    - remap disabled: reject that specific lane
+// 4. If the strict feasible graph is disconnected, connectivity is restored explicitly
+//    at the graph layer, not by silently mutating renderer-only geometry.
 //
 // Solver bounds (deterministic): bulge binary search ≤14 iters; single-kink grid
 // ≤16 offsets × 2 signs; Bézier sample count 21; polyline segment interior samples <8.

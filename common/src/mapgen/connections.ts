@@ -190,9 +190,11 @@ export function listDelaunayConnections<T extends Connectable>(
  * @param minLinks      - Min connections per node (default 1)
  * @param maxLinks      - Max connections per node (default 6)
  * @param passThroughClearancePx - Lane margin: same px used later for sampled lane centerlines vs stars.
- * @param laneCurveVsPruneBias - 0..1. Phase 4 tests the **straight chord** against clearance
- *   `passThroughClearancePx * (1 - bias)`. **0** = prune/reconnect aggressively (topology); **1** = do not
- *   prune for pass-through (keep edges; lane solver uses **curves** to satisfy lane margin).
+ * @param laneCurveVsPruneBias - 0..1 remap-vs-prune bias for lanes whose straight chord
+ *   would violate `passThroughClearancePx`.
+ *   - low values bias toward pruning/replacement
+ *   - high values bias toward keeping the candidate so shared lane geometry can try
+ *     adjusted paths that satisfy the same clearance
  * @returns Canonical unidirectional connections
  */
 export function generateConnections<T extends Connectable>(
@@ -294,8 +296,9 @@ export function generateConnections<T extends Connectable>(
 
     // ── Phase 4: Prune pass-through connections (straight chord vs stars only) ──
     const b = Math.min(1, Math.max(0, laneCurveVsPruneBias));
-    // Lane-margin pruning is secondary. Keep topology pruning intentionally soft
-    // so the graph stays richly traversable even when visual lane clearance grows.
+    // Lane-margin pruning is secondary to connectivity. Keep topology pruning soft
+    // so the graph can still be reconnected later without silently preserving bad
+    // renderer-only lanes.
     const clearance = Math.min(40, Math.max(0, passThroughClearancePx * (1 - b)));
 
     changed = true;

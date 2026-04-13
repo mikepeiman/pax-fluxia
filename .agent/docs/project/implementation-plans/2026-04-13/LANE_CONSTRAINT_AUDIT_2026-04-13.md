@@ -39,29 +39,32 @@ That failure is now eliminated in the audited sweep:
 
 for the tested range below.
 
-### 2. Strict straight-only connectivity becomes impossible at high LM
+### 2. High LM creates a real graph-level conflict
 
-All-pairs straight-only feasibility on the frozen map:
+All-pairs straight-chord feasibility on the frozen map:
 
 - `LM 145` -> `49` valid straight edges, `components = 1`
 - `LM 175` -> `18` valid straight edges, `components = 11`
 - `LM 230` -> `5` valid straight edges, `components = 20`
 - `LM 245` -> `1` valid straight edge, `components = 24`
 
-So above roughly `175px` on this star layout, full traversal connectivity and strict straight-only LM compliance cannot both be satisfied at once.
+So above roughly `175px` on this star layout, a graph made only of straight chords that satisfy `Lane Margin` is disconnected.
 
-This is not a render bug. It is a geometry constraint fact on the frozen map.
+That is not a render bug. It is a geometry constraint fact on the frozen map.
 
 ## Encoded Hierarchy
 
 The builder now follows this explicit order:
 
-1. Keep a straight lane if its chord satisfies `Lane Margin`.
-2. If the chord fails and remap is enabled, try adjusted paths that satisfy `Lane Margin`.
-3. If the strict feasible graph is still disconnected, preserve traversal connectivity with an explicit best-clearance straight connectivity override.
-4. Lane-count targets remain weaker than connectivity.
+1. Full traversal connectivity is the winning constraint.
+2. If a straight chord satisfies `Lane Margin`, keep it straight.
+3. If a straight chord violates `Lane Margin`:
+   - when Remap is enabled, try adjusted paths that satisfy the same clearance
+   - when Remap is disabled, reject that specific lane and seek connectivity elsewhere
+4. If the strict feasible graph is still disconnected, restore connectivity explicitly at the graph layer.
+5. Lane-count targets remain weaker than the above.
 
-The key change is that connectivity override is now explicit and auditable, not a hidden accidental behavior.
+The key change is that high-LM connectivity restoration is now explicit and auditable, not hidden accidental behavior.
 
 ## Frozen-Map Audit Sweep After Fix
 
@@ -104,8 +107,6 @@ The key change is that connectivity override is now explicit and auditable, not 
 ## Current Interpretation
 
 - The original erratic solver behavior is now replaced by deterministic behavior on the frozen map.
-- The remaining design question is no longer "why is the solver random?"
-- The real design question is:
-  - how aggressive should connectivity override be once the strict feasible graph disappears?
-
-That is now a policy choice, not a hidden bug.
+- The remaining issue is no longer hidden randomness.
+- The remaining issue is policy:
+  - how should explicit connectivity-restoration edges be surfaced and diagnosed once strict feasible lanes are exhausted?

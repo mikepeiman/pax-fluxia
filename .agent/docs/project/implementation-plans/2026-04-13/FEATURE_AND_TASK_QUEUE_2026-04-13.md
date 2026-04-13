@@ -48,9 +48,10 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Prove the high-`Lane Margin` hard limit on the frozen map:
   - at `LM 175+`, the strict all-pairs straight-only feasible graph is disconnected
 - [x] Encode the explicit hierarchy in shared geometry:
-  - straight if chord satisfies LM
-  - adjusted if chord fails and remap is enabled
-  - explicit best-clearance straight connectivity override only when the strict feasible graph is disconnected
+  - full traversal connectivity is the winning constraint
+  - keep straight when chord satisfies LM
+  - if chord fails: remap tries satisfying adjusted paths, prune mode rejects that lane and seeks replacement elsewhere
+  - explicit graph-level connectivity restoration only when the strict feasible graph is disconnected
 - [x] Add connectivity-override reporting to the lane audit so high-LM behavior is machine-checkable rather than guessed.
 - [x] Trace the lane-visibility divergence from authoritative map truth through schema/state/cache/rendering instead of patching the renderer blindly.
 - [x] Confirm the shared layer already carries lane-path truth (`laneWaypoints`, `lanePathKind`) in `/common` types and Colyseus schema.
@@ -70,8 +71,8 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Top Queue
 
-- [ ] Verify in-app that high-LM connectivity-override edges are visually acceptable and fully honest in both SP and MP.
-- [ ] Decide whether connectivity-override edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.
+- [ ] Verify in-app that explicit connectivity-restoration edges are visually honest in both SP and MP.
+- [ ] Decide whether connectivity-restoration edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.
 - [ ] Add lane-key copy/export actions from the ruler measurement log if the diagnostic workflow needs faster issue filing.
 - [ ] Verify in-app that SP and MP now both present the same visible lane truth on the same map/settings.
 - [ ] Continue lane geometry hardening so short direct lanes stay straight and adjusted detours remain outward and readable.
@@ -86,5 +87,5 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - connectivity is defined only by lane-aware map truth
   - visible lanes are drawn directly from that same truth
 - Current hard fact from the fixed-map audit:
-  - above roughly `LM 175` on the frozen test map, strict straight-only LM-compliant connectivity is impossible
-  - any fully connected result there requires either adjusted paths or explicit connectivity-override edges
+  - above roughly `LM 175` on the frozen test map, the strict feasible graph is disconnected
+  - any fully connected result there requires either adjusted satisfying paths or explicit graph-level connectivity restoration
