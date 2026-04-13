@@ -8,6 +8,20 @@
 
 ## This round
 
+- Replaced the separate hidden debug modal path with a unified diagnostics surface:
+  - right-hand Debug section now opens a bottom Diagnostics Bar
+  - removed the extra floating debug-FAB entrypoint
+- Rebuilt the ruler tool around actual diagnostic workflow:
+  - transient vs persistent measurement modes
+  - per-measure capture log
+  - snapped stars / lane labels
+  - current Lane Margin capture
+  - actual lane-state classification from authoritative connection truth
+  - user-overridable lane-state tag for screenshots / issue review
+- Folded the modal-only debug controls into the unified diagnostics surface:
+  - ruler
+  - live overlay toggles
+  - snapshot recorder actions
 - Corrected the spec interpretation:
   - straight first
   - curve only when needed to satisfy Lane Margin

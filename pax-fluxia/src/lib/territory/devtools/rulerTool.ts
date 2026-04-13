@@ -1,6 +1,8 @@
 import { get, writable } from "svelte/store";
 
 export type RulerSnapKind = "star" | "lane" | "free";
+export type RulerLaneState = "straight" | "bent" | "curved" | "missing";
+export type RulerMode = "transient" | "persistent";
 
 export interface RulerPoint {
     x: number;
@@ -18,19 +20,45 @@ export interface RulerColor {
     a: number;
 }
 
+export interface RulerMeasurement {
+    id: string;
+    start: RulerPoint;
+    end: RulerPoint;
+    dx: number;
+    dy: number;
+    distance: number;
+    midX: number;
+    midY: number;
+    createdAt: string;
+    laneMarginPx: number;
+    starPairLabel?: string;
+    relatedLaneKey?: string;
+    relatedLaneLabel?: string;
+    actualLaneState: RulerLaneState;
+    userLaneState: RulerLaneState;
+}
+
 export interface RulerState {
     enabled: boolean;
     laneHitboxPx: number;
+    mode: RulerMode;
     start: RulerPoint | null;
     end: RulerPoint | null;
+    measurements: RulerMeasurement[];
     color: RulerColor;
+}
+
+export interface RulerPlacementResult {
+    completed: { start: RulerPoint; end: RulerPoint } | null;
 }
 
 const initialState: RulerState = {
     enabled: false,
     laneHitboxPx: 18,
+    mode: "transient",
     start: null,
     end: null,
+    measurements: [],
     color: {
         h: 190,
         s: 90,
@@ -54,21 +82,80 @@ function clear(): void {
         ...state,
         start: null,
         end: null,
+        measurements: [],
     }));
 }
 
-function placePoint(point: RulerPoint): void {
+function placePoint(point: RulerPoint): RulerPlacementResult {
+    let completed: { start: RulerPoint; end: RulerPoint } | null = null;
+
     store.update((state) => {
-        if (!state.start || state.end) {
+        if (!state.start) {
             return {
                 ...state,
                 start: point,
                 end: null,
             };
         }
+
+        if (!state.end) {
+            completed = { start: state.start, end: point };
+            if (state.mode === "persistent") {
+                return {
+                    ...state,
+                    start: null,
+                    end: null,
+                };
+            }
+            return {
+                ...state,
+                end: point,
+            };
+        }
+
         return {
             ...state,
-            end: point,
+            start: point,
+            end: null,
+        };
+    });
+
+    return { completed };
+}
+
+function recordMeasurement(measurement: RulerMeasurement): void {
+    store.update((state) => ({
+        ...state,
+        measurements: [...state.measurements, measurement],
+    }));
+}
+
+function removeMeasurement(id: string): void {
+    store.update((state) => ({
+        ...state,
+        measurements: state.measurements.filter((measurement) => measurement.id !== id),
+    }));
+}
+
+function setMeasurementLaneState(id: string, laneState: RulerLaneState): void {
+    store.update((state) => ({
+        ...state,
+        measurements: state.measurements.map((measurement) =>
+            measurement.id === id
+                ? { ...measurement, userLaneState: laneState }
+                : measurement,
+        ),
+    }));
+}
+
+function setMode(mode: RulerMode): void {
+    store.update((state) => {
+        if (state.mode === mode) return state;
+        return {
+            ...state,
+            mode,
+            start: mode === "persistent" ? null : state.start,
+            end: mode === "persistent" ? null : state.end,
         };
     });
 }
@@ -100,6 +187,42 @@ function getState(): RulerState {
     return get(store);
 }
 
+export function buildRulerMeasurement(
+    start: RulerPoint,
+    end: RulerPoint,
+    extras: {
+        laneMarginPx: number;
+        starPairLabel?: string;
+        relatedLaneKey?: string;
+        relatedLaneLabel?: string;
+        actualLaneState?: RulerLaneState;
+    },
+): RulerMeasurement {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const distance = Math.hypot(dx, dy);
+    const now = new Date().toISOString();
+    const actualLaneState = extras.actualLaneState ?? "missing";
+
+    return {
+        id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+        start,
+        end,
+        dx,
+        dy,
+        distance,
+        midX: start.x + dx * 0.5,
+        midY: start.y + dy * 0.5,
+        createdAt: now,
+        laneMarginPx: extras.laneMarginPx,
+        starPairLabel: extras.starPairLabel,
+        relatedLaneKey: extras.relatedLaneKey,
+        relatedLaneLabel: extras.relatedLaneLabel,
+        actualLaneState,
+        userLaneState: actualLaneState,
+    };
+}
+
 export function getRulerMeasurement(state: RulerState = getState()) {
     if (!state.start || !state.end) return null;
     const dx = state.end.x - state.start.x;
@@ -125,6 +248,10 @@ export const rulerTool = {
     toggle,
     clear,
     placePoint,
+    recordMeasurement,
+    removeMeasurement,
+    setMeasurementLaneState,
+    setMode,
     setLaneHitboxPx,
     setColor,
 };

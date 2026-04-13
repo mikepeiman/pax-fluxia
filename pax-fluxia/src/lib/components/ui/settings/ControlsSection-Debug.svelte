@@ -3,6 +3,7 @@
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import { downloadBundle } from "$lib/territory/devtools/TransitionBundleSerializer";
+    import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
 
     // ControlsSection-DEBUG -- Morph diagnostic controls
 
@@ -102,6 +103,19 @@
 </script>
 
 <CategoryThemeBar category="debug" onApply={() => syncFromConfig?.()} />
+
+<h4 class="sub-heading">Diagnostics Workspace</h4>
+
+<button
+    class="debug-btn diagnostics-toggle"
+    class:active={$diagnosticsUi.open}
+    onclick={() => diagnosticsUi.toggle()}
+>
+    {$diagnosticsUi.open ? "Close Diagnostics Bar" : "Open Diagnostics Bar"}
+    <span class="debug-hint">
+        Ruler · overlay · snapshot
+    </span>
+</button>
 
 <h4 class="sub-heading">🔬 Morph Diagnostics</h4>
 
@@ -327,6 +341,12 @@
         background: rgba(255, 80, 80, 0.15);
         border-color: rgba(255, 80, 80, 0.5);
         color: #ff8888;
+    }
+    .diagnostics-toggle {
+        margin-bottom: 10px;
+        border-color: rgba(89, 248, 255, 0.28);
+        color: #c9f8ff;
+        background: rgba(89, 248, 255, 0.08);
     }
     .debug-hint {
         font-size: 9px;

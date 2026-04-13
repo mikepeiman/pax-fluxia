@@ -112,9 +112,12 @@
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import {
+        buildRulerMeasurement,
         getRulerCssColor,
         getRulerMeasurement,
         rulerTool,
+        type RulerLaneState,
+        type RulerMeasurement,
         type RulerPoint,
     } from "$lib/territory/devtools/rulerTool";
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
@@ -145,7 +148,7 @@
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
-    let rulerLabel: PIXI.Text | null = null;
+    let rulerLabels: PIXI.Text[] = [];
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
@@ -1077,19 +1080,6 @@
                 debugGraphics,
                 voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
             );
-            rulerLabel = new PIXI.Text({
-                text: "",
-                style: {
-                    fontFamily: "Consolas, Monaco, monospace",
-                    fontSize: 12,
-                    fill: 0xffffff,
-                    fontWeight: "700",
-                    align: "center",
-                },
-            });
-            rulerLabel.anchor.set(0.5);
-            rulerLabel.visible = false;
-            stageParent.addChild(rulerLabel);
         }
 
         debugGraphics.clear();
@@ -1695,6 +1685,9 @@
                         nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
                         transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any, geometryVersion: "1" },
                         fillPlan: null,
+                        activeFrontPlan: null,
+                        prevFrontierTopology: null,
+                        nextFrontierTopology: null,
                         selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
                         nowMs: fxOrchestrator.gameTime,
                         starPositions: starPos,
@@ -2066,15 +2059,112 @@
         };
     }
 
+    function mapLaneKindToRulerState(kind?: string): RulerLaneState {
+        if (kind === "curved") return "curved";
+        if (kind === "angular") return "bent";
+        if (kind === "straight") return "straight";
+        return "missing";
+    }
+
+    function findConnectionByLaneKey(laneKey: string): StarConnection | null {
+        for (const connection of activeGameStore.connections as StarConnection[]) {
+            const a =
+                connection.sourceId <= connection.targetId
+                    ? connection.sourceId
+                    : connection.targetId;
+            const b =
+                connection.sourceId <= connection.targetId
+                    ? connection.targetId
+                    : connection.sourceId;
+            if (`${a}|${b}` === laneKey) return connection;
+        }
+        return null;
+    }
+
+    function finalizeRulerMeasurement(
+        start: RulerPoint,
+        end: RulerPoint,
+    ): RulerMeasurement {
+        let relatedLaneKey: string | undefined;
+        let relatedLaneLabel: string | undefined;
+        let starPairLabel: string | undefined;
+        let actualLaneState: RulerLaneState = "missing";
+
+        if (start.starId && end.starId) {
+            const a = start.starId <= end.starId ? start.starId : end.starId;
+            const b = start.starId <= end.starId ? end.starId : start.starId;
+            relatedLaneKey = `${a}|${b}`;
+            relatedLaneLabel = `${a} ↔ ${b}`;
+            starPairLabel = relatedLaneLabel;
+            actualLaneState = mapLaneKindToRulerState(
+                findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
+            );
+        } else {
+            relatedLaneKey =
+                start.laneKey && end.laneKey && start.laneKey === end.laneKey
+                    ? start.laneKey
+                    : start.laneKey ?? end.laneKey;
+            relatedLaneLabel =
+                start.laneLabel && end.laneLabel && start.laneLabel === end.laneLabel
+                    ? start.laneLabel
+                    : start.laneLabel ?? end.laneLabel;
+            if (relatedLaneKey) {
+                actualLaneState = mapLaneKindToRulerState(
+                    findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
+                );
+            }
+        }
+
+        const measurement = buildRulerMeasurement(start, end, {
+            laneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX,
+            starPairLabel,
+            relatedLaneKey,
+            relatedLaneLabel,
+            actualLaneState,
+        });
+
+        log.canvas(
+            "Ruler",
+            `${measurement.distance.toFixed(2)}px ${measurement.starPairLabel ?? measurement.relatedLaneLabel ?? "free"}`,
+            measurement,
+        );
+
+        return measurement;
+    }
+
+    function ensureRulerLabel(index: number): PIXI.Text | null {
+        const stageParent = debugGraphics?.parent;
+        if (!stageParent) return null;
+        while (rulerLabels.length <= index) {
+            const label = new PIXI.Text({
+                text: "",
+                style: {
+                    fontFamily: "Consolas, Monaco, monospace",
+                    fontSize: 12,
+                    fill: 0xffffff,
+                    fontWeight: "700",
+                    align: "center",
+                },
+            });
+            label.anchor.set(0.5);
+            label.visible = false;
+            rulerLabels.push(label);
+            stageParent.addChild(label);
+        }
+        return rulerLabels[index];
+    }
+
+    function hideUnusedRulerLabels(fromIndex: number): void {
+        for (let i = fromIndex; i < rulerLabels.length; i++) {
+            rulerLabels[i].visible = false;
+        }
+    }
+
     function renderRulerOverlay(graphics: PIXI.Graphics): void {
         const state = get(rulerTool);
-        const measurement = getRulerMeasurement(state);
+        const draftMeasurement = getRulerMeasurement(state);
         const color = getRulerCssColor(state);
-
-        if (!state.start) {
-            if (rulerLabel) rulerLabel.visible = false;
-            return;
-        }
+        let labelIndex = 0;
 
         const drawPoint = (point: RulerPoint) => {
             graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
@@ -2085,40 +2175,69 @@
             graphics.lineTo(point.x + 10, point.y);
             graphics.moveTo(point.x, point.y - 10);
             graphics.lineTo(point.x, point.y + 10);
-            graphics.stroke({ color, width: 1.5, alpha: Math.max(0.65, state.color.a) });
+            graphics.stroke({
+                color,
+                width: 1.5,
+                alpha: Math.max(0.65, state.color.a),
+            });
         };
 
-        drawPoint(state.start);
+        const drawMeasuredSegment = (
+            start: RulerPoint,
+            end: RulerPoint,
+            measurement: {
+                distance: number;
+                midX: number;
+                midY: number;
+            },
+        ) => {
+            graphics.moveTo(start.x, start.y);
+            graphics.lineTo(end.x, end.y);
+            graphics.stroke({ color, width: 2.5, alpha: state.color.a });
+            drawPoint(start);
+            drawPoint(end);
 
-        if (!measurement || !state.end) {
-            if (rulerLabel) rulerLabel.visible = false;
-            return;
+            const label = ensureRulerLabel(labelIndex++);
+            if (!label) return;
+            label.text = `${measurement.distance.toFixed(2)} px`;
+            label.style.fill = color;
+            label.position.set(measurement.midX, measurement.midY - 18);
+            label.visible = true;
+
+            const paddingX = 8;
+            const paddingY = 4;
+            const boxW = label.width + paddingX * 2;
+            const boxH = label.height + paddingY * 2;
+            graphics.roundRect(
+                label.x - boxW * 0.5,
+                label.y - boxH * 0.5,
+                boxW,
+                boxH,
+                6,
+            );
+            graphics.fill({ color: 0x050812, alpha: 0.82 });
+            graphics.stroke({
+                color,
+                width: 1,
+                alpha: Math.max(0.7, state.color.a),
+            });
+        };
+
+        if (state.mode === "persistent") {
+            for (const measurement of state.measurements) {
+                drawMeasuredSegment(measurement.start, measurement.end, measurement);
+            }
         }
 
-        graphics.moveTo(state.start.x, state.start.y);
-        graphics.lineTo(state.end.x, state.end.y);
-        graphics.stroke({ color, width: 2.5, alpha: state.color.a });
-        drawPoint(state.end);
+        if (state.start) {
+            drawPoint(state.start);
+        }
 
-        if (!rulerLabel) return;
-        rulerLabel.text = `${measurement.distance.toFixed(2)} px`;
-        rulerLabel.style.fill = color;
-        rulerLabel.position.set(measurement.midX, measurement.midY - 18);
-        rulerLabel.visible = true;
+        if (draftMeasurement && state.start && state.end) {
+            drawMeasuredSegment(state.start, state.end, draftMeasurement);
+        }
 
-        const paddingX = 8;
-        const paddingY = 4;
-        const boxW = rulerLabel.width + paddingX * 2;
-        const boxH = rulerLabel.height + paddingY * 2;
-        graphics.roundRect(
-            rulerLabel.x - boxW * 0.5,
-            rulerLabel.y - boxH * 0.5,
-            boxW,
-            boxH,
-            6,
-        );
-        graphics.fill({ color: 0x050812, alpha: 0.82 });
-        graphics.stroke({ color, width: 1, alpha: Math.max(0.7, state.color.a) });
+        hideUnusedRulerLabels(labelIndex);
     }
 
     function handlePointerDown(event: PointerEvent) {
@@ -2133,7 +2252,15 @@
                 event.clientX - rect.left,
                 event.clientY - rect.top,
             );
-            rulerTool.placePoint(point);
+            const placement = rulerTool.placePoint(point);
+            if (placement.completed) {
+                rulerTool.recordMeasurement(
+                    finalizeRulerMeasurement(
+                        placement.completed.start,
+                        placement.completed.end,
+                    ),
+                );
+            }
             event.preventDefault();
             return;
         }
