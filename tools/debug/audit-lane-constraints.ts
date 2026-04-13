@@ -5,7 +5,6 @@ import {
     debugResolveLaneConnection,
     generateConnections,
     listDelaunayConnections,
-    pointToSegmentDistance,
     type Connectable,
     type LaneAdjustmentStyle,
     type LaneBuildMode,
@@ -27,6 +26,7 @@ const ROOT = path.resolve(import.meta.dir, '..', '..');
 const DEFAULT_METRICS_DIR = path.join(ROOT, '.agent-harness', 'metrics');
 const CURRENT_SETTINGS_PATH = path.join(ROOT, 'common', 'resources', 'settings-live', 'current-settings.json');
 const EPS = 0.1;
+const ENDPOINT_CLEARANCE_GUARD_PX = 72;
 
 const round = (value: number, digits = 2) => Math.round(value * 10 ** digits) / 10 ** digits;
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -85,14 +85,68 @@ function nearestPointOnSegment(px: number, py: number, ax: number, ay: number, b
     return { x, y, distance: Math.hypot(px - x, py - y) };
 }
 
+function nearestPointOnSegmentClamped(
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    minT: number,
+    maxT: number,
+) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 1e-9) return { x: ax, y: ay, distance: Math.hypot(px - ax, py - ay), t: 0 };
+    const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    const t = Math.max(minT, Math.min(maxT, rawT));
+    const x = ax + dx * t;
+    const y = ay + dy * t;
+    return { x, y, distance: Math.hypot(px - x, py - y), t };
+}
+
+function segmentEndpointGuardRange(
+    segmentIndex: number,
+    segmentCount: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+) {
+    const segLen = Math.hypot(bx - ax, by - ay);
+    if (segLen <= 1e-9) return { minT: 0, maxT: 1 };
+    const guardT = Math.min(0.49, ENDPOINT_CLEARANCE_GUARD_PX / segLen);
+    let minT = 0;
+    let maxT = 1;
+    if (segmentIndex === 0) minT = guardT;
+    if (segmentIndex === segmentCount - 1) maxT = 1 - guardT;
+    if (minT > maxT) {
+        minT = 0.5;
+        maxT = 0.5;
+    }
+    return { minT, maxT };
+}
+
 function nearestPointOnPolyline(px: number, py: number, pts: Array<[number, number]>) {
     let best = { x: pts[0]![0], y: pts[0]![1], distance: Number.POSITIVE_INFINITY };
+    const segmentCount = Math.max(0, pts.length - 1);
     for (let i = 0; i < pts.length - 1; i++) {
         const [ax, ay] = pts[i]!, [bx, by] = pts[i + 1]!;
-        const candidate = nearestPointOnSegment(px, py, ax, ay, bx, by);
+        const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
+        const candidate = nearestPointOnSegmentClamped(px, py, ax, ay, bx, by, minT, maxT);
         if (candidate.distance < best.distance) best = candidate;
     }
     return best;
+}
+
+function minimumDistanceToStraightLineWithEndpointGuard(
+    node: Connectable,
+    source: Connectable,
+    target: Connectable,
+): number {
+    const { minT, maxT } = segmentEndpointGuardRange(0, 1, source.x, source.y, target.x, target.y);
+    return nearestPointOnSegmentClamped(node.x, node.y, source.x, source.y, target.x, target.y, minT, maxT).distance;
 }
 
 function countComponents(nodes: Connectable[], connections: MapConnection[]): number {
@@ -131,7 +185,9 @@ function blockingStars(connection: Pick<MapConnection, 'sourceId' | 'targetId' |
 }
 
 function emptyTrace(connection: MapConnection, source: Connectable, target: Connectable, nodes: Connectable[], laneMarginPx: number): LaneDecisionTrace {
-    const straightLineMinDistancePx = nodes.filter((node) => node.id !== connection.sourceId && node.id !== connection.targetId).reduce((nearest, node) => Math.min(nearest, pointToSegmentDistance(node.x, node.y, source.x, source.y, target.x, target.y)), Number.POSITIVE_INFINITY);
+    const straightLineMinDistancePx = nodes
+        .filter((node) => node.id !== connection.sourceId && node.id !== connection.targetId)
+        .reduce((nearest, node) => Math.min(nearest, minimumDistanceToStraightLineWithEndpointGuard(node, source, target)), Number.POSITIVE_INFINITY);
     return { requestedClearancePx: laneMarginPx, effectiveClearancePx: laneMarginPx, chordDistancePx: connection.distance, chordMinClearancePx: straightLineMinDistancePx, chordPassesRequested: straightLineMinDistancePx >= laneMarginPx, chordPassesEffective: straightLineMinDistancePx >= laneMarginPx, straightBlockedByClearance: straightLineMinDistancePx < laneMarginPx, straightBlockedByLaneCross: false, finalPathKind: 'missing', finalMinClearancePx: straightLineMinDistancePx, finalPassesRequested: straightLineMinDistancePx >= laneMarginPx, finalReason: 'removed_for_constraint', attempts: [] };
 }
 
@@ -151,7 +207,9 @@ function auditConnections(nodes: Connectable[], savedMap: SavedMap, options: Aud
         const key = edgeKey(connection.sourceId, connection.targetId);
         const source = pos.get(connection.sourceId)!, target = pos.get(connection.targetId)!;
         const laneWaypoints = connection.laneWaypoints ?? [[source.x, source.y], [target.x, target.y]];
-        const straightLineMinDistancePx = nodes.filter((node) => node.id !== connection.sourceId && node.id !== connection.targetId).reduce((nearest, node) => Math.min(nearest, pointToSegmentDistance(node.x, node.y, source.x, source.y, target.x, target.y)), Number.POSITIVE_INFINITY);
+        const straightLineMinDistancePx = nodes
+            .filter((node) => node.id !== connection.sourceId && node.id !== connection.targetId)
+            .reduce((nearest, node) => Math.min(nearest, minimumDistanceToStraightLineWithEndpointGuard(node, source, target)), Number.POSITIVE_INFINITY);
         const blockers = blockingStars({ sourceId: connection.sourceId, targetId: connection.targetId, laneWaypoints }, nodes);
         auditedConnections.push({
             key,

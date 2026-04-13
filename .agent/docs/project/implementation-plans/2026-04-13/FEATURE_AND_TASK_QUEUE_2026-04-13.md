@@ -27,6 +27,10 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Add two fuller authored two-player geometry test maps with permanent ruler fixtures for every lane:
   - `common/resources/saved-maps/lane_margin_square_layers_2p.json`
   - `common/resources/saved-maps/lane_margin_hex_layers_2p.json`
+- [x] Remove embedded ruler fixtures from `lane_margin_hex_layers_2p` after they proved misleading.
+- [x] Trace the `LM > 200` square-map cliff to endpoint-bound lane-margin measurement in shared geometry.
+- [x] Add an endpoint guard to lane-margin solving so nearby non-endpoint stars do not create a hard cap at the exact lane endpoints.
+- [x] Align the lane-audit tool with the endpoint-guard measurement so diagnostics match the shared solver.
 - [x] Eliminate the separate modal debug surface as the primary ruler entrypoint.
 - [x] Remove the later separate Diagnostics Bar experiment from the active game UI.
 - [x] Move ruler workflow into the regular right-hand Debug section instead of a second diagnostics surface.
@@ -114,6 +118,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 - [ ] Load `lane_margin_cross_pressure_2p` in-app and verify that authored connectivity stays fixed while only lane geometry changes.
 - [ ] Load `lane_margin_square_layers_2p` and `lane_margin_hex_layers_2p` in-app and verify that every permanent lane fixture remains readable while live Lane Margin changes reshape only lane geometry.
+- [ ] Re-check square-map behavior around `LM 200-205` in-app after the endpoint guard change.
 - [ ] Load `lane_margin_ruler_2p` in-app and verify the permanent fixtures remain readable while lane geometry is rebuilt live.
 - [ ] Verify in-app that explicit connectivity-restoration edges are visually honest in both SP and MP.
 - [ ] Decide whether connectivity-restoration edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.

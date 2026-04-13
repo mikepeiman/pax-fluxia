@@ -61,6 +61,8 @@ export interface LaneDecisionTrace {
 const INTERIOR_T = 1e-3;
 const STAR_TOUCH_PX = 3;
 const CLEARANCE_EPSILON_PX = 0.1;
+const ENDPOINT_RESHAPE_GUARD_T = 0.14;
+const ENDPOINT_CLEARANCE_GUARD_PX = 72;
 function hypot(dx: number, dy: number): number {
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -78,6 +80,51 @@ function quadBezierPoint(
 }
 
 /** True if every point on segment AB is ≥ minDist from each obstacle center. */
+function nearestPointOnSegmentClamped(
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    minT: number,
+    maxT: number,
+): { x: number; y: number; distance: number; t: number } {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 1e-9) {
+        return { x: ax, y: ay, distance: hypot(px - ax, py - ay), t: 0 };
+    }
+    const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    const t = Math.max(minT, Math.min(maxT, rawT));
+    const x = ax + dx * t;
+    const y = ay + dy * t;
+    return { x, y, distance: hypot(px - x, py - y), t };
+}
+
+function segmentEndpointGuardRange(
+    segmentIndex: number,
+    segmentCount: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+): { minT: number; maxT: number } {
+    const segLen = hypot(bx - ax, by - ay);
+    if (segLen <= 1e-9) return { minT: 0, maxT: 1 };
+    const guardT = Math.min(0.49, ENDPOINT_CLEARANCE_GUARD_PX / segLen);
+    let minT = 0;
+    let maxT = 1;
+    if (segmentIndex === 0) minT = guardT;
+    if (segmentIndex === segmentCount - 1) maxT = 1 - guardT;
+    if (minT > maxT) {
+        minT = 0.5;
+        maxT = 0.5;
+    }
+    return { minT, maxT };
+}
+
 function chordClearOfObstacles(
     ax: number, ay: number,
     bx: number, by: number,
@@ -85,7 +132,8 @@ function chordClearOfObstacles(
     minDist: number,
 ): boolean {
     for (const o of obstacles) {
-        if (pointToSegmentDistance(o.x, o.y, ax, ay, bx, by) < minDist - CLEARANCE_EPSILON_PX) return false;
+        const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
+        if (nearestPointOnSegmentClamped(o.x, o.y, ax, ay, bx, by, minT, maxT).distance < minDist - CLEARANCE_EPSILON_PX) return false;
     }
     return true;
 }
@@ -99,7 +147,8 @@ function nearestObstacleDistanceToChord(
 ): number {
     let nearest = Infinity;
     for (const obstacle of obstacles) {
-        const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
+        const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
+        const d = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT).distance;
         if (d < nearest) nearest = d;
     }
     return nearest;
@@ -111,11 +160,13 @@ function minimumObstacleDistanceToPolyline(
 ): number {
     if (obstacles.length === 0) return Number.POSITIVE_INFINITY;
     let nearest = Number.POSITIVE_INFINITY;
+    const segmentCount = Math.max(0, pts.length - 1);
     for (const obstacle of obstacles) {
         for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i]!;
             const [bx, by] = pts[i + 1]!;
-            const d = pointToSegmentDistance(obstacle.x, obstacle.y, ax, ay, bx, by);
+            const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
+            const d = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT).distance;
             if (d < nearest) nearest = d;
         }
     }
@@ -128,12 +179,16 @@ function polylineClearOfObstacles(
     obstacles: Array<{ x: number; y: number }>,
     minDist: number,
 ): boolean {
+    const segmentCount = Math.max(0, pts.length - 1);
     for (let i = 0; i < pts.length - 1; i++) {
         const x1 = pts[i][0], y1 = pts[i][1];
         const x2 = pts[i + 1][0], y2 = pts[i + 1][1];
-        if (!chordClearOfObstacles(x1, y1, x2, y2, obstacles, minDist)) return false;
+        const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, x1, y1, x2, y2);
+        for (const o of obstacles) {
+            if (nearestPointOnSegmentClamped(o.x, o.y, x1, y1, x2, y2, minT, maxT).distance < minDist - CLEARANCE_EPSILON_PX) return false;
+        }
         for (let s = 1; s < 8; s++) {
-            const t = s / 8;
+            const t = minT + (maxT - minT) * (s / 8);
             const px = x1 + (x2 - x1) * t;
             const py = y1 + (y2 - y1) * t;
             for (const o of obstacles) {
@@ -231,12 +286,14 @@ function sortedObstacleWitnessesToPolyline(
     obstacles: Array<{ x: number; y: number }>,
 ): ObstacleWitness[] {
     const witnesses: ObstacleWitness[] = [];
+    const segmentCount = Math.max(0, pts.length - 1);
     for (const obstacle of obstacles) {
         let best: ObstacleWitness | null = null;
         for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i]!;
             const [bx, by] = pts[i + 1]!;
-            const nearest = nearestPointOnSegment(obstacle.x, obstacle.y, ax, ay, bx, by);
+            const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
+            const nearest = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT);
             if (!best || nearest.distance < best.distance) {
                 best = {
                     obstacle,
@@ -295,18 +352,32 @@ function trySingleKinkDetour(
         const segDx = segB[0] - segA[0];
         const segDy = segB[1] - segA[1];
         const segLen = hypot(segDx, segDy) || 1;
-        let pushDx = blockingMeasurement.pointX - blockingMeasurement.obstacle.x;
-        let pushDy = blockingMeasurement.pointY - blockingMeasurement.obstacle.y;
+        // When the nearest point lands at or near a segment endpoint, inserting a
+        // vertex at that exact point creates a degenerate duplicate and the solver
+        // makes no progress. In that case, move to the first interior point on the
+        // segment that can actually change the outgoing angle.
+        let anchorT = blockingMeasurement.t;
+        if (anchorT <= ENDPOINT_RESHAPE_GUARD_T) {
+            anchorT = ENDPOINT_RESHAPE_GUARD_T;
+        } else if (anchorT >= 1 - ENDPOINT_RESHAPE_GUARD_T) {
+            anchorT = 1 - ENDPOINT_RESHAPE_GUARD_T;
+        }
+        const anchorX = segA[0] + segDx * anchorT;
+        const anchorY = segA[1] + segDy * anchorT;
+
+        let pushDx = anchorX - blockingMeasurement.obstacle.x;
+        let pushDy = anchorY - blockingMeasurement.obstacle.y;
         let pushLen = hypot(pushDx, pushDy);
         if (pushLen <= 1e-6) {
             pushDx = -segDy / segLen;
             pushDy = segDx / segLen;
             pushLen = 1;
         }
-        const delta = Math.max(0, minDist - blockingMeasurement.distance);
+        const anchorDistance = hypot(pushDx, pushDy);
+        const delta = Math.max(0, minDist - anchorDistance);
         const vertex: [number, number] = [
-            blockingMeasurement.pointX + (pushDx / pushLen) * delta,
-            blockingMeasurement.pointY + (pushDy / pushLen) * delta,
+            anchorX + (pushDx / pushLen) * delta,
+            anchorY + (pushDy / pushLen) * delta,
         ];
         const next: Array<[number, number]> = [];
         for (let i = 0; i < current.length - 1; i++) {
@@ -351,7 +422,7 @@ export function effectiveLaneClearanceForChord(
 
 function reshapeAttemptBudget(reshapeBias: number): number {
     if (reshapeBias <= 0) return 0;
-    return Math.max(4, Math.min(48, Math.round(4 + reshapeBias * 44)));
+    return Math.max(12, Math.min(256, Math.round(12 + reshapeBias * 244)));
 }
 
 type LaneSolveResult = {
