@@ -80,9 +80,18 @@ Keep the active 2026-04-13 execution queue in one dated place.
   - direct runtime probe across lane margins `25, 60, 90, 120` showing:
     - `missingTruth: 0`
     - `collapsedVisible: 0`
+- [x] Add a deterministic saved-map probe for lane-margin debugging:
+  - `common/resources/saved-maps/lane_margin_ruler_2p.json`
+  - 2 players, limited stars, fixed straight lane truth
+  - permanent ruler fixtures at `60`, `90`, `120`, `150`, `180`, and `240` px
+- [x] Extend saved-map schema with `diagnostics.rulerFixtures` and `diagnostics.rulerColor`.
+- [x] Render map-native ruler fixtures from current lane truth in `GameCanvas`, independent of live ruler session state.
+- [x] Verify exact fixture distances by script:
+  - `60`, `90`, `120`, `150`, `180`, `240` all resolve exactly on the saved map
 
 ## Top Queue
 
+- [ ] Load `lane_margin_ruler_2p` in-app and verify the permanent fixtures remain readable while lane geometry is rebuilt live.
 - [ ] Verify in-app that explicit connectivity-restoration edges are visually honest in both SP and MP.
 - [ ] Decide whether connectivity-restoration edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.
 - [ ] Add lane-key copy/export actions from the ruler measurement log if the diagnostic workflow needs faster issue filing.

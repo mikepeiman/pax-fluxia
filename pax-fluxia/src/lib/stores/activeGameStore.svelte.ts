@@ -15,6 +15,7 @@ import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
+import type { MapDiagnostics } from '$lib/types/map.types';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG } from '$lib/config/game.config';
@@ -363,6 +364,13 @@ function startGame(): void {
     }
 }
 
+function getMapDiagnostics(): MapDiagnostics | null {
+    if (isMultiplayerMode()) {
+        return null;
+    }
+    return gameStore.mapDiagnostics;
+}
+
 function applyPlayerColors(colors: string[]): void {
     if (isMultiplayerMode()) {
         multiplayerStore.applyPlayerColors(colors);
@@ -513,6 +521,7 @@ export const activeGameStore = {
     get stars() { return getStars(); },
     get connections() { return getConnections(); },
     get players() { return getPlayers(); },
+    get mapDiagnostics() { return getMapDiagnostics(); },
     get localPlayerId() { return getLocalPlayerId(); },
     get isPaused() { return getIsPaused(); },
     get speed() { return getSpeed(); },

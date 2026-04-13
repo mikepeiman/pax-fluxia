@@ -5,6 +5,29 @@
 import type { StarId, PlayerId, StarType } from './game.types';
 import type { LanePathKind } from '@pax/common/mapgen';
 
+export type MapRulerLaneState = 'straight' | 'bent' | 'curved' | 'missing';
+
+export interface MapRulerFixtureColor {
+  h: number;
+  s: number;
+  l: number;
+  a: number;
+}
+
+export interface MapRulerFixture {
+  id: string;
+  startStarId: StarId;
+  laneKey: string;
+  expectedDistancePx?: number;
+  label?: string;
+  userLaneState?: MapRulerLaneState;
+}
+
+export interface MapDiagnostics {
+  rulerColor?: MapRulerFixtureColor;
+  rulerFixtures?: MapRulerFixture[];
+}
+
 /**
  * Template-based map definition (parametric)
  * Used for URL sharing and procedural generation with parameters
@@ -52,6 +75,7 @@ export interface MapDefinition {
     laneWaypoints?: Array<[number, number]>;
     lanePathKind?: LanePathKind;
   }>;
+  diagnostics?: MapDiagnostics;
   customRules?: Record<string, any>;
 }
 

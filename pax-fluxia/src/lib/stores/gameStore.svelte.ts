@@ -12,7 +12,7 @@ import type {
     PlayerState,
     GameHistoryEntry
 } from '$lib/types/game.types';
-import type { MapDefinition, SavedGame } from '$lib/types/map.types';
+import type { MapDefinition, MapDiagnostics, SavedGame } from '$lib/types/map.types';
 import type {
     GameInput,
     IssueOrderInput,
@@ -730,6 +730,7 @@ function generateMapPreview(opts: {
 
 /** Standard random map via generateMap() */
 function initStandardMap(playerIds: string[]): void {
+    mapDiagnostics = null;
     // Match map aspect ratio to viewport — portrait screens get portrait maps
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
@@ -840,6 +841,7 @@ function initStandardMap(playerIds: string[]): void {
 let lastMapDefinition: MapDefinition | null = null;
 let pendingSavedMap: MapDefinition | null = null;
 let savedMaps: MapDefinition[] = $state(loadSavedMaps());
+let mapDiagnostics: MapDiagnostics | null = null;
 
 // F-148: Default map preference — auto-load a saved map on game start
 let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || '');
@@ -1079,6 +1081,16 @@ function exportMapTopology(): MapDefinition | null {
     return {
         metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
         stars, connections,
+        diagnostics: mapDiagnostics
+            ? {
+                  rulerColor: mapDiagnostics.rulerColor
+                      ? { ...mapDiagnostics.rulerColor }
+                      : undefined,
+                  rulerFixtures: mapDiagnostics.rulerFixtures
+                      ? mapDiagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
+                      : undefined,
+              }
+            : undefined,
     };
 }
 
@@ -1117,6 +1129,16 @@ function exportMapDefinition(): MapDefinition | null {
     return {
         metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
         stars, connections,
+        diagnostics: mapDiagnostics
+            ? {
+                  rulerColor: mapDiagnostics.rulerColor
+                      ? { ...mapDiagnostics.rulerColor }
+                      : undefined,
+                  rulerFixtures: mapDiagnostics.rulerFixtures
+                      ? mapDiagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
+                      : undefined,
+              }
+            : undefined,
         customRules: { tick: state.tick },
     };
 }
@@ -1150,6 +1172,16 @@ function loadSavedMap(map: MapDefinition): void {
 
 /** Initialize from a saved MapDefinition */
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
+    mapDiagnostics = map.diagnostics
+        ? {
+              rulerColor: map.diagnostics.rulerColor
+                  ? { ...map.diagnostics.rulerColor }
+                  : undefined,
+              rulerFixtures: map.diagnostics.rulerFixtures
+                  ? map.diagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
+                  : undefined,
+          }
+        : null;
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
 
     // Build faction → playerID remap table
@@ -1273,6 +1305,7 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
 }
 function initializeState(): void {
     state = new GameRoomState();
+    mapDiagnostics = null;
     state.phase = 'playing'; // Will be set to paused via isPaused
     state.isPaused = true;
     state.speed = 1;
@@ -1633,6 +1666,7 @@ export const gameStore = {
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
+    get mapDiagnostics() { return mapDiagnostics; },
     get retainOrderOnConquest() { return GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST; },
     get allowOpposingOrders() { return GAME_CONFIG.ALLOW_OPPOSING_ORDERS; },
 

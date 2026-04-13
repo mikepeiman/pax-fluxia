@@ -1,0 +1,240 @@
+{
+  "metadata": {
+    "name": "lane_margin_ruler_2p",
+    "author": "Codex",
+    "description": "Deterministic 2-player lane-margin probe map with permanent ruler fixtures at 60-240px star-to-lane distances.",
+    "createdAt": "2026-04-13T23:30:00.000Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 220,
+      "y": 450,
+      "ownerId": "human-player",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 520,
+      "y": 450,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 820,
+      "y": 450,
+      "ownerId": "neutral",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 1120,
+      "y": 450,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 1420,
+      "y": 450,
+      "ownerId": "ai-1",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-5",
+      "x": 610,
+      "y": 390,
+      "ownerId": "neutral",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-6",
+      "x": 730,
+      "y": 360,
+      "ownerId": "neutral",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-7",
+      "x": 910,
+      "y": 330,
+      "ownerId": "neutral",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-8",
+      "x": 1030,
+      "y": 300,
+      "ownerId": "neutral",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-9",
+      "x": 310,
+      "y": 270,
+      "ownerId": "neutral",
+      "starType": "green",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-10",
+      "x": 430,
+      "y": 210,
+      "ownerId": "neutral",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-0",
+      "targetId": "star-1",
+      "distance": 300,
+      "laneWaypoints": [[220, 450], [520, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-2",
+      "distance": 300,
+      "laneWaypoints": [[520, 450], [820, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-3",
+      "distance": 300,
+      "laneWaypoints": [[820, 450], [1120, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-3",
+      "targetId": "star-4",
+      "distance": 300,
+      "laneWaypoints": [[1120, 450], [1420, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-5",
+      "targetId": "star-1",
+      "distance": 108.16653826391968,
+      "laneWaypoints": [[610, 390], [520, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-6",
+      "targetId": "star-2",
+      "distance": 127.27922061357856,
+      "laneWaypoints": [[730, 360], [820, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-7",
+      "targetId": "star-2",
+      "distance": 150,
+      "laneWaypoints": [[910, 330], [820, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-8",
+      "targetId": "star-3",
+      "distance": 174.92855684535903,
+      "laneWaypoints": [[1030, 300], [1120, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-9",
+      "targetId": "star-0",
+      "distance": 201.24611797498108,
+      "laneWaypoints": [[310, 270], [220, 450]],
+      "lanePathKind": "straight"
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-9",
+      "distance": 134.16407864998737,
+      "laneWaypoints": [[430, 210], [310, 270]],
+      "lanePathKind": "straight"
+    }
+  ],
+  "diagnostics": {
+    "rulerColor": {
+      "h": 45,
+      "s": 96,
+      "l": 72,
+      "a": 0.96
+    },
+    "rulerFixtures": [
+      {
+        "id": "lm-60",
+        "startStarId": "star-5",
+        "laneKey": "star-1|star-2",
+        "expectedDistancePx": 60,
+        "label": "60 px",
+        "userLaneState": "straight"
+      },
+      {
+        "id": "lm-90",
+        "startStarId": "star-6",
+        "laneKey": "star-1|star-2",
+        "expectedDistancePx": 90,
+        "label": "90 px",
+        "userLaneState": "straight"
+      },
+      {
+        "id": "lm-120",
+        "startStarId": "star-7",
+        "laneKey": "star-2|star-3",
+        "expectedDistancePx": 120,
+        "label": "120 px",
+        "userLaneState": "straight"
+      },
+      {
+        "id": "lm-150",
+        "startStarId": "star-8",
+        "laneKey": "star-2|star-3",
+        "expectedDistancePx": 150,
+        "label": "150 px",
+        "userLaneState": "straight"
+      },
+      {
+        "id": "lm-180",
+        "startStarId": "star-9",
+        "laneKey": "star-0|star-1",
+        "expectedDistancePx": 180,
+        "label": "180 px",
+        "userLaneState": "straight"
+      },
+      {
+        "id": "lm-240",
+        "startStarId": "star-10",
+        "laneKey": "star-0|star-1",
+        "expectedDistancePx": 240,
+        "label": "240 px",
+        "userLaneState": "straight"
+      }
+    ]
+  }
+}

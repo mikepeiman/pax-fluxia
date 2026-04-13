@@ -121,6 +121,7 @@
         type RulerMeasurement,
         type RulerPoint,
     } from "$lib/territory/devtools/rulerTool";
+    import type { MapDiagnostics, MapRulerFixture } from "$lib/types/map.types";
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
@@ -2189,6 +2190,132 @@
         return measurement;
     }
 
+    interface ResolvedMapRulerFixture {
+        start: RulerPoint;
+        end: RulerPoint | null;
+        distance: number | null;
+        midX: number;
+        midY: number;
+        labelText: string;
+        alpha: number;
+        color: string;
+    }
+
+    function getMapFixtureColor(diagnostics: MapDiagnostics | null): {
+        color: string;
+        alpha: number;
+    } {
+        const fixtureColor = diagnostics?.rulerColor;
+        if (!fixtureColor) {
+            return {
+                color: "hsla(42, 96%, 68%, 0.96)",
+                alpha: 0.96,
+            };
+        }
+        return {
+            color: `hsla(${fixtureColor.h}, ${fixtureColor.s}%, ${fixtureColor.l}%, ${fixtureColor.a})`,
+            alpha: fixtureColor.a,
+        };
+    }
+
+    function resolveMapRulerFixture(
+        fixture: MapRulerFixture,
+        diagnostics: MapDiagnostics | null,
+    ): ResolvedMapRulerFixture | null {
+        const stars = activeGameStore.stars as StarState[];
+        const starsById = new Map(stars.map((star) => [star.id, star] as const));
+        const startStar = starsById.get(fixture.startStarId);
+        if (!startStar) return null;
+
+        const { color, alpha } = getMapFixtureColor(diagnostics);
+        const start: RulerPoint = {
+            x: mapTranspose.x(startStar),
+            y: mapTranspose.y(startStar),
+            snapKind: "star",
+            starId: startStar.id,
+        };
+
+        const connection = findConnectionByLaneKey(fixture.laneKey);
+        if (!connection) {
+            return {
+                start,
+                end: null,
+                distance: null,
+                midX: start.x,
+                midY: start.y,
+                labelText:
+                    fixture.label
+                    ?? (fixture.expectedDistancePx !== undefined
+                        ? `${Math.round(fixture.expectedDistancePx)} px · missing`
+                        : "missing"),
+                alpha,
+                color,
+            };
+        }
+
+        const sourceId =
+            connection.sourceId <= connection.targetId
+                ? connection.sourceId
+                : connection.targetId;
+        const targetId =
+            connection.sourceId <= connection.targetId
+                ? connection.targetId
+                : connection.sourceId;
+        const source = starsById.get(sourceId);
+        const target = starsById.get(targetId);
+        if (!source || !target) return null;
+
+        const polyline = buildVisibleLanePolyline(source, target);
+        if (polyline.length < 2) return null;
+
+        let best:
+            | {
+                  x: number;
+                  y: number;
+                  distance: number;
+              }
+            | null = null;
+        for (let index = 1; index < polyline.length; index++) {
+            const [ax, ay] = polyline[index - 1];
+            const [bx, by] = polyline[index];
+            const projection = projectPointToSegment(
+                start.x,
+                start.y,
+                ax,
+                ay,
+                bx,
+                by,
+            );
+            if (!best || projection.distance < best.distance) {
+                best = projection;
+            }
+        }
+        if (!best) return null;
+
+        const end: RulerPoint = {
+            x: best.x,
+            y: best.y,
+            snapKind: "lane",
+            laneKey: fixture.laneKey,
+            laneLabel: `${sourceId} ↔ ${targetId}`,
+        };
+
+        return {
+            start,
+            end,
+            distance: best.distance,
+            midX: start.x + (end.x - start.x) * 0.5,
+            midY: start.y + (end.y - start.y) * 0.5,
+            labelText:
+                fixture.label
+                ?? (fixture.expectedDistancePx !== undefined
+                    ? `${Math.round(fixture.expectedDistancePx)} px`
+                    : `${best.distance.toFixed(2)} px`),
+            alpha,
+            color,
+        };
+    }
+
     function ensureRulerLabel(index: number): PIXI.Text | null {
         const stageParent = debugGraphics?.parent;
         if (!stageParent) return null;
@@ -2221,21 +2348,37 @@
         const state = get(rulerTool);
         const draftMeasurement = getRulerMeasurement(state);
         const color = getRulerCssColor(state);
+        const diagnostics = activeGameStore.mapDiagnostics;
+        const resolvedFixtures =
+            diagnostics?.rulerFixtures
+                ?.map((fixture) => resolveMapRulerFixture(fixture, diagnostics))
+                .filter(
+                    (
+                        fixture,
+                    ): fixture is ResolvedMapRulerFixture => fixture !== null,
+                ) ?? [];
         let labelIndex = 0;
 
-        const drawPoint = (point: RulerPoint) => {
+        const drawPoint = (
+            point: RulerPoint,
+            pointColor: string,
+            alpha: number,
+        ) => {
             graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
-            graphics.fill({ color, alpha: Math.max(0.18, state.color.a * 0.28) });
-            graphics.stroke({ color, width: 2, alpha: state.color.a });
+            graphics.fill({
+                color: pointColor,
+                alpha: Math.max(0.18, alpha * 0.28),
+            });
+            graphics.stroke({ color: pointColor, width: 2, alpha });
 
             graphics.moveTo(point.x - 10, point.y);
             graphics.lineTo(point.x + 10, point.y);
             graphics.moveTo(point.x, point.y - 10);
             graphics.lineTo(point.x, point.y + 10);
             graphics.stroke({
-                color,
+                color: pointColor,
                 width: 1.5,
-                alpha: Math.max(0.65, state.color.a),
+                alpha: Math.max(0.65, alpha),
             });
         };
 
@@ -2247,17 +2390,20 @@
                 midX: number;
                 midY: number;
             },
+            segmentColor: string,
+            alpha: number,
+            labelText?: string,
         ) => {
             graphics.moveTo(start.x, start.y);
             graphics.lineTo(end.x, end.y);
-            graphics.stroke({ color, width: 2.5, alpha: state.color.a });
-            drawPoint(start);
-            drawPoint(end);
+            graphics.stroke({ color: segmentColor, width: 2.5, alpha });
+            drawPoint(start, segmentColor, alpha);
+            drawPoint(end, segmentColor, alpha);
 
             const label = ensureRulerLabel(labelIndex++);
             if (!label) return;
-            label.text = `${measurement.distance.toFixed(2)} px`;
-            label.style.fill = color;
+            label.text = labelText ?? `${measurement.distance.toFixed(2)} px`;
+            label.style.fill = segmentColor;
             label.position.set(measurement.midX, measurement.midY - 18);
             label.visible = true;
 
@@ -2274,24 +2420,89 @@
             );
             graphics.fill({ color: 0x050812, alpha: 0.82 });
             graphics.stroke({
-                color,
+                color: segmentColor,
                 width: 1,
-                alpha: Math.max(0.7, state.color.a),
+                alpha: Math.max(0.7, alpha),
             });
         };
 
+        const drawPointLabel = (
+            point: RulerPoint,
+            labelText: string,
+            labelColor: string,
+            alpha: number,
+        ) => {
+            drawPoint(point, labelColor, alpha);
+            const label = ensureRulerLabel(labelIndex++);
+            if (!label) return;
+            label.text = labelText;
+            label.style.fill = labelColor;
+            label.position.set(point.x, point.y - 22);
+            label.visible = true;
+
+            const paddingX = 8;
+            const paddingY = 4;
+            const boxW = label.width + paddingX * 2;
+            const boxH = label.height + paddingY * 2;
+            graphics.roundRect(
+                label.x - boxW * 0.5,
+                label.y - boxH * 0.5,
+                boxW,
+                boxH,
+                6,
+            );
+            graphics.fill({ color: 0x050812, alpha: 0.82 });
+            graphics.stroke({
+                color: labelColor,
+                width: 1,
+                alpha: Math.max(0.7, alpha),
+            });
+        };
+
+        for (const fixture of resolvedFixtures) {
+            if (fixture.end && fixture.distance !== null) {
+                drawMeasuredSegment(
+                    fixture.start,
+                    fixture.end,
+                    fixture,
+                    fixture.color,
+                    fixture.alpha,
+                    fixture.labelText,
+                );
+            } else {
+                drawPointLabel(
+                    fixture.start,
+                    fixture.labelText,
+                    fixture.color,
+                    fixture.alpha,
+                );
+            }
+        }
+
         if (state.mode === "persistent") {
             for (const measurement of state.measurements) {
-                drawMeasuredSegment(measurement.start, measurement.end, measurement);
+                drawMeasuredSegment(
+                    measurement.start,
+                    measurement.end,
+                    measurement,
+                    color,
+                    state.color.a,
+                );
             }
         }
 
         if (state.start) {
-            drawPoint(state.start);
+            drawPoint(state.start, color, state.color.a);
         }
 
         if (draftMeasurement && state.start && state.end) {
-            drawMeasuredSegment(state.start, state.end, draftMeasurement);
+            drawMeasuredSegment(
+                state.start,
+                state.end,
+                draftMeasurement,
+                color,
+                state.color.a,
+            );
         }
 
         hideUnusedRulerLabels(labelIndex);

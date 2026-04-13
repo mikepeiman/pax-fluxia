@@ -122,6 +122,13 @@
   - `LM 100`, curved mode -> `54 connections`, `6 curved`, `0 audit violations`
   - `LM 175`, curved mode -> `31 connections`, `9 curved`, `9 connectivity-restoration edges`, `0 audit violations`
 
+## Deterministic lane-margin probe map
+
+- Added `common/resources/saved-maps/lane_margin_ruler_2p.json` as a reusable SP test artifact.
+- Added map-native diagnostics payload support so saved maps can carry permanent ruler fixtures.
+- The probe map carries six exact star-to-lane witnesses: `60`, `90`, `120`, `150`, `180`, `240` px.
+- `GameCanvas` now resolves and draws those fixtures from current lane truth, so rebuilds against live Lane Margin settings still update the same map-native diagnostics.
+
 ## Next likely moves
 
 - Verify in-app that high-margin lanes no longer disappear visually while mechanics still allow movement/attacks.
