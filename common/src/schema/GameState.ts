@@ -76,6 +76,7 @@ export const ConnectionSchema = schema({
     targetId: "string",
     distance: "number",
     lanePathKind: "string",
+    laneConstraintStatus: "string",
     laneWaypoints: { array: PointSchema },
 }, "ConnectionSchema");
 export type ConnectionSchema = SchemaType<typeof ConnectionSchema>;

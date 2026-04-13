@@ -2,7 +2,7 @@
 // Pax Fluxia - Canonical Types (Shared between client and server)
 // ============================================================================
 
-import type { LanePathKind } from './mapgen/types';
+import type { LaneConstraintStatus, LanePathKind } from './mapgen/types';
 
 // === Primitive IDs ===
 export type StarId = string;
@@ -76,6 +76,8 @@ export interface Connection {
     laneWaypoints?: Array<[number, number]>;
     /** Optional shared lane path classification. */
     lanePathKind?: LanePathKind;
+    /** Optional shared lane-constraint result classification. */
+    laneConstraintStatus?: LaneConstraintStatus;
 }
 
 // === Game State ===

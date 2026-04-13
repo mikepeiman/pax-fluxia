@@ -193,10 +193,12 @@
         const affectsLanePaths =
             affectsLaneTopology
             || 'MAPGEN_LANE_MODE' in configPatch;
+        const affectsAuthoredConnectivityPolicy =
+            'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in configPatch;
         if (affectsLaneTopology) {
-            gameStore.rebuildConnectionsFromLaneClearance();
-        } else if (affectsLanePaths) {
-            gameStore.refreshLanePolylinesFromConfig();
+            gameStore.rebuildLaneConstraintsFromConfig();
+        } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
+            gameStore.rebuildLaneConstraintsFromConfig();
         }
     }
 

@@ -1,5 +1,5 @@
 import type { Connection } from '@pax/common';
-import type { LanePathKind } from '@pax/common/mapgen';
+import type { LaneConstraintStatus, LanePathKind } from '@pax/common/mapgen';
 import { seedLanePolylineCacheFromMapGen } from '$lib/lanes/lanePolylineCache';
 
 type LanePointLike = [number, number] | { x: number; y: number };
@@ -10,10 +10,25 @@ export interface LaneConnectionLike {
     distance: number;
     laneWaypoints?: unknown;
     lanePathKind?: unknown;
+    laneConstraintStatus?: unknown;
 }
 
 export function normalizeLanePathKind(value?: unknown): LanePathKind | undefined {
-    return value === 'straight' || value === 'curved' ? value : undefined;
+    return value === 'straight' || value === 'angular' || value === 'curved' ? value : undefined;
+}
+
+export function normalizeLaneConstraintStatus(value?: unknown): LaneConstraintStatus | undefined {
+    switch (value) {
+        case 'straight_ok':
+        case 'reshaped_ok_angular':
+        case 'reshaped_ok_curved':
+        case 'constraint_unsatisfied_authored':
+        case 'removed_for_constraint':
+        case 'connectivity_restore':
+            return value;
+        default:
+            return undefined;
+    }
 }
 
 function isLanePointObject(value: unknown): value is { x: number; y: number } {
@@ -50,6 +65,7 @@ export function toLaneAwareConnection(connection: LaneConnectionLike): Connectio
         distance: connection.distance,
         laneWaypoints: normalizeLaneWaypoints(connection.laneWaypoints),
         lanePathKind: normalizeLanePathKind(connection.lanePathKind),
+        laneConstraintStatus: normalizeLaneConstraintStatus(connection.laneConstraintStatus),
     };
 }
 

@@ -6,6 +6,24 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Completed This Slice
 
+- [x] Add explicit terminology/communication rules in:
+  - `.agent/AGENT.md`
+  - `.agent/docs/game/design/TERMINOLOGY.md`
+- [x] Create the canonical lane-constraint model note:
+  - `.agent/docs/project/implementation-plans/2026-04-13/LANE_CONSTRAINT_MODEL_2026-04-13.md`
+- [x] Split authored-map lane updates from connectivity recomputation in runtime state:
+  - authored maps preserve connectivity by default
+  - authored maps can opt into connectivity recomputation explicitly
+- [x] Add `laneConstraintStatus` to shared connection truth and saved-map export/import.
+- [x] Upgrade the frozen-map lane audit to report:
+  - connectivity mode
+  - final connection status
+  - straight-line distance vs final lane distance
+  - blocking stars and nearest-point distances
+  - attempt counts and rejection reasons
+- [x] Add a second deterministic stress-test map:
+  - `common/resources/saved-maps/lane_margin_cross_pressure_2p.json`
+  - blockers above and below the same lane corridor
 - [x] Eliminate the separate modal debug surface as the primary ruler entrypoint.
 - [x] Remove the later separate Diagnostics Bar experiment from the active game UI.
 - [x] Move ruler workflow into the regular right-hand Debug section instead of a second diagnostics surface.
@@ -91,6 +109,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Top Queue
 
+- [ ] Load `lane_margin_cross_pressure_2p` in-app and verify that authored connectivity stays fixed while only lane geometry changes.
 - [ ] Load `lane_margin_ruler_2p` in-app and verify the permanent fixtures remain readable while lane geometry is rebuilt live.
 - [ ] Verify in-app that explicit connectivity-restoration edges are visually honest in both SP and MP.
 - [ ] Decide whether connectivity-restoration edges need a distinct visual/diagnostic treatment when they violate requested Lane Margin.

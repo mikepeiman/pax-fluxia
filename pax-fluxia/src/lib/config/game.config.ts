@@ -329,6 +329,8 @@ interface GameConfigType {
      */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
     MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'angular' | 'curved';
+    /** When true, authored maps may rebuild connectivity from the same star layout on lane-constraint changes. */
+    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: boolean;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -1171,6 +1173,8 @@ const _rawConfig: GameConfigType = {
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
 
     MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'curved',
+
+    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: false,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',

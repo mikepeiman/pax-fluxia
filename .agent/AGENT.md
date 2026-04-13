@@ -38,6 +38,18 @@
 - **Every definition must have a consumer** — trace from definition → usage → trigger → UI.
 - **No orphans** — verify: "Who calls this? Where does this render? What fires this event?"
 
+### 2.3.1 Terminology And Communication
+- Never invent private terms in responses or project docs without defining them in the same response or document.
+- Prefer established project terms over ad hoc abstractions.
+- Explicitly distinguish:
+  - `connectivity` = which star pairs are connected
+  - `lane geometry` = the actual line used for an existing connection
+- When proposing or reporting work, always state:
+  - whether it is planned or implemented
+  - what layer it changes
+  - whether user verification is requested
+  - exact filesystem paths for new tools, outputs, and docs
+
 ### 2.4 Rename/Refactor Protocol
 When removing, renaming, or commenting out any symbol:
 1. Use `code_references` (atlas-harness) to find all importers of the symbol.

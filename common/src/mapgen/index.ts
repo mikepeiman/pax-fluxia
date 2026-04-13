@@ -11,8 +11,15 @@ export type {
     MapGenResult,
     LanePathKind,
     LaneAdjustmentStyle,
+    LaneConstraintStatus,
 } from './types';
-export type { MapLaneMode, LaneDecisionTrace, LaneAttemptTrace } from './lanePolylines';
+export type {
+    MapLaneMode,
+    LaneBuildMode,
+    BuildLaneAwareOptions,
+    LaneDecisionTrace,
+    LaneAttemptTrace,
+} from './lanePolylines';
 export {
     computeLaneWaypoints,
     attachLaneWaypointsToConnections,

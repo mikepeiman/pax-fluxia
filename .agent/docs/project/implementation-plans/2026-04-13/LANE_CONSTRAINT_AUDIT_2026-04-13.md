@@ -4,11 +4,20 @@
 
 Turn the lane-margin problem into a deterministic geometry audit on a frozen map, instead of guessing from live play.
 
+## Canonical model
+
+- The canonical lane model for this date is:
+  - `.agent/docs/project/implementation-plans/2026-04-13/LANE_CONSTRAINT_MODEL_2026-04-13.md`
+- Terminology used here:
+  - `connectivity` = which star pairs are connected
+  - `lane geometry` = the actual line used for an existing connection
+  - `Lane Margin` = distance from a non-endpoint star center to the nearest point on a lane
+
 ## Frozen Map
 
 - saved map: `common/resources/saved-maps/inner_circle_apr_13.json`
 - working clearance definition:
-  - center of non-endpoint star to lane centerline
+  - center of non-endpoint star to the nearest point on the lane
 
 ## New Tooling
 
@@ -19,15 +28,15 @@ Turn the lane-margin problem into a deterministic geometry audit on a frozen map
   - SVG snapshot
   - markdown summary
 - key metrics per lane:
-  - chord minimum clearance
+  - straight-line minimum distance
   - final minimum clearance
   - closest blocking star
   - closest point on final lane
-  - strict-vs-adjusted-vs-connectivity-override decision reason
+  - straight-vs-reshaped-vs-connectivity-restore decision reason
 
 ## Deterministic Remap Rule
 
-When a straight chord violates `Lane Margin`:
+When a straight line violates `Lane Margin`:
 
 1. Find the exact nearest blocking star-to-lane witness.
 2. Insert a vertex on that exact shortest path.
@@ -77,10 +86,10 @@ That is not a render bug. It is a geometry constraint fact on the frozen map.
 The builder now follows this explicit order:
 
 1. Full traversal connectivity is the winning constraint.
-2. If a straight chord satisfies `Lane Margin`, keep it straight.
-3. If a straight chord violates `Lane Margin`:
-   - when Remap is enabled, try adjusted paths that satisfy the same clearance
-   - when Remap is disabled, reject that specific lane and seek connectivity elsewhere
+2. If a straight line satisfies `Lane Margin`, keep it straight.
+3. If a straight line violates `Lane Margin`:
+   - when reshape is enabled, try adjusted paths that satisfy the same clearance
+   - when reshape is disabled, reject that specific lane and seek connectivity elsewhere
 4. If the strict feasible graph is still disconnected, restore connectivity explicitly at the graph layer.
 5. Lane-count targets remain weaker than the above.
 

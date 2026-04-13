@@ -189,12 +189,13 @@ export function listDelaunayConnections<T extends Connectable>(
  * @param maxDistance    - Max edge length (default Infinity)
  * @param minLinks      - Min connections per node (default 1)
  * @param maxLinks      - Max connections per node (default 6)
- * @param passThroughClearancePx - Lane margin: same px used later for sampled lane centerlines vs stars.
- * @param laneCurveVsPruneBias - 0..1 remap-vs-prune bias for lanes whose straight chord
- *   would violate `passThroughClearancePx`.
- *   - low values bias toward pruning/replacement
+ * @param passThroughClearancePx - Lane margin: same px later checked as the distance
+ *   from each non-endpoint star center to the nearest point on the lane.
+ * @param laneCurveVsPruneBias - 0..1 reshape-vs-remove bias for connections whose
+ *   straight line would violate `passThroughClearancePx`.
+ *   - low values bias toward removing/replacing that connection
  *   - high values bias toward keeping the candidate so shared lane geometry can try
- *     adjusted paths that satisfy the same clearance
+ *     reshaping the lane geometry first
  * @returns Canonical unidirectional connections
  */
 export function generateConnections<T extends Connectable>(

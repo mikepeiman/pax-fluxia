@@ -5,6 +5,7 @@
 - Eliminate lane truth divergence before merging the parallel branches.
 - Keep the geometry/UI/rendering split clean: geometry owns lane truth, rendering consumes it, UI only tunes and exposes it.
 - Avoid carrying forward any SP-only lane hacks that would reintroduce SP/MP drift.
+- Keep authored-map connectivity and lane-geometry reshaping as separate runtime operations.
 
 ## This round
 
@@ -131,8 +132,33 @@
 
 ## Next likely moves
 
+- Validate `lane_margin_cross_pressure_2p` in-app with authored connectivity preserved.
 - Verify in-app that high-margin lanes no longer disappear visually while mechanics still allow movement/attacks.
 - Decide whether explicit connectivity-restoration edges need a distinct diagnostic or visual treatment.
 - Verify the same lane-path truth presentation in SP and MP.
 - Continue lane-geometry tuning, but keep all future changes anchored to authoritative connection truth first.
 - Hand the new adjusted-path-style tunable to the UI owner for surfacing once the panel refactor is ready.
+
+## Lane constraint model
+
+- Canonical note:
+  - `.agent/docs/project/implementation-plans/2026-04-13/LANE_CONSTRAINT_MODEL_2026-04-13.md`
+- Canonical layers:
+  - star layout
+  - connectivity
+  - lane geometry
+  - forces
+- Canonical defaults:
+  - `Random` recomputes connectivity
+  - `Classic` and `Custom` preserve authored connectivity by default
+  - authored maps may opt into connectivity recomputation explicitly
+- Validation:
+  - `lane_margin_ruler_2p` at `LM 150`, `preserve_authored`
+    - `components 1`
+    - `straight_ok 2`
+    - `constraint_unsatisfied_authored 8`
+  - `lane_margin_cross_pressure_2p` at `LM 150`, `recompute_connectivity`
+    - `components 1`
+    - `reshaped_ok_curved 3`
+    - `removed_for_constraint 11`
+    - `connectivity_restore 6`

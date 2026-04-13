@@ -3,7 +3,7 @@
 // ============================================================================
 
 import type { StarId, PlayerId, StarType } from './game.types';
-import type { LanePathKind } from '@pax/common/mapgen';
+import type { LaneConstraintStatus, LanePathKind } from '@pax/common/mapgen';
 
 export type MapRulerLaneState = 'straight' | 'bent' | 'curved' | 'missing';
 
@@ -74,6 +74,7 @@ export interface MapDefinition {
     distance?: number;
     laneWaypoints?: Array<[number, number]>;
     lanePathKind?: LanePathKind;
+    laneConstraintStatus?: LaneConstraintStatus;
   }>;
   diagnostics?: MapDiagnostics;
   customRules?: Record<string, any>;

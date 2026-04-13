@@ -32,3 +32,25 @@
 | **Transition Layer** | Animating between geometry states — morphers, easing |
 | **Presentation Layer** | Drawing to screen — PIXI.Graphics fills, strokes |
 | **Compiler** | Produces geometry data from ownership state — no rendering, no PIXI |
+
+## Map Model Terms
+
+| Term | Definition |
+|------|-----------|
+| **Star Layout** | The star positions on a map |
+| **Connectivity** | Which star pairs are connected |
+| **Lane Geometry** | The actual line used for an existing connection |
+| **Forces** | Player ownership, ship counts, and other per-star starting state |
+| **Reshape** | Recompute lane geometry while preserving the existing connectivity |
+| **Recompute Connectivity** | Rebuild which star pairs are connected, then derive lane geometry from that new connectivity |
+| **Authored Map** | A map whose star layout and connectivity were chosen by a human or loaded from a saved map |
+| **Generated Map** | A map whose star layout and/or connectivity were produced by map generation logic |
+
+## Lane Constraint Terms
+
+| Term | Definition |
+|------|-----------|
+| **Lane Margin** | Distance from the center of a non-endpoint star to the nearest point on a lane |
+| **Straight Line** | The direct line between two connected stars |
+| **Adjusted Lane** | A lane whose geometry changed to satisfy lane margin while preserving the same connection |
+| **Connectivity Restore** | An explicit connection added only when the feasible graph would otherwise be disconnected |

@@ -150,11 +150,9 @@
 
 <h4 class="sub-heading">Map & lanes (live)</h4>
 <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-    <strong>MSR</strong> — territory boundaries only. <strong>Lane margin</strong> — hard minimum distance from
-    <strong>drawn</strong> lane centerlines to non-endpoint stars. <strong>Curve vs prune</strong> — Phase 4 only
-    checks the <strong>straight chord</strong> against <code>margin×(1−bias)</code>: low bias favors
-    <strong>dropping edges</strong> and Phase 5 reconnect; high bias <strong>keeps edges</strong> so curved mode
-    can route around stars while still meeting full lane margin on samples.
+    <strong>MSR</strong> — territory boundaries only. <strong>Lane margin</strong> — minimum distance from a
+    non-endpoint star center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
+    tries to reshape a violating connection before removing it during connectivity recompute.
 </p>
 <div class="var-row">
     <div class="row-top">
@@ -196,13 +194,13 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
             updatePanel("mapgenLaneMarginPx", v);
-            gameStore.rebuildConnectionsFromLaneClearance();
+            gameStore.rebuildLaneConstraintsFromConfig();
         }}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Curve vs prune (topology)</span><span class="val"
+        <span class="var-name">Reshape bias</span><span class="val"
             >{(
                 panel.mapgenLaneCurveVsPruneBias ??
                 GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
@@ -218,15 +216,36 @@
         value={panel.mapgenLaneCurveVsPruneBias ??
             GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
             0.55}
-        title="0 = prune tight chords; 1 = keep edges for curved geometry"
+        title="0 = remove violating connections during connectivity recompute; 1 = exhaust reshaping first"
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
             updatePanel("mapgenLaneCurveVsPruneBias", v);
-            gameStore.rebuildConnectionsFromLaneClearance();
+            gameStore.rebuildLaneConstraintsFromConfig();
         }}
     />
 </div>
+<label class="toggle-row"
+    ><input
+        type="checkbox"
+        checked={panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
+            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            false}
+        onchange={(e) => {
+            const v = (e.target as HTMLInputElement).checked;
+            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
+            updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", v);
+            gameStore.rebuildLaneConstraintsFromConfig();
+        }}
+    />
+    <span class="var-name">Recompute connectivity</span><span
+        class="val"
+        style="font-size:9px;opacity:0.6"
+        >{gameStore.currentMapConnectivityMode === "generated"
+            ? "random maps already recompute"
+            : "authored maps: off reshapes only"}</span
+    ></label
+>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Lane path</span>
@@ -243,7 +262,7 @@
                 aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "straight");
-                    gameStore.refreshLanePolylinesFromConfig();
+                    gameStore.rebuildLaneConstraintsFromConfig();
                 }}>Straight</button
             >
             <button
@@ -254,7 +273,7 @@
                 aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "curved");
-                    gameStore.refreshLanePolylinesFromConfig();
+                    gameStore.rebuildLaneConstraintsFromConfig();
                 }}>Curve if needed</button
             >
         </div>

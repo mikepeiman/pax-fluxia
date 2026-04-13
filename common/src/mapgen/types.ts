@@ -13,10 +13,18 @@ export interface MapPosition {
 
 /**
  * Lane resolution class for motion and corridor sampling (not the same as `MapLaneMode`).
- * `straight` = chord polyline (two endpoints only). `curved` = Bézier samples or kinked polyline.
+ * `straight` = direct line between star centers, `angular` = vertex-based reshaped line,
+ * `curved` = sampled arcized version of a valid reshaped line.
  */
 export type LanePathKind = 'straight' | 'angular' | 'curved';
 export type LaneAdjustmentStyle = 'angular' | 'curved';
+export type LaneConstraintStatus =
+    | 'straight_ok'
+    | 'reshaped_ok_angular'
+    | 'reshaped_ok_curved'
+    | 'constraint_unsatisfied_authored'
+    | 'removed_for_constraint'
+    | 'connectivity_restore';
 
 /**
  * A connection between two map nodes.
@@ -30,6 +38,8 @@ export interface MapConnection {
     laneWaypoints?: Array<[number, number]>;
     /** Set by mapgen / lane solver; consumers avoid re-deriving from waypoint count alone. */
     lanePathKind?: LanePathKind;
+    /** Shared lane-constraint result for diagnostics and SP/MP parity. */
+    laneConstraintStatus?: LaneConstraintStatus;
 }
 
 /**
@@ -86,14 +96,15 @@ export interface MapGenConfig {
     /** How non-straight accepted lanes are represented once remapping is enabled. */
     mapgenLaneAdjustedPathStyle?: LaneAdjustmentStyle;
     /**
-     * 0..1 remap-vs-prune bias for lanes whose straight chord violates `mapgenLaneMarginPx`.
+     * 0..1 reshape-vs-prune bias for connections whose straight line violates
+     * `mapgenLaneMarginPx`.
      *
      * Hierarchy:
      * 1. Full traversal connectivity is the winning constraint.
-     * 2. If a chord satisfies `mapgenLaneMarginPx`, keep it straight.
-     * 3. If a chord violates `mapgenLaneMarginPx`:
-     *    - low values bias toward pruning that lane and replacing connectivity elsewhere
-     *    - high values bias toward trying adjusted paths that satisfy the same clearance
+     * 2. If a straight line satisfies `mapgenLaneMarginPx`, keep it straight.
+     * 3. If a straight line violates `mapgenLaneMarginPx`:
+     *    - low values bias toward removing that connection during topology recompute
+     *    - high values bias toward exhausting reshaped lane geometry before removal
      * 4. Min/max link targets are weakest and may be exceeded or under-filled to preserve the above.
      */
     mapgenLaneCurveVsPruneBias?: number;

@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "name": "lane_margin_cross_pressure_2p",
+    "author": "Codex",
+    "description": "Deterministic 2-player lane-margin stress map with blockers above and below the same lane corridor.",
+    "createdAt": "2026-04-13T23:55:00.000Z",
+    "version": 2
+  },
+  "stars": [
+    { "id": "star-0", "x": 240, "y": 450, "ownerId": "human-player", "starType": "blue", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-1", "x": 540, "y": 450, "ownerId": "human-player", "starType": "grey", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-2", "x": 840, "y": 450, "ownerId": "neutral", "starType": "grey", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-3", "x": 1140, "y": 450, "ownerId": "ai-1", "starType": "grey", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-4", "x": 1440, "y": 450, "ownerId": "ai-1", "starType": "red", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-5", "x": 660, "y": 390, "ownerId": "neutral", "starType": "yellow", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-6", "x": 740, "y": 330, "ownerId": "neutral", "starType": "purple", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-7", "x": 960, "y": 360, "ownerId": "neutral", "starType": "yellow", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-8", "x": 1020, "y": 300, "ownerId": "neutral", "starType": "blue", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-9", "x": 640, "y": 540, "ownerId": "neutral", "starType": "green", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-10", "x": 760, "y": 600, "ownerId": "neutral", "starType": "purple", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-11", "x": 930, "y": 630, "ownerId": "neutral", "starType": "green", "activeShips": 40, "damagedShips": 0 },
+    { "id": "star-12", "x": 1070, "y": 690, "ownerId": "neutral", "starType": "yellow", "activeShips": 40, "damagedShips": 0 }
+  ],
+  "connections": [
+    { "sourceId": "star-0", "targetId": "star-1", "distance": 300, "laneWaypoints": [[240, 450], [540, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-1", "targetId": "star-2", "distance": 300, "laneWaypoints": [[540, 450], [840, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-2", "targetId": "star-3", "distance": 300, "laneWaypoints": [[840, 450], [1140, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-3", "targetId": "star-4", "distance": 300, "laneWaypoints": [[1140, 450], [1440, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-5", "targetId": "star-1", "distance": 134.16407864998737, "laneWaypoints": [[660, 390], [540, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-6", "targetId": "star-2", "distance": 155.24174696260025, "laneWaypoints": [[740, 330], [840, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-7", "targetId": "star-2", "distance": 150, "laneWaypoints": [[960, 360], [840, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-8", "targetId": "star-3", "distance": 192.09372712298546, "laneWaypoints": [[1020, 300], [1140, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-9", "targetId": "star-1", "distance": 134.16407864998737, "laneWaypoints": [[640, 540], [540, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-10", "targetId": "star-2", "distance": 170, "laneWaypoints": [[760, 600], [840, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-11", "targetId": "star-2", "distance": 200.24984394500785, "laneWaypoints": [[930, 630], [840, 450]], "lanePathKind": "straight" },
+    { "sourceId": "star-12", "targetId": "star-3", "distance": 250.79872407968904, "laneWaypoints": [[1070, 690], [1140, 450]], "lanePathKind": "straight" }
+  ],
+  "diagnostics": {
+    "rulerColor": { "h": 190, "s": 90, "l": 72, "a": 0.96 },
+    "rulerFixtures": [
+      { "id": "cp-60-top", "startStarId": "star-5", "laneKey": "star-1|star-2", "expectedDistancePx": 60, "label": "60 top", "userLaneState": "straight" },
+      { "id": "cp-90-bot", "startStarId": "star-9", "laneKey": "star-1|star-2", "expectedDistancePx": 90, "label": "90 bottom", "userLaneState": "straight" },
+      { "id": "cp-120-top", "startStarId": "star-6", "laneKey": "star-1|star-2", "expectedDistancePx": 120, "label": "120 top", "userLaneState": "straight" },
+      { "id": "cp-150-bot", "startStarId": "star-10", "laneKey": "star-1|star-2", "expectedDistancePx": 150, "label": "150 bottom", "userLaneState": "straight" },
+      { "id": "cp-90-top", "startStarId": "star-7", "laneKey": "star-2|star-3", "expectedDistancePx": 90, "label": "90 top", "userLaneState": "straight" },
+      { "id": "cp-150-top", "startStarId": "star-8", "laneKey": "star-2|star-3", "expectedDistancePx": 150, "label": "150 top", "userLaneState": "straight" },
+      { "id": "cp-180-bot", "startStarId": "star-11", "laneKey": "star-2|star-3", "expectedDistancePx": 180, "label": "180 bottom", "userLaneState": "straight" },
+      { "id": "cp-240-bot", "startStarId": "star-12", "laneKey": "star-2|star-3", "expectedDistancePx": 240, "label": "240 bottom", "userLaneState": "straight" }
+    ]
+  }
+}

@@ -3,24 +3,34 @@
 //
 // Hierarchy:
 // 1. Full traversal connectivity wins globally.
-// 2. If a straight chord satisfies lane margin, keep it straight.
-// 3. If a straight chord violates lane margin:
-//    - remap enabled: try adjusted paths that satisfy the same clearance
-//    - remap disabled: reject that specific lane
+// 2. If a straight line satisfies lane margin, keep it straight.
+// 3. If a straight line violates lane margin:
+//    - reshape enabled: try adjusted lane geometry that satisfies the same clearance
+//    - reshape disabled: reject that specific lane
 // 4. If the strict feasible graph is disconnected, connectivity is restored explicitly
 //    at the graph layer, not by silently mutating renderer-only geometry.
 //
 // Solver shape:
-// - derive the nearest blocking star-to-lane witness
+// - derive the nearest blocking star-to-lane measurement
 // - insert a vertex on that exact shortest path
 // - push the vertex to the requested lane margin and no farther
 // - repeat deterministically for remaining blockers when needed
 // ============================================================================
 
-import type { Connectable, LaneAdjustmentStyle, LanePathKind, MapConnection } from './types';
+import type {
+    Connectable,
+    LaneAdjustmentStyle,
+    LaneConstraintStatus,
+    LanePathKind,
+    MapConnection,
+} from './types';
 import { pointToSegmentDistance } from './connections';
 
 export type MapLaneMode = 'straight' | 'curved';
+export type LaneBuildMode = 'preserve_authored' | 'recompute_connectivity';
+export interface BuildLaneAwareOptions {
+    buildMode?: LaneBuildMode;
+}
 
 export interface LaneAttemptTrace {
     candidateKind: 'straight' | 'angular' | 'curved';
@@ -268,36 +278,40 @@ function trySingleKinkDetour(
     minDist: number,
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
+    maxIterations: number,
 ): Array<[number, number]> | null {
     let current: Array<[number, number]> = [[ax, ay], [bx, by]];
-    for (let iteration = 0; iteration < 24; iteration++) {
-        const witness = sortedObstacleWitnessesToPolyline(current, obstacles)
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+        const blockingMeasurement = sortedObstacleWitnessesToPolyline(current, obstacles)
             .find((candidate) => candidate.distance < minDist - CLEARANCE_EPSILON_PX);
-        if (!witness) {
+        if (!blockingMeasurement) {
             if (polylineCrossesPlaced(current, placed, starCenters)) return null;
             return current;
         }
-        const [segA, segB] = [current[witness.segmentIndex]!, current[witness.segmentIndex + 1]!];
+        const [segA, segB] = [
+            current[blockingMeasurement.segmentIndex]!,
+            current[blockingMeasurement.segmentIndex + 1]!,
+        ];
         const segDx = segB[0] - segA[0];
         const segDy = segB[1] - segA[1];
         const segLen = hypot(segDx, segDy) || 1;
-        let pushDx = witness.pointX - witness.obstacle.x;
-        let pushDy = witness.pointY - witness.obstacle.y;
+        let pushDx = blockingMeasurement.pointX - blockingMeasurement.obstacle.x;
+        let pushDy = blockingMeasurement.pointY - blockingMeasurement.obstacle.y;
         let pushLen = hypot(pushDx, pushDy);
         if (pushLen <= 1e-6) {
             pushDx = -segDy / segLen;
             pushDy = segDx / segLen;
             pushLen = 1;
         }
-        const delta = Math.max(0, minDist - witness.distance);
+        const delta = Math.max(0, minDist - blockingMeasurement.distance);
         const vertex: [number, number] = [
-            witness.pointX + (pushDx / pushLen) * delta,
-            witness.pointY + (pushDy / pushLen) * delta,
+            blockingMeasurement.pointX + (pushDx / pushLen) * delta,
+            blockingMeasurement.pointY + (pushDy / pushLen) * delta,
         ];
         const next: Array<[number, number]> = [];
         for (let i = 0; i < current.length - 1; i++) {
             next.push(current[i]!);
-            if (i === witness.segmentIndex) next.push(vertex);
+            if (i === blockingMeasurement.segmentIndex) next.push(vertex);
         }
         next.push(current[current.length - 1]!);
         current = next;
@@ -335,9 +349,15 @@ export function effectiveLaneClearanceForChord(
     return Math.max(0, configuredClearancePx);
 }
 
+function reshapeAttemptBudget(reshapeBias: number): number {
+    if (reshapeBias <= 0) return 0;
+    return Math.max(4, Math.min(48, Math.round(4 + reshapeBias * 44)));
+}
+
 type LaneSolveResult = {
     waypoints: Array<[number, number]>;
     kind: LanePathKind;
+    constraintStatus: LaneConstraintStatus;
 };
 
 function tryAdjustedPath(
@@ -350,10 +370,22 @@ function tryAdjustedPath(
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
     adjustmentStyle: LaneAdjustmentStyle,
+    reshapeBias: number,
     trace?: LaneDecisionTrace,
 ): LaneSolveResult | null {
+    const maxIterations = reshapeAttemptBudget(reshapeBias);
     if (adjustmentStyle === 'angular') {
-        const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
+        const kink = trySingleKinkDetour(
+            ax,
+            ay,
+            bx,
+            by,
+            obstacles,
+            clearancePx,
+            placed,
+            starCenters,
+            maxIterations,
+        );
         if (!kink) {
             trace?.attempts.push({
                 candidateKind: 'angular',
@@ -373,10 +405,24 @@ function tryAdjustedPath(
             accepted: true,
             reason: 'accepted',
         });
-        return { waypoints: kink, kind: 'angular' };
+        return {
+            waypoints: kink,
+            kind: 'angular',
+            constraintStatus: 'reshaped_ok_angular',
+        };
     }
 
-    const kink = trySingleKinkDetour(ax, ay, bx, by, obstacles, clearancePx, placed, starCenters);
+    const kink = trySingleKinkDetour(
+        ax,
+        ay,
+        bx,
+        by,
+        obstacles,
+        clearancePx,
+        placed,
+        starCenters,
+        maxIterations,
+    );
     if (kink) {
         const roundedCandidates = [0.3, 0.22, 0.16, 0.12, 0.08, 0.05, 0.035, 0.025, 0.015]
             .map((fraction) => roundPolylineWithQuadraticCorners(kink, fraction));
@@ -400,7 +446,11 @@ function tryAdjustedPath(
                     accepted: true,
                     reason: 'accepted_via_deterministic_vertex',
                 });
-                return { waypoints: curved, kind: 'curved' };
+                return {
+                    waypoints: curved,
+                    kind: 'curved',
+                    constraintStatus: 'reshaped_ok_curved',
+                };
             }
             trace?.attempts.push({
                 candidateKind: 'curved',
@@ -411,6 +461,19 @@ function tryAdjustedPath(
                 reason: 'deterministic_vertex_curve_failed',
             });
         }
+        trace?.attempts.push({
+            candidateKind: 'angular',
+            minimumClearancePx: minimumObstacleDistanceToPolyline(kink, obstacles),
+            requiredClearancePx: clearancePx,
+            waypointCount: kink.length,
+            accepted: true,
+            reason: 'curve_conversion_failed_kept_angular',
+        });
+        return {
+            waypoints: kink,
+            kind: 'angular',
+            constraintStatus: 'reshaped_ok_angular',
+        };
     } else {
         trace?.attempts.push({
             candidateKind: 'curved',
@@ -433,7 +496,8 @@ function solveAdaptiveWaypoints(
     placed: Seg[],
     starCenters: Array<{ x: number; y: number }>,
     adjustmentStyle: LaneAdjustmentStyle,
-    allowRemap: boolean,
+    allowReshape: boolean,
+    reshapeBias: number,
     trace?: LaneDecisionTrace,
 ): LaneSolveResult | null {
     const chord = hypot(bx - ax, by - ay);
@@ -478,15 +542,19 @@ function solveAdaptiveWaypoints(
             trace.finalPassesRequested = chordMinClearancePx >= clearancePx;
             trace.finalReason = 'straight_clear';
         }
-        return { waypoints: straight, kind: 'straight' };
+        return {
+            waypoints: straight,
+            kind: 'straight',
+            constraintStatus: 'straight_ok',
+        };
     }
 
-    if (!allowRemap) {
+    if (!allowReshape) {
         if (trace) {
             trace.finalPathKind = 'missing';
             trace.finalMinClearancePx = chordMinClearancePx;
             trace.finalPassesRequested = chordMinClearancePx >= clearancePx;
-            trace.finalReason = 'blocked_and_remap_disabled';
+            trace.finalReason = 'blocked_and_reshape_disabled';
         }
         return null;
     }
@@ -501,6 +569,7 @@ function solveAdaptiveWaypoints(
         placed,
         starCenters,
         adjustmentStyle,
+        reshapeBias,
         trace,
     );
     if (strictSolved) {
@@ -570,6 +639,7 @@ export function computeLaneWaypoints(
         obstacleCenters,
         'curved',
         true,
+        1,
     )?.waypoints ?? [];
 }
 
@@ -581,7 +651,7 @@ function tryResolveLaneConnection(
     starCenters: Array<{ x: number; y: number }>,
     mode: MapLaneMode,
     laneObstacleClearancePx: number,
-    remapBias: number,
+    reshapeBias: number,
     adjustmentStyle: LaneAdjustmentStyle,
     trace?: LaneDecisionTrace,
 ): MapConnection | null {
@@ -605,12 +675,21 @@ function tryResolveLaneConnection(
             placed,
             starCenters,
             adjustmentStyle,
-            remapBias > 0,
+            reshapeBias > 0,
+            reshapeBias,
             trace,
         );
         if (!resolved || resolved.waypoints.length < 2) return null;
         laneWaypoints = resolved.waypoints;
         lanePathKind = resolved.kind;
+        return {
+            sourceId: a.id,
+            targetId: b.id,
+            distance: hypot(b.x - a.x, b.y - a.y),
+            laneWaypoints,
+            lanePathKind,
+            laneConstraintStatus: resolved.constraintStatus,
+        };
     }
 
     return {
@@ -619,6 +698,7 @@ function tryResolveLaneConnection(
         distance: hypot(b.x - a.x, b.y - a.y),
         laneWaypoints,
         lanePathKind,
+        laneConstraintStatus: 'straight_ok',
     };
 }
 
@@ -630,7 +710,7 @@ export function debugResolveLaneConnection(
     starCenters: Array<{ x: number; y: number }>,
     mode: MapLaneMode,
     laneObstacleClearancePx: number,
-    remapBias: number,
+    reshapeBias: number,
     adjustmentStyle: LaneAdjustmentStyle,
 ): { connection: MapConnection | null; trace: LaneDecisionTrace } {
     const trace = createLaneDecisionTrace();
@@ -642,7 +722,7 @@ export function debugResolveLaneConnection(
         starCenters,
         mode,
         laneObstacleClearancePx,
-        remapBias,
+        reshapeBias,
         adjustmentStyle,
         trace,
     );
@@ -826,7 +906,7 @@ function buildConnectivityOverrideCandidates(
     return out;
 }
 
-function buildConnectivityOverrideConnection(
+function buildConnectivityRestoreConnection(
     a: Connectable,
     b: Connectable,
 ): MapConnection {
@@ -836,6 +916,21 @@ function buildConnectivityOverrideConnection(
         distance: hypot(b.x - a.x, b.y - a.y),
         laneWaypoints: [[a.x, a.y], [b.x, b.y]],
         lanePathKind: 'straight',
+        laneConstraintStatus: 'connectivity_restore',
+    };
+}
+
+function buildConstraintUnsatisfiedAuthoredConnection(
+    a: Connectable,
+    b: Connectable,
+): MapConnection {
+    return {
+        sourceId: a.id,
+        targetId: b.id,
+        distance: hypot(b.x - a.x, b.y - a.y),
+        laneWaypoints: [[a.x, a.y], [b.x, b.y]],
+        lanePathKind: 'straight',
+        laneConstraintStatus: 'constraint_unsatisfied_authored',
     };
 }
 
@@ -845,9 +940,11 @@ export function buildLaneAwareConnections<T extends Connectable>(
     candidateConnections: MapConnection[],
     mode: MapLaneMode,
     laneObstacleClearancePx: number,
-    remapBias: number = 1,
+    reshapeBias: number = 1,
     adjustmentStyle: LaneAdjustmentStyle = 'curved',
+    options: BuildLaneAwareOptions = {},
 ): MapConnection[] {
+    const buildMode = options.buildMode ?? 'recompute_connectivity';
     const pos = new Map(nodes.map((n) => [n.id, n]));
     const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
     const accepted: MapConnection[] = [];
@@ -885,7 +982,7 @@ export function buildLaneAwareConnections<T extends Connectable>(
             starCenters,
             mode,
             laneObstacleClearancePx,
-            remapBias,
+            reshapeBias,
             adjustmentStyle,
         );
         if (!resolved) return false;
@@ -894,7 +991,16 @@ export function buildLaneAwareConnections<T extends Connectable>(
     };
 
     for (const connection of preferredSorted) {
-        tryAccept(connection);
+        if (tryAccept(connection)) continue;
+        if (buildMode !== 'preserve_authored') continue;
+        const a = pos.get(connection.sourceId);
+        const b = pos.get(connection.targetId);
+        if (!a || !b) continue;
+        acceptResolved(buildConstraintUnsatisfiedAuthoredConnection(a, b), a, b);
+    }
+
+    if (buildMode === 'preserve_authored') {
+        return accepted;
     }
 
     if (countConnectedComponents(nodes, accepted) > 1) {
@@ -935,7 +1041,7 @@ export function buildLaneAwareConnections<T extends Connectable>(
                 const a = pos.get(connection.sourceId);
                 const b = pos.get(connection.targetId);
                 if (!a || !b) continue;
-                acceptResolved(buildConnectivityOverrideConnection(a, b), a, b);
+                acceptResolved(buildConnectivityRestoreConnection(a, b), a, b);
                 progressed = true;
                 break;
             }
@@ -995,13 +1101,18 @@ export function attachLaneWaypointsToConnections<T extends Connectable>(
                 starCenters,
                 'curved',
                 true,
+                1,
             );
             if (!resolved || resolved.waypoints.length < 2) continue;
             wp = resolved.waypoints;
             pathKind = resolved.kind;
+            c.laneConstraintStatus = resolved.constraintStatus;
         }
         c.laneWaypoints = wp;
         c.lanePathKind = pathKind;
+        if (mode === 'straight') {
+            c.laneConstraintStatus = 'straight_ok';
+        }
         placed.push(...polylineToSegments(wp));
     }
 }
