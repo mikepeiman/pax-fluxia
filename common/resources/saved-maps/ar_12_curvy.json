@@ -1,0 +1,773 @@
+{
+  "metadata": {
+    "name": "ar_12_curvy",
+    "createdAt": "2026-04-13T03:32:38.914Z",
+    "version": 2
+  },
+  "stars": [
+    {
+      "id": "star-0",
+      "x": 1259.1875,
+      "y": 120.62354166666667,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-1",
+      "x": 156.25000000000006,
+      "y": 575.4539583333333,
+      "ownerId": "ai-2",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-2",
+      "x": 1416.75,
+      "y": 303.3960416666667,
+      "ownerId": "ai-2",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-3",
+      "x": 1337.96875,
+      "y": 257.1777083333333,
+      "ownerId": "ai-5",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-4",
+      "x": 1259.1875,
+      "y": 758.2264583333333,
+      "ownerId": "neutral",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-5",
+      "x": 235.03125,
+      "y": 530.2860416666666,
+      "ownerId": "ai-2",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-6",
+      "x": 944.0625,
+      "y": 666.8402083333333,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-7",
+      "x": 628.9375,
+      "y": 575.4539583333333,
+      "ownerId": "neutral",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-8",
+      "x": 235.03125,
+      "y": 621.6722916666666,
+      "ownerId": "neutral",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-9",
+      "x": 707.71875,
+      "y": 166.84187500000002,
+      "ownerId": "neutral",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-10",
+      "x": 235.03125,
+      "y": 438.89979166666666,
+      "ownerId": "ai-5",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-11",
+      "x": 786.5,
+      "y": 393.731875,
+      "ownerId": "ai-4",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-12",
+      "x": 1022.84375,
+      "y": 348.56395833333335,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-13",
+      "x": 1416.75,
+      "y": 666.8402083333333,
+      "ownerId": "neutral",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-14",
+      "x": 865.28125,
+      "y": 348.56395833333335,
+      "ownerId": "neutral",
+      "starType": "green",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-15",
+      "x": 313.81250000000006,
+      "y": 485.118125,
+      "ownerId": "ai-1",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-16",
+      "x": 550.15625,
+      "y": 438.89979166666666,
+      "ownerId": "ai-4",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-17",
+      "x": 1259.1875,
+      "y": 212.00979166666667,
+      "ownerId": "human-player",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-18",
+      "x": 628.9375,
+      "y": 758.2264583333333,
+      "ownerId": "ai-5",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-19",
+      "x": 1337.96875,
+      "y": 712.008125,
+      "ownerId": "ai-4",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-20",
+      "x": 944.0625,
+      "y": 575.4539583333333,
+      "ownerId": "ai-4",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-21",
+      "x": 628.9375,
+      "y": 120.62354166666667,
+      "ownerId": "ai-4",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-22",
+      "x": 471.37500000000006,
+      "y": 485.118125,
+      "ownerId": "ai-5",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-23",
+      "x": 707.71875,
+      "y": 712.008125,
+      "ownerId": "human-player",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-24",
+      "x": 1416.75,
+      "y": 393.731875,
+      "ownerId": "ai-3",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-25",
+      "x": 944.0625,
+      "y": 120.62354166666667,
+      "ownerId": "ai-1",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-26",
+      "x": 313.81250000000006,
+      "y": 120.62354166666667,
+      "ownerId": "ai-1",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-27",
+      "x": 550.15625,
+      "y": 712.008125,
+      "ownerId": "human-player",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-28",
+      "x": 944.0625,
+      "y": 212.00979166666667,
+      "ownerId": "ai-5",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-29",
+      "x": 550.15625,
+      "y": 530.2860416666666,
+      "ownerId": "ai-3",
+      "starType": "red",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-30",
+      "x": 865.28125,
+      "y": 621.6722916666666,
+      "ownerId": "ai-3",
+      "starType": "purple",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-31",
+      "x": 313.81250000000006,
+      "y": 758.2264583333333,
+      "ownerId": "neutral",
+      "starType": "blue",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-32",
+      "x": 786.5,
+      "y": 212.00979166666667,
+      "ownerId": "ai-2",
+      "starType": "green",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-33",
+      "x": 235.03125,
+      "y": 166.84187500000002,
+      "ownerId": "neutral",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-34",
+      "x": 1337.96875,
+      "y": 438.89979166666666,
+      "ownerId": "ai-1",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-35",
+      "x": 471.37500000000006,
+      "y": 758.2264583333333,
+      "ownerId": "ai-3",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-36",
+      "x": 628.9375,
+      "y": 303.3960416666667,
+      "ownerId": "ai-2",
+      "starType": "grey",
+      "activeShips": 40,
+      "damagedShips": 0
+    },
+    {
+      "id": "star-37",
+      "x": 1101.625,
+      "y": 120.62354166666667,
+      "ownerId": "ai-3",
+      "starType": "yellow",
+      "activeShips": 40,
+      "damagedShips": 0
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "star-0",
+      "targetId": "star-17",
+      "distance": 91.38625
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-5",
+      "distance": 90.81093572675834
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-24",
+      "distance": 90.33583333333331
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-3",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-19",
+      "targetId": "star-4",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-30",
+      "targetId": "star-6",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-29",
+      "targetId": "star-7",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-8",
+      "distance": 91.33794221282635
+    },
+    {
+      "sourceId": "star-32",
+      "targetId": "star-9",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-15",
+      "distance": 91.33794221282645
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-14",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-14",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-19",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-22",
+      "distance": 91.33794221282635
+    },
+    {
+      "sourceId": "star-18",
+      "targetId": "star-27",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-20",
+      "targetId": "star-30",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-21",
+      "targetId": "star-9",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-18",
+      "targetId": "star-23",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-25",
+      "targetId": "star-28",
+      "distance": 91.38625
+    },
+    {
+      "sourceId": "star-26",
+      "targetId": "star-33",
+      "distance": 91.33794221282643
+    },
+    {
+      "sourceId": "star-31",
+      "targetId": "star-35",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-24",
+      "targetId": "star-34",
+      "distance": 90.81093572675839
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-36",
+      "distance": 156.74103360519538
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-37",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-0",
+      "targetId": "star-3",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-1",
+      "targetId": "star-10",
+      "distance": 157.6500104205206
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-3",
+      "distance": 91.33794221282639
+    },
+    {
+      "sourceId": "star-2",
+      "targetId": "star-34",
+      "distance": 156.74103360519538
+    },
+    {
+      "sourceId": "star-3",
+      "targetId": "star-34",
+      "distance": 181.72208333333333
+    },
+    {
+      "sourceId": "star-4",
+      "targetId": "star-6",
+      "distance": 328.1085373989261
+    },
+    {
+      "sourceId": "star-34",
+      "targetId": "star-4",
+      "distance": 328.90120917382916
+    },
+    {
+      "sourceId": "star-18",
+      "targetId": "star-4",
+      "distance": 630.25
+    },
+    {
+      "sourceId": "star-15",
+      "targetId": "star-5",
+      "distance": 90.81093572675842
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-5",
+      "distance": 91.38624999999996
+    },
+    {
+      "sourceId": "star-5",
+      "targetId": "star-8",
+      "distance": 91.38625000000002
+    },
+    {
+      "sourceId": "star-20",
+      "targetId": "star-6",
+      "distance": 91.38625000000002
+    },
+    {
+      "sourceId": "star-23",
+      "targetId": "star-6",
+      "distance": 240.62108980733473
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-7",
+      "distance": 157.65001042052063
+    },
+    {
+      "sourceId": "star-23",
+      "targetId": "star-7",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-27",
+      "targetId": "star-7",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-7",
+      "distance": 240.51789325797972
+    },
+    {
+      "sourceId": "star-30",
+      "targetId": "star-7",
+      "distance": 240.820477742599
+    },
+    {
+      "sourceId": "star-15",
+      "targetId": "star-8",
+      "distance": 157.65001042052066
+    },
+    {
+      "sourceId": "star-31",
+      "targetId": "star-8",
+      "distance": 157.65001042052072
+    },
+    {
+      "sourceId": "star-22",
+      "targetId": "star-8",
+      "distance": 272.9567888844135
+    },
+    {
+      "sourceId": "star-35",
+      "targetId": "star-8",
+      "distance": 272.9567888844135
+    },
+    {
+      "sourceId": "star-36",
+      "targetId": "star-9",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-25",
+      "targetId": "star-9",
+      "distance": 240.820477742599
+    },
+    {
+      "sourceId": "star-10",
+      "targetId": "star-33",
+      "distance": 272.05791666666664
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-36",
+      "distance": 181.62187145351677
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-32",
+      "distance": 181.72208333333333
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-20",
+      "distance": 240.51789325797972
+    },
+    {
+      "sourceId": "star-11",
+      "targetId": "star-16",
+      "distance": 240.62108980733473
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-28",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-20",
+      "distance": 240.17817854993086
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-37",
+      "distance": 241.17072563173193
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-17",
+      "distance": 272.95678888441347
+    },
+    {
+      "sourceId": "star-12",
+      "targetId": "star-34",
+      "distance": 327.8175230353432
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-34",
+      "distance": 241.1707256317319
+    },
+    {
+      "sourceId": "star-13",
+      "targetId": "star-24",
+      "distance": 273.1083333333333
+    },
+    {
+      "sourceId": "star-14",
+      "targetId": "star-32",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-14",
+      "targetId": "star-28",
+      "distance": 157.6500104205207
+    },
+    {
+      "sourceId": "star-14",
+      "targetId": "star-20",
+      "distance": 240.17817854993086
+    },
+    {
+      "sourceId": "star-15",
+      "targetId": "star-22",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-15",
+      "targetId": "star-26",
+      "distance": 364.49458333333337
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-29",
+      "distance": 91.38624999999996
+    },
+    {
+      "sourceId": "star-16",
+      "targetId": "star-26",
+      "distance": 396.4317589171243
+    },
+    {
+      "sourceId": "star-17",
+      "targetId": "star-37",
+      "distance": 182.14661153947526
+    },
+    {
+      "sourceId": "star-18",
+      "targetId": "star-35",
+      "distance": 157.56249999999994
+    },
+    {
+      "sourceId": "star-21",
+      "targetId": "star-36",
+      "distance": 182.77250000000004
+    },
+    {
+      "sourceId": "star-21",
+      "targetId": "star-26",
+      "distance": 315.12499999999994
+    },
+    {
+      "sourceId": "star-22",
+      "targetId": "star-29",
+      "distance": 90.81093572675832
+    },
+    {
+      "sourceId": "star-22",
+      "targetId": "star-27",
+      "distance": 240.17817854993083
+    },
+    {
+      "sourceId": "star-22",
+      "targetId": "star-35",
+      "distance": 273.1083333333333
+    },
+    {
+      "sourceId": "star-23",
+      "targetId": "star-27",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-23",
+      "targetId": "star-30",
+      "distance": 181.62187145351677
+    },
+    {
+      "sourceId": "star-25",
+      "targetId": "star-37",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-25",
+      "targetId": "star-32",
+      "distance": 182.14661153947526
+    },
+    {
+      "sourceId": "star-26",
+      "targetId": "star-36",
+      "distance": 364.2932230789505
+    },
+    {
+      "sourceId": "star-27",
+      "targetId": "star-35",
+      "distance": 91.33794221282635
+    },
+    {
+      "sourceId": "star-27",
+      "targetId": "star-29",
+      "distance": 181.72208333333333
+    },
+    {
+      "sourceId": "star-28",
+      "targetId": "star-32",
+      "distance": 157.5625
+    },
+    {
+      "sourceId": "star-28",
+      "targetId": "star-37",
+      "distance": 182.14661153947526
+    },
+    {
+      "sourceId": "star-32",
+      "targetId": "star-36",
+      "distance": 182.14661153947526
+    }
+  ]
+}

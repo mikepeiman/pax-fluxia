@@ -13,6 +13,7 @@
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
   import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
+  import type { MenuTheme } from "$lib/components/ui/menuTheme";
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import StatusBar from "$lib/components/ui/StatusBar.svelte";
   import StarNav from "$lib/components/ui/StarNav.svelte";
@@ -34,7 +35,22 @@
     }
   }
 
+  function loadMenuTheme(): MenuTheme {
+    if (typeof localStorage === "undefined") return "imperial";
+    const stored = localStorage.getItem("pax-fluxia-menuTheme");
+    if (!stored) return "imperial";
+    try {
+      const parsed = JSON.parse(stored);
+      return parsed === "imperial" || parsed === "neon" || parsed === "mythic"
+        ? parsed
+        : "imperial";
+    } catch {
+      return "imperial";
+    }
+  }
+
   // ── Panel visibility states ──
+  let menuTheme = $state<MenuTheme>(loadMenuTheme());
   let showAudioSettings = $state(false);
   let showSurrenderModal = $state(false);
   let showStarInfoPanel = $state(
@@ -55,11 +71,7 @@
     });
   }
 
-  let showSettingsPanel = $state(
-    !isMobileAtLoad &&
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("pax-settings-open") === "true",
-  );
+  let showSettingsPanel = $state(false);
   // Auto-pause: pause game when settings open, restore on close
   let pauseOnSettings = $state(
     typeof localStorage === "undefined" ||
@@ -390,6 +402,12 @@
     showExitConfirm = false;
   }
 
+  $effect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
+    }
+  });
+
   // Lock body scroll when in game view (landing page needs scroll)
   $effect(() => {
     if (typeof document !== "undefined") {
@@ -429,6 +447,8 @@
     <!-- Audio Settings Modal -->
     <AudioSettings
       visible={showAudioSettings}
+      menuTheme={menuTheme}
+      onMenuThemeChange={(theme) => (menuTheme = theme)}
       onClose={() => (showAudioSettings = false)}
     />
 

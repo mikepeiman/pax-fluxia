@@ -34,6 +34,13 @@
         DENSITY_TIERS: 'densityTiers',
     };
 
+    const ARROW_HEAD_STYLES = [
+        { value: "triangle", label: "Triangle" },
+        { value: "chevron", label: "Chevron" },
+        { value: "kite", label: "Kite" },
+        { value: "spear", label: "Spear" },
+    ] as const;
+
     let debugShipCount = $state(0);
     function updateDebugShipCount(count: number) {
         const starId = selectedStarStore.id;
@@ -1271,6 +1278,67 @@
 </div>
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Arrowhead Style</span>
+        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            {#each ARROW_HEAD_STYLES as style}
+                <button
+                    class="mode-btn"
+                    class:active={(panel.arrowHeadStyle ?? GAME_CONFIG.ARROW_HEAD_STYLE ?? "triangle") === style.value}
+                    onclick={() => {
+                        GAME_CONFIG.ARROW_HEAD_STYLE = style.value;
+                        updatePanel("arrowHeadStyle", style.value);
+                    }}>{style.label}</button
+                >
+            {/each}
+        </div>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrowhead Spread</span><span class="val"
+            >{Math.round(
+                panel.arrowHeadSpreadDeg ??
+                    GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
+                    30,
+            )}°</span
+        >
+    </div>
+    <input
+        type="range"
+        min="10"
+        max="70"
+        step="1"
+        value={panel.arrowHeadSpreadDeg ??
+            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
+            30}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG = v;
+            updatePanel("arrowHeadSpreadDeg", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Arrowhead Notch</span><span class="val"
+            >{((panel.arrowHeadNotch ?? GAME_CONFIG.ARROW_HEAD_NOTCH ?? 0.2) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.arrowHeadNotch ?? GAME_CONFIG.ARROW_HEAD_NOTCH ?? 0.2}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_HEAD_NOTCH = v;
+            updatePanel("arrowHeadNotch", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name">Shaft Width</span><span class="val"
             >{((panel.arrowShaftWidth ?? 6) as number).toFixed(0)}px</span
         >
@@ -1328,6 +1396,46 @@
 </div>
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Gradient Steps</span><span class="val"
+            >{Math.round(
+                panel.arrowShaftSteps ?? GAME_CONFIG.ARROW_SHAFT_STEPS ?? 6,
+            )}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="16"
+        step="1"
+        value={panel.arrowShaftSteps ?? GAME_CONFIG.ARROW_SHAFT_STEPS ?? 6}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_SHAFT_STEPS = v;
+            updatePanel("arrowShaftSteps", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Flow Speed</span><span class="val"
+            >{((panel.arrowFlowSpeed ?? GAME_CONFIG.ARROW_FLOW_SPEED ?? 1.2) as number).toFixed(2)}×</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.05"
+        value={panel.arrowFlowSpeed ?? GAME_CONFIG.ARROW_FLOW_SPEED ?? 1.2}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_FLOW_SPEED = v;
+            updatePanel("arrowFlowSpeed", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name">Dash Length</span><span class="val"
             >{((panel.arrowDashLength ?? 15) as number).toFixed(0)}px</span
         >
@@ -1342,6 +1450,69 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.ARROW_DASH_LENGTH = v;
             updatePanel("arrowDashLength", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Head VFX</span><span class="val"
+            >{((panel.arrowHeadVfxAlpha ?? GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0.16) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.arrowHeadVfxAlpha ?? GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0.16}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_HEAD_VFX_ALPHA = v;
+            updatePanel("arrowHeadVfxAlpha", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Force Reactivity</span><span class="val"
+            >{((panel.arrowForceIntensity ?? GAME_CONFIG.ARROW_FORCE_INTENSITY ?? 0.4) as number).toFixed(2)}</span
+        >
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={panel.arrowForceIntensity ?? GAME_CONFIG.ARROW_FORCE_INTENSITY ?? 0.4}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_FORCE_INTENSITY = v;
+            updatePanel("arrowForceIntensity", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Force Ceiling</span><span class="val"
+            >{Math.round(
+                panel.arrowForceIntensityMaxShips ??
+                    GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ??
+                    250,
+            )} ships</span
+        >
+    </div>
+    <input
+        type="range"
+        min="25"
+        max="1000"
+        step="25"
+        value={panel.arrowForceIntensityMaxShips ??
+            GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ??
+            250}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS = v;
+            updatePanel("arrowForceIntensityMaxShips", v);
         }}
     />
 </div>
@@ -1420,6 +1591,37 @@
             updatePanel("arrowOutlineAlpha", v);
         }}
     />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Outline Tone</span>
+        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            <button
+                class="mode-btn"
+                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0x000000}
+                onclick={() => {
+                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0x000000;
+                    updatePanel("arrowOutlineColor", 0x000000);
+                }}>Shadow</button
+            >
+            <button
+                class="mode-btn"
+                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0x18273f}
+                onclick={() => {
+                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0x18273f;
+                    updatePanel("arrowOutlineColor", 0x18273f);
+                }}>Steel</button
+            >
+            <button
+                class="mode-btn"
+                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0xffffff}
+                onclick={() => {
+                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0xffffff;
+                    updatePanel("arrowOutlineColor", 0xffffff);
+                }}>Bright</button
+            >
+        </div>
+    </div>
 </div>
 
 <!-- ── Damaged Ships ── -->

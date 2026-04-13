@@ -138,6 +138,7 @@
     {/each}
 </div>
 
+<h4 class="sub-heading">Per-Player Nudge</h4>
 <div class="players-focus-card">
     <div class="players-focus-row">
         <span class="players-focus-label">Selected</span>
@@ -170,6 +171,7 @@
     </button>
 </div>
 
+<h4 class="sub-heading">Advanced Tuning</h4>
 <details class="players-detail">
     <summary>Advanced palette tuning</summary>
     <div class="players-detail-grid">

@@ -570,6 +570,13 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'ARROW_OUTLINE_WIDTH' },
     { configKey: 'ARROW_OUTLINE_COLOR' },
     { configKey: 'ARROW_OUTLINE_ALPHA' },
+    { configKey: 'ARROW_HEAD_STYLE' },
+    { configKey: 'ARROW_HEAD_NOTCH' },
+    { configKey: 'ARROW_SHAFT_STEPS' },
+    { configKey: 'ARROW_FLOW_SPEED' },
+    { configKey: 'ARROW_HEAD_VFX_ALPHA' },
+    { configKey: 'ARROW_FORCE_INTENSITY' },
+    { configKey: 'ARROW_FORCE_INTENSITY_MAX_SHIPS' },
     { configKey: 'DAMAGED_SHIP_SCALE' },
     { configKey: 'ARROW_DASH_LENGTH' },
     // Star labels (F-159)
@@ -703,6 +710,10 @@ export const MD_EXPORT_SECTIONS: Record<string, string[]> = {
 
 export function formatAnimValue(val: number, unit: string): string {
     if (unit === 'ms') return `${Math.round(val)}${unit}`;
+    if (unit === 'ticks') {
+        const rounded = Math.abs(val - Math.round(val)) < 0.001 ? `${Math.round(val)}` : val.toFixed(1);
+        return `${rounded} ${unit}`;
+    }
     return `${val.toFixed(2)}${unit}`;
 }
 

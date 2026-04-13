@@ -89,6 +89,7 @@
         // reads GAME_CONFIG back into panel. Without this, compile-time defaults
         // overwrite user-saved slider values (Chaikin, resampleN, etc.).
         applyPanelToConfig(panel);
+        applyTimingBindingsAndLocks();
         syncAllFromConfig();
         themeStore.registerApplyCallback(applyThemeValues);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);
@@ -109,6 +110,54 @@
     // Animation lock state (persisted via panelSync)
     let animLockRatios = $state(loadAnimLockRatios());
     let animLockModes = $state(loadAnimLockModes());
+
+    function isTickRelativeSlider(def?: AnimSliderDef): boolean {
+        return def?.unit === "×tick" || def?.unit === "ticks";
+    }
+
+    function applyTimingBindingsAndLocks() {
+        const nextTick = panel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
+        GAME_CONFIG.BASE_TICK_MS = nextTick;
+
+        if (panel.bindAnimToTick) {
+            GAME_CONFIG.ANIMATION_SPEED_MS = nextTick;
+            panel = { ...panel, animSpeed: nextTick };
+        }
+
+        if (panel.territoryTransitionBindToTick) {
+            GAME_CONFIG.TERRITORY_TRANSITION_MS = nextTick;
+            panel = { ...panel, territoryTransitionMs: nextTick };
+        }
+
+        const tickUpdates = recalcAnimLocksOnTickChange(nextTick) ?? {};
+        if (Object.keys(tickUpdates).length > 0) {
+            const patch: Record<string, number> = {};
+            for (const [configKey, value] of Object.entries(tickUpdates)) {
+                const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+                if (panelKey) patch[panelKey] = value;
+            }
+            panel = { ...panel, ...patch };
+        }
+
+        const animSpeed = panel.bindAnimToTick
+            ? nextTick
+            : (GAME_CONFIG.ANIMATION_SPEED_MS ?? animationStore.speedMs);
+        const animUpdates = recalcAnimLocksOnAnimSpeedChange(animSpeed) ?? {};
+        if (Object.keys(animUpdates).length > 0) {
+            const patch: Record<string, number> = {};
+            for (const [configKey, value] of Object.entries(animUpdates)) {
+                const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+                if (panelKey) patch[panelKey] = value;
+            }
+            panel = { ...panel, ...patch };
+        }
+
+        savePanelSettings(panel);
+        tickInterval = nextTick;
+        activeGameStore.updateTickInterval(nextTick);
+        animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
+        syncAnimValuesFromConfig();
+    }
 
     function updatePanel(key: string, value: any) {
         panel = setSetting(panel, key, value, savePanelSettings);
@@ -177,6 +226,7 @@
             configSource,
             savePanelSettings,
         );
+        applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig(configSource);
     }
 
@@ -186,6 +236,7 @@
             configPatch,
             savePanelSettings,
         );
+        applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig();
         const affectsLaneTopology =
             'MAPGEN_LANE_MARGIN_PX' in configPatch
@@ -435,7 +486,7 @@
     // =========================================================================
 
     /** 📌 Pin value exactly to tick duration (ms → BASE_TICK_MS, multipliers → 1.0) */
-    function pinValueToTickDuration(key: string) {
+function pinValueToTickDuration(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "pinned") {
             // Unpin
@@ -444,15 +495,18 @@
         } else {
             // Pin: ms values → BASE_TICK_MS, multipliers → 1.0
             const def = ANIM_SLIDERS.find((s) => s.key === key);
-            const isMultiplier = def?.unit === "×tick" || def?.unit === "×";
+            const unit = def?.unit ?? "";
+            const isTickRelative = unit === "×tick" || unit === "ticks";
+            const isMultiplier = isTickRelative || unit === "×";
             const pinnedValue = isMultiplier ? 1.0 : GAME_CONFIG.BASE_TICK_MS;
-            const pinnedRatio = isMultiplier
-                ? 1.0 / GAME_CONFIG.BASE_TICK_MS
-                : 1;
+            const pinnedRatio = isTickRelative
+                ? 1.0
+                : unit === "×"
+                  ? 1.0 / GAME_CONFIG.BASE_TICK_MS
+                  : 1;
             animLockModes[key] = "pinned";
             animLockRatios[key] = pinnedRatio;
-            (GAME_CONFIG as any)[key] = pinnedValue;
-            syncPanelKey(key, pinnedValue);
+            setAnimValue(key, pinnedValue);
         }
         animLockModes = { ...animLockModes };
         animLockRatios = { ...animLockRatios };
@@ -461,7 +515,7 @@
     }
 
     /** 🔗 Lock current ratio relative to tick (value scales proportionally when tick changes) */
-    function lockRatioToTick(key: string) {
+function lockRatioToTick(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "ratio") {
             // Unlock
@@ -471,8 +525,11 @@
             // Lock ratio: capture current value / tickDuration
             const currentVal = (GAME_CONFIG as any)[key] as number;
             const currentTick = GAME_CONFIG.BASE_TICK_MS;
+            const def = ANIM_SLIDERS.find((s) => s.key === key);
             animLockModes[key] = "ratio";
-            animLockRatios[key] = currentVal / currentTick;
+            animLockRatios[key] = isTickRelativeSlider(def)
+                ? currentVal
+                : currentVal / currentTick;
         }
         animLockModes = { ...animLockModes };
         animLockRatios = { ...animLockRatios };
@@ -481,13 +538,16 @@
     }
 
     /** Recalculate all locked/pinned animation values when tick interval changes */
-    function recalcAnimLocksOnTickChange(newTickMs: number) {
+function recalcAnimLocksOnTickChange(newTickMs: number) {
+        const updates: Record<string, number> = {};
         for (const [key, mode] of Object.entries(animLockModes)) {
             if (mode === "pinned" || mode === "ratio") {
                 const ratio = animLockRatios[key];
                 if (ratio != null) {
                     const def = ANIM_SLIDERS.find((s) => s.key === key);
-                    let newVal = ratio * newTickMs;
+                    let newVal = isTickRelativeSlider(def)
+                        ? ratio
+                        : ratio * newTickMs;
                     if (def && def.min != null && def.max != null) {
                         newVal = Math.max(def.min, Math.min(def.max, newVal));
                     }
@@ -495,11 +555,12 @@
                         def?.unit === "ms"
                             ? Math.round(newVal)
                             : Math.round(newVal * 100) / 100;
-                    (GAME_CONFIG as any)[key] = newVal;
-                    syncPanelKey(key, newVal);
+                    setAnimValue(key, newVal);
+                    updates[key] = newVal;
                 }
             }
         }
+        return updates;
     }
 
     /** 🎚️ Lock current ratio relative to animation speed (value scales when anim speed changes) */
@@ -523,6 +584,7 @@
 
     /** Recalculate animSpeed-locked values when animation speed changes */
     function recalcAnimLocksOnAnimSpeedChange(newAnimMs: number) {
+        const updates: Record<string, number> = {};
         for (const [key, mode] of Object.entries(animLockModes)) {
             if (mode === "animSpeed") {
                 const ratio = animLockRatios[key];
@@ -537,10 +599,12 @@
                             ? Math.round(newVal)
                             : Math.round(newVal * 100) / 100;
                     (GAME_CONFIG as any)[key] = newVal;
+                    updates[key] = newVal;
                     syncPanelKey(key, newVal);
                 }
             }
         }
+        return updates;
     }
 
     /** Map GAME_CONFIG keys to panel keys — full coverage via PANEL_CONFIG_MAP (settingsDefs). */
@@ -782,7 +846,7 @@
         {
             id: "speed",
             icon: "⚡",
-            label: "Timing",
+            label: "Clocks & Binding",
             color: "#ffcc00",
             tier: "basic",
         },
@@ -796,7 +860,7 @@
         {
             id: "economy",
             icon: "🎛️",
-            label: "Core / Global",
+            label: "Economy & Flow",
             color: "#44ff88",
             tier: "basic",
         },
@@ -817,7 +881,7 @@
         {
             id: "travel",
             icon: "🚀",
-            label: "Ship travel",
+            label: "Travel",
             color: "#44aaff",
             tier: "advanced",
         },
@@ -845,7 +909,7 @@
         {
             id: "visuals",
             icon: "🗺️",
-            label: "Map & Grid",
+            label: "Map & Overlays",
             color: "#cc66ff",
             tier: "basic",
         },
@@ -899,6 +963,200 @@
         }
         openSection(forceOpenSection);
     });
+
+    interface SubsectionChip {
+        id: string;
+        label: string;
+        icon: string;
+    }
+
+    interface SectionBodyParams {
+        sectionId: SectionId;
+        activeSubsection: string;
+    }
+
+    let sectionSubsections = $state<Record<string, SubsectionChip[]>>({});
+    let activeSubsections = $state<Record<string, string>>({});
+
+    const SUBSECTION_ICON_OVERRIDES: Record<string, string> = {
+        "global rhythm": "◷",
+        "transition clock": "◎",
+        "travel model": "➠",
+        departure: "⇢",
+        "arrival & settle": "◌",
+        "lane pathing": "⬡",
+        "orbit bias": "◔",
+        "attack surge": "✦",
+        "pulse timing": "◷",
+        "orb merge": "◉",
+        "orb layers": "◎",
+        "animation mode": "✦",
+        "resolution timing": "◷",
+        "force glow": "✹",
+        "arrowhead formation": "△",
+        "arrival pattern": "↺",
+        "vs transition": "◇",
+        "damage model": "✦",
+        "capture rules": "▣",
+        "damaged ships": "◧",
+        "production & flow": "↔",
+        "repair discipline": "✚",
+        "starting pressure": "◫",
+        aggression: "⚑",
+        "decision tempo": "◫",
+        "future strategies": "⋯",
+        "order persistence": "⇄",
+        "conflict resolution": "⚖",
+        master: "◉",
+        "event sounds": "♪",
+        "conquest sounds": "♫",
+        "log channels": "⌁",
+        "live player palette": "◎",
+        "per-player nudge": "◐",
+        "advanced tuning": "⬚",
+        "labels & inspector": "⌁",
+        "territory system": "◫",
+        "rendering & topology": "⬢",
+    };
+
+    const SUBSECTION_ICON_RULES: Array<[RegExp, string]> = [
+        [/theme|background|color/i, "◈"],
+        [/scale|size|radius|width|spacing|distance|padding|margin/i, "▥"],
+        [/animation|timing|duration|tick|speed|stagger/i, "◷"],
+        [/shape|head|lane|path|orbit|formation/i, "⬡"],
+        [/rule|ai|battle|combat|conquest|surge/i, "✦"],
+        [/label|text|debug|logging|inspector/i, "⌁"],
+        [/audio|music|sfx/i, "◉"],
+        [/player|roster|team/i, "◎"],
+    ];
+
+    function normalizeSubsectionLabel(raw: string): string {
+        return raw.replace(/\s+/g, " ").trim();
+    }
+
+    function subsectionIdFromLabel(label: string): string {
+        return label
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+    }
+
+    function subsectionIconFor(label: string): string {
+        const override = SUBSECTION_ICON_OVERRIDES[label.toLowerCase()];
+        if (override) return override;
+        for (const [pattern, icon] of SUBSECTION_ICON_RULES) {
+            if (pattern.test(label)) return icon;
+        }
+        return "•";
+    }
+
+    function setSectionSubsections(sectionId: SectionId, chips: SubsectionChip[]) {
+        const prev = sectionSubsections[sectionId] ?? [];
+        const unchanged =
+            prev.length === chips.length &&
+            prev.every(
+                (chip, index) =>
+                    chip.id === chips[index]?.id &&
+                    chip.label === chips[index]?.label &&
+                    chip.icon === chips[index]?.icon,
+            );
+        if (!unchanged) {
+            sectionSubsections = { ...sectionSubsections, [sectionId]: chips };
+        }
+
+        const active = activeSubsections[sectionId] ?? "all";
+        if (active !== "all" && !chips.some((chip) => chip.id === active)) {
+            activeSubsections = { ...activeSubsections, [sectionId]: "all" };
+        }
+    }
+
+    function applySubsectionFilter(
+        node: HTMLElement,
+        sectionId: SectionId,
+        activeSubsection: string,
+    ) {
+        const active = activeSubsections[sectionId] ?? activeSubsection ?? "all";
+        for (const child of Array.from(node.children) as HTMLElement[]) {
+            const subsectionId = child.dataset.subsectionId;
+            const hidden =
+                active !== "all" &&
+                subsectionId != null &&
+                subsectionId !== active;
+            child.classList.toggle("is-hidden-by-subsection", hidden);
+        }
+    }
+
+    function scanSectionBody(
+        node: HTMLElement,
+        sectionId: SectionId,
+        activeSubsection: string,
+    ) {
+        const children = Array.from(node.children) as HTMLElement[];
+        const chips: SubsectionChip[] = [];
+        let currentSubsectionId: string | null = null;
+
+        for (const child of children) {
+            child.classList.remove("is-hidden-by-subsection");
+            delete child.dataset.subsectionId;
+
+            const subsectionHeading = child.matches("h4.sub-heading")
+                ? child
+                : ((Array.from(child.children).find((nested) =>
+                      nested.matches?.("h4.sub-heading"),
+                  ) as HTMLElement | undefined) ?? null);
+
+            if (subsectionHeading) {
+                const label = normalizeSubsectionLabel(
+                    subsectionHeading.textContent ?? "Section",
+                );
+                const id =
+                    subsectionIdFromLabel(label) || `sub-${chips.length + 1}`;
+                currentSubsectionId = id;
+                chips.push({
+                    id,
+                    label,
+                    icon: subsectionIconFor(label),
+                });
+            }
+
+            if (currentSubsectionId) {
+                child.dataset.subsectionId = currentSubsectionId;
+            }
+        }
+
+        setSectionSubsections(sectionId, chips);
+        applySubsectionFilter(node, sectionId, activeSubsection);
+    }
+
+    function registerSectionBody(node: HTMLElement, params: SectionBodyParams) {
+        let current = params;
+        const refresh = () =>
+            queueMicrotask(() =>
+                scanSectionBody(node, current.sectionId, current.activeSubsection),
+            );
+        const observer = new MutationObserver(refresh);
+
+        refresh();
+        observer.observe(node, { childList: true });
+
+        return {
+            update(next: SectionBodyParams) {
+                current = next;
+                refresh();
+            },
+            destroy() {
+                observer.disconnect();
+            },
+        };
+    }
+
+    function toggleSubsection(sectionId: SectionId, subsectionId: string) {
+        const current = activeSubsections[sectionId] ?? "all";
+        activeSubsections = {
+            ...activeSubsections,
+            [sectionId]: current === subsectionId ? "all" : subsectionId,
+        };
+    }
 </script>
 
 <div class="controls-panel" use:nudgeSliders>
@@ -1075,13 +1333,46 @@
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
-            <button class="section-head" onclick={() => toggleSection(sec.id)}>
-                <span class="head-icon">{sec.icon}</span>
-                <span class="head-label">{sec.label}</span>
-                <span class="head-close">✕</span>
-            </button>
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => toggleSection(sec.id)}>
+                    <span class="head-icon">{sec.icon}</span>
+                    <span class="head-label">{sec.label}</span>
+                    <span class="head-close">✕</span>
+                </button>
+                {#if (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                    <div class="section-subnav">
+                        <button
+                            class="subsection-chip"
+                            class:active={(activeSubsections[sec.id] ?? "all") === "all"}
+                            type="button"
+                            onclick={() => toggleSubsection(sec.id, "all")}
+                        >
+                            <span class="subsection-chip__icon">◌</span>
+                            <span>All</span>
+                        </button>
+                        {#each sectionSubsections[sec.id] ?? [] as subsection}
+                            <button
+                                class="subsection-chip"
+                                class:active={(activeSubsections[sec.id] ?? "all") === subsection.id}
+                                type="button"
+                                onclick={() => toggleSubsection(sec.id, subsection.id)}
+                                title={subsection.label}
+                            >
+                                <span class="subsection-chip__icon">{subsection.icon}</span>
+                                <span>{subsection.label}</span>
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
 
-            <div class="section-body">
+            <div
+                class="section-body"
+                use:registerSectionBody={{
+                    sectionId: sec.id,
+                    activeSubsection: activeSubsections[sec.id] ?? "all",
+                }}
+            >
                 <!-- ⚡ TIMING -->
                 {#if sec.id === "speed"}
                     <ControlsSectionTiming
@@ -1304,6 +1595,12 @@
         flex-direction: column;
         min-height: 0;
     }
+    .section-head-wrap {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, var(--accent) 9%, transparent);
+    }
     @keyframes slideIn {
         from {
             opacity: 0;
@@ -1320,10 +1617,9 @@
         align-items: center;
         gap: 8px;
         width: 100%;
-        padding: 8px 10px;
-        background: color-mix(in srgb, var(--accent) 10%, transparent);
+        padding: 10px 12px 8px;
+        background: transparent;
         border: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         cursor: pointer;
         color: var(--accent);
         font-family: inherit;
@@ -1337,10 +1633,10 @@
     }
     .head-label {
         flex: 1;
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.1px;
         text-align: left;
     }
     .head-close {
@@ -1353,13 +1649,71 @@
     }
 
     .section-body {
-        padding: 8px;
+        padding: 10px;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 10px;
         flex: 1;
         overflow-y: auto;
         min-height: 0;
+    }
+    .section-subnav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 12px 12px;
+    }
+    .subsection-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(7, 12, 24, 0.45);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            border-color 0.15s,
+            background 0.15s,
+            color 0.15s,
+            transform 0.15s;
+    }
+    .subsection-chip:hover {
+        border-color: color-mix(
+            in srgb,
+            var(--accent) 60%,
+            rgba(255, 255, 255, 0.12)
+        );
+        background: color-mix(in srgb, var(--accent) 10%, rgba(7, 12, 24, 0.5));
+        color: rgba(241, 245, 249, 0.96);
+        transform: translateY(-1px);
+    }
+    .subsection-chip.active {
+        border-color: color-mix(
+            in srgb,
+            var(--accent) 76%,
+            rgba(255, 255, 255, 0.12)
+        );
+        background: color-mix(in srgb, var(--accent) 18%, rgba(7, 12, 24, 0.6));
+        color: rgba(248, 250, 252, 0.98);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .subsection-chip__icon {
+        display: inline-grid;
+        place-items: center;
+        width: 14px;
+        font-size: 11px;
+        line-height: 1;
+        opacity: 0.92;
+    }
+    :global(.is-hidden-by-subsection) {
+        display: none !important;
     }
     /* Paired orb controls side-by-side */
     .orb-pair {
@@ -1539,7 +1893,7 @@
         margin-left: auto;
     }
     .sub-heading {
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: #aabbcc;
         text-transform: uppercase;
