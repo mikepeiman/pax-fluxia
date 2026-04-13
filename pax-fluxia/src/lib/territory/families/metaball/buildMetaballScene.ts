@@ -18,16 +18,6 @@ function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
-function easeOutCubic(t: number): number {
-    const clamped = clamp01(t);
-    return 1 - Math.pow(1 - clamped, 3);
-}
-
-function easeInCubic(t: number): number {
-    const clamped = clamp01(t);
-    return clamped * clamped * clamped;
-}
-
 function hexToRgb(hex: number): [number, number, number] {
     return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
 }
@@ -138,8 +128,9 @@ function buildConquestTransitionSamples(params: {
         if (!targetStar || !conquest.newOwner) continue;
 
         const transitionIdPrefix = `transition:${conquest.starId}:${transition.startedAtMs}`;
-        const travel = easeOutCubic(progress);
-        const envelope = Math.max(0, 1 - progress);
+        const travel = progress;
+        const oldEnvelope = Math.max(0, 1 - progress);
+        const newEnvelope = progress;
         const targetStrength =
             params.starStrengthById.get(targetStar.id) ??
             computeMetaballStarStrength(
@@ -161,9 +152,7 @@ function buildConquestTransitionSamples(params: {
             ),
         ].sort((a, b) => a.localeCompare(b));
 
-        const targetClusterIdx =
-            params.clusterMap.get(targetStar.id)?.clusterIdx ??
-            params.ensureOwnerClusterIdx(conquest.newOwner);
+        const targetClusterIdx = params.ensureOwnerClusterIdx(conquest.newOwner);
 
         for (const attackerId of attackerIds) {
             const attackerStar = params.allStarsById.get(attackerId);
@@ -193,7 +182,7 @@ function buildConquestTransitionSamples(params: {
                     attackerStar.y +
                     (targetStar.y - attackerStar.y) * travel,
                 playerIdx: attackerClusterIdx,
-                strength: pairStrength * 0.9 * envelope,
+                strength: pairStrength * 0.9 * newEnvelope,
             });
         }
 
@@ -221,7 +210,7 @@ function buildConquestTransitionSamples(params: {
             x: retreatX,
             y: retreatY,
             playerIdx: retreatClusterIdx,
-            strength: targetStrength * 0.9 * envelope,
+            strength: targetStrength * 0.6 * oldEnvelope * travel,
         });
     }
 
@@ -233,8 +222,34 @@ export function buildMetaballScene(
     colorUtils: ColorUtils,
 ): MetaballSceneInput {
     const allStars = sortStarsById(input.stars);
-    const ownedStars = allStars.filter((star) => Boolean(star.ownerId));
     const allStarsById = new Map(allStars.map((star) => [star.id, star] as const));
+    const effectiveOwnerByStarId = new Map<string, string>();
+    const transitionProgressByStarId = new Map<string, number>();
+    for (const transition of input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        const targetStar = allStarsById.get(conquest.starId);
+        if (
+            !targetStar ||
+            !conquest.previousOwner ||
+            targetStar.ownerId !== conquest.newOwner
+        ) {
+            continue;
+        }
+        effectiveOwnerByStarId.set(conquest.starId, conquest.previousOwner);
+        transitionProgressByStarId.set(
+            conquest.starId,
+            clamp01(transition.progress),
+        );
+    }
+    const effectiveStars = allStars.map((star) => {
+        const effectiveOwner = effectiveOwnerByStarId.get(star.id);
+        if (!effectiveOwner) return star;
+        return {
+            ...star,
+            ownerId: effectiveOwner,
+        };
+    });
+    const ownedStars = effectiveStars.filter((star) => Boolean(star.ownerId));
     const starById = new Map(ownedStars.map((star) => [star.id, star] as const));
     const clusterMap = findConnectedClustersOptimized(
         ownedStars,
@@ -311,23 +326,14 @@ export function buildMetaballScene(
         );
     }
 
-    const targetStrengthScaleByStarId = new Map<string, number>();
-    for (const transition of input.activeTransition?.events ?? []) {
-        const conquest = transition.event;
-        const targetStar = allStarsById.get(conquest.starId);
-        if (!targetStar || targetStar.ownerId !== conquest.newOwner) continue;
-        targetStrengthScaleByStarId.set(
-            conquest.starId,
-            easeInCubic(clamp01(transition.progress)),
-        );
-    }
-
     const samples: MetaballInfluenceSample[] = [];
     for (const star of ownedStars) {
         const clusterInfo = clusterMap.get(star.id);
         if (!clusterInfo) continue;
         const baseStrength = starStrengthById.get(star.id) ?? 0;
-        const transitionScale = targetStrengthScaleByStarId.get(star.id) ?? 1;
+        const transitionScale = transitionProgressByStarId.has(star.id)
+            ? Math.max(0, 1 - (transitionProgressByStarId.get(star.id) ?? 0))
+            : 1;
         samples.push({
             id: `star:${star.id}`,
             x: star.x,

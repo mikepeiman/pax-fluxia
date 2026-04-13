@@ -147,12 +147,18 @@ describe('buildMetaballScene', () => {
         const ids = scene.samples.map((sample) => sample.id ?? '');
         const attackerBase = scene.samples.find((sample) => sample.id === 'star:attacker');
         const targetBase = scene.samples.find((sample) => sample.id === 'star:target');
+        const advancingSample = scene.samples.find((sample) =>
+            (sample.id ?? '').includes(':new:'),
+        );
         expect(ids.some((id) => id.includes(':new:'))).toBe(true);
         expect(ids.some((id) => id.includes(':old:'))).toBe(true);
         expect(ids.some((id) => id.includes(':tube:'))).toBe(false);
         expect(attackerBase?.strength).toBeGreaterThan(0);
+        expect(targetBase?.playerIdx).not.toBe(attackerBase?.playerIdx);
         expect(targetBase?.strength ?? 0).toBeLessThan(
-            (attackerBase?.strength ?? 0) * 0.2,
+            (attackerBase?.strength ?? 0) * 0.7,
         );
+        expect(advancingSample?.playerIdx).toBe(attackerBase?.playerIdx);
+        expect(advancingSample?.strength ?? 0).toBeGreaterThan(0);
     });
 });
