@@ -9,6 +9,7 @@ import type {
     RenderFamilyActiveTransition,
     RenderFamilyInput,
     RenderFamilyOutput,
+    RenderFamilyTransitionEvent,
 } from '../RenderFamilyTypes';
 import {
     buildPerimeterFieldScene,
@@ -25,7 +26,10 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
     'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
     'PERIMETER_FIELD_NEW_BOUNDARY_GROW',
+    'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY',
+    'PERIMETER_FIELD_DEBUG_SHOW_VSTARS',
     'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
+    'PERIMETER_FIELD_DEBUG_REPLAY_SLOT',
     'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS',
     'TERRITORY_TRANSITION_MS',
     'TERRITORY_TRANSITION_BIND_TO_TICK',
@@ -44,6 +48,17 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'METABALL_BORDER_LIGHTNESS',
     'METABALL_CHAIKIN_PASSES',
 ] as const;
+
+const MAX_REPLAY_HISTORY = 3;
+
+interface PerimeterFieldReplayCapture {
+    key: string;
+    label: string;
+    stars: ReadonlyArray<StarState>;
+    oldGeometry: CanonicalGeometrySnapshot;
+    newGeometry: CanonicalGeometrySnapshot;
+    events: ReadonlyArray<RenderFamilyTransitionEvent>;
+}
 
 function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
@@ -65,6 +80,14 @@ function buildTransitionKey(input: RenderFamilyInput): string | null {
         .join('|');
 }
 
+function buildSessionKey(input: RenderFamilyInput): string {
+    const starIds = [...input.stars]
+        .map((star) => star.id)
+        .sort((a, b) => a.localeCompare(b))
+        .join('|');
+    return `${input.world.width}x${input.world.height}:${starIds}`;
+}
+
 function revertStarsForTransition(input: RenderFamilyInput): StarState[] {
     const overrides = new Map<string, string>();
     for (const entry of input.activeTransition?.events ?? []) {
@@ -74,6 +97,31 @@ function revertStarsForTransition(input: RenderFamilyInput): StarState[] {
         const ownerId = overrides.get(star.id);
         return ownerId === undefined ? { ...star } : { ...star, ownerId };
     });
+}
+
+function cloneTransitionEvents(
+    events: ReadonlyArray<RenderFamilyTransitionEvent>,
+): RenderFamilyTransitionEvent[] {
+    return events.map((entry) => ({
+        ...entry,
+        event: {
+            ...entry.event,
+            attackerStarIds: [...entry.event.attackerStarIds],
+            attackerShipTransfers: [...entry.event.attackerShipTransfers],
+        },
+    }));
+}
+
+function buildReplayLabel(
+    events: ReadonlyArray<RenderFamilyTransitionEvent>,
+): string {
+    const first = events[0];
+    if (!first) return 'Replay';
+    const { previousOwner, newOwner, starId } = first.event;
+    if (events.length === 1) {
+        return `${previousOwner} -> ${newOwner} @ ${starId}`;
+    }
+    return `${previousOwner} -> ${newOwner} @ ${starId} (+${events.length - 1})`;
 }
 
 function readFreezeBaseDuringTransition(input: RenderFamilyInput): boolean {
@@ -99,6 +147,18 @@ function readNumberTunable(
 ): number {
     const value = input.tunables.get(key);
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function readReplaySlot(input: RenderFamilyInput): number {
+    return Math.max(
+        0,
+        Math.min(
+            MAX_REPLAY_HISTORY,
+            Math.round(
+                readNumberTunable(input, 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT', 0),
+            ),
+        ),
+    );
 }
 
 function withDebugScrubTransition(
@@ -145,9 +205,11 @@ export class PerimeterFieldFamily implements RenderFamily {
 
     private readonly root = new PIXI.Container();
     private readonly colorUtils: ColorUtils;
+    private sessionKey: string | null = null;
     private oldGeometryKey: string | null = null;
     private oldGeometry: CanonicalGeometrySnapshot | null = null;
     private lastDebugSnapshot: PerimeterFieldDebugSnapshot | null = null;
+    private replayHistory: PerimeterFieldReplayCapture[] = [];
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -161,7 +223,91 @@ export class PerimeterFieldFamily implements RenderFamily {
         return this.lastDebugSnapshot;
     }
 
+    private resetReplayState(): void {
+        this.oldGeometryKey = null;
+        this.oldGeometry = null;
+        this.lastDebugSnapshot = null;
+        this.replayHistory = [];
+    }
+
+    private captureReplay(params: {
+        key: string;
+        input: RenderFamilyInput;
+        oldGeometry: CanonicalGeometrySnapshot;
+        newGeometry: CanonicalGeometrySnapshot;
+    }): void {
+        if (this.replayHistory.some((entry) => entry.key === params.key)) {
+            return;
+        }
+
+        const capture: PerimeterFieldReplayCapture = {
+            key: params.key,
+            label: buildReplayLabel(params.input.activeTransition?.events ?? []),
+            stars: params.input.stars.map((star) => ({ ...star })),
+            oldGeometry: params.oldGeometry,
+            newGeometry: params.newGeometry,
+            events: cloneTransitionEvents(params.input.activeTransition?.events ?? []),
+        };
+
+        this.replayHistory = [capture, ...this.replayHistory].slice(
+            0,
+            MAX_REPLAY_HISTORY,
+        );
+    }
+
+    private buildReplayDebugSnapshot(
+        input: RenderFamilyInput,
+    ): PerimeterFieldDebugSnapshot | null {
+        if (!input.paused) return null;
+
+        const replaySlot = readReplaySlot(input);
+        if (replaySlot <= 0) return null;
+
+        const replay = this.replayHistory[replaySlot - 1];
+        if (!replay || replay.events.length === 0) return null;
+
+        const scrubProgress = clamp01(
+            readNumberTunable(
+                input,
+                'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS',
+                0,
+            ),
+        );
+        const firstEvent = replay.events[0]!;
+        const activeTransition: RenderFamilyActiveTransition = {
+            conquestEvents: replay.events.map((entry) => entry.event),
+            events: replay.events.map((entry) => ({
+                ...entry,
+                progress: scrubProgress,
+                rawProgress: scrubProgress,
+            })),
+            startedAtMs: firstEvent.startedAtMs,
+            durationMs: firstEvent.durationMs,
+            progress: scrubProgress,
+            rawProgress: scrubProgress,
+        };
+
+        return buildPerimeterFieldScene({
+            input: {
+                ...input,
+                stars: replay.stars,
+                geometry: replay.oldGeometry,
+                activeTransition,
+            },
+            starsForDisplay: replay.stars,
+            geometry: replay.oldGeometry,
+            transitionTargetGeometry: replay.newGeometry,
+            colorUtils: this.colorUtils,
+        }).debug;
+    }
+
     update(input: RenderFamilyInput): RenderFamilyOutput {
+        const nextSessionKey = buildSessionKey(input);
+        if (this.sessionKey !== nextSessionKey) {
+            this.sessionKey = nextSessionKey;
+            this.resetReplayState();
+        }
+
         const effectiveInput = withDebugScrubTransition(input);
         const currentGeometry = effectiveInput.geometry;
         if (!currentGeometry) {
@@ -170,32 +316,43 @@ export class PerimeterFieldFamily implements RenderFamily {
             return { container: this.root };
         }
 
-        let displayStars = effectiveInput.stars;
-        let displayGeometry = currentGeometry;
-        const transitionKey = buildTransitionKey(effectiveInput);
-        if (transitionKey && readFreezeBaseDuringTransition(effectiveInput)) {
-            if (this.oldGeometryKey !== transitionKey) {
-                const revertedStars = revertStarsForTransition(effectiveInput);
+        const transitionKey = buildTransitionKey(input);
+        if (transitionKey) {
+            if (this.oldGeometryKey !== transitionKey || !this.oldGeometry) {
+                const revertedStars = revertStarsForTransition(input);
                 this.oldGeometry = buildPerimeterFieldRenderFamilyGeometry({
                     stars: revertedStars,
-                    lanes: effectiveInput.lanes,
-                    worldWidth: effectiveInput.world.width,
-                    worldHeight: effectiveInput.world.height,
-                    nowMs: effectiveInput.nowMs,
+                    lanes: input.lanes,
+                    worldWidth: input.world.width,
+                    worldHeight: input.world.height,
+                    nowMs: input.nowMs,
                     geometrySource:
-                        (effectiveInput.tunables.get(
+                        (input.tunables.get(
                             'PERIMETER_FIELD_GEOMETRY_SOURCE',
                         ) as string | undefined) ?? null,
                 });
                 this.oldGeometryKey = transitionKey;
-            }
-            if (this.oldGeometry) {
-                displayStars = revertStarsForTransition(effectiveInput);
-                displayGeometry = this.oldGeometry;
+                this.captureReplay({
+                    key: transitionKey,
+                    input,
+                    oldGeometry: this.oldGeometry,
+                    newGeometry: currentGeometry,
+                });
             }
         } else {
             this.oldGeometryKey = null;
             this.oldGeometry = null;
+        }
+
+        let displayStars = effectiveInput.stars;
+        let displayGeometry = currentGeometry;
+        if (
+            transitionKey &&
+            readFreezeBaseDuringTransition(effectiveInput) &&
+            this.oldGeometry
+        ) {
+            displayStars = revertStarsForTransition(effectiveInput);
+            displayGeometry = this.oldGeometry;
         }
 
         const builtScene = buildPerimeterFieldScene({
@@ -205,7 +362,8 @@ export class PerimeterFieldFamily implements RenderFamily {
             transitionTargetGeometry: transitionKey ? currentGeometry : null,
             colorUtils: this.colorUtils,
         });
-        this.lastDebugSnapshot = builtScene.debug;
+        this.lastDebugSnapshot =
+            this.buildReplayDebugSnapshot(input) ?? builtScene.debug;
 
         renderMetaball(
             [...displayStars],
@@ -225,9 +383,8 @@ export class PerimeterFieldFamily implements RenderFamily {
 
     dispose(): void {
         resetMetaballCache();
-        this.oldGeometryKey = null;
-        this.oldGeometry = null;
-        this.lastDebugSnapshot = null;
+        this.sessionKey = null;
+        this.resetReplayState();
         this.root.removeChildren();
     }
 }

@@ -13,6 +13,7 @@ type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 
 export interface PerimeterFieldDebugSample extends MetaballInfluenceSample {
     ownerId: string;
+    ownerColor: number;
     debugState: 'static' | 'target' | 'transition-old' | 'transition-new';
 }
 
@@ -290,6 +291,7 @@ function buildStaticPerimeterSamples(params: {
     offsetPx: number;
     strength: number;
     debugState: 'static' | 'target';
+    colorUtils: ColorUtils;
 }): PerimeterFieldDebugSample[] {
     const loops = params.geometry.shellLoops
         .filter((loop) => loop.classification === 'outer' && Boolean(loop.ownerId))
@@ -338,6 +340,7 @@ function buildStaticPerimeterSamples(params: {
                 playerIdx,
                 strength: params.strength,
                 ownerId: source.ownerId,
+                ownerColor: params.colorUtils.getPlayerColor(source.ownerId),
                 debugState: params.debugState,
             });
         }
@@ -355,6 +358,7 @@ function buildTransitionSamples(params: {
     oldFade: number;
     newGrow: number;
     rayCount: number;
+    colorUtils: ColorUtils;
 }): PerimeterFieldDebugSample[] {
     const activeTransition = params.input.activeTransition;
     if (!activeTransition) return [];
@@ -414,6 +418,7 @@ function buildTransitionSamples(params: {
                 playerIdx: oldCluster,
                 strength: params.strength * Math.max(0, params.oldFade) * (1 - progress),
                 ownerId: conquest.previousOwner,
+                ownerColor: params.colorUtils.getPlayerColor(conquest.previousOwner),
                 debugState: 'transition-old',
             });
             samples.push({
@@ -423,6 +428,7 @@ function buildTransitionSamples(params: {
                 playerIdx: newCluster,
                 strength: params.strength * Math.max(0, params.newGrow) * progress,
                 ownerId: conquest.newOwner,
+                ownerColor: params.colorUtils.getPlayerColor(conquest.newOwner),
                 debugState: 'transition-new',
             });
         }
@@ -490,6 +496,7 @@ export function buildPerimeterFieldScene(params: {
         offsetPx,
         strength,
         debugState: 'static',
+        colorUtils: params.colorUtils,
     });
     const targetStaticSamples = params.transitionTargetGeometry
         ? buildStaticPerimeterSamples({
@@ -499,6 +506,7 @@ export function buildPerimeterFieldScene(params: {
               offsetPx,
               strength,
               debugState: 'target',
+              colorUtils: params.colorUtils,
           })
         : [];
     const transitionSamples =
@@ -513,6 +521,7 @@ export function buildPerimeterFieldScene(params: {
                   oldFade,
                   newGrow,
                   rayCount,
+                  colorUtils: params.colorUtils,
               })
             : [];
 

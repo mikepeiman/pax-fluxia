@@ -622,7 +622,7 @@
     </span>
 </label>
 <div class="var-desc">
-    Cyan points are the current/base perimeter vstars. In paused scrub mode, magenta shows next-state vstars and yellow shows the moving interim override.
+    Vstars are filled with owner/player color. The surrounding halo shows debug state: cyan = current/base, magenta = next-state, yellow = moving transition override.
 </div>
 
 <label class="toggle-row">
@@ -646,22 +646,56 @@
             : 'Off'}
     </span>
 </label>
-<div class="var-desc">
-    Pause the game, then drag the scrub slider to inspect previous state, next state, and the interim handoff frame-by-frame.
+    <div class="var-desc">
+    Pause the game, then drag the scrub slider to inspect previous state, next state, and the interim handoff frame-by-frame. This applies to the live conquest when enabled, or to a captured replay if one is selected below.
+    </div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="Choose the live conquest or one of the last three captured conquests for paused debug replay."
+        >
+            Replay Source
+        </span>
+        <span class="val">
+            {#if (panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) === 0}
+                Live
+            {:else}
+                Replay {(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0)}
+            {/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        `Live` uses the currently active conquest. `Replay 1` is the most recent captured conquest, then `Replay 2` and `Replay 3`.
+    </div>
+    <select
+        class="mode-select"
+        value={(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0).toString()}
+        onchange={(event) => {
+            const value = parseFloat((event.target as HTMLSelectElement).value);
+            writeConfig('PERIMETER_FIELD_DEBUG_REPLAY_SLOT', 'perimeterFieldDebugReplaySlot', value);
+        }}
+    >
+        <option value="0">Live</option>
+        <option value="1">Replay 1 (most recent)</option>
+        <option value="2">Replay 2</option>
+        <option value="3">Replay 3</option>
+    </select>
 </div>
 
 <div class="var-row">
     <div class="row-top">
         <span
             class="var-name"
-            title="Paused scrub position for the active conquest transition. 0 = previous state, 1 = settled next state."
+            title="Paused scrub position for the live conquest or selected replay. 0 = previous state, 1 = settled next state."
         >
             Transition Scrub
         </span>
         <span class="val">{(panel.perimeterFieldDebugScrubProgress ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS ?? 0).toFixed(2)}</span>
     </div>
     <div class="var-desc">
-        Only applies while paused and only if a conquest transition is active. The displayed `perimeter_field` render is forced to this transition progress.
+        While paused, this drives the live conquest or selected replay through the transition timeline. 0 = pure previous state, 1 = settled next state.
     </div>
     <input
         type="range"

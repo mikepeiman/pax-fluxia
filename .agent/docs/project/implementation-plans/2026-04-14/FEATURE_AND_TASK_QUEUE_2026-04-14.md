@@ -30,3 +30,7 @@
 - Added dedicated source CX lane-pair controls:
   - separate contested midpoint-pair count
   - separate contested midpoint-pair weight
+- Tightened `perimeter_field` debug tooling:
+  - replay-select + scrub for the last 3 captured conquests
+  - owner-color metadata is now carried into debug samples
+  - vstar markers now render as owner-colored bodies with a separate debug-state halo

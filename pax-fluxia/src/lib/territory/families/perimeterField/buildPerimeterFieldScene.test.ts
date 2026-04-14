@@ -271,6 +271,7 @@ describe('buildPerimeterFieldScene', () => {
             expect(sample.y).toBeLessThan(80);
         }
         expect(scene.debug.staticSamples.every((sample) => sample.ownerId === 'red')).toBe(true);
+        expect(scene.debug.staticSamples.every((sample) => sample.ownerColor === 0xff5533)).toBe(true);
         expect(scene.debug.staticSamples.every((sample) => sample.debugState === 'static')).toBe(true);
     });
 
@@ -470,5 +471,7 @@ describe('buildPerimeterFieldScene', () => {
         expect(offsetDistance).toBeLessThan(noOffsetDistance);
         expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'blue')).toBe(true);
         expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'red')).toBe(true);
+        expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0x3366ff)).toBe(true);
+        expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0xff5533)).toBe(true);
     });
 });

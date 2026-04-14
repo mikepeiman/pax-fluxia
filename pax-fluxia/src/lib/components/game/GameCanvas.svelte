@@ -1314,16 +1314,26 @@
             y: number;
             playerIdx?: number;
             ownerId?: string;
+            ownerColor?: number;
         }>,
-        outlineColor: number,
+        stateColor: number,
         alpha: number,
         radius: number,
     ): void {
+        const darkenColor = (color: number, factor: number): number => {
+            const r = Math.max(0, Math.min(255, Math.round(((color >> 16) & 0xff) * factor)));
+            const g = Math.max(0, Math.min(255, Math.round(((color >> 8) & 0xff) * factor)));
+            const b = Math.max(0, Math.min(255, Math.round((color & 0xff) * factor)));
+            return (r << 16) | (g << 8) | b;
+        };
+
         for (const sample of samples) {
             const fillColor =
-                sample.ownerId != null
+                sample.ownerColor ??
+                (sample.ownerId != null
                     ? colorUtils.getPlayerColor(sample.ownerId)
-                    : outlineColor;
+                    : stateColor);
+            const borderColor = darkenColor(fillColor, 0.45);
             const outerRadius = radius;
             const innerRadius = Math.max(1.2, radius * 0.45);
             const spikeCount = 5;
@@ -1341,12 +1351,18 @@
                     sample.y + Math.sin(innerAngle) * innerRadius,
                 );
             }
-            g.poly(points, true);
-            g.fill({ color: fillColor, alpha });
+            g.circle(sample.x, sample.y, outerRadius + 1.6);
             g.stroke({
-                color: outlineColor,
-                alpha: Math.min(1, alpha + 0.05),
-                width: Math.max(0.8, radius * 0.28),
+                color: stateColor,
+                alpha: 0.55,
+                width: Math.max(0.8, radius * 0.42),
+            });
+            g.poly(points, true);
+            g.fill({ color: fillColor, alpha: Math.max(0.92, alpha) });
+            g.stroke({
+                color: borderColor,
+                alpha: 0.95,
+                width: Math.max(0.9, radius * 0.32),
             });
         }
     }
@@ -1365,8 +1381,11 @@
         if (!snapshot) return;
 
         const scrubEnabled =
-            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
             activeGameStore.isPaused &&
+            (
+                (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) ||
+                ((GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) > 0)
+            ) &&
             Boolean(snapshot.transitionTargetGeometry);
 
         if (showGeometry) {
