@@ -1,5 +1,25 @@
 # Post-Mortems
 
+## 2026-04-14: False-Gradient Language on Binary Failure
+
+**What happened**: During perimeter-field debug work, a fully failed visual result was described as if it were a partially correct one using phrases like "not strong enough" and "not dominant enough on screen." The explanation then drifted into visual-design terminology before first stating the simple truth: the previous fix had failed.
+
+**Why**: The agent flattened a binary failure into a spectrum and explained intended patch semantics instead of verified visible behavior.
+
+**Resolution**: Record the failure plainly as failed, not partially successful. Separate observed result, code change, intended effect, and verified effect in future renderer/debug explanations.
+
+---
+
+## 2026-04-13: Menu Layout Assumption Cascade
+
+**What happened**: During main menu layout debugging, the user explicitly said the issue was a desktop menu collapsed into a narrow right column, not a mobile-width or below-the-fold problem. The agent repeatedly mapped it back to breakpoint or viewport theories, edited layout based on that rejected assumption, and then initially failed to create an actual post-mortem artifact.
+
+**Why**: The agent let an early pattern-match survive direct user contradiction. It also violated an explicit "no layout changes until cause agreed" boundary and treated "post-mortem" as a chat explanation instead of a repository document.
+
+**Resolution**: Create an actual post-mortem artifact and adopt stricter UI-debug rules: user contradiction invalidates the hypothesis, no edits during a diagnose-first phase, and layout debugging must verify DOM, container, placement, and runtime overrides before changing CSS.
+
+---
+
 ## 2026-02-08: Multi-Star Combat Regression
 
 **What happened**: During animation system refactoring, `resolveMultiSourceCombat` was rewritten to group attackers by target star only, NOT by `ownerId`. This violated MECHANICS.md §3.3: `forces (Map of PlayerId → count)`.
