@@ -39,6 +39,7 @@ interface DiagnosticPackageManifest {
     previousTopology: unknown;
     nextTopology: unknown;
     starPositions: Record<string, { x: number; y: number }>;
+    captureDiagnostics?: unknown;
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -210,6 +211,7 @@ function buildDiagnosticManifest(
             ctx.nextGeometry?.frontierTopology ?? null,
         ),
         starPositions: serializeStarPositions(bundle.starPositions),
+        captureDiagnostics: bundle.extraDiagnostics,
     };
 }
 
@@ -312,6 +314,7 @@ export async function downloadBundle(
         conquestEvents: bundle.context.conquestEvents,
         previousGeometry: compactGeometrySnapshotForExport(bundle.context.previousGeometry ?? null),
         nextGeometry: compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+        captureDiagnostics: bundle.extraDiagnostics,
     };
     const geometryString = JSON.stringify(
         compactGeometry,

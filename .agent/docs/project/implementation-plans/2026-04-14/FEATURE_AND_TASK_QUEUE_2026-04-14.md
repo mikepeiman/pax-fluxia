@@ -56,3 +56,7 @@
   - visible Debug controls now expose package export and an explicit `Open Panel` action for the floating Transition Debug inspector
 - Reduced perimeter-field control sprawl:
   - local `All | None` plus subsection chips for `Source`, `Field`, `Transition`, and `Diagnostics`
+- Rewired `perimeter_field` transition diagnostics to the real family render path:
+  - bundle capture now hooks directly into the live `perimeter_field` gameplay loop instead of the old DY4 export path
+  - recorded PREV, NEXT, and transition frames are rendered from the actual perimeter-field family state with the same geometry/vstar diagnostics overlaid
+  - package manifests now include compact per-frame perimeter diagnostic sample data for deterministic review

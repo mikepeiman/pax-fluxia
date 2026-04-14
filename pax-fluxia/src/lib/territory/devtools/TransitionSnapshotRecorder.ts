@@ -73,6 +73,8 @@ export interface TransitionDebugBundle {
      * Null if no ActiveFrontTransitionPlan was available at capture time.
      */
     transitionFrames: { progress: number; canvas: HTMLCanvasElement }[] | null;
+    /** Optional mode-specific diagnostics captured from the actual render path. */
+    extraDiagnostics?: unknown;
     /** Metadata for serialization */
     meta: TransitionDebugMeta;
 }
@@ -351,6 +353,103 @@ export class TransitionSnapshotRecorder {
             ` | static=${frontierDiff.staticPolylines.length}` +
             ` | affected=${affectedTerritoryCount}` +
             ` | rendered ${ctx.worldWidth}x${ctx.worldHeight}`,
+        );
+    }
+
+    capturePreRendered(params: {
+        ctx: SnapshotCaptureContext;
+        prevCanvas: HTMLCanvasElement | null;
+        nextCanvas: HTMLCanvasElement | null;
+        transitionFrames: { progress: number; canvas: HTMLCanvasElement }[] | null;
+        extraDiagnostics?: unknown;
+    }): void {
+        if (!this.enabled) return;
+
+        const ctx = params.ctx;
+        const frontierDiff = diffFromProduction(ctx.previousGeometry, ctx.nextGeometry);
+
+        const affectedOwners = new Set<string>();
+        for (const evt of ctx.conquestEvents) {
+            affectedOwners.add(evt.previousOwner);
+            affectedOwners.add(evt.newOwner);
+        }
+        const affectedTerritoryCount = ctx.nextGeometry.territoryRegions
+            .filter((r) => affectedOwners.has(r.ownerId))
+            .length;
+
+        const now = new Date();
+        const timestamp = now.toISOString();
+        const transitionId = ctx.transition.envelope?.transitionId ?? `snap:${ctx.nowMs}`;
+
+        const datePrefix = filePrefixFromIsoTimestamp(timestamp);
+        const frameFiles = params.transitionFrames?.map((f, i) =>
+            `${datePrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
+        ) ?? [];
+
+        const meta: TransitionDebugMeta = {
+            timestamp,
+            tick: this.tickCounter,
+            transitionId,
+            conquestEvents: ctx.conquestEvents,
+            prevOwnershipVersion: ctx.previousOwnership?.version ?? 'none',
+            nextOwnershipVersion: ctx.nextOwnership.version,
+            prevGeometryFingerprint: ctx.previousGeometry?.version ?? 'none',
+            nextGeometryFingerprint: ctx.nextGeometry.version,
+            modes: {
+                geometry: ctx.selection.geometryMode,
+                fillTransition: ctx.selection.fillTransitionMode,
+                borderTransition: ctx.selection.borderTransitionMode,
+            },
+            polylineDiffSemantics: POLYLINE_DIFF_SEMANTICS,
+            changeSummary: {
+                polylineDriftedCount: frontierDiff.drifted.length,
+                polylineStaticCount: frontierDiff.staticPolylines.length,
+                polylineKeyOrSegmentAppearedCount:
+                    frontierDiff.appearedKeyOrSegment.length,
+                polylineKeyOrSegmentRemovedCount:
+                    frontierDiff.removedKeyOrSegment.length,
+                affectedTerritoryCount,
+            },
+            files: [
+                `${datePrefix}_prev-geometry.png`,
+                `${datePrefix}_next-geometry.png`,
+                `${datePrefix}_frontier-diff-overlay.png`,
+                `${datePrefix}_composite.png`,
+                ...frameFiles,
+                `${datePrefix}_meta.json`,
+                `${datePrefix}_topology.json`,
+                `${datePrefix}_geometry_snapshot.json`,
+            ],
+        };
+
+        const bundleId = `${datePrefix}_${ctx.conquestEvents[0]?.starId ?? 'conquest'}_${ctx.conquestEvents[0]?.previousOwner ?? 'x'}_to_${ctx.conquestEvents[0]?.newOwner ?? 'y'}`;
+        const bundle: TransitionDebugBundle = {
+            id: bundleId,
+            timestamp,
+            conquestEvents: ctx.conquestEvents,
+            context: ctx,
+            prevCanvas: params.prevCanvas,
+            nextCanvas: params.nextCanvas,
+            frontierDiff,
+            starPositions: ctx.starPositions,
+            transitionFrames: params.transitionFrames,
+            extraDiagnostics: params.extraDiagnostics,
+            meta,
+        };
+
+        this.bundles.push(bundle);
+        if (this.bundles.length > this.maxBundles) {
+            this.bundles.shift();
+        }
+
+        console.log(
+            `[SnapshotRecorder] captured pre-rendered: ${bundleId}` +
+            ` | drifted=${frontierDiff.drifted.length}` +
+            ` | appearedKeyOrSeg=${frontierDiff.appearedKeyOrSegment.length}` +
+            ` | removedKeyOrSeg=${frontierDiff.removedKeyOrSegment.length}` +
+            ` | static=${frontierDiff.staticPolylines.length}` +
+            ` | affected=${affectedTerritoryCount}` +
+            ` | frames=${params.transitionFrames?.length ?? 0}`,
         );
     }
 

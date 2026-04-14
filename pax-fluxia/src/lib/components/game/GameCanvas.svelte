@@ -1919,32 +1919,101 @@
                             );
                         const lanes = activeGameStore
                             .connections as StarConnection[];
-                        pf.update(
-                            buildRenderFamilyInput({
+                        const pfInput = buildRenderFamilyInput({
+                            stars,
+                            lanes,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            nowMs: fxOrchestrator.gameTime,
+                            paused: isPausedNow,
+                            gameTick: activeGameStore.currentTick,
+                            ownership: buildRenderFamilyOwnershipSnapshot(
+                                stars,
+                                activeTransition,
+                            ),
+                            geometry: getCurrentRenderFamilyGeometry(
                                 stars,
                                 lanes,
-                                worldWidth: GAME_WIDTH,
-                                worldHeight: GAME_HEIGHT,
-                                nowMs: fxOrchestrator.gameTime,
-                                paused: isPausedNow,
-                                gameTick: activeGameStore.currentTick,
-                                ownership: buildRenderFamilyOwnershipSnapshot(
-                                    stars,
-                                    activeTransition,
-                                ),
-                                geometry: getCurrentRenderFamilyGeometry(
-                                    stars,
-                                    lanes,
-                                ),
-                                renderer: app?.renderer ?? undefined,
-                                activeTransition,
-                                tunableKeys: pf.tunableKeys,
-                            }),
-                        );
+                            ),
+                            renderer: app?.renderer ?? undefined,
+                            activeTransition,
+                            tunableKeys: pf.tunableKeys,
+                        });
+                        pf.update(pfInput);
                         if (pf.displayRoot.parent !== voronoiContainer) {
                             voronoiContainer.addChild(pf.displayRoot);
                         }
                         pf.displayRoot.visible = true;
+                        if (
+                            transitionSnapshotRecorder.isEnabled() &&
+                            (pendingTickEvents?.conquests.length ?? 0) > 0
+                        ) {
+                            const capture =
+                                pf.buildTransitionDiagnosticCapture(pfInput);
+                            if (capture) {
+                                const conquestEvents = pendingTickEvents!.conquests.map(
+                                    (event) => ({
+                                        ...event,
+                                        atMs: fxOrchestrator.gameTime,
+                                    }),
+                                );
+                                const starPositions = new Map<
+                                    string,
+                                    { x: number; y: number }
+                                >();
+                                for (const star of stars) {
+                                    starPositions.set(star.id, {
+                                        x: star.x,
+                                        y: star.y,
+                                    });
+                                }
+                                transitionSnapshotRecorder.capturePreRendered({
+                                    ctx: {
+                                        conquestEvents,
+                                        previousGeometry:
+                                            capture.previousGeometry,
+                                        nextGeometry: capture.nextGeometry,
+                                        previousOwnership:
+                                            capture.previousOwnership,
+                                        nextOwnership: capture.nextOwnership,
+                                        transition: {
+                                            envelope: null as any,
+                                            fillFrame: null as any,
+                                            borderFrame: null as any,
+                                            geometryVersion:
+                                                capture.nextGeometry.version,
+                                        },
+                                        fillPlan: null,
+                                        activeFrontPlan: null,
+                                        prevFrontierTopology:
+                                            capture.previousGeometry
+                                                .frontierTopology ?? null,
+                                        nextFrontierTopology:
+                                            capture.nextGeometry
+                                                .frontierTopology ?? null,
+                                        selection: {
+                                            geometryMode: "unified_vector",
+                                            fillTransitionMode:
+                                                "active_front",
+                                            borderTransitionMode: "off",
+                                            ownershipMode:
+                                                "star_ownership_snapshot",
+                                            styleMode: "canonical",
+                                        },
+                                        nowMs: fxOrchestrator.gameTime,
+                                        starPositions,
+                                        worldWidth: GAME_WIDTH,
+                                        worldHeight: GAME_HEIGHT,
+                                    },
+                                    prevCanvas: capture.prevCanvas,
+                                    nextCanvas: capture.nextCanvas,
+                                    transitionFrames:
+                                        capture.transitionFrames,
+                                    extraDiagnostics:
+                                        capture.extraDiagnostics,
+                                });
+                            }
+                        }
                         break;
                     }
                     case "pixel":
@@ -2185,7 +2254,10 @@
             processTickEvents(stars, tickEvents, connections || [], starsById);
 
             // Export local rendering states if snapshot recording is enabled
-            const willCapture = tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled();
+            const willCapture =
+                activeTerritoryMode !== "perimeter_field" &&
+                tickEvents.conquests.length > 0 &&
+                transitionSnapshotRecorder.isEnabled();
             if (willCapture) {
                 const prevGeometry = exportPowerVoronoiGeometrySnapshot("previous", "dy4:prev", "dy4:prev");
                 const nextGeometry = exportPowerVoronoiGeometrySnapshot("current", "dy4:next", "dy4:next");
