@@ -567,6 +567,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION' },
     { configKey: 'PERIMETER_FIELD_OLD_BOUNDARY_FADE' },
     { configKey: 'PERIMETER_FIELD_NEW_BOUNDARY_GROW' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SHOW_VSTARS' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

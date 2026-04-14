@@ -4,8 +4,16 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildCanonicalRenderFamilyGeometry } from '../buildFamilyGeometry';
-import type { RenderFamily, RenderFamilyInput, RenderFamilyOutput } from '../RenderFamilyTypes';
-import { buildPerimeterFieldScene } from './buildPerimeterFieldScene';
+import type {
+    RenderFamily,
+    RenderFamilyActiveTransition,
+    RenderFamilyInput,
+    RenderFamilyOutput,
+} from '../RenderFamilyTypes';
+import {
+    buildPerimeterFieldScene,
+    type PerimeterFieldDebugSnapshot,
+} from './buildPerimeterFieldScene';
 
 const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_GEOMETRY_SOURCE',
@@ -16,6 +24,8 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
     'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
     'PERIMETER_FIELD_NEW_BOUNDARY_GROW',
+    'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
+    'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS',
     'TERRITORY_TRANSITION_MS',
     'TERRITORY_TRANSITION_BIND_TO_TICK',
     'METABALL_ALPHA',
@@ -33,6 +43,10 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'METABALL_BORDER_LIGHTNESS',
     'METABALL_CHAIKIN_PASSES',
 ] as const;
+
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
 
 function buildTransitionKey(input: RenderFamilyInput): string | null {
     const events = input.activeTransition?.events;
@@ -68,6 +82,61 @@ function readFreezeBaseDuringTransition(input: RenderFamilyInput): boolean {
     return typeof value === 'boolean' ? value : true;
 }
 
+function readBooleanTunable(
+    input: RenderFamilyInput,
+    key: string,
+    fallback: boolean,
+): boolean {
+    const value = input.tunables.get(key);
+    return typeof value === 'boolean' ? value : fallback;
+}
+
+function readNumberTunable(
+    input: RenderFamilyInput,
+    key: string,
+    fallback: number,
+): number {
+    const value = input.tunables.get(key);
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function withDebugScrubTransition(
+    input: RenderFamilyInput,
+): RenderFamilyInput {
+    if (!input.paused || !input.activeTransition) {
+        return input;
+    }
+    const scrubEnabled = readBooleanTunable(
+        input,
+        'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
+        false,
+    );
+    if (!scrubEnabled) {
+        return input;
+    }
+    const scrubProgress = clamp01(
+        readNumberTunable(
+            input,
+            'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS',
+            input.activeTransition.progress,
+        ),
+    );
+    const activeTransition: RenderFamilyActiveTransition = {
+        ...input.activeTransition,
+        progress: scrubProgress,
+        rawProgress: scrubProgress,
+        events: input.activeTransition.events.map((entry) => ({
+            ...entry,
+            progress: scrubProgress,
+            rawProgress: scrubProgress,
+        })),
+    };
+    return {
+        ...input,
+        activeTransition,
+    };
+}
+
 export class PerimeterFieldFamily implements RenderFamily {
     readonly id = 'perimeter_field';
     readonly label = 'Perimeter Field';
@@ -77,6 +146,7 @@ export class PerimeterFieldFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private oldGeometryKey: string | null = null;
     private oldGeometry: CanonicalGeometrySnapshot | null = null;
+    private lastDebugSnapshot: PerimeterFieldDebugSnapshot | null = null;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -86,30 +156,36 @@ export class PerimeterFieldFamily implements RenderFamily {
         return this.root;
     }
 
+    get debugSnapshot(): PerimeterFieldDebugSnapshot | null {
+        return this.lastDebugSnapshot;
+    }
+
     update(input: RenderFamilyInput): RenderFamilyOutput {
-        const currentGeometry = input.geometry;
+        const effectiveInput = withDebugScrubTransition(input);
+        const currentGeometry = effectiveInput.geometry;
         if (!currentGeometry) {
             this.root.visible = false;
+            this.lastDebugSnapshot = null;
             return { container: this.root };
         }
 
-        let displayStars = input.stars;
+        let displayStars = effectiveInput.stars;
         let displayGeometry = currentGeometry;
-        const transitionKey = buildTransitionKey(input);
-        if (transitionKey && readFreezeBaseDuringTransition(input)) {
+        const transitionKey = buildTransitionKey(effectiveInput);
+        if (transitionKey && readFreezeBaseDuringTransition(effectiveInput)) {
             if (this.oldGeometryKey !== transitionKey) {
-                const revertedStars = revertStarsForTransition(input);
+                const revertedStars = revertStarsForTransition(effectiveInput);
                 this.oldGeometry = buildCanonicalRenderFamilyGeometry({
                     stars: revertedStars,
-                    lanes: input.lanes,
-                    worldWidth: input.world.width,
-                    worldHeight: input.world.height,
-                    nowMs: input.nowMs,
+                    lanes: effectiveInput.lanes,
+                    worldWidth: effectiveInput.world.width,
+                    worldHeight: effectiveInput.world.height,
+                    nowMs: effectiveInput.nowMs,
                 });
                 this.oldGeometryKey = transitionKey;
             }
             if (this.oldGeometry) {
-                displayStars = revertStarsForTransition(input);
+                displayStars = revertStarsForTransition(effectiveInput);
                 displayGeometry = this.oldGeometry;
             }
         } else {
@@ -117,24 +193,25 @@ export class PerimeterFieldFamily implements RenderFamily {
             this.oldGeometry = null;
         }
 
-        const sceneInput = buildPerimeterFieldScene({
-            input,
+        const builtScene = buildPerimeterFieldScene({
+            input: effectiveInput,
             starsForDisplay: displayStars,
             geometry: displayGeometry,
             transitionTargetGeometry: transitionKey ? currentGeometry : null,
             colorUtils: this.colorUtils,
         });
+        this.lastDebugSnapshot = builtScene.debug;
 
         renderMetaball(
             [...displayStars],
             this.root,
             this.colorUtils,
-            input.world.width,
-            input.world.height,
-            [...input.lanes],
+            effectiveInput.world.width,
+            effectiveInput.world.height,
+            [...effectiveInput.lanes],
             {
-                gameTick: input.gameTick,
-                sceneInput,
+                gameTick: effectiveInput.gameTick,
+                sceneInput: builtScene.sceneInput,
             },
         );
 
@@ -145,6 +222,7 @@ export class PerimeterFieldFamily implements RenderFamily {
         resetMetaballCache();
         this.oldGeometryKey = null;
         this.oldGeometry = null;
+        this.lastDebugSnapshot = null;
         this.root.removeChildren();
     }
 }

@@ -32,6 +32,7 @@ export function buildRenderFamilyInput(params: {
     worldWidth: number;
     worldHeight: number;
     nowMs: number;
+    paused?: boolean;
     gameTick?: number;
     ownership?: RenderFamilyInput['ownership'];
     geometry?: CanonicalGeometrySnapshot | null;
@@ -44,6 +45,7 @@ export function buildRenderFamilyInput(params: {
         ownership: params.ownership ?? null,
         geometry: params.geometry ?? null,
         nowMs: params.nowMs,
+        paused: params.paused ?? false,
         gameTick: params.gameTick,
         stars: params.stars,
         lanes: params.lanes,

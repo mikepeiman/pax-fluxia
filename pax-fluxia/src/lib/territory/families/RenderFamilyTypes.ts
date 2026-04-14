@@ -33,6 +33,7 @@ export interface RenderFamilyInput {
     ownership: OwnershipSnapshot | null;
     geometry?: CanonicalGeometrySnapshot | null;
     nowMs: number;
+    paused?: boolean;
     /** Game tick (for combat/recency effects in renderers that opt in, e.g. Metaball borders). */
     gameTick?: number;
     stars: ReadonlyArray<StarState>;

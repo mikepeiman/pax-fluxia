@@ -282,6 +282,25 @@
         };
     }
 
+    function resolveActiveTerritoryMode(): string {
+        let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
+        if (!activeMode) {
+            if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
+            else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
+                activeMode = "power_voronoi";
+            else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
+                activeMode = "distance_field";
+            else if (GAME_CONFIG.TERRITORY_VORONOI) activeMode = "voronoi";
+            else if (GAME_CONFIG.TERRITORY_METABALL) activeMode = "metaball";
+            else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
+            else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
+            else if (GAME_CONFIG.TERRITORY_CONTOUR) activeMode = "contour";
+            else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
+                activeMode = "territory_engine";
+        }
+        return activeMode ?? "none";
+    }
+
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
     let canonicalBridge: GameCanvasBridge | null = null;
     let canonicalBridgeFallbackLogged = false;
@@ -1247,6 +1266,119 @@
         }
     }
 
+    function getPerimeterDebugLoops(
+        geometry: CanonicalGeometrySnapshot,
+    ): ReadonlyArray<ReadonlyArray<[number, number]>> {
+        const shellLoops = geometry.shellLoops.filter(
+            (loop) => loop.classification === "outer" && Boolean(loop.ownerId),
+        );
+        if (shellLoops.length > 0) {
+            return shellLoops.map((loop) => loop.points);
+        }
+        return geometry.territoryRegions
+            .filter((region) => Boolean(region.ownerId))
+            .map((region) => region.points);
+    }
+
+    function drawClosedPolyline(
+        g: PIXI.Graphics,
+        points: ReadonlyArray<[number, number]>,
+        color: number,
+        alpha: number,
+        width: number,
+    ): void {
+        if (points.length < 2) return;
+        g.beginPath();
+        g.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+            g.lineTo(points[i][0], points[i][1]);
+        }
+        g.lineTo(points[0][0], points[0][1]);
+        g.stroke({ color, alpha, width });
+    }
+
+    function drawSamplePoints(
+        g: PIXI.Graphics,
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+        }>,
+        color: number,
+        alpha: number,
+        radius: number,
+    ): void {
+        for (const sample of samples) {
+            g.circle(sample.x, sample.y, radius);
+            g.fill({ color, alpha });
+        }
+    }
+
+    function renderPerimeterFieldDebugOverlay(activeMode: string): void {
+        if (activeMode !== "perimeter_field" || !debugGraphics) return;
+        const showGeometry =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
+        const showVstars =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
+        if (!showGeometry && !showVstars) return;
+
+        const family = getRenderFamily("perimeter_field");
+        if (!(family instanceof PerimeterFieldFamily)) return;
+        const snapshot = family.debugSnapshot;
+        if (!snapshot) return;
+
+        const scrubEnabled =
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+            activeGameStore.isPaused &&
+            Boolean(snapshot.transitionTargetGeometry);
+
+        if (showGeometry) {
+            for (const points of getPerimeterDebugLoops(
+                snapshot.displayGeometry,
+            )) {
+                drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
+            }
+            if (scrubEnabled && snapshot.transitionTargetGeometry) {
+                for (const points of getPerimeterDebugLoops(
+                    snapshot.transitionTargetGeometry,
+                )) {
+                    drawClosedPolyline(
+                        debugGraphics,
+                        points,
+                        0xff5bd1,
+                        0.65,
+                        2,
+                    );
+                }
+            }
+        }
+
+        if (showVstars) {
+            drawSamplePoints(
+                debugGraphics,
+                snapshot.staticSamples,
+                0x47d7ff,
+                0.95,
+                2.6,
+            );
+            if (scrubEnabled) {
+                drawSamplePoints(
+                    debugGraphics,
+                    snapshot.targetStaticSamples,
+                    0xff5bd1,
+                    0.75,
+                    2.3,
+                );
+            }
+            drawSamplePoints(
+                debugGraphics,
+                snapshot.transitionSamples,
+                0xfff36b,
+                0.95,
+                3.2,
+            );
+        }
+    }
+
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
         g.moveTo(x + r * Math.cos(0), y + r * Math.sin(0));
         for (let i = 1; i <= 6; i++) {
@@ -1347,6 +1479,7 @@
         // 200-300 log lines/sec from the fingerprint checks and stage logs.
         // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
         const isPausedNow = activeGameStore.isPaused;
+        const activeTerritoryMode = resolveActiveTerritoryMode();
         const territoryConfigFp =
             `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:` +
             `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:` +
@@ -1354,7 +1487,14 @@
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
             `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
+            `${GAME_CONFIG.TERRITORY_TRANSITION_MS}:` +
             `${GAME_CONFIG.USE_RENDER_FAMILIES}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING}:${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT}:${GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS}:` +
             `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
             `${getTerritoryVisualEpoch()}`;
         const configChanged =
@@ -1386,26 +1526,7 @@
             // which also populates trace data for the Trace Inspector.
             {
                 // Resolve active render mode — check new enum first, fall back to old booleans
-                let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
-                if (!activeMode) {
-                    // No explicit render mode set — fall back to old boolean flags
-                    // Backward compat: check old boolean flags
-                    if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
-                    else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
-                        activeMode = "power_voronoi";
-                    else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
-                        activeMode = "distance_field";
-                    else if (GAME_CONFIG.TERRITORY_VORONOI)
-                        activeMode = "voronoi";
-                    else if (GAME_CONFIG.TERRITORY_METABALL)
-                        activeMode = "metaball";
-                    else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
-                    else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
-                    else if (GAME_CONFIG.TERRITORY_CONTOUR)
-                        activeMode = "contour";
-                    else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
-                        activeMode = "territory_engine";
-                }
+                const activeMode = activeTerritoryMode;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -1560,6 +1681,7 @@
                                 worldWidth: GAME_WIDTH,
                                 worldHeight: GAME_HEIGHT,
                                 nowMs: fxOrchestrator.gameTime,
+                                paused: isPausedNow,
                                 gameTick: activeGameStore.currentTick,
                                 ownership: buildRenderFamilyOwnershipSnapshot(
                                     stars,
@@ -1600,6 +1722,7 @@
                                 worldWidth: GAME_WIDTH,
                                 worldHeight: GAME_HEIGHT,
                                 nowMs: fxOrchestrator.gameTime,
+                                paused: isPausedNow,
                                 gameTick: activeGameStore.currentTick,
                                 ownership: buildRenderFamilyOwnershipSnapshot(
                                     stars,
@@ -1797,6 +1920,8 @@
                 }
             }
         } // end territory pause guard
+
+        renderPerimeterFieldDebugOverlay(activeTerritoryMode);
 
         // Render stars (static elements)
         renderStarsModule(

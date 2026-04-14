@@ -15,3 +15,8 @@
   - canonical-geometry-to-perimeter-sample scene builder
   - conquest-local radial override transition
   - Territory control surface and config wiring
+- Added in-game diagnostics and paused scrub tooling for `perimeter_field`:
+  - show underlying geometry
+  - show perimeter vstars
+  - paused transition scrub with current/next/interim overlays
+  - semantic control labels/tooltips and explicit perimeter-vstar power control

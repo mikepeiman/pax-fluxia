@@ -11,6 +11,20 @@ import { buildSceneFingerprint } from '../metaball/metaballSceneBase';
 
 type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 
+export interface PerimeterFieldDebugSnapshot {
+    displayGeometry: CanonicalGeometrySnapshot;
+    transitionTargetGeometry: CanonicalGeometrySnapshot | null;
+    staticSamples: ReadonlyArray<MetaballInfluenceSample>;
+    targetStaticSamples: ReadonlyArray<MetaballInfluenceSample>;
+    transitionSamples: ReadonlyArray<MetaballInfluenceSample>;
+    effectiveProgress: number | null;
+}
+
+export interface PerimeterFieldBuiltScene {
+    sceneInput: MetaballSceneInput;
+    debug: PerimeterFieldDebugSnapshot;
+}
+
 function readNumber(input: RenderFamilyInput, key: string, fallback: number): number {
     const value = input.tunables.get(key);
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -339,7 +353,7 @@ export function buildPerimeterFieldScene(params: {
     geometry: CanonicalGeometrySnapshot;
     transitionTargetGeometry?: CanonicalGeometrySnapshot | null;
     colorUtils: ColorUtils;
-}): MetaballSceneInput {
+}): PerimeterFieldBuiltScene {
     const spacing = readNumber(
         params.input,
         'PERIMETER_FIELD_SAMPLE_SPACING',
@@ -383,6 +397,14 @@ export function buildPerimeterFieldScene(params: {
         spacing,
         strength,
     });
+    const targetStaticSamples = params.transitionTargetGeometry
+        ? buildStaticPerimeterSamples({
+              geometry: params.transitionTargetGeometry,
+              ownerToCluster: clusterScene.ownerToCluster,
+              spacing,
+              strength,
+          })
+        : [];
     const transitionSamples =
         params.input.activeTransition && params.transitionTargetGeometry
             ? buildTransitionSamples({
@@ -407,6 +429,7 @@ export function buildPerimeterFieldScene(params: {
     });
 
     return {
+        sceneInput: {
         ownedStars: clusterScene.ownedStars,
         clusterMap: clusterScene.clusterMap,
         playerColors: clusterScene.playerColors,
@@ -423,5 +446,14 @@ export function buildPerimeterFieldScene(params: {
             GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
         ),
         ownershipMarginPx: 0,
+        },
+        debug: {
+            displayGeometry: params.geometry,
+            transitionTargetGeometry: params.transitionTargetGeometry ?? null,
+            staticSamples,
+            targetStaticSamples,
+            transitionSamples,
+            effectiveProgress: params.input.activeTransition?.progress ?? null,
+        },
     };
 }

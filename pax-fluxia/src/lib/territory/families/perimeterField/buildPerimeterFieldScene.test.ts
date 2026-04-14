@@ -183,10 +183,10 @@ describe('buildPerimeterFieldScene', () => {
             colorUtils,
         });
 
-        expect(sceneA.samples.map((sample) => sample.id)).toEqual(
-            sceneB.samples.map((sample) => sample.id),
+        expect(sceneA.sceneInput.samples.map((sample) => sample.id)).toEqual(
+            sceneB.sceneInput.samples.map((sample) => sample.id),
         );
-        expect(sceneA.fingerprint).toBe(sceneB.fingerprint);
+        expect(sceneA.sceneInput.fingerprint).toBe(sceneB.sceneInput.fingerprint);
     });
 
     it('falls back to territory regions when no outer shell loops are available', () => {
@@ -232,8 +232,10 @@ describe('buildPerimeterFieldScene', () => {
             colorUtils,
         });
 
-        expect(scene.samples.length).toBeGreaterThan(0);
-        expect(scene.samples[0]?.id?.startsWith('perimeter:region:red')).toBe(true);
+        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
+        expect(
+            scene.sceneInput.samples[0]?.id?.startsWith('perimeter:region:red'),
+        ).toBe(true);
     });
 
     it('adds conquest-local radial transition samples without star-margin fallback', () => {
@@ -310,9 +312,17 @@ describe('buildPerimeterFieldScene', () => {
             colorUtils,
         });
 
-        expect(scene.samples.filter((sample) => (sample.id ?? '').startsWith('transition:old:'))).toHaveLength(12);
-        expect(scene.samples.filter((sample) => (sample.id ?? '').startsWith('transition:new:'))).toHaveLength(12);
-        expect(scene.influenceRadiusPx).toBe(44);
-        expect(scene.ownershipMarginPx).toBe(0);
+        expect(
+            scene.sceneInput.samples.filter((sample) =>
+                (sample.id ?? '').startsWith('transition:old:'),
+            ),
+        ).toHaveLength(12);
+        expect(
+            scene.sceneInput.samples.filter((sample) =>
+                (sample.id ?? '').startsWith('transition:new:'),
+            ),
+        ).toHaveLength(12);
+        expect(scene.sceneInput.influenceRadiusPx).toBe(44);
+        expect(scene.sceneInput.ownershipMarginPx).toBe(0);
     });
 });
