@@ -257,18 +257,6 @@
         menuLaneMargin = laneKnobs.laneMargin;
         menuCurveVsPruneBias = laneKnobs.curveVsPruneBias;
         menuLaneMode = laneKnobs.mode;
-
-        const handlePointerDown = (event: MouseEvent) => {
-            const target = event.target as HTMLElement | null;
-            if (!target?.closest(".background-picker")) {
-                bgOpen = false;
-            }
-        };
-
-        document.addEventListener("mousedown", handlePointerDown, true);
-        return () => {
-            document.removeEventListener("mousedown", handlePointerDown, true);
-        };
     });
 
     function loadSetting<T>(key: string, defaultValue: T): T {
@@ -651,6 +639,7 @@
                 muted={audioManager.muted}
                 masterVolume={audioManager.masterVolume}
                 onToggleBackgrounds={() => (bgOpen = !bgOpen)}
+                onCloseBackgrounds={() => (bgOpen = false)}
                 onSelectBackground={(image) => {
                     bgImage = image;
                     bgOpen = false;

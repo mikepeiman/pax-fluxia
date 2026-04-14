@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { MenuTheme } from "$lib/components/ui/menuTheme";
+    import BackgroundSelectModal from "./BackgroundSelectModal.svelte";
     import MenuThemeRail from "./MenuThemeRail.svelte";
 
     interface Props {
@@ -10,6 +11,7 @@
         muted: boolean;
         masterVolume: number;
         onToggleBackgrounds: () => void;
+        onCloseBackgrounds: () => void;
         onSelectBackground: (image: string) => void;
         onMenuThemeChange: (theme: MenuTheme) => void;
         onToggleMute: () => void;
@@ -25,63 +27,25 @@
         muted,
         masterVolume,
         onToggleBackgrounds,
+        onCloseBackgrounds,
         onSelectBackground,
         onMenuThemeChange,
         onToggleMute,
         onSetVolume,
         onOpenSettings,
     }: Props = $props();
-
-    function formatBackgroundLabel(name: string): string {
-        return name
-            .replace(/\.(png|jpe?g|webp|avif)$/i, "")
-            .replace(/^pax-fluxia-/, "")
-            .replace(/[-_]/g, " ");
-    }
 </script>
 
 <div class="menu-topbar">
     <div class="menu-topbar__cluster">
-        <div class="background-picker">
-            <button
-                type="button"
-                class="topbar-chip"
-                class:is-active={bgOpen}
-                onclick={onToggleBackgrounds}
-            >
-                Background
-            </button>
-
-            {#if bgOpen}
-                <div class="background-picker__menu">
-                    <button
-                        type="button"
-                        class="background-picker__thumb"
-                        class:is-active={!bgImage}
-                        onclick={() => onSelectBackground("")}
-                    >
-                        <span class="background-picker__placeholder">None</span>
-                        <span class="background-picker__label">Default</span>
-                    </button>
-
-                    {#each bgImages as image}
-                        <button
-                            type="button"
-                            class="background-picker__thumb"
-                            class:is-active={bgImage === image}
-                            onclick={() => onSelectBackground(image)}
-                        >
-                            <img
-                                src={`/assets/${image}`}
-                                alt={formatBackgroundLabel(image)}
-                                loading="lazy"
-                            />
-                            <span class="background-picker__label">{formatBackgroundLabel(image)}</span>
-                        </button>
-                    {/each}
-                </div>
-            {/if}
-        </div>
+        <button
+            type="button"
+            class="topbar-chip"
+            class:is-active={bgOpen}
+            onclick={onToggleBackgrounds}
+        >
+            Background
+        </button>
 
         <MenuThemeRail {menuTheme} {onMenuThemeChange} />
     </div>
@@ -121,6 +85,15 @@
         </button>
     </div>
 </div>
+
+<BackgroundSelectModal
+    visible={bgOpen}
+    {bgImage}
+    {bgImages}
+    {menuTheme}
+    onClose={onCloseBackgrounds}
+    {onSelectBackground}
+/>
 
 <style>
     .menu-topbar {
@@ -163,10 +136,6 @@
 
     .menu-topbar__cluster--right {
         margin-left: auto;
-    }
-
-    .background-picker {
-        position: relative;
     }
 
     .topbar-chip,
@@ -214,66 +183,6 @@
 
     .audio-chip input {
         width: min(140px, 26vw);
-    }
-
-    .background-picker__menu {
-        position: absolute;
-        top: calc(100% + 10px);
-        left: 0;
-        z-index: 30;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-        gap: 8px;
-        width: min(420px, 80vw);
-        padding: 10px;
-        border-radius: 18px;
-        border: 1px solid var(--pf-border-strong);
-        background: var(--pf-surface-elevated);
-        backdrop-filter: blur(20px);
-        box-shadow: var(--pf-shadow-elevated);
-    }
-
-    .background-picker__thumb {
-        display: grid;
-        gap: 6px;
-        padding: 6px;
-        border-radius: 14px;
-        border: 1px solid transparent;
-        background: var(--pf-surface-card);
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            transform 0.15s ease,
-            background 0.15s ease;
-    }
-
-    .background-picker__thumb:hover,
-    .background-picker__thumb.is-active {
-        border-color: var(--pf-accent-soft);
-        background: var(--pf-surface-card-hover);
-        transform: translateY(-1px);
-    }
-
-    .background-picker__thumb img,
-    .background-picker__placeholder {
-        width: 100%;
-        aspect-ratio: 1.5;
-        border-radius: 10px;
-        background: var(--pf-surface-field);
-        object-fit: cover;
-        display: grid;
-        place-items: center;
-        color: var(--pf-muted);
-        font-family: "Rajdhani", sans-serif;
-        font-weight: 700;
-    }
-
-    .background-picker__label {
-        font-family: "Rajdhani", sans-serif;
-        font-size: 0.76rem;
-        font-weight: 600;
-        color: var(--pf-muted);
-        text-transform: capitalize;
     }
 
     @media (max-width: 640px) {
