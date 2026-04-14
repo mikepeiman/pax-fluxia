@@ -281,21 +281,20 @@ function nearestPointOnSegment(
     return { x, y, distance: hypot(px - x, py - y), t };
 }
 
-function sortedObstacleWitnessesToPolyline(
+function nearestObstacleWitnessToPolyline(
     pts: Array<[number, number]>,
     obstacles: Array<{ x: number; y: number }>,
-): ObstacleWitness[] {
-    const witnesses: ObstacleWitness[] = [];
+): ObstacleWitness | null {
+    let bestWitness: ObstacleWitness | null = null;
     const segmentCount = Math.max(0, pts.length - 1);
     for (const obstacle of obstacles) {
-        let best: ObstacleWitness | null = null;
         for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i]!;
             const [bx, by] = pts[i + 1]!;
             const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
             const nearest = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT);
-            if (!best || nearest.distance < best.distance) {
-                best = {
+            if (!bestWitness || nearest.distance < bestWitness.distance) {
+                bestWitness = {
                     obstacle,
                     pointX: nearest.x,
                     pointY: nearest.y,
@@ -305,10 +304,8 @@ function sortedObstacleWitnessesToPolyline(
                 };
             }
         }
-        if (best) witnesses.push(best);
     }
-    witnesses.sort((left, right) => left.distance - right.distance);
-    return witnesses;
+    return bestWitness;
 }
 
 function buildQuadraticWaypointsViaControl(
@@ -339,9 +336,8 @@ function trySingleKinkDetour(
 ): Array<[number, number]> | null {
     let current: Array<[number, number]> = [[ax, ay], [bx, by]];
     for (let iteration = 0; iteration < maxIterations; iteration++) {
-        const blockingMeasurement = sortedObstacleWitnessesToPolyline(current, obstacles)
-            .find((candidate) => candidate.distance < minDist - CLEARANCE_EPSILON_PX);
-        if (!blockingMeasurement) {
+        const blockingMeasurement = nearestObstacleWitnessToPolyline(current, obstacles);
+        if (!blockingMeasurement || blockingMeasurement.distance >= minDist - CLEARANCE_EPSILON_PX) {
             if (polylineCrossesPlaced(current, placed, starCenters)) return null;
             return current;
         }
@@ -420,9 +416,10 @@ export function effectiveLaneClearanceForChord(
     return Math.max(0, configuredClearancePx);
 }
 
-function reshapeAttemptBudget(reshapeBias: number): number {
+function reshapeAttemptBudget(reshapeBias: number, obstacleCount: number): number {
     if (reshapeBias <= 0) return 0;
-    return Math.max(12, Math.min(256, Math.round(12 + reshapeBias * 244)));
+    const maxUsefulIterations = Math.max(12, Math.min(64, obstacleCount * 2 + 8));
+    return Math.max(12, Math.round(12 + reshapeBias * (maxUsefulIterations - 12)));
 }
 
 type LaneSolveResult = {
@@ -444,7 +441,7 @@ function tryAdjustedPath(
     reshapeBias: number,
     trace?: LaneDecisionTrace,
 ): LaneSolveResult | null {
-    const maxIterations = reshapeAttemptBudget(reshapeBias);
+    const maxIterations = reshapeAttemptBudget(reshapeBias, obstacles.length);
     if (adjustmentStyle === 'angular') {
         const kink = trySingleKinkDetour(
             ax,

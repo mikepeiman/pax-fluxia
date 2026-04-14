@@ -36,6 +36,7 @@
     } from "$lib/utils/playerPalette";
     import { BG_IMAGES, normalizeBgImagePath } from "$lib/config/bgManifest";
     import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
+    import type { MainMenuPreviewRequest, MainMenuPreviewResult } from "$lib/utils/mainMenuPreview";
     import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
     import GameMapPanel from "./main-menu/GameMapPanel.svelte";
     import PlayersPanel from "./main-menu/PlayersPanel.svelte";
@@ -108,6 +109,7 @@
     let previewTimer: ReturnType<typeof setTimeout> | null = null;
     let previewRequestId = 0;
     let lastPreviewKey = "";
+    let previewWorker: Worker | null = null;
 
     const selectedRoom = $derived(
         multiplayerStore.availableRooms.find((room) => room.roomId === selectedRoomId) ?? null,
@@ -271,6 +273,10 @@
             if (previewTimer) {
                 clearTimeout(previewTimer);
                 previewTimer = null;
+            }
+            if (previewWorker) {
+                previewWorker.terminate();
+                previewWorker = null;
             }
             previewRequestId += 1;
         };
@@ -465,12 +471,102 @@
         });
     }
 
+    function buildPreviewRequest(): MainMenuPreviewRequest {
+        const isPortrait = typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+        return {
+            width: isPortrait ? 900 : 1600,
+            height: isPortrait ? 1600 : 900,
+            playerCount,
+            starsPerPlayer,
+            minLinksPerStar: minLinks,
+            maxLinksPerStar: maxLinks,
+            starSpacing,
+            mapBoardFit,
+            neutralStarCount,
+            specialStarPercentage,
+            mapgenStarMarginPx: menuStarMargin,
+            mapgenLaneMarginPx: menuLaneMargin,
+            mapgenLaneCurveVsPruneBias: menuCurveVsPruneBias,
+            mapLaneMode: menuLaneMode,
+        };
+    }
+
+    function applyPreviewResult(result: MainMenuPreviewResult) {
+        thumbnailUrl = generateMapThumbnail(result.stars, result.connections, {
+            width: 240,
+            height: 135,
+        });
+    }
+
+    function generatePreviewInWorker(requestId: number, nextKey: string) {
+        if (previewWorker) {
+            previewWorker.terminate();
+            previewWorker = null;
+        }
+
+        const worker = new Worker(
+            new URL("../../workers/mainMenuPreview.worker.ts", import.meta.url),
+            { type: "module" },
+        );
+        previewWorker = worker;
+
+        worker.onmessage = (event: MessageEvent<MainMenuPreviewResult>) => {
+            if (requestId !== previewRequestId) {
+                worker.terminate();
+                if (previewWorker === worker) {
+                    previewWorker = null;
+                }
+                return;
+            }
+
+            applyPreviewResult(event.data);
+            lastPreviewKey = nextKey;
+            previewPending = false;
+            worker.terminate();
+            if (previewWorker === worker) {
+                previewWorker = null;
+            }
+        };
+
+        worker.onerror = () => {
+            if (requestId !== previewRequestId) {
+                worker.terminate();
+                if (previewWorker === worker) {
+                    previewWorker = null;
+                }
+                return;
+            }
+
+            const nextThumbnailUrl = generatePreview();
+            if (requestId !== previewRequestId) {
+                worker.terminate();
+                if (previewWorker === worker) {
+                    previewWorker = null;
+                }
+                return;
+            }
+            thumbnailUrl = nextThumbnailUrl;
+            lastPreviewKey = nextKey;
+            previewPending = false;
+            worker.terminate();
+            if (previewWorker === worker) {
+                previewWorker = null;
+            }
+        };
+
+        worker.postMessage(buildPreviewRequest());
+    }
+
     function schedulePreview() {
         if (mapMode !== "random") {
             previewRequestId += 1;
             if (previewTimer) {
                 clearTimeout(previewTimer);
                 previewTimer = null;
+            }
+            if (previewWorker) {
+                previewWorker.terminate();
+                previewWorker = null;
             }
             previewPending = false;
             return;
@@ -493,31 +589,17 @@
         previewTimer = setTimeout(() => {
             previewTimer = null;
 
-            const runPreview = () => {
-                if (requestId !== previewRequestId) return;
-                const nextThumbnailUrl = generatePreview();
-                if (requestId !== previewRequestId) return;
-                thumbnailUrl = nextThumbnailUrl;
-                lastPreviewKey = nextKey;
-                previewPending = false;
-            };
-
-            if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-                (window as Window & {
-                    requestIdleCallback: (
-                        callback: IdleRequestCallback,
-                        options?: IdleRequestOptions,
-                    ) => number;
-                }).requestIdleCallback(() => runPreview(), { timeout: 180 });
+            if (typeof Worker === "function") {
+                generatePreviewInWorker(requestId, nextKey);
                 return;
             }
 
-            if (typeof requestAnimationFrame === "function") {
-                requestAnimationFrame(() => runPreview());
-                return;
-            }
-
-            runPreview();
+            if (requestId !== previewRequestId) return;
+            const nextThumbnailUrl = generatePreview();
+            if (requestId !== previewRequestId) return;
+            thumbnailUrl = nextThumbnailUrl;
+            lastPreviewKey = nextKey;
+            previewPending = false;
         }, 140);
     }
 

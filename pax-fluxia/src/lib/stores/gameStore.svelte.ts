@@ -57,6 +57,7 @@ import {
     PLAYER_PALETTE_DEFAULTS,
     buildPlayerPaletteHex,
 } from '$lib/utils/playerPalette';
+import { buildMainMenuPreview } from '$lib/utils/mainMenuPreview';
 
 // ============================================================================
 // Constants
@@ -594,17 +595,17 @@ function generateMapPreview(opts: {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
-    const result = generateMap({
+    return buildMainMenuPreview({
         width: mapW,
         height: mapH,
         playerCount: opts.playerCount,
         starsPerPlayer: opts.starsPerPlayer,
-        extraNeutralStars: opts.neutralStarCount,
-        spacingMultiplier: opts.starSpacing,
-        hexRadius: GAME_CONFIG.HEX_RADIUS ?? 50,
         minLinksPerStar: opts.minLinksPerStar,
         maxLinksPerStar: opts.maxLinksPerStar,
-        boardFit: opts.mapBoardFit,
+        starSpacing: opts.starSpacing,
+        mapBoardFit: opts.mapBoardFit,
+        neutralStarCount: opts.neutralStarCount,
+        specialStarPercentage: opts.specialStarPercentage,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
         mapgenLaneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
         mapgenLaneCurveVsPruneBias: Math.min(
@@ -613,59 +614,6 @@ function generateMapPreview(opts: {
         ),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
-
-    const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
-    
-    // Distribute ownership: exact number per player + neutrals
-    const ownerIds: string[] = [];
-    for (let p=0; p<opts.playerCount; p++) {
-        for (let s=0; s<opts.starsPerPlayer; s++) {
-            ownerIds.push(`player${p}`);
-        }
-    }
-    for (let n=0; n<opts.neutralStarCount; n++) {
-        ownerIds.push('neutral');
-    }
-
-    // Shuffle ownership
-    for (let i = ownerIds.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [ownerIds[i], ownerIds[j]] = [ownerIds[j], ownerIds[i]];
-    }
-
-    const hasCapital = new Set<string>();
-
-    const stars = result.positions.map((pos, i) => {
-        const ownerId = ownerIds[i];
-        
-        let isCapital = false;
-        if (ownerId !== 'neutral' && !hasCapital.has(ownerId)) {
-            isCapital = true;
-            hasCapital.add(ownerId);
-        }
-        
-        const isSpecial = Math.random() * 100 < opts.specialStarPercentage;
-        // 'grey' is basic; others are special
-        const typeIndex = isSpecial ? Math.floor(Math.random() * (starTypes.length - 1)) + 1 : 0;
-        const starType = isCapital ? 'grey' : starTypes[typeIndex];
-
-        return {
-            id: `star-${i}`, // Must match generateMap()'s generated connection sourceIds
-            x: pos.x,
-            y: pos.y,
-            ownerId,
-            starType,
-        };
-    });
-    return {
-        stars,
-        connections: result.connections.map((c) => ({
-            sourceId: c.sourceId,
-            targetId: c.targetId,
-            laneWaypoints: c.laneWaypoints,
-            lanePathKind: c.lanePathKind,
-        })),
-    };
 }
 
 /** Standard random map via generateMap() */
