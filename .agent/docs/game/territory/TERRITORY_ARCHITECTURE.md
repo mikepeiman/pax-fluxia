@@ -10,6 +10,10 @@
 > Any AI agent working on territory code MUST read this document before making changes.
 > If your changes contradict anything here, STOP and ask the user.
 
+> [!IMPORTANT]
+> Experimental territory families may have their own mode-specific specs. For `perimeter_field`, the authoritative mode document is [PERIMETER_FIELD_MODE_SPEC.md](./PERIMETER_FIELD_MODE_SPEC.md).
+> If current implementation behavior conflicts with a mode spec, the implementation is drift, not design.
+
 ---
 
 ## 1. The 4-Layer Pipeline
@@ -27,6 +31,9 @@ Ownership → Geometry → Transition → Presentation
 
 > [!IMPORTANT]
 > During a conquest transition, **fills and frontiers stay locked together**: at every frame, neither may snap ahead or lag behind the other. Implementation must use **one** transition clock and **one** plan; separate fill and border transition *algorithms* running on different timelines are **not** allowed for the shipped path (they caused divergence and bugs).
+
+> [!IMPORTANT]
+> Ownership-layer input invariant: by the time territory code runs, every live star must have an `ownerId`. Missing or empty owner IDs from map inputs are normalized to `"neutral"` during game initialization so neutral territory holds space in every renderer.
 
 ### Core design position (from 2026-04-04 design review)
 
@@ -48,6 +55,19 @@ Concrete dropdown labels change over time. A stable mental model:
 | **Style** | How fills and strokes **look** when drawn | Presentation |
 | **Transition** | How conquest **morphs** from previous to next geometry | **Unified** step (fill + frontier together) |
 | **(Future / advanced)** | Extra VFX or decoupled experiments | May reintroduce separate tunables behind flags when needed |
+
+### Experimental family note: `perimeter_field`
+
+`perimeter_field` is an experimental presentation family. It is not allowed to invent its own ownership truth.
+
+Its mode-specific rules are defined in [PERIMETER_FIELD_MODE_SPEC.md](./PERIMETER_FIELD_MODE_SPEC.md), including:
+
+- perimeter-vstar ownership/render semantics
+- source-geometry requirements
+- conquest transition correspondence requirements
+- diagnostic truth requirements
+
+Agents must not infer `perimeter_field` design from current code alone.
 
 ---
 

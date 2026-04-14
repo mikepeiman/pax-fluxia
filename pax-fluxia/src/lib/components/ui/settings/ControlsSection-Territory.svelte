@@ -14,7 +14,14 @@
     familyRegistryEpoch,
     getRegisteredFamilyAdapterModeIds,
   } from "$lib/territory/families/renderFamilyRegistry";
+  import {
+    coerceVsTransitionModeForRenderMode,
+    getTransitionModeOptionsForRenderMode,
+  } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
+  import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
+  import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
+  import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
@@ -24,9 +31,29 @@
     panel: Record<string, any>;
     updatePanel: (key: string, value: any) => void;
     syncFromConfig?: () => void;
+    animLockModes: Record<string, any>;
+    animLockRatios: Record<string, any>;
+    getAnimValue: (key: string) => number;
+    setAnimValue: (key: string, val: number) => void;
+    formatAnimValue: (val: number, unit: string) => string;
+    pinValueToTickDuration: (key: string) => void;
+    lockRatioToTick: (key: string) => void;
+    lockRatioToAnimSpeed: (key: string) => void;
   }
 
-  let { panel, updatePanel, syncFromConfig }: Props = $props();
+  let {
+    panel,
+    updatePanel,
+    syncFromConfig,
+    animLockModes,
+    animLockRatios,
+    getAnimValue,
+    setAnimValue,
+    formatAnimValue,
+    pinValueToTickDuration,
+    lockRatioToTick,
+    lockRatioToAnimSpeed,
+  }: Props = $props();
 
   /** CX/DX sub-sliders stay visible when off; these drive disabled + dim styling. */
   let cxOn = $derived(
@@ -42,13 +69,16 @@
 
   type TerritorySystemModuleId =
     | "all"
+    | "none"
     | "geometry"
     | "render-mode"
     | "architecture"
     | "fill-transition";
   type TerritoryRendererModuleId =
     | "all"
+    | "none"
     | "metaball"
+    | "perimeter-field"
     | "topology"
     | "border-transition"
     | "surface";
@@ -59,8 +89,14 @@
     icon: string;
   }
 
+  type TerritorySystemViewId = Exclude<TerritorySystemModuleId, "all" | "none">;
+  type TerritoryRendererViewId = Exclude<
+    TerritoryRendererModuleId,
+    "all" | "none"
+  >;
+
   const TERRITORY_SYSTEM_MODULES: Array<
-    TerritoryModuleDef<Exclude<TerritorySystemModuleId, "all">>
+    TerritoryModuleDef<TerritorySystemViewId>
   > = [
     { id: "geometry", label: "Geometry", icon: "◫" },
     { id: "render-mode", label: "Mode", icon: "◎" },
@@ -68,8 +104,18 @@
     { id: "fill-transition", label: "Fill", icon: "◌" },
   ];
 
-  let activeSystemModule = $state<TerritorySystemModuleId>("all");
-  let activeRendererModule = $state<TerritoryRendererModuleId>("all");
+  const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
+  const TERRITORY_RENDERER_MODULE_PANEL_KEY =
+    "territoryRendererModuleVisibility";
+
+  let activeSystemModule = $derived(
+    (panel[TERRITORY_SYSTEM_MODULE_PANEL_KEY] ??
+      "all") as TerritorySystemModuleId,
+  );
+  let activeRendererModule = $derived(
+    (panel[TERRITORY_RENDERER_MODULE_PANEL_KEY] ??
+      "all") as TerritoryRendererModuleId,
+  );
 
   const METABALL_FALLOFF_OPTIONS = [
     {
@@ -396,15 +442,37 @@
     return raw;
   }
 
+  function resolveActiveTransitionModeId(): string {
+    return coerceVsTransitionModeForRenderMode(
+      resolveActiveStyleId(),
+      (panel.vsTransitionMode ?? GAME_CONFIG.VS_TRANSITION_MODE ?? null) as
+        | string
+        | null,
+    );
+  }
+
+  function showLegacyVsTransitionModeSelector(): boolean {
+    const activeStyle = resolveActiveStyleId();
+    return activeStyle === "power_voronoi" || activeStyle === "pvv2_dy4";
+  }
+
   function rendererModules(): Array<
-    TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+    TerritoryModuleDef<TerritoryRendererViewId>
   > {
     const modules: Array<
-      TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+      TerritoryModuleDef<TerritoryRendererViewId>
     > = [{ id: "topology", label: "Topology", icon: "⬡" }];
 
     if (resolveActiveStyleId() === "metaball") {
       modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
+    }
+
+    if (resolveActiveStyleId() === "perimeter_field") {
+      modules.unshift({
+        id: "perimeter-field",
+        label: "Perimeter",
+        icon: "◎",
+      });
     }
 
     modules.push({
@@ -423,20 +491,29 @@
     return modules;
   }
 
-  function showSystemModule(id: Exclude<TerritorySystemModuleId, "all">) {
+  function showSystemModule(id: TerritorySystemViewId) {
     return activeSystemModule === "all" || activeSystemModule === id;
   }
 
-  function showRendererModule(id: Exclude<TerritoryRendererModuleId, "all">) {
+  function showRendererModule(id: TerritoryRendererViewId) {
     return activeRendererModule === "all" || activeRendererModule === id;
+  }
+
+  function setActiveSystemModule(value: TerritorySystemModuleId) {
+    updatePanel(TERRITORY_SYSTEM_MODULE_PANEL_KEY, value);
+  }
+
+  function setActiveRendererModule(value: TerritoryRendererModuleId) {
+    updatePanel(TERRITORY_RENDERER_MODULE_PANEL_KEY, value);
   }
 
   $effect(() => {
     if (
       activeRendererModule !== "all" &&
+      activeRendererModule !== "none" &&
       !rendererModules().some((module) => module.id === activeRendererModule)
     ) {
-      activeRendererModule = "all";
+      setActiveRendererModule("all");
     }
   });
 
@@ -468,14 +545,27 @@
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">Territory System</h4>
-    <button
-      type="button"
-      class="territory-all-toggle"
-      class:active={activeSystemModule === "all"}
-      aria-label="Show all territory system modules"
-      onclick={() => {
-        activeSystemModule = "all";
-      }}></button>
+    <div
+      class="territory-scope-toggle"
+      role="group"
+      aria-label="Territory system subsection visibility">
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeSystemModule === "all"}
+        aria-label="Show all territory system modules"
+        onclick={() => {
+          setActiveSystemModule("all");
+        }}>All</button>
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeSystemModule === "none"}
+        aria-label="Hide all territory system modules"
+        onclick={() => {
+          setActiveSystemModule("none");
+        }}>None</button>
+    </div>
   </div>
   <div class="territory-module-nav">
     {#each TERRITORY_SYSTEM_MODULES as module}
@@ -484,8 +574,9 @@
         class="territory-module-chip"
         class:active={activeSystemModule === module.id}
         onclick={() => {
-          activeSystemModule =
-            activeSystemModule === module.id ? "all" : module.id;
+          setActiveSystemModule(
+            activeSystemModule === module.id ? "all" : module.id,
+          );
         }}>
         <span class="territory-module-chip__icon">{module.icon}</span>
         <span>{module.label}</span>
@@ -594,6 +685,48 @@
               >USE_RENDER_FAMILIES (family gate)</span>
           </label>
         </div>
+
+        {#if showLegacyVsTransitionModeSelector()}
+          <div
+            class="axis-row"
+            style="--accent: #22d3ee; --accent-bg: rgba(34,211,238,0.15)">
+            <span class="axis-label">Transition</span>
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:0;">
+              <select
+                class="mode-select"
+                value={resolveActiveTransitionModeId()}
+                onchange={(event) => {
+                  const value = (event.target as HTMLSelectElement).value;
+                  debouncedConfigUpdate(
+                    "VS_TRANSITION_MODE",
+                    "vsTransitionMode",
+                    value,
+                  );
+                }}>
+                {#each getTransitionModeOptionsForRenderMode(resolveActiveStyleId()) as option}
+                  <option value={option.id}>{option.label}</option>
+                {/each}
+              </select>
+              <div class="axis-note">
+                Legacy VS transition mode for the active Voronoi renderer.
+              </div>
+            </div>
+          </div>
+          <TerritoryTransitionTuning
+            {panel}
+            {updatePanel}
+            {animLockModes}
+            {animLockRatios}
+            {getAnimValue}
+            {setAnimValue}
+            {formatAnimValue}
+            {pinValueToTickDuration}
+            {lockRatioToTick}
+            {lockRatioToAnimSpeed}
+            activeRenderMode={resolveActiveStyleId()}
+            helperText="Timing and influence tuning for the active legacy Voronoi transition mode."
+          />
+        {/if}
       </div>
     {/if}
 
@@ -665,14 +798,27 @@
     <h4 class="sub-heading territory-section-title">
       Rendering &amp; Topology
     </h4>
-    <button
-      type="button"
-      class="territory-all-toggle"
-      class:active={activeRendererModule === "all"}
-      aria-label="Show all territory rendering modules"
-      onclick={() => {
-        activeRendererModule = "all";
-      }}></button>
+    <div
+      class="territory-scope-toggle"
+      role="group"
+      aria-label="Territory rendering subsection visibility">
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeRendererModule === "all"}
+        aria-label="Show all territory rendering modules"
+        onclick={() => {
+          setActiveRendererModule("all");
+        }}>All</button>
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeRendererModule === "none"}
+        aria-label="Hide all territory rendering modules"
+        onclick={() => {
+          setActiveRendererModule("none");
+        }}>None</button>
+    </div>
   </div>
   <div class="territory-module-nav">
     {#each rendererModules() as module}
@@ -681,8 +827,9 @@
         class="territory-module-chip"
         class:active={activeRendererModule === module.id}
         onclick={() => {
-          activeRendererModule =
-            activeRendererModule === module.id ? "all" : module.id;
+          setActiveRendererModule(
+            activeRendererModule === module.id ? "all" : module.id,
+          );
         }}>
         <span class="territory-module-chip__icon">{module.icon}</span>
         <span>{module.label}</span>
@@ -700,15 +847,53 @@
         metaball renderer.
       </p>
     </div>
+    <div class="var-row">
+      <div class="row-top">
+        <span class="var-name">Transition Mode</span>
+        <span class="val">{resolveActiveTransitionModeId()}</span>
+      </div>
+      <select
+        class="mode-select"
+        value={resolveActiveTransitionModeId()}
+        onchange={(event) => {
+          const value = (event.target as HTMLSelectElement).value;
+          debouncedConfigUpdate("VS_TRANSITION_MODE", "vsTransitionMode", value);
+        }}>
+        {#each getTransitionModeOptionsForRenderMode("metaball") as option}
+          <option value={option.id}>{option.label}</option>
+        {/each}
+      </select>
+    </div>
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
       Larger <strong>Cell size</strong> → fewer grid cells, better FPS (typical
       8–16). <strong>Territory Invariants</strong> below:
       <strong>CX Corridors</strong>
-      adds lane influence for Metaball; <strong>DX Disconnect</strong> damps runner-up
-      influence (sharper borders).
+      adds lane influence for Metaball; <strong>DX Disconnect</strong> inserts
+      paired enemy virtuals around the Euclidean midpoint of disconnected same-owner
+      stars.
     </div>
+    <TerritoryTransitionTuning
+      {panel}
+      {updatePanel}
+      {animLockModes}
+      {animLockRatios}
+      {getAnimValue}
+      {setAnimValue}
+      {formatAnimValue}
+      {pinValueToTickDuration}
+      {lockRatioToTick}
+      {lockRatioToAnimSpeed}
+      activeRenderMode="metaball"
+      helperText="Conquest transition timing and influence tuning for the active Metaball mode."
+    />
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin-top:2px;margin-bottom:2px;">
+      Metaball now reads the shared render-family geometry source. Use these controls to choose the underlying geometry path and tune its MSR, CX lane pairs, and DX behavior.
+    </div>
+    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Cell size (px)</span><span class="val"
@@ -1906,6 +2091,26 @@
   </div>
 {/if}
 
+{#if showRendererModule("perimeter-field") && resolveActiveStyleId() === "perimeter_field"}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
+      <p class="territory-card__intro">
+        Build displayed territory from ownership-derived perimeter samples, then
+        animate conquest with a conquest-local radial override instead of
+        moving interior star influence.
+      </p>
+    </div>
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+      Real star ownership still generates the base geometry. The displayed field
+      is then driven only by derived perimeter samples.
+    </div>
+    <PerimeterFieldTuning {panel} {updatePanel} />
+  </div>
+{/if}
+
 </div>
 </div>
 
@@ -1923,6 +2128,11 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+  .territory-scope-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .territory-section-title {
     flex: 1;
@@ -1945,9 +2155,6 @@
       background 0.15s ease,
       color 0.15s ease,
       transform 0.15s ease;
-  }
-  .territory-all-toggle::after {
-    content: "All";
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.12em;

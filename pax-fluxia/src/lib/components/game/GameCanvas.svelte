@@ -27,6 +27,10 @@
     import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
+        territoryTransitions,
+        resolveTerritoryTransitionDurationMs,
+    } from "$lib/fx/handlers/territoryTransitionHandler";
+    import {
         createContainers,
         initShipRendering,
     } from "$lib/renderers/containerFactory";
@@ -54,7 +58,6 @@
         resetVoronoiCache,
     } from "$lib/renderers/VoronoiRenderer";
     import {
-        renderMetaballScene as renderMetaballModule,
         resetMetaballCache,
     } from "$lib/renderers/MetaballRenderer";
     import {
@@ -104,28 +107,33 @@
         registerRenderFamily,
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
+    import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
+    import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
+    import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
+    import {
+        resetPerimeterFieldDebugPlaybackState,
+        setPerimeterFieldDebugPlaybackState,
+    } from "$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
+    import {
+        buildPerimeterFieldRenderFamilyGeometry,
+        buildOwnershipSnapshotFromStars,
+    } from "$lib/territory/families/buildFamilyGeometry";
+    import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
+    import type {
+        OwnershipSnapshot,
+        TerritoryConquestEvent,
+    } from "$lib/territory/contracts/OwnershipContracts";
+    import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
-    import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
-    import {
-        buildRulerMeasurement,
-        getRulerCssColor,
-        getRulerMeasurement,
-        rulerTool,
-        type RulerLaneState,
-        type RulerMeasurement,
-        type RulerPoint,
-    } from "$lib/territory/devtools/rulerTool";
-    import type { MapDiagnostics, MapRulerFixture } from "$lib/types/map.types";
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
-    import { get } from "svelte/store";
 
     // ============================================================================
     // PixiJS Application
@@ -150,7 +158,7 @@
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
-    let rulerLabels: PIXI.Text[] = [];
+    let debugTextContainer: PIXI.Container | null = null;
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
@@ -168,8 +176,6 @@
     let fpsLastTime = performance.now();
     let currentFps = $state(0);
     let totalVisualShips = $state(0);
-    let scaleRulerWorldPx = $state(100);
-    let scaleRulerScreenPx = $state(100);
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -179,12 +185,639 @@
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
 
+    function clampUnitInterval(value: number): number {
+        return Math.max(0, Math.min(1, value));
+    }
+
+    function transitionIdentityKey(
+        conquest: import("@pax/common").ConquestEvent,
+    ): string {
+        return [
+            conquest.tick,
+            conquest.starId,
+            conquest.previousOwner,
+            conquest.newOwner,
+        ].join(":");
+    }
+
+    function buildActiveRenderFamilyTransition(
+        nowMs: number,
+        effectiveTickMs: number,
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
+    ): RenderFamilyActiveTransition | null {
+        const eventsByKey = new Map<string, RenderFamilyTransitionEvent>();
+
+        for (const entry of territoryTransitions.getActiveEntries()) {
+            const durationMs = Math.max(1, entry.durationMs);
+            const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
+            if (rawProgress >= 1) continue;
+            eventsByKey.set(transitionIdentityKey(entry.event), {
+                event: entry.event,
+                startedAtMs: entry.startTimeMs,
+                durationMs,
+                rawProgress,
+                progress: clampUnitInterval(rawProgress),
+            });
+        }
+
+        const previewDurationMs = resolveTerritoryTransitionDurationMs(
+            effectiveTickMs,
+        );
+        if (previewDurationMs > 0) {
+            for (const conquest of pendingConquests) {
+                const key = transitionIdentityKey(conquest);
+                if (eventsByKey.has(key)) continue;
+                eventsByKey.set(key, {
+                    event: conquest,
+                    startedAtMs: nowMs,
+                    durationMs: previewDurationMs,
+                    rawProgress: 0,
+                    progress: 0,
+                });
+            }
+        }
+
+        const events = [...eventsByKey.values()]
+            .map((entry) => {
+                const durationMs = Math.max(1, entry.durationMs);
+                return {
+                    event: entry.event,
+                    startedAtMs: entry.startedAtMs,
+                    durationMs,
+                    rawProgress: entry.rawProgress,
+                    progress: clampUnitInterval(entry.rawProgress),
+                };
+            })
+            .sort((a, b) => a.startedAtMs - b.startedAtMs);
+
+        if (events.length === 0) return null;
+
+        const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
+        const durationMs = Math.max(...events.map((event) => event.durationMs));
+        const rawProgress = Math.max(...events.map((event) => event.rawProgress));
+
+        return {
+            conquestEvents: events.map((event) => event.event),
+            events,
+            startedAtMs,
+            durationMs,
+            rawProgress,
+            progress: clampUnitInterval(rawProgress),
+        };
+    }
+
+    function buildRenderFamilyOwnershipSnapshot(
+        stars: ReadonlyArray<StarState>,
+        activeTransition: RenderFamilyActiveTransition | null,
+    ): OwnershipSnapshot {
+        const starOwners = new Map<string, string>();
+        for (const star of stars) {
+            if (star.ownerId) {
+                starOwners.set(star.id, star.ownerId);
+            }
+        }
+
+        return {
+            version: "render-family-live",
+            starOwners,
+            contestedLaneIds: [],
+            conquestEvents:
+                activeTransition?.events.map((entry) => ({
+                    starId: entry.event.starId,
+                    previousOwner: entry.event.previousOwner,
+                    newOwner: entry.event.newOwner,
+                    atMs: entry.startedAtMs,
+                })) ?? [],
+            virtualStars: [],
+        };
+    }
+
+    type PerimeterFieldCapturedFrame = {
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+        compactDebugSnapshot: Record<string, unknown> | null;
+    };
+
+    type PerimeterFieldCapturedTransitionFrame = {
+        frameIndex: number;
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+        compactDebugSnapshot: Record<string, unknown> | null;
+    };
+
+    type PerimeterFieldCaptureSession = {
+        key: string;
+        conquestEvents: readonly TerritoryConquestEvent[];
+        previousFrame: PerimeterFieldCapturedFrame;
+        frames: PerimeterFieldCapturedTransitionFrame[];
+    };
+
+    type PerimeterFieldReplayBundle = {
+        label: string;
+        previousFrame: PerimeterFieldCapturedFrame;
+        nextFrame: PerimeterFieldCapturedFrame;
+        frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>;
+    };
+
+    let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
+    let perimeterFieldCaptureSession: PerimeterFieldCaptureSession | null =
+        null;
+    let perimeterFieldReplayHistory: PerimeterFieldReplayBundle[] = [];
+    let perimeterFieldReplaySprite: PIXI.Sprite | null = null;
+    let perimeterFieldReplayTexture: PIXI.Texture | null = null;
+    let perimeterFieldDebugSnapshotOverride:
+        | PerimeterFieldDebugSnapshot
+        | null = null;
+
+    function cloneCanvasFrame(
+        source: HTMLCanvasElement,
+    ): HTMLCanvasElement {
+        const canvas = document.createElement("canvas");
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+            ctx.drawImage(source, 0, 0);
+        }
+        return canvas;
+    }
+
+    function clonePerimeterFieldDebugSnapshot(
+        snapshot: PerimeterFieldDebugSnapshot | null,
+    ): PerimeterFieldDebugSnapshot | null {
+        if (!snapshot) return null;
+        return {
+            displayGeometry: snapshot.displayGeometry,
+            transitionTargetGeometry: snapshot.transitionTargetGeometry,
+            playerColors: snapshot.playerColors.map((entry) => [...entry] as const),
+            staticSamples: snapshot.staticSamples.map((sample) => ({ ...sample })),
+            targetStaticSamples: snapshot.targetStaticSamples.map((sample) => ({
+                ...sample,
+            })),
+            transitionSamples: snapshot.transitionSamples.map((sample) => ({
+                ...sample,
+            })),
+            effectiveProgress: snapshot.effectiveProgress,
+        };
+    }
+
+    function buildPerimeterFieldTransitionCaptureKey(
+        activeTransition: RenderFamilyActiveTransition | null,
+    ): string | null {
+        const events = activeTransition?.events;
+        if (!events?.length) return null;
+        return events
+            .map((entry) =>
+                [
+                    entry.event.tick,
+                    entry.event.starId,
+                    entry.event.previousOwner,
+                    entry.event.newOwner,
+                    entry.startedAtMs,
+                ].join(":"),
+            )
+            .join("|");
+    }
+
+    function buildPerimeterFieldConquestEvents(
+        activeTransition: RenderFamilyActiveTransition,
+    ): TerritoryConquestEvent[] {
+        return activeTransition.events
+            .map((entry) => ({
+                ...entry.event,
+                attackerStarIds: [...entry.event.attackerStarIds],
+                attackerShipTransfers: [...entry.event.attackerShipTransfers],
+                atMs: entry.startedAtMs,
+            }))
+            .sort((a, b) => {
+                if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+                return a.starId.localeCompare(b.starId);
+            });
+    }
+
+    function capturePerimeterFieldLiveFrame(params: {
+        family: PerimeterFieldFamily;
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }): PerimeterFieldCapturedFrame | null {
+        if (!app?.renderer) return null;
+        const extracted = app.renderer.extract.canvas({
+            target: params.family.displayRoot,
+            frame: new PIXI.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+            clearColor: "#000000",
+        }) as HTMLCanvasElement;
+        return {
+            geometry: params.geometry,
+            ownership: params.ownership,
+            canvas: cloneCanvasFrame(extracted),
+            debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                params.debugSnapshot,
+            ),
+            compactDebugSnapshot: compactPerimeterFieldDebugSnapshot(
+                params.debugSnapshot,
+            ),
+        };
+    }
+
+    function buildStarPositionsMap(
+        stars: ReadonlyArray<StarState>,
+    ): ReadonlyMap<string, { x: number; y: number }> {
+        const starPositions = new Map<string, { x: number; y: number }>();
+        for (const star of stars) {
+            starPositions.set(star.id, { x: star.x, y: star.y });
+        }
+        return starPositions;
+    }
+
+    function recordPerimeterFieldTransitionFrame(
+        session: PerimeterFieldCaptureSession,
+        progress: number,
+        frame: PerimeterFieldCapturedFrame,
+    ): void {
+        session.frames.push({
+            frameIndex: session.frames.length + 1,
+            progress,
+            canvas: cloneCanvasFrame(frame.canvas),
+            debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                frame.debugSnapshot,
+            ),
+            compactDebugSnapshot: frame.compactDebugSnapshot,
+        });
+    }
+
+    function syncPerimeterFieldDebugPlaybackState(): void {
+        setPerimeterFieldDebugPlaybackState({
+            liveFrameCount: perimeterFieldCaptureSession
+                ? perimeterFieldCaptureSession.frames.length + 1
+                : 0,
+            replayFrameCounts: [
+                perimeterFieldReplayHistory[0]
+                    ? perimeterFieldReplayHistory[0].frames.length + 2
+                    : 0,
+                perimeterFieldReplayHistory[1]
+                    ? perimeterFieldReplayHistory[1].frames.length + 2
+                    : 0,
+                perimeterFieldReplayHistory[2]
+                    ? perimeterFieldReplayHistory[2].frames.length + 2
+                    : 0,
+            ],
+        });
+    }
+
+    function pushPerimeterFieldReplayBundle(bundle: PerimeterFieldReplayBundle) {
+        perimeterFieldReplayHistory = [
+            bundle,
+            ...perimeterFieldReplayHistory,
+        ].slice(0, 3);
+        syncPerimeterFieldDebugPlaybackState();
+    }
+
+    function clampPerimeterFieldFrameIndex(
+        frameIndex: number,
+        frameCount: number,
+    ): number {
+        if (frameCount <= 0) return 0;
+        return Math.max(0, Math.min(frameCount - 1, Math.round(frameIndex)));
+    }
+
+    function buildPerimeterFieldDisplayedFrames(
+        previousFrame: PerimeterFieldCapturedFrame,
+        frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>,
+        nextFrame?: PerimeterFieldCapturedFrame | null,
+    ): Array<{
+        frameIndex: number;
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }> {
+        const displayedFrames = [
+            {
+                frameIndex: 0,
+                progress: 0,
+                canvas: previousFrame.canvas,
+                debugSnapshot: previousFrame.debugSnapshot,
+            },
+            ...frames.map((frame) => ({
+                frameIndex: frame.frameIndex,
+                progress: frame.progress,
+                canvas: frame.canvas,
+                debugSnapshot: frame.debugSnapshot,
+            })),
+        ];
+        if (nextFrame) {
+            displayedFrames.push({
+                frameIndex: displayedFrames.length,
+                progress: 1,
+                canvas: nextFrame.canvas,
+                debugSnapshot: nextFrame.debugSnapshot,
+            });
+        }
+        return displayedFrames;
+    }
+
+    function readPerimeterFieldReplaySelection(): {
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    } | null {
+        const previewEnabled =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
+        if (!previewEnabled) return null;
+
+        const replaySlot = Math.max(
+            0,
+            Math.min(
+                3,
+                Math.round(GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0),
+            ),
+        );
+
+        if (replaySlot > 0) {
+            const replay = perimeterFieldReplayHistory[replaySlot - 1];
+            if (!replay) return null;
+            const replayFrames = buildPerimeterFieldDisplayedFrames(
+                replay.previousFrame,
+                replay.frames,
+                replay.nextFrame,
+            );
+            const selectedIndex = clampPerimeterFieldFrameIndex(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
+                replayFrames.length,
+            );
+            return replayFrames[selectedIndex]!;
+        }
+
+        if (perimeterFieldCaptureSession) {
+            const liveFrames = buildPerimeterFieldDisplayedFrames(
+                perimeterFieldCaptureSession.previousFrame,
+                perimeterFieldCaptureSession.frames,
+            );
+            const selectedIndex = clampPerimeterFieldFrameIndex(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
+                liveFrames.length,
+            );
+            return liveFrames[selectedIndex]!;
+        }
+
+        return null;
+    }
+
+    function applyPerimeterFieldReplayPresentation(params: {
+        container: PIXI.Container;
+        liveRoot: PIXI.Container;
+    }): void {
+        const selected = readPerimeterFieldReplaySelection();
+        if (!selected) {
+            params.liveRoot.visible = true;
+            perimeterFieldDebugSnapshotOverride = null;
+            if (perimeterFieldReplaySprite) {
+                perimeterFieldReplaySprite.visible = false;
+            }
+            return;
+        }
+
+        if (!perimeterFieldReplaySprite) {
+            perimeterFieldReplaySprite = new PIXI.Sprite();
+            params.container.addChild(perimeterFieldReplaySprite);
+        } else if (perimeterFieldReplaySprite.parent !== params.container) {
+            params.container.addChild(perimeterFieldReplaySprite);
+        }
+
+        if (perimeterFieldReplayTexture) {
+            perimeterFieldReplayTexture.destroy(true);
+            perimeterFieldReplayTexture = null;
+        }
+        perimeterFieldReplayTexture = PIXI.Texture.from(selected.canvas);
+        perimeterFieldReplaySprite.texture = perimeterFieldReplayTexture;
+        perimeterFieldReplaySprite.x = 0;
+        perimeterFieldReplaySprite.y = 0;
+        perimeterFieldReplaySprite.width = GAME_WIDTH;
+        perimeterFieldReplaySprite.height = GAME_HEIGHT;
+        perimeterFieldReplaySprite.visible = true;
+        params.liveRoot.visible = false;
+        perimeterFieldDebugSnapshotOverride = selected.debugSnapshot;
+    }
+
+    function finalizePerimeterFieldCaptureSession(params: {
+        frame: PerimeterFieldCapturedFrame;
+        stars: ReadonlyArray<StarState>;
+        nowMs: number;
+    }): void {
+        const session = perimeterFieldCaptureSession;
+        if (!session) return;
+
+        const lastFrame = session.frames[session.frames.length - 1] ?? null;
+        if (!lastFrame || lastFrame.progress < 1 - 1e-6) {
+            session.frames.push({
+                frameIndex: session.frames.length + 1,
+                progress: 1,
+                canvas: cloneCanvasFrame(params.frame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    params.frame.debugSnapshot,
+                ),
+                compactDebugSnapshot: params.frame.compactDebugSnapshot,
+            });
+        }
+
+        const transitionFrames = [...session.frames];
+
+        pushPerimeterFieldReplayBundle({
+            label:
+                session.conquestEvents[0] == null
+                    ? "Replay"
+                    : `${session.conquestEvents[0].previousOwner} -> ${session.conquestEvents[0].newOwner} @ ${session.conquestEvents[0].starId}`,
+            previousFrame: {
+                geometry: session.previousFrame.geometry,
+                ownership: session.previousFrame.ownership,
+                canvas: cloneCanvasFrame(session.previousFrame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    session.previousFrame.debugSnapshot,
+                ),
+                compactDebugSnapshot:
+                    session.previousFrame.compactDebugSnapshot,
+            },
+            nextFrame: {
+                geometry: params.frame.geometry,
+                ownership: params.frame.ownership,
+                canvas: cloneCanvasFrame(params.frame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    params.frame.debugSnapshot,
+                ),
+                compactDebugSnapshot: params.frame.compactDebugSnapshot,
+            },
+            frames: transitionFrames
+                .filter((entry) => entry.progress > 0 && entry.progress < 1)
+                .map((entry) => ({
+                    frameIndex: entry.frameIndex,
+                    progress: entry.progress,
+                    canvas: cloneCanvasFrame(entry.canvas),
+                    debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                        entry.debugSnapshot,
+                    ),
+                    compactDebugSnapshot: entry.compactDebugSnapshot,
+                })),
+        });
+
+        transitionSnapshotRecorder.capturePreRendered({
+            ctx: {
+                conquestEvents: session.conquestEvents,
+                previousGeometry: session.previousFrame.geometry,
+                nextGeometry: params.frame.geometry,
+                previousOwnership: session.previousFrame.ownership,
+                nextOwnership: params.frame.ownership,
+                transition: {
+                    envelope: null as any,
+                    fillFrame: null as any,
+                    borderFrame: null as any,
+                    geometryVersion: params.frame.geometry.version,
+                },
+                fillPlan: null,
+                activeFrontPlan: null,
+                prevFrontierTopology:
+                    session.previousFrame.geometry.frontierTopology ?? null,
+                nextFrontierTopology:
+                    params.frame.geometry.frontierTopology ?? null,
+                selection: {
+                    geometryMode: "unified_vector",
+                    fillTransitionMode: "active_front",
+                    borderTransitionMode: "off",
+                    ownershipMode: "star_ownership_snapshot",
+                    styleMode: "canonical",
+                },
+                nowMs: params.nowMs,
+                starPositions: buildStarPositionsMap(params.stars),
+                worldWidth: GAME_WIDTH,
+                worldHeight: GAME_HEIGHT,
+            },
+            prevCanvas: session.previousFrame.canvas,
+            nextCanvas: params.frame.canvas,
+            transitionFrames: transitionFrames.map((entry) => ({
+                progress: entry.progress,
+                canvas: entry.canvas,
+            })),
+            extraDiagnostics: {
+                kind: "perimeter_field_live_capture",
+                previousFrame: {
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        session.previousFrame.debugSnapshot,
+                    ),
+                    compactSnapshot:
+                        session.previousFrame.compactDebugSnapshot,
+                },
+                nextFrame: {
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        params.frame.debugSnapshot,
+                    ),
+                    compactSnapshot: params.frame.compactDebugSnapshot,
+                },
+                transitionFrames: transitionFrames.map((entry) => ({
+                    frameIndex: entry.frameIndex,
+                    progress: entry.progress,
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        entry.debugSnapshot,
+                    ),
+                    compactSnapshot: entry.compactDebugSnapshot,
+                })),
+            },
+        });
+
+        perimeterFieldCaptureSession = null;
+        syncPerimeterFieldDebugPlaybackState();
+    }
+
+    function syncPerimeterFieldDiagnosticCapture(params: {
+        family: PerimeterFieldFamily;
+        input: ReturnType<typeof buildRenderFamilyInput>;
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        nowMs: number;
+    }): void {
+        if (!transitionSnapshotRecorder.isEnabled()) {
+            perimeterFieldStableFrame = null;
+            perimeterFieldCaptureSession = null;
+            perimeterFieldReplayHistory = [];
+            perimeterFieldDebugSnapshotOverride = null;
+            resetPerimeterFieldDebugPlaybackState();
+            return;
+        }
+
+        if (!params.input.geometry) return;
+        const liveFrame = capturePerimeterFieldLiveFrame({
+            family: params.family,
+            geometry: params.input.geometry,
+            ownership: params.input.ownership,
+            debugSnapshot: params.family.debugSnapshot,
+        });
+        if (!liveFrame) return;
+
+        const transitionKey = buildPerimeterFieldTransitionCaptureKey(
+            params.activeTransition,
+        );
+        if (!transitionKey || !params.activeTransition) {
+            if (perimeterFieldCaptureSession) {
+                finalizePerimeterFieldCaptureSession({
+                    frame: liveFrame,
+                    stars: params.stars,
+                    nowMs: params.nowMs,
+                });
+            }
+            perimeterFieldStableFrame = liveFrame;
+            return;
+        }
+
+        if (
+            !perimeterFieldCaptureSession ||
+            perimeterFieldCaptureSession.key !== transitionKey
+        ) {
+            perimeterFieldCaptureSession = {
+                key: transitionKey,
+                conquestEvents: buildPerimeterFieldConquestEvents(
+                    params.activeTransition,
+                ),
+                previousFrame: perimeterFieldStableFrame ?? liveFrame,
+                frames: [],
+            };
+            syncPerimeterFieldDebugPlaybackState();
+        }
+
+        recordPerimeterFieldTransitionFrame(
+            perimeterFieldCaptureSession,
+            params.activeTransition.progress,
+            liveFrame,
+        );
+        syncPerimeterFieldDebugPlaybackState();
+    }
+
+    function resolveActiveTerritoryMode(): string {
+        let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
+        if (!activeMode) {
+            if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
+            else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
+                activeMode = "power_voronoi";
+            else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
+                activeMode = "distance_field";
+            else if (GAME_CONFIG.TERRITORY_VORONOI) activeMode = "voronoi";
+            else if (GAME_CONFIG.TERRITORY_METABALL) activeMode = "metaball";
+            else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
+            else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
+            else if (GAME_CONFIG.TERRITORY_CONTOUR) activeMode = "contour";
+            else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
+                activeMode = "territory_engine";
+        }
+        return activeMode ?? "none";
+    }
+
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
     let canonicalBridge: GameCanvasBridge | null = null;
     let canonicalBridgeFallbackLogged = false;
     let canonicalController: TerritoryEngineController | null = null;
     let canonicalControllerTransitionDurationMs: number | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
+    let renderFamilyGeometryCacheKey: string | null = null;
+    let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
 
     function buildCanonicalBridgeInput(
         stars: StarState[],
@@ -208,31 +841,52 @@
         };
     }
 
+    function buildRenderFamilyGeometryCacheKey(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): string {
+        let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
+        key += `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:`;
+        key += `${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:`;
+        key += `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:`;
+        key += `${GAME_CONFIG.CHAIKIN_BOUNDARY_PAD}:${GAME_CONFIG.CHAIKIN_BOUNDARY_EPS}:`;
+        for (const star of stars) {
+            key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
+        }
+        key += "::";
+        for (const lane of lanes) {
+            key += `${lane.sourceId}->${lane.targetId}|`;
+        }
+        return key;
+    }
+
+    function getCurrentRenderFamilyGeometry(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): CanonicalGeometrySnapshot {
+        const key = buildRenderFamilyGeometryCacheKey(stars, lanes);
+        if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
+            renderFamilyGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
+                stars,
+                lanes,
+                worldWidth: GAME_WIDTH,
+                worldHeight: GAME_HEIGHT,
+                nowMs: fxOrchestrator.gameTime,
+                ownership: buildOwnershipSnapshotFromStars(stars),
+                geometrySource:
+                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "power_voronoi_0319",
+            });
+            renderFamilyGeometryCacheKey = key;
+        }
+        return renderFamilyGeometryCache;
+    }
+
     // React to animation speed changes from the UI slider
     $effect(() => {
         fxOrchestrator.setAnimationSpeed(animationStore.speedMs);
-    });
-
-    let lastDiagnosticsOpen = false;
-    let lastDiagnosticsHeight = 0;
-    $effect(() => {
-        const diagnostics = $diagnosticsUi;
-        if (!app) {
-            lastDiagnosticsOpen = diagnostics.open;
-            lastDiagnosticsHeight = diagnostics.height;
-            return;
-        }
-
-        const heightChanged = diagnostics.height !== lastDiagnosticsHeight;
-        const openChanged = diagnostics.open !== lastDiagnosticsOpen;
-        if (heightChanged || openChanged) {
-            handleResize();
-            if (diagnostics.open && !lastDiagnosticsOpen) {
-                centerAndFit();
-            }
-            lastDiagnosticsOpen = diagnostics.open;
-            lastDiagnosticsHeight = diagnostics.height;
-        }
     });
 
     // F-107: When stars first populate, set map orientation and sync if needed
@@ -310,44 +964,15 @@
     const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
     const ZOOM_MAX = 5.0;
 
-    function getBottomUiInsetPx(): number {
-        const diagnostics = get(diagnosticsUi);
-        return diagnostics.open ? diagnostics.height : 0;
-    }
-
-    function getViewportMetrics() {
-        if (!app) {
-            return {
-                width: 0,
-                height: 0,
-                usableHeight: 0,
-                centerX: 0,
-                centerY: 0,
-                bottomInset: 0,
-            };
-        }
-        const width = app.screen.width;
-        const height = app.screen.height;
-        const bottomInset = getBottomUiInsetPx();
-        const usableHeight = Math.max(120, height - bottomInset);
-        return {
-            width,
-            height,
-            usableHeight,
-            centerX: width * 0.5,
-            centerY: usableHeight * 0.5,
-            bottomInset,
-        };
-    }
+    /** Height of the bottom UI overlay — now 0 because CSS Grid sizes the canvas container */
+    const BOTTOM_UI_INSET = 0;
 
     export function centerAndFit() {
         updateWorldBounds();
         if (app && app.stage) {
-            const viewport = getViewportMetrics();
-            baseScale = Math.min(
-                viewport.width / contentWidth,
-                viewport.usableHeight / contentHeight,
-            );
+            const cw = app.screen.width;
+            const ch = app.screen.height;
+            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
         }
         // First call snaps instantly (no animation from 0,0)
         if (!cameraInitialized) {
@@ -382,14 +1007,15 @@
         const sy = mapTranspose.y(star);
 
         // Derive target panOffset so star ends up centered
-        const viewport = getViewportMetrics();
+        const cw = app.screen.width;
+        const ch = app.screen.height;
         const es = baseScale * clampedZoom;
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = viewport.centerX - contentCenterX * es;
-        const baselineY = viewport.centerY - contentCenterY * es;
-        const desiredStageX = viewport.centerX - sx * es;
-        const desiredStageY = viewport.centerY - sy * es;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
+        const desiredStageX = cw / 2 - sx * es;
+        const desiredStageY = ch / 2 - sy * es;
 
         targetZoom = clampedZoom;
         targetPanX = -(desiredStageX - baselineX) / es;
@@ -457,40 +1083,6 @@
             clearTimeout(longPressTimer);
             longPressTimer = null;
         }
-    }
-
-    function updateScaleRuler(effectiveScale: number) {
-        const candidates = [
-            10, 20, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 800,
-            1000, 1200,
-        ];
-        const minScreenPx = 72;
-        const maxScreenPx = 180;
-        const targetScreenPx = 120;
-
-        let bestWorld = candidates[0];
-        let bestScreen = Math.max(1, bestWorld * effectiveScale);
-        let bestScore = Number.POSITIVE_INFINITY;
-
-        for (const worldPx of candidates) {
-            const screenPx = Math.max(1, worldPx * effectiveScale);
-            const distancePenalty = Math.abs(screenPx - targetScreenPx);
-            const rangePenalty =
-                screenPx < minScreenPx
-                    ? minScreenPx - screenPx
-                    : screenPx > maxScreenPx
-                      ? screenPx - maxScreenPx
-                      : 0;
-            const score = rangePenalty * 2 + distancePenalty;
-            if (score < bestScore) {
-                bestScore = score;
-                bestWorld = worldPx;
-                bestScreen = screenPx;
-            }
-        }
-
-        scaleRulerWorldPx = Math.round(bestWorld);
-        scaleRulerScreenPx = Math.round(bestScreen);
     }
 
     function getPinchDist(): number {
@@ -1007,13 +1599,12 @@
         updateWorldBounds();
 
         // Calculate base scale to fit content bounding box in container
-        const viewport = getViewportMetrics();
-        const containerWidth = viewport.width;
-        const containerHeight = viewport.height;
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
 
         baseScale = Math.min(
             containerWidth / contentWidth,
-            viewport.usableHeight / contentHeight,
+            containerHeight / contentHeight,
         );
 
         // Size nebula background to cover visible viewport (not just game world)
@@ -1040,16 +1631,15 @@
         const canvasEl = canvasContainer;
         log.canvas(
             "handleResize",
-            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} usableH=${viewport.usableHeight.toFixed(0)} inset=${viewport.bottomInset.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
     }
 
     function applyZoomTransform() {
         if (!app) return;
 
-        const viewport = getViewportMetrics();
-        const cw = viewport.width;
-        const ch = viewport.height;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
         const es = baseScale * zoomLevel;
 
         app.stage.scale.set(es, es);
@@ -1057,8 +1647,8 @@
         // Center on content bounding box, then apply pan offset
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = viewport.centerX - contentCenterX * es;
-        const baselineY = viewport.centerY - contentCenterY * es;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
 
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
@@ -1078,25 +1668,20 @@
         }
 
         clampPan();
-        updateScaleRuler(es);
     }
 
     function clampPan() {
         if (!app) return;
 
-        const viewport = getViewportMetrics();
-        const cw = viewport.width;
+        const cw = app.screen.width;
+        const ch = app.screen.height;
         const es = baseScale * zoomLevel;
         const scaledContentW = contentWidth * es;
         const scaledContentH = contentHeight * es;
 
-        // Keep a small vertical slack even when the board almost fits so the
-        // map is easier to inspect under overlays and at low zoom.
+        // Only allow pan when zoomed-in content exceeds viewport
         const overflowX = Math.max(0, (scaledContentW - cw) / 2);
-        const overflowY = Math.max(
-            Math.max(24, viewport.bottomInset * 0.5),
-            (scaledContentH - viewport.usableHeight) / 2,
-        );
+        const overflowY = Math.max(0, (scaledContentH - ch) / 2);
         const maxPanX = overflowX / es;
         const maxPanY = overflowY / es;
 
@@ -1106,8 +1691,8 @@
         // Reapply position after clamp
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = viewport.centerX - contentCenterX * es;
-        const baselineY = viewport.centerY - contentCenterY * es;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
     }
@@ -1140,12 +1725,12 @@
         // Anchor: adjust pan so the same world point stays under cursor
         // Must match the transform in applyZoomTransform (content-centered)
         const effectiveScale = baseScale * zoomLevel;
-        const viewport = getViewportMetrics();
-        const containerWidth = viewport.width;
+        const containerWidth = app.screen.width;
+        const containerHeight = app.screen.height;
         const contentCenterX = contentMinX + contentWidth / 2;
         const contentCenterY = contentMinY + contentHeight / 2;
         const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
-        const baselineY = viewport.centerY - contentCenterY * effectiveScale;
+        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
 
         // worldBefore should remain under cursor after transform:
         // screenX = baselineX - panOffsetX * es + worldBefore.x * es
@@ -1176,8 +1761,21 @@
                 voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
             );
         }
+        if (!debugTextContainer) {
+            debugTextContainer = new PIXI.Container();
+            const stageParent = starsContainer.parent;
+            const debugIndex = stageParent.children.indexOf(debugGraphics!);
+            stageParent.addChildAt(
+                debugTextContainer,
+                debugIndex >= 0 ? debugIndex + 1 : stageParent.children.length,
+            );
+        }
 
         debugGraphics.clear();
+        if (debugTextContainer) {
+            const children = debugTextContainer.removeChildren();
+            for (const child of children) child.destroy();
+        }
 
         if (GAME_CONFIG.SHOW_HEX_GRID && GAME_CONFIG._MAP_HEX_RADIUS > 0) {
             // Use exact same parameters that generated the map
@@ -1197,8 +1795,312 @@
 
             debugGraphics.stroke({ width: 1, color: 0x00ff00, alpha: 0.3 });
         }
+    }
 
-        renderRulerOverlay(debugGraphics);
+    function getPerimeterDebugLoops(
+        geometry: CanonicalGeometrySnapshot,
+    ): ReadonlyArray<ReadonlyArray<[number, number]>> {
+        const shellLoops = geometry.shellLoops.filter(
+            (loop) => loop.classification === "outer" && Boolean(loop.ownerId),
+        );
+        if (shellLoops.length > 0) {
+            return shellLoops.map((loop) => loop.points);
+        }
+        return geometry.territoryRegions
+            .filter((region) => Boolean(region.ownerId))
+            .map((region) => region.points);
+    }
+
+    function drawClosedPolyline(
+        g: PIXI.Graphics,
+        points: ReadonlyArray<[number, number]>,
+        color: number,
+        alpha: number,
+        width: number,
+    ): void {
+        if (points.length < 2) return;
+        g.beginPath();
+        g.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+            g.lineTo(points[i][0], points[i][1]);
+        }
+        g.lineTo(points[0][0], points[0][1]);
+        g.stroke({ color, alpha, width });
+    }
+
+    function drawSamplePoints(
+        g: PIXI.Graphics,
+        samples: ReadonlyArray<{
+            id?: string;
+            x: number;
+            y: number;
+            playerIdx?: number;
+            ownerId?: string;
+            ownerColor?: number;
+            debugState?: string;
+            sampleIndex?: number;
+            pathStartX?: number;
+            pathStartY?: number;
+            pathEndX?: number;
+            pathEndY?: number;
+            startFallback?: boolean;
+            endFallback?: boolean;
+        }>,
+        stateColor: number,
+        alpha: number,
+        radius: number,
+    ): void {
+        const darkenColor = (color: number, factor: number): number => {
+            const r = Math.max(0, Math.min(255, Math.round(((color >> 16) & 0xff) * factor)));
+            const g = Math.max(0, Math.min(255, Math.round(((color >> 8) & 0xff) * factor)));
+            const b = Math.max(0, Math.min(255, Math.round((color & 0xff) * factor)));
+            return (r << 16) | (g << 8) | b;
+        };
+
+        for (const sample of samples) {
+            const fillColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : stateColor);
+            const borderColor = darkenColor(fillColor, 0.42);
+            const outerRadius = radius;
+            const innerRadius = Math.max(1.2, radius * 0.45);
+            const spikeCount = 5;
+            const startAngle = -Math.PI / 2;
+            const points: number[] = [];
+
+            for (let i = 0; i < spikeCount; i++) {
+                const outerAngle =
+                    startAngle + (i * Math.PI * 2) / spikeCount;
+                const innerAngle = outerAngle + Math.PI / spikeCount;
+                points.push(
+                    sample.x + Math.cos(outerAngle) * outerRadius,
+                    sample.y + Math.sin(outerAngle) * outerRadius,
+                    sample.x + Math.cos(innerAngle) * innerRadius,
+                    sample.y + Math.sin(innerAngle) * innerRadius,
+                );
+            }
+            g.circle(sample.x, sample.y, outerRadius + 1.6);
+            g.stroke({
+                color: fillColor,
+                alpha: 0.42,
+                width: Math.max(0.8, radius * 0.42),
+            });
+            g.poly(points, true);
+            g.fill({ color: fillColor, alpha: Math.max(0.92, alpha) });
+            g.stroke({
+                color: borderColor,
+                alpha: 0.95,
+                width: Math.max(0.9, radius * 0.32),
+            });
+        }
+    }
+
+    function drawPerimeterSampleTrajectories(
+        g: PIXI.Graphics,
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+            ownerColor?: number;
+            ownerId?: string;
+            debugState?: string;
+            pathStartX?: number;
+            pathStartY?: number;
+            pathEndX?: number;
+            pathEndY?: number;
+            startFallback?: boolean;
+            endFallback?: boolean;
+        }>,
+    ): void {
+        const drawFallbackX = (x: number, y: number) => {
+            g.moveTo(x - 2.5, y - 2.5);
+            g.lineTo(x + 2.5, y + 2.5);
+            g.moveTo(x + 2.5, y - 2.5);
+            g.lineTo(x - 2.5, y + 2.5);
+            g.stroke({ color: 0xff3b30, alpha: 0.95, width: 1.2 });
+        };
+
+        for (const sample of samples) {
+            if (
+                sample.pathStartX == null ||
+                sample.pathStartY == null ||
+                sample.pathEndX == null ||
+                sample.pathEndY == null
+            ) {
+                continue;
+            }
+
+            const ownerColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : 0xffffff);
+            const lineAlpha =
+                sample.debugState === "transition-old" ? 0.28 : 0.38;
+
+            g.moveTo(sample.pathStartX, sample.pathStartY);
+            g.lineTo(sample.pathEndX, sample.pathEndY);
+            g.stroke({ color: ownerColor, alpha: lineAlpha, width: 1.15 });
+
+            g.circle(sample.pathStartX, sample.pathStartY, 1.4);
+            g.stroke({ color: ownerColor, alpha: 0.65, width: 1 });
+
+            g.rect(sample.pathEndX - 1.6, sample.pathEndY - 1.6, 3.2, 3.2);
+            g.stroke({ color: ownerColor, alpha: 0.72, width: 1 });
+
+            if (sample.startFallback) {
+                drawFallbackX(sample.pathStartX, sample.pathStartY);
+            }
+            if (sample.endFallback) {
+                drawFallbackX(sample.pathEndX, sample.pathEndY);
+            }
+        }
+    }
+
+    function drawPerimeterSampleLabels(
+        container: PIXI.Container,
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+            sampleIndex?: number;
+            ownerColor?: number;
+            ownerId?: string;
+            debugState?: string;
+        }>,
+    ): void {
+        for (const sample of samples) {
+            if (sample.sampleIndex == null) continue;
+            const ownerColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : 0xffffff);
+            const labelPrefix =
+                sample.debugState === "transition-old"
+                    ? "O"
+                    : sample.debugState === "transition-new"
+                      ? "N"
+                      : sample.debugState === "target"
+                        ? "T"
+                        : "S";
+            const offsetX =
+                sample.debugState === "transition-old"
+                    ? -10
+                    : sample.debugState === "transition-new"
+                      ? 10
+                      : sample.debugState === "target"
+                        ? 10
+                        : -10;
+            const offsetY =
+                sample.debugState === "transition-old"
+                    ? -10
+                    : sample.debugState === "transition-new"
+                      ? 10
+                      : sample.debugState === "target"
+                        ? -10
+                        : 10;
+            const label = new PIXI.Text({
+                text: `${labelPrefix}${sample.sampleIndex}`,
+                style: {
+                    fontFamily: "monospace",
+                    fontSize: 10,
+                    fontWeight: "700",
+                    fill: ownerColor,
+                    stroke: { color: 0x081018, width: 3 },
+                },
+            });
+            label.anchor.set(0.5);
+            label.x = sample.x + offsetX;
+            label.y = sample.y + offsetY;
+            container.addChild(label);
+        }
+    }
+
+    function renderPerimeterFieldDebugOverlay(activeMode: string): void {
+        if (activeMode !== "perimeter_field" || !debugGraphics) return;
+        const showGeometry =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
+        const showVstars =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
+        if (!showGeometry && !showVstars) return;
+
+        const family = getRenderFamily("perimeter_field");
+        if (!(family instanceof PerimeterFieldFamily)) return;
+        const snapshot =
+            perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
+        if (!snapshot) return;
+
+        const scrubEnabled =
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+            Boolean(snapshot.transitionTargetGeometry);
+
+        if (showGeometry) {
+            for (const points of getPerimeterDebugLoops(
+                snapshot.displayGeometry,
+            )) {
+                drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
+            }
+            if (scrubEnabled && snapshot.transitionTargetGeometry) {
+                for (const points of getPerimeterDebugLoops(
+                    snapshot.transitionTargetGeometry,
+                )) {
+                    drawClosedPolyline(
+                        debugGraphics,
+                        points,
+                        0xff5bd1,
+                        0.65,
+                        2,
+                    );
+                }
+            }
+        }
+
+        if (showVstars) {
+            drawPerimeterSampleTrajectories(
+                debugGraphics,
+                snapshot.transitionSamples,
+            );
+            drawSamplePoints(
+                debugGraphics,
+                snapshot.staticSamples,
+                0x47d7ff,
+                0.95,
+                2.6,
+            );
+            if (scrubEnabled) {
+                drawSamplePoints(
+                    debugGraphics,
+                    snapshot.targetStaticSamples,
+                    0xff5bd1,
+                    0.75,
+                    2.3,
+                );
+            }
+            drawSamplePoints(
+                debugGraphics,
+                snapshot.transitionSamples,
+                0xfff36b,
+                0.95,
+                3.2,
+            );
+            if (debugTextContainer) {
+                drawPerimeterSampleLabels(
+                    debugTextContainer,
+                    snapshot.staticSamples,
+                );
+                if (scrubEnabled) {
+                    drawPerimeterSampleLabels(
+                        debugTextContainer,
+                        snapshot.targetStaticSamples,
+                    );
+                }
+                drawPerimeterSampleLabels(
+                    debugTextContainer,
+                    snapshot.transitionSamples,
+                );
+            }
+        }
     }
 
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
@@ -1283,6 +2185,7 @@
             cachedStarsSource = stars;
         }
         const starsById = cachedStarsById;
+        const pendingTickEvents = activeGameStore.peekTickEvents();
 
         // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
@@ -1300,6 +2203,7 @@
         // 200-300 log lines/sec from the fingerprint checks and stage logs.
         // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
         const isPausedNow = activeGameStore.isPaused;
+        const activeTerritoryMode = resolveActiveTerritoryMode();
         const territoryConfigFp =
             `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:` +
             `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:` +
@@ -1307,7 +2211,15 @@
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
             `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
+            `${GAME_CONFIG.TERRITORY_TRANSITION_MS}:` +
             `${GAME_CONFIG.USE_RENDER_FAMILIES}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING}:${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT}:${GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX}:` +
             `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
             `${getTerritoryVisualEpoch()}`;
         const configChanged =
@@ -1339,26 +2251,7 @@
             // which also populates trace data for the Trace Inspector.
             {
                 // Resolve active render mode — check new enum first, fall back to old booleans
-                let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
-                if (!activeMode) {
-                    // No explicit render mode set — fall back to old boolean flags
-                    // Backward compat: check old boolean flags
-                    if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
-                    else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
-                        activeMode = "power_voronoi";
-                    else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
-                        activeMode = "distance_field";
-                    else if (GAME_CONFIG.TERRITORY_VORONOI)
-                        activeMode = "voronoi";
-                    else if (GAME_CONFIG.TERRITORY_METABALL)
-                        activeMode = "metaball";
-                    else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
-                    else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
-                    else if (GAME_CONFIG.TERRITORY_CONTOUR)
-                        activeMode = "contour";
-                    else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
-                        activeMode = "territory_engine";
-                }
+                const activeMode = activeTerritoryMode;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -1368,17 +2261,26 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
-                if (
-                    (!GAME_CONFIG.USE_RENDER_FAMILIES ||
-                        activeMode !== "metaball") &&
-                    voronoiContainer
-                ) {
-                    const mf = getRenderFamily("metaball");
+                if (voronoiContainer) {
+                    const metaballFamily = getRenderFamily("metaball");
                     if (
-                        mf instanceof MetaballFamily &&
-                        mf.displayRoot.parent === voronoiContainer
+                        activeMode !== "metaball" &&
+                        metaballFamily instanceof MetaballFamily &&
+                        metaballFamily.displayRoot.parent === voronoiContainer
                     ) {
-                        voronoiContainer.removeChild(mf.displayRoot);
+                        voronoiContainer.removeChild(metaballFamily.displayRoot);
+                    }
+                    const perimeterFieldFamily =
+                        getRenderFamily("perimeter_field");
+                    if (
+                        activeMode !== "perimeter_field" &&
+                        perimeterFieldFamily instanceof PerimeterFieldFamily &&
+                        perimeterFieldFamily.displayRoot.parent ===
+                            voronoiContainer
+                    ) {
+                        voronoiContainer.removeChild(
+                            perimeterFieldFamily.displayRoot,
+                        );
                     }
                 }
 
@@ -1481,46 +2383,106 @@
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
-                    case "metaball":
-                        if (
-                            GAME_CONFIG.USE_RENDER_FAMILIES &&
-                            voronoiContainer
-                        ) {
-                            let fam = getRenderFamily("metaball");
-                            if (!fam) {
-                                registerRenderFamily(
-                                    createMetaballFamily(colorUtils),
-                                );
-                                fam = getRenderFamily("metaball")!;
-                            }
-                            const mf = fam as MetaballFamily;
-                            mf.update(
-                                buildRenderFamilyInput({
-                                    stars,
-                                    lanes: activeGameStore
-                                        .connections as StarConnection[],
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
-                                    nowMs: fxOrchestrator.gameTime,
-                                    gameTick: activeGameStore.currentTick,
-                                }),
+                    case "metaball": {
+                        let fam = getRenderFamily("metaball");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballFamily(colorUtils),
                             );
-                            if (mf.displayRoot.parent !== voronoiContainer) {
-                                voronoiContainer.addChild(mf.displayRoot);
-                            }
-                            mf.displayRoot.visible = true;
-                        } else {
-                            renderMetaballModule(
-                                stars,
-                                voronoiContainer,
-                                colorUtils,
-                                GAME_WIDTH,
-                                GAME_HEIGHT,
-                                activeGameStore.connections as StarConnection[],
-                                activeGameStore.currentTick,
-                            );
+                            fam = getRenderFamily("metaball")!;
                         }
+                        const mf = fam as MetaballFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        mf.update(
+                            buildRenderFamilyInput({
+                                stars,
+                                lanes: activeGameStore
+                                    .connections as StarConnection[],
+                                worldWidth: GAME_WIDTH,
+                                worldHeight: GAME_HEIGHT,
+                                nowMs: fxOrchestrator.gameTime,
+                                paused: isPausedNow,
+                                gameTick: activeGameStore.currentTick,
+                                ownership: buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                                renderer: app?.renderer ?? undefined,
+                                activeTransition,
+                                tunableKeys: mf.tunableKeys,
+                            }),
+                        );
+                        if (mf.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(mf.displayRoot);
+                        }
+                        mf.displayRoot.visible = true;
                         break;
+                    }
+                    case "perimeter_field": {
+                        let fam = getRenderFamily("perimeter_field");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createPerimeterFieldFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("perimeter_field")!;
+                        }
+                        const pf = fam as PerimeterFieldFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        const captureTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                            );
+                        const lanes = activeGameStore
+                            .connections as StarConnection[];
+                        const pfInput = buildRenderFamilyInput({
+                            stars,
+                            lanes,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            nowMs: fxOrchestrator.gameTime,
+                            paused: isPausedNow,
+                            gameTick: activeGameStore.currentTick,
+                            ownership: buildRenderFamilyOwnershipSnapshot(
+                                stars,
+                                activeTransition,
+                            ),
+                            geometry: getCurrentRenderFamilyGeometry(
+                                stars,
+                                lanes,
+                            ),
+                            renderer: app?.renderer ?? undefined,
+                            activeTransition,
+                            tunableKeys: pf.tunableKeys,
+                        });
+                        pf.update(pfInput);
+                        if (pf.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(pf.displayRoot);
+                        }
+                        pf.displayRoot.visible = true;
+                        syncPerimeterFieldDiagnosticCapture({
+                            family: pf,
+                            input: pfInput,
+                            activeTransition: captureTransition,
+                            stars,
+                            nowMs: fxOrchestrator.gameTime,
+                        });
+                        applyPerimeterFieldReplayPresentation({
+                            container: voronoiContainer,
+                            liveRoot: pf.displayRoot,
+                        });
+                        break;
+                    }
                     case "pixel":
                         renderPixelTerritoryModule(
                             stars,
@@ -1699,6 +2661,8 @@
             }
         } // end territory pause guard
 
+        renderPerimeterFieldDebugOverlay(activeTerritoryMode);
+
         // Render stars (static elements)
         renderStarsModule(
             stars,
@@ -1757,7 +2721,10 @@
             processTickEvents(stars, tickEvents, connections || [], starsById);
 
             // Export local rendering states if snapshot recording is enabled
-            const willCapture = tickEvents.conquests.length > 0 && transitionSnapshotRecorder.isEnabled();
+            const willCapture =
+                activeTerritoryMode !== "perimeter_field" &&
+                tickEvents.conquests.length > 0 &&
+                transitionSnapshotRecorder.isEnabled();
             if (willCapture) {
                 const prevGeometry = exportPowerVoronoiGeometrySnapshot("previous", "dy4:prev", "dy4:prev");
                 const nextGeometry = exportPowerVoronoiGeometrySnapshot("current", "dy4:next", "dy4:next");
@@ -1780,9 +2747,6 @@
                         nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
                         transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any, geometryVersion: "1" },
                         fillPlan: null,
-                        activeFrontPlan: null,
-                        prevFrontierTopology: null,
-                        nextFrontierTopology: null,
                         selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
                         nowMs: fxOrchestrator.gameTime,
                         starPositions: starPos,
@@ -1940,14 +2904,6 @@
     // Track last hitTest result to suppress duplicate logs
     let lastHitStarId: string | null | undefined = undefined; // undefined = never set
 
-    function transposePoint(x: number, y: number): { x: number; y: number } {
-        if (!mapTranspose.active) return { x, y };
-        return {
-            x: y,
-            y: mapTranspose.mapWidth - x,
-        };
-    }
-
     function hitTestStar(screenX: number, screenY: number): StarState | null {
         // Use activeGameStore for unified star access
         const stars = activeGameStore.stars as StarState[];
@@ -2001,574 +2957,11 @@
         return nearest;
     }
 
-    function projectPointToSegment(
-        px: number,
-        py: number,
-        ax: number,
-        ay: number,
-        bx: number,
-        by: number,
-    ): { x: number; y: number; distance: number } {
-        const dx = bx - ax;
-        const dy = by - ay;
-        const lenSq = dx * dx + dy * dy;
-        if (lenSq <= 1e-6) {
-            return {
-                x: ax,
-                y: ay,
-                distance: Math.hypot(px - ax, py - ay),
-            };
-        }
-        const t = Math.max(
-            0,
-            Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq),
-        );
-        const x = ax + dx * t;
-        const y = ay + dy * t;
-        return {
-            x,
-            y,
-            distance: Math.hypot(px - x, py - y),
-        };
-    }
-
-    function buildVisibleLanePolyline(
-        source: StarState,
-        target: StarState,
-    ): [number, number][] {
-        const raw =
-            getDirectedLanePolyline(source.id, target.id) ?? [
-                [source.x, source.y],
-                [target.x, target.y],
-            ];
-        const displayPolyline = raw.map(([x, y]) => {
-            const p = transposePoint(x, y);
-            return [p.x, p.y] as [number, number];
-        });
-        const sourceRef = {
-            x: mapTranspose.x(source),
-            y: mapTranspose.y(source),
-            radius: source.radius,
-        };
-        const targetRef = {
-            x: mapTranspose.x(target),
-            y: mapTranspose.y(target),
-            radius: target.radius,
-        };
-        const ringGapForLane =
-            GAME_CONFIG.STAR_RING_RADIUS + (GAME_CONFIG.STAR_RING_WIDTH ?? 2) * 0.5;
-        const trimPad = Math.max(
-            0,
-            ringGapForLane - Math.min(source.radius, target.radius),
-        );
-        return trimLanePolylineToStarRims(
-            displayPolyline,
-            sourceRef,
-            targetRef,
-            trimPad,
-        );
-    }
-
-    function hitTestLanePoint(screenX: number, screenY: number): RulerPoint | null {
-        const { x, y } = screenToWorld(screenX, screenY);
-        const stars = activeGameStore.stars as StarState[];
-        const starsById = new Map(stars.map((star) => [star.id, star] as const));
-        const seen = new Set<string>();
-        const laneHitboxPx = get(rulerTool).laneHitboxPx;
-        let best:
-            | {
-                  x: number;
-                  y: number;
-                  distance: number;
-                  laneKey: string;
-                  laneLabel: string;
-              }
-            | null = null;
-
-        for (const connection of activeGameStore.connections as StarConnection[]) {
-            const a =
-                connection.sourceId <= connection.targetId
-                    ? connection.sourceId
-                    : connection.targetId;
-            const b =
-                connection.sourceId <= connection.targetId
-                    ? connection.targetId
-                    : connection.sourceId;
-            const laneKey = `${a}|${b}`;
-            if (seen.has(laneKey)) continue;
-            seen.add(laneKey);
-
-            const source = starsById.get(a);
-            const target = starsById.get(b);
-            if (!source || !target) continue;
-
-            const polyline = buildVisibleLanePolyline(source, target);
-            if (polyline.length < 2) continue;
-
-            for (let i = 1; i < polyline.length; i++) {
-                const [ax, ay] = polyline[i - 1];
-                const [bx, by] = polyline[i];
-                const projection = projectPointToSegment(x, y, ax, ay, bx, by);
-                if (projection.distance > laneHitboxPx) continue;
-                if (!best || projection.distance < best.distance) {
-                    best = {
-                        x: projection.x,
-                        y: projection.y,
-                        distance: projection.distance,
-                        laneKey,
-                        laneLabel: `${a} ↔ ${b}`,
-                    };
-                }
-            }
-        }
-
-        if (!best) return null;
-        return {
-            x: best.x,
-            y: best.y,
-            snapKind: "lane",
-            laneKey: best.laneKey,
-            laneLabel: best.laneLabel,
-        };
-    }
-
-    function resolveRulerPoint(screenX: number, screenY: number): RulerPoint {
-        const star = hitTestStar(screenX, screenY);
-        if (star) {
-            return {
-                x: mapTranspose.x(star),
-                y: mapTranspose.y(star),
-                snapKind: "star",
-                starId: star.id,
-            };
-        }
-
-        const lanePoint = hitTestLanePoint(screenX, screenY);
-        if (lanePoint) return lanePoint;
-
-        const world = screenToWorld(screenX, screenY);
-        return {
-            x: world.x,
-            y: world.y,
-            snapKind: "free",
-        };
-    }
-
-    function mapLaneKindToRulerState(kind?: string): RulerLaneState {
-        if (kind === "curved") return "curved";
-        if (kind === "angular") return "bent";
-        if (kind === "straight") return "straight";
-        return "missing";
-    }
-
-    function findConnectionByLaneKey(laneKey: string): StarConnection | null {
-        for (const connection of activeGameStore.connections as StarConnection[]) {
-            const a =
-                connection.sourceId <= connection.targetId
-                    ? connection.sourceId
-                    : connection.targetId;
-            const b =
-                connection.sourceId <= connection.targetId
-                    ? connection.targetId
-                    : connection.sourceId;
-            if (`${a}|${b}` === laneKey) return connection;
-        }
-        return null;
-    }
-
-    function finalizeRulerMeasurement(
-        start: RulerPoint,
-        end: RulerPoint,
-    ): RulerMeasurement {
-        let relatedLaneKey: string | undefined;
-        let relatedLaneLabel: string | undefined;
-        let starPairLabel: string | undefined;
-        let actualLaneState: RulerLaneState = "missing";
-
-        if (start.starId && end.starId) {
-            const a = start.starId <= end.starId ? start.starId : end.starId;
-            const b = start.starId <= end.starId ? end.starId : start.starId;
-            relatedLaneKey = `${a}|${b}`;
-            relatedLaneLabel = `${a} ↔ ${b}`;
-            starPairLabel = relatedLaneLabel;
-            actualLaneState = mapLaneKindToRulerState(
-                findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
-            );
-        } else {
-            relatedLaneKey =
-                start.laneKey && end.laneKey && start.laneKey === end.laneKey
-                    ? start.laneKey
-                    : start.laneKey ?? end.laneKey;
-            relatedLaneLabel =
-                start.laneLabel && end.laneLabel && start.laneLabel === end.laneLabel
-                    ? start.laneLabel
-                    : start.laneLabel ?? end.laneLabel;
-            if (relatedLaneKey) {
-                actualLaneState = mapLaneKindToRulerState(
-                    findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
-                );
-            }
-        }
-
-        const measurement = buildRulerMeasurement(start, end, {
-            laneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX,
-            starPairLabel,
-            relatedLaneKey,
-            relatedLaneLabel,
-            actualLaneState,
-        });
-
-        log.canvas(
-            "Ruler",
-            `${measurement.distance.toFixed(2)}px ${measurement.starPairLabel ?? measurement.relatedLaneLabel ?? "free"}`,
-            measurement,
-        );
-
-        return measurement;
-    }
-
-    interface ResolvedMapRulerFixture {
-        start: RulerPoint;
-        end: RulerPoint | null;
-        distance: number | null;
-        midX: number;
-        midY: number;
-        labelText: string;
-        alpha: number;
-        color: string;
-    }
-
-    function getMapFixtureColor(diagnostics: MapDiagnostics | null): {
-        color: string;
-        alpha: number;
-    } {
-        const fixtureColor = diagnostics?.rulerColor;
-        if (!fixtureColor) {
-            return {
-                color: "hsla(42, 96%, 68%, 0.96)",
-                alpha: 0.96,
-            };
-        }
-        return {
-            color: `hsla(${fixtureColor.h}, ${fixtureColor.s}%, ${fixtureColor.l}%, ${fixtureColor.a})`,
-            alpha: fixtureColor.a,
-        };
-    }
-
-    function resolveMapRulerFixture(
-        fixture: MapRulerFixture,
-        diagnostics: MapDiagnostics | null,
-    ): ResolvedMapRulerFixture | null {
-        const stars = activeGameStore.stars as StarState[];
-        const starsById = new Map(stars.map((star) => [star.id, star] as const));
-        const startStar = starsById.get(fixture.startStarId);
-        if (!startStar) return null;
-
-        const { color, alpha } = getMapFixtureColor(diagnostics);
-        const start: RulerPoint = {
-            x: mapTranspose.x(startStar),
-            y: mapTranspose.y(startStar),
-            snapKind: "star",
-            starId: startStar.id,
-        };
-
-        const connection = findConnectionByLaneKey(fixture.laneKey);
-        if (!connection) {
-            return {
-                start,
-                end: null,
-                distance: null,
-                midX: start.x,
-                midY: start.y,
-                labelText:
-                    fixture.label
-                    ?? (fixture.expectedDistancePx !== undefined
-                        ? `${Math.round(fixture.expectedDistancePx)} px · missing`
-                        : "missing"),
-                alpha,
-                color,
-            };
-        }
-
-        const sourceId =
-            connection.sourceId <= connection.targetId
-                ? connection.sourceId
-                : connection.targetId;
-        const targetId =
-            connection.sourceId <= connection.targetId
-                ? connection.targetId
-                : connection.sourceId;
-        const source = starsById.get(sourceId);
-        const target = starsById.get(targetId);
-        if (!source || !target) return null;
-
-        const polyline = buildVisibleLanePolyline(source, target);
-        if (polyline.length < 2) return null;
-
-        let best:
-            | {
-                  x: number;
-                  y: number;
-                  distance: number;
-              }
-            | null = null;
-        for (let index = 1; index < polyline.length; index++) {
-            const [ax, ay] = polyline[index - 1];
-            const [bx, by] = polyline[index];
-            const projection = projectPointToSegment(
-                start.x,
-                start.y,
-                ax,
-                ay,
-                bx,
-                by,
-            );
-            if (!best || projection.distance < best.distance) {
-                best = projection;
-            }
-        }
-        if (!best) return null;
-
-        const end: RulerPoint = {
-            x: best.x,
-            y: best.y,
-            snapKind: "lane",
-            laneKey: fixture.laneKey,
-            laneLabel: `${sourceId} ↔ ${targetId}`,
-        };
-
-        return {
-            start,
-            end,
-            distance: best.distance,
-            midX: start.x + (end.x - start.x) * 0.5,
-            midY: start.y + (end.y - start.y) * 0.5,
-            labelText:
-                fixture.label
-                ?? (fixture.expectedDistancePx !== undefined
-                    ? `${Math.round(fixture.expectedDistancePx)} px`
-                    : `${best.distance.toFixed(2)} px`),
-            alpha,
-            color,
-        };
-    }
-
-    function ensureRulerLabel(index: number): PIXI.Text | null {
-        const stageParent = debugGraphics?.parent;
-        if (!stageParent) return null;
-        while (rulerLabels.length <= index) {
-            const label = new PIXI.Text({
-                text: "",
-                style: {
-                    fontFamily: "Consolas, Monaco, monospace",
-                    fontSize: 12,
-                    fill: 0xffffff,
-                    fontWeight: "700",
-                    align: "center",
-                },
-            });
-            label.anchor.set(0.5);
-            label.visible = false;
-            rulerLabels.push(label);
-            stageParent.addChild(label);
-        }
-        return rulerLabels[index];
-    }
-
-    function hideUnusedRulerLabels(fromIndex: number): void {
-        for (let i = fromIndex; i < rulerLabels.length; i++) {
-            rulerLabels[i].visible = false;
-        }
-    }
-
-    function renderRulerOverlay(graphics: PIXI.Graphics): void {
-        const state = get(rulerTool);
-        const draftMeasurement = getRulerMeasurement(state);
-        const color = getRulerCssColor(state);
-        const diagnostics = activeGameStore.mapDiagnostics;
-        const resolvedFixtures =
-            diagnostics?.rulerFixtures
-                ?.map((fixture) => resolveMapRulerFixture(fixture, diagnostics))
-                .filter(
-                    (
-                        fixture,
-                    ): fixture is ResolvedMapRulerFixture => fixture !== null,
-                ) ?? [];
-        let labelIndex = 0;
-
-        const drawPoint = (
-            point: RulerPoint,
-            pointColor: string,
-            alpha: number,
-        ) => {
-            graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
-            graphics.fill({
-                color: pointColor,
-                alpha: Math.max(0.18, alpha * 0.28),
-            });
-            graphics.stroke({ color: pointColor, width: 2, alpha });
-
-            graphics.moveTo(point.x - 10, point.y);
-            graphics.lineTo(point.x + 10, point.y);
-            graphics.moveTo(point.x, point.y - 10);
-            graphics.lineTo(point.x, point.y + 10);
-            graphics.stroke({
-                color: pointColor,
-                width: 1.5,
-                alpha: Math.max(0.65, alpha),
-            });
-        };
-
-        const drawMeasuredSegment = (
-            start: RulerPoint,
-            end: RulerPoint,
-            measurement: {
-                distance: number;
-                midX: number;
-                midY: number;
-            },
-            segmentColor: string,
-            alpha: number,
-            labelText?: string,
-        ) => {
-            graphics.moveTo(start.x, start.y);
-            graphics.lineTo(end.x, end.y);
-            graphics.stroke({ color: segmentColor, width: 2.5, alpha });
-            drawPoint(start, segmentColor, alpha);
-            drawPoint(end, segmentColor, alpha);
-
-            const label = ensureRulerLabel(labelIndex++);
-            if (!label) return;
-            label.text = labelText ?? `${measurement.distance.toFixed(2)} px`;
-            label.style.fill = segmentColor;
-            label.position.set(measurement.midX, measurement.midY - 18);
-            label.visible = true;
-
-            const paddingX = 8;
-            const paddingY = 4;
-            const boxW = label.width + paddingX * 2;
-            const boxH = label.height + paddingY * 2;
-            graphics.roundRect(
-                label.x - boxW * 0.5,
-                label.y - boxH * 0.5,
-                boxW,
-                boxH,
-                6,
-            );
-            graphics.fill({ color: 0x050812, alpha: 0.82 });
-            graphics.stroke({
-                color: segmentColor,
-                width: 1,
-                alpha: Math.max(0.7, alpha),
-            });
-        };
-
-        const drawPointLabel = (
-            point: RulerPoint,
-            labelText: string,
-            labelColor: string,
-            alpha: number,
-        ) => {
-            drawPoint(point, labelColor, alpha);
-            const label = ensureRulerLabel(labelIndex++);
-            if (!label) return;
-            label.text = labelText;
-            label.style.fill = labelColor;
-            label.position.set(point.x, point.y - 22);
-            label.visible = true;
-
-            const paddingX = 8;
-            const paddingY = 4;
-            const boxW = label.width + paddingX * 2;
-            const boxH = label.height + paddingY * 2;
-            graphics.roundRect(
-                label.x - boxW * 0.5,
-                label.y - boxH * 0.5,
-                boxW,
-                boxH,
-                6,
-            );
-            graphics.fill({ color: 0x050812, alpha: 0.82 });
-            graphics.stroke({
-                color: labelColor,
-                width: 1,
-                alpha: Math.max(0.7, alpha),
-            });
-        };
-
-        for (const fixture of resolvedFixtures) {
-            if (fixture.end && fixture.distance !== null) {
-                drawMeasuredSegment(
-                    fixture.start,
-                    fixture.end,
-                    fixture,
-                    fixture.color,
-                    fixture.alpha,
-                    fixture.labelText,
-                );
-            } else {
-                drawPointLabel(
-                    fixture.start,
-                    fixture.labelText,
-                    fixture.color,
-                    fixture.alpha,
-                );
-            }
-        }
-
-        if (state.mode === "persistent") {
-            for (const measurement of state.measurements) {
-                drawMeasuredSegment(
-                    measurement.start,
-                    measurement.end,
-                    measurement,
-                    color,
-                    state.color.a,
-                );
-            }
-        }
-
-        if (state.start) {
-            drawPoint(state.start, color, state.color.a);
-        }
-
-        if (draftMeasurement && state.start && state.end) {
-            drawMeasuredSegment(
-                state.start,
-                state.end,
-                draftMeasurement,
-                color,
-                state.color.a,
-            );
-        }
-
-        hideUnusedRulerLabels(labelIndex);
-    }
-
     function handlePointerDown(event: PointerEvent) {
         if (!app) return;
         log.input(
             `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY}) ptrType=${event.pointerType}`,
         );
-
-        if (get(rulerTool).enabled && event.button === 0 && !isSpaceHeld) {
-            const rect = canvasContainer.getBoundingClientRect();
-            const point = resolveRulerPoint(
-                event.clientX - rect.left,
-                event.clientY - rect.top,
-            );
-            const placement = rulerTool.placePoint(point);
-            if (placement.completed) {
-                rulerTool.recordMeasurement(
-                    finalizeRulerMeasurement(
-                        placement.completed.start,
-                        placement.completed.end,
-                    ),
-                );
-            }
-            event.preventDefault();
-            return;
-        }
 
         // Track active pointers for multi-touch
         activePointers.set(event.pointerId, {
@@ -3286,34 +3679,12 @@
     onwheel={handleWheel}
 ></div>
 
-<!-- Debug Overlay -->
-<div class="debug-overlay-bar">
-    <div class="fps-overlay">
-        {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
-    </div>
-    <div class="scale-ruler" aria-label={`Scale ruler: ${scaleRulerWorldPx} pixels`}>
-        <div class="scale-ruler__label">{scaleRulerWorldPx}px</div>
-        <div class="scale-ruler__bar" style={`width: ${scaleRulerScreenPx}px;`}>
-            <span class="scale-ruler__tick scale-ruler__tick--start"></span>
-            <span class="scale-ruler__tick scale-ruler__tick--mid"></span>
-            <span class="scale-ruler__tick scale-ruler__tick--end"></span>
-        </div>
-    </div>
+<!-- FPS / Ship Count Overlay -->
+<div class="fps-overlay">
+    {currentFps} FPS · {totalVisualShips.toLocaleString()} ships
 </div>
 
 <style>
-    .debug-overlay-bar {
-        position: fixed;
-        top: 8px;
-        left: 8px;
-        z-index: 9999;
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        pointer-events: none;
-        user-select: none;
-    }
-
     .game-canvas {
         position: absolute;
         inset: 0;
@@ -3333,6 +3704,10 @@
     }
 
     .fps-overlay {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 9999;
         font-family: "Consolas", "Monaco", monospace;
         font-size: 11px;
         color: #0f0;
@@ -3342,46 +3717,8 @@
         pointer-events: none;
         user-select: none;
     }
-    .scale-ruler {
-        min-width: 112px;
-        font-family: "Consolas", "Monaco", monospace;
-        color: #8fd6ff;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 3px 10px 5px;
-        border-radius: 4px;
-    }
-    .scale-ruler__label {
-        font-size: 10px;
-        line-height: 1.1;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    .scale-ruler__bar {
-        position: relative;
-        height: 10px;
-        border-top: 2px solid currentColor;
-    }
-    .scale-ruler__tick {
-        position: absolute;
-        top: -2px;
-        width: 1px;
-        height: 8px;
-        background: currentColor;
-    }
-    .scale-ruler__tick--start {
-        left: 0;
-    }
-    .scale-ruler__tick--mid {
-        left: 50%;
-        transform: translateX(-0.5px);
-        height: 6px;
-    }
-    .scale-ruler__tick--end {
-        right: 0;
-    }
     @media (max-width: 1024px) {
-        .debug-overlay-bar {
+        .fps-overlay {
             display: none;
         }
     }

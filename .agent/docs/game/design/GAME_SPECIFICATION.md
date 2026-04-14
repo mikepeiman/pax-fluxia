@@ -111,6 +111,9 @@ The fundamental unit of territory. Stars produce ships, are connected by lanes, 
 | `defenseStrength` | number | Global defense modifier |
 | `icon` | string | Random emoji for visual identity |
 
+> [!IMPORTANT]
+> Runtime ownership invariant: every live star must have an `ownerId`. If a map input omits `ownerId` or leaves it empty, game initialization must normalize that star to `"neutral"` before gameplay and territory rendering begin. Neutral stars still hold territory space even when they start with zero ships.
+
 ### 3.2. Star Types
 
 Each star type has a **2× bonus** in one specialty. All other stats are at 1.0.

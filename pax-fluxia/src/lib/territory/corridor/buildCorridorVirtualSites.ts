@@ -119,6 +119,9 @@ export function buildCorridorVirtualSites(
     includeCrossOwnerMidpointPair = true,
     includeSameOwnerDistributedSamples = true,
     includeCrossOwnerDistributedSamples = true,
+    crossOwnerMidpointPairWeight = weightMultiplier,
+    crossOwnerMidpointPairCount = 1,
+    crossOwnerMidpointPairSpacing = 45,
 ): BuiltCorridorVirtualSite[] {
     if (ownedStars.length === 0 || connections.length === 0) return [];
 
@@ -133,6 +136,16 @@ export function buildCorridorVirtualSites(
     const countMode =
         count != null && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
     const weight = clampWeight(weightMultiplier, 0.5);
+    const midpointPairWeight = clampWeight(crossOwnerMidpointPairWeight, weight);
+    const midpointPairCount = Math.max(
+        1,
+        Math.min(10, Math.round(crossOwnerMidpointPairCount || 1)),
+    );
+    const midpointPairSpacingPx =
+        Number.isFinite(crossOwnerMidpointPairSpacing) &&
+        crossOwnerMidpointPairSpacing > 0
+            ? crossOwnerMidpointPairSpacing
+            : 45;
 
     const sites: BuiltCorridorVirtualSite[] = [];
 
@@ -169,51 +182,63 @@ export function buildCorridorVirtualSites(
 
         if (!sameOwner && includeCrossOwnerMidpointPair) {
             const midpointOffset = Math.min(
-                Math.max(spacingPx * 0.35, 10),
+                Math.max(midpointPairSpacingPx * 0.5, 10),
                 Math.max(pathLen * 0.18, 12),
             );
-            const leftT = Math.max(0.15, (pathLen * 0.5 - midpointOffset) / pathLen);
-            const rightT = Math.min(0.85, (pathLen * 0.5 + midpointOffset) / pathLen);
-            const leftPoint = pointAlongConnection(
-                leftT,
-                usePoly,
-                poly,
-                pathLen,
-                starA.x,
-                starA.y,
-                dx,
-                dy,
-            );
-            const rightPoint = pointAlongConnection(
-                rightT,
-                usePoly,
-                poly,
-                pathLen,
-                starA.x,
-                starA.y,
-                dx,
-                dy,
-            );
-            sites.push({
-                x: leftPoint.x,
-                y: leftPoint.y,
-                weight,
-                ownerId: starA.ownerId,
-                kind: 'corridor',
-                sourceStarA: starA.id,
-                sourceStarB: starB.id,
-                anchorStarId: starA.id,
-            });
-            sites.push({
-                x: rightPoint.x,
-                y: rightPoint.y,
-                weight,
-                ownerId: starB.ownerId,
-                kind: 'corridor',
-                sourceStarA: starA.id,
-                sourceStarB: starB.id,
-                anchorStarId: starB.id,
-            });
+            const midpointDistance = pathLen * 0.5;
+            const centeredOffsetCount = (midpointPairCount - 1) * 0.5;
+            for (let pairIndex = 0; pairIndex < midpointPairCount; pairIndex++) {
+                const laneShift =
+                    (pairIndex - centeredOffsetCount) * midpointPairSpacingPx;
+                const leftDistance = Math.max(
+                    pathLen * 0.1,
+                    Math.min(pathLen * 0.9, midpointDistance - midpointOffset + laneShift),
+                );
+                const rightDistance = Math.max(
+                    pathLen * 0.1,
+                    Math.min(pathLen * 0.9, midpointDistance + midpointOffset + laneShift),
+                );
+                const leftPoint = pointAlongConnection(
+                    leftDistance / pathLen,
+                    usePoly,
+                    poly,
+                    pathLen,
+                    starA.x,
+                    starA.y,
+                    dx,
+                    dy,
+                );
+                const rightPoint = pointAlongConnection(
+                    rightDistance / pathLen,
+                    usePoly,
+                    poly,
+                    pathLen,
+                    starA.x,
+                    starA.y,
+                    dx,
+                    dy,
+                );
+                sites.push({
+                    x: leftPoint.x,
+                    y: leftPoint.y,
+                    weight: midpointPairWeight,
+                    ownerId: starA.ownerId,
+                    kind: 'corridor',
+                    sourceStarA: starA.id,
+                    sourceStarB: starB.id,
+                    anchorStarId: starA.id,
+                });
+                sites.push({
+                    x: rightPoint.x,
+                    y: rightPoint.y,
+                    weight: midpointPairWeight,
+                    ownerId: starB.ownerId,
+                    kind: 'corridor',
+                    sourceStarA: starA.id,
+                    sourceStarB: starB.id,
+                    anchorStarId: starB.id,
+                });
+            }
         }
 
         for (let i = 1; i <= nSites; i++) {

@@ -42,6 +42,7 @@ import {
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
 import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandler';
+import { coerceVsTransitionModeForRenderMode } from '$lib/territory/transitions/territoryTransitionModes';
 
 // ── Localized Boundary Transition Pipeline ─────────────────────────────────
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
@@ -800,7 +801,10 @@ export function renderPowerVoronoi(
             } else if (!GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE) {
                 // A1: Expose crossfade logic behind isolation boolean
                 // ── Mode-dependent easing + ghost strategy ──
-                const mode = GAME_CONFIG.VS_TRANSITION_MODE ?? 'no_loser';
+                const mode = coerceVsTransitionModeForRenderMode(
+                    'power_voronoi',
+                    GAME_CONFIG.VS_TRANSITION_MODE,
+                );
                 let tConquest: number;
                 const frameGhosts: PowerSite[] = [];
 

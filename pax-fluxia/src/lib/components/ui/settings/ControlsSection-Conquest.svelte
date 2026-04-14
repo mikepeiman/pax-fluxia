@@ -1,38 +1,17 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
-    import { ANIM_SLIDERS } from "../settingsDefs";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
-
-    const VS_SLIDERS = ANIM_SLIDERS.filter((slider) => slider.group === "VS Transition");
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
-        animLockModes: Record<string, any>;
-        animLockRatios: Record<string, any>;
-        animValues: Record<string, number>;
-        getAnimValue: (key: string) => number;
-        setAnimValue: (key: string, val: number) => void;
-        formatAnimValue: (val: number, unit: string) => string;
-        pinValueToTickDuration: (key: string) => void;
-        lockRatioToTick: (key: string) => void;
-        lockRatioToAnimSpeed: (key: string) => void;
     }
 
     let {
         panel,
         updatePanel,
         syncFromConfig,
-        animLockModes,
-        animLockRatios,
-        animValues,
-        getAnimValue,
-        setAnimValue,
-        formatAnimValue,
-        pinValueToTickDuration,
-        lockRatioToTick,
-        lockRatioToAnimSpeed,
     }: Props = $props();
 </script>
 
@@ -445,77 +424,6 @@
         />
     </div>
 {/if}
-
-<h4 class="sub-heading">VS Transition</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ghost Mode</span>
-        <span class="val">{panel.vsTransitionMode ?? "no_loser"}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={panel.vsTransitionMode ?? "no_loser"}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            GAME_CONFIG.VS_TRANSITION_MODE = value as any;
-            updatePanel("vsTransitionMode", value);
-        }}
-    >
-        <option value="dual_ghost">Dual Ghost</option>
-        <option value="no_loser">No Loser Ghost</option>
-        <option value="no_ghosts">No Ghosts</option>
-        <option value="matched_ease">Matched Ease</option>
-        <option value="sequential">Sequential</option>
-        <option value="linear">Linear</option>
-    </select>
-</div>
-
-{#each VS_SLIDERS as slider}
-    <div class="var-row" class:locked={animLockModes[slider.key] != null}>
-        <div class="row-top">
-            <span class="var-name" title={slider.desc ?? ""}>{slider.label}</span>
-            <span class="val-group">
-                <span class="val">{formatAnimValue(getAnimValue(slider.key), slider.unit ?? "")}</span>
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "pinned"}
-                    title={animLockModes[slider.key] === "pinned"
-                        ? "Pinned to tick duration - click to unpin"
-                        : "Pin value = tick duration"}
-                    onclick={() => pinValueToTickDuration(slider.key)}>P</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "ratio"}
-                    title={animLockModes[slider.key] === "ratio"
-                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x tick - click to unlock`
-                        : "Lock current ratio to tick"}
-                    onclick={() => lockRatioToTick(slider.key)}>R</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "animSpeed"}
-                    title={animLockModes[slider.key] === "animSpeed"
-                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x animation speed - click to unlock`
-                        : "Lock current ratio to animation speed"}
-                    onclick={() => lockRatioToAnimSpeed(slider.key)}>A</button
-                >
-            </span>
-        </div>
-        <input
-            type="range"
-            min={slider.min}
-            max={slider.max}
-            step={slider.step}
-            value={getAnimValue(slider.key)}
-            disabled={animLockModes[slider.key] != null}
-            oninput={(event) => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
-                setAnimValue(slider.key, value);
-            }}
-        />
-    </div>
-{/each}
 
 <style>
     @import "./panel-shared.css";

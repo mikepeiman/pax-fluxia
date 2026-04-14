@@ -4,6 +4,10 @@
 
 import { calculateCombat as sharedCalculateCombat } from '@pax/common';
 import type { EngineConfig } from '@pax/common';
+import type {
+    MetaballBurstBoundaryBasis,
+    VsTransitionModeId,
+} from '$lib/territory/transitions/territoryTransitionModes';
 
 /**
  * Build an EngineConfig from the current GAME_CONFIG values.
@@ -281,20 +285,20 @@ interface GameConfigType {
     ARROW_OUTLINE_ALPHA: number;
     /** Arrowhead wing spread angle in degrees (default 30) */
     ARROW_HEAD_SPREAD_DEG: number;
-    /** Arrowhead inner notch depth (0=solid triangle, 1=deep notch) */
-    ARROW_HEAD_NOTCH: number;
-    /** Arrowhead silhouette variant */
+    /** Arrowhead style variant: triangle, chevron, kite, or spear */
     ARROW_HEAD_STYLE: 'triangle' | 'chevron' | 'kite' | 'spear';
-    /** Number of stepped shaft segments */
+    /** Arrowhead rear-notch depth (0 = flat, 1 = deep notch) */
+    ARROW_HEAD_NOTCH: number;
+    /** Number of shaft gradient steps (1 = solid shaft) */
     ARROW_SHAFT_STEPS: number;
-    /** Animated gradient/step flow speed */
+    /** Animated flow speed along the shaft (0 = static) */
     ARROW_FLOW_SPEED: number;
-    /** Optional force-reactive intensity scaling (0-1) */
-    ARROW_FORCE_INTENSITY: number;
-    /** Force level that maps to full arrow intensity scaling */
-    ARROW_FORCE_INTENSITY_MAX_SHIPS: number;
-    /** Arrowhead VFX alpha */
+    /** Arrowhead glow / VFX alpha */
     ARROW_HEAD_VFX_ALPHA: number;
+    /** How strongly arrow visuals react to attacking force size */
+    ARROW_FORCE_INTENSITY: number;
+    /** Ship count that reaches full force-reactive intensity */
+    ARROW_FORCE_INTENSITY_MAX_SHIPS: number;
     /** When true, metaball fill follows geometry ownership instead of requiring real-star and geom agreement */
     METABALL_FILL_FOLLOWS_GEOM: boolean;
     /** Damaged ship render scale multiplier (default 0.7) */
@@ -328,9 +332,6 @@ interface GameConfigType {
      * then satisfies full **lane margin** on sampled paths. Does not relax lane margin itself.
      */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
-    MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'angular' | 'curved';
-    /** When true, authored maps may rebuild connectivity from the same star layout on lane-constraint changes. */
-    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: boolean;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -369,7 +370,23 @@ interface GameConfigType {
     VS_POWER_LERP_END: number;            // Loser VS ending power (0-max, default 0 = dissolve)
     VS_POWER_LERP_DURATION_MS: number;    // Duration of power lerp (ms, 0 = use VS_LOSER_TRAVEL_MS)
     VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
-    VS_TRANSITION_MODE: 'dual_ghost' | 'no_loser' | 'no_ghosts' | 'matched_ease' | 'sequential' | 'linear'; // Ghost strategy for VS transitions
+    VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
+    METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
+    PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
+    PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
+    PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
+    PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
+    PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
+    PERIMETER_FIELD_DEBUG_SHOW_VSTARS: boolean; // Show derived perimeter vstars and transition-local override points
+    PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: boolean; // When paused, override transition progress with the scrub slider
+    PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
+    PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
+    PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -453,6 +470,8 @@ interface GameConfigType {
     TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
     TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier vs starMargin² (0.0-2.0, default 0.5)
     TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: boolean; // Add paired midpoint contest vstars on cross-owner lanes
+    TERRITORY_CX_CONTEST_PAIR_COUNT: number; // Number of paired midpoint samples per owner on contested lanes
+    TERRITORY_CX_CONTEST_PAIR_WEIGHT: number; // Weight multiplier for contested midpoint-pair vstars
     MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
     TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier vs starMargin² (0.0-2.0, default 0.3)
@@ -525,7 +544,6 @@ interface GameConfigType {
     METABALL_COMBAT_BORDER_ALPHA_BOOST: number; // Extra border alpha when hot (default 0)
     /** Scale border emphasis by fleet imbalance across edge: 0=off, 1=moderate (default 0) */
     METABALL_BORDER_FORCE_RATIO: number;
-
     // ── Pixel Territory ────────────────────────────────────────────────────
     PIXEL_ALPHA: number;             // Pixel territory alpha (0-1, default 0.15)
     PIXEL_RESOLUTION: number;        // Downscale factor (1=sharpest, 8=fastest, default 4)
@@ -1139,13 +1157,13 @@ const _rawConfig: GameConfigType = {
     ARROW_OUTLINE_COLOR: 0x000000,
     ARROW_OUTLINE_ALPHA: 0.6,
     ARROW_HEAD_SPREAD_DEG: 30,
-    ARROW_HEAD_NOTCH: 0.2,
     ARROW_HEAD_STYLE: 'triangle',
-    ARROW_SHAFT_STEPS: 1,
-    ARROW_FLOW_SPEED: 0,
-    ARROW_FORCE_INTENSITY: 0,
+    ARROW_HEAD_NOTCH: 0.2,
+    ARROW_SHAFT_STEPS: 6,
+    ARROW_FLOW_SPEED: 1.2,
+    ARROW_HEAD_VFX_ALPHA: 0.16,
+    ARROW_FORCE_INTENSITY: 0.4,
     ARROW_FORCE_INTENSITY_MAX_SHIPS: 250,
-    ARROW_HEAD_VFX_ALPHA: 0,
     METABALL_FILL_FOLLOWS_GEOM: false,
     DAMAGED_SHIP_SCALE: 0.7,
 
@@ -1171,10 +1189,6 @@ const _rawConfig: GameConfigType = {
 
     /** 0 = prune-first topology; 1 = keep edges for curved geometry (Phase 4 chord test scaled) */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
-
-    MAPGEN_LANE_ADJUSTED_PATH_STYLE: 'curved',
-
-    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: false,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',
@@ -1251,6 +1265,22 @@ const _rawConfig: GameConfigType = {
     VS_POWER_LERP_DURATION_MS: 0,  // 0 = use VS_LOSER_TRAVEL_MS
     VS_BIND_TO_TICK: true,
     VS_TRANSITION_MODE: 'no_loser' as const,  // Default: no loser ghost, just victor + C ramp
+    METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' as const,
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319' as const,
+    PERIMETER_FIELD_SAMPLE_SPACING: 28,
+    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
+    PERIMETER_FIELD_INFLUENCE_RADIUS: 52,
+    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.35,
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: true,
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
+    PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: false,
+    PERIMETER_FIELD_DEBUG_SHOW_VSTARS: false,
+    PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: false,
+    PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
+    PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,
+    PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
@@ -1376,6 +1406,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_CX_WEIGHT: 0.5,
     /** Paired midpoint vstars keep contested lanes meeting on the lane instead of letting third parties intrude. */
     TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: true,
+    TERRITORY_CX_CONTEST_PAIR_COUNT: 1,
+    TERRITORY_CX_CONTEST_PAIR_WEIGHT: 0.5,
     /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
     MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     /** Max distance between same-owner stars for disconnect injection (px) */
@@ -1416,11 +1448,11 @@ const _rawConfig: GameConfigType = {
     METABALL_BORDER_SATURATION: 1,
     METABALL_BORDER_LIGHTNESS: 1,
     METABALL_CHAIKIN_PASSES: 0,
-    METABALL_COMBAT_BORDER_TICKS: 15,
+    METABALL_COMBAT_BORDER_TICKS: 0,
     METABALL_COMBAT_BORDER_PROXIMITY_PX: 0,
-    METABALL_COMBAT_BORDER_WIDTH_BOOST: 1.5,
-    METABALL_COMBAT_BORDER_ALPHA_BOOST: 0.35,
-    METABALL_BORDER_FORCE_RATIO: 0.6,
+    METABALL_COMBAT_BORDER_WIDTH_BOOST: 0,
+    METABALL_COMBAT_BORDER_ALPHA_BOOST: 0,
+    METABALL_BORDER_FORCE_RATIO: 0,
 
     // ── Pixel Territory ──
     /** Pixel territory alpha (0-1, lower = more transparent) */

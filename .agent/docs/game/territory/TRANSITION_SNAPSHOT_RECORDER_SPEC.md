@@ -14,9 +14,14 @@ Whenever a conquest event occurs, automatically generate a dated debug bundle co
 
 This is **debug tooling only**. It must not affect gameplay logic, geometry truth, or transition output.
 
+> [!IMPORTANT]
+> For `perimeter_field`, recorder output must come from the real live family path. No synthetic replay renderer, export-only reconstruction, or side-effecting offscreen re-render is acceptable.
+
 ## Trigger
 
 Use `OwnershipSnapshot.conquestEvents` as the primary trigger. For each conquest event, create one debug bundle keyed by timestamp, tick, transition id, starId, previousOwner, newOwner.
+
+For simultaneous conquests, the bundle identity and exported filenames must include all participating conquest star-pair identifiers.
 
 ## Output Structure
 
@@ -59,3 +64,11 @@ Plus top-level manifest: `debug/territory-transitions/index.json`
 - Multi-frame capture across transition progress (t=0, .15, .35, .5, .65, .85, 1.0)
 - Per-mode comparison folders
 - Optional frontier-mask / raster-diff debug images
+
+## `perimeter_field` Recorder Rules
+
+- `PREV` must be captured from the real gameplay frame immediately before the conquest transition begins.
+- `NEXT` must be captured from the real gameplay frame immediately after the transition settles.
+- Every scrub frame must be a captured live gameplay frame, not a reconstructed debug surrogate.
+- Diagnostic overlays may be generated for inspection, but they must not replace the clean gameplay capture in artifacts that are intended to represent gameplay truth.
+- Diagnostics must be read-only and must never alter live gameplay rendering as a side effect of capture.

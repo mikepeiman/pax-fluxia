@@ -39,3 +39,6 @@ export * from './ai';
 
 // Re-export fixture registry
 export * from './fixtureMaps';
+
+// Re-export ownership helpers
+export * from './ownership';

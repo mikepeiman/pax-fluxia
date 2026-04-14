@@ -107,12 +107,12 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
     // Territory Transition
     { key: 'TERRITORY_TRANSITION_MS', label: 'Animation Duration', min: 0, max: 3000, step: 50, unit: 'ms', group: 'Conquest Transition', desc: 'Animation duration for the conquest transition.' },
-    // VS Transition (F-165) — rendered in Conquest panel, not Timing
+    // VS Transition (F-165) — rendered in Territory panel under mode selection, not Timing
     { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the attacker\'s virtual star takes to travel from the attacking star to the conquered star. Longer = slower territory expansion animation.' },
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
     { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Starting Voronoi weight of the loser\'s retreating virtual star. Higher = loser territory stays larger at the start of the transition. 0 = use default (starMargin²).' },
     { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Ending Voronoi weight of the loser\'s retreating virtual star. 0 = territory dissolves completely. Higher = loser retains some territory area at transition end.' },
-    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the loser\'s power fade from Power Start to Power End. 0 = uses Loser Travel duration. Controls how fast the losing territory dissolves.' },
+    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the transition-vstar influence lerp. Metaball uses it for victor/loser weight timing; legacy VS uses it for loser fade. 0 = uses the active travel duration.' },
 ];
 
 // ── Star Label Slider Definitions ───────────────────────────────────────────
@@ -269,10 +269,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'mapgenLaneMarginPx', configKey: 'MAPGEN_LANE_MARGIN_PX' },
     { panelKey: 'mapgenLaneCurveVsPruneBias', configKey: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
     { panelKey: 'mapgenLaneMode', configKey: 'MAPGEN_LANE_MODE' },
-    {
-        panelKey: 'mapgenRecomputeConnectivityOnAuthoredMaps',
-        configKey: 'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS',
-    },
     { configKey: 'STATIC_ORBITS' },
     { configKey: 'SHOW_SELECTION_HEX' },
     { configKey: 'LANE_OFFSET_PX' },
@@ -337,6 +333,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'cxCount', configKey: 'TERRITORY_CX_COUNT' },
     { panelKey: 'cxWeight', configKey: 'TERRITORY_CX_WEIGHT' },
     { panelKey: 'cxContestMidpointVstars', configKey: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS' },
+    { panelKey: 'cxContestPairCount', configKey: 'TERRITORY_CX_CONTEST_PAIR_COUNT' },
+    { panelKey: 'cxContestPairWeight', configKey: 'TERRITORY_CX_CONTEST_PAIR_WEIGHT' },
     { panelKey: 'disconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
     { panelKey: 'disconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
     { panelKey: 'dxWeight', configKey: 'TERRITORY_DX_WEIGHT' },
@@ -382,6 +380,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_BORDER_SATURATION' },
     { configKey: 'METABALL_BORDER_LIGHTNESS' },
     { configKey: 'METABALL_CHAIKIN_PASSES' },
+    { configKey: 'METABALL_FILL_FOLLOWS_GEOM' },
     { panelKey: 'metaballCombatBorderTicks', configKey: 'METABALL_COMBAT_BORDER_TICKS' },
     {
         panelKey: 'metaballCombatBorderProximityPx',
@@ -561,6 +560,22 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'VS_POWER_LERP_DURATION_MS' },
     { configKey: 'VS_BIND_TO_TICK' },
     { configKey: 'VS_TRANSITION_MODE' },
+    { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
+    { configKey: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
+    { configKey: 'PERIMETER_FIELD_SAMPLE_SPACING' },
+    { configKey: 'PERIMETER_FIELD_INWARD_OFFSET_PX' },
+    { configKey: 'PERIMETER_FIELD_INFLUENCE_RADIUS' },
+    { configKey: 'PERIMETER_FIELD_INFLUENCE_WEIGHT' },
+    { configKey: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT' },
+    { configKey: 'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION' },
+    { configKey: 'PERIMETER_FIELD_OLD_BOUNDARY_FADE' },
+    { configKey: 'PERIMETER_FIELD_NEW_BOUNDARY_GROW' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SHOW_VSTARS' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

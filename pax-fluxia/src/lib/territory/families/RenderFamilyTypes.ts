@@ -1,31 +1,47 @@
 import type * as PIXI from 'pixi.js';
+import type { ConquestEvent } from '@pax/common';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
+import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
-/** Placeholder for conquest events until wired from runtime VFX path. */
-export interface TerritoryConquestEvent {
-    readonly kind: string;
-    readonly payload?: Readonly<Record<string, unknown>>;
+export interface RenderFamilyTransitionEvent {
+    event: ConquestEvent;
+    startedAtMs: number;
+    durationMs: number;
+    progress: number;
+    rawProgress: number;
 }
+
+export interface RenderFamilyActiveTransition {
+    conquestEvents: ReadonlyArray<ConquestEvent>;
+    events: ReadonlyArray<RenderFamilyTransitionEvent>;
+    startedAtMs: number;
+    durationMs: number;
+    progress: number;
+    rawProgress: number;
+}
+
+export type RenderFamilyTunableValue =
+    | string
+    | number
+    | boolean
+    | null
+    | undefined;
 
 export interface RenderFamilyInput {
     ownership: OwnershipSnapshot | null;
+    geometry?: CanonicalGeometrySnapshot | null;
     nowMs: number;
+    paused?: boolean;
     /** Game tick (for combat/recency effects in renderers that opt in, e.g. Metaball borders). */
     gameTick?: number;
     stars: ReadonlyArray<StarState>;
     lanes: ReadonlyArray<StarConnection>;
     world: { width: number; height: number };
-    tunables: ReadonlyMap<string, number>;
+    tunables: ReadonlyMap<string, RenderFamilyTunableValue>;
     renderer?: PIXI.Renderer;
-    activeTransition?: {
-        conquestEvents: ReadonlyArray<TerritoryConquestEvent>;
-        startedAtMs: number;
-        durationMs: number;
-        progress: number;
-        rawProgress: number;
-    } | null;
+    activeTransition?: RenderFamilyActiveTransition | null;
 }
 
 export interface RenderFamilyOutput {

@@ -12,7 +12,7 @@ import type {
     PlayerState,
     GameHistoryEntry
 } from '$lib/types/game.types';
-import type { MapDefinition, MapDiagnostics, SavedGame } from '$lib/types/map.types';
+import type { MapDefinition, SavedGame } from '$lib/types/map.types';
 import type {
     GameInput,
     IssueOrderInput,
@@ -27,14 +27,14 @@ import {
     GameRoomState,
     StarSchema,
     ConnectionSchema,
-    PointSchema,
     PlayerSchema,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
-    buildLaneAwareConnections,
     generateMap,
     generateConnections,
-    listDelaunayConnections,
+    NEUTRAL_OWNER_ID,
+    normalizeInitialOwnerId,
+    normalizeUnownedStarsToNeutral,
 } from '@pax/common';
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
@@ -45,15 +45,10 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
-import type {
-    LaneBuildMode,
-    LaneConstraintStatus,
-    LanePathKind,
-    MapConnection,
-    MapLaneMode,
-} from '@pax/common/mapgen';
+import type { MapLaneMode } from '@pax/common/mapgen';
 import {
     seedLanePolylineCacheFromMapGen,
+    rebuildLanePolylineCache,
     canonicalUniConnections,
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
@@ -437,7 +432,7 @@ function createDebugStar(id: string, x: number, y: number, ownerId: string): voi
     star.id = id;
     star.x = x;
     star.y = y;
-    star.ownerId = ownerId;
+    star.ownerId = normalizeInitialOwnerId(ownerId);
     star.starType = 'grey';
     star.activeShips = GAME_CONFIG.STARTING_SHIPS;
     star.damagedShips = 0;
@@ -456,52 +451,22 @@ function createDebugStar(id: string, x: number, y: number, ownerId: string): voi
 }
 
 /** Helper: add bidirectional connection */
-function addDebugConnection(
-    sourceId: string,
-    targetId: string,
-    laneWaypoints?: [number, number][],
-    lanePathKind?: LanePathKind,
-    laneConstraintStatus?: LaneConstraintStatus,
-): void {
+function addDebugConnection(sourceId: string, targetId: string): void {
     const source = state!.stars.get(sourceId);
     const target = state!.stars.get(targetId);
     if (!source || !target) return;
     const distance = Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
 
-    const assignLaneData = (
-        connection: ConnectionSchema,
-        waypoints?: [number, number][],
-        pathKind?: LanePathKind,
-        constraintStatus?: LaneConstraintStatus,
-    ) => {
-        connection.lanePathKind = pathKind ?? '';
-        connection.laneConstraintStatus = constraintStatus ?? '';
-        if (!waypoints || waypoints.length < 2) return;
-        for (const [x, y] of waypoints) {
-            const point = new PointSchema();
-            point.x = x;
-            point.y = y;
-            connection.laneWaypoints.push(point);
-        }
-    };
-
     const c1 = new ConnectionSchema();
     c1.sourceId = sourceId;
     c1.targetId = targetId;
     c1.distance = distance;
-    assignLaneData(c1, laneWaypoints, lanePathKind, laneConstraintStatus);
     state!.connections.push(c1);
 
     const c2 = new ConnectionSchema();
     c2.sourceId = targetId;
     c2.targetId = sourceId;
     c2.distance = distance;
-    assignLaneData(
-        c2,
-        laneWaypoints ? [...laneWaypoints].reverse() : undefined,
-        lanePathKind,
-        laneConstraintStatus,
-    );
     state!.connections.push(c2);
 }
 
@@ -510,74 +475,16 @@ function laneDClearancePx(): number {
     return Math.max(0, GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75);
 }
 
-function laneRemapBias(): number {
-    return Math.min(1, Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55));
-}
-
-function laneAdjustedPathStyle(): 'angular' | 'curved' {
-    return (GAME_CONFIG.MAPGEN_LANE_ADJUSTED_PATH_STYLE ?? 'curved') as 'angular' | 'curved';
-}
-
-function laneBuildMode(): LaneBuildMode {
-    if (currentMapConnectivityMode === 'generated') return 'recompute_connectivity';
-    return GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS
-        ? 'recompute_connectivity'
-        : 'preserve_authored';
-}
-
-function authoredBaseGraph(): MapConnection[] | null {
-    if (currentMapConnectivityMode !== 'authored') return null;
-    return authoredBaseConnections?.map((connection) => ({
-        sourceId: connection.sourceId,
-        targetId: connection.targetId,
-        distance: connection.distance,
-        laneWaypoints: connection.laneWaypoints?.map(([x, y]) => [x, y] as [number, number]),
-        lanePathKind: connection.lanePathKind,
-        laneConstraintStatus: connection.laneConstraintStatus,
-    })) ?? null;
-}
-
-function syncLaneTruthIntoStateConnections(
-    uniConnections: Array<Pick<MapConnection, 'sourceId' | 'targetId' | 'distance' | 'laneWaypoints' | 'lanePathKind' | 'laneConstraintStatus'>>,
-): void {
-    if (!state) return;
-    state.connections.length = 0;
-    for (const connection of uniConnections) {
-        addDebugConnection(
-            connection.sourceId,
-            connection.targetId,
-            connection.laneWaypoints,
-            connection.lanePathKind,
-            connection.laneConstraintStatus,
-        );
-    }
-}
-
 function refreshLanePolylinesFromConfig(): void {
     if (!state || state.stars.size < 2) return;
     const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const nodesById = new Map(nodes.map((node) => [node.id, node]));
-    const sourceGraph = authoredBaseGraph() ?? canonicalUniConnections(state.connections);
-    const currentGraph = sourceGraph.map((connection) => ({
-        sourceId: connection.sourceId,
-        targetId: connection.targetId,
-        distance: Math.hypot(
-            (nodesById.get(connection.targetId)?.x ?? 0) - (nodesById.get(connection.sourceId)?.x ?? 0),
-            (nodesById.get(connection.targetId)?.y ?? 0) - (nodesById.get(connection.sourceId)?.y ?? 0),
-        ),
-    })) as MapConnection[];
-    const laneAware = buildLaneAwareConnections(
+    const uni = canonicalUniConnections(state.connections);
+    rebuildLanePolylineCache(
         nodes,
-        currentGraph,
-        listDelaunayConnections(nodes, Infinity),
+        uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
-        laneRemapBias(),
-        laneAdjustedPathStyle(),
-        { buildMode: 'preserve_authored' },
     );
-    seedLanePolylineCacheFromMapGen(laneAware);
-    syncLaneTruthIntoStateConnections(laneAware);
     bumpTerritoryVisualConfig();
     snapshot = toGameState(state);
 }
@@ -593,36 +500,29 @@ function rebuildConnectionsFromLaneClearance(): void {
     const minL = settings.minLinksPerStar ?? 1;
     const maxL = settings.maxLinksPerStar ?? 5;
     const lm = laneDClearancePx();
-    const curveVsPruneBias = laneRemapBias();
+    const curveVsPruneBias = Math.min(
+        1,
+        Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
+    );
     /** Match `generateMap`: Phase 4 chord clearance × (1−bias); lane polylines use full lane margin. */
-    const preferred = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias) as MapConnection[];
-    const laneAware = buildLaneAwareConnections(
+    const uni = generateConnections(nodes, Infinity, minL, maxL, lm, curveVsPruneBias);
+
+    state.connections.length = 0;
+    for (const c of uni) {
+        addDebugConnection(c.sourceId, c.targetId);
+    }
+    rebuildLanePolylineCache(
         nodes,
-        preferred,
-        listDelaunayConnections(nodes, Infinity),
+        uni,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
-        curveVsPruneBias,
-        laneAdjustedPathStyle(),
-        { buildMode: 'recompute_connectivity' },
     );
-    seedLanePolylineCacheFromMapGen(laneAware);
-    syncLaneTruthIntoStateConnections(laneAware);
     bumpTerritoryVisualConfig();
     snapshot = toGameState(state);
 }
 
-function rebuildLaneConstraintsFromConfig(): void {
-    if (laneBuildMode() === 'recompute_connectivity') {
-        rebuildConnectionsFromLaneClearance();
-        return;
-    }
-    refreshLanePolylinesFromConfig();
-}
-
 /** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
 function initDebugMap(playerIds: string[], variant: string): void {
-    currentMapConnectivityMode = 'authored';
     const cx = 800, cy = 450, spread = 250;
     const humanId = playerIds[0] || 'human-player';
     const aiId = playerIds[1] || 'ai-1';
@@ -660,19 +560,12 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
-    const laneAware = buildLaneAwareConnections(
+    rebuildLanePolylineCache(
         nodesDbg,
-        uniDbg as MapConnection[],
-        listDelaunayConnections(nodesDbg, Infinity),
+        uniDbg,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
-        laneRemapBias(),
-        laneAdjustedPathStyle(),
-        { buildMode: 'preserve_authored' },
     );
-    authoredBaseConnections = (uniDbg as MapConnection[]).map((connection) => ({ ...connection }));
-    seedLanePolylineCacheFromMapGen(laneAware);
-    syncLaneTruthIntoStateConnections(laneAware);
 }
 
 /**
@@ -718,7 +611,6 @@ function generateMapPreview(opts: {
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
         ),
-        mapgenLaneAdjustedPathStyle: laneAdjustedPathStyle(),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
@@ -778,9 +670,6 @@ function generateMapPreview(opts: {
 
 /** Standard random map via generateMap() */
 function initStandardMap(playerIds: string[]): void {
-    mapDiagnostics = null;
-    currentMapConnectivityMode = 'generated';
-    authoredBaseConnections = null;
     // Match map aspect ratio to viewport — portrait screens get portrait maps
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
@@ -804,7 +693,6 @@ function initStandardMap(playerIds: string[]): void {
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
         ),
-        mapgenLaneAdjustedPathStyle: laneAdjustedPathStyle(),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
 
@@ -874,13 +762,7 @@ function initStandardMap(playerIds: string[]): void {
 
     // Create connections (bidirectional)
     for (const conn of result.connections) {
-        addDebugConnection(
-            conn.sourceId,
-            conn.targetId,
-            conn.laneWaypoints,
-            conn.lanePathKind,
-            conn.laneConstraintStatus,
-        );
+        addDebugConnection(conn.sourceId, conn.targetId);
     }
     seedLanePolylineCacheFromMapGen(result.connections);
 }
@@ -892,9 +774,6 @@ function initStandardMap(playerIds: string[]): void {
 let lastMapDefinition: MapDefinition | null = null;
 let pendingSavedMap: MapDefinition | null = null;
 let savedMaps: MapDefinition[] = $state(loadSavedMaps());
-let mapDiagnostics: MapDiagnostics | null = null;
-let currentMapConnectivityMode: 'generated' | 'authored' = 'generated';
-let authoredBaseConnections: MapConnection[] | null = null;
 
 // F-148: Default map preference — auto-load a saved map on game start
 let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || '');
@@ -968,12 +847,6 @@ async function loadFilesystemMaps(): Promise<void> {
 
 // Trigger async filesystem load at module init
 loadFilesystemMaps();
-
-if (typeof window !== 'undefined') {
-    window.addEventListener('focus', () => {
-        void loadFilesystemMaps();
-    });
-}
 
 // Trigger async builtin maps load (fetch from /maps/)
 async function loadBuiltinMapsAsync(): Promise<void> {
@@ -1126,31 +999,12 @@ function exportMapTopology(): MapDefinition | null {
         const key = [c.sourceId, c.targetId].sort().join('|');
         if (!connSet.has(key)) {
             connSet.add(key);
-            connections.push({
-                sourceId: c.sourceId,
-                targetId: c.targetId,
-                distance: c.distance,
-                laneWaypoints: c.laneWaypoints
-                    ? Array.from(c.laneWaypoints, (point) => [point.x, point.y] as [number, number])
-                    : undefined,
-                lanePathKind: (c.lanePathKind as LanePathKind) || undefined,
-                laneConstraintStatus: (c.laneConstraintStatus as LaneConstraintStatus) || undefined,
-            });
+            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
         }
     }
     return {
         metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
         stars, connections,
-        diagnostics: mapDiagnostics
-            ? {
-                  rulerColor: mapDiagnostics.rulerColor
-                      ? { ...mapDiagnostics.rulerColor }
-                      : undefined,
-                  rulerFixtures: mapDiagnostics.rulerFixtures
-                      ? mapDiagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
-                      : undefined,
-              }
-            : undefined,
     };
 }
 
@@ -1175,31 +1029,12 @@ function exportMapDefinition(): MapDefinition | null {
         const key = [c.sourceId, c.targetId].sort().join('|');
         if (!connSet.has(key)) {
             connSet.add(key);
-            connections.push({
-                sourceId: c.sourceId,
-                targetId: c.targetId,
-                distance: c.distance,
-                laneWaypoints: c.laneWaypoints
-                    ? Array.from(c.laneWaypoints, (point) => [point.x, point.y] as [number, number])
-                    : undefined,
-                lanePathKind: (c.lanePathKind as LanePathKind) || undefined,
-                laneConstraintStatus: (c.laneConstraintStatus as LaneConstraintStatus) || undefined,
-            });
+            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
         }
     }
     return {
         metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
         stars, connections,
-        diagnostics: mapDiagnostics
-            ? {
-                  rulerColor: mapDiagnostics.rulerColor
-                      ? { ...mapDiagnostics.rulerColor }
-                      : undefined,
-                  rulerFixtures: mapDiagnostics.rulerFixtures
-                      ? mapDiagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
-                      : undefined,
-              }
-            : undefined,
         customRules: { tick: state.tick },
     };
 }
@@ -1233,17 +1068,6 @@ function loadSavedMap(map: MapDefinition): void {
 
 /** Initialize from a saved MapDefinition */
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
-    currentMapConnectivityMode = 'authored';
-    mapDiagnostics = map.diagnostics
-        ? {
-              rulerColor: map.diagnostics.rulerColor
-                  ? { ...map.diagnostics.rulerColor }
-                  : undefined,
-              rulerFixtures: map.diagnostics.rulerFixtures
-                  ? map.diagnostics.rulerFixtures.map((fixture) => ({ ...fixture }))
-                  : undefined,
-          }
-        : null;
     const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
 
     // Build faction → playerID remap table
@@ -1252,8 +1076,9 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const factionRemap = new Map<string, string>();
     const mapFactions = new Set<string>();
     for (const s of map.stars) {
-        if (s.ownerId && s.ownerId !== 'neutral' && s.ownerId !== '') {
-            mapFactions.add(s.ownerId);
+        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
+        if (normalizedOwnerId !== NEUTRAL_OWNER_ID) {
+            mapFactions.add(normalizedOwnerId);
         }
     }
 
@@ -1298,28 +1123,13 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) * spacingMult : 1;
     const offsetX = needsScale ? targetW * 0.075 : 0;
     const offsetY = needsScale ? targetH * 0.075 : 0;
-    const scaledBaseConnections = map.connections.map((connection) => ({
-        sourceId: connection.sourceId,
-        targetId: connection.targetId,
-        distance:
-            connection.distance
-            ?? Math.hypot(
-                (map.stars.find((star) => star.id === connection.targetId)?.x ?? 0)
-                    - (map.stars.find((star) => star.id === connection.sourceId)?.x ?? 0),
-                (map.stars.find((star) => star.id === connection.targetId)?.y ?? 0)
-                    - (map.stars.find((star) => star.id === connection.sourceId)?.y ?? 0),
-            ) * Math.max(scaleX, scaleY),
-        laneWaypoints: connection.laneWaypoints?.map(
-            ([x, y]) => [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number],
-        ),
-        lanePathKind: connection.lanePathKind,
-        laneConstraintStatus: connection.laneConstraintStatus,
-    })) as MapConnection[];
-    authoredBaseConnections = scaledBaseConnections.map((connection) => ({ ...connection }));
 
     map.stars.forEach((s: MapDefinition['stars'][0]) => {
-        const isNeutral = !s.ownerId || s.ownerId === 'neutral' || s.ownerId === '';
-        const ownerId = isNeutral ? 'neutral' : (factionRemap.get(s.ownerId) ?? s.ownerId);
+        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
+        const ownerId =
+            normalizedOwnerId === NEUTRAL_OWNER_ID
+                ? NEUTRAL_OWNER_ID
+                : (factionRemap.get(normalizedOwnerId) ?? normalizedOwnerId);
         const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
         const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
         const star = new StarSchema();
@@ -1345,38 +1155,19 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
         state!.stars.set(star.id, star);
     });
     for (const conn of map.connections) {
-        addDebugConnection(
-            conn.sourceId,
-            conn.targetId,
-            conn.laneWaypoints?.map(([x, y]) => [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number]),
-            conn.lanePathKind,
-            conn.laneConstraintStatus,
-        );
+        addDebugConnection(conn.sourceId, conn.targetId);
     }
-    const hasSavedLaneTruth = map.connections.some((connection) => (connection.laneWaypoints?.length ?? 0) >= 2);
-    if (hasSavedLaneTruth) {
-        seedLanePolylineCacheFromMapGen(scaledBaseConnections);
-    } else {
-        const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-        const laneAware = buildLaneAwareConnections(
-            nodesSaved,
-            scaledBaseConnections,
-            listDelaunayConnections(nodesSaved, Infinity),
-            (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-            laneDClearancePx(),
-            laneRemapBias(),
-            laneAdjustedPathStyle(),
-            { buildMode: 'preserve_authored' },
-        );
-        seedLanePolylineCacheFromMapGen(laneAware);
-        syncLaneTruthIntoStateConnections(laneAware);
-    }
+    const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+    const uniSaved = canonicalUniConnections(state!.connections);
+    rebuildLanePolylineCache(
+        nodesSaved,
+        uniSaved,
+        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        laneDClearancePx(),
+    );
 }
 function initializeState(): void {
     state = new GameRoomState();
-    mapDiagnostics = null;
-    currentMapConnectivityMode = 'generated';
-    authoredBaseConnections = null;
     state.phase = 'playing'; // Will be set to paused via isPaused
     state.isPaused = true;
     state.speed = 1;
@@ -1429,6 +1220,13 @@ function initializeState(): void {
         initStandardMap(playerIds);
     }
 
+    const normalizedUnownedCount = normalizeUnownedStarsToNeutral(state!.stars.values());
+    if (normalizedUnownedCount > 0) {
+        console.warn(
+            `[INIT] Normalized ${normalizedUnownedCount} unowned star(s) to neutral ownership at game init`,
+        );
+    }
+
     // Snapshot map for restart (F-71)
     lastMapDefinition = exportMapDefinition();
 
@@ -1458,8 +1256,6 @@ function destroyGame(): void {
     history = [];
     peakFleetSize = 0;
     starsCaptured = 0;
-    authoredBaseConnections = null;
-    currentMapConnectivityMode = 'generated';
     clearLanePolylineCache();
 }
 
@@ -1739,8 +1535,6 @@ export const gameStore = {
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
-    get mapDiagnostics() { return mapDiagnostics; },
-    get currentMapConnectivityMode() { return currentMapConnectivityMode; },
     get retainOrderOnConquest() { return GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST; },
     get allowOpposingOrders() { return GAME_CONFIG.ALLOW_OPPOSING_ORDERS; },
 
@@ -1789,7 +1583,6 @@ export const gameStore = {
 
     /** Recompute curved lane polylines from current stars + links (e.g. lane mode change). */
     refreshLanePolylinesFromConfig,
-    rebuildLaneConstraintsFromConfig,
 
     // F-148: Default map preference
     get defaultMapName() { return defaultMapName; },

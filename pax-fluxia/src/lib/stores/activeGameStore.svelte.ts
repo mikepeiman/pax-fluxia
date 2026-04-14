@@ -15,7 +15,6 @@ import type { Star, Player, Connection, GameSpeed } from '@pax/common';
 import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
-import type { MapDiagnostics } from '$lib/types/map.types';
 import { combatLog } from '$lib/stores/combatLogStore';
 import { audioManager } from '$lib/services/audioManager.svelte';
 import { GAME_CONFIG } from '$lib/config/game.config';
@@ -111,12 +110,15 @@ function pushTickEvents(events: TickEvents): void {
  * Called by canvas each frame. If multiple ticks fired between frames,
  * all their events are merged into a single TickEvents batch.
  */
-function consumeTickEvents(): TickEvents | null {
+function mergePendingTickEvents(clearQueue: boolean): TickEvents | null {
     if (pendingTickEventsQueue.length === 0) return null;
 
     if (pendingTickEventsQueue.length === 1) {
-        // Fast path: single tick, no merge needed
-        return pendingTickEventsQueue.pop()!;
+        const single = pendingTickEventsQueue[0]!;
+        if (clearQueue) {
+            pendingTickEventsQueue.length = 0;
+        }
+        return single;
     }
 
     // Merge all queued events into one batch
@@ -130,8 +132,18 @@ function consumeTickEvents(): TickEvents | null {
         merged.combats.push(...batch.combats);
         merged.conquests.push(...batch.conquests);
     }
-    pendingTickEventsQueue.length = 0;
+    if (clearQueue) {
+        pendingTickEventsQueue.length = 0;
+    }
     return merged;
+}
+
+function peekTickEvents(): TickEvents | null {
+    return mergePendingTickEvents(false);
+}
+
+function consumeTickEvents(): TickEvents | null {
+    return mergePendingTickEvents(true);
 }
 
 // ============================================================================
@@ -364,13 +376,6 @@ function startGame(): void {
     }
 }
 
-function getMapDiagnostics(): MapDiagnostics | null {
-    if (isMultiplayerMode()) {
-        return null;
-    }
-    return gameStore.mapDiagnostics;
-}
-
 function applyPlayerColors(colors: string[]): void {
     if (isMultiplayerMode()) {
         multiplayerStore.applyPlayerColors(colors);
@@ -521,7 +526,6 @@ export const activeGameStore = {
     get stars() { return getStars(); },
     get connections() { return getConnections(); },
     get players() { return getPlayers(); },
-    get mapDiagnostics() { return getMapDiagnostics(); },
     get localPlayerId() { return getLocalPlayerId(); },
     get isPaused() { return getIsPaused(); },
     get speed() { return getSpeed(); },
@@ -538,6 +542,7 @@ export const activeGameStore = {
 
     // Tick events pipeline
     pushTickEvents,
+    peekTickEvents,
     consumeTickEvents,
 
     // Helpers
