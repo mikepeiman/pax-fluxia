@@ -108,6 +108,8 @@
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
+    import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
+    import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
     import {
         buildPerimeterFieldRenderFamilyGeometry,
@@ -116,7 +118,10 @@
     import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
-    import type { OwnershipSnapshot } from "$lib/territory/contracts/OwnershipContracts";
+    import type {
+        OwnershipSnapshot,
+        TerritoryConquestEvent,
+    } from "$lib/territory/contracts/OwnershipContracts";
     import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
@@ -281,6 +286,264 @@
                 })) ?? [],
             virtualStars: [],
         };
+    }
+
+    const PERIMETER_FIELD_CAPTURE_PROGRESS_VALUES = [
+        0,
+        1 / 6,
+        2 / 6,
+        3 / 6,
+        4 / 6,
+        5 / 6,
+        1,
+    ] as const;
+
+    type PerimeterFieldCapturedFrame = {
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: Record<string, unknown> | null;
+    };
+
+    type PerimeterFieldCapturedTransitionFrame = {
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: Record<string, unknown> | null;
+    };
+
+    type PerimeterFieldCaptureSession = {
+        key: string;
+        conquestEvents: readonly TerritoryConquestEvent[];
+        previousFrame: PerimeterFieldCapturedFrame;
+        frames: Map<number, PerimeterFieldCapturedTransitionFrame>;
+    };
+
+    let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
+    let perimeterFieldCaptureSession: PerimeterFieldCaptureSession | null =
+        null;
+
+    function cloneCanvasFrame(
+        source: HTMLCanvasElement,
+    ): HTMLCanvasElement {
+        const canvas = document.createElement("canvas");
+        canvas.width = source.width;
+        canvas.height = source.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+            ctx.drawImage(source, 0, 0);
+        }
+        return canvas;
+    }
+
+    function buildPerimeterFieldTransitionCaptureKey(
+        activeTransition: RenderFamilyActiveTransition | null,
+    ): string | null {
+        const events = activeTransition?.events;
+        if (!events?.length) return null;
+        return events
+            .map((entry) =>
+                [
+                    entry.event.tick,
+                    entry.event.starId,
+                    entry.event.previousOwner,
+                    entry.event.newOwner,
+                    entry.startedAtMs,
+                ].join(":"),
+            )
+            .join("|");
+    }
+
+    function buildPerimeterFieldConquestEvents(
+        activeTransition: RenderFamilyActiveTransition,
+    ): TerritoryConquestEvent[] {
+        return activeTransition.events
+            .map((entry) => ({
+                ...entry.event,
+                attackerStarIds: [...entry.event.attackerStarIds],
+                attackerShipTransfers: [...entry.event.attackerShipTransfers],
+                atMs: entry.startedAtMs,
+            }))
+            .sort((a, b) => {
+                if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+                return a.starId.localeCompare(b.starId);
+            });
+    }
+
+    function capturePerimeterFieldLiveFrame(params: {
+        family: PerimeterFieldFamily;
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }): PerimeterFieldCapturedFrame | null {
+        if (!app?.renderer) return null;
+        const extracted = app.renderer.extract.canvas({
+            target: params.family.displayRoot,
+            frame: new PIXI.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+            clearColor: "#000000",
+        }) as HTMLCanvasElement;
+        return {
+            geometry: params.geometry,
+            ownership: params.ownership,
+            canvas: cloneCanvasFrame(extracted),
+            debugSnapshot: compactPerimeterFieldDebugSnapshot(
+                params.debugSnapshot,
+            ),
+        };
+    }
+
+    function buildStarPositionsMap(
+        stars: ReadonlyArray<StarState>,
+    ): ReadonlyMap<string, { x: number; y: number }> {
+        const starPositions = new Map<string, { x: number; y: number }>();
+        for (const star of stars) {
+            starPositions.set(star.id, { x: star.x, y: star.y });
+        }
+        return starPositions;
+    }
+
+    function recordPerimeterFieldTransitionFrame(
+        session: PerimeterFieldCaptureSession,
+        progress: number,
+        frame: PerimeterFieldCapturedFrame,
+    ): void {
+        for (const target of PERIMETER_FIELD_CAPTURE_PROGRESS_VALUES) {
+            if (session.frames.has(target)) continue;
+            if (progress + 1e-6 < target) continue;
+            session.frames.set(target, {
+                progress: target,
+                canvas: cloneCanvasFrame(frame.canvas),
+                debugSnapshot: frame.debugSnapshot,
+            });
+        }
+    }
+
+    function finalizePerimeterFieldCaptureSession(params: {
+        frame: PerimeterFieldCapturedFrame;
+        stars: ReadonlyArray<StarState>;
+        nowMs: number;
+    }): void {
+        const session = perimeterFieldCaptureSession;
+        if (!session) return;
+
+        if (!session.frames.has(1)) {
+            session.frames.set(1, {
+                progress: 1,
+                canvas: cloneCanvasFrame(params.frame.canvas),
+                debugSnapshot: params.frame.debugSnapshot,
+            });
+        }
+
+        const transitionFrames = [...session.frames.values()].sort(
+            (a, b) => a.progress - b.progress,
+        );
+
+        transitionSnapshotRecorder.capturePreRendered({
+            ctx: {
+                conquestEvents: session.conquestEvents,
+                previousGeometry: session.previousFrame.geometry,
+                nextGeometry: params.frame.geometry,
+                previousOwnership: session.previousFrame.ownership,
+                nextOwnership: params.frame.ownership,
+                transition: {
+                    envelope: null as any,
+                    fillFrame: null as any,
+                    borderFrame: null as any,
+                    geometryVersion: params.frame.geometry.version,
+                },
+                fillPlan: null,
+                activeFrontPlan: null,
+                prevFrontierTopology:
+                    session.previousFrame.geometry.frontierTopology ?? null,
+                nextFrontierTopology:
+                    params.frame.geometry.frontierTopology ?? null,
+                selection: {
+                    geometryMode: "unified_vector",
+                    fillTransitionMode: "active_front",
+                    borderTransitionMode: "off",
+                    ownershipMode: "star_ownership_snapshot",
+                    styleMode: "canonical",
+                },
+                nowMs: params.nowMs,
+                starPositions: buildStarPositionsMap(params.stars),
+                worldWidth: GAME_WIDTH,
+                worldHeight: GAME_HEIGHT,
+            },
+            prevCanvas: session.previousFrame.canvas,
+            nextCanvas: params.frame.canvas,
+            transitionFrames: transitionFrames.map((entry) => ({
+                progress: entry.progress,
+                canvas: entry.canvas,
+            })),
+            extraDiagnostics: {
+                kind: "perimeter_field_live_capture",
+                previousFrame: session.previousFrame.debugSnapshot,
+                nextFrame: params.frame.debugSnapshot,
+                transitionFrames: transitionFrames.map((entry) => ({
+                    progress: entry.progress,
+                    snapshot: entry.debugSnapshot,
+                })),
+            },
+        });
+
+        perimeterFieldCaptureSession = null;
+    }
+
+    function syncPerimeterFieldDiagnosticCapture(params: {
+        family: PerimeterFieldFamily;
+        input: ReturnType<typeof buildRenderFamilyInput>;
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        nowMs: number;
+    }): void {
+        if (!transitionSnapshotRecorder.isEnabled()) {
+            perimeterFieldStableFrame = null;
+            perimeterFieldCaptureSession = null;
+            return;
+        }
+
+        if (!params.input.geometry) return;
+        const liveFrame = capturePerimeterFieldLiveFrame({
+            family: params.family,
+            geometry: params.input.geometry,
+            ownership: params.input.ownership,
+            debugSnapshot: params.family.debugSnapshot,
+        });
+        if (!liveFrame) return;
+
+        const transitionKey = buildPerimeterFieldTransitionCaptureKey(
+            params.activeTransition,
+        );
+        if (!transitionKey || !params.activeTransition) {
+            if (perimeterFieldCaptureSession) {
+                finalizePerimeterFieldCaptureSession({
+                    frame: liveFrame,
+                    stars: params.stars,
+                    nowMs: params.nowMs,
+                });
+            }
+            perimeterFieldStableFrame = liveFrame;
+            return;
+        }
+
+        if (
+            !perimeterFieldCaptureSession ||
+            perimeterFieldCaptureSession.key !== transitionKey
+        ) {
+            perimeterFieldCaptureSession = {
+                key: transitionKey,
+                conquestEvents: buildPerimeterFieldConquestEvents(
+                    params.activeTransition,
+                ),
+                previousFrame: perimeterFieldStableFrame ?? liveFrame,
+                frames: new Map(),
+            };
+        }
+
+        recordPerimeterFieldTransitionFrame(
+            perimeterFieldCaptureSession,
+            params.activeTransition.progress,
+            liveFrame,
+        );
     }
 
     function resolveActiveTerritoryMode(): string {
@@ -1944,76 +2207,13 @@
                             voronoiContainer.addChild(pf.displayRoot);
                         }
                         pf.displayRoot.visible = true;
-                        if (
-                            transitionSnapshotRecorder.isEnabled() &&
-                            (pendingTickEvents?.conquests.length ?? 0) > 0
-                        ) {
-                            const capture =
-                                pf.buildTransitionDiagnosticCapture(pfInput);
-                            if (capture) {
-                                const conquestEvents = pendingTickEvents!.conquests.map(
-                                    (event) => ({
-                                        ...event,
-                                        atMs: fxOrchestrator.gameTime,
-                                    }),
-                                );
-                                const starPositions = new Map<
-                                    string,
-                                    { x: number; y: number }
-                                >();
-                                for (const star of stars) {
-                                    starPositions.set(star.id, {
-                                        x: star.x,
-                                        y: star.y,
-                                    });
-                                }
-                                transitionSnapshotRecorder.capturePreRendered({
-                                    ctx: {
-                                        conquestEvents,
-                                        previousGeometry:
-                                            capture.previousGeometry,
-                                        nextGeometry: capture.nextGeometry,
-                                        previousOwnership:
-                                            capture.previousOwnership,
-                                        nextOwnership: capture.nextOwnership,
-                                        transition: {
-                                            envelope: null as any,
-                                            fillFrame: null as any,
-                                            borderFrame: null as any,
-                                            geometryVersion:
-                                                capture.nextGeometry.version,
-                                        },
-                                        fillPlan: null,
-                                        activeFrontPlan: null,
-                                        prevFrontierTopology:
-                                            capture.previousGeometry
-                                                .frontierTopology ?? null,
-                                        nextFrontierTopology:
-                                            capture.nextGeometry
-                                                .frontierTopology ?? null,
-                                        selection: {
-                                            geometryMode: "unified_vector",
-                                            fillTransitionMode:
-                                                "active_front",
-                                            borderTransitionMode: "off",
-                                            ownershipMode:
-                                                "star_ownership_snapshot",
-                                            styleMode: "canonical",
-                                        },
-                                        nowMs: fxOrchestrator.gameTime,
-                                        starPositions,
-                                        worldWidth: GAME_WIDTH,
-                                        worldHeight: GAME_HEIGHT,
-                                    },
-                                    prevCanvas: capture.prevCanvas,
-                                    nextCanvas: capture.nextCanvas,
-                                    transitionFrames:
-                                        capture.transitionFrames,
-                                    extraDiagnostics:
-                                        capture.extraDiagnostics,
-                                });
-                            }
-                        }
+                        syncPerimeterFieldDiagnosticCapture({
+                            family: pf,
+                            input: pfInput,
+                            activeTransition,
+                            stars,
+                            nowMs: fxOrchestrator.gameTime,
+                        });
                         break;
                     }
                     case "pixel":

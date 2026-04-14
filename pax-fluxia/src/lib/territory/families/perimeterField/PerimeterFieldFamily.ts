@@ -4,7 +4,6 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
-import { buildOwnershipSnapshotFromStars } from '../buildFamilyGeometry';
 import type {
     RenderFamily,
     RenderFamilyActiveTransition,
@@ -14,13 +13,8 @@ import type {
 } from '../RenderFamilyTypes';
 import {
     buildPerimeterFieldScene,
-    type PerimeterFieldBuiltScene,
     type PerimeterFieldDebugSnapshot,
 } from './buildPerimeterFieldScene';
-import {
-    compactPerimeterFieldDebugSnapshot,
-    renderPerimeterFieldDiagnosticCanvas,
-} from './perimeterFieldDiagnostics';
 
 const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_GEOMETRY_SOURCE',
@@ -56,15 +50,6 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
 ] as const;
 
 const MAX_REPLAY_HISTORY = 3;
-const DIAGNOSTIC_CAPTURE_PROGRESS_VALUES = [
-    0,
-    1 / 6,
-    2 / 6,
-    3 / 6,
-    4 / 6,
-    5 / 6,
-    1,
-] as const;
 
 interface PerimeterFieldReplayCapture {
     key: string;
@@ -73,17 +58,6 @@ interface PerimeterFieldReplayCapture {
     oldGeometry: CanonicalGeometrySnapshot;
     newGeometry: CanonicalGeometrySnapshot;
     events: ReadonlyArray<RenderFamilyTransitionEvent>;
-}
-
-export interface PerimeterFieldTransitionDiagnosticCapture {
-    previousGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
-    previousOwnership: ReturnType<typeof buildOwnershipSnapshotFromStars>;
-    nextOwnership: ReturnType<typeof buildOwnershipSnapshotFromStars>;
-    prevCanvas: HTMLCanvasElement;
-    nextCanvas: HTMLCanvasElement;
-    transitionFrames: { progress: number; canvas: HTMLCanvasElement }[];
-    extraDiagnostics: Record<string, unknown>;
 }
 
 function clamp01(value: number): number {
@@ -233,7 +207,6 @@ export class PerimeterFieldFamily implements RenderFamily {
     private oldGeometry: CanonicalGeometrySnapshot | null = null;
     private lastDebugSnapshot: PerimeterFieldDebugSnapshot | null = null;
     private replayHistory: PerimeterFieldReplayCapture[] = [];
-    private lastDiagnosticCaptureKey: string | null = null;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -252,7 +225,6 @@ export class PerimeterFieldFamily implements RenderFamily {
         this.oldGeometry = null;
         this.lastDebugSnapshot = null;
         this.replayHistory = [];
-        this.lastDiagnosticCaptureKey = null;
     }
 
     private captureReplay(params: {
@@ -362,10 +334,7 @@ export class PerimeterFieldFamily implements RenderFamily {
     private buildSceneForInput(params: {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
-    }): {
-        builtScene: PerimeterFieldBuiltScene;
-        displayStars: ReadonlyArray<StarState>;
-    } {
+    }) {
         const transitionKey = buildTransitionKey(params.input);
         let displayStars = params.input.stars;
         let displayGeometry = params.currentGeometry;
@@ -387,198 +356,6 @@ export class PerimeterFieldFamily implements RenderFamily {
         });
 
         return { builtScene, displayStars };
-    }
-
-    private cloneActiveTransitionAtProgress(
-        transition: RenderFamilyActiveTransition,
-        progress: number,
-    ): RenderFamilyActiveTransition {
-        const clamped = clamp01(progress);
-        return {
-            ...transition,
-            progress: clamped,
-            rawProgress: clamped,
-            events: transition.events.map((entry) => ({
-                ...entry,
-                progress: clamped,
-                rawProgress: clamped,
-            })),
-        };
-    }
-
-    private renderSceneToDiagnosticCanvas(params: {
-        input: RenderFamilyInput;
-        displayStars: ReadonlyArray<StarState>;
-        builtScene: PerimeterFieldBuiltScene;
-    }): HTMLCanvasElement | null {
-        if (!params.input.renderer) return null;
-
-        const tempRoot = new PIXI.Container();
-        try {
-            renderMetaball(
-                [...params.displayStars],
-                tempRoot,
-                this.colorUtils,
-                params.input.world.width,
-                params.input.world.height,
-                [...params.input.lanes],
-                {
-                    gameTick: params.input.gameTick,
-                    sceneInput: params.builtScene.sceneInput,
-                },
-            );
-
-            const baseCanvas = params.input.renderer.extract.canvas({
-                target: tempRoot,
-                frame: new PIXI.Rectangle(
-                    0,
-                    0,
-                    params.input.world.width,
-                    params.input.world.height,
-                ),
-                clearColor: '#000000',
-            }) as HTMLCanvasElement;
-
-            return renderPerimeterFieldDiagnosticCanvas({
-                width: params.input.world.width,
-                height: params.input.world.height,
-                baseCanvas,
-                snapshot: params.builtScene.debug,
-                showGeometry: true,
-                showVstars: true,
-            });
-        } finally {
-            tempRoot.destroy({ children: true });
-        }
-    }
-
-    buildTransitionDiagnosticCapture(
-        input: RenderFamilyInput,
-    ): PerimeterFieldTransitionDiagnosticCapture | null {
-        const transitionKey = buildTransitionKey(input);
-        if (
-            !transitionKey ||
-            !input.activeTransition ||
-            !input.renderer ||
-            !this.oldGeometry ||
-            this.lastDiagnosticCaptureKey === transitionKey
-        ) {
-            return null;
-        }
-
-        const prevStars = revertStarsForTransition(input);
-        const previousOwnership = buildOwnershipSnapshotFromStars(prevStars);
-        const nextOwnership = buildOwnershipSnapshotFromStars(input.stars);
-        if (!input.geometry) {
-            return null;
-        }
-        const currentGeometry = input.geometry;
-
-        const prevInput: RenderFamilyInput = {
-            ...input,
-            stars: prevStars,
-            ownership: previousOwnership,
-            activeTransition: null,
-        };
-        const prevBuiltScene = buildPerimeterFieldScene({
-            input: prevInput,
-            starsForDisplay: prevStars,
-            geometry: this.oldGeometry,
-            transitionTargetGeometry: null,
-            colorUtils: this.colorUtils,
-        });
-        const prevCanvas = this.renderSceneToDiagnosticCanvas({
-            input: prevInput,
-            displayStars: prevStars,
-            builtScene: prevBuiltScene,
-        });
-
-        const nextInput: RenderFamilyInput = {
-            ...input,
-            ownership: nextOwnership,
-            activeTransition: null,
-        };
-        const nextBuiltScene = buildPerimeterFieldScene({
-            input: nextInput,
-            starsForDisplay: input.stars,
-            geometry: currentGeometry,
-            transitionTargetGeometry: null,
-            colorUtils: this.colorUtils,
-        });
-        const nextCanvas = this.renderSceneToDiagnosticCanvas({
-            input: nextInput,
-            displayStars: input.stars,
-            builtScene: nextBuiltScene,
-        });
-
-        if (!prevCanvas || !nextCanvas) {
-            return null;
-        }
-
-        const transitionFrames = DIAGNOSTIC_CAPTURE_PROGRESS_VALUES.map(
-            (progress) => {
-                const frameInput: RenderFamilyInput = {
-                    ...input,
-                    activeTransition: this.cloneActiveTransitionAtProgress(
-                        input.activeTransition!,
-                        progress,
-                    ),
-                };
-                const { builtScene, displayStars } = this.buildSceneForInput({
-                    input: frameInput,
-                    currentGeometry,
-                });
-                const canvas = this.renderSceneToDiagnosticCanvas({
-                    input: frameInput,
-                    displayStars,
-                    builtScene,
-                });
-
-                return canvas
-                    ? {
-                          progress,
-                          canvas,
-                          debug: compactPerimeterFieldDebugSnapshot(
-                              builtScene.debug,
-                          ),
-                      }
-                    : null;
-            },
-        ).filter(
-            (
-                frame,
-            ): frame is {
-                progress: number;
-                canvas: HTMLCanvasElement;
-                debug: Record<string, unknown> | null;
-            } => frame !== null,
-        );
-
-        this.lastDiagnosticCaptureKey = transitionKey;
-
-        return {
-            previousGeometry: this.oldGeometry,
-            nextGeometry: currentGeometry,
-            previousOwnership,
-            nextOwnership,
-            prevCanvas,
-            nextCanvas,
-            transitionFrames: transitionFrames.map(({ progress, canvas }) => ({
-                progress,
-                canvas,
-            })),
-            extraDiagnostics: {
-                kind: 'perimeter_field',
-                previousFrame: compactPerimeterFieldDebugSnapshot(
-                    prevBuiltScene.debug,
-                ),
-                nextFrame: compactPerimeterFieldDebugSnapshot(nextBuiltScene.debug),
-                transitionFrames: transitionFrames.map((frame) => ({
-                    progress: frame.progress,
-                    snapshot: frame.debug,
-                })),
-            },
-        };
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
@@ -621,7 +398,6 @@ export class PerimeterFieldFamily implements RenderFamily {
         } else {
             this.oldGeometryKey = null;
             this.oldGeometry = null;
-            this.lastDiagnosticCaptureKey = null;
         }
 
         const { builtScene, displayStars } = this.buildSceneForInput({

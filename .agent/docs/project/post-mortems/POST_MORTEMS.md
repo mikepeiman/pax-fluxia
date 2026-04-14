@@ -142,3 +142,15 @@
 
 **Lesson**: **When editing a UI section, always read the entire section from `{#if ...}` to `{/if}` before and after changes.** Verify that no existing controls were dropped. If a full section rewrite is needed, explicitly enumerate and preserve all existing controls. Never silently remove user-visible controls.
 
+---
+
+## 2026-04-14: Side-Effecting Perimeter-Field Diagnostic Render
+
+**What happened**: `perimeter_field` conquest capture re-rendered diagnostic PREV/NEXT/intermediate frames through a temporary PIXI root. That helper called `renderMetaball()` inside the live render loop, even though `MetaballRenderer` owns shared module-global `Graphics` state.
+
+**Why**: The diagnostic path treated the renderer as pure and tried to synthesize a second render instead of tapping the already-rendered gameplay frame. That duplicated work and let the recorder mutate live territory graphics.
+
+**Resolution**: Removed the offscreen diagnostic render call from the live path. `perimeter_field` bundles are now captured passively from the actual `displayRoot` in `GameCanvas`, using the last stable PREV frame, live transition frames, and the first settled NEXT frame.
+
+**Lesson**: If diagnostics must reflect real gameplay, capture the real gameplay output. Do not re-run a stateful renderer from the side.
+

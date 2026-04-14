@@ -60,3 +60,7 @@
   - bundle capture now hooks directly into the live `perimeter_field` gameplay loop instead of the old DY4 export path
   - recorded PREV, NEXT, and transition frames are rendered from the actual perimeter-field family state with the same geometry/vstar diagnostics overlaid
   - package manifests now include compact per-frame perimeter diagnostic sample data for deterministic review
+- Removed the destructive `perimeter_field` offscreen diagnostic render path:
+  - conquest capture no longer calls `renderMetaball()` on a temp root inside `PerimeterFieldFamily`
+  - recorder now passively extracts live frames from the already-rendered `displayRoot`
+  - bundle finalization now happens on the first settled frame after the live transition completes
