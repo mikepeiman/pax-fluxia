@@ -107,11 +107,17 @@
         registerRenderFamily,
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
+    import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
+    import {
+        buildCanonicalRenderFamilyGeometry,
+        buildOwnershipSnapshotFromStars,
+    } from "$lib/territory/families/buildFamilyGeometry";
     import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import type { OwnershipSnapshot } from "$lib/territory/contracts/OwnershipContracts";
+    import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -282,6 +288,8 @@
     let canonicalController: TerritoryEngineController | null = null;
     let canonicalControllerTransitionDurationMs: number | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
+    let renderFamilyGeometryCacheKey: string | null = null;
+    let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
 
     function buildCanonicalBridgeInput(
         stars: StarState[],
@@ -303,6 +311,40 @@
             selection: runtimeSettings.selection,
             tunables: runtimeSettings.tunables,
         };
+    }
+
+    function buildRenderFamilyGeometryCacheKey(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): string {
+        let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
+        for (const star of stars) {
+            key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
+        }
+        key += "::";
+        for (const lane of lanes) {
+            key += `${lane.sourceId}->${lane.targetId}|`;
+        }
+        return key;
+    }
+
+    function getCurrentRenderFamilyGeometry(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): CanonicalGeometrySnapshot {
+        const key = buildRenderFamilyGeometryCacheKey(stars, lanes);
+        if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
+            renderFamilyGeometryCache = buildCanonicalRenderFamilyGeometry({
+                stars,
+                lanes,
+                worldWidth: GAME_WIDTH,
+                worldHeight: GAME_HEIGHT,
+                nowMs: fxOrchestrator.gameTime,
+                ownership: buildOwnershipSnapshotFromStars(stars),
+            });
+            renderFamilyGeometryCacheKey = key;
+        }
+        return renderFamilyGeometryCache;
     }
 
     // React to animation speed changes from the UI slider
@@ -1373,13 +1415,26 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
-                if (activeMode !== "metaball" && voronoiContainer) {
-                    const mf = getRenderFamily("metaball");
+                if (voronoiContainer) {
+                    const metaballFamily = getRenderFamily("metaball");
                     if (
-                        mf instanceof MetaballFamily &&
-                        mf.displayRoot.parent === voronoiContainer
+                        activeMode !== "metaball" &&
+                        metaballFamily instanceof MetaballFamily &&
+                        metaballFamily.displayRoot.parent === voronoiContainer
                     ) {
-                        voronoiContainer.removeChild(mf.displayRoot);
+                        voronoiContainer.removeChild(metaballFamily.displayRoot);
+                    }
+                    const perimeterFieldFamily =
+                        getRenderFamily("perimeter_field");
+                    if (
+                        activeMode !== "perimeter_field" &&
+                        perimeterFieldFamily instanceof PerimeterFieldFamily &&
+                        perimeterFieldFamily.displayRoot.parent ===
+                            voronoiContainer
+                    ) {
+                        voronoiContainer.removeChild(
+                            perimeterFieldFamily.displayRoot,
+                        );
                     }
                 }
 
@@ -1519,6 +1574,50 @@
                             voronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
+                        break;
+                    }
+                    case "perimeter_field": {
+                        let fam = getRenderFamily("perimeter_field");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createPerimeterFieldFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("perimeter_field")!;
+                        }
+                        const pf = fam as PerimeterFieldFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        const lanes = activeGameStore
+                            .connections as StarConnection[];
+                        pf.update(
+                            buildRenderFamilyInput({
+                                stars,
+                                lanes,
+                                worldWidth: GAME_WIDTH,
+                                worldHeight: GAME_HEIGHT,
+                                nowMs: fxOrchestrator.gameTime,
+                                gameTick: activeGameStore.currentTick,
+                                ownership: buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                                geometry: getCurrentRenderFamilyGeometry(
+                                    stars,
+                                    lanes,
+                                ),
+                                renderer: app?.renderer ?? undefined,
+                                activeTransition,
+                                tunableKeys: pf.tunableKeys,
+                            }),
+                        );
+                        if (pf.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(pf.displayRoot);
+                        }
+                        pf.displayRoot.visible = true;
                         break;
                     }
                     case "pixel":

@@ -4,7 +4,11 @@
  */
 
 /** Modes that never require a RenderFamily adapter (canonical path or off). */
-const EXEMPT_FROM_FAMILY_GATE = new Set<string>(['none', 'territory_canonical']);
+const EXEMPT_FROM_FAMILY_GATE = new Set<string>([
+    'none',
+    'territory_canonical',
+    'perimeter_field',
+]);
 
 export interface TerritoryRenderModeDefinition {
     readonly id: string;
@@ -59,6 +63,12 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         id: 'distance_field',
         label: 'Distance field',
         shortDescription: 'GPU distance field + morph',
+        legacyDispatch: true,
+    },
+    {
+        id: 'perimeter_field',
+        label: 'Perimeter field',
+        shortDescription: 'Ownership geometry -> perimeter samples -> field render',
         legacyDispatch: true,
     },
     { id: 'metaball', label: 'Metaball', shortDescription: 'CPU influence field', legacyDispatch: true },

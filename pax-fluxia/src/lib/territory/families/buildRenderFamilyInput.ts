@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
@@ -33,6 +34,7 @@ export function buildRenderFamilyInput(params: {
     nowMs: number;
     gameTick?: number;
     ownership?: RenderFamilyInput['ownership'];
+    geometry?: CanonicalGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
     tunableKeys?: readonly string[];
@@ -40,6 +42,7 @@ export function buildRenderFamilyInput(params: {
 }): RenderFamilyInput {
     return {
         ownership: params.ownership ?? null,
+        geometry: params.geometry ?? null,
         nowMs: params.nowMs,
         gameTick: params.gameTick,
         stars: params.stars,

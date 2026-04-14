@@ -2,6 +2,7 @@ import type * as PIXI from 'pixi.js';
 import type { ConquestEvent } from '@pax/common';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
+import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
 export interface RenderFamilyTransitionEvent {
@@ -30,6 +31,7 @@ export type RenderFamilyTunableValue =
 
 export interface RenderFamilyInput {
     ownership: OwnershipSnapshot | null;
+    geometry?: CanonicalGeometrySnapshot | null;
     nowMs: number;
     /** Game tick (for combat/recency effects in renderers that opt in, e.g. Metaball borders). */
     gameTick?: number;

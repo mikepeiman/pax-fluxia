@@ -10,3 +10,8 @@
 ## Notes
 - This experiment explicitly avoids changed-frontier extraction.
 - Base ownership truth remains star/snapshot based.
+- Prototype implemented in client:
+  - new `perimeter_field` render mode
+  - canonical-geometry-to-perimeter-sample scene builder
+  - conquest-local radial override transition
+  - Territory control surface and config wiring

@@ -20,6 +20,7 @@
   } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
+  import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
@@ -76,6 +77,7 @@
     | "all"
     | "none"
     | "metaball"
+    | "perimeter-field"
     | "topology"
     | "border-transition"
     | "surface";
@@ -452,6 +454,14 @@
 
     if (resolveActiveStyleId() === "metaball") {
       modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
+    }
+
+    if (resolveActiveStyleId() === "perimeter_field") {
+      modules.unshift({
+        id: "perimeter-field",
+        label: "Perimeter",
+        icon: "◎",
+      });
     }
 
     modules.push({
@@ -2051,6 +2061,26 @@
       {/if}
       </div>
     {/if}
+  </div>
+{/if}
+
+{#if showRendererModule("perimeter-field") && resolveActiveStyleId() === "perimeter_field"}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
+      <p class="territory-card__intro">
+        Build displayed territory from ownership-derived perimeter samples, then
+        animate conquest with a conquest-local radial override instead of
+        moving interior star influence.
+      </p>
+    </div>
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+      Real star ownership still generates the base geometry. The displayed field
+      is then driven only by derived perimeter samples.
+    </div>
+    <PerimeterFieldTuning {panel} {updatePanel} />
   </div>
 {/if}
 

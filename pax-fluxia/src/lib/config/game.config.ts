@@ -372,6 +372,14 @@ interface GameConfigType {
     VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector'; // Base geometry provider for perimeter-field rendering
+    PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
+    PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
+    PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1249,6 +1257,14 @@ const _rawConfig: GameConfigType = {
     VS_BIND_TO_TICK: true,
     VS_TRANSITION_MODE: 'no_loser' as const,  // Default: no loser ghost, just victor + C ramp
     METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' as const,
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' as const,
+    PERIMETER_FIELD_SAMPLE_SPACING: 28,
+    PERIMETER_FIELD_INFLUENCE_RADIUS: 52,
+    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.35,
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: true,
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,

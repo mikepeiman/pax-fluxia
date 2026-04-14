@@ -199,6 +199,8 @@ export interface MetaballSceneInput {
     clusterShips: ReadonlyArray<number>;
     samples: ReadonlyArray<MetaballInfluenceSample>;
     fingerprint?: string;
+    influenceRadiusPx?: number;
+    ownershipMarginPx?: number;
 }
 
 export function computeMetaballStarStrength(
@@ -738,7 +740,7 @@ function renderMetaballImpl(
         return;
     }
 
-    const radius = GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 120;
+    const radius = sceneInput?.influenceRadiusPx ?? GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 120;
     const falloffType = GAME_CONFIG.METABALL_FALLOFF ?? 'inverse-square';
     const sharpness = GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3.0;
     const alpha = GAME_CONFIG.METABALL_ALPHA ?? 0.5;
@@ -812,7 +814,10 @@ function renderMetaballImpl(
     const combatProximityCfg = GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ?? 0;
     const combatProximityPx =
         combatProximityCfg > 0 ? combatProximityCfg : (GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? radius);
-    const msrPx = Math.max(0, GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0);
+    const msrPx = Math.max(
+        0,
+        sceneInput?.ownershipMarginPx ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0,
+    );
 
     const coverage = GAME_CONFIG.METABALL_COVERAGE ?? 0.3;
     const pad = Math.max(worldWidth, worldHeight) * coverage;
