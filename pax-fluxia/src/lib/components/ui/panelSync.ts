@@ -192,6 +192,47 @@ export function applyPanelToConfig(panel: Record<string, any>): void {
 }
 
 /**
+ * Restore persisted panel and visual settings into GAME_CONFIG before any
+ * gameplay render path reads config-driven territory mode or tunables.
+ *
+ * This is required because GameSettingsPanel may remain unmounted until the
+ * user opens settings; startup must not depend on that mount side effect.
+ */
+export function hydrateConfigFromPersistedUiSettings(): {
+    panel: Record<string, any>;
+    visuals: typeof VISUAL_DEFAULTS;
+} {
+    const panel = loadPanelSettings(panelDefaultsFromConfig());
+    applyPanelToConfig(panel);
+
+    const tickInterval =
+        typeof panel.tickInterval === 'number' && Number.isFinite(panel.tickInterval)
+            ? panel.tickInterval
+            : GAME_CONFIG.BASE_TICK_MS;
+    GAME_CONFIG.BASE_TICK_MS = tickInterval;
+
+    if (panel.bindAnimToTick) {
+        GAME_CONFIG.ANIMATION_SPEED_MS = tickInterval;
+    } else if (typeof panel.animSpeed === 'number' && Number.isFinite(panel.animSpeed)) {
+        GAME_CONFIG.ANIMATION_SPEED_MS = panel.animSpeed;
+    }
+
+    if (panel.territoryTransitionBindToTick) {
+        GAME_CONFIG.TERRITORY_TRANSITION_MS = tickInterval;
+    } else if (
+        typeof panel.territoryTransitionMs === 'number'
+        && Number.isFinite(panel.territoryTransitionMs)
+    ) {
+        GAME_CONFIG.TERRITORY_TRANSITION_MS = panel.territoryTransitionMs;
+    }
+
+    const visuals = loadVisuals();
+    applyVisuals(visuals);
+
+    return { panel, visuals };
+}
+
+/**
  * Read GAME_CONFIG into panel object.
  * Used after theme apply or config import to sync display.
  */

@@ -23,6 +23,11 @@
   import { sentence as txtSentence } from 'txtgen';
   import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
+  import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
+
+  if (typeof window !== "undefined") {
+    hydrateConfigFromPersistedUiSettings();
+  }
 
   let gameCanvasRef: any = $state(null);
 
