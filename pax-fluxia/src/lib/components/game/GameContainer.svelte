@@ -250,6 +250,9 @@
     window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
       showStarInfoPanel = e.detail;
     }) as EventListener);
+    window.addEventListener("pax-open-transition-debug-panel", (() => {
+      showTransitionDebugPanel = true;
+    }) as EventListener);
 
     // F hotkey — fit game to viewport
     window.addEventListener("keydown", (e: KeyboardEvent) => {

@@ -9,6 +9,29 @@
 
     let { panel, updatePanel }: Props = $props();
 
+    type PerimeterFieldModuleId =
+        | 'all'
+        | 'none'
+        | 'source'
+        | 'field'
+        | 'transition'
+        | 'diagnostics';
+
+    const PERIMETER_FIELD_MODULES = [
+        { id: 'source', label: 'Source' },
+        { id: 'field', label: 'Field' },
+        { id: 'transition', label: 'Transition' },
+        { id: 'diagnostics', label: 'Diagnostics' },
+    ] as const;
+
+    let activeModule = $state<PerimeterFieldModuleId>('all');
+
+    function showModule(
+        id: Exclude<PerimeterFieldModuleId, 'all' | 'none'>,
+    ): boolean {
+        return activeModule === 'all' || activeModule === id;
+    }
+
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
         (GAME_CONFIG as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
@@ -31,6 +54,42 @@
     }
 </script>
 
+<div class="module-head">
+    <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
+        <button
+            type="button"
+            class="module-all-toggle"
+            class:active={activeModule === 'all'}
+            onclick={() => {
+                activeModule = 'all';
+            }}>All</button>
+        <button
+            type="button"
+            class="module-all-toggle"
+            class:active={activeModule === 'none'}
+            onclick={() => {
+                activeModule = 'none';
+            }}>None</button>
+    </div>
+</div>
+
+<div class="module-nav">
+    {#each PERIMETER_FIELD_MODULES as module}
+        <button
+            type="button"
+            class="module-chip"
+            class:active={activeModule === module.id}
+            onclick={() => {
+                activeModule = activeModule === module.id ? 'all' : module.id;
+            }}
+        >
+            {module.label}
+        </button>
+    {/each}
+</div>
+
+{#if showModule('source')}
+<div class="module-block">
 <div class="var-row">
     <div class="row-top">
         <span
@@ -340,6 +399,11 @@
     />
 </div>
 
+</div>
+{/if}
+
+{#if showModule('field')}
+<div class="module-block">
 <div class="var-row">
     <div class="row-top">
         <span
@@ -444,6 +508,11 @@
     />
 </div>
 
+</div>
+{/if}
+
+{#if showModule('transition')}
+<div class="module-block">
 <div class="var-row">
     <div class="row-top">
         <span
@@ -573,6 +642,11 @@
     />
 </div>
 
+</div>
+{/if}
+
+{#if showModule('diagnostics')}
+<div class="module-block">
 <div class="sub-heading">Diagnostics</div>
 
 <label class="toggle-row">
@@ -636,7 +710,7 @@
     />
     <span
         class="var-name"
-        title="When the game is paused and a conquest transition is active, override the displayed transition progress with the scrub slider below."
+        title="When the game is paused, use the scrub slider below to inspect diagnostic transition states without changing the live territory render."
     >
         Enable Transition Scrub When Paused
     </span>
@@ -647,7 +721,7 @@
     </span>
 </label>
     <div class="var-desc">
-    Pause the game, then drag the scrub slider to inspect previous state, next state, and the interim handoff frame-by-frame. This applies to the live conquest when enabled, or to a captured replay if one is selected below.
+    Pause the game, then drag the scrub slider to inspect previous state, next state, and the interim handoff frame-by-frame in diagnostics. This no longer rewrites the live perimeter-field render state.
     </div>
 
 <div class="var-row">
@@ -710,8 +784,95 @@
     />
 </div>
 
+</div>
+{/if}
+
 <style>
     @import "./panel-shared.css";
+
+    .module-head {
+        display: flex;
+        justify-content: flex-end;
+        margin: 0 0 8px;
+    }
+
+    .module-scope-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .module-all-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(7, 12, 24, 0.5);
+        color: rgba(240, 244, 248, 0.9);
+        cursor: pointer;
+        transition:
+            border-color 0.15s ease,
+            background 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .module-all-toggle.active {
+        border-color: rgba(95, 211, 255, 0.42);
+        background: rgba(49, 105, 164, 0.26);
+        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
+    }
+
+    .module-nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0 0 10px;
+    }
+
+    .module-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(7, 12, 24, 0.45);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            border-color 0.15s ease,
+            background 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .module-chip.active {
+        border-color: rgba(95, 211, 255, 0.42);
+        background: rgba(49, 105, 164, 0.26);
+        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
+        color: rgba(248, 250, 252, 0.98);
+    }
+
+    .module-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
 
     .var-desc {
         margin: 4px 0 10px;

@@ -161,11 +161,11 @@ function readReplaySlot(input: RenderFamilyInput): number {
     );
 }
 
-function withDebugScrubTransition(
+function buildDebugScrubTransition(
     input: RenderFamilyInput,
-): RenderFamilyInput {
+): RenderFamilyActiveTransition | null {
     if (!input.paused || !input.activeTransition) {
-        return input;
+        return null;
     }
     const scrubEnabled = readBooleanTunable(
         input,
@@ -173,7 +173,7 @@ function withDebugScrubTransition(
         false,
     );
     if (!scrubEnabled) {
-        return input;
+        return null;
     }
     const scrubProgress = clamp01(
         readNumberTunable(
@@ -192,10 +192,7 @@ function withDebugScrubTransition(
             rawProgress: scrubProgress,
         })),
     };
-    return {
-        ...input,
-        activeTransition,
-    };
+    return activeTransition;
 }
 
 export class PerimeterFieldFamily implements RenderFamily {
@@ -301,6 +298,39 @@ export class PerimeterFieldFamily implements RenderFamily {
         }).debug;
     }
 
+    private buildLiveScrubDebugSnapshot(params: {
+        input: RenderFamilyInput;
+        currentGeometry: CanonicalGeometrySnapshot;
+    }): PerimeterFieldDebugSnapshot | null {
+        const scrubbedTransition = buildDebugScrubTransition(params.input);
+        if (!scrubbedTransition) return null;
+
+        const scrubbedInput: RenderFamilyInput = {
+            ...params.input,
+            activeTransition: scrubbedTransition,
+        };
+
+        const transitionKey = buildTransitionKey(scrubbedInput);
+        let displayStars = scrubbedInput.stars;
+        let displayGeometry = params.currentGeometry;
+        if (
+            transitionKey &&
+            readFreezeBaseDuringTransition(scrubbedInput) &&
+            this.oldGeometry
+        ) {
+            displayStars = revertStarsForTransition(scrubbedInput);
+            displayGeometry = this.oldGeometry;
+        }
+
+        return buildPerimeterFieldScene({
+            input: scrubbedInput,
+            starsForDisplay: displayStars,
+            geometry: displayGeometry,
+            transitionTargetGeometry: transitionKey ? params.currentGeometry : null,
+            colorUtils: this.colorUtils,
+        }).debug;
+    }
+
     update(input: RenderFamilyInput): RenderFamilyOutput {
         const nextSessionKey = buildSessionKey(input);
         if (this.sessionKey !== nextSessionKey) {
@@ -308,8 +338,7 @@ export class PerimeterFieldFamily implements RenderFamily {
             this.resetReplayState();
         }
 
-        const effectiveInput = withDebugScrubTransition(input);
-        const currentGeometry = effectiveInput.geometry;
+        const currentGeometry = input.geometry;
         if (!currentGeometry) {
             this.root.visible = false;
             this.lastDebugSnapshot = null;
@@ -344,36 +373,38 @@ export class PerimeterFieldFamily implements RenderFamily {
             this.oldGeometry = null;
         }
 
-        let displayStars = effectiveInput.stars;
+        let displayStars = input.stars;
         let displayGeometry = currentGeometry;
         if (
             transitionKey &&
-            readFreezeBaseDuringTransition(effectiveInput) &&
+            readFreezeBaseDuringTransition(input) &&
             this.oldGeometry
         ) {
-            displayStars = revertStarsForTransition(effectiveInput);
+            displayStars = revertStarsForTransition(input);
             displayGeometry = this.oldGeometry;
         }
 
         const builtScene = buildPerimeterFieldScene({
-            input: effectiveInput,
+            input,
             starsForDisplay: displayStars,
             geometry: displayGeometry,
             transitionTargetGeometry: transitionKey ? currentGeometry : null,
             colorUtils: this.colorUtils,
         });
         this.lastDebugSnapshot =
-            this.buildReplayDebugSnapshot(input) ?? builtScene.debug;
+            this.buildReplayDebugSnapshot(input) ??
+            this.buildLiveScrubDebugSnapshot({ input, currentGeometry }) ??
+            builtScene.debug;
 
         renderMetaball(
             [...displayStars],
             this.root,
             this.colorUtils,
-            effectiveInput.world.width,
-            effectiveInput.world.height,
-            [...effectiveInput.lanes],
+            input.world.width,
+            input.world.height,
+            [...input.lanes],
             {
-                gameTick: effectiveInput.gameTick,
+                gameTick: input.gameTick,
                 sceneInput: builtScene.sceneInput,
             },
         );

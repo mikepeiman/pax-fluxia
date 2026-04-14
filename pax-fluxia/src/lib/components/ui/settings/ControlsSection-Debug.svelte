@@ -2,15 +2,18 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
-    import { downloadBundle } from "$lib/territory/devtools/TransitionBundleSerializer";
-
-    // ControlsSection-DEBUG -- Morph diagnostic controls
+    import {
+        downloadAllDiagnosticPackages,
+        downloadBundle,
+        downloadDiagnosticPackage,
+    } from "$lib/territory/devtools/TransitionBundleSerializer";
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
+
     let { panel, updatePanel, syncFromConfig }: Props = $props();
 
     let slowMoActive = $state(GAME_CONFIG.DEBUG_MORPH_SLOWMO);
@@ -25,9 +28,18 @@
     let showLabels = $state(GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS ?? true);
     let conquestRadius = $state(GAME_CONFIG.MORPH_CONQUEST_RADIUS ?? 300);
 
-    let dy4DisableFillCrossfade = $state(GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE ?? false);
-    let dy4DisableBorderTransition = $state(GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION ?? false);
-    let dy4ForceTransitionStart = $state(GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START ?? false);
+    let dy4DisableFillCrossfade = $state(
+        GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE ?? false,
+    );
+    let dy4DisableBorderTransition = $state(
+        GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION ?? false,
+    );
+    let dy4ForceTransitionStart = $state(
+        GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START ?? false,
+    );
+
+    let recorderEnabled = $state(transitionSnapshotRecorder.isEnabled());
+    let bundleCount = $state(transitionSnapshotRecorder.count);
 
     function toggleLabels() {
         showLabels = !showLabels;
@@ -37,7 +49,6 @@
     function toggleSlowMo() {
         slowMoActive = !slowMoActive;
         GAME_CONFIG.DEBUG_MORPH_SLOWMO = slowMoActive;
-        // Apply 10X multiplier immediately
         if (slowMoActive) {
             GAME_CONFIG.TERRITORY_TRANSITION_MS =
                 (GAME_CONFIG.TERRITORY_TRANSITION_MS || 400) * 10;
@@ -58,10 +69,6 @@
         GAME_CONFIG.DEBUG_MORPH_TRACE_LOG = traceLog;
     }
 
-    // ── Snapshot Recorder ───────────────────────────────────────────────
-    let recorderEnabled = $state(transitionSnapshotRecorder.isEnabled());
-    let bundleCount = $state(transitionSnapshotRecorder.count);
-
     function toggleRecorder() {
         recorderEnabled = !recorderEnabled;
         transitionSnapshotRecorder.setEnabled(recorderEnabled);
@@ -71,7 +78,6 @@
         bundleCount = transitionSnapshotRecorder.count;
     }
 
-    // Poll bundle count while recorder is enabled (lightweight)
     $effect(() => {
         if (!recorderEnabled) return;
         const interval = setInterval(refreshBundleCount, 500);
@@ -86,12 +92,18 @@
         refreshBundleCount();
     }
 
-    async function handleDownloadAll() {
+    async function handlePackageLatest() {
         const bundles = transitionSnapshotRecorder.getBundles();
         if (bundles.length === 0) return;
-        for (const bundle of bundles) {
-            await downloadBundle(bundle, bundle.starPositions);
-        }
+        const latest = bundles[bundles.length - 1];
+        await downloadDiagnosticPackage(latest);
+        refreshBundleCount();
+    }
+
+    async function handlePackageAll() {
+        const bundles = transitionSnapshotRecorder.getBundles();
+        if (bundles.length === 0) return;
+        await downloadAllDiagnosticPackages(bundles);
         refreshBundleCount();
     }
 
@@ -99,28 +111,28 @@
         transitionSnapshotRecorder.clear();
         refreshBundleCount();
     }
+
+    function handleOpenTransitionPanel() {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(new CustomEvent("pax-open-transition-debug-panel"));
+    }
 </script>
 
 <CategoryThemeBar category="debug" onApply={() => syncFromConfig?.()} />
 
-<h4 class="sub-heading">🔬 Morph Diagnostics</h4>
+<h4 class="sub-heading">Morph Diagnostics</h4>
 
-<!-- Slow-Mo Toggle -->
 <button class="debug-btn" class:active={slowMoActive} onclick={toggleSlowMo}>
-    {slowMoActive ? "🐢 10X SLOW-MO ON" : "⏱️ Normal Speed"}
-    <span class="debug-hint">
-        {GAME_CONFIG.TERRITORY_TRANSITION_MS}ms
-    </span>
+    {slowMoActive ? "10X SLOW-MO ON" : "Normal Speed"}
+    <span class="debug-hint">{GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span>
 </button>
 
-<!-- Vertex Debug Overlay -->
 <label class="toggle-row">
     <input type="checkbox" checked={showVertices} onchange={toggleVertices} />
     <span>Show vertex dots</span>
-    <span class="debug-hint">🟢 pinned · 🔴 morph</span>
+    <span class="debug-hint">Pinned vs morph</span>
 </label>
 
-<!-- Vertex Color Mode -->
 {#if showVertices}
     <div class="slider-row">
         <span class="slider-label">Color mode</span>
@@ -132,28 +144,25 @@
                 GAME_CONFIG.DEBUG_MORPH_VERTEX_COLOR_MODE = colorMode;
             }}
         >
-            <option value="pinmorph">🟢🔴 Pin/Morph</option>
-            <option value="owner">🎨 Player Color</option>
-            <option value="neutral">⚪ Neutral Grey</option>
+            <option value="pinmorph">Pin/Morph</option>
+            <option value="owner">Player Color</option>
+            <option value="neutral">Neutral Grey</option>
         </select>
     </div>
 {/if}
 
-<!-- Vertex Labels Toggle -->
 <label class="toggle-row">
     <input type="checkbox" checked={showLabels} onchange={toggleLabels} />
     <span>Show vertex labels</span>
-    <span class="debug-hint">Numeric index on each dot</span>
+    <span class="debug-hint">Numeric index</span>
 </label>
 
-<!-- Trace Log -->
 <label class="toggle-row">
     <input type="checkbox" checked={traceLog} onchange={toggleTrace} />
     <span>Vertex trace log</span>
-    <span class="debug-hint">Console per-vertex displacement</span>
+    <span class="debug-hint">Console output</span>
 </label>
 
-<!-- Vertex Dot Size -->
 <div class="slider-row">
     <span class="slider-label">Dot size</span>
     <input
@@ -170,7 +179,6 @@
     <span class="slider-value">{vertexSize}px</span>
 </div>
 
-<!-- Pin Threshold -->
 <div class="slider-row">
     <span class="slider-label">Pin threshold</span>
     <input
@@ -187,7 +195,6 @@
     <span class="slider-value">{pinThreshold}px</span>
 </div>
 
-<!-- Show every Nth vertex -->
 <div class="slider-row">
     <span class="slider-label">Show every</span>
     <input
@@ -201,12 +208,9 @@
             GAME_CONFIG.DEBUG_MORPH_VERTEX_NTH = vertexNth;
         }}
     />
-    <span class="slider-value"
-        >{vertexNth === 1 ? "all" : `${vertexNth}th`}</span
-    >
+    <span class="slider-value">{vertexNth === 1 ? "all" : `${vertexNth}th`}</span>
 </div>
 
-<!-- Conquest Morph Radius -->
 <div class="slider-row">
     <span class="slider-label">Morph radius</span>
     <input
@@ -220,80 +224,81 @@
             GAME_CONFIG.MORPH_CONQUEST_RADIUS = conquestRadius;
         }}
     />
-    <span class="slider-value"
-        >{conquestRadius === 0 ? "off" : `${conquestRadius}px`}</span
-    >
+    <span class="slider-value">{conquestRadius === 0 ? "off" : `${conquestRadius}px`}</span>
 </div>
 
-<h4 class="sub-heading">🕵️ DY4 Transition Isolation</h4>
+<h4 class="sub-heading">DY4 Transition Isolation</h4>
 
 <label class="toggle-row">
     <input type="checkbox" checked={dy4DisableFillCrossfade} onchange={() => {
         dy4DisableFillCrossfade = !dy4DisableFillCrossfade;
-        updatePanel('debugDy4DisableFillCrossfade', dy4DisableFillCrossfade);
+        updatePanel("debugDy4DisableFillCrossfade", dy4DisableFillCrossfade);
     }} />
     <span>Disable Fill Crossfade</span>
-    <span class="debug-hint">Skip A-Z alpha morphing</span>
+    <span class="debug-hint">Skip alpha morphing</span>
 </label>
+
 <label class="toggle-row">
     <input type="checkbox" checked={dy4DisableBorderTransition} onchange={() => {
         dy4DisableBorderTransition = !dy4DisableBorderTransition;
-        updatePanel('debugDy4DisableBorderTransition', dy4DisableBorderTransition);
+        updatePanel("debugDy4DisableBorderTransition", dy4DisableBorderTransition);
     }} />
     <span>Disable Border Transition</span>
     <span class="debug-hint">Snap immediately</span>
 </label>
+
 <label class="toggle-row">
     <input type="checkbox" checked={dy4ForceTransitionStart} onchange={() => {
         dy4ForceTransitionStart = !dy4ForceTransitionStart;
-        updatePanel('debugDy4ForceTransitionStart', dy4ForceTransitionStart);
+        updatePanel("debugDy4ForceTransitionStart", dy4ForceTransitionStart);
     }} />
     <span>Force Transition Start</span>
-    <span class="debug-hint">Override condition checks</span>
+    <span class="debug-hint">Override checks</span>
 </label>
 
-<!-- Current Transition MS readout -->
 <div class="readout">
     Transition: {GAME_CONFIG.TERRITORY_TRANSITION_MS}ms · Control pts: {GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
 </div>
 
-<h4 class="sub-heading">📸 Transition Snapshot Recorder</h4>
+<h4 class="sub-heading">Transition Snapshot Recorder</h4>
 
-<!-- Recorder Enable Toggle -->
-<button
-    class="debug-btn"
-    class:active={recorderEnabled}
-    onclick={toggleRecorder}
->
-    {recorderEnabled ? "📸 Recorder ON" : "⏸️ Recorder OFF"}
-    <span class="debug-hint">
-        {bundleCount} capture{bundleCount !== 1 ? "s" : ""}
-    </span>
+<button class="debug-btn" class:active={recorderEnabled} onclick={toggleRecorder}>
+    {recorderEnabled ? "Recorder ON" : "Recorder OFF"}
+    <span class="debug-hint">{bundleCount} capture{bundleCount !== 1 ? "s" : ""}</span>
 </button>
 
 {#if recorderEnabled}
     <div class="readout">
-        Captures conquest events with before/after screenshots + frontier diff
-        overlays.
+        Captures conquest events with before/after geometry and transition diagnostics.
     </div>
 {/if}
 
-{#if bundleCount > 0}
-    <div class="snapshot-actions">
-        <button class="snapshot-btn" onclick={handleDownloadLatest}>
-            ⬇️ Download Latest
+<div class="readout">
+    The detailed Transition Debug panel is a separate floating inspector. Open it from here.
+</div>
+
+<div class="snapshot-actions">
+    <button class="snapshot-btn" onclick={handleOpenTransitionPanel}>
+        Open Panel
+    </button>
+    {#if bundleCount > 0}
+        <button class="snapshot-btn" onclick={handlePackageLatest}>
+            Package Latest
         </button>
-        <button class="snapshot-btn" onclick={handleDownloadAll}>
-            📦 Download All ({bundleCount})
+        <button class="snapshot-btn" onclick={handleDownloadLatest}>
+            Download Latest
+        </button>
+        <button class="snapshot-btn" onclick={handlePackageAll}>
+            Package All ({bundleCount})
         </button>
         <button
             class="snapshot-btn snapshot-btn-danger"
             onclick={handleClearBundles}
         >
-            🗑️ Clear
+            Clear
         </button>
-    </div>
-{/if}
+    {/if}
+</div>
 
 <style>
     @import "./panel-shared.css";
@@ -372,11 +377,11 @@
         display: flex;
         gap: 4px;
         flex-wrap: wrap;
-        margin-top: 4px;
+        margin-top: 6px;
     }
     .snapshot-btn {
         flex: 1;
-        min-width: 80px;
+        min-width: 90px;
         padding: 5px 8px;
         background: rgba(100, 180, 255, 0.1);
         border: 1px solid rgba(100, 180, 255, 0.25);

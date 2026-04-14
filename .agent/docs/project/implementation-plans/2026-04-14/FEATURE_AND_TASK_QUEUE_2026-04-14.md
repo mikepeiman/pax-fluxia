@@ -50,3 +50,9 @@
   - PREV + NEXT + 5 evenly spaced intermediate transition frames as PNGs
   - compact readable `diagnostic.json` with geometry, topology, conquest metadata, modes, and star positions
   - wired into the existing Transition Debug panel alongside the legacy loose-file download path
+- Corrected perimeter-field debug scrub behavior:
+  - paused scrub no longer rewrites the live perimeter-field transition render
+  - replay/scrub remains available for diagnostic inspection only
+  - visible Debug controls now expose package export and an explicit `Open Panel` action for the floating Transition Debug inspector
+- Reduced perimeter-field control sprawl:
+  - local `All | None` plus subsection chips for `Source`, `Field`, `Transition`, and `Diagnostics`
