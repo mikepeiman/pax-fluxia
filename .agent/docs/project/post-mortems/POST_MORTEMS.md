@@ -1,5 +1,25 @@
 # Post-Mortems
 
+## 2026-04-14: Stale Power-Voronoi Recorder Path
+
+**What happened**: `perimeter_field` diagnostics and transition bundle export were still wired through the old Power-Voronoi / DY4 snapshot path in `GameCanvas.svelte` instead of the active perimeter-field family render path.
+
+**Why**: Diagnostics were left attached to a legacy renderer boundary after gameplay truth had moved into the render-family architecture.
+
+**Resolution**: Move perimeter-field capture to the real family update path and record pre-rendered PREV/NEXT/interim frames from the actual gameplay loop.
+
+---
+
+## 2026-04-14: Star-Center Reconstruction Instead of Real Perimeter State
+
+**What happened**: Perimeter-field transition samples were generated from star-center radial ray hits rather than from the real PREV/NEXT perimeter-vstar state, so transition-state `0` did not equal true PREV.
+
+**Why**: The transition builder used a simpler geometric shortcut instead of the actual active representation used by gameplay.
+
+**Resolution**: Treat real perimeter-vstar endpoints as authoritative for diagnostics and hold the star-center reconstruction logic to strict PREV/NEXT identity requirements.
+
+---
+
 ## 2026-04-14: False-Gradient Language on Binary Failure
 
 **What happened**: During perimeter-field debug work, a fully failed visual result was described as if it were a partially correct one using phrases like "not strong enough" and "not dominant enough on screen." The explanation then drifted into visual-design terminology before first stating the simple truth: the previous fix had failed.
