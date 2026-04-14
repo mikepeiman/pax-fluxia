@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { browser } from "$app/environment";
     import {
         audioManager,
         SOUND_LABELS,
@@ -28,6 +29,22 @@
     let openDropdown = $state<SoundType | null>(null);
     let showSavePrompt = $state(false);
     let saveThemeName = $state("");
+
+    function portal(node: HTMLElement) {
+        if (!browser) {
+            return {};
+        }
+
+        document.body.appendChild(node);
+
+        return {
+            destroy() {
+                if (node.parentNode === document.body) {
+                    document.body.removeChild(node);
+                }
+            },
+        };
+    }
 
     function toggleDropdown(type: SoundType) {
         openDropdown = openDropdown === type ? null : type;
@@ -83,6 +100,21 @@
     function handleDeleteTheme(name: string) {
         audioManager.deleteAudioTheme(name);
     }
+
+    $effect(() => {
+        if (!browser || !visible) return;
+
+        const previousOverflow = document.body.style.overflow;
+        const previousTouchAction = document.body.style.touchAction;
+
+        document.body.style.overflow = "hidden";
+        document.body.style.touchAction = "none";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.body.style.touchAction = previousTouchAction;
+        };
+    });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -92,6 +124,7 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class="modal-overlay"
+        use:portal
         style={getMenuThemeCssVars(menuTheme)}
         onclick={() => {
             closeTransientUI();
@@ -398,17 +431,21 @@
     .modal-overlay {
         position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
         padding: 24px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         background: var(--pf-overlay-modal-scrim);
         backdrop-filter: blur(10px);
         z-index: 10000;
     }
 
     .modal-content {
-        width: min(760px, 100%);
+        width: min(760px, calc(100vw - 48px));
         max-height: 88vh;
+        margin: 0 auto;
         overflow-y: auto;
         border-radius: 28px;
         border: 1px solid var(--pf-border-strong);
@@ -739,6 +776,7 @@
         }
 
         .modal-content {
+            width: min(760px, calc(100vw - 24px));
             max-height: 92vh;
             border-radius: 22px;
         }
