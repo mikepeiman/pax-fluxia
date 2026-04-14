@@ -222,16 +222,36 @@ function buildStaticPerimeterSamples(params: {
             if (a.ownerId !== b.ownerId) return a.ownerId.localeCompare(b.ownerId);
             return a.shellLoopId.localeCompare(b.shellLoopId);
         });
+    const perimeterSources =
+        loops.length > 0
+            ? loops.map((loop) => ({
+                  ownerId: loop.ownerId,
+                  sourceId: loop.shellLoopId,
+                  points: loop.points,
+              }))
+            : [...params.geometry.territoryRegions]
+                  .filter((region) => Boolean(region.ownerId))
+                  .sort((a, b) => {
+                      if (a.ownerId !== b.ownerId) {
+                          return a.ownerId.localeCompare(b.ownerId);
+                      }
+                      return a.regionId.localeCompare(b.regionId);
+                  })
+                  .map((region) => ({
+                      ownerId: region.ownerId,
+                      sourceId: region.regionId,
+                      points: region.points,
+                  }));
 
     const samples: MetaballInfluenceSample[] = [];
-    for (const loop of loops) {
-        const playerIdx = params.ownerToCluster.get(loop.ownerId);
-        if (playerIdx === undefined || Math.abs(polygonArea(loop.points)) <= 1e-3) continue;
-        const sampled = sampleClosedLoop(loop.points, params.spacing);
+    for (const source of perimeterSources) {
+        const playerIdx = params.ownerToCluster.get(source.ownerId);
+        if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) continue;
+        const sampled = sampleClosedLoop(source.points, params.spacing);
         for (let i = 0; i < sampled.length; i++) {
             const [x, y] = sampled[i]!;
             samples.push({
-                id: `perimeter:${loop.shellLoopId}:${i}`,
+                id: `perimeter:${source.sourceId}:${i}`,
                 x,
                 y,
                 playerIdx,

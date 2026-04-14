@@ -189,6 +189,53 @@ describe('buildPerimeterFieldScene', () => {
         expect(sceneA.fingerprint).toBe(sceneB.fingerprint);
     });
 
+    it('falls back to territory regions when no outer shell loops are available', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = {
+            ...makeGeometry({
+                ownerId: 'red',
+                loopId: 'red-loop',
+                points: [
+                    [20, 20],
+                    [80, 20],
+                    [80, 80],
+                    [20, 80],
+                ],
+            }),
+            shellLoops: [
+                {
+                    shellLoopId: 'red-hole-like-loop',
+                    shellId: 'shell:red',
+                    ownerId: 'red',
+                    points: [
+                        [20, 20],
+                        [80, 20],
+                        [80, 80],
+                        [20, 80],
+                    ] as [number, number][],
+                    classification: 'hole' as const,
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+        const input = makeInput({
+            stars,
+            tunables: {
+                PERIMETER_FIELD_SAMPLE_SPACING: 20,
+            },
+        });
+
+        const scene = buildPerimeterFieldScene({
+            input,
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.samples.length).toBeGreaterThan(0);
+        expect(scene.samples[0]?.id?.startsWith('perimeter:region:red')).toBe(true);
+    });
+
     it('adds conquest-local radial transition samples without star-margin fallback', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),

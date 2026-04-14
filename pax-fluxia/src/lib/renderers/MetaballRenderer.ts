@@ -700,7 +700,9 @@ function renderMetaballImpl(
     connections?: StarConnection[],
     options?: MetaballRenderOptions,
 ): void {
+    const sceneInput = options?.sceneInput;
     const show =
+        Boolean(sceneInput) ||
         GAME_CONFIG.TERRITORY_RENDER_MODE === 'metaball' ||
         GAME_CONFIG.TERRITORY_METABALL;
     const gameTick = options?.gameTick;
@@ -717,7 +719,6 @@ function renderMetaballImpl(
     ensureMetaballParenting(container, blurUnifiesBorders, blurStrengthCfg);
     if (!territoryGraphics || !borderGraphics) return;
 
-    const sceneInput = options?.sceneInput;
     const fingerprint =
         buildFingerprint(stars, gameTick, sceneInput?.fingerprint) +
         `:${worldWidth}:${worldHeight}` +
