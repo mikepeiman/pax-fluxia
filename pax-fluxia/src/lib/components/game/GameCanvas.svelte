@@ -523,7 +523,9 @@
         canvas: HTMLCanvasElement;
         debugSnapshot: PerimeterFieldDebugSnapshot | null;
     } | null {
-        if (!activeGameStore.isPaused) return null;
+        const previewEnabled =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
+        if (!previewEnabled) return null;
 
         const replaySlot = Math.max(
             0,
@@ -548,10 +550,7 @@
             return replayFrames[selectedIndex]!;
         }
 
-        if (
-            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
-            perimeterFieldCaptureSession
-        ) {
+        if (perimeterFieldCaptureSession) {
             const liveFrames = buildPerimeterFieldDisplayedFrames(
                 perimeterFieldCaptureSession.previousFrame,
                 perimeterFieldCaptureSession.frames,
@@ -2033,11 +2032,7 @@
         if (!snapshot) return;
 
         const scrubEnabled =
-            activeGameStore.isPaused &&
-            (
-                (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) ||
-                ((GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) > 0)
-            ) &&
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
             Boolean(snapshot.transitionTargetGeometry);
 
         if (showGeometry) {

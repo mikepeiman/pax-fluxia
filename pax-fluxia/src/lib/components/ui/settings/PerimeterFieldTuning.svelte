@@ -787,9 +787,9 @@
     />
     <span
         class="var-name"
-        title="When the game is paused, use the scrub slider below to inspect diagnostic transition states without changing the live territory render."
+        title="Explicit diagnostic preview mode. When enabled, the game view can be replaced with captured transition frames for scrub/replay inspection. When disabled, pause only pauses."
     >
-        Enable Transition Scrub When Paused
+        Enable Transition Preview
     </span>
     <span class="val">
         {(panel.perimeterFieldDebugScrubEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false)
@@ -798,14 +798,14 @@
     </span>
 </label>
     <div class="var-desc">
-    Pause the game, then drag the scrub slider to inspect previous state, next state, and the interim handoff frame-by-frame in diagnostics. This no longer rewrites the live perimeter-field render state.
+    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. Turn it off for normal gameplay; pause alone will no longer switch views.
     </div>
 
 <div class="var-row">
     <div class="row-top">
         <span
             class="var-name"
-            title="Choose the live conquest or one of the last three captured conquests for paused debug replay."
+            title="Choose the active capture or one of the last three captured conquests for explicit preview mode."
         >
             Replay Source
         </span>
@@ -852,7 +852,7 @@
         </span>
     </div>
     <div class="var-desc">
-        While paused, this steps through the exact captured gameplay frames for the live conquest or selected replay. Each +/- click moves exactly one conquest frame.
+        In explicit preview mode, this steps through the exact captured gameplay frames for the live conquest or selected replay. Each +/- click moves exactly one conquest frame.
     </div>
     <div class="scrub-controls">
         <button

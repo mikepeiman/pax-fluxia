@@ -68,3 +68,7 @@
   - never reconstruct conquest-local motion from star-center rays
   - transition-local vstars must be sourced from the real PREV/NEXT perimeter-vstar sets produced by gameplay
   - the affected PREV static perimeter samples must be replaced by transition-old samples during conquest, not double-counted alongside them
+- Decoupled paused gameplay from diagnostic replay presentation:
+  - pause must only pause
+  - replay/scrub presentation is now explicitly toggle-gated, not implicitly activated by pause state
+  - control copy now reflects preview-mode behavior instead of paused-mode behavior
