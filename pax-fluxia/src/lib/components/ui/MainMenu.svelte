@@ -35,7 +35,7 @@
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
     import { BG_IMAGES } from "$lib/config/bgManifest";
-    import type { MenuTheme } from "./menuTheme";
+    import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
     import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
     import GameMapPanel from "./main-menu/GameMapPanel.svelte";
     import PlayersPanel from "./main-menu/PlayersPanel.svelte";
@@ -138,6 +138,8 @@
               selectedRoom.roomId
             : null,
     );
+
+    const menuThemeCssVars = $derived(getMenuThemeCssVars(menuTheme));
 
     $effect(() => {
         visuals.bgImage = bgImage;
@@ -601,6 +603,7 @@
     <div
         class="menu-fullscreen"
         data-theme={menuTheme}
+        style={menuThemeCssVars}
         transition:fade
         style:background-image={bgImage ? `url(/assets/${bgImage})` : "none"}
         style:background-size={bgImage ? "cover" : "auto"}
@@ -958,16 +961,6 @@
     }
 
     .menu-fullscreen {
-        --pf-text: #ecf5ff;
-        --pf-heading: #9fdfff;
-        --pf-muted: rgba(212, 229, 255, 0.64);
-        --pf-muted-strong: rgba(232, 241, 255, 0.84);
-        --pf-border-soft: rgba(123, 195, 255, 0.18);
-        --pf-accent-soft: rgba(109, 212, 255, 0.62);
-        --pf-accent-strong: #56d6ff;
-        --pf-control-bg: rgba(10, 22, 40, 0.74);
-        --pf-cta-start-a: rgba(19, 115, 214, 0.92);
-        --pf-cta-start-b: rgba(20, 177, 207, 0.92);
         --pf-panel-pad: 20px;
         --pf-card-pad: 16px;
         --pf-panel-radius: 24px;
@@ -981,47 +974,38 @@
         align-items: flex-start;
         padding: 24px;
         overflow-y: auto;
-        background:
-            radial-gradient(circle at 18% 20%, rgba(255, 173, 92, 0.18), transparent 30%),
-            radial-gradient(circle at 78% 22%, rgba(104, 130, 255, 0.18), transparent 36%),
-            radial-gradient(circle at 50% 85%, rgba(87, 190, 255, 0.12), transparent 30%),
-            rgba(3, 7, 14, 0.9);
-        background-blend-mode: screen, screen, screen, normal;
+        isolation: isolate;
+        background-color: #050510;
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
     }
 
-    .menu-fullscreen[data-theme="neon"] {
-        --pf-text: #eaf8ff;
-        --pf-heading: #8fe9ff;
-        --pf-muted: rgba(216, 239, 255, 0.62);
-        --pf-muted-strong: rgba(236, 245, 255, 0.88);
-        --pf-border-soft: rgba(89, 228, 255, 0.22);
-        --pf-accent-soft: rgba(125, 255, 198, 0.66);
-        --pf-accent-strong: #7effe6;
-        --pf-control-bg: rgba(8, 18, 42, 0.82);
-        --pf-cta-start-a: rgba(0, 128, 255, 0.9);
-        --pf-cta-start-b: rgba(0, 232, 255, 0.9);
+    .menu-fullscreen::before,
+    .menu-fullscreen::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
     }
 
-    .menu-fullscreen[data-theme="mythic"] {
-        --pf-text: #f6eeff;
-        --pf-heading: #e6c0ff;
-        --pf-muted: rgba(238, 222, 255, 0.62);
-        --pf-muted-strong: rgba(248, 239, 255, 0.88);
-        --pf-border-soft: rgba(220, 171, 255, 0.18);
-        --pf-accent-soft: rgba(255, 194, 112, 0.52);
-        --pf-accent-strong: #ffce83;
-        --pf-control-bg: rgba(24, 16, 42, 0.78);
-        --pf-cta-start-a: rgba(143, 73, 255, 0.86);
-        --pf-cta-start-b: rgba(255, 137, 87, 0.86);
+    .menu-fullscreen::before {
+        background: var(--pf-surface-shell);
+    }
+
+    .menu-fullscreen::after {
+        background: var(--pf-overlay-shell), var(--pf-overlay-ornament);
+        mix-blend-mode: screen;
+        opacity: 0.92;
     }
 
     .hex-grid-overlay {
         position: absolute;
         inset: 0;
+        z-index: 0;
         pointer-events: none;
-        color: rgba(158, 209, 255, 0.05);
+        color: var(--pf-overlay-grid);
+        filter: drop-shadow(0 0 18px var(--pf-overlay-grid-glow));
     }
 
     .menu-shell {
@@ -1035,10 +1019,10 @@
 
     .title-block {
         display: grid;
-        gap: 6px;
+        gap: 8px;
         justify-items: center;
         text-align: center;
-        padding-top: 8px;
+        padding-top: 10px;
     }
 
     .title {
@@ -1057,18 +1041,22 @@
         font-size: clamp(2.4rem, 4.5vw, 4rem);
         font-weight: 300;
         letter-spacing: 0.5em;
-        color: rgba(241, 248, 255, 0.9);
+        color: var(--pf-muted-strong);
     }
 
     .fluxia {
         font-size: clamp(3.6rem, 7vw, 5.8rem);
         font-weight: 800;
         letter-spacing: 0.16em;
-        background: linear-gradient(180deg, #ffffff, var(--pf-accent-strong));
+        background: linear-gradient(
+            180deg,
+            var(--pf-title-gradient-start),
+            var(--pf-title-gradient-end)
+        );
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        filter: drop-shadow(0 0 18px rgba(86, 214, 255, 0.32));
+        filter: var(--pf-title-shadow);
     }
 
     .subtitle {
@@ -1094,31 +1082,31 @@
     }
 
     :global(.menu-panel) {
+        position: relative;
         border-radius: var(--pf-panel-radius);
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 40%),
-            rgba(6, 12, 24, 0.84);
+        background: var(--pf-surface-panel);
         backdrop-filter: blur(18px);
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.04),
-            0 20px 44px rgba(0, 0, 0, 0.28);
+        box-shadow: var(--pf-shadow-panel);
         padding: var(--pf-panel-pad);
     }
 
     :global(.menu-panel__header) {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: flex-end;
         gap: 16px;
+        margin-bottom: 2px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--pf-divider);
     }
 
     :global(.menu-panel__eyebrow) {
         margin: 0;
         font-family: "Oxanium", sans-serif;
-        font-size: 1.08rem;
+        font-size: 1.16rem;
         font-weight: 700;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--pf-heading);
     }
@@ -1126,9 +1114,9 @@
     :global(.menu-panel__title) {
         margin: 6px 0 0;
         font-family: "Rajdhani", sans-serif;
-        font-size: 1.22rem;
+        font-size: 1.02rem;
         font-weight: 600;
-        color: var(--pf-muted);
+        color: var(--pf-muted-strong);
     }
 
     :global(.menu-shell input[type="range"]) {
@@ -1138,7 +1126,7 @@
     :global(.menu-shell input[type="range"]::-webkit-slider-runnable-track) {
         height: 6px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
+        background: var(--pf-slider-track);
     }
 
     :global(.menu-shell input[type="range"]::-webkit-slider-thumb) {
@@ -1147,24 +1135,24 @@
         height: 16px;
         margin-top: -5px;
         border-radius: 999px;
-        border: 2px solid rgba(255, 255, 255, 0.9);
+        border: 2px solid var(--pf-slider-thumb-border);
         background: var(--pf-accent-strong);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.24);
+        box-shadow: var(--pf-shadow-glow);
     }
 
     :global(.menu-shell input[type="range"]::-moz-range-track) {
         height: 6px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
+        background: var(--pf-slider-track);
     }
 
     :global(.menu-shell input[type="range"]::-moz-range-thumb) {
         width: 16px;
         height: 16px;
         border-radius: 999px;
-        border: 2px solid rgba(255, 255, 255, 0.9);
+        border: 2px solid var(--pf-slider-thumb-border);
         background: var(--pf-accent-strong);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.24);
+        box-shadow: var(--pf-shadow-glow);
     }
 
     .confirm-overlay {
@@ -1173,7 +1161,7 @@
         display: grid;
         place-items: center;
         padding: 24px;
-        background: rgba(2, 6, 14, 0.76);
+        background: var(--pf-overlay-modal-scrim);
         backdrop-filter: blur(10px);
         z-index: 40;
     }
@@ -1182,12 +1170,10 @@
         width: min(460px, 100%);
         padding: 24px;
         border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 38%),
-            rgba(5, 12, 24, 0.96);
+        border: 1px solid var(--pf-border-strong);
+        background: var(--pf-surface-dialog);
         color: var(--pf-text);
-        box-shadow: 0 24px 44px rgba(0, 0, 0, 0.34);
+        box-shadow: var(--pf-shadow-elevated);
     }
 
     .confirm-dialog h3 {
@@ -1208,7 +1194,7 @@
     .ai-select {
         margin-top: 16px;
         padding-top: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--pf-divider);
     }
 
     .ai-label {
@@ -1235,7 +1221,7 @@
         padding: 0 14px;
         border-radius: 999px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-pill);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.92rem;
         font-weight: 700;
@@ -1248,7 +1234,7 @@
 
     .ai-chip.selected {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--pf-surface-pill-active);
         color: var(--pf-text);
     }
 
@@ -1256,7 +1242,7 @@
         width: 12px;
         height: 12px;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        border: 1px solid var(--pf-border-swatch);
     }
 
     .confirm-actions {
@@ -1281,17 +1267,17 @@
 
     .confirm-primary {
         background: linear-gradient(135deg, var(--pf-cta-start-a), var(--pf-cta-start-b));
-        color: #f8fcff;
+        color: var(--pf-text-on-accent);
     }
 
     .confirm-secondary {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-control);
         color: var(--pf-text);
     }
 
     .error-msg {
         margin-top: 14px;
-        color: #ffcdcd;
+        color: var(--pf-danger);
         font-family: "Rajdhani", sans-serif;
     }
 
@@ -1324,7 +1310,7 @@
             min-height: 42px;
             border-radius: 14px;
             border: 1px solid var(--pf-border-soft);
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--pf-surface-pill);
             color: var(--pf-muted-strong);
             font-family: "Rajdhani", sans-serif;
             font-size: 0.9rem;
@@ -1335,7 +1321,7 @@
 
         .mobile-tabs__button.is-active {
             border-color: var(--pf-accent-soft);
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--pf-surface-pill-active);
             color: var(--pf-text);
         }
 

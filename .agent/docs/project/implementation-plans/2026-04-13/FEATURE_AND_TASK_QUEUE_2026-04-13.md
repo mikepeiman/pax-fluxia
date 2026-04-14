@@ -6,6 +6,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Completed This Slice
 
+<<<<<<< HEAD
 - [x] Add explicit terminology/communication rules in:
   - `.agent/AGENT.md`
   - `.agent/docs/game/design/TERMINOLOGY.md`
@@ -138,3 +139,31 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - Current hard fact from the fixed-map audit:
   - above roughly `LM 175` on the frozen test map, the strict feasible graph is disconnected
   - any fully connected result there requires either adjusted satisfying paths or explicit graph-level connectivity restoration
+=======
+- [x] Update `.agent/AGENT.md` to make commit discipline explicit: completed or materially updated work must be committed before yielding the turn.
+- [x] Create the dated 2026-04-13 active queue file so new instructions for today have a canonical location.
+- [x] Commit and push the `codex/ui-main-menu` checkpoint branch state so the main-menu and control-panel refactor is no longer local-only.
+- [x] Expand the menu theme system from shallow theme labels into a canonical theme-token source and apply the new tokenized styling across the main menu shell, settings modal, and menu subcomponents.
+
+## In Progress
+
+- [ ] Verify the new `neon` and `mythic` menu systems in-browser across desktop and mobile breakpoints for contrast, theme parity, and leftover imperial-biased styling.
+
+## Top Queue
+
+- [ ] Continue normal work from the prior day's active queue after the theme-expansion pass is visually verified.
+
+## Notes
+
+- This queue intentionally starts small; the prior day's queue remains the detailed execution ledger for the large 2026-04-12 work tranche.
+
+## Lossless User Instruction Log
+
+1. Git discipline correction:
+   - "you must always commit. This is not optional or an item to discuss or ask about."
+2. Main Menu theme-expansion request:
+   - "Time to work on the additional two styles and flesh out this design."
+   - "PLEASE IMPLEMENT THIS PLAN:"
+   - "Expand `neon` and `mythic` from shallow color variants into full production theme systems across all menu surfaces."
+   - "Preserve the current menu architecture and theme IDs, but replace the current imperial-biased styling with a semantic theme token system plus moderate layout polish."
+>>>>>>> cfcdac21 (feat: expand neon and mythic menu theme systems)

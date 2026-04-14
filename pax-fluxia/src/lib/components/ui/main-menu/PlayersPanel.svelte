@@ -251,10 +251,8 @@
         min-height: 110px;
         padding: 12px 14px;
         border-radius: var(--pf-card-radius);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%),
-            rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--pf-border-faint);
+        background: var(--pf-surface-card);
     }
 
     .players-panel__knob-label,
@@ -273,7 +271,7 @@
         padding: 0 14px;
         border-radius: 999px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.85rem;
@@ -296,9 +294,7 @@
         min-height: 110px;
         padding: 12px 16px;
         border-radius: var(--pf-card-radius);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%),
-            rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-card);
     }
 
     .players-panel__toggle-label {
@@ -321,7 +317,7 @@
     .players-panel__count-button.is-active {
         border-color: var(--pf-accent-soft);
         color: var(--pf-text);
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--pf-surface-pill-active);
     }
 
     .players-panel__count-block {
@@ -329,8 +325,8 @@
         gap: 10px;
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--pf-border-faint);
+        background: var(--pf-surface-card);
     }
 
     .players-panel__count-row {
@@ -365,9 +361,7 @@
         padding: 12px 14px;
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 40%),
-            rgba(255, 255, 255, 0.025);
+        background: var(--pf-surface-card);
         transition:
             border-color 0.15s ease,
             background 0.15s ease,
@@ -377,9 +371,7 @@
     .player-row:hover,
     .player-row-block.is-open .player-row {
         border-color: var(--pf-accent-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
-            rgba(255, 255, 255, 0.045);
+        background: var(--pf-surface-card-hover);
         transform: translateY(-1px);
     }
 
@@ -387,10 +379,10 @@
         width: 42px;
         height: 42px;
         border-radius: 999px;
-        border: 2px solid rgba(255, 255, 255, 0.22);
+        border: 2px solid var(--pf-border-swatch);
         box-shadow:
             0 0 0 1px rgba(0, 0, 0, 0.22),
-            0 0 18px rgba(0, 0, 0, 0.24);
+            var(--pf-shadow-glow);
         cursor: pointer;
         transition:
             transform 0.15s ease,
@@ -399,7 +391,7 @@
 
     .player-row__swatch:hover {
         transform: scale(1.05);
-        border-color: rgba(255, 255, 255, 0.9);
+        border-color: var(--pf-slider-thumb-border);
     }
 
     .player-row__identity {
@@ -433,7 +425,7 @@
         padding: 0 14px;
         border-radius: 12px;
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-control-bg);
+        background: var(--pf-surface-control);
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
         font-size: 1rem;
@@ -444,7 +436,7 @@
     .player-row__name:focus,
     .player-row__select:focus {
         border-color: var(--pf-accent-strong);
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+        box-shadow: var(--pf-shadow-glow);
     }
 
     .player-row__controls {

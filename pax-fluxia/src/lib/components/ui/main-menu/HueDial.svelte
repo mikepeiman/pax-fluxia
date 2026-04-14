@@ -157,7 +157,7 @@
         box-shadow:
             inset 0 0 0 1px var(--pf-border-soft),
             inset 0 20px 28px rgba(255, 255, 255, 0.08),
-            0 12px 30px rgba(0, 0, 0, 0.32);
+            var(--pf-shadow-elevated);
     }
 
     .hue-dial__core {
@@ -166,8 +166,8 @@
         background:
             radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.18), transparent 42%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
-            var(--pf-control-bg);
-        border: 1px solid var(--pf-border-soft);
+            var(--pf-surface-control);
+        border: 1px solid var(--pf-border-strong);
         display: grid;
         place-items: center;
         gap: 2px;
@@ -190,7 +190,11 @@
         width: 100%;
         height: 100%;
         border-radius: 999px;
-        background: linear-gradient(180deg, var(--pf-accent-strong), rgba(255, 255, 255, 0.35));
+        background: linear-gradient(
+            180deg,
+            var(--pf-accent-strong),
+            color-mix(in srgb, var(--pf-title-gradient-start) 60%, transparent)
+        );
         box-shadow: 0 0 10px color-mix(in srgb, var(--pf-accent-strong) 65%, transparent);
     }
 
@@ -201,7 +205,7 @@
         background: var(--pf-accent-strong);
         box-shadow:
             0 0 0 3px rgba(3, 10, 22, 0.78),
-            0 0 16px color-mix(in srgb, var(--pf-accent-strong) 45%, transparent);
+            var(--pf-shadow-glow);
     }
 
     .hue-dial__value {

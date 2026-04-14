@@ -71,13 +71,9 @@
         padding: 14px 16px;
         border-radius: 20px;
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
-            rgba(5, 12, 24, 0.92);
+        background: var(--pf-surface-command);
         backdrop-filter: blur(20px);
-        box-shadow:
-            0 22px 44px rgba(0, 0, 0, 0.34),
-            0 0 0 1px rgba(255, 255, 255, 0.02);
+        box-shadow: var(--pf-shadow-elevated);
     }
 
     .command-bar__meta {
@@ -124,7 +120,7 @@
         padding: 0 18px;
         border-radius: 14px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-control);
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
         font-size: 1rem;
@@ -141,14 +137,14 @@
 
     .command-bar__button:hover:enabled {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--pf-surface-control-hover);
         transform: translateY(-1px);
     }
 
     .command-bar__button--primary {
         border-color: var(--pf-accent-soft);
         background: linear-gradient(135deg, var(--pf-cta-start-a), var(--pf-cta-start-b));
-        color: #f7fcff;
+        color: var(--pf-text-on-accent);
     }
 
     .command-bar__button:disabled {

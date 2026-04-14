@@ -6,7 +6,7 @@
         type SoundType,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
-    import { MENU_THEME_OPTIONS, type MenuTheme } from "./menuTheme";
+    import { getMenuThemeCssVars, MENU_THEME_OPTIONS, type MenuTheme } from "./menuTheme";
 
     const CONQUEST_TYPES: SoundType[] = [
         "conquest",
@@ -92,6 +92,7 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
         class="modal-overlay"
+        style={getMenuThemeCssVars(menuTheme)}
         onclick={() => {
             closeTransientUI();
             onClose();
@@ -102,7 +103,6 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="modal-content"
-            data-theme={menuTheme}
             onclick={(event) => {
                 event.stopPropagation();
                 handleClickInside(event);
@@ -142,8 +142,14 @@
                                 type="button"
                                 class="theme-card"
                                 class:selected={menuTheme === option.id}
+                                style={getMenuThemeCssVars(option.id)}
                                 onclick={() => onMenuThemeChange(option.id)}
                             >
+                                <div class="theme-card__preview" aria-hidden="true">
+                                    <span class="theme-card__preview-bar theme-card__preview-bar--panel"></span>
+                                    <span class="theme-card__preview-bar theme-card__preview-bar--card"></span>
+                                    <span class="theme-card__preview-pill"></span>
+                                </div>
                                 <span>{option.label}</span>
                                 <small>{option.summary}</small>
                             </button>
@@ -395,51 +401,21 @@
         display: grid;
         place-items: center;
         padding: 24px;
-        background: rgba(2, 5, 12, 0.74);
+        background: var(--pf-overlay-modal-scrim);
         backdrop-filter: blur(10px);
         z-index: 10000;
     }
 
     .modal-content {
-        --pf-text: #ecf5ff;
-        --pf-heading: #9fdfff;
-        --pf-muted: rgba(212, 229, 255, 0.68);
-        --pf-border: rgba(123, 195, 255, 0.22);
-        --pf-accent: #56d6ff;
-        --pf-accent-soft: rgba(109, 212, 255, 0.3);
-        --pf-bg: rgba(7, 14, 28, 0.96);
-        --pf-bg-soft: rgba(12, 20, 38, 0.9);
         width: min(760px, 100%);
         max-height: 88vh;
         overflow-y: auto;
         border-radius: 28px;
-        border: 1px solid var(--pf-border);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%), var(--pf-bg);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 28px 64px rgba(0, 0, 0, 0.42);
+        border: 1px solid var(--pf-border-strong);
+        background: var(--pf-surface-modal);
+        box-shadow: var(--pf-shadow-elevated);
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
-    }
-
-    .modal-content[data-theme="neon"] {
-        --pf-text: #eaf8ff;
-        --pf-heading: #8fe9ff;
-        --pf-muted: rgba(216, 239, 255, 0.68);
-        --pf-border: rgba(89, 228, 255, 0.24);
-        --pf-accent: #7effe6;
-        --pf-accent-soft: rgba(126, 255, 230, 0.28);
-        --pf-bg: rgba(6, 14, 34, 0.96);
-        --pf-bg-soft: rgba(9, 22, 44, 0.9);
-    }
-
-    .modal-content[data-theme="mythic"] {
-        --pf-text: #f6eeff;
-        --pf-heading: #f0d0ff;
-        --pf-muted: rgba(238, 222, 255, 0.68);
-        --pf-border: rgba(220, 171, 255, 0.24);
-        --pf-accent: #ffce83;
-        --pf-accent-soft: rgba(255, 206, 131, 0.24);
-        --pf-bg: rgba(22, 15, 38, 0.96);
-        --pf-bg-soft: rgba(31, 20, 52, 0.9);
     }
 
     .modal-header,
@@ -453,8 +429,8 @@
         position: sticky;
         top: 0;
         padding: 22px 24px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120%), var(--pf-bg);
+        border-bottom: 1px solid var(--pf-divider);
+        background: var(--pf-surface-modal);
         z-index: 2;
     }
 
@@ -501,12 +477,12 @@
         gap: 14px;
         padding: 18px;
         border-radius: 22px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120%), var(--pf-bg-soft);
+        border: 1px solid var(--pf-border-faint);
+        background: var(--pf-surface-card);
     }
 
     .section-accent {
-        border-color: var(--pf-border);
+        border-color: var(--pf-border-strong);
     }
 
     .theme-grid {
@@ -519,8 +495,8 @@
     .btn,
     .select,
     .picker-trigger {
-        border: 1px solid var(--pf-border);
-        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--pf-border-soft);
+        background: var(--pf-surface-control);
         color: var(--pf-text);
     }
 
@@ -534,12 +510,49 @@
 
     .theme-card {
         display: grid;
-        gap: 6px;
-        min-height: 100px;
+        gap: 10px;
+        min-height: 144px;
         padding: 16px;
         border-radius: 18px;
         text-align: left;
         cursor: pointer;
+        background: var(--pf-surface-card);
+        box-shadow: inset 0 0 0 1px var(--pf-border-faint);
+    }
+
+    .theme-card__preview {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid var(--pf-border-strong);
+        background: var(--pf-surface-panel);
+        box-shadow: var(--pf-shadow-glow);
+    }
+
+    .theme-card__preview-bar {
+        display: block;
+        border-radius: 999px;
+    }
+
+    .theme-card__preview-bar--panel {
+        height: 10px;
+        width: 54%;
+        background: linear-gradient(90deg, var(--pf-title-gradient-start), var(--pf-title-gradient-end));
+    }
+
+    .theme-card__preview-bar--card {
+        height: 34px;
+        border-radius: 12px;
+        border: 1px solid var(--pf-border-soft);
+        background: var(--pf-surface-preview);
+    }
+
+    .theme-card__preview-pill {
+        width: 36%;
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--pf-cta-start-a), var(--pf-cta-start-b));
     }
 
     .theme-card span {
@@ -562,13 +575,13 @@
     .btn:hover,
     .picker-trigger:hover,
     .select:focus {
-        border-color: var(--pf-accent);
-        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--pf-accent-strong);
+        background: var(--pf-surface-control-hover);
         outline: none;
     }
 
     .theme-card.selected {
-        box-shadow: inset 0 0 0 1px var(--pf-accent-soft);
+        box-shadow: inset 0 0 0 1px var(--pf-accent-soft), var(--pf-shadow-glow);
     }
 
     .toggle,
@@ -586,7 +599,7 @@
     .toggle input[type="checkbox"] {
         width: 18px;
         height: 18px;
-        accent-color: var(--pf-accent);
+        accent-color: var(--pf-accent-strong);
     }
 
     .setting-row {
@@ -604,7 +617,7 @@
 
     .setting-name {
         flex: 1;
-        color: rgba(236, 244, 255, 0.9);
+        color: var(--pf-text);
         font-weight: 700;
     }
 
@@ -686,9 +699,9 @@
         padding: 8px;
         overflow-y: auto;
         border-radius: 16px;
-        border: 1px solid var(--pf-border);
-        background: rgba(5, 12, 24, 0.98);
-        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28);
+        border: 1px solid var(--pf-border-strong);
+        background: var(--pf-surface-elevated);
+        box-shadow: var(--pf-shadow-elevated);
     }
 
     .picker-item {
@@ -700,7 +713,7 @@
     }
 
     .picker-item.selected {
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--pf-surface-pill-active);
     }
 
     .picker-item__label {
@@ -717,7 +730,7 @@
 
     input[type="range"] {
         width: 100%;
-        accent-color: var(--pf-accent);
+        accent-color: var(--pf-accent-strong);
     }
 
     @media (max-width: 767px) {

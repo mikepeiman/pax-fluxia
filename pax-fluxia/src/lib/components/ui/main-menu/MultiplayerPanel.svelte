@@ -289,9 +289,7 @@
     .chat-shell {
         border-radius: 16px;
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 42%),
-            rgba(255, 255, 255, 0.025);
+        background: var(--pf-surface-card);
     }
 
     .room-status,
@@ -332,7 +330,7 @@
         padding: 0 14px;
         border-radius: 999px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.86rem;
@@ -351,14 +349,14 @@
     .room-browser__card:hover,
     .room-browser__card.is-selected {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.07);
+        background: var(--pf-surface-card-hover);
         color: var(--pf-text);
     }
 
     .action-pill--primary {
         border-color: var(--pf-accent-soft);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-        color: var(--pf-text);
+        background: linear-gradient(135deg, var(--pf-cta-alt-a), var(--pf-cta-alt-b));
+        color: var(--pf-text-on-accent);
     }
 
     .action-pill:disabled {
@@ -427,7 +425,7 @@
     .room-browser__phase {
         padding: 5px 10px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--pf-surface-pill-active);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.78rem;
         font-weight: 700;
@@ -460,7 +458,7 @@
         padding: 0 14px;
         border-radius: 12px;
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-control-bg);
+        background: var(--pf-surface-control);
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
         font-size: 1rem;
@@ -488,7 +486,7 @@
     .room-browser__players span {
         padding: 4px 8px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--pf-surface-tag);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.8rem;
         color: var(--pf-muted-strong);
@@ -517,7 +515,7 @@
         border-radius: 999px;
         display: inline-grid;
         place-items: center;
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--pf-surface-tag-active);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.8rem;
     }
@@ -554,8 +552,9 @@
     }
 
     .signal-card--error {
-        border-color: rgba(255, 110, 110, 0.3);
-        color: #ffc0c0;
+        border-color: var(--pf-border-danger);
+        background: var(--pf-surface-danger);
+        color: var(--pf-danger);
     }
 
     @media (max-width: 640px) {

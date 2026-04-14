@@ -123,11 +123,9 @@
         padding: 12px 14px;
         border-radius: 18px;
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%),
-            rgba(7, 14, 28, 0.8);
+        background: var(--pf-surface-elevated);
         backdrop-filter: blur(18px);
-        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
+        box-shadow: var(--pf-shadow-elevated);
     }
 
     .menu-topbar__cluster {
@@ -150,7 +148,7 @@
         padding: 0 14px;
         border-radius: 999px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.9rem;
@@ -168,7 +166,7 @@
     .topbar-chip.is-active,
     .topbar-icon:hover {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.07);
+        background: var(--pf-surface-pill-active);
         color: var(--pf-text);
     }
 
@@ -184,7 +182,7 @@
         padding: 4px 6px 4px 4px;
         border-radius: 999px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--pf-surface-control);
     }
 
     .audio-chip input {
@@ -202,12 +200,10 @@
         width: min(420px, 80vw);
         padding: 10px;
         border-radius: 18px;
-        border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 36%),
-            rgba(5, 12, 24, 0.96);
+        border: 1px solid var(--pf-border-strong);
+        background: var(--pf-surface-elevated);
         backdrop-filter: blur(20px);
-        box-shadow: 0 24px 40px rgba(0, 0, 0, 0.35);
+        box-shadow: var(--pf-shadow-elevated);
     }
 
     .background-picker__thumb {
@@ -216,7 +212,7 @@
         padding: 6px;
         border-radius: 14px;
         border: 1px solid transparent;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-card);
         cursor: pointer;
         transition:
             border-color 0.15s ease,
@@ -227,7 +223,7 @@
     .background-picker__thumb:hover,
     .background-picker__thumb.is-active {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.07);
+        background: var(--pf-surface-card-hover);
         transform: translateY(-1px);
     }
 
@@ -236,7 +232,7 @@
         width: 100%;
         aspect-ratio: 1.5;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-field);
         object-fit: cover;
         display: grid;
         place-items: center;

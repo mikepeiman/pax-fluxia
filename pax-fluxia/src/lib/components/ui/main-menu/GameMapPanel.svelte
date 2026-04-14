@@ -441,7 +441,7 @@
                                         y1={src.y}
                                         x2={tgt.x}
                                         y2={tgt.y}
-                                        stroke={isSelected ? "rgba(120,200,255,0.68)" : "rgba(84,112,164,0.56)"}
+                                        stroke={isSelected ? "var(--pf-accent-soft)" : "var(--pf-divider)"}
                                         stroke-width={Math.max(1, vw * 0.006)}
                                     />
                                 {/if}
@@ -452,7 +452,7 @@
                                     cy={star.y}
                                     r={Math.max(2, vw * 0.015)}
                                     fill={star.ownerId === "neutral"
-                                        ? "#666"
+                                        ? "var(--pf-muted)"
                                         : `hsl(${(starIndex * 60) % 360}, 70%, 60%)`}
                                     opacity={isSelected ? 1 : 0.72}
                                 />
@@ -566,7 +566,7 @@
         padding: 12px 16px;
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-card);
     }
 
     .tick-chip__label,
@@ -607,7 +607,7 @@
     .preview-well__reshuffle,
     .saved-map-card {
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         cursor: pointer;
         transition:
@@ -637,7 +637,7 @@
     .saved-map-card.is-selected {
         border-color: var(--pf-accent-soft);
         color: var(--pf-text);
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--pf-surface-pill-active);
         transform: translateY(-1px);
     }
 
@@ -660,9 +660,7 @@
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%),
-            rgba(255, 255, 255, 0.02);
+        background: var(--pf-surface-card);
     }
 
     .control-cluster__title,
@@ -729,8 +727,8 @@
     .metric-field {
         padding: 12px 14px;
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.04);
+        background: var(--pf-surface-control);
+        border: 1px solid var(--pf-border-faint);
     }
 
     .preview-well {
@@ -740,9 +738,7 @@
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
-        background:
-            radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 40%),
-            rgba(255, 255, 255, 0.025);
+        background: var(--pf-surface-card);
     }
 
     .preview-well__header {
@@ -771,10 +767,9 @@
         padding: 12px;
         border-radius: calc(var(--pf-card-radius) - 2px);
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        background:
-            radial-gradient(circle at 50% 50%, rgba(86, 214, 255, 0.08), transparent 55%),
-            rgba(3, 10, 20, 0.72);
+        border: 1px solid var(--pf-border-faint);
+        background: var(--pf-surface-preview);
+        box-shadow: inset 0 0 0 1px var(--pf-border-faint), 0 0 28px var(--pf-preview-glow);
     }
 
     .preview-well__image {
@@ -796,8 +791,8 @@
         font-family: "Rajdhani", sans-serif;
         font-size: 1rem;
         text-align: center;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px dashed var(--pf-border-soft);
+        background: var(--pf-surface-field);
+        border: 1px dashed var(--pf-border-strong);
     }
 
     .saved-mode-layout {
@@ -823,7 +818,7 @@
         width: 100%;
         aspect-ratio: 1.35;
         border-radius: 12px;
-        background: rgba(3, 10, 20, 0.65);
+        background: var(--pf-surface-preview);
     }
 
     .saved-map-card__title {

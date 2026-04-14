@@ -109,13 +109,9 @@
         min-width: min(320px, 88vw);
         padding: 14px;
         border-radius: 16px;
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 36%),
-            rgba(6, 14, 28, 0.96);
-        border: 1px solid var(--pf-border-soft);
-        box-shadow:
-            0 18px 38px rgba(0, 0, 0, 0.36),
-            0 0 0 1px rgba(255, 255, 255, 0.02);
+        background: var(--pf-surface-elevated);
+        border: 1px solid var(--pf-border-strong);
+        box-shadow: var(--pf-shadow-elevated);
         backdrop-filter: blur(18px);
     }
 
@@ -133,8 +129,8 @@
         width: 18px;
         height: 18px;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.32);
-        box-shadow: 0 0 14px rgba(0, 0, 0, 0.28);
+        border: 1px solid var(--pf-border-swatch);
+        box-shadow: var(--pf-shadow-glow);
     }
 
     .player-color-popover__title {
@@ -188,7 +184,7 @@
         min-height: 38px;
         border-radius: 10px;
         border: 1px solid var(--pf-border-soft);
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--pf-surface-control);
         color: var(--pf-muted-strong);
         font-family: "Rajdhani", sans-serif;
         font-size: 0.88rem;
@@ -204,7 +200,7 @@
 
     .player-color-popover__reset:hover:enabled {
         border-color: var(--pf-accent-soft);
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--pf-surface-control-hover);
         color: var(--pf-text);
     }
 
