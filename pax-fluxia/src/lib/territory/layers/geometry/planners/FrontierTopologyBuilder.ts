@@ -13,6 +13,7 @@ export function buildTerritoryRegionShapes(
     return geometry.mergedTerritories.map((territory, index) => ({
         regionId: `legacy-region:${territory.ownerId}:${index}`,
         ownerId: territory.ownerId,
+        starIds: [...territory.starIds],
         points: territory.points,
         confidence: 1,
     }));

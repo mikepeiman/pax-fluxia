@@ -410,6 +410,7 @@
       "territoryRenderMode",
       styleId,
     );
+    setActiveRendererModule("all");
     // Reset diagnostic so it logs on next render frame
     (globalThis as any).__RENDER_MODE_LOGGED = false;
     // Sync legacy renderer booleans to panel; setSetting applies GAME_CONFIG via RESOLVED map.
