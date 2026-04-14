@@ -103,6 +103,7 @@ export function compactGeometrySnapshotForExport(geo: GeometrySnapshot | null | 
         territoryRegions: geo.territoryRegions.map(r => ({
             regionId: r.regionId,
             ownerId: r.ownerId,
+            starIds: r.starIds ?? [],
             confidence: r.confidence,
             pointCount: r.points.length,
             bounds: boundsOf(r.points),
@@ -135,6 +136,7 @@ export function compactGeometrySnapshotForExport(geo: GeometrySnapshot | null | 
         shells: geo.shells.map(s => ({
             shellId: s.shellId,
             ownerId: s.ownerId,
+            starIds: s.starIds ?? [],
             area: s.area,
             absArea: s.absArea,
             confidence: s.confidence,
@@ -147,6 +149,7 @@ export function compactGeometrySnapshotForExport(geo: GeometrySnapshot | null | 
             shellLoopId: l.shellLoopId,
             shellId: l.shellId,
             ownerId: l.ownerId,
+            starIds: l.starIds ?? [],
             classification: l.classification,
             confidence: l.confidence,
             pointCount: l.points.length,

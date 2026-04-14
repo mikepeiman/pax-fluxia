@@ -45,3 +45,8 @@
 - Remedied geometry-layer identity loss:
   - `territoryRegions`, `shells`, and `shellLoops` now preserve upstream `starIds` when the geometry compiler knows them
   - `perimeter_field` now resolves conquest-local owner regions by deterministic `starId` membership first, then by containment only if that membership data is unavailable
+- Added a single-file transition diagnostic export path:
+  - one ZIP per captured bundle
+  - PREV + NEXT + 5 evenly spaced intermediate transition frames as PNGs
+  - compact readable `diagnostic.json` with geometry, topology, conquest metadata, modes, and star positions
+  - wired into the existing Transition Debug panel alongside the legacy loose-file download path

@@ -1,7 +1,12 @@
 <script lang="ts">
     import { transitionSnapshotRecorder } from '$lib/territory/devtools/TransitionSnapshotRecorder';
     import type { TransitionDebugBundle } from '$lib/territory/devtools/TransitionSnapshotRecorder';
-    import { downloadBundle, downloadAllBundles } from '$lib/territory/devtools/TransitionBundleSerializer';
+    import {
+        downloadAllBundles,
+        downloadAllDiagnosticPackages,
+        downloadBundle,
+        downloadDiagnosticPackage,
+    } from '$lib/territory/devtools/TransitionBundleSerializer';
     import { overlayConfig } from '$lib/territory/devtools/overlayConfig';
 
     interface Props {
@@ -10,7 +15,6 @@
 
     let { onClose }: Props = $props();
 
-    // ── Live overlay state ─────────────────────────────────────────────────
     let overlayEnabled = $state(overlayConfig.enabled);
     let overlayShowVertices = $state(overlayConfig.showAllVertices);
     let overlayShowActiveFront = $state(overlayConfig.showActiveFront);
@@ -36,7 +40,6 @@
         overlayConfig.showPolylineSamples = overlayPolylineSamples;
     }
 
-    // ── Recorder state ─────────────────────────────────────────────────────
     let recorderEnabled = $state(transitionSnapshotRecorder.isEnabled());
     let bundles = $state<TransitionDebugBundle[]>([]);
     let downloading = $state<string | null>(null);
@@ -64,6 +67,15 @@
         }
     }
 
+    async function packageOne(bundle: TransitionDebugBundle) {
+        downloading = `pkg:${bundle.id}`;
+        try {
+            await downloadDiagnosticPackage(bundle);
+        } finally {
+            downloading = null;
+        }
+    }
+
     async function downloadAll() {
         downloading = '__all__';
         try {
@@ -74,14 +86,22 @@
         }
     }
 
-    // ── Refresh on mount and periodically ─────────────────────────────────
+    async function packageAll() {
+        downloading = '__pkg_all__';
+        try {
+            const all = [...transitionSnapshotRecorder.getBundles()];
+            await downloadAllDiagnosticPackages(all);
+        } finally {
+            downloading = null;
+        }
+    }
+
     $effect(() => {
         refreshBundles();
         const interval = setInterval(refreshBundles, 1000);
         return () => clearInterval(interval);
     });
 
-    // ── Frame count label helper ───────────────────────────────────────────
     function frameLabel(bundle: TransitionDebugBundle): string {
         if (!bundle.transitionFrames) return 'no frames';
         return `${bundle.transitionFrames.length} frames`;
@@ -90,25 +110,22 @@
     function conquestLabel(bundle: TransitionDebugBundle): string {
         const evt = bundle.conquestEvents[0];
         if (!evt) return '?';
-        return `★${evt.starId} ${evt.previousOwner}→${evt.newOwner}`;
+        return `*${evt.starId} ${evt.previousOwner}->${evt.newOwner}`;
     }
 
     function timeLabel(bundle: TransitionDebugBundle): string {
-        return bundle.timestamp.slice(11, 19); // HH:MM:SS
+        return bundle.timestamp.slice(11, 19);
     }
 </script>
 
-<!-- Backdrop click-through trap -->
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
 <div class="panel-outer" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div class="panel">
-        <!-- Header bar -->
         <div class="panel-header">
-            <span class="panel-title">◈ Transition Debug</span>
-            <button class="close-btn" onclick={onClose} title="Close">✕</button>
+            <span class="panel-title">Transition Debug</span>
+            <button class="close-btn" onclick={onClose} title="Close">X</button>
         </div>
 
-        <!-- Live overlay section -->
         <section class="section">
             <div class="section-title">Live Canvas Overlay</div>
             <div class="row">
@@ -123,28 +140,27 @@
                 <div class="sub-toggles">
                     <label class="toggle-label small">
                         <input type="checkbox" checked={overlayShowActiveFront} onchange={toggleOverlayActiveFront} />
-                        <span class="toggle-text small">Active front bridge + anchors + gold sections</span>
+                        <span class="toggle-text small">Active front bridge, anchors, and gold sections</span>
                     </label>
                     <label class="toggle-label small">
                         <input type="checkbox" checked={overlayShowVertices} onchange={toggleOverlayVertices} />
-                        <span class="toggle-text small">Structural vertices (junctions, etc.)</span>
+                        <span class="toggle-text small">Structural vertices</span>
                     </label>
                     <label class="toggle-label small">
                         <input type="checkbox" checked={overlayPolylineSamples} onchange={togglePolylineSamples} />
-                        <span class="toggle-text small">Polyline samples (curve interior points)</span>
+                        <span class="toggle-text small">Polyline samples</span>
                     </label>
                 </div>
                 <div class="overlay-legend">
                     <span class="ol-dot" style="background:#ffb000"></span><span>Active front sections</span>
-                    <span class="ol-dot" style="background:#44ff66"></span><span>AF bridge (anchor pair)</span>
-                    <span class="ol-dot" style="background:#00ffff"></span><span>Change anchors (⚓)</span>
-                    <span class="ol-dot" style="background:#9999cc"></span><span>Structural vertices only</span>
+                    <span class="ol-dot" style="background:#44ff66"></span><span>AF bridge and anchors</span>
+                    <span class="ol-dot" style="background:#00ffff"></span><span>Change anchors</span>
+                    <span class="ol-dot" style="background:#9999cc"></span><span>Structural vertices</span>
                     <span class="ol-dot" style="background:#cc88ff"></span><span>Polyline samples</span>
                 </div>
             {/if}
         </section>
 
-        <!-- Recorder section -->
         <section class="section">
             <div class="section-title">Snapshot Recorder</div>
             <div class="row">
@@ -157,11 +173,13 @@
                 <div class="bundle-count">{bundles.length} bundle{bundles.length !== 1 ? 's' : ''}</div>
             </div>
             <div class="info-text">
-                On each conquest: renders prev/next geometry + {'{'}7-frame transition series with vertex labels, change anchors, motion trail{'}'}.
+                On each conquest: captures PREV and NEXT geometry plus the 7-frame transition series.
+            </div>
+            <div class="info-text">
+                Package export: one ZIP with PREV, NEXT, 5 evenly spaced intermediate frames, and compact readable geometry/topology data.
             </div>
         </section>
 
-        <!-- Actions section -->
         <section class="section">
             <div class="section-title">Actions</div>
             <div class="btn-row">
@@ -169,9 +187,16 @@
                 <button
                     class="action-btn primary"
                     disabled={bundles.length === 0 || downloading !== null}
+                    onclick={packageAll}
+                >
+                    {downloading === '__pkg_all__' ? 'Packaging...' : 'Package All'}
+                </button>
+                <button
+                    class="action-btn"
+                    disabled={bundles.length === 0 || downloading !== null}
                     onclick={downloadAll}
                 >
-                    {downloading === '__all__' ? 'Downloading…' : 'Download All'}
+                    {downloading === '__all__' ? 'Downloading...' : 'Download All'}
                 </button>
                 <button
                     class="action-btn danger"
@@ -183,13 +208,12 @@
             </div>
         </section>
 
-        <!-- Bundle list -->
         <section class="section bundles-section">
             <div class="section-title">Bundles (newest first)</div>
             {#if bundles.length === 0}
                 <div class="empty-state">
                     {recorderEnabled
-                        ? 'Waiting for conquest events…'
+                        ? 'Waiting for conquest events...'
                         : 'Enable recorder to capture conquest data.'}
                 </div>
             {:else}
@@ -201,28 +225,38 @@
                                 <span class="bundle-conquest">{conquestLabel(bundle)}</span>
                                 <span class="bundle-frames">{frameLabel(bundle)}</span>
                             </div>
-                            <button
-                                class="action-btn small primary"
-                                disabled={downloading === bundle.id}
-                                onclick={() => downloadOne(bundle)}
-                            >
-                                {downloading === bundle.id ? '…' : '↓ DL'}
-                            </button>
+                            <div class="bundle-actions">
+                                <button
+                                    class="action-btn small primary"
+                                    disabled={downloading === `pkg:${bundle.id}`}
+                                    onclick={() => packageOne(bundle)}
+                                    title="Download one ZIP package"
+                                >
+                                    {downloading === `pkg:${bundle.id}` ? '...' : 'Pkg'}
+                                </button>
+                                <button
+                                    class="action-btn small"
+                                    disabled={downloading === bundle.id}
+                                    onclick={() => downloadOne(bundle)}
+                                    title="Download loose files"
+                                >
+                                    {downloading === bundle.id ? '...' : 'DL'}
+                                </button>
+                            </div>
                         </div>
                     {/each}
                 </div>
             {/if}
         </section>
 
-        <!-- Legend -->
         <section class="section legend-section">
-            <div class="section-title">Frame legend</div>
+            <div class="section-title">Frame Legend</div>
             <div class="legend-grid">
                 <span class="legend-dot" style="background:#ffb000"></span><span>Active front sections</span>
-                <span class="legend-dot" style="background:#00ffff"></span><span>Change anchors (⚓)</span>
-                <span class="legend-dot" style="background:rgba(255,155,0,0.55)"></span><span>Motion trail (swept area)</span>
+                <span class="legend-dot" style="background:#00ffff"></span><span>Change anchors</span>
+                <span class="legend-dot" style="background:rgba(255,155,0,0.55)"></span><span>Motion trail</span>
                 <span class="legend-dot" style="background:rgba(160,160,210,0.85)"></span><span>All frontier vertices</span>
-                <span class="legend-dot" style="background:rgba(255,80,80,0.7)"></span><span>Collapsing regions (✕)</span>
+                <span class="legend-dot" style="background:rgba(255,80,80,0.7)"></span><span>Collapsing regions</span>
             </div>
         </section>
     </div>
@@ -257,12 +291,10 @@
         gap: 0;
     }
 
-    /* Scrollbar */
     .panel::-webkit-scrollbar { width: 4px; }
     .panel::-webkit-scrollbar-track { background: transparent; }
     .panel::-webkit-scrollbar-thumb { background: rgba(180, 130, 255, 0.3); border-radius: 2px; }
 
-    /* Header */
     .panel-header {
         display: flex;
         align-items: center;
@@ -297,7 +329,6 @@
 
     .close-btn:hover { color: rgba(255, 255, 255, 0.9); }
 
-    /* Sections */
     .section {
         padding: 10px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -314,7 +345,6 @@
         margin-bottom: 8px;
     }
 
-    /* Toggle row */
     .row {
         display: flex;
         align-items: center;
@@ -383,9 +413,9 @@
         font-size: 0.68rem;
         color: rgba(160, 160, 180, 0.6);
         line-height: 1.45;
+        margin-top: 4px;
     }
 
-    /* Buttons */
     .btn-row {
         display: flex;
         gap: 6px;
@@ -443,7 +473,6 @@
         font-size: 0.68rem;
     }
 
-    /* Bundle list */
     .bundles-section {
         max-height: 240px;
         overflow-y: auto;
@@ -471,6 +500,12 @@
         flex-direction: column;
         gap: 1px;
         min-width: 0;
+    }
+
+    .bundle-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .bundle-time {
@@ -501,8 +536,6 @@
         font-size: 0.72rem;
         font-style: italic;
     }
-
-    /* Legend */
 
     .legend-grid {
         display: grid;
