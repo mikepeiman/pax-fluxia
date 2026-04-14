@@ -1,4 +1,4 @@
-# Feature and Task Queue — 2026-04-14
+# Feature and Task Queue - 2026-04-14
 
 ## Active
 - Prototype `perimeter_field` experimental territory renderer:
@@ -20,3 +20,7 @@
   - show perimeter vstars
   - paused transition scrub with current/next/interim overlays
   - semantic control labels/tooltips and explicit perimeter-vstar power control
+- Switched `perimeter_field` base geometry to a selectable shared source, defaulting to `power_voronoi_0319`:
+  - source selection now affects shared render-family geometry, including Metaball
+  - Territory exposes source MSR, CX, lane-pair, and DX controls alongside the source selector
+  - perimeter vstars now support an inward offset so derived samples sit inside the source boundary instead of directly on it

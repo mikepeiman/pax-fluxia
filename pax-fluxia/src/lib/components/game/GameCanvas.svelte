@@ -110,7 +110,7 @@
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
     import {
-        buildCanonicalRenderFamilyGeometry,
+        buildPerimeterFieldRenderFamilyGeometry,
         buildOwnershipSnapshotFromStars,
     } from "$lib/territory/families/buildFamilyGeometry";
     import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
@@ -337,6 +337,13 @@
         lanes: ReadonlyArray<StarConnection>,
     ): string {
         let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
+        key += `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:`;
+        key += `${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
+        key += `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:`;
+        key += `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:`;
+        key += `${GAME_CONFIG.CHAIKIN_BOUNDARY_PAD}:${GAME_CONFIG.CHAIKIN_BOUNDARY_EPS}:`;
         for (const star of stars) {
             key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
         }
@@ -353,13 +360,15 @@
     ): CanonicalGeometrySnapshot {
         const key = buildRenderFamilyGeometryCacheKey(stars, lanes);
         if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
-            renderFamilyGeometryCache = buildCanonicalRenderFamilyGeometry({
+            renderFamilyGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
                 stars,
                 lanes,
                 worldWidth: GAME_WIDTH,
                 worldHeight: GAME_HEIGHT,
                 nowMs: fxOrchestrator.gameTime,
                 ownership: buildOwnershipSnapshotFromStars(stars),
+                geometrySource:
+                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "power_voronoi_0319",
             });
             renderFamilyGeometryCacheKey = key;
         }

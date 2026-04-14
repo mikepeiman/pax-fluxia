@@ -238,6 +238,40 @@ describe('buildPerimeterFieldScene', () => {
         ).toBe(true);
     });
 
+    it('offsets static perimeter samples inside the source boundary', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [20, 20],
+                [80, 20],
+                [80, 80],
+                [20, 80],
+            ],
+        });
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
+        for (const sample of scene.sceneInput.samples) {
+            expect(sample.x).toBeGreaterThan(20);
+            expect(sample.x).toBeLessThan(80);
+            expect(sample.y).toBeGreaterThan(20);
+            expect(sample.y).toBeLessThan(80);
+        }
+    });
+
     it('adds conquest-local radial transition samples without star-margin fallback', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
@@ -324,5 +358,113 @@ describe('buildPerimeterFieldScene', () => {
         ).toHaveLength(12);
         expect(scene.sceneInput.influenceRadiusPx).toBe(44);
         expect(scene.sceneInput.ownershipMarginPx).toBe(0);
+    });
+
+    it('offsets transition override samples inward from the raw boundary hits', () => {
+        const displayStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const oldGeometry = {
+            ...makeGeometry({
+                ownerId: 'red',
+                loopId: 'red-loop',
+                points: [
+                    [25, 25],
+                    [75, 25],
+                    [75, 75],
+                    [25, 75],
+                ],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:red',
+                    ownerId: 'red',
+                    points: [
+                        [25, 25],
+                        [75, 25],
+                        [75, 75],
+                        [25, 75],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+        const newGeometry = {
+            ...makeGeometry({
+                ownerId: 'blue',
+                loopId: 'blue-loop',
+                points: [
+                    [15, 15],
+                    [85, 15],
+                    [85, 85],
+                    [15, 85],
+                ],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:blue',
+                    ownerId: 'blue',
+                    points: [
+                        [15, 15],
+                        [85, 15],
+                        [85, 85],
+                        [15, 85],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+
+        const noOffset = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(),
+                tunables: {
+                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                },
+            }),
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
+            colorUtils,
+        });
+
+        const offset = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(),
+                tunables: {
+                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
+                },
+            }),
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
+            colorUtils,
+        });
+
+        const targetX = 50;
+        const targetY = 50;
+        const noOffsetSample = noOffset.sceneInput.samples.find(
+            (sample) => sample.id === 'transition:new:target:0',
+        );
+        const offsetSample = offset.sceneInput.samples.find(
+            (sample) => sample.id === 'transition:new:target:0',
+        );
+
+        expect(noOffsetSample).toBeTruthy();
+        expect(offsetSample).toBeTruthy();
+        const noOffsetDistance = Math.hypot(
+            noOffsetSample!.x - targetX,
+            noOffsetSample!.y - targetY,
+        );
+        const offsetDistance = Math.hypot(
+            offsetSample!.x - targetX,
+            offsetSample!.y - targetY,
+        );
+        expect(offsetDistance).toBeLessThan(noOffsetDistance);
     });
 });

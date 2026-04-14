@@ -561,6 +561,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
     { configKey: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
     { configKey: 'PERIMETER_FIELD_SAMPLE_SPACING' },
+    { configKey: 'PERIMETER_FIELD_INWARD_OFFSET_PX' },
     { configKey: 'PERIMETER_FIELD_INFLUENCE_RADIUS' },
     { configKey: 'PERIMETER_FIELD_INFLUENCE_WEIGHT' },
     { configKey: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT' },

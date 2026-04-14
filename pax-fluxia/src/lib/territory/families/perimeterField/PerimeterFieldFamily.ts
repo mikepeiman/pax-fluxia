@@ -3,7 +3,7 @@ import { renderMetaball, resetMetaballCache } from '$lib/renderers/MetaballRende
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
-import { buildCanonicalRenderFamilyGeometry } from '../buildFamilyGeometry';
+import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
     RenderFamily,
     RenderFamilyActiveTransition,
@@ -18,6 +18,7 @@ import {
 const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_GEOMETRY_SOURCE',
     'PERIMETER_FIELD_SAMPLE_SPACING',
+    'PERIMETER_FIELD_INWARD_OFFSET_PX',
     'PERIMETER_FIELD_INFLUENCE_RADIUS',
     'PERIMETER_FIELD_INFLUENCE_WEIGHT',
     'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
@@ -175,12 +176,16 @@ export class PerimeterFieldFamily implements RenderFamily {
         if (transitionKey && readFreezeBaseDuringTransition(effectiveInput)) {
             if (this.oldGeometryKey !== transitionKey) {
                 const revertedStars = revertStarsForTransition(effectiveInput);
-                this.oldGeometry = buildCanonicalRenderFamilyGeometry({
+                this.oldGeometry = buildPerimeterFieldRenderFamilyGeometry({
                     stars: revertedStars,
                     lanes: effectiveInput.lanes,
                     worldWidth: effectiveInput.world.width,
                     worldHeight: effectiveInput.world.height,
                     nowMs: effectiveInput.nowMs,
+                    geometrySource:
+                        (effectiveInput.tunables.get(
+                            'PERIMETER_FIELD_GEOMETRY_SOURCE',
+                        ) as string | undefined) ?? null,
                 });
                 this.oldGeometryKey = transitionKey;
             }

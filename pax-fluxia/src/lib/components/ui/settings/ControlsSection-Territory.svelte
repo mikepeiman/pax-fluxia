@@ -21,6 +21,7 @@
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
+  import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
@@ -867,6 +868,12 @@
       activeRenderMode="metaball"
       helperText="Conquest transition timing and influence tuning for the active Metaball mode."
     />
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin-top:2px;margin-bottom:2px;">
+      Metaball now reads the shared render-family geometry source. Use these controls to choose the underlying geometry path and tune its MSR, CX lane pairs, and DX behavior.
+    </div>
+    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Cell size (px)</span><span class="val"

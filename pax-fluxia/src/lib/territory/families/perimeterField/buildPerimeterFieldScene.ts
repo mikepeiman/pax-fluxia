@@ -122,6 +122,44 @@ function regionCentroid(points: ReadonlyArray<[number, number]>): [number, numbe
     return [x / count, y / count];
 }
 
+function offsetSampleInsideLoop(params: {
+    point: [number, number];
+    prevPoint: [number, number];
+    nextPoint: [number, number];
+    polygon: ReadonlyArray<[number, number]>;
+    offsetPx: number;
+}): [number, number] {
+    if (params.offsetPx <= 0) return params.point;
+
+    const tangentX = params.nextPoint[0] - params.prevPoint[0];
+    const tangentY = params.nextPoint[1] - params.prevPoint[1];
+    const tangentLength = Math.hypot(tangentX, tangentY);
+    if (tangentLength <= 1e-6) return params.point;
+
+    const normalX = -tangentY / tangentLength;
+    const normalY = tangentX / tangentLength;
+    const candidateA: [number, number] = [
+        params.point[0] + normalX * params.offsetPx,
+        params.point[1] + normalY * params.offsetPx,
+    ];
+    const candidateB: [number, number] = [
+        params.point[0] - normalX * params.offsetPx,
+        params.point[1] - normalY * params.offsetPx,
+    ];
+    const insideA = pointInPolygon(candidateA[0], candidateA[1], params.polygon);
+    const insideB = pointInPolygon(candidateB[0], candidateB[1], params.polygon);
+
+    if (insideA && !insideB) return candidateA;
+    if (insideB && !insideA) return candidateB;
+    if (insideA && insideB) {
+        const [cx, cy] = regionCentroid(params.polygon);
+        const distA = Math.hypot(candidateA[0] - cx, candidateA[1] - cy);
+        const distB = Math.hypot(candidateB[0] - cx, candidateB[1] - cy);
+        return distA <= distB ? candidateA : candidateB;
+    }
+    return params.point;
+}
+
 function findOwnerRegion(
     geometry: CanonicalGeometrySnapshot,
     ownerId: string,
@@ -189,6 +227,21 @@ function rayPolygonHit(
     return [ox + dx * bestT, oy + dy * bestT];
 }
 
+function offsetRayHitInside(
+    hit: [number, number],
+    origin: [number, number],
+    offsetPx: number,
+): [number, number] {
+    if (offsetPx <= 0) return hit;
+    const dx = hit[0] - origin[0];
+    const dy = hit[1] - origin[1];
+    const length = Math.hypot(dx, dy);
+    if (length <= 1e-6) return hit;
+    const inwardDistance = Math.max(0, length - offsetPx);
+    const scale = inwardDistance / length;
+    return [origin[0] + dx * scale, origin[1] + dy * scale];
+}
+
 function buildOwnerClusterScene(
     stars: ReadonlyArray<StarState>,
     colorUtils: ColorUtils,
@@ -228,6 +281,7 @@ function buildStaticPerimeterSamples(params: {
     geometry: CanonicalGeometrySnapshot;
     ownerToCluster: ReadonlyMap<string, number>;
     spacing: number;
+    offsetPx: number;
     strength: number;
 }): MetaballInfluenceSample[] {
     const loops = params.geometry.shellLoops
@@ -263,7 +317,13 @@ function buildStaticPerimeterSamples(params: {
         if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) continue;
         const sampled = sampleClosedLoop(source.points, params.spacing);
         for (let i = 0; i < sampled.length; i++) {
-            const [x, y] = sampled[i]!;
+            const [x, y] = offsetSampleInsideLoop({
+                point: sampled[i]!,
+                prevPoint: sampled[(i + sampled.length - 1) % sampled.length]!,
+                nextPoint: sampled[(i + 1) % sampled.length]!,
+                polygon: source.points,
+                offsetPx: params.offsetPx,
+            });
             samples.push({
                 id: `perimeter:${source.sourceId}:${i}`,
                 x,
@@ -281,6 +341,7 @@ function buildTransitionSamples(params: {
     oldGeometry: CanonicalGeometrySnapshot;
     newGeometry: CanonicalGeometrySnapshot;
     ownerToCluster: ReadonlyMap<string, number>;
+    offsetPx: number;
     strength: number;
     oldFade: number;
     newGrow: number;
@@ -324,8 +385,18 @@ function buildTransitionSamples(params: {
             const newHit =
                 rayPolygonHit(targetStar.x, targetStar.y, dx, dy, newRegion) ??
                 [targetStar.x, targetStar.y];
-            const x = oldHit[0] + (newHit[0] - oldHit[0]) * progress;
-            const y = oldHit[1] + (newHit[1] - oldHit[1]) * progress;
+            const oldPoint = offsetRayHitInside(
+                oldHit,
+                [targetStar.x, targetStar.y],
+                params.offsetPx,
+            );
+            const newPoint = offsetRayHitInside(
+                newHit,
+                [targetStar.x, targetStar.y],
+                params.offsetPx,
+            );
+            const x = oldPoint[0] + (newPoint[0] - oldPoint[0]) * progress;
+            const y = oldPoint[1] + (newPoint[1] - oldPoint[1]) * progress;
 
             samples.push({
                 id: `transition:old:${conquest.starId}:${i}`,
@@ -359,6 +430,14 @@ export function buildPerimeterFieldScene(params: {
         'PERIMETER_FIELD_SAMPLE_SPACING',
         GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING ?? 28,
     );
+    const offsetPx = Math.max(
+        0,
+        readNumber(
+            params.input,
+            'PERIMETER_FIELD_INWARD_OFFSET_PX',
+            GAME_CONFIG.PERIMETER_FIELD_INWARD_OFFSET_PX ?? 10,
+        ),
+    );
     const strength = readNumber(
         params.input,
         'PERIMETER_FIELD_INFLUENCE_WEIGHT',
@@ -387,7 +466,7 @@ export function buildPerimeterFieldScene(params: {
     const geometrySource = readString(
         params.input,
         'PERIMETER_FIELD_GEOMETRY_SOURCE',
-        GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'canonical_vector',
+        GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319',
     );
 
     const clusterScene = buildOwnerClusterScene(params.starsForDisplay, params.colorUtils);
@@ -395,6 +474,7 @@ export function buildPerimeterFieldScene(params: {
         geometry: params.geometry,
         ownerToCluster: clusterScene.ownerToCluster,
         spacing,
+        offsetPx,
         strength,
     });
     const targetStaticSamples = params.transitionTargetGeometry
@@ -402,6 +482,7 @@ export function buildPerimeterFieldScene(params: {
               geometry: params.transitionTargetGeometry,
               ownerToCluster: clusterScene.ownerToCluster,
               spacing,
+              offsetPx,
               strength,
           })
         : [];
@@ -412,6 +493,7 @@ export function buildPerimeterFieldScene(params: {
                   oldGeometry: params.geometry,
                   newGeometry: params.transitionTargetGeometry,
                   ownerToCluster: clusterScene.ownerToCluster,
+                  offsetPx,
                   strength,
                   oldFade,
                   newGrow,
@@ -430,22 +512,22 @@ export function buildPerimeterFieldScene(params: {
 
     return {
         sceneInput: {
-        ownedStars: clusterScene.ownedStars,
-        clusterMap: clusterScene.clusterMap,
-        playerColors: clusterScene.playerColors,
-        clusterShips: clusterScene.clusterShips,
-        samples,
-        fingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${buildSceneFingerprint(
+            ownedStars: clusterScene.ownedStars,
+            clusterMap: clusterScene.clusterMap,
+            playerColors: clusterScene.playerColors,
+            clusterShips: clusterScene.clusterShips,
             samples,
-            clusterScene.playerColors,
-            clusterScene.clusterShips,
-        )}`,
-        influenceRadiusPx: readNumber(
-            params.input,
-            'PERIMETER_FIELD_INFLUENCE_RADIUS',
-            GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
-        ),
-        ownershipMarginPx: 0,
+            fingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${buildSceneFingerprint(
+                samples,
+                clusterScene.playerColors,
+                clusterScene.clusterShips,
+            )}`,
+            influenceRadiusPx: readNumber(
+                params.input,
+                'PERIMETER_FIELD_INFLUENCE_RADIUS',
+                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
+            ),
+            ownershipMarginPx: 0,
         },
         debug: {
             displayGeometry: params.geometry,
