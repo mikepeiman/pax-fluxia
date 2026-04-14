@@ -69,9 +69,9 @@
         gap: 16px;
         align-items: center;
         padding: 14px 16px;
-        border-radius: 20px;
+        border-radius: var(--pf-topbar-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-command);
+        background: var(--pf-frame-command), var(--pf-surface-command);
         backdrop-filter: blur(20px);
         box-shadow: var(--pf-shadow-elevated);
         overflow: hidden;
@@ -100,7 +100,7 @@
     }
 
     .command-bar__eyebrow {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.76rem;
         font-weight: 700;
         letter-spacing: 0.14em;
@@ -109,7 +109,7 @@
     }
 
     .command-bar__summary {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 1rem;
         font-weight: 700;
         color: var(--pf-text);
@@ -119,7 +119,7 @@
     }
 
     .command-bar__room {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.92rem;
         color: var(--pf-muted);
     }
@@ -135,11 +135,11 @@
         min-width: 150px;
         min-height: 46px;
         padding: 0 18px;
-        border-radius: 14px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-control);
+        background: var(--pf-frame-control), var(--pf-surface-control);
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -154,7 +154,7 @@
 
     .command-bar__button:hover:enabled {
         border-color: var(--pf-accent-soft);
-        background: var(--pf-surface-control-hover);
+        background: var(--pf-frame-control), var(--pf-surface-control-hover);
         transform: translateY(-1px);
     }
 

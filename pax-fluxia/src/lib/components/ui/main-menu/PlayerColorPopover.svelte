@@ -153,7 +153,7 @@
     }
 
     .player-color-popover__title {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.82rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -162,7 +162,7 @@
     }
 
     .player-color-popover__subtitle {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.8rem;
         color: var(--pf-muted);
     }
@@ -176,7 +176,7 @@
     }
 
     .player-color-popover__label {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.84rem;
         font-weight: 600;
         letter-spacing: 0.04em;
@@ -191,7 +191,7 @@
     .player-color-popover__value {
         min-width: 56px;
         text-align: right;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.9rem;
         font-weight: 700;
         color: var(--pf-text);
@@ -201,11 +201,11 @@
         margin-top: 12px;
         width: 100%;
         min-height: 38px;
-        border-radius: 10px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-control);
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.88rem;
         font-weight: 700;
         letter-spacing: 0.08em;

@@ -1,5 +1,23 @@
 export type MenuTheme = "imperial" | "neon" | "mythic";
 
+interface ThemeTypographyTokens {
+    display: string;
+    body: string;
+    paxSpacing: string;
+    fluxiaSpacing: string;
+    subtitleSpacing: string;
+}
+
+interface ThemeGeometryTokens {
+    titleRadius: string;
+    topbarRadius: string;
+    panelRadius: string;
+    cardRadius: string;
+    railRadius: string;
+    pillRadius: string;
+    buttonRadius: string;
+}
+
 interface ThemeTextTokens {
     base: string;
     heading: string;
@@ -53,6 +71,12 @@ interface ThemeAccentTokens {
 interface ThemeDecorativeTokens {
     shellOverlay: string;
     shellOrnament: string;
+    titleFrame: string;
+    topbarFrame: string;
+    panelFrame: string;
+    commandFrame: string;
+    modalFrame: string;
+    controlFrame: string;
     grid: string;
     gridGlow: string;
     panelSheen: string;
@@ -79,6 +103,8 @@ interface MenuThemeDefinition {
     id: MenuTheme;
     label: string;
     summary: string;
+    typography: ThemeTypographyTokens;
+    geometry: ThemeGeometryTokens;
     text: ThemeTextTokens;
     borders: ThemeBorderTokens;
     surfaces: ThemeSurfaceTokens;
@@ -92,6 +118,22 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
         id: "imperial",
         label: "Imperial Sci-Fi",
         summary: "Ceremonial command deck with obsidian panels and frost-cyan energy.",
+        typography: {
+            display: '"Oxanium", sans-serif',
+            body: '"Rajdhani", sans-serif',
+            paxSpacing: "0.5em",
+            fluxiaSpacing: "0.16em",
+            subtitleSpacing: "0.36em",
+        },
+        geometry: {
+            titleRadius: "30px",
+            topbarRadius: "18px",
+            panelRadius: "24px",
+            cardRadius: "16px",
+            railRadius: "999px",
+            pillRadius: "999px",
+            buttonRadius: "14px",
+        },
         text: {
             base: "#ecf5ff",
             heading: "#a9e4ff",
@@ -164,6 +206,18 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
                 "linear-gradient(135deg, rgba(255, 214, 126, 0.08), transparent 26%, transparent 74%, rgba(86, 214, 255, 0.08))",
             shellOrnament:
                 "radial-gradient(circle at 20% 18%, rgba(255, 220, 157, 0.08) 0 1px, transparent 2px), radial-gradient(circle at 78% 16%, rgba(166, 223, 255, 0.08) 0 1px, transparent 2px)",
+            titleFrame:
+                "radial-gradient(circle at 50% 0%, rgba(255, 214, 126, 0.12), transparent 40%), linear-gradient(90deg, transparent 6%, rgba(255, 214, 126, 0.14) 18%, transparent 30%, transparent 70%, rgba(86, 214, 255, 0.16) 82%, transparent 94%)",
+            topbarFrame:
+                "linear-gradient(90deg, rgba(255, 214, 126, 0.12), transparent 18%, transparent 82%, rgba(86, 214, 255, 0.14))",
+            panelFrame:
+                "linear-gradient(135deg, rgba(255, 214, 126, 0.08), transparent 24%, transparent 76%, rgba(86, 214, 255, 0.08))",
+            commandFrame:
+                "linear-gradient(90deg, rgba(255, 214, 126, 0.12), transparent 16%, transparent 84%, rgba(86, 214, 255, 0.14)), radial-gradient(circle at 50% 0%, rgba(86, 214, 255, 0.1), transparent 44%)",
+            modalFrame:
+                "linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 36%), linear-gradient(90deg, rgba(255, 214, 126, 0.08), transparent 18%, transparent 82%, rgba(86, 214, 255, 0.1))",
+            controlFrame:
+                "linear-gradient(90deg, rgba(255, 214, 126, 0.08), transparent 24%, transparent 76%, rgba(86, 214, 255, 0.1))",
             grid: "rgba(158, 209, 255, 0.06)",
             gridGlow: "rgba(86, 214, 255, 0.1)",
             panelSheen: "linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 44%)",
@@ -184,6 +238,22 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
         id: "neon",
         label: "Neon Tactical",
         summary: "Sharper tactical interface with brighter scanline energy and alert accents.",
+        typography: {
+            display: '"Audiowide", sans-serif',
+            body: '"Chakra Petch", sans-serif',
+            paxSpacing: "0.28em",
+            fluxiaSpacing: "0.24em",
+            subtitleSpacing: "0.24em",
+        },
+        geometry: {
+            titleRadius: "18px",
+            topbarRadius: "14px",
+            panelRadius: "18px",
+            cardRadius: "12px",
+            railRadius: "16px",
+            pillRadius: "12px",
+            buttonRadius: "10px",
+        },
         text: {
             base: "#ebfbff",
             heading: "#8ff4ff",
@@ -256,6 +326,18 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
                 "linear-gradient(90deg, rgba(126, 255, 230, 0.08), transparent 30%, transparent 72%, rgba(255, 76, 228, 0.08))",
             shellOrnament:
                 "repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.055) 0 1px, transparent 1px 6px), linear-gradient(135deg, rgba(90, 247, 255, 0.08), transparent 38%, rgba(255, 76, 228, 0.05) 78%, transparent)",
+            titleFrame:
+                "repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.06) 0 1px, transparent 1px 8px), linear-gradient(135deg, rgba(90, 247, 255, 0.14), transparent 34%, transparent 66%, rgba(255, 76, 228, 0.14))",
+            topbarFrame:
+                "repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.055) 0 1px, transparent 1px 7px), linear-gradient(90deg, rgba(90, 247, 255, 0.14), transparent 18%, transparent 78%, rgba(255, 76, 228, 0.16))",
+            panelFrame:
+                "linear-gradient(135deg, rgba(90, 247, 255, 0.1), transparent 24%, transparent 76%, rgba(255, 76, 228, 0.1)), repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.04) 0 1px, transparent 1px 9px)",
+            commandFrame:
+                "linear-gradient(90deg, rgba(90, 247, 255, 0.14), transparent 12%, transparent 88%, rgba(255, 76, 228, 0.16)), repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.05) 0 1px, transparent 1px 8px)",
+            modalFrame:
+                "repeating-linear-gradient(180deg, rgba(126, 255, 230, 0.05) 0 1px, transparent 1px 8px), linear-gradient(135deg, rgba(90, 247, 255, 0.08), transparent 26%, transparent 74%, rgba(255, 76, 228, 0.1))",
+            controlFrame:
+                "linear-gradient(90deg, rgba(90, 247, 255, 0.12), transparent 20%, transparent 80%, rgba(255, 76, 228, 0.1))",
             grid: "rgba(137, 255, 255, 0.08)",
             gridGlow: "rgba(90, 247, 255, 0.16)",
             panelSheen: "linear-gradient(180deg, rgba(126, 255, 230, 0.1), transparent 32%)",
@@ -276,6 +358,22 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
         id: "mythic",
         label: "Cosmic Mythic",
         summary: "Celestial atlas styling with ember-gold highlights and softer grandeur.",
+        typography: {
+            display: '"Cinzel", serif',
+            body: '"Marcellus", serif',
+            paxSpacing: "0.36em",
+            fluxiaSpacing: "0.18em",
+            subtitleSpacing: "0.28em",
+        },
+        geometry: {
+            titleRadius: "34px",
+            topbarRadius: "24px",
+            panelRadius: "30px",
+            cardRadius: "18px",
+            railRadius: "22px",
+            pillRadius: "18px",
+            buttonRadius: "16px",
+        },
         text: {
             base: "#f7f0ff",
             heading: "#f0d2ff",
@@ -348,6 +446,18 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
                 "linear-gradient(135deg, rgba(255, 206, 131, 0.08), transparent 32%, transparent 70%, rgba(181, 125, 255, 0.08))",
             shellOrnament:
                 "repeating-radial-gradient(circle at 50% -14%, rgba(255, 206, 131, 0.05) 0 2px, transparent 2px 24px), radial-gradient(circle at 20% 16%, rgba(255, 214, 152, 0.1) 0 1px, transparent 2px), radial-gradient(circle at 78% 16%, rgba(181, 125, 255, 0.1) 0 1px, transparent 2px)",
+            titleFrame:
+                "radial-gradient(circle at 50% 0%, rgba(255, 206, 131, 0.18), transparent 42%), radial-gradient(circle at 50% 100%, rgba(181, 125, 255, 0.12), transparent 44%), linear-gradient(90deg, transparent 10%, rgba(255, 206, 131, 0.14) 22%, transparent 34%, transparent 66%, rgba(181, 125, 255, 0.14) 78%, transparent 90%)",
+            topbarFrame:
+                "radial-gradient(circle at 50% -18%, rgba(255, 206, 131, 0.18), transparent 38%), linear-gradient(90deg, rgba(255, 206, 131, 0.12), transparent 20%, transparent 80%, rgba(181, 125, 255, 0.12))",
+            panelFrame:
+                "radial-gradient(circle at 50% 0%, rgba(255, 206, 131, 0.08), transparent 34%), linear-gradient(135deg, rgba(255, 206, 131, 0.08), transparent 28%, transparent 72%, rgba(181, 125, 255, 0.08))",
+            commandFrame:
+                "radial-gradient(circle at 50% 0%, rgba(255, 206, 131, 0.12), transparent 40%), linear-gradient(90deg, rgba(255, 206, 131, 0.1), transparent 18%, transparent 82%, rgba(181, 125, 255, 0.12))",
+            modalFrame:
+                "radial-gradient(circle at 50% -12%, rgba(255, 206, 131, 0.14), transparent 42%), linear-gradient(135deg, rgba(255, 206, 131, 0.08), transparent 28%, transparent 72%, rgba(181, 125, 255, 0.08))",
+            controlFrame:
+                "linear-gradient(90deg, rgba(255, 206, 131, 0.1), transparent 20%, transparent 80%, rgba(181, 125, 255, 0.1))",
             grid: "rgba(220, 188, 255, 0.07)",
             gridGlow: "rgba(255, 206, 131, 0.12)",
             panelSheen: "linear-gradient(180deg, rgba(255, 224, 186, 0.1), transparent 34%)",
@@ -385,6 +495,18 @@ export function getMenuThemeCssVars(theme: MenuTheme): string {
     const definition = MENU_THEME_DEFINITIONS[theme];
 
     const vars: Record<string, string> = {
+        "--pf-font-display": definition.typography.display,
+        "--pf-font-body": definition.typography.body,
+        "--pf-title-pax-spacing": definition.typography.paxSpacing,
+        "--pf-title-fluxia-spacing": definition.typography.fluxiaSpacing,
+        "--pf-title-subtitle-spacing": definition.typography.subtitleSpacing,
+        "--pf-title-radius": definition.geometry.titleRadius,
+        "--pf-topbar-radius": definition.geometry.topbarRadius,
+        "--pf-panel-radius": definition.geometry.panelRadius,
+        "--pf-card-radius": definition.geometry.cardRadius,
+        "--pf-rail-radius": definition.geometry.railRadius,
+        "--pf-pill-radius": definition.geometry.pillRadius,
+        "--pf-button-radius": definition.geometry.buttonRadius,
         "--pf-text": definition.text.base,
         "--pf-heading": definition.text.heading,
         "--pf-muted": definition.text.muted,
@@ -427,6 +549,12 @@ export function getMenuThemeCssVars(theme: MenuTheme): string {
         "--pf-theme-banner-art": `url('${definition.identity.bannerArt}')`,
         "--pf-overlay-shell": definition.decorative.shellOverlay,
         "--pf-overlay-ornament": definition.decorative.shellOrnament,
+        "--pf-frame-title": definition.decorative.titleFrame,
+        "--pf-frame-topbar": definition.decorative.topbarFrame,
+        "--pf-frame-panel": definition.decorative.panelFrame,
+        "--pf-frame-command": definition.decorative.commandFrame,
+        "--pf-frame-modal": definition.decorative.modalFrame,
+        "--pf-frame-control": definition.decorative.controlFrame,
         "--pf-overlay-grid": definition.decorative.grid,
         "--pf-overlay-grid-glow": definition.decorative.gridGlow,
         "--pf-overlay-panel-sheen": definition.decorative.panelSheen,

@@ -1,7 +1,11 @@
 <script lang="ts">
     import { browser } from "$app/environment";
     import { fade, fly } from "svelte/transition";
-    import { getMenuThemeCssVars, type MenuTheme } from "$lib/components/ui/menuTheme";
+    import {
+        getMenuThemeCssVars,
+        getMenuThemeDefinition,
+        type MenuTheme,
+    } from "$lib/components/ui/menuTheme";
 
     interface Props {
         visible: boolean;
@@ -13,6 +17,7 @@
     }
 
     let { visible, bgImage, bgImages, menuTheme, onClose, onSelectBackground }: Props = $props();
+    const themeLabel = $derived(getMenuThemeDefinition(menuTheme).label);
 
     function portal(node: HTMLElement) {
         if (!browser) {
@@ -80,7 +85,9 @@
                 <div>
                     <p class="background-modal__eyebrow">Menu Environment</p>
                     <h2>Background Select</h2>
-                    <p class="background-modal__copy">Choose a backdrop without clipping the gallery into topbar chrome.</p>
+                    <p class="background-modal__copy">
+                        Selections are saved to {themeLabel}. Switching themes restores that theme's backdrop.
+                    </p>
                 </div>
 
                 <button
@@ -150,9 +157,10 @@
         max-height: calc(100vh - 32px);
         overflow: auto;
         padding: 20px;
-        border-radius: 28px;
+        border-radius: var(--pf-title-radius);
         border: 1px solid var(--pf-border-strong);
         background:
+            var(--pf-frame-modal),
             linear-gradient(180deg, color-mix(in srgb, var(--pf-surface-dialog) 90%, transparent) 0%, var(--pf-surface-dialog) 100%);
         box-shadow: var(--pf-shadow-modal);
         backdrop-filter: blur(28px);
@@ -184,7 +192,7 @@
     .background-modal__eyebrow {
         margin: 0 0 4px;
         color: var(--pf-accent-soft);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.76rem;
         font-weight: 700;
         letter-spacing: 0.18em;
@@ -194,7 +202,7 @@
     .background-modal h2 {
         margin: 0;
         color: var(--pf-heading);
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: clamp(1.55rem, 2vw, 1.95rem);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -203,7 +211,7 @@
     .background-modal__copy {
         margin: 8px 0 0;
         color: var(--pf-muted);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.98rem;
         max-width: 48ch;
     }
@@ -212,11 +220,11 @@
         min-width: 42px;
         min-height: 42px;
         padding: 0 14px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-pill);
+        background: var(--pf-frame-control), var(--pf-surface-pill);
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -229,7 +237,7 @@
 
     .background-modal__close:hover {
         border-color: var(--pf-accent-soft);
-        background: var(--pf-surface-pill-active);
+        background: var(--pf-frame-control), var(--pf-surface-pill-active);
         color: var(--pf-text);
     }
 
@@ -243,9 +251,9 @@
         display: grid;
         gap: 8px;
         padding: 8px;
-        border-radius: 18px;
+        border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-card);
+        background: var(--pf-frame-panel), var(--pf-surface-card);
         cursor: pointer;
         text-align: left;
         transition:
@@ -258,7 +266,7 @@
     .background-modal__thumb:hover,
     .background-modal__thumb.is-active {
         border-color: var(--pf-accent-soft);
-        background: var(--pf-surface-card-hover);
+        background: var(--pf-frame-panel), var(--pf-surface-card-hover);
         transform: translateY(-2px);
         box-shadow: 0 18px 40px color-mix(in srgb, var(--pf-glow) 18%, transparent);
     }
@@ -273,7 +281,7 @@
         display: grid;
         place-items: center;
         color: var(--pf-muted);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -282,7 +290,7 @@
 
     .background-modal__label {
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.84rem;
         font-weight: 700;
         letter-spacing: 0.04em;

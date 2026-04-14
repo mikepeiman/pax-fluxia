@@ -34,7 +34,7 @@
         normalizePlayerPaletteNudges,
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
-    import { BG_IMAGES } from "$lib/config/bgManifest";
+    import { BG_IMAGES, normalizeBgImagePath } from "$lib/config/bgManifest";
     import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
     import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
     import GameMapPanel from "./main-menu/GameMapPanel.svelte";
@@ -45,13 +45,17 @@
     type MapMode = "random" | "classic" | "custom";
     type MobileTab = "setup" | "players" | "multiplayer";
 
+    const MENU_THEME_BACKGROUNDS_KEY = "pax-fluxia-menu-theme-backgrounds";
+
     let visible = $state(true);
     let showAudioSettings = $state(false);
     let bgOpen = $state(false);
 
     const visuals = loadVisuals();
-    let bgImage = $state(visuals.bgImage);
-    let menuTheme = $state<MenuTheme>(loadSetting<MenuTheme>("menuTheme", "imperial"));
+    const initialMenuTheme = loadSetting<MenuTheme>("menuTheme", "imperial");
+    let menuTheme = $state<MenuTheme>(initialMenuTheme);
+    const menuThemeBackgrounds = loadMenuThemeBackgrounds(visuals.bgImage);
+    let bgImage = $state(resolveMenuThemeBackground(initialMenuTheme));
     let activeMobileTab = $state<MobileTab>("setup");
 
     let mapMode = $state<MapMode>(loadSetting<MapMode>("mapMode", "random"));
@@ -268,6 +272,65 @@
         } catch {
             return defaultValue;
         }
+    }
+
+    function defaultMenuThemeBackgrounds(fallback: string): Record<MenuTheme, string> {
+        const normalizedFallback = normalizeBgImagePath(fallback);
+        return {
+            imperial: normalizedFallback,
+            neon: normalizedFallback,
+            mythic: normalizedFallback,
+        };
+    }
+
+    function loadMenuThemeBackgrounds(fallback: string): Record<MenuTheme, string> {
+        const defaults = defaultMenuThemeBackgrounds(fallback);
+        if (typeof window === "undefined") {
+            return defaults;
+        }
+
+        try {
+            const stored = localStorage.getItem(MENU_THEME_BACKGROUNDS_KEY);
+            if (!stored) {
+                return defaults;
+            }
+
+            const parsed = JSON.parse(stored) as Partial<Record<MenuTheme, string>>;
+            return {
+                imperial: normalizeBgImagePath(parsed.imperial ?? defaults.imperial),
+                neon: normalizeBgImagePath(parsed.neon ?? defaults.neon),
+                mythic: normalizeBgImagePath(parsed.mythic ?? defaults.mythic),
+            };
+        } catch {
+            return defaults;
+        }
+    }
+
+    function saveMenuThemeBackgrounds() {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(MENU_THEME_BACKGROUNDS_KEY, JSON.stringify(menuThemeBackgrounds));
+    }
+
+    function resolveMenuThemeBackground(theme: MenuTheme): string {
+        return normalizeBgImagePath(menuThemeBackgrounds[theme] || visuals.bgImage);
+    }
+
+    function handleMenuThemeChange(theme: MenuTheme) {
+        if (theme === menuTheme) return;
+
+        menuThemeBackgrounds[menuTheme] = normalizeBgImagePath(bgImage);
+        saveMenuThemeBackgrounds();
+
+        menuTheme = theme;
+        bgImage = resolveMenuThemeBackground(theme);
+    }
+
+    function handleBackgroundSelect(image: string) {
+        const normalizedImage = normalizeBgImagePath(image);
+        menuThemeBackgrounds[menuTheme] = normalizedImage;
+        saveMenuThemeBackgrounds();
+        bgImage = normalizedImage;
+        bgOpen = false;
     }
 
     function saveSetting(key: string, value: unknown) {
@@ -640,11 +703,8 @@
                 masterVolume={audioManager.masterVolume}
                 onToggleBackgrounds={() => (bgOpen = !bgOpen)}
                 onCloseBackgrounds={() => (bgOpen = false)}
-                onSelectBackground={(image) => {
-                    bgImage = image;
-                    bgOpen = false;
-                }}
-                onMenuThemeChange={(theme) => (menuTheme = theme)}
+                onSelectBackground={handleBackgroundSelect}
+                onMenuThemeChange={handleMenuThemeChange}
                 onToggleMute={() => (audioManager.muted = !audioManager.muted)}
                 onSetVolume={(value) => audioManager.setMasterVolume(value)}
                 onOpenSettings={() => (showAudioSettings = true)}
@@ -943,8 +1003,6 @@
 />
 
 <style>
-    @import url("https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap");
-
     :global(body) {
         margin: 0;
         background: #050510;
@@ -953,8 +1011,6 @@
     .menu-fullscreen {
         --pf-panel-pad: 20px;
         --pf-card-pad: 16px;
-        --pf-panel-radius: 24px;
-        --pf-card-radius: 16px;
         --pf-control-h: 44px;
         --pf-pill-h: 40px;
         position: fixed;
@@ -967,7 +1023,7 @@
         isolation: isolate;
         background-color: #050510;
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
     }
 
     .menu-fullscreen::before,
@@ -1015,9 +1071,10 @@
         text-align: center;
         min-height: clamp(168px, 20vw, 228px);
         padding: 26px 28px 20px;
-        border-radius: 30px;
+        border-radius: var(--pf-title-radius);
         border: 1px solid var(--pf-border-faint);
         background:
+            var(--pf-frame-title),
             linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 48%),
             var(--pf-surface-panel);
         box-shadow: var(--pf-shadow-panel);
@@ -1063,21 +1120,21 @@
     .pax,
     .fluxia {
         display: block;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         text-transform: uppercase;
     }
 
     .pax {
         font-size: clamp(2.4rem, 4.5vw, 4rem);
         font-weight: 300;
-        letter-spacing: 0.5em;
+        letter-spacing: var(--pf-title-pax-spacing);
         color: var(--pf-muted-strong);
     }
 
     .fluxia {
         font-size: clamp(3.6rem, 7vw, 5.8rem);
         font-weight: 800;
-        letter-spacing: 0.16em;
+        letter-spacing: var(--pf-title-fluxia-spacing);
         background: linear-gradient(
             180deg,
             var(--pf-title-gradient-start),
@@ -1091,10 +1148,10 @@
 
     .subtitle {
         margin: 0;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.88rem;
         font-weight: 700;
-        letter-spacing: 0.36em;
+        letter-spacing: var(--pf-title-subtitle-spacing);
         text-transform: uppercase;
         color: var(--pf-muted);
     }
@@ -1115,7 +1172,7 @@
         position: relative;
         border-radius: var(--pf-panel-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-panel);
+        background: var(--pf-frame-panel), var(--pf-surface-panel);
         backdrop-filter: blur(18px);
         box-shadow: var(--pf-shadow-panel);
         padding: var(--pf-panel-pad);
@@ -1164,7 +1221,7 @@
 
     :global(.menu-panel__eyebrow) {
         margin: 0;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 1.16rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -1174,7 +1231,7 @@
 
     :global(.menu-panel__title) {
         margin: 6px 0 0;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1.02rem;
         font-weight: 600;
         color: var(--pf-muted-strong);
@@ -1230,16 +1287,16 @@
     .confirm-dialog {
         width: min(460px, 100%);
         padding: 24px;
-        border-radius: 24px;
+        border-radius: var(--pf-panel-radius);
         border: 1px solid var(--pf-border-strong);
-        background: var(--pf-surface-dialog);
+        background: var(--pf-frame-modal), var(--pf-surface-dialog);
         color: var(--pf-text);
         box-shadow: var(--pf-shadow-elevated);
     }
 
     .confirm-dialog h3 {
         margin: 0 0 12px;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 1.15rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1247,7 +1304,7 @@
 
     .confirm-dialog p {
         margin: 10px 0 0;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         color: var(--pf-muted-strong);
     }
@@ -1260,7 +1317,7 @@
 
     .ai-label {
         margin: 0 0 10px;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -1280,10 +1337,10 @@
         gap: 8px;
         min-height: 38px;
         padding: 0 14px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-pill);
-        font-family: "Rajdhani", sans-serif;
+        background: var(--pf-frame-control), var(--pf-surface-pill);
+        font-family: var(--pf-font-body);
         font-size: 0.92rem;
         font-weight: 700;
         cursor: pointer;
@@ -1316,9 +1373,9 @@
     .confirm-secondary {
         flex: 1;
         min-height: 44px;
-        border-radius: 14px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.98rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -1332,14 +1389,14 @@
     }
 
     .confirm-secondary {
-        background: var(--pf-surface-control);
+        background: var(--pf-frame-control), var(--pf-surface-control);
         color: var(--pf-text);
     }
 
     .error-msg {
         margin-top: 14px;
         color: var(--pf-danger);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
     }
 
     @media (max-width: 1199px) {
@@ -1386,11 +1443,11 @@
 
         .mobile-tabs__button {
             min-height: 42px;
-            border-radius: 14px;
+            border-radius: var(--pf-button-radius);
             border: 1px solid var(--pf-border-soft);
-            background: var(--pf-surface-pill);
+            background: var(--pf-frame-control), var(--pf-surface-pill);
             color: var(--pf-muted-strong);
-            font-family: "Rajdhani", sans-serif;
+            font-family: var(--pf-font-body);
             font-size: 0.9rem;
             font-weight: 700;
             letter-spacing: 0.08em;
@@ -1399,7 +1456,7 @@
 
         .mobile-tabs__button.is-active {
             border-color: var(--pf-accent-soft);
-            background: var(--pf-surface-pill-active);
+            background: var(--pf-frame-control), var(--pf-surface-pill-active);
             color: var(--pf-text);
         }
 

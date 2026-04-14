@@ -18,6 +18,8 @@ Keep one clean, date-scoped execution queue for the active work on 2026-04-14 wh
 - [x] Generate dedicated theme image assets for `imperial`, `neon`, and `mythic` and wire them into the switcher, title shell, panel chrome, command band, and modal surfaces.
 - [x] Convert the audio settings modal back to an audio-only surface so theme switching is no longer nested under the wrong information architecture.
 - [x] Replace the clipped inline background dropdown with a real body-mounted modal so the gallery sizes against the viewport instead of the topbar.
+- [x] Bind main-menu background selection to the active theme mode so each theme restores its own saved backdrop.
+- [x] Expand the menu theme system with per-theme typography and stronger geometry/frame language so `imperial`, `neon`, and `mythic` no longer read like near-identical colorways.
 
 ## In Progress
 
@@ -29,6 +31,7 @@ Keep one clean, date-scoped execution queue for the active work on 2026-04-14 wh
 - [ ] If the modal still misbehaves after the portal/scroll-safe fix, collect a fresh screenshot and exact viewport/context from the user and trace the remaining boundary.
 - [ ] If the three theme modes still read as too similar in-browser, push the next pass toward stronger structural differentiation rather than only adding more overlays.
 - [ ] User verification that the new background picker modal presents fully above menu chrome and closes correctly on selection, scrim click, and `Esc`.
+- [ ] User verification that each theme now feels materially distinct in-browser once the theme-bound backgrounds and per-theme fonts are active.
 
 ## Notes
 
@@ -50,3 +53,9 @@ Keep one clean, date-scoped execution queue for the active work on 2026-04-14 wh
 3. Background picker follow-up:
    - "Background select presents options that are hidden, as it tries to display them within the topbar."
    - "It will need to present as a modal."
+4. Theme follow-up:
+   - "BG image must be saved per-theme."
+   - "Whatever the user selects should bind to that theme mode."
+   - "Also each theme deserves its own font."
+   - "These are still weakly-differentiated styles."
+   - "Strengthen them with flavor, personality, and vigor."

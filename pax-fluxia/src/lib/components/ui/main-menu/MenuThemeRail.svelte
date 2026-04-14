@@ -41,9 +41,9 @@
         align-items: center;
         gap: 6px;
         padding: 4px;
-        border-radius: 999px;
+        border-radius: var(--pf-rail-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-control);
+        background: var(--pf-frame-control), var(--pf-surface-control);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
@@ -52,9 +52,10 @@
         width: 68px;
         height: 42px;
         padding: 0;
-        border-radius: 14px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid transparent;
         background:
+            var(--pf-frame-control),
             linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 100%),
             var(--pf-surface-card);
         color: var(--pf-muted-strong);
@@ -93,7 +94,7 @@
         bottom: 7px;
         transform: translateX(-50%);
         z-index: 1;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.58rem;
         font-weight: 800;
         letter-spacing: 0.16em;
@@ -112,6 +113,7 @@
 
     .theme-rail__button.is-active {
         background:
+            var(--pf-frame-control),
             linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 100%),
             var(--pf-surface-card-hover);
     }

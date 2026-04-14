@@ -257,7 +257,7 @@
 
     .players-panel__knob-label,
     .players-panel__count-label {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.82rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -269,11 +269,11 @@
     .players-panel__count-button {
         min-height: var(--pf-pill-h);
         padding: 0 14px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.85rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -304,7 +304,7 @@
     }
 
     .players-panel__toggle strong {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.94rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -338,7 +338,7 @@
     .players-panel__count-button {
         min-height: var(--pf-control-h);
         padding-inline: 0;
-        border-radius: 12px;
+        border-radius: var(--pf-button-radius);
         font-size: 0.92rem;
     }
 
@@ -401,7 +401,7 @@
     }
 
     .player-row__slot {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.86rem;
         font-weight: 700;
         letter-spacing: 0.1em;
@@ -410,7 +410,7 @@
     }
 
     .player-row__role {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.8rem;
         font-weight: 600;
         letter-spacing: 0.08em;
@@ -423,11 +423,11 @@
         width: 100%;
         min-height: var(--pf-control-h);
         padding: 0 14px;
-        border-radius: 12px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-control);
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         font-weight: 600;
         outline: none;

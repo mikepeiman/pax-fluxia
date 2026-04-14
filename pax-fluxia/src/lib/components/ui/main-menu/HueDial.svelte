@@ -172,7 +172,7 @@
         place-items: center;
         gap: 2px;
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
     }
 
     .hue-dial__needle {

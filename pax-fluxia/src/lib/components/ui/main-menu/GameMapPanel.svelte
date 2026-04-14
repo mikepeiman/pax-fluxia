@@ -572,7 +572,7 @@
     .tick-chip__label,
     .range-field span,
     .preview-well__label {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.82rem;
         font-weight: 700;
         letter-spacing: 0.1em;
@@ -590,7 +590,7 @@
     .tick-chip__controls strong,
     .range-field strong,
     .metric-field strong {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.96rem;
         font-weight: 700;
         color: var(--pf-text);
@@ -620,8 +620,8 @@
     .game-map-panel__tab,
     .lane-mode__button {
         min-height: var(--pf-control-h);
-        border-radius: 12px;
-        font-family: "Rajdhani", sans-serif;
+        border-radius: var(--pf-button-radius);
+        font-family: var(--pf-font-body);
         font-size: 0.92rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -665,7 +665,7 @@
 
     .control-cluster__title,
     .control-cluster__value {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.92rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -726,7 +726,7 @@
 
     .metric-field {
         padding: 12px 14px;
-        border-radius: 14px;
+        border-radius: var(--pf-button-radius);
         background: var(--pf-surface-control);
         border: 1px solid var(--pf-border-faint);
     }
@@ -751,8 +751,8 @@
     .preview-well__reshuffle {
         min-height: var(--pf-pill-h);
         padding: 0 12px;
-        border-radius: 999px;
-        font-family: "Rajdhani", sans-serif;
+        border-radius: var(--pf-pill-radius);
+        font-family: var(--pf-font-body);
         font-size: 0.84rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -786,9 +786,9 @@
         place-items: center;
         min-height: 100%;
         padding: 24px;
-        border-radius: 18px;
+        border-radius: var(--pf-card-radius);
         color: var(--pf-muted);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         text-align: center;
         background: var(--pf-surface-field);
@@ -817,19 +817,19 @@
     .saved-map-card__thumb {
         width: 100%;
         aspect-ratio: 1.35;
-        border-radius: 12px;
+        border-radius: var(--pf-button-radius);
         background: var(--pf-surface-preview);
     }
 
     .saved-map-card__title {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.9rem;
         font-weight: 700;
         color: var(--pf-text);
     }
 
     .saved-map-card__meta {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.85rem;
         color: var(--pf-muted);
     }

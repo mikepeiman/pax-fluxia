@@ -316,7 +316,7 @@
     .selected-room__label,
     .manual-join__label,
     .browser-header__label {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.8rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -328,11 +328,11 @@
     .action-pill {
         min-height: var(--pf-pill-h);
         padding: 0 14px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.86rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -384,7 +384,7 @@
     .room-slot__index {
         width: 24px;
         text-align: center;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.82rem;
         font-weight: 700;
         color: var(--pf-heading);
@@ -398,7 +398,7 @@
     .room-slot__identity strong,
     .selected-room__host,
     .room-browser__top strong {
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.9rem;
         font-weight: 700;
         color: var(--pf-text);
@@ -407,7 +407,7 @@
     .room-slot__identity span,
     .selected-room__meta,
     .room-browser__meta {
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.84rem;
         color: var(--pf-muted);
     }
@@ -424,9 +424,9 @@
     .selected-room__phase,
     .room-browser__phase {
         padding: 5px 10px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-pill-active);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -456,11 +456,11 @@
         flex: 1;
         min-height: var(--pf-control-h);
         padding: 0 14px;
-        border-radius: 12px;
+        border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-control);
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 1rem;
         font-weight: 600;
         outline: none;
@@ -485,9 +485,9 @@
 
     .room-browser__players span {
         padding: 4px 8px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-tag);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.8rem;
         color: var(--pf-muted-strong);
     }
@@ -500,7 +500,7 @@
         border: none;
         background: none;
         color: var(--pf-text);
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.86rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -512,11 +512,11 @@
         min-width: 22px;
         min-height: 22px;
         padding: 0 6px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         display: inline-grid;
         place-items: center;
         background: var(--pf-surface-tag-active);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.8rem;
     }
 
@@ -533,7 +533,7 @@
     .chat-shell__message {
         display: flex;
         gap: 8px;
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.92rem;
     }
 
@@ -547,7 +547,7 @@
 
     .signal-card {
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.96rem;
     }
 

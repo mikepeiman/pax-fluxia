@@ -417,12 +417,12 @@
         max-height: 88vh;
         margin: 0 auto;
         overflow-y: auto;
-        border-radius: 28px;
+        border-radius: var(--pf-title-radius);
         border: 1px solid var(--pf-border-strong);
-        background: var(--pf-surface-modal);
+        background: var(--pf-frame-modal), var(--pf-surface-modal);
         box-shadow: var(--pf-shadow-elevated);
         color: var(--pf-text);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
     }
 
     .modal-content::before {
@@ -454,7 +454,7 @@
 
     .eyebrow {
         margin: 0 0 6px;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         font-size: 0.74rem;
         font-weight: 700;
         letter-spacing: 0.14em;
@@ -465,7 +465,7 @@
     h2,
     h3 {
         margin: 0;
-        font-family: "Oxanium", sans-serif;
+        font-family: var(--pf-font-display);
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
@@ -498,9 +498,9 @@
         display: grid;
         gap: 14px;
         padding: 18px;
-        border-radius: 22px;
+        border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-faint);
-        background: var(--pf-surface-card);
+        background: var(--pf-frame-panel), var(--pf-surface-card);
     }
 
     .section-accent {
@@ -511,7 +511,7 @@
     .select,
     .picker-trigger {
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-control);
+        background: var(--pf-frame-control), var(--pf-surface-control);
         color: var(--pf-text);
     }
 
@@ -531,7 +531,7 @@
     .picker-trigger:hover,
     .select:focus {
         border-color: var(--pf-accent-strong);
-        background: var(--pf-surface-control-hover);
+        background: var(--pf-frame-control), var(--pf-surface-control-hover);
         outline: none;
     }
 
@@ -583,8 +583,8 @@
     .btn {
         min-height: 34px;
         padding: 0 12px;
-        border-radius: 12px;
-        font-family: "Rajdhani", sans-serif;
+        border-radius: var(--pf-button-radius);
+        font-family: var(--pf-font-body);
         font-size: 0.84rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -611,8 +611,8 @@
         width: 100%;
         min-height: 38px;
         padding: 0 12px;
-        border-radius: 12px;
-        font-family: "Rajdhani", sans-serif;
+        border-radius: var(--pf-button-radius);
+        font-family: var(--pf-font-body);
         font-size: 0.92rem;
     }
 

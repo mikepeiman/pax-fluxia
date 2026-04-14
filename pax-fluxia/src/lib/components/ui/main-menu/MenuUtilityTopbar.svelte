@@ -103,9 +103,9 @@
         align-items: center;
         gap: 16px;
         padding: 12px 14px;
-        border-radius: 18px;
+        border-radius: var(--pf-topbar-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-elevated);
+        background: var(--pf-frame-topbar), var(--pf-surface-elevated);
         backdrop-filter: blur(18px);
         box-shadow: var(--pf-shadow-elevated);
         overflow: hidden;
@@ -142,11 +142,11 @@
     .topbar-icon {
         min-height: var(--pf-pill-h);
         padding: 0 14px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-pill);
+        background: var(--pf-frame-control), var(--pf-surface-pill);
         color: var(--pf-muted-strong);
-        font-family: "Rajdhani", sans-serif;
+        font-family: var(--pf-font-body);
         font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.08em;
@@ -162,7 +162,7 @@
     .topbar-chip.is-active,
     .topbar-icon:hover {
         border-color: var(--pf-accent-soft);
-        background: var(--pf-surface-pill-active);
+        background: var(--pf-frame-control), var(--pf-surface-pill-active);
         color: var(--pf-text);
     }
 
@@ -176,9 +176,9 @@
         gap: 10px;
         min-height: var(--pf-pill-h);
         padding: 4px 6px 4px 4px;
-        border-radius: 999px;
+        border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-control);
+        background: var(--pf-frame-control), var(--pf-surface-control);
     }
 
     .audio-chip input {
