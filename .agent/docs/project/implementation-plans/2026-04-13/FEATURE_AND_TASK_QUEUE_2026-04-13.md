@@ -33,6 +33,7 @@ Debug the broken Main Menu presentation issue in the active worktree and pull in
 - [x] Add a shared init-time ownership normalizer and run it after client and server map initialization so any ownerless stars are converted to `neutral` before gameplay, stats, or territory rendering begin.
 - [x] Move renderer transition tuning out of Conquest and into Territory directly under the renderer mode selectors, then add independent `All | None` subsection visibility toggles to both top-level Territory shells.
 - [x] Add a third Metaball conquest transition mode that holds the conquered star on old ownership while its influence fades to zero, with victor vstars traveling in at full strength before the final ownership switch.
+- [x] Add a fourth Metaball conquest transition mode for instant ownership switch with grow-in victor influence, make Territory transition sliders mode-aware with semantic labels/tooltips, and synthesize frame-zero pending conquest transitions so Metaball does not flash the post-conquest ownership before the family transition begins.
 
 ## Follow-Ups
 

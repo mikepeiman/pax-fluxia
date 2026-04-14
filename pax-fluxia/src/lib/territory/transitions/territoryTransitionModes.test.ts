@@ -29,6 +29,7 @@ describe('territoryTransitionModes', () => {
         ).toEqual([
             'metaball_lane_push',
             'metaball_hold_then_switch',
+            'metaball_instant_switch_grow_in',
             'metaball_six_slice_burst',
         ]);
     });

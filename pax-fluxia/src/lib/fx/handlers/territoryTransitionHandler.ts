@@ -108,6 +108,20 @@ export class TerritoryTransitionState {
 // The presentation layer imports this to read pending transitions.
 export const territoryTransitions = new TerritoryTransitionState();
 
+export function resolveTerritoryTransitionDurationMs(
+    effectiveTickMs: number,
+): number {
+    let transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
+    if (
+        GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK &&
+        effectiveTickMs > 0 &&
+        transitionMs > effectiveTickMs
+    ) {
+        transitionMs = effectiveTickMs;
+    }
+    return transitionMs;
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 /**
@@ -122,14 +136,9 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
     priority: 200,
 
     handle(event: ConquestEvent, ctx: FXContext): void {
-        let transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
-        if (
-            GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK &&
-            ctx.effectiveTickMs > 0 &&
-            transitionMs > ctx.effectiveTickMs
-        ) {
-            transitionMs = ctx.effectiveTickMs;
-        }
+        const transitionMs = resolveTerritoryTransitionDurationMs(
+            ctx.effectiveTickMs,
+        );
         if (transitionMs <= 0) return; // Instant transitions, no animation needed
 
         territoryTransitions.add({

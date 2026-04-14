@@ -124,6 +124,45 @@ function readWeightMultiplier(rawValue: number, fallback: number): number {
     return rawValue > 0 ? rawValue / 100 : fallback;
 }
 
+function readTransitionTiming(
+    input: RenderFamilyInput,
+    transition: RenderFamilyTransitionEvent,
+): {
+    elapsedMs: number;
+    victorTravelMs: number;
+    loserTravelMs: number;
+    powerLerpMs: number;
+    victorTravelT: number;
+    loserTravelT: number;
+    powerT: number;
+} {
+    const elapsedMs = Math.max(0, input.nowMs - transition.startedAtMs);
+    const victorTravelMs = readDurationMs(
+        input,
+        'VS_VICTOR_TRAVEL_MS',
+        transition.durationMs,
+    );
+    const loserTravelMs = readDurationMs(
+        input,
+        'VS_LOSER_TRAVEL_MS',
+        transition.durationMs,
+    );
+    const powerLerpMs = readDurationMs(
+        input,
+        'VS_POWER_LERP_DURATION_MS',
+        Math.max(victorTravelMs, loserTravelMs),
+    );
+    return {
+        elapsedMs,
+        victorTravelMs,
+        loserTravelMs,
+        powerLerpMs,
+        victorTravelT: clamp01(elapsedMs / victorTravelMs),
+        loserTravelT: clamp01(elapsedMs / loserTravelMs),
+        powerT: clamp01(elapsedMs / powerLerpMs),
+    };
+}
+
 function resolvePrimaryLaneRay(
     attackerIds: ReadonlyArray<string>,
     target: { x: number; y: number; id: string },
@@ -463,6 +502,45 @@ export function buildMetaballTransitionStarOverrides(
                 omitFromTopology: true,
                 omitFromSamples: true,
             });
+        } else if (mode === 'metaball_hold_then_switch') {
+            const timing = readTransitionTiming(input, transition);
+            const rawStart = readTunableNumber(
+                input,
+                'VS_POWER_LERP_START',
+                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+            );
+            const rawEnd = readTunableNumber(
+                input,
+                'VS_POWER_LERP_END',
+                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+            );
+            overrides.set(conquest.starId, {
+                ownerId: conquest.previousOwner,
+                sampleStrengthScale: lerp(
+                    readWeightMultiplier(rawStart, 1),
+                    readWeightMultiplier(rawEnd, 0),
+                    timing.powerT,
+                ),
+            });
+        } else if (mode === 'metaball_instant_switch_grow_in') {
+            const timing = readTransitionTiming(input, transition);
+            const rawStart = readTunableNumber(
+                input,
+                'VS_POWER_LERP_START',
+                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+            );
+            const rawEnd = readTunableNumber(
+                input,
+                'VS_POWER_LERP_END',
+                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+            );
+            overrides.set(conquest.starId, {
+                sampleStrengthScale: lerp(
+                    readWeightMultiplier(rawStart, 0),
+                    readWeightMultiplier(rawEnd, 1),
+                    timing.powerT,
+                ),
+            });
         } else {
             overrides.set(conquest.starId, {
                 ownerId: conquest.previousOwner,
@@ -601,7 +679,7 @@ function buildHoldThenSwitchSamples(params: {
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
 
-        const progress = clamp01(transition.progress);
+        const { victorTravelT } = readTransitionTiming(params.input, transition);
         const attackerIds = [
             ...new Set(
                 conquest.attackerStarIds?.length
@@ -621,13 +699,77 @@ function buildHoldThenSwitchSamples(params: {
                 id: `transition:${conquest.starId}:${transition.startedAtMs}:victor:${attackerId}`,
                 x:
                     attackerStar.x +
-                    (targetStar.x - attackerStar.x) * progress,
+                    (targetStar.x - attackerStar.x) * victorTravelT,
                 y:
                     attackerStar.y +
-                    (targetStar.y - attackerStar.y) * progress,
+                    (targetStar.y - attackerStar.y) * victorTravelT,
                 playerIdx: victorPlayerIdx,
                 strength:
                     params.context.starStrengthById.get(attackerStar.id) ?? 0,
+            });
+        }
+    }
+
+    return out;
+}
+
+function buildInstantSwitchGrowInSamples(params: {
+    input: RenderFamilyInput;
+    context: MetaballBaseContext;
+}): MetaballInfluenceSample[] {
+    const out: MetaballInfluenceSample[] = [];
+
+    for (const transition of params.input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        const targetStar = params.context.actualStarsById.get(conquest.starId);
+        if (!targetStar || !conquest.newOwner) continue;
+
+        const { victorTravelT, powerT } = readTransitionTiming(
+            params.input,
+            transition,
+        );
+        const rawStart = readTunableNumber(
+            params.input,
+            'VS_POWER_LERP_START',
+            GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+        );
+        const rawEnd = readTunableNumber(
+            params.input,
+            'VS_POWER_LERP_END',
+            GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+        );
+        const victorStrengthScale = lerp(
+            readWeightMultiplier(rawStart, 0),
+            readWeightMultiplier(rawEnd, 1),
+            powerT,
+        );
+        const attackerIds = [
+            ...new Set(
+                conquest.attackerStarIds?.length
+                    ? conquest.attackerStarIds
+                    : conquest.attackerStarId
+                      ? [conquest.attackerStarId]
+                      : [],
+            ),
+        ];
+        const victorPlayerIdx = params.context.ensureOwnerClusterIdx(conquest.newOwner);
+
+        for (const attackerId of attackerIds) {
+            const attackerStar = params.context.actualStarsById.get(attackerId);
+            if (!attackerStar) continue;
+
+            out.push({
+                id: `transition:${conquest.starId}:${transition.startedAtMs}:victor:${attackerId}`,
+                x:
+                    attackerStar.x +
+                    (targetStar.x - attackerStar.x) * victorTravelT,
+                y:
+                    attackerStar.y +
+                    (targetStar.y - attackerStar.y) * victorTravelT,
+                playerIdx: victorPlayerIdx,
+                strength:
+                    (params.context.starStrengthById.get(attackerStar.id) ?? 0) *
+                    victorStrengthScale,
             });
         }
     }
@@ -730,6 +872,9 @@ export function buildMetaballTransitionSamples(params: {
     const mode = getMetaballTransitionMode(params.input);
     if (mode === 'metaball_hold_then_switch') {
         return buildHoldThenSwitchSamples(params);
+    }
+    if (mode === 'metaball_instant_switch_grow_in') {
+        return buildInstantSwitchGrowInSamples(params);
     }
     if (mode === 'metaball_six_slice_burst') {
         return buildSixSliceBurstSamples(params);

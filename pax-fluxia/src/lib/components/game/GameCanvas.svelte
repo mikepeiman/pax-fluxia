@@ -26,7 +26,10 @@
     } from "$lib/types/game.types";
     import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
-    import { territoryTransitions } from "$lib/fx/handlers/territoryTransitionHandler";
+    import {
+        territoryTransitions,
+        resolveTerritoryTransitionDurationMs,
+    } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
         initShipRendering,
@@ -170,23 +173,65 @@
         return Math.max(0, Math.min(1, value));
     }
 
+    function transitionIdentityKey(
+        conquest: import("@pax/common").ConquestEvent,
+    ): string {
+        return [
+            conquest.tick,
+            conquest.starId,
+            conquest.previousOwner,
+            conquest.newOwner,
+        ].join(":");
+    }
+
     function buildActiveRenderFamilyTransition(
         nowMs: number,
+        effectiveTickMs: number,
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
     ): RenderFamilyActiveTransition | null {
-        const events = territoryTransitions
-            .getActiveEntries()
+        const eventsByKey = new Map<string, RenderFamilyTransitionEvent>();
+
+        for (const entry of territoryTransitions.getActiveEntries()) {
+            const durationMs = Math.max(1, entry.durationMs);
+            const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
+            if (rawProgress >= 1) continue;
+            eventsByKey.set(transitionIdentityKey(entry.event), {
+                event: entry.event,
+                startedAtMs: entry.startTimeMs,
+                durationMs,
+                rawProgress,
+                progress: clampUnitInterval(rawProgress),
+            });
+        }
+
+        const previewDurationMs = resolveTerritoryTransitionDurationMs(
+            effectiveTickMs,
+        );
+        if (previewDurationMs > 0) {
+            for (const conquest of pendingConquests) {
+                const key = transitionIdentityKey(conquest);
+                if (eventsByKey.has(key)) continue;
+                eventsByKey.set(key, {
+                    event: conquest,
+                    startedAtMs: nowMs,
+                    durationMs: previewDurationMs,
+                    rawProgress: 0,
+                    progress: 0,
+                });
+            }
+        }
+
+        const events = [...eventsByKey.values()]
             .map((entry) => {
                 const durationMs = Math.max(1, entry.durationMs);
-                const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
                 return {
                     event: entry.event,
-                    startedAtMs: entry.startTimeMs,
+                    startedAtMs: entry.startedAtMs,
                     durationMs,
-                    rawProgress,
-                    progress: clampUnitInterval(rawProgress),
+                    rawProgress: entry.rawProgress,
+                    progress: clampUnitInterval(entry.rawProgress),
                 };
             })
-            .filter((event) => event.rawProgress < 1)
             .sort((a, b) => a.startedAtMs - b.startedAtMs);
 
         if (events.length === 0) return null;
@@ -1242,6 +1287,7 @@
             cachedStarsSource = stars;
         }
         const starsById = cachedStarsById;
+        const pendingTickEvents = activeGameStore.peekTickEvents();
 
         // Render territory overlay (bottommost layer — F-47 halos)
         if (territoryGraphics) {
@@ -1448,6 +1494,8 @@
                         const activeTransition =
                             buildActiveRenderFamilyTransition(
                                 fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
                             );
                         mf.update(
                             buildRenderFamilyInput({

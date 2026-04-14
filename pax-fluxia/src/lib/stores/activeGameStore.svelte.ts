@@ -110,12 +110,15 @@ function pushTickEvents(events: TickEvents): void {
  * Called by canvas each frame. If multiple ticks fired between frames,
  * all their events are merged into a single TickEvents batch.
  */
-function consumeTickEvents(): TickEvents | null {
+function mergePendingTickEvents(clearQueue: boolean): TickEvents | null {
     if (pendingTickEventsQueue.length === 0) return null;
 
     if (pendingTickEventsQueue.length === 1) {
-        // Fast path: single tick, no merge needed
-        return pendingTickEventsQueue.pop()!;
+        const single = pendingTickEventsQueue[0]!;
+        if (clearQueue) {
+            pendingTickEventsQueue.length = 0;
+        }
+        return single;
     }
 
     // Merge all queued events into one batch
@@ -129,8 +132,18 @@ function consumeTickEvents(): TickEvents | null {
         merged.combats.push(...batch.combats);
         merged.conquests.push(...batch.conquests);
     }
-    pendingTickEventsQueue.length = 0;
+    if (clearQueue) {
+        pendingTickEventsQueue.length = 0;
+    }
     return merged;
+}
+
+function peekTickEvents(): TickEvents | null {
+    return mergePendingTickEvents(false);
+}
+
+function consumeTickEvents(): TickEvents | null {
+    return mergePendingTickEvents(true);
 }
 
 // ============================================================================
@@ -529,6 +542,7 @@ export const activeGameStore = {
 
     // Tick events pipeline
     pushTickEvents,
+    peekTickEvents,
     consumeTickEvents,
 
     // Helpers

@@ -15,6 +15,7 @@ export type LegacyVsTransitionModeId =
 export type MetaballTransitionModeId =
     | 'metaball_lane_push'
     | 'metaball_hold_then_switch'
+    | 'metaball_instant_switch_grow_in'
     | 'metaball_six_slice_burst';
 
 export type VsTransitionModeId =
@@ -71,6 +72,11 @@ export const METABALL_TRANSITION_MODE_OPTIONS: readonly TransitionModeOption<Met
             id: 'metaball_hold_then_switch',
             label: 'Hold Then Switch',
             description: 'Keep the conquered star on the old owner until it fades out, while victor sites travel in at full strength.',
+        },
+        {
+            id: 'metaball_instant_switch_grow_in',
+            label: 'Instant Switch + Grow-In',
+            description: 'Flip ownership immediately, then grow the target and victor influence in from zero.',
         },
         {
             id: 'metaball_six_slice_burst',
