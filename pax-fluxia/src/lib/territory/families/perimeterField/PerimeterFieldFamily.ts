@@ -128,7 +128,12 @@ function readFreezeBaseDuringTransition(input: RenderFamilyInput): boolean {
     const value = input.tunables.get(
         'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
     );
-    return typeof value === 'boolean' ? value : true;
+    if (typeof value === 'boolean' && value === false) {
+        // This mode currently requires PREV-base rendering for visible fill/frontier motion.
+        // Allowing NEXT-base here collapses the transition into a snap plus moving diagnostics.
+        return true;
+    }
+    return true;
 }
 
 function readBooleanTunable(
