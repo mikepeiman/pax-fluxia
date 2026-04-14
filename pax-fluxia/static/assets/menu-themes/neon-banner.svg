@@ -1,0 +1,22 @@
+<svg width="960" height="300" viewBox="0 0 960 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="neo-wave" x1="120" y1="86" x2="810" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#57F8FF"/>
+      <stop offset="0.54" stop-color="#84FFE6"/>
+      <stop offset="1" stop-color="#FF53E1"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="300" fill="transparent"/>
+  <path d="M64 74H896M64 150H896M64 226H896" stroke="#57F8FF" stroke-width="1.2" stroke-opacity="0.12"/>
+  <path d="M118 40V260M278 40V260M478 40V260M664 40V260M842 40V260" stroke="#57F8FF" stroke-width="1.2" stroke-opacity="0.12"/>
+  <path d="M108 198L222 142L332 166L452 88L572 116L692 82L846 126" stroke="url(#neo-wave)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M108 110H182M208 110H248M690 206H770M794 206H848" stroke="#84FFE6" stroke-width="4" stroke-linecap="round" stroke-opacity="0.92"/>
+  <path d="M468 52L556 52M432 248L520 248" stroke="#57F8FF" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="488" cy="150" r="72" stroke="#57F8FF" stroke-width="2.2" stroke-opacity="0.46"/>
+  <circle cx="488" cy="150" r="38" stroke="#84FFE6" stroke-width="2.2" stroke-opacity="0.6"/>
+  <circle cx="488" cy="150" r="11" fill="#57F8FF" fill-opacity="0.26" stroke="#84FFE6" stroke-width="2.4"/>
+  <path d="M430 150H546M488 92V208" stroke="#57F8FF" stroke-width="2" stroke-linecap="round" stroke-opacity="0.66"/>
+  <path d="M706 54L826 54M734 246L854 246" stroke="#FF53E1" stroke-width="3" stroke-linecap="round" stroke-opacity="0.72"/>
+  <path d="M802 40H886V124" stroke="#57F8FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M74 196V258H188" stroke="#84FFE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

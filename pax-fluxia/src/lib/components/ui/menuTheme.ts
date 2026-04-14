@@ -69,6 +69,12 @@ interface ThemeDecorativeTokens {
     shadowGlow: string;
 }
 
+interface ThemeIdentityTokens {
+    modeLabel: string;
+    chipArt: string;
+    bannerArt: string;
+}
+
 interface MenuThemeDefinition {
     id: MenuTheme;
     label: string;
@@ -77,6 +83,7 @@ interface MenuThemeDefinition {
     borders: ThemeBorderTokens;
     surfaces: ThemeSurfaceTokens;
     accents: ThemeAccentTokens;
+    identity: ThemeIdentityTokens;
     decorative: ThemeDecorativeTokens;
 }
 
@@ -146,6 +153,11 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
             ctaStartB: "rgba(20, 177, 207, 0.92)",
             ctaAltA: "rgba(102, 78, 255, 0.9)",
             ctaAltB: "rgba(255, 173, 92, 0.88)",
+        },
+        identity: {
+            modeLabel: "Imperial",
+            chipArt: "/assets/menu-themes/imperial-chip.svg",
+            bannerArt: "/assets/menu-themes/imperial-banner.svg",
         },
         decorative: {
             shellOverlay:
@@ -234,6 +246,11 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
             ctaAltA: "rgba(96, 255, 184, 0.92)",
             ctaAltB: "rgba(255, 76, 228, 0.88)",
         },
+        identity: {
+            modeLabel: "Neon",
+            chipArt: "/assets/menu-themes/neon-chip.svg",
+            bannerArt: "/assets/menu-themes/neon-banner.svg",
+        },
         decorative: {
             shellOverlay:
                 "linear-gradient(90deg, rgba(126, 255, 230, 0.08), transparent 30%, transparent 72%, rgba(255, 76, 228, 0.08))",
@@ -321,6 +338,11 @@ const MENU_THEME_DEFINITIONS: Record<MenuTheme, MenuThemeDefinition> = {
             ctaAltA: "rgba(255, 206, 131, 0.92)",
             ctaAltB: "rgba(181, 125, 255, 0.9)",
         },
+        identity: {
+            modeLabel: "Mythic",
+            chipArt: "/assets/menu-themes/mythic-chip.svg",
+            bannerArt: "/assets/menu-themes/mythic-banner.svg",
+        },
         decorative: {
             shellOverlay:
                 "linear-gradient(135deg, rgba(255, 206, 131, 0.08), transparent 32%, transparent 70%, rgba(181, 125, 255, 0.08))",
@@ -401,6 +423,8 @@ export function getMenuThemeCssVars(theme: MenuTheme): string {
         "--pf-cta-start-b": definition.accents.ctaStartB,
         "--pf-cta-alt-a": definition.accents.ctaAltA,
         "--pf-cta-alt-b": definition.accents.ctaAltB,
+        "--pf-theme-chip-art": `url('${definition.identity.chipArt}')`,
+        "--pf-theme-banner-art": `url('${definition.identity.bannerArt}')`,
         "--pf-overlay-shell": definition.decorative.shellOverlay,
         "--pf-overlay-ornament": definition.decorative.shellOrnament,
         "--pf-overlay-grid": definition.decorative.grid,

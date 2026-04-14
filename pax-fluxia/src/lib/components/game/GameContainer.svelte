@@ -101,6 +101,11 @@
     setSettingsPanelOpen(!showSettingsPanel);
   }
 
+  function openAudioSettings() {
+    menuTheme = loadMenuTheme();
+    showAudioSettings = true;
+  }
+
   // ── In-game menu collapse ──
   let menuExpanded = $state(true);
 
@@ -429,7 +434,7 @@
 <div class="app-container">
   <TopBar
     onSettingsClick={gameStore.currentView !== "game"
-      ? () => (showAudioSettings = true)
+      ? openAudioSettings
       : undefined}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
     onFitViewport={gameStore.currentView === "game"
@@ -448,7 +453,6 @@
     <AudioSettings
       visible={showAudioSettings}
       menuTheme={menuTheme}
-      onMenuThemeChange={(theme) => (menuTheme = theme)}
       onClose={() => (showAudioSettings = false)}
     />
 
@@ -629,7 +633,7 @@
               </button>
               <button
                 class="menu-item"
-                onclick={() => (showAudioSettings = true)}
+                onclick={openAudioSettings}
               >
                 <span class="mi-icon">🔊</span>
                 <span class="mi-label">Audio</span>
@@ -895,7 +899,7 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
-            showAudioSettings = true;
+            openAudioSettings();
             showSettingsFab = false;
           }}
         >

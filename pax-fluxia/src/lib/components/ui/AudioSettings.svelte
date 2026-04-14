@@ -7,7 +7,7 @@
         type SoundType,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
-    import { getMenuThemeCssVars, MENU_THEME_OPTIONS, type MenuTheme } from "./menuTheme";
+    import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
 
     const CONQUEST_TYPES: SoundType[] = [
         "conquest",
@@ -20,11 +20,10 @@
     interface Props {
         visible: boolean;
         menuTheme: MenuTheme;
-        onMenuThemeChange: (theme: MenuTheme) => void;
         onClose: () => void;
     }
 
-    let { visible, menuTheme, onMenuThemeChange, onClose }: Props = $props();
+    let { visible, menuTheme, onClose }: Props = $props();
 
     let openDropdown = $state<SoundType | null>(null);
     let showSavePrompt = $state(false);
@@ -144,9 +143,9 @@
         >
             <div class="modal-header">
                 <div>
-                    <p class="eyebrow">Settings</p>
-                    <h2>Command Deck</h2>
-                    <p class="subtitle">Tune menu appearance and battle audio from one surface.</p>
+                    <p class="eyebrow">Audio Settings</p>
+                    <h2>Signal Mixer</h2>
+                    <p class="subtitle">Tune battle cues, saved themes, and live output from one surface.</p>
                 </div>
 
                 <div class="header-actions">
@@ -160,36 +159,6 @@
             </div>
 
             <div class="settings-body">
-                <section class="section">
-                    <div class="section-head">
-                        <div>
-                            <p class="eyebrow">Appearance</p>
-                            <h3>Menu Theme</h3>
-                        </div>
-                        <p class="copy">Switch the command surface live. Your choice is saved automatically.</p>
-                    </div>
-
-                    <div class="theme-grid">
-                        {#each MENU_THEME_OPTIONS as option}
-                            <button
-                                type="button"
-                                class="theme-card"
-                                class:selected={menuTheme === option.id}
-                                style={getMenuThemeCssVars(option.id)}
-                                onclick={() => onMenuThemeChange(option.id)}
-                            >
-                                <div class="theme-card__preview" aria-hidden="true">
-                                    <span class="theme-card__preview-bar theme-card__preview-bar--panel"></span>
-                                    <span class="theme-card__preview-bar theme-card__preview-bar--card"></span>
-                                    <span class="theme-card__preview-pill"></span>
-                                </div>
-                                <span>{option.label}</span>
-                                <small>{option.summary}</small>
-                            </button>
-                        {/each}
-                    </div>
-                </section>
-
                 <section class="section">
                     <div class="section-head">
                         <div>
@@ -443,6 +412,7 @@
     }
 
     .modal-content {
+        position: relative;
         width: min(760px, calc(100vw - 48px));
         max-height: 88vh;
         margin: 0 auto;
@@ -453,6 +423,17 @@
         box-shadow: var(--pf-shadow-elevated);
         color: var(--pf-text);
         font-family: "Rajdhani", sans-serif;
+    }
+
+    .modal-content::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 220px;
+        background: center top / cover no-repeat var(--pf-theme-banner-art);
+        opacity: 0.18;
+        pointer-events: none;
+        mix-blend-mode: screen;
     }
 
     .modal-header,
@@ -489,8 +470,7 @@
         letter-spacing: 0.06em;
     }
 
-    .subtitle,
-    .copy {
+    .subtitle {
         margin: 6px 0 0;
         color: var(--pf-muted);
         font-size: 0.95rem;
@@ -509,6 +489,11 @@
         padding: 18px 24px 24px;
     }
 
+    .modal-content > * {
+        position: relative;
+        z-index: 1;
+    }
+
     .section {
         display: grid;
         gap: 14px;
@@ -522,13 +507,6 @@
         border-color: var(--pf-border-strong);
     }
 
-    .theme-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-    }
-
-    .theme-card,
     .btn,
     .select,
     .picker-trigger {
@@ -537,88 +515,24 @@
         color: var(--pf-text);
     }
 
-    .theme-card,
     .btn,
     .select,
     .picker-trigger,
     input[type="range"] {
         transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
     }
-
-    .theme-card {
-        display: grid;
-        gap: 10px;
-        min-height: 144px;
-        padding: 16px;
-        border-radius: 18px;
-        text-align: left;
-        cursor: pointer;
-        background: var(--pf-surface-card);
-        box-shadow: inset 0 0 0 1px var(--pf-border-faint);
-    }
-
-    .theme-card__preview {
-        display: grid;
-        gap: 8px;
-        padding: 10px;
-        border-radius: 14px;
-        border: 1px solid var(--pf-border-strong);
-        background: var(--pf-surface-panel);
-        box-shadow: var(--pf-shadow-glow);
-    }
-
-    .theme-card__preview-bar {
-        display: block;
-        border-radius: 999px;
-    }
-
-    .theme-card__preview-bar--panel {
-        height: 10px;
-        width: 54%;
-        background: linear-gradient(90deg, var(--pf-title-gradient-start), var(--pf-title-gradient-end));
-    }
-
-    .theme-card__preview-bar--card {
-        height: 34px;
-        border-radius: 12px;
-        border: 1px solid var(--pf-border-soft);
-        background: var(--pf-surface-preview);
-    }
-
-    .theme-card__preview-pill {
-        width: 36%;
-        height: 12px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, var(--pf-cta-start-a), var(--pf-cta-start-b));
-    }
-
-    .theme-card span {
-        font-family: "Oxanium", sans-serif;
-        font-size: 0.9rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .theme-card small,
     .toggle small,
     .picker-item small {
         color: var(--pf-muted);
         font-size: 0.82rem;
     }
 
-    .theme-card:hover,
-    .theme-card.selected,
     .btn:hover,
     .picker-trigger:hover,
     .select:focus {
         border-color: var(--pf-accent-strong);
         background: var(--pf-surface-control-hover);
         outline: none;
-    }
-
-    .theme-card.selected {
-        box-shadow: inset 0 0 0 1px var(--pf-accent-soft), var(--pf-shadow-glow);
     }
 
     .toggle,
@@ -787,10 +701,6 @@
         .preset-row {
             flex-direction: column;
             align-items: stretch;
-        }
-
-        .theme-grid {
-            grid-template-columns: 1fr;
         }
 
         .header-actions {

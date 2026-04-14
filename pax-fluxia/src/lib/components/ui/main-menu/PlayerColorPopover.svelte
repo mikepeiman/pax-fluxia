@@ -113,6 +113,25 @@
         border: 1px solid var(--pf-border-strong);
         box-shadow: var(--pf-shadow-elevated);
         backdrop-filter: blur(18px);
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    .player-color-popover::before {
+        content: "";
+        position: absolute;
+        inset: auto -12px -12px auto;
+        width: 96px;
+        height: 96px;
+        background: center / contain no-repeat var(--pf-theme-chip-art);
+        opacity: 0.12;
+        pointer-events: none;
+        mix-blend-mode: screen;
+    }
+
+    .player-color-popover > * {
+        position: relative;
+        z-index: 1;
     }
 
     .player-color-popover__header {

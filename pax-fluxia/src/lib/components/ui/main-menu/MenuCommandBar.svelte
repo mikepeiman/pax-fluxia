@@ -74,6 +74,23 @@
         background: var(--pf-surface-command);
         backdrop-filter: blur(20px);
         box-shadow: var(--pf-shadow-elevated);
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    .command-bar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: center / cover no-repeat var(--pf-theme-banner-art);
+        opacity: 0.14;
+        pointer-events: none;
+        mix-blend-mode: screen;
+    }
+
+    .command-bar > * {
+        position: relative;
+        z-index: 1;
     }
 
     .command-bar__meta {

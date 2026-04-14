@@ -1,12 +1,17 @@
 <script lang="ts">
+    import type { MenuTheme } from "$lib/components/ui/menuTheme";
+    import MenuThemeRail from "./MenuThemeRail.svelte";
+
     interface Props {
         bgOpen: boolean;
         bgImage: string;
         bgImages: string[];
+        menuTheme: MenuTheme;
         muted: boolean;
         masterVolume: number;
         onToggleBackgrounds: () => void;
         onSelectBackground: (image: string) => void;
+        onMenuThemeChange: (theme: MenuTheme) => void;
         onToggleMute: () => void;
         onSetVolume: (value: number) => void;
         onOpenSettings: () => void;
@@ -16,10 +21,12 @@
         bgOpen,
         bgImage,
         bgImages,
+        menuTheme,
         muted,
         masterVolume,
         onToggleBackgrounds,
         onSelectBackground,
+        onMenuThemeChange,
         onToggleMute,
         onSetVolume,
         onOpenSettings,
@@ -75,6 +82,8 @@
                 </div>
             {/if}
         </div>
+
+        <MenuThemeRail {menuTheme} {onMenuThemeChange} />
     </div>
 
     <div class="menu-topbar__cluster menu-topbar__cluster--right">
@@ -105,10 +114,10 @@
         <button
             type="button"
             class="topbar-icon"
-            title="Open settings"
+            title="Open audio mixer"
             onclick={onOpenSettings}
         >
-            Settings
+            Mixer
         </button>
     </div>
 </div>
@@ -126,12 +135,30 @@
         background: var(--pf-surface-elevated);
         backdrop-filter: blur(18px);
         box-shadow: var(--pf-shadow-elevated);
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    .menu-topbar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: center / cover no-repeat var(--pf-theme-banner-art);
+        opacity: 0.16;
+        pointer-events: none;
+        mix-blend-mode: screen;
+    }
+
+    .menu-topbar > * {
+        position: relative;
+        z-index: 1;
     }
 
     .menu-topbar__cluster {
         display: flex;
         align-items: center;
         gap: 10px;
+        min-width: 0;
     }
 
     .menu-topbar__cluster--right {
@@ -259,6 +286,7 @@
         .menu-topbar__cluster--right {
             width: 100%;
             justify-content: space-between;
+            flex-wrap: wrap;
             margin-left: 0;
         }
 

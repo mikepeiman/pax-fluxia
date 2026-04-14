@@ -647,6 +647,7 @@
                 bgOpen={bgOpen}
                 bgImage={bgImage}
                 bgImages={BG_IMAGES}
+                {menuTheme}
                 muted={audioManager.muted}
                 masterVolume={audioManager.masterVolume}
                 onToggleBackgrounds={() => (bgOpen = !bgOpen)}
@@ -654,6 +655,7 @@
                     bgImage = image;
                     bgOpen = false;
                 }}
+                onMenuThemeChange={(theme) => (menuTheme = theme)}
                 onToggleMute={() => (audioManager.muted = !audioManager.muted)}
                 onSetVolume={(value) => audioManager.setMasterVolume(value)}
                 onOpenSettings={() => (showAudioSettings = true)}
@@ -946,7 +948,6 @@
 <AudioSettings
     visible={showAudioSettings}
     menuTheme={menuTheme}
-    onMenuThemeChange={(theme) => (menuTheme = theme)}
     onClose={() => {
         showAudioSettings = false;
     }}
@@ -1018,11 +1019,51 @@
     }
 
     .title-block {
+        position: relative;
         display: grid;
         gap: 8px;
         justify-items: center;
         text-align: center;
-        padding-top: 10px;
+        min-height: clamp(168px, 20vw, 228px);
+        padding: 26px 28px 20px;
+        border-radius: 30px;
+        border: 1px solid var(--pf-border-faint);
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 48%),
+            var(--pf-surface-panel);
+        box-shadow: var(--pf-shadow-panel);
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    .title-block::before,
+    .title-block::after {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+    }
+
+    .title-block::before {
+        inset: 8px 12% 10px;
+        background: center/cover no-repeat var(--pf-theme-banner-art);
+        opacity: 0.9;
+        filter: drop-shadow(0 0 28px var(--pf-glow));
+        mix-blend-mode: screen;
+    }
+
+    .title-block::after {
+        right: 24px;
+        bottom: 18px;
+        width: 92px;
+        height: 92px;
+        background: center/contain no-repeat var(--pf-theme-chip-art);
+        opacity: 0.16;
+        filter: drop-shadow(0 0 22px var(--pf-glow));
+    }
+
+    .title-block > * {
+        position: relative;
+        z-index: 1;
     }
 
     .title {
@@ -1089,9 +1130,40 @@
         backdrop-filter: blur(18px);
         box-shadow: var(--pf-shadow-panel);
         padding: var(--pf-panel-pad);
+        overflow: hidden;
+    }
+
+    :global(.menu-panel::before),
+    :global(.menu-panel::after) {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+    }
+
+    :global(.menu-panel::before) {
+        inset: 0;
+        background: var(--pf-overlay-panel-sheen);
+        opacity: 0.9;
+    }
+
+    :global(.menu-panel::after) {
+        top: 10px;
+        right: 12px;
+        width: 84px;
+        height: 84px;
+        background: center/contain no-repeat var(--pf-theme-chip-art);
+        opacity: 0.08;
+        filter: drop-shadow(0 0 16px var(--pf-glow));
+        mix-blend-mode: screen;
+    }
+
+    :global(.menu-panel > *) {
+        position: relative;
+        z-index: 1;
     }
 
     :global(.menu-panel__header) {
+        position: relative;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
@@ -1294,6 +1366,23 @@
     @media (max-width: 767px) {
         .menu-fullscreen {
             padding: 16px 12px 92px;
+        }
+
+        .title-block {
+            min-height: 150px;
+            padding: 20px 18px 18px;
+        }
+
+        .title-block::before {
+            inset: 6px 5% 14px;
+            opacity: 0.78;
+        }
+
+        .title-block::after {
+            width: 74px;
+            height: 74px;
+            right: 14px;
+            bottom: 12px;
         }
 
         .desktop-panels {
