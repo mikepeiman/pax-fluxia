@@ -51,6 +51,9 @@
     let visible = $state(true);
     let showAudioSettings = $state(false);
     let bgOpen = $state(false);
+    let isMobileLayout = $state(
+        typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+    );
 
     const visuals = loadVisuals();
     const initialMenuTheme = loadSetting<MenuTheme>("menuTheme", "imperial");
@@ -110,6 +113,7 @@
     let previewRequestId = 0;
     let lastPreviewKey = "";
     let previewWorker: Worker | null = null;
+    let previewFrame: number | null = null;
 
     const selectedRoom = $derived(
         multiplayerStore.availableRooms.find((room) => room.roomId === selectedRoomId) ?? null,
@@ -268,17 +272,32 @@
         menuLaneMargin = laneKnobs.laneMargin;
         menuCurveVsPruneBias = laneKnobs.curveVsPruneBias;
         menuLaneMode = laneKnobs.mode;
+        const mediaQuery =
+            typeof window !== "undefined"
+                ? window.matchMedia("(max-width: 767px)")
+                : null;
+        const syncLayout = () => {
+            if (!mediaQuery) return;
+            isMobileLayout = mediaQuery.matches;
+        };
+        syncLayout();
+        mediaQuery?.addEventListener("change", syncLayout);
 
         return () => {
             if (previewTimer) {
                 clearTimeout(previewTimer);
                 previewTimer = null;
             }
+            if (previewFrame !== null && typeof window !== "undefined") {
+                window.cancelAnimationFrame(previewFrame);
+                previewFrame = null;
+            }
             if (previewWorker) {
                 previewWorker.terminate();
                 previewWorker = null;
             }
             previewRequestId += 1;
+            mediaQuery?.removeEventListener("change", syncLayout);
         };
     });
 
@@ -585,8 +604,13 @@
             clearTimeout(previewTimer);
             previewTimer = null;
         }
+        if (previewFrame !== null && typeof window !== "undefined") {
+            window.cancelAnimationFrame(previewFrame);
+            previewFrame = null;
+        }
 
-        previewTimer = setTimeout(() => {
+        const runPreview = () => {
+            previewFrame = null;
             previewTimer = null;
 
             if (typeof Worker === "function") {
@@ -600,7 +624,14 @@
             thumbnailUrl = nextThumbnailUrl;
             lastPreviewKey = nextKey;
             previewPending = false;
-        }, 140);
+        };
+
+        if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+            previewFrame = window.requestAnimationFrame(runPreview);
+            return;
+        }
+
+        previewTimer = setTimeout(runPreview, 16);
     }
 
     function saveAllSettings() {
@@ -880,122 +911,124 @@
                 onOpenSettings={() => (showAudioSettings = true)}
             />
 
-            <div class="mobile-tabs">
-                <button
-                    type="button"
-                    class="mobile-tabs__button"
-                    class:is-active={activeMobileTab === "setup"}
-                    onclick={() => (activeMobileTab = "setup")}
-                >
-                    Setup
-                </button>
-                <button
-                    type="button"
-                    class="mobile-tabs__button"
-                    class:is-active={activeMobileTab === "players"}
-                    onclick={() => (activeMobileTab = "players")}
-                >
-                    Players
-                </button>
-                <button
-                    type="button"
-                    class="mobile-tabs__button"
-                    class:is-active={activeMobileTab === "multiplayer"}
-                    onclick={() => (activeMobileTab = "multiplayer")}
-                >
-                    Multiplayer
-                </button>
-            </div>
+            {#if isMobileLayout}
+                <div class="mobile-tabs">
+                    <button
+                        type="button"
+                        class="mobile-tabs__button"
+                        class:is-active={activeMobileTab === "setup"}
+                        onclick={() => (activeMobileTab = "setup")}
+                    >
+                        Setup
+                    </button>
+                    <button
+                        type="button"
+                        class="mobile-tabs__button"
+                        class:is-active={activeMobileTab === "players"}
+                        onclick={() => (activeMobileTab = "players")}
+                    >
+                        Players
+                    </button>
+                    <button
+                        type="button"
+                        class="mobile-tabs__button"
+                        class:is-active={activeMobileTab === "multiplayer"}
+                        onclick={() => (activeMobileTab = "multiplayer")}
+                    >
+                        Multiplayer
+                    </button>
+                </div>
 
-            <div class="desktop-panels">
-                <GameMapPanel
-                    mapMode={mapMode}
-                    selectedClassicMap={selectedClassicMap}
-                    selectedCustomMap={selectedCustomMap}
-                    starsPerPlayer={starsPerPlayer}
-                    shipsPerStar={shipsPerStar}
-                    minLinks={minLinks}
-                    maxLinks={maxLinks}
-                    starSpacing={starSpacing}
-                    mapBoardFit={mapBoardFit}
-                    menuStarMargin={menuStarMargin}
-                    menuLaneMargin={menuLaneMargin}
-                    menuCurveVsPruneBias={menuCurveVsPruneBias}
-                    menuLaneMode={menuLaneMode}
-                    neutralStarCount={neutralStarCount}
-                    neutralShipsPerStar={neutralShipsPerStar}
-                    specialStarPercentage={specialStarPercentage}
-                    tickDuration={tickDuration}
-                    thumbnailUrl={thumbnailUrl}
-                    classicMaps={getClassicMaps()}
-                    customMaps={getCustomMaps()}
-                    onMapModeChange={handleMapModeChange}
-                    onClassicMapSelect={(name) => (selectedClassicMap = name)}
-                    onCustomMapSelect={(name) => (selectedCustomMap = name)}
-                    onStarsPerPlayerChange={(value) => (starsPerPlayer = value)}
-                    onShipsPerStarChange={(value) => (shipsPerStar = value)}
-                    onMinLinksChange={(value) => (minLinks = value)}
-                    onMaxLinksChange={(value) => (maxLinks = value)}
-                    onStarSpacingChange={(value) => (starSpacing = value)}
-                    onMapBoardFitChange={(value) => (mapBoardFit = value)}
-                    onLaneModeChange={(value) => {
-                        menuLaneMode = value;
-                        persistMenuLaneKnobs();
-                    }}
-                    onStarMarginChange={(value) => {
-                        menuStarMargin = value;
-                        persistMenuLaneKnobs();
-                    }}
-                    onLaneMarginChange={(value) => {
-                        menuLaneMargin = value;
-                        persistMenuLaneKnobs();
-                    }}
-                    onCurveVsPruneBiasChange={(value) => {
-                        menuCurveVsPruneBias = value;
-                        persistMenuLaneKnobs();
-                    }}
-                    onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
-                    onNeutralStarCountChange={(value) => (neutralStarCount = value)}
-                    onNeutralShipsPerStarChange={(value) => (neutralShipsPerStar = value)}
-                    onTickDurationChange={(value) => (tickDuration = value)}
-                    onReshuffle={() => (previewSeed += 1)}
-                />
-
-                <PlayersPanel
-                    playerCount={playerCount}
-                    playerOptions={PLAYERS}
-                    playerName={playerName}
-                    playerConfigs={playerConfigs}
-                    difficultyOptions={DIFFICULTIES}
-                    strategyOptions={AI_STRATEGIES}
-                    showAIDetails={showAIDetails}
-                    hueOffset={hueOffset}
-                    colorSat={colorSat}
-                    colorLig={colorLig}
-                    playerHueLimit={PLAYER_HUE_NUDGE_LIMIT}
-                    getPlayerColorHex={getPlayerColorHex}
-                    getPlayerHue={getPlayerHue}
-                    onPlayerCountChange={(count) => (playerCount = count)}
-                    onPlayerNameChange={updatePlayerName}
-                    onToggleAIDetails={() => (showAIDetails = !showAIDetails)}
-                    onHueOffsetChange={(value) => (hueOffset = value)}
-                    onColorSatChange={(value) => (colorSat = value)}
-                    onColorLigChange={(value) => (colorLig = value)}
-                    onPlayerDifficultyChange={updatePlayerDifficulty}
-                    onPlayerStrategyChange={updatePlayerStrategy}
-                    onPlayerHueNudgeChange={updatePlayerHueNudge}
-                    onResetPlayerHueNudge={resetPlayerHueNudge}
-                />
-
-                <MultiplayerPanel
-                    mapMode={mapMode}
-                    selectedRoomId={selectedRoomId}
-                    onSelectRoom={(roomId) => (selectedRoomId = roomId)}
-                />
-            </div>
-
-            <div class="mobile-panel">
-                {#if activeMobileTab === "setup"}
+                <div class="mobile-panel">
+                    {#if activeMobileTab === "setup"}
+                        <GameMapPanel
+                            mapMode={mapMode}
+                            selectedClassicMap={selectedClassicMap}
+                            selectedCustomMap={selectedCustomMap}
+                            starsPerPlayer={starsPerPlayer}
+                            shipsPerStar={shipsPerStar}
+                            minLinks={minLinks}
+                            maxLinks={maxLinks}
+                            starSpacing={starSpacing}
+                            mapBoardFit={mapBoardFit}
+                            menuStarMargin={menuStarMargin}
+                            menuLaneMargin={menuLaneMargin}
+                            menuCurveVsPruneBias={menuCurveVsPruneBias}
+                            menuLaneMode={menuLaneMode}
+                            neutralStarCount={neutralStarCount}
+                            neutralShipsPerStar={neutralShipsPerStar}
+                            specialStarPercentage={specialStarPercentage}
+                            tickDuration={tickDuration}
+                            thumbnailUrl={thumbnailUrl}
+                            classicMaps={getClassicMaps()}
+                            customMaps={getCustomMaps()}
+                            onMapModeChange={handleMapModeChange}
+                            onClassicMapSelect={(name) => (selectedClassicMap = name)}
+                            onCustomMapSelect={(name) => (selectedCustomMap = name)}
+                            onStarsPerPlayerChange={(value) => (starsPerPlayer = value)}
+                            onShipsPerStarChange={(value) => (shipsPerStar = value)}
+                            onMinLinksChange={(value) => (minLinks = value)}
+                            onMaxLinksChange={(value) => (maxLinks = value)}
+                            onStarSpacingChange={(value) => (starSpacing = value)}
+                            onMapBoardFitChange={(value) => (mapBoardFit = value)}
+                            onLaneModeChange={(value) => {
+                                menuLaneMode = value;
+                                persistMenuLaneKnobs();
+                            }}
+                            onStarMarginChange={(value) => {
+                                menuStarMargin = value;
+                                persistMenuLaneKnobs();
+                            }}
+                            onLaneMarginChange={(value) => {
+                                menuLaneMargin = value;
+                                persistMenuLaneKnobs();
+                            }}
+                            onCurveVsPruneBiasChange={(value) => {
+                                menuCurveVsPruneBias = value;
+                                persistMenuLaneKnobs();
+                            }}
+                            onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
+                            onNeutralStarCountChange={(value) => (neutralStarCount = value)}
+                            onNeutralShipsPerStarChange={(value) => (neutralShipsPerStar = value)}
+                            onTickDurationChange={(value) => (tickDuration = value)}
+                            onReshuffle={() => (previewSeed += 1)}
+                        />
+                    {:else if activeMobileTab === "players"}
+                        <PlayersPanel
+                            playerCount={playerCount}
+                            playerOptions={PLAYERS}
+                            playerName={playerName}
+                            playerConfigs={playerConfigs}
+                            difficultyOptions={DIFFICULTIES}
+                            strategyOptions={AI_STRATEGIES}
+                            showAIDetails={showAIDetails}
+                            hueOffset={hueOffset}
+                            colorSat={colorSat}
+                            colorLig={colorLig}
+                            playerHueLimit={PLAYER_HUE_NUDGE_LIMIT}
+                            getPlayerColorHex={getPlayerColorHex}
+                            getPlayerHue={getPlayerHue}
+                            onPlayerCountChange={(count) => (playerCount = count)}
+                            onPlayerNameChange={updatePlayerName}
+                            onToggleAIDetails={() => (showAIDetails = !showAIDetails)}
+                            onHueOffsetChange={(value) => (hueOffset = value)}
+                            onColorSatChange={(value) => (colorSat = value)}
+                            onColorLigChange={(value) => (colorLig = value)}
+                            onPlayerDifficultyChange={updatePlayerDifficulty}
+                            onPlayerStrategyChange={updatePlayerStrategy}
+                            onPlayerHueNudgeChange={updatePlayerHueNudge}
+                            onResetPlayerHueNudge={resetPlayerHueNudge}
+                        />
+                    {:else}
+                        <MultiplayerPanel
+                            mapMode={mapMode}
+                            selectedRoomId={selectedRoomId}
+                            onSelectRoom={(roomId) => (selectedRoomId = roomId)}
+                        />
+                    {/if}
+                </div>
+            {:else}
+                <div class="desktop-panels">
                     <GameMapPanel
                         mapMode={mapMode}
                         selectedClassicMap={selectedClassicMap}
@@ -1048,7 +1081,7 @@
                         onTickDurationChange={(value) => (tickDuration = value)}
                         onReshuffle={() => (previewSeed += 1)}
                     />
-                {:else if activeMobileTab === "players"}
+
                     <PlayersPanel
                         playerCount={playerCount}
                         playerOptions={PLAYERS}
@@ -1074,14 +1107,14 @@
                         onPlayerHueNudgeChange={updatePlayerHueNudge}
                         onResetPlayerHueNudge={resetPlayerHueNudge}
                     />
-                {:else}
+
                     <MultiplayerPanel
                         mapMode={mapMode}
                         selectedRoomId={selectedRoomId}
                         onSelectRoom={(roomId) => (selectedRoomId = roomId)}
                     />
-                {/if}
-            </div>
+                </div>
+            {/if}
 
             <MenuCommandBar
                 summary={commandSummary}

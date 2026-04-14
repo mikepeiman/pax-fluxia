@@ -18,7 +18,8 @@
         "agentic:context:benchmark": "bun tools/agentic/benchmark-context-cache.ts",
         "debug:lane-margin": "bun tools/debug/diagnose-lane-margin.ts",
         "debug:lane-geometry": "bun tools/debug/inspect-lane-geometry.ts",
-        "debug:lane-audit": "bun tools/debug/audit-lane-constraints.ts"
+        "debug:lane-audit": "bun tools/debug/audit-lane-constraints.ts",
+        "debug:menu-preview-perf": "bun tools/debug/benchmark-main-menu-preview.ts"
     },
     "dependencies": {
         "txtgen": "^3.0.7"

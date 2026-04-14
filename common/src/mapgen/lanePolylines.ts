@@ -28,8 +28,18 @@ import { pointToSegmentDistance } from './connections';
 
 export type MapLaneMode = 'straight' | 'curved';
 export type LaneBuildMode = 'preserve_authored' | 'recompute_connectivity';
+export interface LaneBuildPerfStats {
+    preferredSolveMs: number;
+    candidateBridgeMs: number;
+    fallbackBridgeMs: number;
+    connectivityRestoreMs: number;
+    edgeSolveMs: number;
+    edgeSolveCount: number;
+    edgeCacheHits: number;
+}
 export interface BuildLaneAwareOptions {
     buildMode?: LaneBuildMode;
+    debugPerf?: LaneBuildPerfStats | null;
 }
 
 export interface LaneAttemptTrace {
@@ -80,6 +90,35 @@ function quadBezierPoint(
 }
 
 /** True if every point on segment AB is ≥ minDist from each obstacle center. */
+type SegmentGuardRange = { minT: number; maxT: number };
+
+function nearestPointOnSegmentClampedSquared(
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    minT: number,
+    maxT: number,
+): { x: number; y: number; distanceSq: number; t: number } {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 1e-9) {
+        const deltaX = px - ax;
+        const deltaY = py - ay;
+        return { x: ax, y: ay, distanceSq: deltaX * deltaX + deltaY * deltaY, t: 0 };
+    }
+    const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+    const t = Math.max(minT, Math.min(maxT, rawT));
+    const x = ax + dx * t;
+    const y = ay + dy * t;
+    const deltaX = px - x;
+    const deltaY = py - y;
+    return { x, y, distanceSq: deltaX * deltaX + deltaY * deltaY, t };
+}
+
 function nearestPointOnSegmentClamped(
     px: number,
     py: number,
@@ -90,17 +129,8 @@ function nearestPointOnSegmentClamped(
     minT: number,
     maxT: number,
 ): { x: number; y: number; distance: number; t: number } {
-    const dx = bx - ax;
-    const dy = by - ay;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq <= 1e-9) {
-        return { x: ax, y: ay, distance: hypot(px - ax, py - ay), t: 0 };
-    }
-    const rawT = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-    const t = Math.max(minT, Math.min(maxT, rawT));
-    const x = ax + dx * t;
-    const y = ay + dy * t;
-    return { x, y, distance: hypot(px - x, py - y), t };
+    const nearest = nearestPointOnSegmentClampedSquared(px, py, ax, ay, bx, by, minT, maxT);
+    return { x: nearest.x, y: nearest.y, distance: Math.sqrt(nearest.distanceSq), t: nearest.t };
 }
 
 function segmentEndpointGuardRange(
@@ -125,15 +155,35 @@ function segmentEndpointGuardRange(
     return { minT, maxT };
 }
 
+function buildSegmentGuardRanges(
+    pts: Array<[number, number]>,
+): SegmentGuardRange[] {
+    const segmentCount = Math.max(0, pts.length - 1);
+    const out: SegmentGuardRange[] = [];
+    for (let i = 0; i < segmentCount; i++) {
+        const [ax, ay] = pts[i]!;
+        const [bx, by] = pts[i + 1]!;
+        out.push(segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by));
+    }
+    return out;
+}
+
 function chordClearOfObstacles(
     ax: number, ay: number,
     bx: number, by: number,
     obstacles: Array<{ x: number; y: number }>,
     minDist: number,
 ): boolean {
+    const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
+    const thresholdPx = Math.max(0, minDist - CLEARANCE_EPSILON_PX);
+    const minDistSq = thresholdPx * thresholdPx;
     for (const o of obstacles) {
-        const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
-        if (nearestPointOnSegmentClamped(o.x, o.y, ax, ay, bx, by, minT, maxT).distance < minDist - CLEARANCE_EPSILON_PX) return false;
+        if (
+            nearestPointOnSegmentClampedSquared(o.x, o.y, ax, ay, bx, by, minT, maxT).distanceSq
+            < minDistSq
+        ) {
+            return false;
+        }
     }
     return true;
 }
@@ -145,13 +195,22 @@ function nearestObstacleDistanceToChord(
     by: number,
     obstacles: Array<{ x: number; y: number }>,
 ): number {
-    let nearest = Infinity;
+    let nearestSq = Infinity;
+    const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
     for (const obstacle of obstacles) {
-        const { minT, maxT } = segmentEndpointGuardRange(0, 1, ax, ay, bx, by);
-        const d = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT).distance;
-        if (d < nearest) nearest = d;
+        const dSq = nearestPointOnSegmentClampedSquared(
+            obstacle.x,
+            obstacle.y,
+            ax,
+            ay,
+            bx,
+            by,
+            minT,
+            maxT,
+        ).distanceSq;
+        if (dSq < nearestSq) nearestSq = dSq;
     }
-    return nearest;
+    return Math.sqrt(nearestSq);
 }
 
 function minimumObstacleDistanceToPolyline(
@@ -159,18 +218,27 @@ function minimumObstacleDistanceToPolyline(
     obstacles: Array<{ x: number; y: number }>,
 ): number {
     if (obstacles.length === 0) return Number.POSITIVE_INFINITY;
-    let nearest = Number.POSITIVE_INFINITY;
-    const segmentCount = Math.max(0, pts.length - 1);
+    let nearestSq = Number.POSITIVE_INFINITY;
+    const guardRanges = buildSegmentGuardRanges(pts);
     for (const obstacle of obstacles) {
         for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i]!;
             const [bx, by] = pts[i + 1]!;
-            const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
-            const d = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT).distance;
-            if (d < nearest) nearest = d;
+            const { minT, maxT } = guardRanges[i]!;
+            const dSq = nearestPointOnSegmentClampedSquared(
+                obstacle.x,
+                obstacle.y,
+                ax,
+                ay,
+                bx,
+                by,
+                minT,
+                maxT,
+            ).distanceSq;
+            if (dSq < nearestSq) nearestSq = dSq;
         }
     }
-    return nearest;
+    return Math.sqrt(nearestSq);
 }
 
 /** Dense-enough sample along polyline segments vs obstacles. */
@@ -179,20 +247,29 @@ function polylineClearOfObstacles(
     obstacles: Array<{ x: number; y: number }>,
     minDist: number,
 ): boolean {
-    const segmentCount = Math.max(0, pts.length - 1);
+    const guardRanges = buildSegmentGuardRanges(pts);
+    const thresholdPx = Math.max(0, minDist - CLEARANCE_EPSILON_PX);
+    const minDistSq = thresholdPx * thresholdPx;
     for (let i = 0; i < pts.length - 1; i++) {
         const x1 = pts[i][0], y1 = pts[i][1];
         const x2 = pts[i + 1][0], y2 = pts[i + 1][1];
-        const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, x1, y1, x2, y2);
+        const { minT, maxT } = guardRanges[i]!;
         for (const o of obstacles) {
-            if (nearestPointOnSegmentClamped(o.x, o.y, x1, y1, x2, y2, minT, maxT).distance < minDist - CLEARANCE_EPSILON_PX) return false;
+            if (
+                nearestPointOnSegmentClampedSquared(o.x, o.y, x1, y1, x2, y2, minT, maxT).distanceSq
+                < minDistSq
+            ) {
+                return false;
+            }
         }
         for (let s = 1; s < 8; s++) {
             const t = minT + (maxT - minT) * (s / 8);
             const px = x1 + (x2 - x1) * t;
             const py = y1 + (y2 - y1) * t;
             for (const o of obstacles) {
-                if (hypot(px - o.x, py - o.y) < minDist - CLEARANCE_EPSILON_PX) return false;
+                const dx = px - o.x;
+                const dy = py - o.y;
+                if (dx * dx + dy * dy < minDistSq) return false;
             }
         }
     }
@@ -227,8 +304,11 @@ function intersectionParams(
 }
 
 function nearAnyStarCenter(px: number, py: number, stars: Array<{ x: number; y: number }>): boolean {
+    const starTouchSq = STAR_TOUCH_PX * STAR_TOUCH_PX;
     for (const s of stars) {
-        if (hypot(px - s.x, py - s.y) < STAR_TOUCH_PX) return true;
+        const dx = px - s.x;
+        const dy = py - s.y;
+        if (dx * dx + dy * dy < starTouchSq) return true;
     }
     return false;
 }
@@ -286,19 +366,30 @@ function nearestObstacleWitnessToPolyline(
     obstacles: Array<{ x: number; y: number }>,
 ): ObstacleWitness | null {
     let bestWitness: ObstacleWitness | null = null;
-    const segmentCount = Math.max(0, pts.length - 1);
+    let bestDistanceSq = Number.POSITIVE_INFINITY;
+    const guardRanges = buildSegmentGuardRanges(pts);
     for (const obstacle of obstacles) {
         for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i]!;
             const [bx, by] = pts[i + 1]!;
-            const { minT, maxT } = segmentEndpointGuardRange(i, segmentCount, ax, ay, bx, by);
-            const nearest = nearestPointOnSegmentClamped(obstacle.x, obstacle.y, ax, ay, bx, by, minT, maxT);
-            if (!bestWitness || nearest.distance < bestWitness.distance) {
+            const { minT, maxT } = guardRanges[i]!;
+            const nearest = nearestPointOnSegmentClampedSquared(
+                obstacle.x,
+                obstacle.y,
+                ax,
+                ay,
+                bx,
+                by,
+                minT,
+                maxT,
+            );
+            if (nearest.distanceSq < bestDistanceSq) {
+                bestDistanceSq = nearest.distanceSq;
                 bestWitness = {
                     obstacle,
                     pointX: nearest.x,
                     pointY: nearest.y,
-                    distance: nearest.distance,
+                    distance: Math.sqrt(nearest.distanceSq),
                     segmentIndex: i,
                     t: nearest.t,
                 };
@@ -426,6 +517,19 @@ type LaneSolveResult = {
     waypoints: Array<[number, number]>;
     kind: LanePathKind;
     constraintStatus: LaneConstraintStatus;
+};
+
+type EdgeSolvePrecomputed = {
+    obstacles: Array<{ x: number; y: number }>;
+    chordMinClearancePx: number;
+    distance: number;
+};
+
+type LaneEdgeCacheEntry = EdgeSolvePrecomputed & {
+    key: string;
+    a: Connectable;
+    b: Connectable;
+    resolved?: MapConnection | null;
 };
 
 function tryAdjustedPath(
@@ -567,11 +671,14 @@ function solveAdaptiveWaypoints(
     allowReshape: boolean,
     reshapeBias: number,
     trace?: LaneDecisionTrace,
+    precomputedChordMinClearancePx?: number,
 ): LaneSolveResult | null {
     const chord = hypot(bx - ax, by - ay);
     const effectiveClearancePx = effectiveLaneClearanceForChord(chord, clearancePx);
     const straight: Array<[number, number]> = [[ax, ay], [bx, by]];
-    const chordMinClearancePx = nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
+    const chordMinClearancePx =
+        precomputedChordMinClearancePx
+        ?? nearestObstacleDistanceToChord(ax, ay, bx, by, obstacles);
     if (trace) {
         trace.requestedClearancePx = clearancePx;
         trace.effectiveClearancePx = effectiveClearancePx;
@@ -722,10 +829,13 @@ function tryResolveLaneConnection(
     reshapeBias: number,
     adjustmentStyle: LaneAdjustmentStyle,
     trace?: LaneDecisionTrace,
+    precomputed?: EdgeSolvePrecomputed,
 ): MapConnection | null {
-    const obstacles = nodes
-        .filter((n) => n.id !== a.id && n.id !== b.id)
-        .map((n) => ({ x: n.x, y: n.y }));
+    const obstacles =
+        precomputed?.obstacles
+        ?? nodes
+            .filter((n) => n.id !== a.id && n.id !== b.id)
+            .map((n) => ({ x: n.x, y: n.y }));
     const clearance = Math.max(0, laneObstacleClearancePx);
 
     let laneWaypoints: Array<[number, number]> = [];
@@ -746,6 +856,7 @@ function tryResolveLaneConnection(
             reshapeBias > 0,
             reshapeBias,
             trace,
+            precomputed?.chordMinClearancePx,
         );
         if (!resolved || resolved.waypoints.length < 2) return null;
         laneWaypoints = resolved.waypoints;
@@ -753,7 +864,7 @@ function tryResolveLaneConnection(
         return {
             sourceId: a.id,
             targetId: b.id,
-            distance: hypot(b.x - a.x, b.y - a.y),
+            distance: precomputed?.distance ?? hypot(b.x - a.x, b.y - a.y),
             laneWaypoints,
             lanePathKind,
             laneConstraintStatus: resolved.constraintStatus,
@@ -763,7 +874,7 @@ function tryResolveLaneConnection(
     return {
         sourceId: a.id,
         targetId: b.id,
-        distance: hypot(b.x - a.x, b.y - a.y),
+        distance: precomputed?.distance ?? hypot(b.x - a.x, b.y - a.y),
         laneWaypoints,
         lanePathKind,
         laneConstraintStatus: 'straight_ok',
@@ -793,6 +904,7 @@ export function debugResolveLaneConnection(
         reshapeBias,
         adjustmentStyle,
         trace,
+        undefined,
     );
     return { connection, trace };
 }
@@ -1002,6 +1114,67 @@ function buildConstraintUnsatisfiedAuthoredConnection(
     };
 }
 
+function nowMs(): number {
+    return globalThis.performance?.now?.() ?? Date.now();
+}
+
+function createLaneBuildPerfStats(): LaneBuildPerfStats {
+    return {
+        preferredSolveMs: 0,
+        candidateBridgeMs: 0,
+        fallbackBridgeMs: 0,
+        connectivityRestoreMs: 0,
+        edgeSolveMs: 0,
+        edgeSolveCount: 0,
+        edgeCacheHits: 0,
+    };
+}
+
+class UnionFind {
+    private readonly parent = new Map<string, string>();
+    private readonly rank = new Map<string, number>();
+    componentCount: number;
+
+    constructor(ids: string[]) {
+        this.componentCount = ids.length;
+        for (const id of ids) {
+            this.parent.set(id, id);
+            this.rank.set(id, 0);
+        }
+    }
+
+    find(id: string): string {
+        const current = this.parent.get(id);
+        if (!current || current === id) return id;
+        const root = this.find(current);
+        this.parent.set(id, root);
+        return root;
+    }
+
+    connected(left: string, right: string): boolean {
+        return this.find(left) === this.find(right);
+    }
+
+    union(left: string, right: string): boolean {
+        let leftRoot = this.find(left);
+        let rightRoot = this.find(right);
+        if (leftRoot === rightRoot) return false;
+
+        const leftRank = this.rank.get(leftRoot) ?? 0;
+        const rightRank = this.rank.get(rightRoot) ?? 0;
+        if (leftRank < rightRank) {
+            [leftRoot, rightRoot] = [rightRoot, leftRoot];
+        }
+
+        this.parent.set(rightRoot, leftRoot);
+        if (leftRank === rightRank) {
+            this.rank.set(leftRoot, leftRank + 1);
+        }
+        this.componentCount -= 1;
+        return true;
+    }
+}
+
 export function buildLaneAwareConnections<T extends Connectable>(
     nodes: T[],
     preferredConnections: MapConnection[],
@@ -1013,107 +1186,179 @@ export function buildLaneAwareConnections<T extends Connectable>(
     options: BuildLaneAwareOptions = {},
 ): MapConnection[] {
     const buildMode = options.buildMode ?? 'recompute_connectivity';
-    const pos = new Map(nodes.map((n) => [n.id, n]));
+    const perf = options.debugPerf ?? null;
+    if (perf) {
+        Object.assign(perf, createLaneBuildPerfStats());
+    }
     const starCenters = nodes.map((n) => ({ x: n.x, y: n.y }));
     const accepted: MapConnection[] = [];
     const placed: Seg[] = [];
     const acceptedKeys = new Set<string>();
+    const dsu = new UnionFind(nodes.map((node) => node.id));
     const keyOf = (sourceId: string, targetId: string) =>
         sourceId <= targetId ? `${sourceId}|${targetId}` : `${targetId}|${sourceId}`;
+    const emptyPlaced: Seg[] = [];
+
+    const edgeCache = new Map<string, LaneEdgeCacheEntry>();
+    const allEdges: LaneEdgeCacheEntry[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i]!;
+        for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j]!;
+            const key = keyOf(a.id, b.id);
+            const obstacles: Array<{ x: number; y: number }> = [];
+            for (let k = 0; k < nodes.length; k++) {
+                if (k === i || k === j) continue;
+                const obstacle = nodes[k]!;
+                obstacles.push({ x: obstacle.x, y: obstacle.y });
+            }
+            const distance = hypot(b.x - a.x, b.y - a.y);
+            const entry: LaneEdgeCacheEntry = {
+                key,
+                a,
+                b,
+                obstacles,
+                distance,
+                chordMinClearancePx: nearestObstacleDistanceToChord(
+                    a.x,
+                    a.y,
+                    b.x,
+                    b.y,
+                    obstacles,
+                ),
+            };
+            edgeCache.set(key, entry);
+            allEdges.push(entry);
+        }
+    }
 
     const preferredSorted = preferredConnections
-        .slice()
+        .map((connection) => edgeCache.get(keyOf(connection.sourceId, connection.targetId)))
+        .filter((entry): entry is LaneEdgeCacheEntry => Boolean(entry))
         .sort((left, right) => left.distance - right.distance);
-    const preferredKeys = new Set(preferredSorted.map((connection) => keyOf(connection.sourceId, connection.targetId)));
+    const preferredKeys = new Set(preferredSorted.map((entry) => entry.key));
+    const candidateKeys = new Set(
+        candidateConnections.map((connection) => keyOf(connection.sourceId, connection.targetId)),
+    );
     const candidateSorted = candidateConnections
-        .filter((connection) => !preferredKeys.has(keyOf(connection.sourceId, connection.targetId)))
+        .map((connection) => edgeCache.get(keyOf(connection.sourceId, connection.targetId)))
+        .filter(
+            (entry): entry is LaneEdgeCacheEntry =>
+                entry !== undefined && !preferredKeys.has(entry.key),
+        )
+        .sort((left, right) => {
+            if (right.chordMinClearancePx !== left.chordMinClearancePx) {
+                return right.chordMinClearancePx - left.chordMinClearancePx;
+            }
+            return left.distance - right.distance;
+        });
+    const fallbackSorted = allEdges
+        .filter((entry) => !preferredKeys.has(entry.key) && !candidateKeys.has(entry.key))
+        .sort((left, right) => {
+            if (right.chordMinClearancePx !== left.chordMinClearancePx) {
+                return right.chordMinClearancePx - left.chordMinClearancePx;
+            }
+            return left.distance - right.distance;
+        });
+    const overrideSorted = allEdges
         .slice()
-        .sort((left, right) => left.distance - right.distance);
+        .sort((left, right) => {
+            if (right.chordMinClearancePx !== left.chordMinClearancePx) {
+                return right.chordMinClearancePx - left.chordMinClearancePx;
+            }
+            return left.distance - right.distance;
+        });
 
-    const acceptResolved = (connection: MapConnection, a: Connectable, b: Connectable) => {
+    const acceptResolved = (connection: MapConnection, entry: LaneEdgeCacheEntry) => {
         accepted.push(connection);
-        acceptedKeys.add(keyOf(connection.sourceId, connection.targetId));
-        placed.push(...polylineToSegments(connection.laneWaypoints ?? [[a.x, a.y], [b.x, b.y]]));
+        acceptedKeys.add(entry.key);
+        dsu.union(connection.sourceId, connection.targetId);
+        placed.push(
+            ...polylineToSegments(connection.laneWaypoints ?? [[entry.a.x, entry.a.y], [entry.b.x, entry.b.y]]),
+        );
     };
 
-    const tryAccept = (connection: MapConnection): boolean => {
-        const key = keyOf(connection.sourceId, connection.targetId);
-        if (acceptedKeys.has(key)) return false;
-        const a = pos.get(connection.sourceId);
-        const b = pos.get(connection.targetId);
-        if (!a || !b) return false;
+    const resolveEntry = (
+        entry: LaneEdgeCacheEntry,
+        trace?: LaneDecisionTrace,
+    ): MapConnection | null => {
+        if (entry.resolved !== undefined) {
+            perf && (perf.edgeCacheHits += 1);
+            return entry.resolved;
+        }
+        const startedAt = nowMs();
         const resolved = tryResolveLaneConnection(
-            a,
-            b,
+            entry.a,
+            entry.b,
             nodes,
-            placed,
+            emptyPlaced,
             starCenters,
             mode,
             laneObstacleClearancePx,
             reshapeBias,
             adjustmentStyle,
+            trace,
+            entry,
         );
+        perf && (perf.edgeSolveMs += nowMs() - startedAt);
+        perf && (perf.edgeSolveCount += 1);
+        entry.resolved = resolved;
+        return resolved;
+    };
+
+    const tryAcceptEntry = (entry: LaneEdgeCacheEntry): boolean => {
+        if (acceptedKeys.has(entry.key)) return false;
+        const resolved = resolveEntry(entry);
         if (!resolved) return false;
-        acceptResolved(resolved, a, b);
+        if (
+            resolved.lanePathKind !== 'straight'
+            && resolved.laneWaypoints
+            && polylineCrossesPlaced(resolved.laneWaypoints, placed, starCenters)
+        ) {
+            return false;
+        }
+        acceptResolved(resolved, entry);
         return true;
     };
 
-    for (const connection of preferredSorted) {
-        if (tryAccept(connection)) continue;
+    const preferredStartedAt = nowMs();
+    for (const entry of preferredSorted) {
+        if (tryAcceptEntry(entry)) continue;
         if (buildMode !== 'preserve_authored') continue;
-        const a = pos.get(connection.sourceId);
-        const b = pos.get(connection.targetId);
-        if (!a || !b) continue;
-        acceptResolved(buildConstraintUnsatisfiedAuthoredConnection(a, b), a, b);
+        acceptResolved(buildConstraintUnsatisfiedAuthoredConnection(entry.a, entry.b), entry);
     }
+    perf && (perf.preferredSolveMs += nowMs() - preferredStartedAt);
 
     if (buildMode === 'preserve_authored') {
         return accepted;
     }
 
-    if (countConnectedComponents(nodes, accepted) > 1) {
-        let progressed = true;
-        while (countConnectedComponents(nodes, accepted) > 1 && progressed) {
-            progressed = false;
-            const componentIndex = buildComponentIndex(nodes, accepted);
-            for (const connection of candidateSorted) {
-                if (countConnectedComponents(nodes, accepted) <= 1) break;
-                const aComponent = componentIndex.get(connection.sourceId);
-                const bComponent = componentIndex.get(connection.targetId);
-                if (aComponent === undefined || bComponent === undefined || aComponent === bComponent) continue;
-                if (tryAccept(connection)) {
-                    progressed = true;
-                }
-            }
-            if (progressed) continue;
-            const fallbackCandidates = buildFallbackBridgeCandidates(
-                nodes,
-                componentIndex,
-                acceptedKeys,
-            );
-            for (const connection of fallbackCandidates) {
-                if (countConnectedComponents(nodes, accepted) <= 1) break;
-                if (tryAccept(connection)) {
-                    progressed = true;
-                    break;
-                }
-            }
-            if (progressed) continue;
-            const overrideCandidates = buildConnectivityOverrideCandidates(
-                nodes,
-                componentIndex,
-                acceptedKeys,
-            );
-            for (const connection of overrideCandidates) {
-                if (countConnectedComponents(nodes, accepted) <= 1) break;
-                const a = pos.get(connection.sourceId);
-                const b = pos.get(connection.targetId);
-                if (!a || !b) continue;
-                acceptResolved(buildConnectivityRestoreConnection(a, b), a, b);
-                progressed = true;
-                break;
-            }
+    const candidateStartedAt = nowMs();
+    for (const entry of candidateSorted) {
+        if (dsu.componentCount <= 1) break;
+        if (acceptedKeys.has(entry.key) || dsu.connected(entry.a.id, entry.b.id)) continue;
+        tryAcceptEntry(entry);
+    }
+    perf && (perf.candidateBridgeMs += nowMs() - candidateStartedAt);
+
+    if (dsu.componentCount > 1) {
+        const fallbackStartedAt = nowMs();
+        for (const entry of fallbackSorted) {
+            if (dsu.componentCount <= 1) break;
+            if (acceptedKeys.has(entry.key) || dsu.connected(entry.a.id, entry.b.id)) continue;
+            tryAcceptEntry(entry);
         }
+        perf && (perf.fallbackBridgeMs += nowMs() - fallbackStartedAt);
+    }
+
+    if (dsu.componentCount > 1) {
+        const restoreStartedAt = nowMs();
+        for (const entry of overrideSorted) {
+            if (dsu.componentCount <= 1) break;
+            if (acceptedKeys.has(entry.key) || dsu.connected(entry.a.id, entry.b.id)) continue;
+            acceptResolved(buildConnectivityRestoreConnection(entry.a, entry.b), entry);
+        }
+        perf && (perf.connectivityRestoreMs += nowMs() - restoreStartedAt);
     }
 
     return accepted;

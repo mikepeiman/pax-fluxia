@@ -16,6 +16,7 @@ export type {
 export type {
     MapLaneMode,
     LaneBuildMode,
+    LaneBuildPerfStats,
     BuildLaneAwareOptions,
     LaneDecisionTrace,
     LaneAttemptTrace,

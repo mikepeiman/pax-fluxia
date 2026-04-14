@@ -4,6 +4,7 @@
         max = $bindable(),
         minLimit = 1,
         maxLimit = 10,
+        onChange,
     } = $props();
 
     function onMinChange(e: Event) {
@@ -13,6 +14,7 @@
             (e.target as HTMLInputElement).value = newMin.toString();
         }
         min = newMin;
+        onChange?.(min, max);
     }
 
     function onMaxChange(e: Event) {
@@ -22,6 +24,7 @@
             (e.target as HTMLInputElement).value = newMax.toString();
         }
         max = newMax;
+        onChange?.(min, max);
     }
 </script>
 

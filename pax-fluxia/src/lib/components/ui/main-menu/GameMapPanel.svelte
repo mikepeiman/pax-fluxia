@@ -107,11 +107,6 @@
         if (dualMax !== maxLinks) dualMax = maxLinks;
     });
 
-    $effect(() => {
-        onMinLinksChange(dualMin);
-        onMaxLinksChange(dualMax);
-    });
-
     function getBoardFitLabel(value: number): string {
         if (value >= 0.95) return "Symmetrical";
         if (value >= 0.7) return "Balanced";
@@ -212,7 +207,16 @@
                     <label class="range-field range-field--wide">
                         <span>Links [{dualMin}-{dualMax}]</span>
                         <div class="dual-range-shell">
-                            <RangeDual bind:min={dualMin} bind:max={dualMax} minLimit={1} maxLimit={8} />
+                            <RangeDual
+                                bind:min={dualMin}
+                                bind:max={dualMax}
+                                minLimit={1}
+                                maxLimit={8}
+                                onChange={(nextMin, nextMax) => {
+                                    onMinLinksChange(nextMin);
+                                    onMaxLinksChange(nextMax);
+                                }}
+                            />
                         </div>
                     </label>
 
