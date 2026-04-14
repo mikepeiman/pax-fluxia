@@ -221,6 +221,7 @@ function buildCanonicalRegions(
         return {
             regionId: id,
             ownerId: territory.ownerId,
+            starIds: [...territory.starIds],
             points: pts,
             confidence: 1.0,
         };
@@ -311,6 +312,7 @@ function buildOwnerShells(
             const loop: CanonicalShellLoop = {
                 shellLoopId: loopId,
                 ownerId,
+                starIds: [...territory.starIds],
                 points: territory.points,
                 classification: area >= 0 ? 'outer' : 'hole',
                 confidence: 1.0,
@@ -342,6 +344,7 @@ function buildOwnerShells(
             shells.push({
                 shellId,
                 ownerId,
+                starIds: [...(outer.starIds ?? [])],
                 points: outer.points,
                 area: shoelaceArea(outer.points),
                 absArea: Math.abs(shoelaceArea(outer.points)),

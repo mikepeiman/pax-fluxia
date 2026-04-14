@@ -102,6 +102,7 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         (territory, index) => ({
             regionId: `pfield-region:${territory.ownerId}:${index}`,
             ownerId: territory.ownerId,
+            starIds: [...territory.starIds],
             points: territory.points,
             confidence: 1,
         }),
@@ -136,6 +137,7 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
             return {
                 shellId: `pfield-shell:${territory.ownerId}:${index}`,
                 ownerId: territory.ownerId,
+                starIds: [...territory.starIds],
                 points: territory.points,
                 area,
                 absArea: Math.abs(area),
@@ -149,6 +151,7 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         shellLoopId: `${shell.shellId}:outer`,
         shellId: shell.shellId,
         ownerId: shell.ownerId,
+        starIds: [...(shell.starIds ?? [])],
         points: shell.points,
         classification: 'outer',
         confidence: shell.confidence,

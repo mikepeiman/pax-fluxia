@@ -1468,6 +1468,12 @@
                 (sample.ownerId != null
                     ? colorUtils.getPlayerColor(sample.ownerId)
                     : 0xffffff);
+            const labelPrefix =
+                sample.debugState === "transition-old"
+                    ? "O"
+                    : sample.debugState === "transition-new"
+                      ? "N"
+                      : "";
             const offsetX =
                 sample.debugState === "transition-old"
                     ? -8
@@ -1481,7 +1487,7 @@
                       ? 8
                       : -8;
             const label = new PIXI.Text({
-                text: `${sample.sampleIndex}`,
+                text: `${labelPrefix}${sample.sampleIndex}`,
                 style: {
                     fontFamily: "monospace",
                     fontSize: 10,

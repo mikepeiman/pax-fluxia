@@ -174,29 +174,32 @@ function offsetSampleInsideLoop(params: {
     return params.point;
 }
 
-function findOwnerRegion(
+function findStarAnchoredOwnerRegion(
     geometry: CanonicalGeometrySnapshot,
     ownerId: string,
+    starId: string,
     x: number,
     y: number,
 ): ReadonlyArray<[number, number]> | null {
     const regions = geometry.territoryRegions.filter((region) => region.ownerId === ownerId);
+    const starAnchoredRegions = regions.filter((region) => region.starIds?.includes(starId));
+    for (const region of starAnchoredRegions) {
+        if (pointInPolygon(x, y, region.points)) {
+            return region.points;
+        }
+    }
+    if (starAnchoredRegions.length === 1) {
+        return starAnchoredRegions[0]!.points;
+    }
+    for (const region of starAnchoredRegions) {
+        return region.points;
+    }
     for (const region of regions) {
         if (pointInPolygon(x, y, region.points)) {
             return region.points;
         }
     }
-    let best: ReadonlyArray<[number, number]> | null = null;
-    let bestDist = Infinity;
-    for (const region of regions) {
-        const [cx, cy] = regionCentroid(region.points);
-        const dist = Math.hypot(cx - x, cy - y);
-        if (dist < bestDist) {
-            bestDist = dist;
-            best = region.points;
-        }
-    }
-    return best;
+    return null;
 }
 
 function raySegmentHit(
@@ -377,15 +380,17 @@ function buildTransitionSamples(params: {
         const conquest = eventEntry.event;
         const targetStar = params.input.stars.find((star) => star.id === conquest.starId);
         if (!targetStar || !conquest.previousOwner || !conquest.newOwner) continue;
-        const oldRegion = findOwnerRegion(
+        const oldRegion = findStarAnchoredOwnerRegion(
             params.oldGeometry,
             conquest.previousOwner,
+            conquest.starId,
             targetStar.x,
             targetStar.y,
         );
-        const newRegion = findOwnerRegion(
+        const newRegion = findStarAnchoredOwnerRegion(
             params.newGeometry,
             conquest.newOwner,
+            conquest.starId,
             targetStar.x,
             targetStar.y,
         );
@@ -414,15 +419,16 @@ function buildTransitionSamples(params: {
                 dy,
                 newRegion,
             );
-            const oldHit = oldHitCandidate ?? [targetStar.x, targetStar.y];
-            const newHit = newHitCandidate ?? [targetStar.x, targetStar.y];
+            if (!oldHitCandidate || !newHitCandidate) {
+                continue;
+            }
             const oldPoint = offsetRayHitInside(
-                oldHit,
+                oldHitCandidate,
                 [targetStar.x, targetStar.y],
                 params.offsetPx,
             );
             const newPoint = offsetRayHitInside(
-                newHit,
+                newHitCandidate,
                 [targetStar.x, targetStar.y],
                 params.offsetPx,
             );
@@ -442,8 +448,8 @@ function buildTransitionSamples(params: {
                 pathStartY: oldPoint[1],
                 pathEndX: newPoint[0],
                 pathEndY: newPoint[1],
-                startFallback: oldHitCandidate == null,
-                endFallback: newHitCandidate == null,
+                startFallback: false,
+                endFallback: false,
                 debugState: 'transition-old',
             });
             samples.push({
@@ -459,8 +465,8 @@ function buildTransitionSamples(params: {
                 pathStartY: oldPoint[1],
                 pathEndX: newPoint[0],
                 pathEndY: newPoint[1],
-                startFallback: oldHitCandidate == null,
-                endFallback: newHitCandidate == null,
+                startFallback: false,
+                endFallback: false,
                 debugState: 'transition-new',
             });
         }

@@ -31,6 +31,7 @@ function makeGeometry(params: {
     ownerId: string;
     loopId: string;
     points: [number, number][];
+    starIds?: string[];
 }): CanonicalGeometrySnapshot {
     return {
         version: `${params.ownerId}:${params.loopId}`,
@@ -43,6 +44,7 @@ function makeGeometry(params: {
             {
                 regionId: `region:${params.ownerId}`,
                 ownerId: params.ownerId,
+                starIds: params.starIds,
                 points: params.points,
                 confidence: 1,
             },
@@ -275,7 +277,7 @@ describe('buildPerimeterFieldScene', () => {
         expect(scene.debug.staticSamples.every((sample) => sample.debugState === 'static')).toBe(true);
     });
 
-    it('adds conquest-local radial transition samples without star-margin fallback', () => {
+    it('adds conquest-local radial transition samples only from valid containing boundary hits', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
@@ -361,6 +363,11 @@ describe('buildPerimeterFieldScene', () => {
         ).toHaveLength(12);
         expect(scene.sceneInput.influenceRadiusPx).toBe(44);
         expect(scene.sceneInput.ownershipMarginPx).toBe(0);
+        expect(
+            scene.debug.transitionSamples.every(
+                (sample) => !sample.startFallback && !sample.endFallback,
+            ),
+        ).toBe(true);
     });
 
     it('offsets transition override samples inward from the raw boundary hits', () => {
@@ -473,5 +480,159 @@ describe('buildPerimeterFieldScene', () => {
         expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'red')).toBe(true);
         expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0x3366ff)).toBe(true);
         expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0xff5533)).toBe(true);
+    });
+
+    it('skips transition rays when the target is not contained by the owner regions', () => {
+        const displayStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const oldGeometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [5, 5],
+                [25, 5],
+                [25, 25],
+                [5, 25],
+            ],
+        });
+        const newGeometry = makeGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop',
+            points: [
+                [75, 75],
+                [95, 75],
+                [95, 95],
+                [75, 95],
+            ],
+        });
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(),
+                tunables: {
+                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 12,
+                },
+            }),
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
+            colorUtils,
+        });
+
+        expect(
+            scene.sceneInput.samples.filter((sample) =>
+                (sample.id ?? '').startsWith('transition:'),
+            ),
+        ).toHaveLength(0);
+        expect(scene.debug.transitionSamples).toHaveLength(0);
+    });
+
+    it('uses star-anchored region membership when source geometry provides starIds', () => {
+        const displayStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const oldGeometry = {
+            ...makeGeometry({
+                ownerId: 'red',
+                loopId: 'red-loop',
+                points: [
+                    [50, 50],
+                    [80, 50],
+                    [80, 80],
+                    [50, 80],
+                ],
+                starIds: ['target'],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:red:target',
+                    ownerId: 'red',
+                    starIds: ['target'],
+                    points: [
+                        [50, 50],
+                        [80, 50],
+                        [80, 80],
+                        [50, 80],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+                {
+                    regionId: 'region:red:other',
+                    ownerId: 'red',
+                    starIds: ['other-red'],
+                    points: [
+                        [5, 5],
+                        [25, 5],
+                        [25, 25],
+                        [5, 25],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+        const newGeometry = {
+            ...makeGeometry({
+                ownerId: 'blue',
+                loopId: 'blue-loop',
+                points: [
+                    [50, 50],
+                    [90, 50],
+                    [90, 90],
+                    [50, 90],
+                ],
+                starIds: ['target'],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:blue:target',
+                    ownerId: 'blue',
+                    starIds: ['target'],
+                    points: [
+                        [50, 50],
+                        [90, 50],
+                        [90, 90],
+                        [50, 90],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+                {
+                    regionId: 'region:blue:other',
+                    ownerId: 'blue',
+                    starIds: ['other-blue'],
+                    points: [
+                        [110, 110],
+                        [130, 110],
+                        [130, 130],
+                        [110, 130],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(),
+                tunables: {
+                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                },
+            }),
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
+            colorUtils,
+        });
+
+        expect(
+            scene.sceneInput.samples.filter((sample) =>
+                (sample.id ?? '').startsWith('transition:'),
+            ),
+        ).toHaveLength(16);
     });
 });

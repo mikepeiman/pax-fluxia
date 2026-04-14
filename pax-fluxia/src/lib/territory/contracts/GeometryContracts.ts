@@ -53,6 +53,8 @@ export interface CanonicalShell {
     shellId: string;
     /** Owner of this shell. */
     ownerId: string;
+    /** Optional star/site membership carried through when the source geometry can identify this shell deterministically. */
+    starIds?: string[];
     /** Outer boundary points (clockwise winding). Chaikin-smoothed in the compiler. */
     points: [number, number][];
     /** Area of the outer boundary (shoelace formula). */
@@ -76,6 +78,8 @@ export interface CanonicalShellLoop {
     shellId?: string;
     /** Owner of this loop. */
     ownerId: string;
+    /** Optional star/site membership carried through when the source geometry can identify this loop deterministically. */
+    starIds?: string[];
     /** Points forming the loop boundary. */
     points: [number, number][];
     /** Classification of this loop within its shell. */
@@ -92,6 +96,8 @@ export interface TerritoryRegionShape {
     regionId: string;
     /** Owner of this region. */
     ownerId: string;
+    /** Optional star/site membership carried through when the source geometry can identify the owning region deterministically. */
+    starIds?: string[];
     /** Boundary points. */
     points: [number, number][];
     /** 0–1 confidence score. */

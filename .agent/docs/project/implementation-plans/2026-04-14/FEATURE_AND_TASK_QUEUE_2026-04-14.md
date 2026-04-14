@@ -33,8 +33,15 @@
 - Tightened `perimeter_field` debug tooling:
   - replay-select + scrub for the last 3 captured conquests
   - owner-color metadata is now carried into debug samples
-  - vstar markers now render as owner-colored bodies with a separate debug-state halo
+  - vstar markers now render as owner-colored star bodies and owner-colored rings
 - Corrected `perimeter_field` transition diagnostics:
   - transition samples now carry path start/end and fallback metadata
-  - overlay draws owner-colored trajectories and numeric labels
+  - overlay draws owner-colored trajectories and explicit `O#` / `N#` labels
   - replay select + scrub can inspect the last 3 captured conquests while paused
+- Corrected `perimeter_field` conquest-local ray selection:
+  - transition rays now require containing owner regions in both `T0` and `T1`
+  - invalid rays are dropped instead of falling back to the conquered-star origin or nearest unrelated region
+  - this removes the known origin/stray artifacts from the transition overlay and field samples
+- Remedied geometry-layer identity loss:
+  - `territoryRegions`, `shells`, and `shellLoops` now preserve upstream `starIds` when the geometry compiler knows them
+  - `perimeter_field` now resolves conquest-local owner regions by deterministic `starId` membership first, then by containment only if that membership data is unavailable
