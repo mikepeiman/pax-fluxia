@@ -36,6 +36,41 @@ let territoryGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
+let cachedGeomField: Float32Array | null = null;
+let cachedRealField: Float32Array | null = null;
+let cachedOwnerGridGeom: Int16Array | null = null;
+let cachedMsrOwnerGrid: Int16Array | null = null;
+let cachedColCenters: Float32Array | null = null;
+let cachedRowCenters: Float32Array | null = null;
+
+function ensureFloatBuffer(buf: Float32Array | null, length: number): Float32Array {
+    if (!buf || buf.length !== length) return new Float32Array(length);
+    buf.fill(0);
+    return buf;
+}
+
+function ensureInt16Buffer(buf: Int16Array | null, length: number, fillValue = -1): Int16Array {
+    if (!buf || buf.length !== length) {
+        const next = new Int16Array(length);
+        next.fill(fillValue);
+        return next;
+    }
+    buf.fill(fillValue);
+    return buf;
+}
+
+function ensureCenters(
+    buf: Float32Array | null,
+    length: number,
+    origin: number,
+    cellSize: number,
+): Float32Array {
+    const next = !buf || buf.length !== length ? new Float32Array(length) : buf;
+    for (let i = 0; i < length; i++) {
+        next[i] = origin + (i + 0.5) * cellSize;
+    }
+    return next;
+}
 
 /** Flat container children vs wrapped layer — must run whenever blur-unify toggles or blur strength crosses zero. */
 function ensureMetaballParenting(
@@ -464,62 +499,41 @@ type MetaballCellWinner = {
 /** Resolve winning cluster for one grid cell from a pre-built influence vector */
 function resolveMetaballCellWinner(
     inf: Float32Array,
+    offset: number,
     numPlayers: number,
-    px: number,
-    py: number,
-    ownedStars: StarState[],
-    clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>,
-    msrPx: number,
+    forcedPlayer: number,
     dominanceFilterOn: boolean,
     dominanceMinActive: number,
 ): MetaballCellWinner | null {
-    let maxInf = 0,
-        maxPlayer = -1,
-        secondInf = 0,
-        secondPlayer = -1;
-    for (let p = 0; p < numPlayers; p++) {
-        if (inf[p] > maxInf) {
-            secondInf = maxInf;
-            secondPlayer = maxPlayer;
-            maxInf = inf[p];
-            maxPlayer = p;
-        } else if (inf[p] > secondInf) {
-            secondInf = inf[p];
-            secondPlayer = p;
-        }
-    }
+    let maxInf = 0;
+    let maxPlayer = forcedPlayer >= 0 ? forcedPlayer : -1;
+    let secondInf = 0;
+    let secondPlayer = -1;
 
-    if (maxPlayer < 0) return null;
-
-    if (msrPx > 0) {
-        const msr2 = msrPx * msrPx;
-        let best: StarState | null = null;
-        let bestD2 = msr2 + 1;
-        for (const s of ownedStars) {
-            const ddx = px - s.x;
-            const ddy = py - s.y;
-            const d2 = ddx * ddx + ddy * ddy;
-            if (d2 <= msr2 && d2 < bestD2) {
-                bestD2 = d2;
-                best = s;
+    if (forcedPlayer >= 0) {
+        maxInf = inf[offset + forcedPlayer];
+        for (let p = 0; p < numPlayers; p++) {
+            if (p === forcedPlayer) continue;
+            const value = inf[offset + p];
+            if (value > secondInf) {
+                secondInf = value;
+                secondPlayer = p;
             }
         }
-        if (best) {
-            const ci = clusterMap.get(best.id)?.clusterIdx;
-            if (ci !== undefined && ci >= 0) {
-                maxPlayer = ci;
-                maxInf = inf[maxPlayer];
-                secondInf = 0;
-                secondPlayer = -1;
-                for (let p = 0; p < numPlayers; p++) {
-                    if (p === maxPlayer) continue;
-                    if (inf[p] > secondInf) {
-                        secondInf = inf[p];
-                        secondPlayer = p;
-                    }
-                }
+    } else {
+        for (let p = 0; p < numPlayers; p++) {
+            const value = inf[offset + p];
+            if (value > maxInf) {
+                secondInf = maxInf;
+                secondPlayer = maxPlayer;
+                maxInf = value;
+                maxPlayer = p;
+            } else if (value > secondInf) {
+                secondInf = value;
+                secondPlayer = p;
             }
         }
+        if (maxPlayer < 0) return null;
     }
 
     const denomRaw = maxInf + secondInf;
@@ -799,6 +813,15 @@ function renderMetaballImpl(
               return colors;
           })();
 
+    const ownedStarClusters = ownedStars
+        .map((star) => {
+            const clusterIdx = clusterMap.get(star.id)?.clusterIdx;
+            return clusterIdx === undefined || clusterIdx < 0
+                ? null
+                : { x: star.x, y: star.y, clusterIdx };
+        })
+        .filter((entry): entry is { x: number; y: number; clusterIdx: number } => entry !== null);
+
     const clusterShips = sceneInput
         ? Float32Array.from(sceneInput.clusterShips)
         : (() => {
@@ -853,173 +876,140 @@ function renderMetaballImpl(
               return data;
           })();
 
-    /**
-     * - **ownerGridGeom** — `infGeom` (stars + CX + DX) → borders.
-     * - **ownerGridFill** — drawn only when geom winner === real-star field winner (no CX-only fill).
-     */
-    const ownerGridFill = new Int8Array(cols * rows).fill(-1);
-    const ownerGridGeom = new Int8Array(cols * rows).fill(-1);
+    const cellCount = cols * rows;
+    const ownerGridGeom = ensureInt16Buffer(cachedOwnerGridGeom, cellCount, -1);
+    cachedOwnerGridGeom = ownerGridGeom;
+    const colCenters = ensureCenters(cachedColCenters, cols, gridOriginX, cellSize);
+    cachedColCenters = colCenters;
+    const rowCenters = ensureCenters(cachedRowCenters, rows, gridOriginY, cellSize);
+    cachedRowCenters = rowCenters;
+    const numPlayers = numClusters;
+    const geomField = ensureFloatBuffer(cachedGeomField, cellCount * numPlayers);
+    cachedGeomField = geomField;
+    const realField = ensureFloatBuffer(cachedRealField, cellCount * numPlayers);
+    cachedRealField = realField;
+    const msrOwnerGrid =
+        msrPx > 0
+            ? ensureInt16Buffer(cachedMsrOwnerGrid, cellCount, -1)
+            : null;
+    if (msrOwnerGrid) cachedMsrOwnerGrid = msrOwnerGrid;
 
     territoryGraphics.clear();
     borderGraphics.clear();
 
-    const numPlayers = numClusters;
-
-    let dbgGeomNonVoid = 0;
-    let dbgFillDrawn = 0;
-    let dbgFillSkipDom = 0;
-    let dbgFillSkipAlpha = 0;
-    let dbgFillSkipRealGeomMismatch = 0;
-
-    /** Reused per cell — avoids 2× allocations per grid cell (major GC pressure). */
-    const infReal = new Float32Array(numPlayers);
-    const infGeom = new Float32Array(numPlayers);
     const rCut = radius * 2;
     const rCut2 = rCut * rCut;
+    const rowStart = new Int32Array(rows);
+    for (let row = 0; row < rows; row++) rowStart[row] = row * cols;
 
-    for (let row = 0; row < rows; row++) {
-        const py = gridOriginY + (row + 0.5) * cellSize;
-        for (let col = 0; col < cols; col++) {
-            const px = gridOriginX + (col + 0.5) * cellSize;
-            const idx = row * cols + col;
-
-            infReal.fill(0);
-            infGeom.fill(0);
-            for (const star of starData) {
-                const dx = px - star.x;
-                const dy = py - star.y;
+    for (let sampleIdx = 0; sampleIdx < starData.length; sampleIdx++) {
+        const sample = starData[sampleIdx];
+        const minCol = Math.max(0, Math.floor((sample.x - rCut - gridOriginX) / cellSize));
+        const maxCol = Math.min(cols - 1, Math.floor((sample.x + rCut - gridOriginX) / cellSize));
+        const minRow = Math.max(0, Math.floor((sample.y - rCut - gridOriginY) / cellSize));
+        const maxRow = Math.min(rows - 1, Math.floor((sample.y + rCut - gridOriginY) / cellSize));
+        const playerIdx = sample.playerIdx;
+        const isVirtual = sample.corridorVirtual || sample.disconnectVirtual;
+        for (let row = minRow; row <= maxRow; row++) {
+            const py = rowCenters[row];
+            const dy = py - sample.y;
+            const rowOffset = rowStart[row];
+            for (let col = minCol; col <= maxCol; col++) {
+                const dx = colCenters[col] - sample.x;
                 const dist2 = dx * dx + dy * dy;
                 if (dist2 > rCut2) continue;
-                const dist = Math.sqrt(dist2);
-                const c = falloffFn(dist, radius) * star.strength;
-                const p = star.playerIdx;
-                if (!star.corridorVirtual && !star.disconnectVirtual) infReal[p] += c;
-                infGeom[p] += c;
+                const value = falloffFn(Math.sqrt(dist2), radius) * sample.strength;
+                const fieldOffset = (rowOffset + col) * numPlayers + playerIdx;
+                geomField[fieldOffset] += value;
+                if (!isVirtual) realField[fieldOffset] += value;
             }
+        }
+    }
 
+    if (msrOwnerGrid) {
+        const msr2 = msrPx * msrPx;
+        for (let row = 0; row < rows; row++) {
+            const py = rowCenters[row];
+            const rowOffset = rowStart[row];
+            for (let col = 0; col < cols; col++) {
+                const px = colCenters[col];
+                let bestCluster = -1;
+                let bestDist2 = msr2 + 1;
+                for (let i = 0; i < ownedStarClusters.length; i++) {
+                    const star = ownedStarClusters[i];
+                    const dx = px - star.x;
+                    const dy = py - star.y;
+                    const dist2 = dx * dx + dy * dy;
+                    if (dist2 > msr2 || dist2 >= bestDist2) continue;
+                    bestDist2 = dist2;
+                    bestCluster = star.clusterIdx;
+                }
+                msrOwnerGrid[rowOffset + col] = bestCluster;
+            }
+        }
+    }
+
+    for (let row = 0; row < rows; row++) {
+        const drawY = gridOriginY + row * cellSize;
+        const rowOffset = rowStart[row];
+        for (let col = 0; col < cols; col++) {
+            const idx = rowOffset + col;
+            const forcedPlayer = msrOwnerGrid ? msrOwnerGrid[idx] : -1;
+            const offset = idx * numPlayers;
             const wGeom = resolveMetaballCellWinner(
-                infGeom,
+                geomField,
+                offset,
                 numPlayers,
-                px,
-                py,
-                ownedStars,
-                clusterMap,
-                msrPx,
+                forcedPlayer,
                 dominanceFilterOn,
                 dominanceMinActive,
             );
-            if (wGeom) {
-                ownerGridGeom[idx] = wGeom.maxPlayer;
-                dbgGeomNonVoid++;
-            }
-
             if (!wGeom) continue;
+            ownerGridGeom[idx] = wGeom.maxPlayer;
 
+            let realWinner: MetaballCellWinner | null = null;
             if (!fillFollowsGeom) {
-                const wReal = resolveMetaballCellWinner(
-                    infReal,
+                realWinner = resolveMetaballCellWinner(
+                    realField,
+                    offset,
                     numPlayers,
-                    px,
-                    py,
-                    ownedStars,
-                    clusterMap,
-                    msrPx,
+                    forcedPlayer,
                     dominanceFilterOn,
                     dominanceMinActive,
                 );
-                if (!wReal || wReal.maxPlayer !== wGeom.maxPlayer) {
-                    dbgFillSkipRealGeomMismatch++;
-                    continue;
-                }
+                if (!realWinner || realWinner.maxPlayer !== wGeom.maxPlayer) continue;
             }
 
-            const geomPlayer = wGeom.maxPlayer;
-            const fillInfluence = fillFollowsGeom ? infGeom : infReal;
-            const maxInf = fillInfluence[geomPlayer];
-            let secondInf = 0;
-            let secondPlayer = -1;
-            for (let p = 0; p < numPlayers; p++) {
-                if (p === geomPlayer) continue;
-                if (fillInfluence[p] > secondInf) {
-                    secondInf = fillInfluence[p];
-                    secondPlayer = p;
-                }
-            }
-            const denomFill = maxInf + secondInf;
-            const domFill =
-                denomFill > 1e-12 ? maxInf / denomFill : 1;
-            if (dominanceFilterOn && domFill < dominanceMinActive) {
-                dbgFillSkipDom++;
-                continue;
-            }
-
-            const maxPlayer = geomPlayer;
+            const fillWinner = fillFollowsGeom ? wGeom : realWinner;
+            if (!fillWinner) continue;
 
             let r: number, g: number, b: number;
-            const topColor = playerColors[maxPlayer];
-            r = topColor[0]; g = topColor[1]; b = topColor[2];
+            const topColor = playerColors[fillWinner.maxPlayer];
+            r = topColor[0];
+            g = topColor[1];
+            b = topColor[2];
 
-            const runnerBlend = secondInf;
-            if (secondPlayer >= 0 && runnerBlend > 1e-9) {
-                const total = maxInf + runnerBlend;
-                let bf = maxInf / total;
+            if (fillWinner.secondPlayer >= 0 && fillWinner.secondInf > 1e-9) {
+                const total = fillWinner.maxInf + fillWinner.secondInf;
+                let blendFactor = fillWinner.maxInf / total;
                 const lo = 0.5 - 0.5 / sharpness;
                 const hi = 0.5 + 0.5 / sharpness;
-                bf = Math.max(0, Math.min(1, (bf - lo) / (hi - lo)));
-                if (bf < 0.99) {
-                    const sc = playerColors[secondPlayer];
-                    r = sc[0] + (topColor[0] - sc[0]) * bf;
-                    g = sc[1] + (topColor[1] - sc[1]) * bf;
-                    b = sc[2] + (topColor[2] - sc[2]) * bf;
+                blendFactor = Math.max(0, Math.min(1, (blendFactor - lo) / (hi - lo)));
+                if (blendFactor < 0.99) {
+                    const secondColor = playerColors[fillWinner.secondPlayer];
+                    r = secondColor[0] + (topColor[0] - secondColor[0]) * blendFactor;
+                    g = secondColor[1] + (topColor[1] - secondColor[1]) * blendFactor;
+                    b = secondColor[2] + (topColor[2] - secondColor[2]) * blendFactor;
                 }
             }
 
             [r, g, b] = applyFillHSL(r, g, b, 0, fillSatMult, fillLightMult);
 
-            const fadeAlpha = Math.min(1, maxInf * edgeFade) * alpha;
-            if (fadeAlpha < 0.01) {
-                dbgFillSkipAlpha++;
-                continue;
-            }
+            const fadeAlpha = Math.min(1, fillWinner.maxInf * edgeFade) * alpha;
+            if (fadeAlpha < 0.01) continue;
 
-            ownerGridFill[idx] = geomPlayer;
-            dbgFillDrawn++;
-            territoryGraphics.rect(gridOriginX + col * cellSize, gridOriginY + row * cellSize, cellSize, cellSize);
+            territoryGraphics.rect(gridOriginX + col * cellSize, drawY, cellSize, cellSize);
             territoryGraphics.fill({ color: rgbToHex(r, g, b), alpha: fadeAlpha });
-        }
-    }
-
-    let dbgFilledCells = 0;
-    let dbgEdgeOwnerDiff = 0;
-    let dbgEdgeToVoid = 0;
-    let dbgVoidBorderSegs = 0;
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            const o = ownerGridGeom[row * cols + col];
-            if (ownerGridFill[row * cols + col] >= 0) dbgFilledCells++;
-            if (col + 1 < cols) {
-                const rO = ownerGridGeom[row * cols + col + 1];
-                if (o >= 0 && rO >= 0 && o !== rO) dbgEdgeOwnerDiff++;
-                if ((o >= 0 && rO < 0) || (o < 0 && rO >= 0)) dbgEdgeToVoid++;
-            }
-            if (row + 1 < rows) {
-                const bO = ownerGridGeom[(row + 1) * cols + col];
-                if (o >= 0 && bO >= 0 && o !== bO) dbgEdgeOwnerDiff++;
-                if ((o >= 0 && bO < 0) || (o < 0 && bO >= 0)) dbgEdgeToVoid++;
-            }
-        }
-    }
-
-    const dbgCorridorSamples = starData.filter(s => s.corridorVirtual).length;
-
-    let dbgAllSegsLen = -1;
-    let dbgCombatNearCount = -1;
-    let dbgHotStars = 0;
-    if (gameTick !== undefined && combatTicks > 0) {
-        for (const s of ownedStars) {
-            const lc = s.lastCombatTick ?? -9e8;
-            const la = s.lastAttackTick ?? -9e8;
-            if (gameTick - lc < combatTicks || gameTick - la < combatTicks) dbgHotStars++;
         }
     }
 
@@ -1125,7 +1115,6 @@ function renderMetaballImpl(
                 borderLightMult,
             );
             const color = rgbToHex(br, bg, bb);
-            if (lo < 0 || ro < 0) dbgVoidBorderSegs += merged.length;
             for (const iv of merged) {
                 allSegs.push({ ax: x, ay: iv.y0, bx: x, by: iv.y1, color, lo, ro });
             }
@@ -1145,13 +1134,11 @@ function renderMetaballImpl(
                 borderLightMult,
             );
             const color = rgbToHex(br, bg, bb);
-            if (lo < 0 || ro < 0) dbgVoidBorderSegs += merged.length;
             for (const iv of merged) {
                 allSegs.push({ ax: iv.x0, ay: y, bx: iv.x1, by: y, color, lo, ro });
             }
         }
 
-        let dbgCombatNear = 0;
         const byStyle = new Map<string, BorderSeg[]>();
         for (const s of allSegs) {
             const combatNear = segmentNearHotCombat(
@@ -1167,7 +1154,6 @@ function renderMetaballImpl(
                 clusterMap,
                 combatProximityPx,
             );
-            if (combatNear) dbgCombatNear++;
             const sa = clusterShips[s.lo] ?? 0;
             const sb = clusterShips[s.ro] ?? 0;
             const sum = sa + sb + 1;
@@ -1214,9 +1200,6 @@ function renderMetaballImpl(
                 });
             }
         }
-
-        dbgAllSegsLen = allSegs.length;
-        dbgCombatNearCount = dbgCombatNear;
     }
 
     applyBlurFilter();
