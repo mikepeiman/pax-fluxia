@@ -14,6 +14,8 @@ type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 export interface PerimeterFieldDebugSample extends MetaballInfluenceSample {
     ownerId: string;
     ownerColor: number;
+    sourceId?: string;
+    starIds?: readonly string[];
     sampleIndex?: number;
     pathStartX?: number;
     pathStartY?: number;
@@ -37,6 +39,18 @@ export interface PerimeterFieldDebugSnapshot {
 export interface PerimeterFieldBuiltScene {
     sceneInput: MetaballSceneInput;
     debug: PerimeterFieldDebugSnapshot;
+}
+
+interface PerimeterSource {
+    ownerId: string;
+    sourceId: string;
+    points: ReadonlyArray<[number, number]>;
+    starIds?: readonly string[];
+}
+
+interface PerimeterSourceSampleSet {
+    source: PerimeterSource;
+    samples: PerimeterFieldDebugSample[];
 }
 
 function readNumber(input: RenderFamilyInput, key: string, fallback: number): number {
@@ -174,89 +188,72 @@ function offsetSampleInsideLoop(params: {
     return params.point;
 }
 
-function findStarAnchoredOwnerRegion(
+function listPerimeterSources(
     geometry: CanonicalGeometrySnapshot,
+): PerimeterSource[] {
+    const shellStarIdsById = new Map(
+        geometry.shells.map((shell) => [shell.shellId, shell.starIds] as const),
+    );
+    const shellLoops = geometry.shellLoops
+        .filter((loop) => loop.classification === 'outer' && Boolean(loop.ownerId))
+        .sort((a, b) => {
+            if (a.ownerId !== b.ownerId) return a.ownerId.localeCompare(b.ownerId);
+            return a.shellLoopId.localeCompare(b.shellLoopId);
+        });
+
+    if (shellLoops.length > 0) {
+        return shellLoops.map((loop) => ({
+            ownerId: loop.ownerId,
+            sourceId: loop.shellLoopId,
+            points: loop.points,
+            starIds: loop.starIds ?? (loop.shellId ? shellStarIdsById.get(loop.shellId) : undefined),
+        }));
+    }
+
+    return [...geometry.territoryRegions]
+        .filter((region) => Boolean(region.ownerId))
+        .sort((a, b) => {
+            if (a.ownerId !== b.ownerId) {
+                return a.ownerId.localeCompare(b.ownerId);
+            }
+            return a.regionId.localeCompare(b.regionId);
+        })
+        .map((region) => ({
+            ownerId: region.ownerId,
+            sourceId: region.regionId,
+            points: region.points,
+            starIds: region.starIds,
+        }));
+}
+
+function findStarAnchoredPerimeterSource(
+    sources: readonly PerimeterSource[],
     ownerId: string,
     starId: string,
     x: number,
     y: number,
-): ReadonlyArray<[number, number]> | null {
-    const regions = geometry.territoryRegions.filter((region) => region.ownerId === ownerId);
-    const starAnchoredRegions = regions.filter((region) => region.starIds?.includes(starId));
-    for (const region of starAnchoredRegions) {
-        if (pointInPolygon(x, y, region.points)) {
-            return region.points;
+): PerimeterSource | null {
+    const ownerSources = sources.filter((source) => source.ownerId === ownerId);
+    const starAnchoredSources = ownerSources.filter((source) =>
+        source.starIds?.includes(starId),
+    );
+    for (const source of starAnchoredSources) {
+        if (pointInPolygon(x, y, source.points)) {
+            return source;
         }
     }
-    if (starAnchoredRegions.length === 1) {
-        return starAnchoredRegions[0]!.points;
+    if (starAnchoredSources.length === 1) {
+        return starAnchoredSources[0]!;
     }
-    for (const region of starAnchoredRegions) {
-        return region.points;
+    if (starAnchoredSources.length > 1) {
+        return starAnchoredSources[0]!;
     }
-    for (const region of regions) {
-        if (pointInPolygon(x, y, region.points)) {
-            return region.points;
+    for (const source of ownerSources) {
+        if (pointInPolygon(x, y, source.points)) {
+            return source;
         }
     }
     return null;
-}
-
-function raySegmentHit(
-    ox: number,
-    oy: number,
-    dx: number,
-    dy: number,
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-): number | null {
-    const sx = bx - ax;
-    const sy = by - ay;
-    const denom = dx * sy - dy * sx;
-    if (Math.abs(denom) <= 1e-9) return null;
-    const rx = ax - ox;
-    const ry = ay - oy;
-    const t = (rx * sy - ry * sx) / denom;
-    const u = (rx * dy - ry * dx) / denom;
-    if (t < 0 || u < 0 || u > 1) return null;
-    return t;
-}
-
-function rayPolygonHit(
-    ox: number,
-    oy: number,
-    dx: number,
-    dy: number,
-    points: ReadonlyArray<[number, number]>,
-): [number, number] | null {
-    let bestT = Infinity;
-    for (let i = 0; i < points.length; i++) {
-        const [ax, ay] = points[i]!;
-        const [bx, by] = points[(i + 1) % points.length]!;
-        const hitT = raySegmentHit(ox, oy, dx, dy, ax, ay, bx, by);
-        if (hitT !== null && hitT < bestT) {
-            bestT = hitT;
-        }
-    }
-    if (!Number.isFinite(bestT)) return null;
-    return [ox + dx * bestT, oy + dy * bestT];
-}
-
-function offsetRayHitInside(
-    hit: [number, number],
-    origin: [number, number],
-    offsetPx: number,
-): [number, number] {
-    if (offsetPx <= 0) return hit;
-    const dx = hit[0] - origin[0];
-    const dy = hit[1] - origin[1];
-    const length = Math.hypot(dx, dy);
-    if (length <= 1e-6) return hit;
-    const inwardDistance = Math.max(0, length - offsetPx);
-    const scale = inwardDistance / length;
-    return [origin[0] + dx * scale, origin[1] + dy * scale];
 }
 
 function buildOwnerClusterScene(
@@ -294,47 +291,21 @@ function buildOwnerClusterScene(
     return { ownedStars, clusterMap, playerColors, clusterShips, ownerToCluster };
 }
 
-function buildStaticPerimeterSamples(params: {
-    geometry: CanonicalGeometrySnapshot;
+function buildPerimeterSourceSampleSets(params: {
+    sources: readonly PerimeterSource[];
     ownerToCluster: ReadonlyMap<string, number>;
     spacing: number;
     offsetPx: number;
     strength: number;
     debugState: 'static' | 'target';
     colorUtils: ColorUtils;
-}): PerimeterFieldDebugSample[] {
-    const loops = params.geometry.shellLoops
-        .filter((loop) => loop.classification === 'outer' && Boolean(loop.ownerId))
-        .sort((a, b) => {
-            if (a.ownerId !== b.ownerId) return a.ownerId.localeCompare(b.ownerId);
-            return a.shellLoopId.localeCompare(b.shellLoopId);
-        });
-    const perimeterSources =
-        loops.length > 0
-            ? loops.map((loop) => ({
-                  ownerId: loop.ownerId,
-                  sourceId: loop.shellLoopId,
-                  points: loop.points,
-              }))
-            : [...params.geometry.territoryRegions]
-                  .filter((region) => Boolean(region.ownerId))
-                  .sort((a, b) => {
-                      if (a.ownerId !== b.ownerId) {
-                          return a.ownerId.localeCompare(b.ownerId);
-                      }
-                      return a.regionId.localeCompare(b.regionId);
-                  })
-                  .map((region) => ({
-                      ownerId: region.ownerId,
-                      sourceId: region.regionId,
-                      points: region.points,
-                  }));
-
-    const samples: PerimeterFieldDebugSample[] = [];
-    for (const source of perimeterSources) {
+}): PerimeterSourceSampleSet[] {
+    const sampleSets: PerimeterSourceSampleSet[] = [];
+    for (const source of params.sources) {
         const playerIdx = params.ownerToCluster.get(source.ownerId);
         if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) continue;
         const sampled = sampleClosedLoop(source.points, params.spacing);
+        const samples: PerimeterFieldDebugSample[] = [];
         for (let i = 0; i < sampled.length; i++) {
             const [x, y] = offsetSampleInsideLoop({
                 point: sampled[i]!,
@@ -351,128 +322,201 @@ function buildStaticPerimeterSamples(params: {
                 strength: params.strength,
                 ownerId: source.ownerId,
                 ownerColor: params.colorUtils.getPlayerColor(source.ownerId),
+                sourceId: source.sourceId,
+                starIds: source.starIds,
                 sampleIndex: i,
                 debugState: params.debugState,
             });
         }
+        sampleSets.push({ source, samples });
     }
-    return samples;
+    return sampleSets;
+}
+
+function flattenPerimeterSampleSets(
+    sampleSets: readonly PerimeterSourceSampleSet[],
+): PerimeterFieldDebugSample[] {
+    return sampleSets.flatMap((sampleSet) => sampleSet.samples);
+}
+
+function normalizeAngle(value: number): number {
+    const twoPi = Math.PI * 2;
+    let angle = value % twoPi;
+    if (angle < 0) angle += twoPi;
+    return angle;
+}
+
+function circularAngleDistance(a: number, b: number): number {
+    const delta = Math.abs(normalizeAngle(a) - normalizeAngle(b));
+    return Math.min(delta, Math.PI * 2 - delta);
+}
+
+function sampleAngleAboutPoint(
+    sample: { x: number; y: number },
+    originX: number,
+    originY: number,
+): number {
+    return normalizeAngle(Math.atan2(sample.y - originY, sample.x - originX));
+}
+
+function findClosestSampleByAngle(params: {
+    candidates: readonly PerimeterFieldDebugSample[];
+    originX: number;
+    originY: number;
+    targetSample: PerimeterFieldDebugSample;
+}): PerimeterFieldDebugSample | null {
+    const targetAngle = sampleAngleAboutPoint(
+        params.targetSample,
+        params.originX,
+        params.originY,
+    );
+    let bestSample: PerimeterFieldDebugSample | null = null;
+    let bestDistance = Infinity;
+    for (const candidate of params.candidates) {
+        const angleDistance = circularAngleDistance(
+            targetAngle,
+            sampleAngleAboutPoint(candidate, params.originX, params.originY),
+        );
+        if (
+            angleDistance < bestDistance - 1e-6 ||
+            (Math.abs(angleDistance - bestDistance) <= 1e-6 &&
+                (bestSample == null ||
+                    (candidate.sampleIndex ?? 0) < (bestSample.sampleIndex ?? 0)))
+        ) {
+            bestSample = candidate;
+            bestDistance = angleDistance;
+        }
+    }
+    return bestSample;
 }
 
 function buildTransitionSamples(params: {
     input: RenderFamilyInput;
-    oldGeometry: CanonicalGeometrySnapshot;
-    newGeometry: CanonicalGeometrySnapshot;
-    ownerToCluster: ReadonlyMap<string, number>;
-    offsetPx: number;
-    strength: number;
+    oldSources: readonly PerimeterSource[];
+    newSources: readonly PerimeterSource[];
+    oldSourceSampleSets: readonly PerimeterSourceSampleSet[];
+    newSourceSampleSets: readonly PerimeterSourceSampleSet[];
     oldFade: number;
     newGrow: number;
-    rayCount: number;
-    colorUtils: ColorUtils;
-}): PerimeterFieldDebugSample[] {
+}): {
+    transitionSamples: PerimeterFieldDebugSample[];
+    excludedStaticSampleIds: ReadonlySet<string>;
+} {
     const activeTransition = params.input.activeTransition;
-    if (!activeTransition) return [];
-    const samples: PerimeterFieldDebugSample[] = [];
+    if (!activeTransition) {
+        return {
+            transitionSamples: [],
+            excludedStaticSampleIds: new Set<string>(),
+        };
+    }
+    const transitionSamples: PerimeterFieldDebugSample[] = [];
+    const excludedStaticSampleIds = new Set<string>();
     const progress = clamp01(activeTransition.progress);
 
     for (const eventEntry of activeTransition.events) {
         const conquest = eventEntry.event;
         const targetStar = params.input.stars.find((star) => star.id === conquest.starId);
         if (!targetStar || !conquest.previousOwner || !conquest.newOwner) continue;
-        const oldRegion = findStarAnchoredOwnerRegion(
-            params.oldGeometry,
+        const oldSource = findStarAnchoredPerimeterSource(
+            params.oldSources,
             conquest.previousOwner,
             conquest.starId,
             targetStar.x,
             targetStar.y,
         );
-        const newRegion = findStarAnchoredOwnerRegion(
-            params.newGeometry,
+        const newSource = findStarAnchoredPerimeterSource(
+            params.newSources,
             conquest.newOwner,
             conquest.starId,
             targetStar.x,
             targetStar.y,
         );
-        const oldCluster = params.ownerToCluster.get(conquest.previousOwner);
-        const newCluster = params.ownerToCluster.get(conquest.newOwner);
-        if (!oldRegion || !newRegion || oldCluster === undefined || newCluster === undefined) {
+        if (!oldSource || !newSource) {
             continue;
         }
 
-        const rayCount = Math.max(8, Math.round(params.rayCount));
-        for (let i = 0; i < rayCount; i++) {
-            const theta = (Math.PI * 2 * i) / rayCount;
-            const dx = Math.cos(theta);
-            const dy = Math.sin(theta);
-            const oldHitCandidate = rayPolygonHit(
-                targetStar.x,
-                targetStar.y,
-                dx,
-                dy,
-                oldRegion,
-            );
-            const newHitCandidate = rayPolygonHit(
-                targetStar.x,
-                targetStar.y,
-                dx,
-                dy,
-                newRegion,
-            );
-            if (!oldHitCandidate || !newHitCandidate) {
-                continue;
-            }
-            const oldPoint = offsetRayHitInside(
-                oldHitCandidate,
-                [targetStar.x, targetStar.y],
-                params.offsetPx,
-            );
-            const newPoint = offsetRayHitInside(
-                newHitCandidate,
-                [targetStar.x, targetStar.y],
-                params.offsetPx,
-            );
-            const x = oldPoint[0] + (newPoint[0] - oldPoint[0]) * progress;
-            const y = oldPoint[1] + (newPoint[1] - oldPoint[1]) * progress;
+        const oldSampleSet = params.oldSourceSampleSets.find(
+            (sampleSet) =>
+                sampleSet.source.ownerId === oldSource.ownerId &&
+                sampleSet.source.sourceId === oldSource.sourceId,
+        );
+        const newSampleSet = params.newSourceSampleSets.find(
+            (sampleSet) =>
+                sampleSet.source.ownerId === newSource.ownerId &&
+                sampleSet.source.sourceId === newSource.sourceId,
+        );
+        if (!oldSampleSet || !newSampleSet) continue;
 
-            samples.push({
-                id: `transition:old:${conquest.previousOwner}:${conquest.starId}:${i}`,
-                x,
-                y,
-                playerIdx: oldCluster,
-                strength: params.strength * Math.max(0, params.oldFade) * (1 - progress),
-                ownerId: conquest.previousOwner,
-                ownerColor: params.colorUtils.getPlayerColor(conquest.previousOwner),
-                sampleIndex: i,
-                pathStartX: oldPoint[0],
-                pathStartY: oldPoint[1],
-                pathEndX: newPoint[0],
-                pathEndY: newPoint[1],
-                startFallback: false,
-                endFallback: false,
-                debugState: 'transition-old',
+        for (const sample of oldSampleSet.samples) {
+            if (sample.id) excludedStaticSampleIds.add(sample.id);
+        }
+
+        for (const oldSample of oldSampleSet.samples) {
+            const matchedNewSample = findClosestSampleByAngle({
+                candidates: newSampleSet.samples,
+                originX: targetStar.x,
+                originY: targetStar.y,
+                targetSample: oldSample,
             });
-            samples.push({
-                id: `transition:new:${conquest.newOwner}:${conquest.starId}:${i}`,
-                x,
-                y,
-                playerIdx: newCluster,
-                strength: params.strength * Math.max(0, params.newGrow) * progress,
-                ownerId: conquest.newOwner,
-                ownerColor: params.colorUtils.getPlayerColor(conquest.newOwner),
-                sampleIndex: i,
-                pathStartX: oldPoint[0],
-                pathStartY: oldPoint[1],
-                pathEndX: newPoint[0],
-                pathEndY: newPoint[1],
+            if (!matchedNewSample) continue;
+
+            transitionSamples.push({
+                ...oldSample,
+                id: `transition:old:${conquest.previousOwner}:${conquest.starId}:${oldSource.sourceId}:${oldSample.sampleIndex ?? 0}`,
+                x:
+                    oldSample.x +
+                    (matchedNewSample.x - oldSample.x) * progress,
+                y:
+                    oldSample.y +
+                    (matchedNewSample.y - oldSample.y) * progress,
+                strength:
+                    oldSample.strength *
+                    Math.max(0, params.oldFade) *
+                    (1 - progress),
+                pathStartX: oldSample.x,
+                pathStartY: oldSample.y,
+                pathEndX: matchedNewSample.x,
+                pathEndY: matchedNewSample.y,
+                debugState: 'transition-old',
                 startFallback: false,
                 endFallback: false,
+            });
+        }
+
+        for (const newSample of newSampleSet.samples) {
+            const matchedOldSample = findClosestSampleByAngle({
+                candidates: oldSampleSet.samples,
+                originX: targetStar.x,
+                originY: targetStar.y,
+                targetSample: newSample,
+            });
+            if (!matchedOldSample) continue;
+
+            transitionSamples.push({
+                ...newSample,
+                id: `transition:new:${conquest.newOwner}:${conquest.starId}:${newSource.sourceId}:${newSample.sampleIndex ?? 0}`,
+                x:
+                    matchedOldSample.x +
+                    (newSample.x - matchedOldSample.x) * progress,
+                y:
+                    matchedOldSample.y +
+                    (newSample.y - matchedOldSample.y) * progress,
+                strength:
+                    newSample.strength *
+                    Math.max(0, params.newGrow) *
+                    progress,
+                pathStartX: matchedOldSample.x,
+                pathStartY: matchedOldSample.y,
+                pathEndX: newSample.x,
+                pathEndY: newSample.y,
                 debugState: 'transition-new',
+                startFallback: false,
+                endFallback: false,
             });
         }
     }
 
-    return samples;
+    return { transitionSamples, excludedStaticSampleIds };
 }
 
 export function buildPerimeterFieldScene(params: {
@@ -500,11 +544,6 @@ export function buildPerimeterFieldScene(params: {
         'PERIMETER_FIELD_INFLUENCE_WEIGHT',
         GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT ?? 1.35,
     );
-    const rayCount = readNumber(
-        params.input,
-        'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
-        GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT ?? 60,
-    );
     const oldFade = readNumber(
         params.input,
         'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
@@ -527,8 +566,9 @@ export function buildPerimeterFieldScene(params: {
     );
 
     const clusterScene = buildOwnerClusterScene(params.starsForDisplay, params.colorUtils);
-    const staticSamples = buildStaticPerimeterSamples({
-        geometry: params.geometry,
+    const displaySources = listPerimeterSources(params.geometry);
+    const displaySampleSets = buildPerimeterSourceSampleSets({
+        sources: displaySources,
         ownerToCluster: clusterScene.ownerToCluster,
         spacing,
         offsetPx,
@@ -536,9 +576,12 @@ export function buildPerimeterFieldScene(params: {
         debugState: 'static',
         colorUtils: params.colorUtils,
     });
-    const targetStaticSamples = params.transitionTargetGeometry
-        ? buildStaticPerimeterSamples({
-              geometry: params.transitionTargetGeometry,
+    const targetSources = params.transitionTargetGeometry
+        ? listPerimeterSources(params.transitionTargetGeometry)
+        : [];
+    const targetSampleSets = params.transitionTargetGeometry
+        ? buildPerimeterSourceSampleSets({
+              sources: targetSources,
               ownerToCluster: clusterScene.ownerToCluster,
               spacing,
               offsetPx,
@@ -547,21 +590,29 @@ export function buildPerimeterFieldScene(params: {
               colorUtils: params.colorUtils,
           })
         : [];
-    const transitionSamples =
+    const {
+        transitionSamples,
+        excludedStaticSampleIds,
+    } =
         params.input.activeTransition && params.transitionTargetGeometry
             ? buildTransitionSamples({
                   input: params.input,
-                  oldGeometry: params.geometry,
-                  newGeometry: params.transitionTargetGeometry,
-                  ownerToCluster: clusterScene.ownerToCluster,
-                  offsetPx,
-                  strength,
+                  oldSources: displaySources,
+                  newSources: targetSources,
+                  oldSourceSampleSets: displaySampleSets,
+                  newSourceSampleSets: targetSampleSets,
                   oldFade,
                   newGrow,
-                  rayCount,
-                  colorUtils: params.colorUtils,
               })
-            : [];
+            : {
+                  transitionSamples: [],
+                  excludedStaticSampleIds: new Set<string>(),
+              };
+
+    const staticSamples = flattenPerimeterSampleSets(displaySampleSets).filter(
+        (sample) => !sample.id || !excludedStaticSampleIds.has(sample.id),
+    );
+    const targetStaticSamples = flattenPerimeterSampleSets(targetSampleSets);
 
     const samples = [...staticSamples, ...transitionSamples].sort((a, b) => {
         const idA = a.id ?? '';

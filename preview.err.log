@@ -1,0 +1,7 @@
+$ vite preview --host "127.0.0.1" --port "4173"
+
+[1;31m[404] GET /__maps[0m
+
+[1;31m[404] GET /__maps[0m
+
+[1;31m[404] GET /__maps[0m

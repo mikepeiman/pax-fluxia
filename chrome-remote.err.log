@@ -1,0 +1,20 @@
+[55976:37108:0412/235330.760:ERROR:net\socket\tcp_socket_win.cc:530] bind() returned an error: Only one usage of each socket address (protocol/network address/port) is normally permitted. (0x2740)
+
+DevTools listening on ws://[::1]:9222/devtools/browser/533a74be-59e2-464d-99be-22718a133ed2
+[55976:1820:0412/235332.819:ERROR:components\device_event_log\device_event_log_impl.cc:202] [23:53:32.819] USB: usb_service_win.cc:104 SetupDiGetDeviceProperty({{A45C254E-DF1C-4EFD-8020-67D146A850E0}, 6}) failed: Element not found. (0x490)
+[55976:58664:0412/235333.335:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[55976:58664:0412/235355.333:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[55976:58664:0412/235437.401:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[55976:58664:0412/235619.773:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[55976:58664:0412/235809.688:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -2
+[55976:58664:0413/093311.026:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:434] Failed to connect to MCS endpoint with error -7
+[55976:58664:0413/093311.034:ERROR:google_apis\gcm\engine\registration_request.cc:275] Registration URL fetching failed.
+[55976:1820:0413/093311.814:ERROR:components\device_event_log\device_event_log_impl.cc:202] [09:33:11.811] USB: usb_service_win.cc:104 SetupDiGetDeviceProperty({{A45C254E-DF1C-4EFD-8020-67D146A850E0}, 6}) failed: Element not found. (0x490)
+[55976:58664:0413/093858.592:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[55976:58664:0413/093944.599:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -2
+[55976:58664:0413/110907.940:ERROR:google_apis\gcm\engine\connection_handler_impl.cc:473] Timed out waiting for GCM Protocol buffer.
+[55976:58664:0413/110907.940:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -7
+[55976:58664:0413/221546.696:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -2
+[55976:58664:0414/101253.230:ERROR:google_apis\gcm\engine\connection_handler_impl.cc:473] Timed out waiting for GCM Protocol buffer.
+[55976:58664:0414/101253.231:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -7

@@ -42,7 +42,7 @@ function makeGeometry(params: {
         sourceMethod: 'power_voronoi',
         territoryRegions: [
             {
-                regionId: `region:${params.ownerId}`,
+                regionId: `region:${params.loopId}`,
                 ownerId: params.ownerId,
                 starIds: params.starIds,
                 points: params.points,
@@ -67,8 +67,9 @@ function makeGeometry(params: {
         shellLoops: [
             {
                 shellLoopId: params.loopId,
-                shellId: `shell:${params.ownerId}`,
+                shellId: `shell:${params.loopId}`,
                 ownerId: params.ownerId,
+                starIds: params.starIds,
                 points: params.points,
                 classification: 'outer',
                 confidence: 1,
@@ -118,7 +119,7 @@ const colorUtils = {
     },
 } as unknown as ColorUtils;
 
-function makeTransition(): RenderFamilyActiveTransition {
+function makeTransition(progress = 0.5): RenderFamilyActiveTransition {
     const conquestEvent = {
         tick: 10,
         starId: 'target',
@@ -140,15 +141,19 @@ function makeTransition(): RenderFamilyActiveTransition {
                 event: conquestEvent,
                 startedAtMs: 500,
                 durationMs: 1000,
-                rawProgress: 0.5,
-                progress: 0.5,
+                rawProgress: progress,
+                progress,
             },
         ],
         startedAtMs: 500,
         durationMs: 1000,
-        rawProgress: 0.5,
-        progress: 0.5,
+        rawProgress: progress,
+        progress,
     };
+}
+
+function pointKey(x: number, y: number): string {
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
 }
 
 describe('buildPerimeterFieldScene', () => {
@@ -163,6 +168,7 @@ describe('buildPerimeterFieldScene', () => {
                 [80, 80],
                 [20, 80],
             ],
+            starIds: ['target'],
         });
         const input = makeInput({
             stars,
@@ -203,32 +209,16 @@ describe('buildPerimeterFieldScene', () => {
                     [80, 80],
                     [20, 80],
                 ],
+                starIds: ['target'],
             }),
-            shellLoops: [
-                {
-                    shellLoopId: 'red-hole-like-loop',
-                    shellId: 'shell:red',
-                    ownerId: 'red',
-                    points: [
-                        [20, 20],
-                        [80, 20],
-                        [80, 80],
-                        [20, 80],
-                    ] as [number, number][],
-                    classification: 'hole' as const,
-                    confidence: 1,
-                },
-            ],
+            shellLoops: [],
         } as CanonicalGeometrySnapshot;
-        const input = makeInput({
-            stars,
-            tunables: {
-                PERIMETER_FIELD_SAMPLE_SPACING: 20,
-            },
-        });
 
         const scene = buildPerimeterFieldScene({
-            input,
+            input: makeInput({
+                stars,
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
+            }),
             starsForDisplay: stars,
             geometry,
             colorUtils,
@@ -236,7 +226,7 @@ describe('buildPerimeterFieldScene', () => {
 
         expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
         expect(
-            scene.sceneInput.samples[0]?.id?.startsWith('perimeter:region:red'),
+            scene.sceneInput.samples[0]?.id?.startsWith('perimeter:region:red-loop'),
         ).toBe(true);
     });
 
@@ -251,7 +241,9 @@ describe('buildPerimeterFieldScene', () => {
                 [80, 80],
                 [20, 80],
             ],
+            starIds: ['target'],
         });
+
         const scene = buildPerimeterFieldScene({
             input: makeInput({
                 stars,
@@ -266,223 +258,193 @@ describe('buildPerimeterFieldScene', () => {
         });
 
         expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
+        expect(scene.debug.staticSamples.every((sample) => sample.ownerId === 'red')).toBe(true);
+        expect(scene.debug.staticSamples.every((sample) => sample.ownerColor === 0xff5533)).toBe(true);
+        expect(scene.debug.staticSamples.every((sample) => sample.debugState === 'static')).toBe(true);
         for (const sample of scene.sceneInput.samples) {
             expect(sample.x).toBeGreaterThan(20);
             expect(sample.x).toBeLessThan(80);
             expect(sample.y).toBeGreaterThan(20);
             expect(sample.y).toBeLessThan(80);
         }
-        expect(scene.debug.staticSamples.every((sample) => sample.ownerId === 'red')).toBe(true);
-        expect(scene.debug.staticSamples.every((sample) => sample.ownerColor === 0xff5533)).toBe(true);
-        expect(scene.debug.staticSamples.every((sample) => sample.debugState === 'static')).toBe(true);
     });
 
-    it('adds conquest-local radial transition samples only from valid containing boundary hits', () => {
+    it('uses actual PREV perimeter samples as transition-old starts and NEXT perimeter samples as transition-new ends', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
         ];
-        const oldGeometry = {
-            ...makeGeometry({
-                ownerId: 'red',
-                loopId: 'red-loop',
-                points: [
-                    [25, 25],
-                    [75, 25],
-                    [75, 75],
-                    [25, 75],
-                ],
-            }),
-            territoryRegions: [
-                {
-                    regionId: 'region:red',
-                    ownerId: 'red',
-                    points: [
-                        [25, 25],
-                        [75, 25],
-                        [75, 75],
-                        [25, 75],
-                    ] as [number, number][],
-                    confidence: 1,
-                },
+        const oldGeometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [25, 25],
+                [75, 25],
+                [75, 75],
+                [25, 75],
             ],
-        } as CanonicalGeometrySnapshot;
-        const newGeometry = {
-            ...makeGeometry({
-                ownerId: 'blue',
-                loopId: 'blue-loop',
-                points: [
-                    [15, 15],
-                    [85, 15],
-                    [85, 85],
-                    [15, 85],
-                ],
-            }),
-            territoryRegions: [
-                {
-                    regionId: 'region:blue',
-                    ownerId: 'blue',
-                    points: [
-                        [15, 15],
-                        [85, 15],
-                        [85, 85],
-                        [15, 85],
-                    ] as [number, number][],
-                    confidence: 1,
-                },
+            starIds: ['target'],
+        });
+        const newGeometry = makeGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop',
+            points: [
+                [15, 15],
+                [85, 15],
+                [85, 85],
+                [15, 85],
             ],
-        } as CanonicalGeometrySnapshot;
-        const input = makeInput({
-            stars: displayStars,
-            activeTransition: makeTransition(),
-            tunables: {
-                PERIMETER_FIELD_SAMPLE_SPACING: 24,
-                PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
-                PERIMETER_FIELD_TRANSITION_RAY_COUNT: 12,
-                PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
-            },
+            starIds: ['target'],
         });
 
         const scene = buildPerimeterFieldScene({
-            input,
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(0.5),
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
+                    PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
+                },
+            }),
             starsForDisplay: displayStars,
             geometry: oldGeometry,
             transitionTargetGeometry: newGeometry,
             colorUtils,
         });
 
+        const prevScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: [displayStars[1]!],
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
+                },
+            }),
+            starsForDisplay: [displayStars[1]!],
+            geometry: oldGeometry,
+            colorUtils,
+        });
+        const nextStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
+        ];
+        const nextScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: nextStars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
+                },
+            }),
+            starsForDisplay: nextStars,
+            geometry: newGeometry,
+            colorUtils,
+        });
+
+        const prevKeys = new Set(
+            prevScene.sceneInput.samples.map((sample) => pointKey(sample.x, sample.y)),
+        );
+        const nextKeys = new Set(
+            nextScene.sceneInput.samples.map((sample) => pointKey(sample.x, sample.y)),
+        );
+
+        const oldTransitionSamples = scene.debug.transitionSamples.filter(
+            (sample) => sample.debugState === 'transition-old',
+        );
+        const newTransitionSamples = scene.debug.transitionSamples.filter(
+            (sample) => sample.debugState === 'transition-new',
+        );
+
+        expect(oldTransitionSamples.length).toBeGreaterThan(0);
+        expect(newTransitionSamples.length).toBeGreaterThan(0);
         expect(
-            scene.sceneInput.samples.filter((sample) =>
-                (sample.id ?? '').startsWith('transition:old:'),
+            oldTransitionSamples.every(
+                (sample) =>
+                    sample.pathStartX != null &&
+                    sample.pathStartY != null &&
+                    prevKeys.has(pointKey(sample.pathStartX, sample.pathStartY)),
             ),
-        ).toHaveLength(12);
+        ).toBe(true);
         expect(
-            scene.sceneInput.samples.filter((sample) =>
-                (sample.id ?? '').startsWith('transition:new:'),
+            newTransitionSamples.every(
+                (sample) =>
+                    sample.pathEndX != null &&
+                    sample.pathEndY != null &&
+                    nextKeys.has(pointKey(sample.pathEndX, sample.pathEndY)),
             ),
-        ).toHaveLength(12);
+        ).toBe(true);
         expect(scene.sceneInput.influenceRadiusPx).toBe(44);
-        expect(scene.sceneInput.ownershipMarginPx).toBe(0);
+    });
+
+    it('matches PREV at transition frame 0 instead of inflating the affected frontier', () => {
+        const displayStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const oldGeometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [25, 25],
+                [75, 25],
+                [75, 75],
+                [25, 75],
+            ],
+            starIds: ['target'],
+        });
+        const newGeometry = makeGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop',
+            points: [
+                [15, 15],
+                [85, 15],
+                [85, 85],
+                [15, 85],
+            ],
+            starIds: ['target'],
+        });
+
+        const prevScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: [displayStars[1]!],
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
+            }),
+            starsForDisplay: [displayStars[1]!],
+            geometry: oldGeometry,
+            colorUtils,
+        });
+        const transitionScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
+                activeTransition: makeTransition(0),
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
+            }),
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
+            colorUtils,
+        });
+
+        const prevNonZeroKeys = [...prevScene.sceneInput.samples]
+            .filter((sample) => sample.strength > 1e-6)
+            .map((sample) => pointKey(sample.x, sample.y))
+            .sort();
+        const transitionNonZeroKeys = [...transitionScene.sceneInput.samples]
+            .filter((sample) => sample.strength > 1e-6)
+            .map((sample) => pointKey(sample.x, sample.y))
+            .sort();
+
+        expect(transitionNonZeroKeys).toEqual(prevNonZeroKeys);
         expect(
-            scene.debug.transitionSamples.every(
-                (sample) => !sample.startFallback && !sample.endFallback,
+            transitionScene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.debugState === 'transition-new' && sample.strength === 0,
             ),
         ).toBe(true);
     });
 
-    it('offsets transition override samples inward from the raw boundary hits', () => {
-        const displayStars = [
-            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
-        ];
-        const oldGeometry = {
-            ...makeGeometry({
-                ownerId: 'red',
-                loopId: 'red-loop',
-                points: [
-                    [25, 25],
-                    [75, 25],
-                    [75, 75],
-                    [25, 75],
-                ],
-            }),
-            territoryRegions: [
-                {
-                    regionId: 'region:red',
-                    ownerId: 'red',
-                    points: [
-                        [25, 25],
-                        [75, 25],
-                        [75, 75],
-                        [25, 75],
-                    ] as [number, number][],
-                    confidence: 1,
-                },
-            ],
-        } as CanonicalGeometrySnapshot;
-        const newGeometry = {
-            ...makeGeometry({
-                ownerId: 'blue',
-                loopId: 'blue-loop',
-                points: [
-                    [15, 15],
-                    [85, 15],
-                    [85, 85],
-                    [15, 85],
-                ],
-            }),
-            territoryRegions: [
-                {
-                    regionId: 'region:blue',
-                    ownerId: 'blue',
-                    points: [
-                        [15, 15],
-                        [85, 15],
-                        [85, 85],
-                        [15, 85],
-                    ] as [number, number][],
-                    confidence: 1,
-                },
-            ],
-        } as CanonicalGeometrySnapshot;
-
-        const noOffset = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: displayStars,
-                activeTransition: makeTransition(),
-                tunables: {
-                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-                },
-            }),
-            starsForDisplay: displayStars,
-            geometry: oldGeometry,
-            transitionTargetGeometry: newGeometry,
-            colorUtils,
-        });
-
-        const offset = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: displayStars,
-                activeTransition: makeTransition(),
-                tunables: {
-                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
-                },
-            }),
-            starsForDisplay: displayStars,
-            geometry: oldGeometry,
-            transitionTargetGeometry: newGeometry,
-            colorUtils,
-        });
-
-        const targetX = 50;
-        const targetY = 50;
-        const noOffsetSample = noOffset.sceneInput.samples.find(
-            (sample) => sample.id === 'transition:new:blue:target:0',
-        );
-        const offsetSample = offset.sceneInput.samples.find(
-            (sample) => sample.id === 'transition:new:blue:target:0',
-        );
-
-        expect(noOffsetSample).toBeTruthy();
-        expect(offsetSample).toBeTruthy();
-        const noOffsetDistance = Math.hypot(
-            noOffsetSample!.x - targetX,
-            noOffsetSample!.y - targetY,
-        );
-        const offsetDistance = Math.hypot(
-            offsetSample!.x - targetX,
-            offsetSample!.y - targetY,
-        );
-        expect(offsetDistance).toBeLessThan(noOffsetDistance);
-        expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'blue')).toBe(true);
-        expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'red')).toBe(true);
-        expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0x3366ff)).toBe(true);
-        expect(offset.debug.transitionSamples.some((sample) => sample.ownerColor === 0xff5533)).toBe(true);
-    });
-
-    it('skips transition rays when the target is not contained by the owner regions', () => {
+    it('skips transition samples when there is no deterministic star-anchored perimeter source', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
@@ -512,9 +474,6 @@ describe('buildPerimeterFieldScene', () => {
             input: makeInput({
                 stars: displayStars,
                 activeTransition: makeTransition(),
-                tunables: {
-                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 12,
-                },
             }),
             starsForDisplay: displayStars,
             geometry: oldGeometry,
@@ -530,7 +489,7 @@ describe('buildPerimeterFieldScene', () => {
         expect(scene.debug.transitionSamples).toHaveLength(0);
     });
 
-    it('uses star-anchored region membership when source geometry provides starIds', () => {
+    it('uses deterministic star membership when multiple same-owner regions exist', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
@@ -618,10 +577,7 @@ describe('buildPerimeterFieldScene', () => {
             input: makeInput({
                 stars: displayStars,
                 activeTransition: makeTransition(),
-                tunables: {
-                    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 4,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-                },
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
             }),
             starsForDisplay: displayStars,
             geometry: oldGeometry,
@@ -630,9 +586,18 @@ describe('buildPerimeterFieldScene', () => {
         });
 
         expect(
-            scene.sceneInput.samples.filter((sample) =>
-                (sample.id ?? '').startsWith('transition:'),
+            scene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.ownerId === 'red' &&
+                    sample.sourceId === 'red-loop',
             ),
-        ).toHaveLength(16);
+        ).toBe(true);
+        expect(
+            scene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.ownerId === 'blue' &&
+                    sample.sourceId === 'blue-loop',
+            ),
+        ).toBe(true);
     });
 });

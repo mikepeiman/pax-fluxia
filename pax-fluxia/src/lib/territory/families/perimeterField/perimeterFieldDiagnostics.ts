@@ -185,19 +185,25 @@ function drawPerimeterSampleLabels(
                 ? 'O'
                 : sample.debugState === 'transition-new'
                   ? 'N'
-                  : '';
+                  : sample.debugState === 'target'
+                    ? 'T'
+                    : 'S';
         const offsetX =
             sample.debugState === 'transition-old'
-                ? -8
+                ? -10
                 : sample.debugState === 'transition-new'
-                  ? 8
-                  : 0;
+                  ? 10
+                  : sample.debugState === 'target'
+                    ? 10
+                    : -10;
         const offsetY =
             sample.debugState === 'transition-old'
-                ? -8
+                ? -10
                 : sample.debugState === 'transition-new'
-                  ? 8
-                  : -8;
+                  ? 10
+                  : sample.debugState === 'target'
+                    ? -10
+                    : 10;
 
         const text = `${labelPrefix}${sample.sampleIndex}`;
         ctx.strokeStyle = hexToCss(0x081018, 1);
@@ -249,8 +255,10 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     if (args.showVstars ?? true) {
         drawPerimeterSampleTrajectories(ctx, args.snapshot.transitionSamples);
         drawSamplePoints(ctx, args.snapshot.staticSamples, 0.95, 2.6);
+        drawPerimeterSampleLabels(ctx, args.snapshot.staticSamples);
         if (args.snapshot.transitionTargetGeometry) {
             drawSamplePoints(ctx, args.snapshot.targetStaticSamples, 0.75, 2.3);
+            drawPerimeterSampleLabels(ctx, args.snapshot.targetStaticSamples);
         }
         drawSamplePoints(ctx, args.snapshot.transitionSamples, 0.95, 3.2);
         drawPerimeterSampleLabels(ctx, args.snapshot.transitionSamples);
@@ -265,6 +273,8 @@ function compactSample(sample: PerimeterFieldDebugSample): Record<string, unknow
         id: sample.id,
         ownerId: sample.ownerId,
         ownerColor: sample.ownerColor,
+        sourceId: sample.sourceId ?? null,
+        starIds: sample.starIds ?? null,
         playerIdx: sample.playerIdx,
         sampleIndex: sample.sampleIndex ?? null,
         x: round(sample.x),

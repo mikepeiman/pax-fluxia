@@ -64,3 +64,7 @@
   - conquest capture no longer calls `renderMetaball()` on a temp root inside `PerimeterFieldFamily`
   - recorder now passively extracts live frames from the already-rendered `displayRoot`
   - bundle finalization now happens on the first settled frame after the live transition completes
+- Hard rule for `perimeter_field` transition implementation:
+  - never reconstruct conquest-local motion from star-center rays
+  - transition-local vstars must be sourced from the real PREV/NEXT perimeter-vstar sets produced by gameplay
+  - the affected PREV static perimeter samples must be replaced by transition-old samples during conquest, not double-counted alongside them

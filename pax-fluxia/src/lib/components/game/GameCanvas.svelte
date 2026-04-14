@@ -1982,19 +1982,25 @@
                     ? "O"
                     : sample.debugState === "transition-new"
                       ? "N"
-                      : "";
+                      : sample.debugState === "target"
+                        ? "T"
+                        : "S";
             const offsetX =
                 sample.debugState === "transition-old"
-                    ? -8
+                    ? -10
                     : sample.debugState === "transition-new"
-                      ? 8
-                      : 0;
+                      ? 10
+                      : sample.debugState === "target"
+                        ? 10
+                        : -10;
             const offsetY =
                 sample.debugState === "transition-old"
-                    ? -8
+                    ? -10
                     : sample.debugState === "transition-new"
-                      ? 8
-                      : -8;
+                      ? 10
+                      : sample.debugState === "target"
+                        ? -10
+                        : 10;
             const label = new PIXI.Text({
                 text: `${labelPrefix}${sample.sampleIndex}`,
                 style: {
@@ -2084,6 +2090,16 @@
                 3.2,
             );
             if (debugTextContainer) {
+                drawPerimeterSampleLabels(
+                    debugTextContainer,
+                    snapshot.staticSamples,
+                );
+                if (scrubEnabled) {
+                    drawPerimeterSampleLabels(
+                        debugTextContainer,
+                        snapshot.targetStaticSamples,
+                    );
+                }
                 drawPerimeterSampleLabels(
                     debugTextContainer,
                     snapshot.transitionSamples,
@@ -2208,7 +2224,7 @@
             `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX}:` +
             `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
             `${getTerritoryVisualEpoch()}`;
         const configChanged =

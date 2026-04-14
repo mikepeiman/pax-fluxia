@@ -69,6 +69,7 @@ Keep one clean, date-scoped execution queue for the active work, separate from t
 - [x] Move the audio widget into the floating topbar with the BG selector and gear icon instead of leaving it in the Players panel.
 - [x] Normalize the Main Menu palette spacing to a simple even division with per-player nudges instead of the earlier glitch-prone spread logic.
 - [x] Restore live territory redraw invalidation when player colors change so fills repaint with the selected palette.
+- [x] Make the metaball family path carry its real tunable surface and stop relying on the stale legacy boolean alone when `TERRITORY_RENDER_MODE = metaball`.
 - [x] Rebuild the Main Menu into one production command-surface shell with a floating utility topbar, three primary panels, a sticky command band, and live `imperial | neon | mythic` theme switching.
 - [x] Split `MainMenu.svelte` into local UI subcomponents for the topbar, Game & Map panel, Players panel, row-anchored color popover, Multiplayer panel, and sticky command bar.
 - [x] Rework the `Game & Map` random-mode layout into a 2x2 widget grid with a larger live preview, tighter clustering, and the redundant preview-info row removed.
