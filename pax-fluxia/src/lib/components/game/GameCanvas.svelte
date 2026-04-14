@@ -340,7 +340,7 @@
         key += `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
         key += `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
         key += `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:`;
-        key += `${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
+        key += `${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
         key += `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:`;
         key += `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:`;
         key += `${GAME_CONFIG.CHAIKIN_BOUNDARY_PAD}:${GAME_CONFIG.CHAIKIN_BOUNDARY_EPS}:`;
@@ -1309,52 +1309,39 @@
     function drawSamplePoints(
         g: PIXI.Graphics,
         samples: ReadonlyArray<{
+            id?: string;
             x: number;
             y: number;
             playerIdx?: number;
+            ownerId?: string;
         }>,
-        playerColors: ReadonlyArray<readonly [number, number, number]>,
         outlineColor: number,
         alpha: number,
         radius: number,
     ): void {
         for (const sample of samples) {
-            const playerColorTuple =
-                sample.playerIdx !== undefined
-                    ? playerColors[sample.playerIdx]
-                    : undefined;
-            const fillColor = playerColorTuple
-                ? (playerColorTuple[0] << 16) |
-                  (playerColorTuple[1] << 8) |
-                  playerColorTuple[2]
-                : outlineColor;
+            const fillColor =
+                sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : outlineColor;
             const outerRadius = radius;
             const innerRadius = Math.max(1.2, radius * 0.45);
             const spikeCount = 5;
             const startAngle = -Math.PI / 2;
+            const points: number[] = [];
 
-            g.moveTo(
-                sample.x + Math.cos(startAngle) * outerRadius,
-                sample.y + Math.sin(startAngle) * outerRadius,
-            );
             for (let i = 0; i < spikeCount; i++) {
                 const outerAngle =
                     startAngle + (i * Math.PI * 2) / spikeCount;
                 const innerAngle = outerAngle + Math.PI / spikeCount;
-                g.lineTo(
+                points.push(
+                    sample.x + Math.cos(outerAngle) * outerRadius,
+                    sample.y + Math.sin(outerAngle) * outerRadius,
                     sample.x + Math.cos(innerAngle) * innerRadius,
                     sample.y + Math.sin(innerAngle) * innerRadius,
                 );
-                g.lineTo(
-                    sample.x +
-                        Math.cos(outerAngle + (Math.PI * 2) / spikeCount) *
-                            outerRadius,
-                    sample.y +
-                        Math.sin(outerAngle + (Math.PI * 2) / spikeCount) *
-                            outerRadius,
-                );
             }
-            g.closePath();
+            g.poly(points, true);
             g.fill({ color: fillColor, alpha });
             g.stroke({
                 color: outlineColor,
@@ -1407,7 +1394,6 @@
             drawSamplePoints(
                 debugGraphics,
                 snapshot.staticSamples,
-                snapshot.playerColors,
                 0x47d7ff,
                 0.95,
                 2.6,
@@ -1416,7 +1402,6 @@
                 drawSamplePoints(
                     debugGraphics,
                     snapshot.targetStaticSamples,
-                    snapshot.playerColors,
                     0xff5bd1,
                     0.75,
                     2.3,
@@ -1425,7 +1410,6 @@
             drawSamplePoints(
                 debugGraphics,
                 snapshot.transitionSamples,
-                snapshot.playerColors,
                 0xfff36b,
                 0.95,
                 3.2,

@@ -139,6 +139,58 @@
     <div class="row-top">
         <span
             class="var-name"
+            title="Number of paired midpoint samples per owner on contested lanes. Samples are distributed along the lane around the midpoint with approximately one MSR spacing."
+        >
+            Source CX Lane-Pair Count
+        </span>
+        <span class="val">{panel.cxContestPairCount ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1}</span>
+    </div>
+    <div class="var-desc">
+        Number of midpoint-pair samples per owner on contested lanes.
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="10"
+        step="1"
+        value={panel.cxContestPairCount ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('TERRITORY_CX_CONTEST_PAIR_COUNT', 'cxContestPairCount', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="Weight multiplier applied specifically to the contested midpoint-pair samples on cross-owner lanes."
+        >
+            Source CX Lane-Pair Weight
+        </span>
+        <span class="val">{(panel.cxContestPairWeight ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5).toFixed(2)}</span>
+    </div>
+    <div class="var-desc">
+        Strength of the contested midpoint-pair interface, separate from ordinary CX corridor weight.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.05"
+        value={panel.cxContestPairWeight ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('TERRITORY_CX_CONTEST_PAIR_WEIGHT', 'cxContestPairWeight', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
             title="How many CX corridor samples are placed along each eligible lane when count mode is in use."
         >
             Source CX Count

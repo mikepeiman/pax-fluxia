@@ -468,6 +468,8 @@ interface GameConfigType {
     TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
     TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier vs starMargin² (0.0-2.0, default 0.5)
     TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: boolean; // Add paired midpoint contest vstars on cross-owner lanes
+    TERRITORY_CX_CONTEST_PAIR_COUNT: number; // Number of paired midpoint samples per owner on contested lanes
+    TERRITORY_CX_CONTEST_PAIR_WEIGHT: number; // Weight multiplier for contested midpoint-pair vstars
     MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
     TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier vs starMargin² (0.0-2.0, default 0.3)
@@ -1400,6 +1402,8 @@ const _rawConfig: GameConfigType = {
     TERRITORY_CX_WEIGHT: 0.5,
     /** Paired midpoint vstars keep contested lanes meeting on the lane instead of letting third parties intrude. */
     TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: true,
+    TERRITORY_CX_CONTEST_PAIR_COUNT: 1,
+    TERRITORY_CX_CONTEST_PAIR_WEIGHT: 0.5,
     /** Whether to inject enemy virtual sites to separate non-connected same-owner territories */
     MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     /** Max distance between same-owner stars for disconnect injection (px) */

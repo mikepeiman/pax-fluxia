@@ -11,13 +11,18 @@ import { buildSceneFingerprint } from '../metaball/metaballSceneBase';
 
 type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 
+export interface PerimeterFieldDebugSample extends MetaballInfluenceSample {
+    ownerId: string;
+    debugState: 'static' | 'target' | 'transition-old' | 'transition-new';
+}
+
 export interface PerimeterFieldDebugSnapshot {
     displayGeometry: CanonicalGeometrySnapshot;
     transitionTargetGeometry: CanonicalGeometrySnapshot | null;
     playerColors: ReadonlyArray<readonly [number, number, number]>;
-    staticSamples: ReadonlyArray<MetaballInfluenceSample>;
-    targetStaticSamples: ReadonlyArray<MetaballInfluenceSample>;
-    transitionSamples: ReadonlyArray<MetaballInfluenceSample>;
+    staticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    targetStaticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    transitionSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     effectiveProgress: number | null;
 }
 
@@ -284,7 +289,8 @@ function buildStaticPerimeterSamples(params: {
     spacing: number;
     offsetPx: number;
     strength: number;
-}): MetaballInfluenceSample[] {
+    debugState: 'static' | 'target';
+}): PerimeterFieldDebugSample[] {
     const loops = params.geometry.shellLoops
         .filter((loop) => loop.classification === 'outer' && Boolean(loop.ownerId))
         .sort((a, b) => {
@@ -312,7 +318,7 @@ function buildStaticPerimeterSamples(params: {
                       points: region.points,
                   }));
 
-    const samples: MetaballInfluenceSample[] = [];
+    const samples: PerimeterFieldDebugSample[] = [];
     for (const source of perimeterSources) {
         const playerIdx = params.ownerToCluster.get(source.ownerId);
         if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) continue;
@@ -331,6 +337,8 @@ function buildStaticPerimeterSamples(params: {
                 y,
                 playerIdx,
                 strength: params.strength,
+                ownerId: source.ownerId,
+                debugState: params.debugState,
             });
         }
     }
@@ -347,10 +355,10 @@ function buildTransitionSamples(params: {
     oldFade: number;
     newGrow: number;
     rayCount: number;
-}): MetaballInfluenceSample[] {
+}): PerimeterFieldDebugSample[] {
     const activeTransition = params.input.activeTransition;
     if (!activeTransition) return [];
-    const samples: MetaballInfluenceSample[] = [];
+    const samples: PerimeterFieldDebugSample[] = [];
     const progress = clamp01(activeTransition.progress);
 
     for (const eventEntry of activeTransition.events) {
@@ -400,18 +408,22 @@ function buildTransitionSamples(params: {
             const y = oldPoint[1] + (newPoint[1] - oldPoint[1]) * progress;
 
             samples.push({
-                id: `transition:old:${conquest.starId}:${i}`,
+                id: `transition:old:${conquest.previousOwner}:${conquest.starId}:${i}`,
                 x,
                 y,
                 playerIdx: oldCluster,
                 strength: params.strength * Math.max(0, params.oldFade) * (1 - progress),
+                ownerId: conquest.previousOwner,
+                debugState: 'transition-old',
             });
             samples.push({
-                id: `transition:new:${conquest.starId}:${i}`,
+                id: `transition:new:${conquest.newOwner}:${conquest.starId}:${i}`,
                 x,
                 y,
                 playerIdx: newCluster,
                 strength: params.strength * Math.max(0, params.newGrow) * progress,
+                ownerId: conquest.newOwner,
+                debugState: 'transition-new',
             });
         }
     }
@@ -477,6 +489,7 @@ export function buildPerimeterFieldScene(params: {
         spacing,
         offsetPx,
         strength,
+        debugState: 'static',
     });
     const targetStaticSamples = params.transitionTargetGeometry
         ? buildStaticPerimeterSamples({
@@ -485,6 +498,7 @@ export function buildPerimeterFieldScene(params: {
               spacing,
               offsetPx,
               strength,
+              debugState: 'target',
           })
         : [];
     const transitionSamples =

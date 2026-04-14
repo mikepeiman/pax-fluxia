@@ -62,6 +62,9 @@ export function computeCorridorVirtuals(
     includeCrossOwnerMidpointPair = GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
     includeSameOwnerDistributedSamples = true,
     includeCrossOwnerDistributedSamples = true,
+    crossOwnerMidpointPairWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? weightMultiplier,
+    crossOwnerMidpointPairCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+    crossOwnerMidpointPairSpacing = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,
@@ -73,6 +76,9 @@ export function computeCorridorVirtuals(
         includeCrossOwnerMidpointPair,
         includeSameOwnerDistributedSamples,
         includeCrossOwnerDistributedSamples,
+        crossOwnerMidpointPairWeight,
+        crossOwnerMidpointPairCount,
+        crossOwnerMidpointPairSpacing,
     );
     return canonicalizeVirtualSites(built as VirtualSite[]);
 }

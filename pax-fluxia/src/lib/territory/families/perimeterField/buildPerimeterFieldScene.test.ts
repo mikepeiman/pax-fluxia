@@ -270,6 +270,8 @@ describe('buildPerimeterFieldScene', () => {
             expect(sample.y).toBeGreaterThan(20);
             expect(sample.y).toBeLessThan(80);
         }
+        expect(scene.debug.staticSamples.every((sample) => sample.ownerId === 'red')).toBe(true);
+        expect(scene.debug.staticSamples.every((sample) => sample.debugState === 'static')).toBe(true);
     });
 
     it('adds conquest-local radial transition samples without star-margin fallback', () => {
@@ -449,10 +451,10 @@ describe('buildPerimeterFieldScene', () => {
         const targetX = 50;
         const targetY = 50;
         const noOffsetSample = noOffset.sceneInput.samples.find(
-            (sample) => sample.id === 'transition:new:target:0',
+            (sample) => sample.id === 'transition:new:blue:target:0',
         );
         const offsetSample = offset.sceneInput.samples.find(
-            (sample) => sample.id === 'transition:new:target:0',
+            (sample) => sample.id === 'transition:new:blue:target:0',
         );
 
         expect(noOffsetSample).toBeTruthy();
@@ -466,5 +468,7 @@ describe('buildPerimeterFieldScene', () => {
             offsetSample!.y - targetY,
         );
         expect(offsetDistance).toBeLessThan(noOffsetDistance);
+        expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'blue')).toBe(true);
+        expect(offset.debug.transitionSamples.some((sample) => sample.ownerId === 'red')).toBe(true);
     });
 });

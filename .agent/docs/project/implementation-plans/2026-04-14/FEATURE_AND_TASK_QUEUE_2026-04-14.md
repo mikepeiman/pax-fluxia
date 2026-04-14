@@ -27,3 +27,6 @@
 - Updated `perimeter_field` debug vstar markers:
   - markers are now player-colored star icons
   - current/next/interim state meaning is preserved via outline color
+- Added dedicated source CX lane-pair controls:
+  - separate contested midpoint-pair count
+  - separate contested midpoint-pair weight
