@@ -14,6 +14,13 @@ type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 export interface PerimeterFieldDebugSample extends MetaballInfluenceSample {
     ownerId: string;
     ownerColor: number;
+    sampleIndex?: number;
+    pathStartX?: number;
+    pathStartY?: number;
+    pathEndX?: number;
+    pathEndY?: number;
+    startFallback?: boolean;
+    endFallback?: boolean;
     debugState: 'static' | 'target' | 'transition-old' | 'transition-new';
 }
 
@@ -341,6 +348,7 @@ function buildStaticPerimeterSamples(params: {
                 strength: params.strength,
                 ownerId: source.ownerId,
                 ownerColor: params.colorUtils.getPlayerColor(source.ownerId),
+                sampleIndex: i,
                 debugState: params.debugState,
             });
         }
@@ -392,12 +400,22 @@ function buildTransitionSamples(params: {
             const theta = (Math.PI * 2 * i) / rayCount;
             const dx = Math.cos(theta);
             const dy = Math.sin(theta);
-            const oldHit =
-                rayPolygonHit(targetStar.x, targetStar.y, dx, dy, oldRegion) ??
-                [targetStar.x, targetStar.y];
-            const newHit =
-                rayPolygonHit(targetStar.x, targetStar.y, dx, dy, newRegion) ??
-                [targetStar.x, targetStar.y];
+            const oldHitCandidate = rayPolygonHit(
+                targetStar.x,
+                targetStar.y,
+                dx,
+                dy,
+                oldRegion,
+            );
+            const newHitCandidate = rayPolygonHit(
+                targetStar.x,
+                targetStar.y,
+                dx,
+                dy,
+                newRegion,
+            );
+            const oldHit = oldHitCandidate ?? [targetStar.x, targetStar.y];
+            const newHit = newHitCandidate ?? [targetStar.x, targetStar.y];
             const oldPoint = offsetRayHitInside(
                 oldHit,
                 [targetStar.x, targetStar.y],
@@ -419,6 +437,13 @@ function buildTransitionSamples(params: {
                 strength: params.strength * Math.max(0, params.oldFade) * (1 - progress),
                 ownerId: conquest.previousOwner,
                 ownerColor: params.colorUtils.getPlayerColor(conquest.previousOwner),
+                sampleIndex: i,
+                pathStartX: oldPoint[0],
+                pathStartY: oldPoint[1],
+                pathEndX: newPoint[0],
+                pathEndY: newPoint[1],
+                startFallback: oldHitCandidate == null,
+                endFallback: newHitCandidate == null,
                 debugState: 'transition-old',
             });
             samples.push({
@@ -429,6 +454,13 @@ function buildTransitionSamples(params: {
                 strength: params.strength * Math.max(0, params.newGrow) * progress,
                 ownerId: conquest.newOwner,
                 ownerColor: params.colorUtils.getPlayerColor(conquest.newOwner),
+                sampleIndex: i,
+                pathStartX: oldPoint[0],
+                pathStartY: oldPoint[1],
+                pathEndX: newPoint[0],
+                pathEndY: newPoint[1],
+                startFallback: oldHitCandidate == null,
+                endFallback: newHitCandidate == null,
                 debugState: 'transition-new',
             });
         }

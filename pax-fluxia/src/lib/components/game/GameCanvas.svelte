@@ -149,6 +149,7 @@
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
+    let debugTextContainer: PIXI.Container | null = null;
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
@@ -1252,8 +1253,21 @@
                 voronoiIdx >= 0 ? voronoiIdx + 1 : stageParent.children.length,
             );
         }
+        if (!debugTextContainer) {
+            debugTextContainer = new PIXI.Container();
+            const stageParent = starsContainer.parent;
+            const debugIndex = stageParent.children.indexOf(debugGraphics!);
+            stageParent.addChildAt(
+                debugTextContainer,
+                debugIndex >= 0 ? debugIndex + 1 : stageParent.children.length,
+            );
+        }
 
         debugGraphics.clear();
+        if (debugTextContainer) {
+            const children = debugTextContainer.removeChildren();
+            for (const child of children) child.destroy();
+        }
 
         if (GAME_CONFIG.SHOW_HEX_GRID && GAME_CONFIG._MAP_HEX_RADIUS > 0) {
             // Use exact same parameters that generated the map
@@ -1315,6 +1329,14 @@
             playerIdx?: number;
             ownerId?: string;
             ownerColor?: number;
+            debugState?: string;
+            sampleIndex?: number;
+            pathStartX?: number;
+            pathStartY?: number;
+            pathEndX?: number;
+            pathEndY?: number;
+            startFallback?: boolean;
+            endFallback?: boolean;
         }>,
         stateColor: number,
         alpha: number,
@@ -1333,7 +1355,7 @@
                 (sample.ownerId != null
                     ? colorUtils.getPlayerColor(sample.ownerId)
                     : stateColor);
-            const borderColor = darkenColor(fillColor, 0.45);
+            const borderColor = darkenColor(fillColor, 0.42);
             const outerRadius = radius;
             const innerRadius = Math.max(1.2, radius * 0.45);
             const spikeCount = 5;
@@ -1353,8 +1375,8 @@
             }
             g.circle(sample.x, sample.y, outerRadius + 1.6);
             g.stroke({
-                color: stateColor,
-                alpha: 0.55,
+                color: fillColor,
+                alpha: 0.42,
                 width: Math.max(0.8, radius * 0.42),
             });
             g.poly(points, true);
@@ -1364,6 +1386,114 @@
                 alpha: 0.95,
                 width: Math.max(0.9, radius * 0.32),
             });
+        }
+    }
+
+    function drawPerimeterSampleTrajectories(
+        g: PIXI.Graphics,
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+            ownerColor?: number;
+            ownerId?: string;
+            debugState?: string;
+            pathStartX?: number;
+            pathStartY?: number;
+            pathEndX?: number;
+            pathEndY?: number;
+            startFallback?: boolean;
+            endFallback?: boolean;
+        }>,
+    ): void {
+        const drawFallbackX = (x: number, y: number) => {
+            g.moveTo(x - 2.5, y - 2.5);
+            g.lineTo(x + 2.5, y + 2.5);
+            g.moveTo(x + 2.5, y - 2.5);
+            g.lineTo(x - 2.5, y + 2.5);
+            g.stroke({ color: 0xff3b30, alpha: 0.95, width: 1.2 });
+        };
+
+        for (const sample of samples) {
+            if (
+                sample.pathStartX == null ||
+                sample.pathStartY == null ||
+                sample.pathEndX == null ||
+                sample.pathEndY == null
+            ) {
+                continue;
+            }
+
+            const ownerColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : 0xffffff);
+            const lineAlpha =
+                sample.debugState === "transition-old" ? 0.28 : 0.38;
+
+            g.moveTo(sample.pathStartX, sample.pathStartY);
+            g.lineTo(sample.pathEndX, sample.pathEndY);
+            g.stroke({ color: ownerColor, alpha: lineAlpha, width: 1.15 });
+
+            g.circle(sample.pathStartX, sample.pathStartY, 1.4);
+            g.stroke({ color: ownerColor, alpha: 0.65, width: 1 });
+
+            g.rect(sample.pathEndX - 1.6, sample.pathEndY - 1.6, 3.2, 3.2);
+            g.stroke({ color: ownerColor, alpha: 0.72, width: 1 });
+
+            if (sample.startFallback) {
+                drawFallbackX(sample.pathStartX, sample.pathStartY);
+            }
+            if (sample.endFallback) {
+                drawFallbackX(sample.pathEndX, sample.pathEndY);
+            }
+        }
+    }
+
+    function drawPerimeterSampleLabels(
+        container: PIXI.Container,
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+            sampleIndex?: number;
+            ownerColor?: number;
+            ownerId?: string;
+            debugState?: string;
+        }>,
+    ): void {
+        for (const sample of samples) {
+            if (sample.sampleIndex == null) continue;
+            const ownerColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : 0xffffff);
+            const offsetX =
+                sample.debugState === "transition-old"
+                    ? -8
+                    : sample.debugState === "transition-new"
+                      ? 8
+                      : 0;
+            const offsetY =
+                sample.debugState === "transition-old"
+                    ? -8
+                    : sample.debugState === "transition-new"
+                      ? 8
+                      : -8;
+            const label = new PIXI.Text({
+                text: `${sample.sampleIndex}`,
+                style: {
+                    fontFamily: "monospace",
+                    fontSize: 10,
+                    fontWeight: "700",
+                    fill: ownerColor,
+                    stroke: { color: 0x081018, width: 3 },
+                },
+            });
+            label.anchor.set(0.5);
+            label.x = sample.x + offsetX;
+            label.y = sample.y + offsetY;
+            container.addChild(label);
         }
     }
 
@@ -1410,6 +1540,10 @@
         }
 
         if (showVstars) {
+            drawPerimeterSampleTrajectories(
+                debugGraphics,
+                snapshot.transitionSamples,
+            );
             drawSamplePoints(
                 debugGraphics,
                 snapshot.staticSamples,
@@ -1433,6 +1567,12 @@
                 0.95,
                 3.2,
             );
+            if (debugTextContainer) {
+                drawPerimeterSampleLabels(
+                    debugTextContainer,
+                    snapshot.transitionSamples,
+                );
+            }
         }
     }
 
@@ -1551,6 +1691,7 @@
             `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS}:` +
             `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
             `${getTerritoryVisualEpoch()}`;

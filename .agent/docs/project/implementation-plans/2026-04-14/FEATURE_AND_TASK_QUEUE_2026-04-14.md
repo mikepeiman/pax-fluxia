@@ -34,3 +34,7 @@
   - replay-select + scrub for the last 3 captured conquests
   - owner-color metadata is now carried into debug samples
   - vstar markers now render as owner-colored bodies with a separate debug-state halo
+- Corrected `perimeter_field` transition diagnostics:
+  - transition samples now carry path start/end and fallback metadata
+  - overlay draws owner-colored trajectories and numeric labels
+  - replay select + scrub can inspect the last 3 captured conquests while paused
