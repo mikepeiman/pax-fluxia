@@ -19,6 +19,7 @@
     getTransitionModeOptionsForRenderMode,
   } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
+  import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
@@ -28,9 +29,29 @@
     panel: Record<string, any>;
     updatePanel: (key: string, value: any) => void;
     syncFromConfig?: () => void;
+    animLockModes: Record<string, any>;
+    animLockRatios: Record<string, any>;
+    getAnimValue: (key: string) => number;
+    setAnimValue: (key: string, val: number) => void;
+    formatAnimValue: (val: number, unit: string) => string;
+    pinValueToTickDuration: (key: string) => void;
+    lockRatioToTick: (key: string) => void;
+    lockRatioToAnimSpeed: (key: string) => void;
   }
 
-  let { panel, updatePanel, syncFromConfig }: Props = $props();
+  let {
+    panel,
+    updatePanel,
+    syncFromConfig,
+    animLockModes,
+    animLockRatios,
+    getAnimValue,
+    setAnimValue,
+    formatAnimValue,
+    pinValueToTickDuration,
+    lockRatioToTick,
+    lockRatioToAnimSpeed,
+  }: Props = $props();
 
   /** CX/DX sub-sliders stay visible when off; these drive disabled + dim styling. */
   let cxOn = $derived(
@@ -46,12 +67,14 @@
 
   type TerritorySystemModuleId =
     | "all"
+    | "none"
     | "geometry"
     | "render-mode"
     | "architecture"
     | "fill-transition";
   type TerritoryRendererModuleId =
     | "all"
+    | "none"
     | "metaball"
     | "topology"
     | "border-transition"
@@ -63,8 +86,14 @@
     icon: string;
   }
 
+  type TerritorySystemViewId = Exclude<TerritorySystemModuleId, "all" | "none">;
+  type TerritoryRendererViewId = Exclude<
+    TerritoryRendererModuleId,
+    "all" | "none"
+  >;
+
   const TERRITORY_SYSTEM_MODULES: Array<
-    TerritoryModuleDef<Exclude<TerritorySystemModuleId, "all">>
+    TerritoryModuleDef<TerritorySystemViewId>
   > = [
     { id: "geometry", label: "Geometry", icon: "◫" },
     { id: "render-mode", label: "Mode", icon: "◎" },
@@ -415,10 +444,10 @@
   }
 
   function rendererModules(): Array<
-    TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+    TerritoryModuleDef<TerritoryRendererViewId>
   > {
     const modules: Array<
-      TerritoryModuleDef<Exclude<TerritoryRendererModuleId, "all">>
+      TerritoryModuleDef<TerritoryRendererViewId>
     > = [{ id: "topology", label: "Topology", icon: "⬡" }];
 
     if (resolveActiveStyleId() === "metaball") {
@@ -441,17 +470,18 @@
     return modules;
   }
 
-  function showSystemModule(id: Exclude<TerritorySystemModuleId, "all">) {
+  function showSystemModule(id: TerritorySystemViewId) {
     return activeSystemModule === "all" || activeSystemModule === id;
   }
 
-  function showRendererModule(id: Exclude<TerritoryRendererModuleId, "all">) {
+  function showRendererModule(id: TerritoryRendererViewId) {
     return activeRendererModule === "all" || activeRendererModule === id;
   }
 
   $effect(() => {
     if (
       activeRendererModule !== "all" &&
+      activeRendererModule !== "none" &&
       !rendererModules().some((module) => module.id === activeRendererModule)
     ) {
       activeRendererModule = "all";
@@ -486,14 +516,27 @@
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">Territory System</h4>
-    <button
-      type="button"
-      class="territory-all-toggle"
-      class:active={activeSystemModule === "all"}
-      aria-label="Show all territory system modules"
-      onclick={() => {
-        activeSystemModule = "all";
-      }}></button>
+    <div
+      class="territory-scope-toggle"
+      role="group"
+      aria-label="Territory system subsection visibility">
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeSystemModule === "all"}
+        aria-label="Show all territory system modules"
+        onclick={() => {
+          activeSystemModule = "all";
+        }}>All</button>
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeSystemModule === "none"}
+        aria-label="Hide all territory system modules"
+        onclick={() => {
+          activeSystemModule = "none";
+        }}>None</button>
+    </div>
   </div>
   <div class="territory-module-nav">
     {#each TERRITORY_SYSTEM_MODULES as module}
@@ -639,6 +682,20 @@
               </div>
             </div>
           </div>
+          <TerritoryTransitionTuning
+            {panel}
+            {updatePanel}
+            {animLockModes}
+            {animLockRatios}
+            {getAnimValue}
+            {setAnimValue}
+            {formatAnimValue}
+            {pinValueToTickDuration}
+            {lockRatioToTick}
+            {lockRatioToAnimSpeed}
+            activeRenderMode={resolveActiveStyleId()}
+            helperText="Timing and influence tuning for the active legacy Voronoi transition mode."
+          />
         {/if}
       </div>
     {/if}
@@ -711,14 +768,27 @@
     <h4 class="sub-heading territory-section-title">
       Rendering &amp; Topology
     </h4>
-    <button
-      type="button"
-      class="territory-all-toggle"
-      class:active={activeRendererModule === "all"}
-      aria-label="Show all territory rendering modules"
-      onclick={() => {
-        activeRendererModule = "all";
-      }}></button>
+    <div
+      class="territory-scope-toggle"
+      role="group"
+      aria-label="Territory rendering subsection visibility">
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeRendererModule === "all"}
+        aria-label="Show all territory rendering modules"
+        onclick={() => {
+          activeRendererModule = "all";
+        }}>All</button>
+      <button
+        type="button"
+        class="territory-all-toggle"
+        class:active={activeRendererModule === "none"}
+        aria-label="Hide all territory rendering modules"
+        onclick={() => {
+          activeRendererModule = "none";
+        }}>None</button>
+    </div>
   </div>
   <div class="territory-module-nav">
     {#each rendererModules() as module}
@@ -771,8 +841,22 @@
       <strong>CX Corridors</strong>
       adds lane influence for Metaball; <strong>DX Disconnect</strong> inserts
       paired enemy virtuals around the Euclidean midpoint of disconnected same-owner
-      stars. Conquest timing controls stay in the Conquest panel.
+      stars.
     </div>
+    <TerritoryTransitionTuning
+      {panel}
+      {updatePanel}
+      {animLockModes}
+      {animLockRatios}
+      {getAnimValue}
+      {setAnimValue}
+      {formatAnimValue}
+      {pinValueToTickDuration}
+      {lockRatioToTick}
+      {lockRatioToAnimSpeed}
+      activeRenderMode="metaball"
+      helperText="Conquest transition timing and influence tuning for the active Metaball mode."
+    />
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Cell size (px)</span><span class="val"
@@ -1988,6 +2072,11 @@
     align-items: center;
     gap: 10px;
   }
+  .territory-scope-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
   .territory-section-title {
     flex: 1;
     margin: 0;
@@ -2009,9 +2098,6 @@
       background 0.15s ease,
       color 0.15s ease,
       transform 0.15s ease;
-  }
-  .territory-all-toggle::after {
-    content: "All";
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.12em;

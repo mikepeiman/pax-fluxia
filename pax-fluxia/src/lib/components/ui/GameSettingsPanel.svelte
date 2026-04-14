@@ -1386,21 +1386,20 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <ControlsSectionConquest
                         {panel}
                         {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {animValues}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "territory"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
+                        {animLockModes}
+                        {animLockRatios}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "ships"}

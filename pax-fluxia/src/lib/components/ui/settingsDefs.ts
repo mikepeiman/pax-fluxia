@@ -107,7 +107,7 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
     // Territory Transition
     { key: 'TERRITORY_TRANSITION_MS', label: 'Animation Duration', min: 0, max: 3000, step: 50, unit: 'ms', group: 'Conquest Transition', desc: 'Animation duration for the conquest transition.' },
-    // VS Transition (F-165) — rendered in Conquest panel, not Timing
+    // VS Transition (F-165) — rendered in Territory panel under mode selection, not Timing
     { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the attacker\'s virtual star takes to travel from the attacking star to the conquered star. Longer = slower territory expansion animation.' },
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
     { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Starting Voronoi weight of the loser\'s retreating virtual star. Higher = loser territory stays larger at the start of the transition. 0 = use default (starMargin²).' },
