@@ -159,7 +159,11 @@ Pax Fluxia uses a **V4 Symmetric Damage Model**:
 
 ## 📄 License
 
-This project is currently in private alpha development.
+This project is proprietary and released under an **All Rights Reserved**
+license. No permission is granted to use, copy, modify, distribute, or create
+derivative works without prior written permission from the copyright holder.
+
+See [LICENSE](LICENSE) for the full terms.
 
 ---
 
