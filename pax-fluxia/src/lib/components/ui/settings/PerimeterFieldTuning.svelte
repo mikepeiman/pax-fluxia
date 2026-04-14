@@ -1,6 +1,7 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+    import { perimeterFieldDebugPlaybackStore } from '$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore';
 
     interface Props {
         panel: Record<string, any>;
@@ -24,12 +25,20 @@
         { id: 'diagnostics', label: 'Diagnostics' },
     ] as const;
 
-    let activeModule = $state<PerimeterFieldModuleId>('all');
+    const PERIMETER_FIELD_MODULE_PANEL_KEY = 'perimeterFieldModuleVisibility';
+
+    let activeModule = $derived(
+        (panel[PERIMETER_FIELD_MODULE_PANEL_KEY] ?? 'all') as PerimeterFieldModuleId,
+    );
 
     function showModule(
         id: Exclude<PerimeterFieldModuleId, 'all' | 'none'>,
     ): boolean {
         return activeModule === 'all' || activeModule === id;
+    }
+
+    function setActiveModule(value: PerimeterFieldModuleId): void {
+        updatePanel(PERIMETER_FIELD_MODULE_PANEL_KEY, value);
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -52,6 +61,74 @@
         if (source === 'canonical_vector') return 'Canonical Vector';
         return source;
     }
+
+    let activeReplaySlot = $derived(
+        Math.max(
+            0,
+            Math.min(
+                3,
+                Math.round(
+                    panel.perimeterFieldDebugReplaySlot ??
+                        GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
+                        0,
+                ),
+            ),
+        ),
+    );
+
+    let availableScrubFrameCount = $derived(
+        activeReplaySlot > 0
+            ? ($perimeterFieldDebugPlaybackStore.replayFrameCounts[
+                  activeReplaySlot - 1
+              ] ?? 0)
+            : $perimeterFieldDebugPlaybackStore.liveFrameCount,
+    );
+
+    function currentScrubFrameIndex(): number {
+        const raw =
+            panel.perimeterFieldDebugScrubFrameIndex ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
+            0;
+        const maxIndex = Math.max(0, availableScrubFrameCount - 1);
+        return Math.max(0, Math.min(maxIndex, Math.round(raw)));
+    }
+
+    function setScrubFrameIndex(value: number): void {
+        const maxIndex = Math.max(0, availableScrubFrameCount - 1);
+        writeConfig(
+            'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
+            'perimeterFieldDebugScrubFrameIndex',
+            Math.max(0, Math.min(maxIndex, Math.round(value))),
+        );
+    }
+
+    function shiftScrubFrame(delta: number): void {
+        setScrubFrameIndex(currentScrubFrameIndex() + delta);
+    }
+
+    $effect(() => {
+        if (availableScrubFrameCount <= 0) {
+            if (
+                (panel.perimeterFieldDebugScrubFrameIndex ??
+                    GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
+                    0) !== 0
+            ) {
+                setScrubFrameIndex(0);
+            }
+            return;
+        }
+        const clamped = currentScrubFrameIndex();
+        if (
+            clamped !==
+            Math.round(
+                panel.perimeterFieldDebugScrubFrameIndex ??
+                    GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
+                    0,
+            )
+        ) {
+            setScrubFrameIndex(clamped);
+        }
+    });
 </script>
 
 <div class="module-head">
@@ -61,14 +138,14 @@
             class="module-all-toggle"
             class:active={activeModule === 'all'}
             onclick={() => {
-                activeModule = 'all';
+                setActiveModule('all');
             }}>All</button>
         <button
             type="button"
             class="module-all-toggle"
             class:active={activeModule === 'none'}
             onclick={() => {
-                activeModule = 'none';
+                setActiveModule('none');
             }}>None</button>
     </div>
 </div>
@@ -80,7 +157,7 @@
             class="module-chip"
             class:active={activeModule === module.id}
             onclick={() => {
-                activeModule = activeModule === module.id ? 'all' : module.id;
+                setActiveModule(activeModule === module.id ? 'all' : module.id);
             }}
         >
             {module.label}
@@ -762,26 +839,51 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="Paused scrub position for the live conquest or selected replay. 0 = previous state, 1 = settled next state."
+            title="Exact captured transition frame index for the live conquest or selected replay. Index 0 is PREV, the last index is NEXT."
         >
             Transition Scrub
         </span>
-        <span class="val">{(panel.perimeterFieldDebugScrubProgress ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS ?? 0).toFixed(2)}</span>
+        <span class="val">
+            {#if availableScrubFrameCount > 0}
+                F{currentScrubFrameIndex()} / {availableScrubFrameCount - 1}
+            {:else}
+                No frames
+            {/if}
+        </span>
     </div>
     <div class="var-desc">
-        While paused, this drives the live conquest or selected replay through the transition timeline. 0 = pure previous state, 1 = settled next state.
+        While paused, this steps through the exact captured gameplay frames for the live conquest or selected replay. Each +/- click moves exactly one conquest frame.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={panel.perimeterFieldDebugScrubProgress ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS', 'perimeterFieldDebugScrubProgress', value);
-        }}
-    />
+    <div class="scrub-controls">
+        <button
+            type="button"
+            class="module-all-toggle scrub-step-btn"
+            disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() <= 0}
+            onclick={() => shiftScrubFrame(-1)}
+        >
+            -
+        </button>
+        <input
+            type="range"
+            min="0"
+            max={Math.max(0, availableScrubFrameCount - 1)}
+            step="1"
+            disabled={availableScrubFrameCount <= 0}
+            value={currentScrubFrameIndex()}
+            oninput={(event) => {
+                const value = parseFloat((event.target as HTMLInputElement).value);
+                setScrubFrameIndex(value);
+            }}
+        />
+        <button
+            type="button"
+            class="module-all-toggle scrub-step-btn"
+            disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() >= availableScrubFrameCount - 1}
+            onclick={() => shiftScrubFrame(1)}
+        >
+            +
+        </button>
+    </div>
 </div>
 
 </div>
@@ -872,6 +974,19 @@
         display: flex;
         flex-direction: column;
         gap: 0;
+    }
+
+    .scrub-controls {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .scrub-step-btn {
+        min-width: 32px;
+        min-height: 28px;
+        padding: 0 8px;
     }
 
     .var-desc {

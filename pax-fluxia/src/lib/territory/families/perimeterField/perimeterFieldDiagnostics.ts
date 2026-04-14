@@ -260,23 +260,24 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
 }
 
 function compactSample(sample: PerimeterFieldDebugSample): Record<string, unknown> {
+    const round = (value: number): number => Math.round(value * 100) / 100;
     return {
         id: sample.id,
         ownerId: sample.ownerId,
         ownerColor: sample.ownerColor,
         playerIdx: sample.playerIdx,
         sampleIndex: sample.sampleIndex ?? null,
-        x: sample.x,
-        y: sample.y,
-        strength: sample.strength,
+        x: round(sample.x),
+        y: round(sample.y),
+        strength: round(sample.strength),
         debugState: sample.debugState,
         pathStart:
             sample.pathStartX != null && sample.pathStartY != null
-                ? [sample.pathStartX, sample.pathStartY]
+                ? [round(sample.pathStartX), round(sample.pathStartY)]
                 : null,
         pathEnd:
             sample.pathEndX != null && sample.pathEndY != null
-                ? [sample.pathEndX, sample.pathEndY]
+                ? [round(sample.pathEndX), round(sample.pathEndY)]
                 : null,
         startFallback: Boolean(sample.startFallback),
         endFallback: Boolean(sample.endFallback),

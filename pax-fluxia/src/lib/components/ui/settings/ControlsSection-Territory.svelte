@@ -104,8 +104,18 @@
     { id: "fill-transition", label: "Fill", icon: "◌" },
   ];
 
-  let activeSystemModule = $state<TerritorySystemModuleId>("all");
-  let activeRendererModule = $state<TerritoryRendererModuleId>("all");
+  const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
+  const TERRITORY_RENDERER_MODULE_PANEL_KEY =
+    "territoryRendererModuleVisibility";
+
+  let activeSystemModule = $derived(
+    (panel[TERRITORY_SYSTEM_MODULE_PANEL_KEY] ??
+      "all") as TerritorySystemModuleId,
+  );
+  let activeRendererModule = $derived(
+    (panel[TERRITORY_RENDERER_MODULE_PANEL_KEY] ??
+      "all") as TerritoryRendererModuleId,
+  );
 
   const METABALL_FALLOFF_OPTIONS = [
     {
@@ -489,13 +499,21 @@
     return activeRendererModule === "all" || activeRendererModule === id;
   }
 
+  function setActiveSystemModule(value: TerritorySystemModuleId) {
+    updatePanel(TERRITORY_SYSTEM_MODULE_PANEL_KEY, value);
+  }
+
+  function setActiveRendererModule(value: TerritoryRendererModuleId) {
+    updatePanel(TERRITORY_RENDERER_MODULE_PANEL_KEY, value);
+  }
+
   $effect(() => {
     if (
       activeRendererModule !== "all" &&
       activeRendererModule !== "none" &&
       !rendererModules().some((module) => module.id === activeRendererModule)
     ) {
-      activeRendererModule = "all";
+      setActiveRendererModule("all");
     }
   });
 
@@ -537,7 +555,7 @@
         class:active={activeSystemModule === "all"}
         aria-label="Show all territory system modules"
         onclick={() => {
-          activeSystemModule = "all";
+          setActiveSystemModule("all");
         }}>All</button>
       <button
         type="button"
@@ -545,7 +563,7 @@
         class:active={activeSystemModule === "none"}
         aria-label="Hide all territory system modules"
         onclick={() => {
-          activeSystemModule = "none";
+          setActiveSystemModule("none");
         }}>None</button>
     </div>
   </div>
@@ -556,8 +574,9 @@
         class="territory-module-chip"
         class:active={activeSystemModule === module.id}
         onclick={() => {
-          activeSystemModule =
-            activeSystemModule === module.id ? "all" : module.id;
+          setActiveSystemModule(
+            activeSystemModule === module.id ? "all" : module.id,
+          );
         }}>
         <span class="territory-module-chip__icon">{module.icon}</span>
         <span>{module.label}</span>
@@ -789,7 +808,7 @@
         class:active={activeRendererModule === "all"}
         aria-label="Show all territory rendering modules"
         onclick={() => {
-          activeRendererModule = "all";
+          setActiveRendererModule("all");
         }}>All</button>
       <button
         type="button"
@@ -797,7 +816,7 @@
         class:active={activeRendererModule === "none"}
         aria-label="Hide all territory rendering modules"
         onclick={() => {
-          activeRendererModule = "none";
+          setActiveRendererModule("none");
         }}>None</button>
     </div>
   </div>
@@ -808,8 +827,9 @@
         class="territory-module-chip"
         class:active={activeRendererModule === module.id}
         onclick={() => {
-          activeRendererModule =
-            activeRendererModule === module.id ? "all" : module.id;
+          setActiveRendererModule(
+            activeRendererModule === module.id ? "all" : module.id,
+          );
         }}>
         <span class="territory-module-chip__icon">{module.icon}</span>
         <span>{module.label}</span>

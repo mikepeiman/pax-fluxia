@@ -110,6 +110,10 @@
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
+    import {
+        resetPerimeterFieldDebugPlaybackState,
+        setPerimeterFieldDebugPlaybackState,
+    } from "$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
     import {
         buildPerimeterFieldRenderFamilyGeometry,
@@ -288,16 +292,6 @@
         };
     }
 
-    const PERIMETER_FIELD_CAPTURE_PROGRESS_VALUES = [
-        0,
-        1 / 6,
-        2 / 6,
-        3 / 6,
-        4 / 6,
-        5 / 6,
-        1,
-    ] as const;
-
     type PerimeterFieldCapturedFrame = {
         geometry: CanonicalGeometrySnapshot;
         ownership: OwnershipSnapshot;
@@ -307,6 +301,7 @@
     };
 
     type PerimeterFieldCapturedTransitionFrame = {
+        frameIndex: number;
         progress: number;
         canvas: HTMLCanvasElement;
         debugSnapshot: PerimeterFieldDebugSnapshot | null;
@@ -317,7 +312,7 @@
         key: string;
         conquestEvents: readonly TerritoryConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
-        frames: Map<number, PerimeterFieldCapturedTransitionFrame>;
+        frames: PerimeterFieldCapturedTransitionFrame[];
     };
 
     type PerimeterFieldReplayBundle = {
@@ -443,18 +438,34 @@
         progress: number,
         frame: PerimeterFieldCapturedFrame,
     ): void {
-        for (const target of PERIMETER_FIELD_CAPTURE_PROGRESS_VALUES) {
-            if (session.frames.has(target)) continue;
-            if (progress + 1e-6 < target) continue;
-            session.frames.set(target, {
-                progress: target,
-                canvas: cloneCanvasFrame(frame.canvas),
-                debugSnapshot: clonePerimeterFieldDebugSnapshot(
-                    frame.debugSnapshot,
-                ),
-                compactDebugSnapshot: frame.compactDebugSnapshot,
-            });
-        }
+        session.frames.push({
+            frameIndex: session.frames.length + 1,
+            progress,
+            canvas: cloneCanvasFrame(frame.canvas),
+            debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                frame.debugSnapshot,
+            ),
+            compactDebugSnapshot: frame.compactDebugSnapshot,
+        });
+    }
+
+    function syncPerimeterFieldDebugPlaybackState(): void {
+        setPerimeterFieldDebugPlaybackState({
+            liveFrameCount: perimeterFieldCaptureSession
+                ? perimeterFieldCaptureSession.frames.length + 1
+                : 0,
+            replayFrameCounts: [
+                perimeterFieldReplayHistory[0]
+                    ? perimeterFieldReplayHistory[0].frames.length + 2
+                    : 0,
+                perimeterFieldReplayHistory[1]
+                    ? perimeterFieldReplayHistory[1].frames.length + 2
+                    : 0,
+                perimeterFieldReplayHistory[2]
+                    ? perimeterFieldReplayHistory[2].frames.length + 2
+                    : 0,
+            ],
+        });
     }
 
     function pushPerimeterFieldReplayBundle(bundle: PerimeterFieldReplayBundle) {
@@ -462,22 +473,50 @@
             bundle,
             ...perimeterFieldReplayHistory,
         ].slice(0, 3);
+        syncPerimeterFieldDebugPlaybackState();
     }
 
-    function selectNearestPerimeterFieldFrame(
-        frames: ReadonlyArray<{ progress: number }>,
-        progress: number,
+    function clampPerimeterFieldFrameIndex(
+        frameIndex: number,
+        frameCount: number,
     ): number {
-        let bestIndex = 0;
-        let bestDistance = Number.POSITIVE_INFINITY;
-        for (let i = 0; i < frames.length; i++) {
-            const distance = Math.abs(frames[i]!.progress - progress);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestIndex = i;
-            }
+        if (frameCount <= 0) return 0;
+        return Math.max(0, Math.min(frameCount - 1, Math.round(frameIndex)));
+    }
+
+    function buildPerimeterFieldDisplayedFrames(
+        previousFrame: PerimeterFieldCapturedFrame,
+        frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>,
+        nextFrame?: PerimeterFieldCapturedFrame | null,
+    ): Array<{
+        frameIndex: number;
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }> {
+        const displayedFrames = [
+            {
+                frameIndex: 0,
+                progress: 0,
+                canvas: previousFrame.canvas,
+                debugSnapshot: previousFrame.debugSnapshot,
+            },
+            ...frames.map((frame) => ({
+                frameIndex: frame.frameIndex,
+                progress: frame.progress,
+                canvas: frame.canvas,
+                debugSnapshot: frame.debugSnapshot,
+            })),
+        ];
+        if (nextFrame) {
+            displayedFrames.push({
+                frameIndex: displayedFrames.length,
+                progress: 1,
+                canvas: nextFrame.canvas,
+                debugSnapshot: nextFrame.debugSnapshot,
+            });
         }
-        return bestIndex;
+        return displayedFrames;
     }
 
     function readPerimeterFieldReplaySelection(): {
@@ -486,9 +525,6 @@
     } | null {
         if (!activeGameStore.isPaused) return null;
 
-        const scrubProgress = clampUnitInterval(
-            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS ?? 0,
-        );
         const replaySlot = Math.max(
             0,
             Math.min(
@@ -500,22 +536,14 @@
         if (replaySlot > 0) {
             const replay = perimeterFieldReplayHistory[replaySlot - 1];
             if (!replay) return null;
-            const replayFrames = [
-                {
-                    progress: 0,
-                    canvas: replay.previousFrame.canvas,
-                    debugSnapshot: replay.previousFrame.debugSnapshot,
-                },
-                ...replay.frames,
-                {
-                    progress: 1,
-                    canvas: replay.nextFrame.canvas,
-                    debugSnapshot: replay.nextFrame.debugSnapshot,
-                },
-            ];
-            const selectedIndex = selectNearestPerimeterFieldFrame(
-                replayFrames,
-                scrubProgress,
+            const replayFrames = buildPerimeterFieldDisplayedFrames(
+                replay.previousFrame,
+                replay.frames,
+                replay.nextFrame,
+            );
+            const selectedIndex = clampPerimeterFieldFrameIndex(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
+                replayFrames.length,
             );
             return replayFrames[selectedIndex]!;
         }
@@ -524,20 +552,13 @@
             (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
             perimeterFieldCaptureSession
         ) {
-            const liveFrames = [
-                {
-                    progress: 0,
-                    canvas: perimeterFieldCaptureSession.previousFrame.canvas,
-                    debugSnapshot:
-                        perimeterFieldCaptureSession.previousFrame.debugSnapshot,
-                },
-                ...[...perimeterFieldCaptureSession.frames.values()].sort(
-                    (a, b) => a.progress - b.progress,
-                ),
-            ];
-            const selectedIndex = selectNearestPerimeterFieldFrame(
-                liveFrames,
-                scrubProgress,
+            const liveFrames = buildPerimeterFieldDisplayedFrames(
+                perimeterFieldCaptureSession.previousFrame,
+                perimeterFieldCaptureSession.frames,
+            );
+            const selectedIndex = clampPerimeterFieldFrameIndex(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
+                liveFrames.length,
             );
             return liveFrames[selectedIndex]!;
         }
@@ -589,8 +610,10 @@
         const session = perimeterFieldCaptureSession;
         if (!session) return;
 
-        if (!session.frames.has(1)) {
-            session.frames.set(1, {
+        const lastFrame = session.frames[session.frames.length - 1] ?? null;
+        if (!lastFrame || lastFrame.progress < 1 - 1e-6) {
+            session.frames.push({
+                frameIndex: session.frames.length + 1,
                 progress: 1,
                 canvas: cloneCanvasFrame(params.frame.canvas),
                 debugSnapshot: clonePerimeterFieldDebugSnapshot(
@@ -600,9 +623,7 @@
             });
         }
 
-        const transitionFrames = [...session.frames.values()].sort(
-            (a, b) => a.progress - b.progress,
-        );
+        const transitionFrames = [...session.frames];
 
         pushPerimeterFieldReplayBundle({
             label:
@@ -631,6 +652,7 @@
             frames: transitionFrames
                 .filter((entry) => entry.progress > 0 && entry.progress < 1)
                 .map((entry) => ({
+                    frameIndex: entry.frameIndex,
                     progress: entry.progress,
                     canvas: cloneCanvasFrame(entry.canvas),
                     debugSnapshot: clonePerimeterFieldDebugSnapshot(
@@ -679,16 +701,32 @@
             })),
             extraDiagnostics: {
                 kind: "perimeter_field_live_capture",
-                previousFrame: session.previousFrame.compactDebugSnapshot,
-                nextFrame: params.frame.compactDebugSnapshot,
+                previousFrame: {
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        session.previousFrame.debugSnapshot,
+                    ),
+                    compactSnapshot:
+                        session.previousFrame.compactDebugSnapshot,
+                },
+                nextFrame: {
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        params.frame.debugSnapshot,
+                    ),
+                    compactSnapshot: params.frame.compactDebugSnapshot,
+                },
                 transitionFrames: transitionFrames.map((entry) => ({
+                    frameIndex: entry.frameIndex,
                     progress: entry.progress,
-                    snapshot: entry.compactDebugSnapshot,
+                    fullSnapshot: clonePerimeterFieldDebugSnapshot(
+                        entry.debugSnapshot,
+                    ),
+                    compactSnapshot: entry.compactDebugSnapshot,
                 })),
             },
         });
 
         perimeterFieldCaptureSession = null;
+        syncPerimeterFieldDebugPlaybackState();
     }
 
     function syncPerimeterFieldDiagnosticCapture(params: {
@@ -701,6 +739,9 @@
         if (!transitionSnapshotRecorder.isEnabled()) {
             perimeterFieldStableFrame = null;
             perimeterFieldCaptureSession = null;
+            perimeterFieldReplayHistory = [];
+            perimeterFieldDebugSnapshotOverride = null;
+            resetPerimeterFieldDebugPlaybackState();
             return;
         }
 
@@ -738,8 +779,9 @@
                     params.activeTransition,
                 ),
                 previousFrame: perimeterFieldStableFrame ?? liveFrame,
-                frames: new Map(),
+                frames: [],
             };
+            syncPerimeterFieldDebugPlaybackState();
         }
 
         recordPerimeterFieldTransitionFrame(
@@ -747,6 +789,7 @@
             params.activeTransition.progress,
             liveFrame,
         );
+        syncPerimeterFieldDebugPlaybackState();
     }
 
     function resolveActiveTerritoryMode(): string {

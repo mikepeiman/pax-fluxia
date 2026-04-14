@@ -1,10 +1,14 @@
 import JSZip from 'jszip';
 import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
+import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
+import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import {
     compactGeometrySnapshotForExport,
     compactFrontierTopologyForExport,
     filePrefixFromIsoTimestamp,
+    boundsOf,
+    downsamplePoints,
 } from './snapshotExport';
 
 export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
@@ -40,6 +44,28 @@ interface DiagnosticPackageManifest {
     nextTopology: unknown;
     starPositions: Record<string, { x: number; y: number }>;
     captureDiagnostics?: unknown;
+}
+
+interface PerimeterFieldCaptureFrameDiagnostics {
+    fullSnapshot: PerimeterFieldDebugSnapshot | null;
+    compactSnapshot: Record<string, unknown> | null;
+}
+
+interface PerimeterFieldCaptureTransitionDiagnostics
+    extends PerimeterFieldCaptureFrameDiagnostics {
+    frameIndex: number;
+    progress: number;
+}
+
+interface PerimeterFieldLiveCaptureDiagnostics {
+    kind: 'perimeter_field_live_capture';
+    previousFrame: PerimeterFieldCaptureFrameDiagnostics;
+    nextFrame: PerimeterFieldCaptureFrameDiagnostics;
+    transitionFrames: PerimeterFieldCaptureTransitionDiagnostics[];
+}
+
+function roundCoord(value: number): number {
+    return Math.round(value * 100) / 100;
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -141,6 +167,152 @@ function serializeStarPositions(
     );
 }
 
+function isPerimeterFieldLiveCaptureDiagnostics(
+    value: unknown,
+): value is PerimeterFieldLiveCaptureDiagnostics {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        (value as { kind?: unknown }).kind === 'perimeter_field_live_capture'
+    );
+}
+
+function buildAffectedOwnerSet(bundle: TransitionDebugBundle): Set<string> {
+    const owners = new Set<string>();
+    for (const event of bundle.conquestEvents) {
+        owners.add(event.previousOwner);
+        owners.add(event.newOwner);
+    }
+    return owners;
+}
+
+function compactPerimeterFieldGeometry(
+    geometry: TransitionDebugBundle['context']['nextGeometry'] | null | undefined,
+    affectedOwners: ReadonlySet<string>,
+): unknown {
+    if (!geometry) return null;
+    return {
+        version: geometry.version,
+        sourceMode: geometry.sourceMode,
+        sourceStyle: geometry.sourceStyle,
+        ownershipVersion: geometry.ownershipVersion,
+        geometryFamily: geometry.geometryFamily,
+        sourceMethod: geometry.sourceMethod,
+        territoryRegions: geometry.territoryRegions
+            .filter((region) => affectedOwners.has(region.ownerId))
+            .map((region) => ({
+                regionId: region.regionId,
+                ownerId: region.ownerId,
+                starIds: [...(region.starIds ?? [])].sort(),
+                confidence: region.confidence,
+                pointCount: region.points.length,
+                bounds: boundsOf(region.points),
+                pointsSampled: downsamplePoints(region.points, 24).map(
+                    ([x, y]) => [roundCoord(x), roundCoord(y)] as const,
+                ),
+            })),
+        shellLoops: geometry.shellLoops
+            .filter(
+                (loop) =>
+                    loop.classification === 'outer' &&
+                    Boolean(loop.ownerId) &&
+                    affectedOwners.has(loop.ownerId),
+            )
+            .map((loop) => ({
+                shellLoopId: loop.shellLoopId,
+                shellId: loop.shellId,
+                ownerId: loop.ownerId,
+                starIds: [...(loop.starIds ?? [])].sort(),
+                confidence: loop.confidence,
+                pointCount: loop.points.length,
+                bounds: boundsOf(loop.points),
+                pointsSampled: downsamplePoints(loop.points, 24).map(
+                    ([x, y]) => [roundCoord(x), roundCoord(y)] as const,
+                ),
+            })),
+    };
+}
+
+function compactTopologySummary(
+    topology:
+        | TransitionDebugBundle['context']['prevFrontierTopology']
+        | TransitionDebugBundle['context']['nextFrontierTopology']
+        | null
+        | undefined,
+): unknown {
+    if (!topology) return null;
+    return {
+        version: topology.version,
+        ownershipVersion: topology.ownershipVersion,
+        vertexCount: topology.vertices.size,
+        sectionCount: topology.sections.size,
+        loopCount: topology.loops.length,
+    };
+}
+
+function serializeRelevantStarPositions(
+    bundle: TransitionDebugBundle,
+): Record<string, { x: number; y: number }> {
+    const relevantIds = new Set<string>();
+    for (const event of bundle.conquestEvents) {
+        relevantIds.add(event.starId);
+        const attackerStarIds = Array.isArray(
+            (event as { attackerStarIds?: unknown }).attackerStarIds,
+        )
+            ? ((event as { attackerStarIds?: string[] }).attackerStarIds ?? [])
+            : [];
+        for (const attackerStarId of attackerStarIds) {
+            relevantIds.add(attackerStarId);
+        }
+    }
+    return Object.fromEntries(
+        [...bundle.starPositions.entries()]
+            .filter(([starId]) => relevantIds.has(starId))
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([starId, point]) => [
+                starId,
+                { x: roundCoord(point.x), y: roundCoord(point.y) },
+            ]),
+    );
+}
+
+function selectPerimeterDiagnosticFrames(
+    diagnostics: PerimeterFieldLiveCaptureDiagnostics,
+    selectedFrames: readonly DiagnosticPackageFrame[],
+): Array<{
+    frameIndex: number;
+    progress: number;
+    snapshot: Record<string, unknown> | null;
+}> {
+    return selectedFrames
+        .map((frame) => {
+            const source = diagnostics.transitionFrames[frame.sourceIndex];
+            if (!source) return null;
+            return {
+                frameIndex: source.frameIndex,
+                progress: source.progress,
+                snapshot: source.compactSnapshot,
+            };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+}
+
+function renderPerimeterFieldExportCanvas(args: {
+    baseCanvas: HTMLCanvasElement | null;
+    snapshot: PerimeterFieldDebugSnapshot | null;
+}): HTMLCanvasElement | null {
+    if (!args.baseCanvas) return null;
+    if (!args.snapshot) return args.baseCanvas;
+    return renderPerimeterFieldDiagnosticCanvas({
+        width: args.baseCanvas.width,
+        height: args.baseCanvas.height,
+        snapshot: args.snapshot,
+        baseCanvas: args.baseCanvas,
+        showGeometry: true,
+        showVstars: true,
+    });
+}
+
 export function selectDiagnosticIntermediateFrames(
     frames: readonly TransitionFrameEntry[] | null | undefined,
     targets = DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES,
@@ -187,6 +359,12 @@ function buildDiagnosticManifest(
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): DiagnosticPackageManifest {
     const ctx = bundle.context;
+    const perimeterDiagnostics = isPerimeterFieldLiveCaptureDiagnostics(
+        bundle.extraDiagnostics,
+    )
+        ? bundle.extraDiagnostics
+        : null;
+    const affectedOwners = buildAffectedOwnerSet(bundle);
     return {
         exportKind: 'transition_diagnostic_package',
         bundleId: bundle.id,
@@ -202,16 +380,40 @@ function buildDiagnosticManifest(
         modes: bundle.meta.modes,
         previousOwnershipVersion: bundle.meta.prevOwnershipVersion,
         nextOwnershipVersion: bundle.meta.nextOwnershipVersion,
-        previousGeometry: compactGeometrySnapshotForExport(ctx.previousGeometry ?? null),
-        nextGeometry: compactGeometrySnapshotForExport(ctx.nextGeometry),
-        previousTopology: compactFrontierTopologyForExport(
-            ctx.previousGeometry?.frontierTopology ?? null,
-        ),
-        nextTopology: compactFrontierTopologyForExport(
-            ctx.nextGeometry?.frontierTopology ?? null,
-        ),
-        starPositions: serializeStarPositions(bundle.starPositions),
-        captureDiagnostics: bundle.extraDiagnostics,
+        previousGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(
+                  ctx.previousGeometry ?? null,
+                  affectedOwners,
+              )
+            : compactGeometrySnapshotForExport(ctx.previousGeometry ?? null),
+        nextGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(ctx.nextGeometry, affectedOwners)
+            : compactGeometrySnapshotForExport(ctx.nextGeometry),
+        previousTopology: perimeterDiagnostics
+            ? compactTopologySummary(ctx.previousGeometry?.frontierTopology ?? null)
+            : compactFrontierTopologyForExport(
+                  ctx.previousGeometry?.frontierTopology ?? null,
+              ),
+        nextTopology: perimeterDiagnostics
+            ? compactTopologySummary(ctx.nextGeometry?.frontierTopology ?? null)
+            : compactFrontierTopologyForExport(
+                  ctx.nextGeometry?.frontierTopology ?? null,
+              ),
+        starPositions: perimeterDiagnostics
+            ? serializeRelevantStarPositions(bundle)
+            : serializeStarPositions(bundle.starPositions),
+        captureDiagnostics: perimeterDiagnostics
+            ? {
+                  kind: perimeterDiagnostics.kind,
+                  totalTransitionFrames: perimeterDiagnostics.transitionFrames.length,
+                  previousFrame: perimeterDiagnostics.previousFrame.compactSnapshot,
+                  nextFrame: perimeterDiagnostics.nextFrame.compactSnapshot,
+                  selectedTransitionFrames: selectPerimeterDiagnosticFrames(
+                      perimeterDiagnostics,
+                      selectedFrames,
+                  ),
+              }
+            : bundle.extraDiagnostics,
     };
 }
 
@@ -254,16 +456,31 @@ export async function downloadBundle(
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
     const prefix = filePrefixFromIsoTimestamp(bundle.timestamp);
+    const perimeterDiagnostics = isPerimeterFieldLiveCaptureDiagnostics(
+        bundle.extraDiagnostics,
+    )
+        ? bundle.extraDiagnostics
+        : null;
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
     if (bundle.prevCanvas) {
-        panels.push({ label: 'Previous geometry', canvas: bundle.prevCanvas });
-        triggerDownload(await canvasToBlob(bundle.prevCanvas), `${prefix}_prev-geometry.png`);
+        const prevCanvas =
+            renderPerimeterFieldExportCanvas({
+                baseCanvas: bundle.prevCanvas,
+                snapshot: perimeterDiagnostics?.previousFrame.fullSnapshot ?? null,
+            }) ?? bundle.prevCanvas;
+        panels.push({ label: 'Previous geometry', canvas: prevCanvas });
+        triggerDownload(await canvasToBlob(prevCanvas), `${prefix}_prev-geometry.png`);
     }
 
     if (bundle.nextCanvas) {
-        panels.push({ label: 'Next geometry', canvas: bundle.nextCanvas });
-        triggerDownload(await canvasToBlob(bundle.nextCanvas), `${prefix}_next-geometry.png`);
+        const nextCanvas =
+            renderPerimeterFieldExportCanvas({
+                baseCanvas: bundle.nextCanvas,
+                snapshot: perimeterDiagnostics?.nextFrame.fullSnapshot ?? null,
+            }) ?? bundle.nextCanvas;
+        panels.push({ label: 'Next geometry', canvas: nextCanvas });
+        triggerDownload(await canvasToBlob(nextCanvas), `${prefix}_next-geometry.png`);
     }
 
     if (bundle.nextCanvas) {
@@ -287,9 +504,16 @@ export async function downloadBundle(
     if (bundle.transitionFrames && bundle.transitionFrames.length > 0) {
         for (let i = 0; i < bundle.transitionFrames.length; i++) {
             const { progress, canvas } = bundle.transitionFrames[i];
+            const transitionCanvas =
+                renderPerimeterFieldExportCanvas({
+                    baseCanvas: canvas,
+                    snapshot:
+                        perimeterDiagnostics?.transitionFrames[i]?.fullSnapshot ??
+                        null,
+                }) ?? canvas;
             const pctString = Math.round(progress * 100).toString().padStart(3, '0');
             triggerDownload(
-                await canvasToBlob(canvas),
+                await canvasToBlob(transitionCanvas),
                 `${prefix}_frame_${String(i).padStart(2, '0')}_t${pctString}.png`,
             );
             await new Promise((resolve) => setTimeout(resolve, 80));
@@ -309,12 +533,31 @@ export async function downloadBundle(
     );
 
     const compactGeometry = {
-        exportKind: 'compact' as const,
+        exportKind: perimeterDiagnostics
+            ? ('perimeter_field_compact' as const)
+            : ('compact' as const),
         polylineDiffSemantics: bundle.meta.polylineDiffSemantics,
         conquestEvents: bundle.context.conquestEvents,
-        previousGeometry: compactGeometrySnapshotForExport(bundle.context.previousGeometry ?? null),
-        nextGeometry: compactGeometrySnapshotForExport(bundle.context.nextGeometry),
-        captureDiagnostics: bundle.extraDiagnostics,
+        previousGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(
+                  bundle.context.previousGeometry ?? null,
+                  buildAffectedOwnerSet(bundle),
+              )
+            : compactGeometrySnapshotForExport(
+                  bundle.context.previousGeometry ?? null,
+              ),
+        nextGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(
+                  bundle.context.nextGeometry,
+                  buildAffectedOwnerSet(bundle),
+              )
+            : compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+        captureDiagnostics: perimeterDiagnostics
+            ? buildDiagnosticManifest(
+                  bundle,
+                  selectDiagnosticIntermediateFrames(bundle.transitionFrames),
+              ).captureDiagnostics
+            : bundle.extraDiagnostics,
     };
     const geometryString = JSON.stringify(
         compactGeometry,
@@ -338,22 +581,45 @@ export async function downloadDiagnosticPackage(
     const zip = new JSZip();
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);
+    const perimeterDiagnostics = isPerimeterFieldLiveCaptureDiagnostics(
+        bundle.extraDiagnostics,
+    )
+        ? bundle.extraDiagnostics
+        : null;
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
     zip.file('diagnostic.json', JSON.stringify(manifest, null, 2));
 
     if (bundle.prevCanvas) {
-        await addCanvasToZip(zip, 'prev.png', bundle.prevCanvas);
+        const prevCanvas =
+            renderPerimeterFieldExportCanvas({
+                baseCanvas: bundle.prevCanvas,
+                snapshot: perimeterDiagnostics?.previousFrame.fullSnapshot ?? null,
+            }) ?? bundle.prevCanvas;
+        await addCanvasToZip(zip, 'prev.png', prevCanvas);
     }
 
     for (const frame of selectedFrames) {
         const source = bundle.transitionFrames?.[frame.sourceIndex];
         if (!source) continue;
-        await addCanvasToZip(zip, frame.filename, source.canvas);
+        const overlaySnapshot =
+            perimeterDiagnostics?.transitionFrames[frame.sourceIndex]?.fullSnapshot ??
+            null;
+        const frameCanvas =
+            renderPerimeterFieldExportCanvas({
+                baseCanvas: source.canvas,
+                snapshot: overlaySnapshot,
+            }) ?? source.canvas;
+        await addCanvasToZip(zip, frame.filename, frameCanvas);
     }
 
     if (bundle.nextCanvas) {
-        await addCanvasToZip(zip, 'next.png', bundle.nextCanvas);
+        const nextCanvas =
+            renderPerimeterFieldExportCanvas({
+                baseCanvas: bundle.nextCanvas,
+                snapshot: perimeterDiagnostics?.nextFrame.fullSnapshot ?? null,
+            }) ?? bundle.nextCanvas;
+        await addCanvasToZip(zip, 'next.png', nextCanvas);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
