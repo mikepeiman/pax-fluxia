@@ -14,6 +14,7 @@ export type LegacyVsTransitionModeId =
 
 export type MetaballTransitionModeId =
     | 'metaball_lane_push'
+    | 'metaball_hold_then_switch'
     | 'metaball_six_slice_burst';
 
 export type VsTransitionModeId =
@@ -65,6 +66,11 @@ export const METABALL_TRANSITION_MODE_OPTIONS: readonly TransitionModeOption<Met
             id: 'metaball_lane_push',
             label: 'Lane Push',
             description: 'Advancing attacker influence pushes through the conquest lane.',
+        },
+        {
+            id: 'metaball_hold_then_switch',
+            label: 'Hold Then Switch',
+            description: 'Keep the conquered star on the old owner until it fades out, while victor sites travel in at full strength.',
         },
         {
             id: 'metaball_six_slice_burst',

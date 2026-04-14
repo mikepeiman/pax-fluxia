@@ -164,6 +164,46 @@ describe('buildMetaballScene', () => {
         expect(advancingSample?.strength ?? 0).toBeGreaterThan(0);
     });
 
+    it('builds hold-then-switch samples with a fading held target and full-strength victor travel', () => {
+        const stars = [
+            makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 100, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'old-anchor', x: 100, y: 80, ownerId: 'red' }),
+        ];
+
+        const scene = buildMetaballScene(
+            makeInput({
+                stars,
+                lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 100 }],
+                activeTransition: makeConquestTransition(),
+                tunables: {
+                    VS_TRANSITION_MODE: 'metaball_hold_then_switch',
+                    MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                    MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+                },
+            }),
+            colorUtils,
+        );
+
+        const ids = scene.samples.map((sample) => sample.id ?? '');
+        const attackerBase = scene.samples.find((sample) => sample.id === 'star:attacker');
+        const targetBase = scene.samples.find((sample) => sample.id === 'star:target');
+        const victorSample = scene.samples.find((sample) =>
+            (sample.id ?? '').includes(':victor:'),
+        );
+
+        expect(ids.some((id) => id.includes(':victor:'))).toBe(true);
+        expect(ids.some((id) => id.includes(':old:'))).toBe(false);
+        expect(ids.some((id) => id.includes(':burst:'))).toBe(false);
+        expect(targetBase?.playerIdx).not.toBe(attackerBase?.playerIdx);
+        expect(targetBase?.strength ?? 0).toBeGreaterThan(0);
+        expect(targetBase?.strength ?? 0).toBeLessThan(attackerBase?.strength ?? 0);
+        expect(victorSample?.playerIdx).toBe(attackerBase?.playerIdx);
+        expect(victorSample?.strength).toBeCloseTo(attackerBase?.strength ?? 0, 6);
+        expect(victorSample?.x).toBeCloseTo(50, 6);
+        expect(victorSample?.y).toBeCloseTo(0, 6);
+    });
+
     it('builds six-slice burst samples and suppresses the conquered base star until completion', () => {
         const stars = [
             makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),

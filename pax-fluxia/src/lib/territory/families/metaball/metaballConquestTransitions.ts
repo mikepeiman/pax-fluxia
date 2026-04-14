@@ -590,6 +590,51 @@ function buildLanePushTransitionSamples(params: {
     return out;
 }
 
+function buildHoldThenSwitchSamples(params: {
+    input: RenderFamilyInput;
+    context: MetaballBaseContext;
+}): MetaballInfluenceSample[] {
+    const out: MetaballInfluenceSample[] = [];
+
+    for (const transition of params.input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        const targetStar = params.context.actualStarsById.get(conquest.starId);
+        if (!targetStar || !conquest.newOwner) continue;
+
+        const progress = clamp01(transition.progress);
+        const attackerIds = [
+            ...new Set(
+                conquest.attackerStarIds?.length
+                    ? conquest.attackerStarIds
+                    : conquest.attackerStarId
+                      ? [conquest.attackerStarId]
+                      : [],
+            ),
+        ];
+        const victorPlayerIdx = params.context.ensureOwnerClusterIdx(conquest.newOwner);
+
+        for (const attackerId of attackerIds) {
+            const attackerStar = params.context.actualStarsById.get(attackerId);
+            if (!attackerStar) continue;
+
+            out.push({
+                id: `transition:${conquest.starId}:${transition.startedAtMs}:victor:${attackerId}`,
+                x:
+                    attackerStar.x +
+                    (targetStar.x - attackerStar.x) * progress,
+                y:
+                    attackerStar.y +
+                    (targetStar.y - attackerStar.y) * progress,
+                playerIdx: victorPlayerIdx,
+                strength:
+                    params.context.starStrengthById.get(attackerStar.id) ?? 0,
+            });
+        }
+    }
+
+    return out;
+}
+
 function buildSixSliceBurstSamples(params: {
     input: RenderFamilyInput;
     context: MetaballBaseContext;
@@ -683,6 +728,9 @@ export function buildMetaballTransitionSamples(params: {
     conquestCache: ReadonlyMap<string, MetaballConquestCacheEntry>;
 }): MetaballInfluenceSample[] {
     const mode = getMetaballTransitionMode(params.input);
+    if (mode === 'metaball_hold_then_switch') {
+        return buildHoldThenSwitchSamples(params);
+    }
     if (mode === 'metaball_six_slice_burst') {
         return buildSixSliceBurstSamples(params);
     }

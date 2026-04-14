@@ -26,7 +26,11 @@ describe('territoryTransitionModes', () => {
             getTransitionModeOptionsForRenderMode('metaball').map(
                 (option) => option.id,
             ),
-        ).toEqual(['metaball_lane_push', 'metaball_six_slice_burst']);
+        ).toEqual([
+            'metaball_lane_push',
+            'metaball_hold_then_switch',
+            'metaball_six_slice_burst',
+        ]);
     });
 
     it('exports all requested burst boundary basis options', () => {
