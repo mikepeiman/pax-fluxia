@@ -10,6 +10,10 @@
 > Any AI agent working on territory code MUST read this document before making changes.
 > If your changes contradict anything here, STOP and ask the user.
 
+> [!IMPORTANT]
+> Experimental territory families may have their own mode-specific specs. For `perimeter_field`, the authoritative mode document is [PERIMETER_FIELD_MODE_SPEC.md](./PERIMETER_FIELD_MODE_SPEC.md).
+> If current implementation behavior conflicts with a mode spec, the implementation is drift, not design.
+
 ---
 
 ## 1. The 4-Layer Pipeline
@@ -51,6 +55,19 @@ Concrete dropdown labels change over time. A stable mental model:
 | **Style** | How fills and strokes **look** when drawn | Presentation |
 | **Transition** | How conquest **morphs** from previous to next geometry | **Unified** step (fill + frontier together) |
 | **(Future / advanced)** | Extra VFX or decoupled experiments | May reintroduce separate tunables behind flags when needed |
+
+### Experimental family note: `perimeter_field`
+
+`perimeter_field` is an experimental presentation family. It is not allowed to invent its own ownership truth.
+
+Its mode-specific rules are defined in [PERIMETER_FIELD_MODE_SPEC.md](./PERIMETER_FIELD_MODE_SPEC.md), including:
+
+- perimeter-vstar ownership/render semantics
+- source-geometry requirements
+- conquest transition correspondence requirements
+- diagnostic truth requirements
+
+Agents must not infer `perimeter_field` design from current code alone.
 
 ---
 

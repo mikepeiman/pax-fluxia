@@ -4,16 +4,17 @@
 - Prototype `perimeter_field` experimental territory renderer:
   - ownership-derived base geometry
   - perimeter-vstar-only displayed field
-  - conquest-local radial transition override
+  - conquest transition still under audit against user mode spec
 - Add concise required-reading index for rendering agents.
+- Complete a docs-only spec clarification and compliance audit for `perimeter_field`.
 
 ## Notes
-- This experiment explicitly avoids changed-frontier extraction.
+- The earlier implementation choice to avoid changed-frontier extraction is now treated as a current deviation, not as part of the intended mode design.
 - Base ownership truth remains star/snapshot based.
 - Prototype implemented in client:
   - new `perimeter_field` render mode
   - canonical-geometry-to-perimeter-sample scene builder
-  - conquest-local radial override transition
+  - transition path currently under compliance audit
   - Territory control surface and config wiring
 - Added in-game diagnostics and paused scrub tooling for `perimeter_field`:
   - show underlying geometry
@@ -66,9 +67,12 @@
   - bundle finalization now happens on the first settled frame after the live transition completes
 - Hard rule for `perimeter_field` transition implementation:
   - never reconstruct conquest-local motion from star-center rays
-  - transition-local vstars must be sourced from the real PREV/NEXT perimeter-vstar sets produced by gameplay
-  - the affected PREV static perimeter samples must be replaced by transition-old samples during conquest, not double-counted alongside them
+  - transition must be correspondence between real PREV/NEXT perimeter-vstar states
+  - changed active fronts / contested topology must determine which samples move
 - Decoupled paused gameplay from diagnostic replay presentation:
   - pause must only pause
   - replay/scrub presentation is now explicitly toggle-gated, not implicitly activated by pause state
   - control copy now reflects preview-mode behavior instead of paused-mode behavior
+- Added durable documentation pass:
+  - `PERIMETER_FIELD_MODE_SPEC.md` is the new mode-level source of truth
+  - `PERIMETER_FIELD_SPEC_COMPLIANCE_AUDIT_2026-04-14.md` records requirement-by-requirement compliance against that spec
