@@ -14,6 +14,7 @@ type OwnerClusterInfo = { clusterIdx: number; ownerId: string };
 export interface PerimeterFieldDebugSnapshot {
     displayGeometry: CanonicalGeometrySnapshot;
     transitionTargetGeometry: CanonicalGeometrySnapshot | null;
+    playerColors: ReadonlyArray<readonly [number, number, number]>;
     staticSamples: ReadonlyArray<MetaballInfluenceSample>;
     targetStaticSamples: ReadonlyArray<MetaballInfluenceSample>;
     transitionSamples: ReadonlyArray<MetaballInfluenceSample>;
@@ -532,6 +533,7 @@ export function buildPerimeterFieldScene(params: {
         debug: {
             displayGeometry: params.geometry,
             transitionTargetGeometry: params.transitionTargetGeometry ?? null,
+            playerColors: clusterScene.playerColors,
             staticSamples,
             targetStaticSamples,
             transitionSamples,

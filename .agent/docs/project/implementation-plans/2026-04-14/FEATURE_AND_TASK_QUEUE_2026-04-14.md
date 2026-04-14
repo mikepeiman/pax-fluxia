@@ -24,3 +24,6 @@
   - source selection now affects shared render-family geometry, including Metaball
   - Territory exposes source MSR, CX, lane-pair, and DX controls alongside the source selector
   - perimeter vstars now support an inward offset so derived samples sit inside the source boundary instead of directly on it
+- Updated `perimeter_field` debug vstar markers:
+  - markers are now player-colored star icons
+  - current/next/interim state meaning is preserved via outline color

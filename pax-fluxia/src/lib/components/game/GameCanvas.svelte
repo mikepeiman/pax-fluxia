@@ -1311,14 +1311,56 @@
         samples: ReadonlyArray<{
             x: number;
             y: number;
+            playerIdx?: number;
         }>,
-        color: number,
+        playerColors: ReadonlyArray<readonly [number, number, number]>,
+        outlineColor: number,
         alpha: number,
         radius: number,
     ): void {
         for (const sample of samples) {
-            g.circle(sample.x, sample.y, radius);
-            g.fill({ color, alpha });
+            const playerColorTuple =
+                sample.playerIdx !== undefined
+                    ? playerColors[sample.playerIdx]
+                    : undefined;
+            const fillColor = playerColorTuple
+                ? (playerColorTuple[0] << 16) |
+                  (playerColorTuple[1] << 8) |
+                  playerColorTuple[2]
+                : outlineColor;
+            const outerRadius = radius;
+            const innerRadius = Math.max(1.2, radius * 0.45);
+            const spikeCount = 5;
+            const startAngle = -Math.PI / 2;
+
+            g.moveTo(
+                sample.x + Math.cos(startAngle) * outerRadius,
+                sample.y + Math.sin(startAngle) * outerRadius,
+            );
+            for (let i = 0; i < spikeCount; i++) {
+                const outerAngle =
+                    startAngle + (i * Math.PI * 2) / spikeCount;
+                const innerAngle = outerAngle + Math.PI / spikeCount;
+                g.lineTo(
+                    sample.x + Math.cos(innerAngle) * innerRadius,
+                    sample.y + Math.sin(innerAngle) * innerRadius,
+                );
+                g.lineTo(
+                    sample.x +
+                        Math.cos(outerAngle + (Math.PI * 2) / spikeCount) *
+                            outerRadius,
+                    sample.y +
+                        Math.sin(outerAngle + (Math.PI * 2) / spikeCount) *
+                            outerRadius,
+                );
+            }
+            g.closePath();
+            g.fill({ color: fillColor, alpha });
+            g.stroke({
+                color: outlineColor,
+                alpha: Math.min(1, alpha + 0.05),
+                width: Math.max(0.8, radius * 0.28),
+            });
         }
     }
 
@@ -1365,6 +1407,7 @@
             drawSamplePoints(
                 debugGraphics,
                 snapshot.staticSamples,
+                snapshot.playerColors,
                 0x47d7ff,
                 0.95,
                 2.6,
@@ -1373,6 +1416,7 @@
                 drawSamplePoints(
                     debugGraphics,
                     snapshot.targetStaticSamples,
+                    snapshot.playerColors,
                     0xff5bd1,
                     0.75,
                     2.3,
@@ -1381,6 +1425,7 @@
             drawSamplePoints(
                 debugGraphics,
                 snapshot.transitionSamples,
+                snapshot.playerColors,
                 0xfff36b,
                 0.95,
                 3.2,
