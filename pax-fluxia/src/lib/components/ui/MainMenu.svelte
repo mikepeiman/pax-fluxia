@@ -100,10 +100,14 @@
     );
 
     let thumbnailUrl = $state("");
+    let previewPending = $state(false);
     let previewSeed = $state(0);
     let selectedRoomId = $state<string | null>(null);
     let confirmJoinTarget = $state<RoomListing | null>(null);
     let selectedTakeOverId = $state<string | null>(null);
+    let previewTimer: ReturnType<typeof setTimeout> | null = null;
+    let previewRequestId = 0;
+    let lastPreviewKey = "";
 
     const selectedRoom = $derived(
         multiplayerStore.availableRooms.find((room) => room.roomId === selectedRoomId) ?? null,
@@ -231,6 +235,7 @@
     });
 
     $effect(() => {
+        void mapMode;
         void playerCount;
         void starsPerPlayer;
         void minLinks;
@@ -244,7 +249,7 @@
         void menuCurveVsPruneBias;
         void menuLaneMode;
         void previewSeed;
-        generatePreview();
+        schedulePreview();
     });
 
     $effect(() => {
@@ -261,6 +266,14 @@
         menuLaneMargin = laneKnobs.laneMargin;
         menuCurveVsPruneBias = laneKnobs.curveVsPruneBias;
         menuLaneMode = laneKnobs.mode;
+
+        return () => {
+            if (previewTimer) {
+                clearTimeout(previewTimer);
+                previewTimer = null;
+            }
+            previewRequestId += 1;
+        };
     });
 
     function loadSetting<T>(key: string, defaultValue: T): T {
@@ -410,7 +423,26 @@
         GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
     }
 
-    function generatePreview() {
+    function previewKey(): string {
+        return JSON.stringify({
+            mapMode,
+            playerCount,
+            starsPerPlayer,
+            minLinks,
+            maxLinks,
+            starSpacing,
+            mapBoardFit,
+            neutralStarCount,
+            specialStarPercentage,
+            menuStarMargin,
+            menuLaneMargin,
+            menuCurveVsPruneBias,
+            menuLaneMode,
+            previewSeed,
+        });
+    }
+
+    function generatePreview(): string {
         GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
         GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
         GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
@@ -427,10 +459,66 @@
             specialStarPercentage,
         });
 
-        thumbnailUrl = generateMapThumbnail(stars, connections, {
+        return generateMapThumbnail(stars, connections, {
             width: 240,
             height: 135,
         });
+    }
+
+    function schedulePreview() {
+        if (mapMode !== "random") {
+            previewRequestId += 1;
+            if (previewTimer) {
+                clearTimeout(previewTimer);
+                previewTimer = null;
+            }
+            previewPending = false;
+            return;
+        }
+
+        const nextKey = previewKey();
+        if (nextKey === lastPreviewKey && thumbnailUrl) {
+            previewPending = false;
+            return;
+        }
+
+        previewPending = true;
+        const requestId = ++previewRequestId;
+
+        if (previewTimer) {
+            clearTimeout(previewTimer);
+            previewTimer = null;
+        }
+
+        previewTimer = setTimeout(() => {
+            previewTimer = null;
+
+            const runPreview = () => {
+                if (requestId !== previewRequestId) return;
+                const nextThumbnailUrl = generatePreview();
+                if (requestId !== previewRequestId) return;
+                thumbnailUrl = nextThumbnailUrl;
+                lastPreviewKey = nextKey;
+                previewPending = false;
+            };
+
+            if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+                (window as Window & {
+                    requestIdleCallback: (
+                        callback: IdleRequestCallback,
+                        options?: IdleRequestOptions,
+                    ) => number;
+                }).requestIdleCallback(() => runPreview(), { timeout: 180 });
+                return;
+            }
+
+            if (typeof requestAnimationFrame === "function") {
+                requestAnimationFrame(() => runPreview());
+                return;
+            }
+
+            runPreview();
+        }, 140);
     }
 
     function saveAllSettings() {
