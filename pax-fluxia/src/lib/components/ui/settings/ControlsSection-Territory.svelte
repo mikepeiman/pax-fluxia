@@ -2109,6 +2109,41 @@
       is then driven only by derived perimeter samples.
     </div>
     <PerimeterFieldTuning {panel} {updatePanel} />
+    <TerritorySlaWidget
+      title="Territory fill (SLA)"
+      help="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, and alpha here."
+      {panel}
+      onUpdate={debouncedConfigUpdate}
+      configSat="METABALL_SATURATION"
+      panelSat="metaballSaturation"
+      defaultSat={1.05}
+      configLight="METABALL_LIGHTNESS"
+      panelLight="metaballLightness"
+      defaultLight={0.65}
+      configAlpha="METABALL_ALPHA"
+      panelAlpha="metaballAlpha"
+      defaultAlpha={0.5} />
+
+    <TerritorySlaWidget
+      title="Territory border (width + SLA)"
+      help="Perimeter Field borders are rendered through the shared territory border surface. Use this for basic border width, saturation, lightness, and alpha."
+      {panel}
+      onUpdate={debouncedConfigUpdate}
+      configWidth="METABALL_BORDER_WIDTH"
+      panelWidth="metaballBorderWidth"
+      defaultWidth={3}
+      widthMin={0.5}
+      widthMax={12}
+      widthStep={0.5}
+      configSat="METABALL_BORDER_SATURATION"
+      panelSat="metaballBorderSaturation"
+      defaultSat={1}
+      configLight="METABALL_BORDER_LIGHTNESS"
+      panelLight="metaballBorderLightness"
+      defaultLight={1}
+      configAlpha="METABALL_BORDER_ALPHA"
+      panelAlpha="metaballBorderAlpha"
+      defaultAlpha={1} />
   </div>
 {/if}
 
