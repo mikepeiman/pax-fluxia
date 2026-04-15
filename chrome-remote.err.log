@@ -18,3 +18,8 @@ Created TensorFlow Lite XNNPACK delegate for CPU.
 [55976:58664:0413/221546.696:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -2
 [55976:58664:0414/101253.230:ERROR:google_apis\gcm\engine\connection_handler_impl.cc:473] Timed out waiting for GCM Protocol buffer.
 [55976:58664:0414/101253.231:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -7
+[55976:58664:0414/220544.834:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -2
+[55976:58664:0415/101139.141:ERROR:google_apis\gcm\engine\connection_handler_impl.cc:473] Timed out waiting for GCM Protocol buffer.
+[55976:58664:0415/101139.141:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:483] ConnectionHandler failed with net error: -7
+[55976:58664:0415/101300.892:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:434] Failed to connect to MCS endpoint with error -105
+[55976:58664:0415/101309.339:ERROR:google_apis\gcm\engine\connection_factory_impl.cc:434] Failed to connect to MCS endpoint with error -105
