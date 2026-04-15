@@ -1,256 +1,348 @@
-# AGENT.md — Pax Fluxia Master Context
+# AGENT.md - Pax Fluxia Master Context
 
-> **Load this file at session start. It replaces all other rule/memory files.**
-> For deep dives, see `.agent/rules/`.
+> Load this at session start. It is the primary rule/memory file.
+> For deeper references, see `.agent/rules/`.
 
----
-
-***NOTE TO AGENT: This work costs money. You cost money based on token usage. Strategize, be tactical, advise and dialogue with your human to minimize token usage.***
-
+This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 
 ## 1. Project
 
-**Pax Fluxia** — real-time multiplayer galactic strategy game.
-- **Client**: SvelteKit 5 + PixiJS 8 + TypeScript (`pax-fluxia/`)
-- **Server**: Colyseus 0.15 + Bun (`pax-server/`)
-- **Shared**: `@pax/common` monorepo package (`common/`)
-- **Build**: Bun only. `bun install`, `bun run dev`, `bunx`. Never npm/npx/yarn.
-- **Shell**: PowerShell on Windows. **Never use `&&` to chain commands.**
-- **MCP Atlas-harness**: Read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at start of every session.
-- **Live Settings**: `common/resources/settings-live/current-settings.json` — read when current GAME_CONFIG values are needed.
+**Pax Fluxia** is a real-time multiplayer galactic strategy game.
 
----
+- Client: SvelteKit 5 + PixiJS 8 + TypeScript in `pax-fluxia/`
+- Server: Colyseus 0.15 + Bun in `pax-server/`
+- Shared: `@pax/common` in `common/`
+- Package/tooling: Bun only. Use `bun install`, `bun run`, `bunx`. Never `npm`, `npx`, or `yarn`.
+- Shell: PowerShell on Windows. Never chain commands with `&&`.
+- MCP Atlas-harness: read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at session start.
+- Live settings: `common/resources/settings-live/current-settings.json`
 
-## 2. Agent Behavior — Non-Negotiable
+## 2. Core Behavior
 
-### 2.1 Think Critically
-- Not auto-compliance, not auto-challenge — evaluate each prompt. Push back where warranted, agree where sound.
-- **Every response** opens with: insights, current tasks, assumptions, memory gaps, plan.
+### 2.1 Critical Thinking
 
-### 2.2 Trust the User
-- User observations ARE ground truth — they see the app, you don't.
-- **Absence of feedback ≠ confirmation.** Only explicit user statements count as verification.
-- Never declare something "fixed" without evidence. Say "please verify."
+- Evaluate every prompt. Do not auto-comply or auto-push back.
+- Every response should cover:
+  - insights
+  - current tasks
+  - assumptions
+  - memory gaps
+  - plan
 
-### 2.3 Precision & Completeness
-- **User words are specifications** — parse as requirements, not symptoms.
-- **No guessing** — read the source definition before writing dependent code.
-- **Every definition must have a consumer** — trace from definition → usage → trigger → UI.
-- **No orphans** — verify: "Who calls this? Where does this render? What fires this event?"
+### 2.2 User Trust
 
-### 2.3.1 Terminology And Communication
-- Never invent private terms in responses or project docs without defining them in the same response or document.
+- User observations are ground truth. They see the app; you usually do not.
+- Silence is not verification.
+- Do not claim something is fixed without evidence.
+- Prefer: "implemented; please verify."
+
+### 2.3 Precision
+
+- User wording is specification, not vague symptom text.
+- Do not guess. Read definitions before using them.
+- Every definition must have a consumer. Trace:
+  - definition
+  - usage
+  - trigger
+  - render path
+- No orphans. Always ask:
+  - who calls this?
+  - where does this render?
+  - what fires this event?
+
+### 2.4 Terminology And Communication
+
+- Do not invent private terms in responses or project docs unless defined in the same response/doc.
 - Prefer established project terms over ad hoc abstractions.
-- Explicitly distinguish:
+- Distinguish explicitly:
   - `connectivity` = which star pairs are connected
   - `lane geometry` = the actual line used for an existing connection
 - When proposing or reporting work, always state:
-  - whether it is planned or implemented
-  - what layer it changes
-  - whether user verification is requested
+  - planned or implemented
+  - which layer changed
+  - whether user verification is needed
   - exact filesystem paths for new tools, outputs, and docs
 
-### 2.4 Rename/Refactor Protocol
-When removing, renaming, or commenting out any symbol:
-1. Use `code_references` (atlas-harness) to find all importers of the symbol.
-2. Use `grep_search` for string-level references (comments, config keys, docs).
-3. Fix every hit BEFORE testing. One pass, zero orphans.
+### 2.5 Rename / Refactor Protocol
 
-### 2.5 Document Everything
-| Type | Where |
-|------|-------|
+When removing, renaming, or commenting out any symbol:
+
+1. Use atlas-harness `code_references` to find importers.
+2. Use string search for comments, config keys, docs, and non-symbol references.
+3. Fix every hit before testing.
+
+## 3. Documentation Rules
+
+### 3.1 Where Things Go
+
+| Type | Path |
+|------|------|
 | Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_IDEAS.md` |
 | Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
-| Daily active queue | `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
+| Daily active queue | `.agent/docs/plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
 | Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
-| Implementation Plans* | `.agent/docs/project/implementation-plans/` | * Every plan you come up with should be documented here, within a folder named with the date. Every plan on a given day is memorialized here.
+| Plans | `.agent/docs/plans/YYYY-MM-DD/` |
+| Session notes | `.agent/docs/sessions/notes/SESSION_YYYY-MM-DD.md` |
+| Chat log | `.agent/docs/sessions/chats/CHAT_YYYY-MM-DD.md` |
 
-**Daily queue protocol**: create or update `.agent/docs/project/implementation-plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` every working day. Dated work lives in the matching dated folder. This is the clean active execution list for that date. New tasks, fixes, and feature requests from the user must be logged there the same day, even if they also belong in longer-lived trackers.
-**Requested file protocol**: if the user asks to create, save, update, or place a file, write the file before replying as though it exists. Never answer with “I’m writing it now” or imply the file is saved unless it is already on disk at the stated path.
-**Major self-regression protocol**: if you introduce a major bug and then fix it, automatically save a dated post-mortem under `.agent/docs/project/process/` and summarize the cause, the mistaken reasoning, the diagnostic method, and the rule derived from it.
-**Motion-surface protocol**: before changing any visual-motion path logic, enumerate every surfaced and active config variable affecting that motion surface. Preserve or explicitly retire each one. Path truth must not silently flatten motion shaping.
-### 2.6 Session Memory
-- **Session notes**: `.agent/docs/project/sessions/notes/SESSION_YYYY-MM-DD.md`
-- **Chat log**: `.agent/docs/project/sessions/chats/CHAT_YYYY-MM-DD.md`
-**Chat log rule**:Chat logs must be LOSSLESS and COMPLETE. Do NOT summarize any human-written input. You may summarize or truncate logs and diagnostic machine content, but do not summarize or truncate any human-written input.
+### 3.2 Daily Queue Protocol
 
-***NEVER use TSV format; if tables are required, use CSV or another format appropriately.***
----
+- Every working day must have a dated queue file in the matching dated folder.
+- Log same-day tasks, fixes, and feature requests there even if they also belong in long-lived trackers.
 
-## 3. Code Standards
+### 3.3 File-Creation Protocol
 
-### 3.0 Debugging and Troubleshooting
-- stop assuming root causes, instrument first, isolate branches, then diagnose.
-- always think Architecture-first, honoring current standards
-- always note & communicate instances you that see you could fix inconsistencies and simplify codebase
+- If the user asks to create, save, update, or place a file, write it before replying as if it exists.
+- Never say a file exists unless it is already on disk at the stated path.
 
-THINK:
-***Think like a systems detective: reconstruct the real model, find the violated invariants, identify the hidden assumptions, locate the wrong boundary or ownership decision, and only then propose the smallest high-confidence change.***
+### 3.4 Regression / Process Docs
 
-Act as a senior architect-debugger, not just a coder.
+- If you introduce a major bug and then fix it, automatically write a dated post-mortem under `.agent/docs/project/post-mortems/`.
+- Summarize:
+  - cause
+  - mistaken reasoning
+  - diagnostic method
+  - derived rule
+
+### 3.5 Motion-Surface Protocol
+
+Before changing visual motion-path logic:
+
+1. Enumerate every surfaced and active config variable affecting that motion surface.
+2. Preserve or explicitly retire each one.
+3. Do not silently flatten motion shaping.
+
+### 3.6 Chat Log Rule
+
+- Chat logs must be lossless and complete for human-written input.
+- Do not summarize or truncate human-written input.
+- Machine logs and diagnostics may be summarized.
+
+### 3.7 Format Rule
+
+- Never use TSV. Use CSV or another appropriate format.
+
+## 4. Code Standards
+
+### 4.1 Debugging Standard
+
+Think like a systems detective:
+
+- reconstruct the real model
+- find violated invariants
+- locate the wrong ownership/boundary decision
+- then make the smallest high-confidence fix
 
 Before writing code:
+
 - restate the problem precisely
 - separate facts, assumptions, and unknowns
-- model system boundaries, data flow, control flow, state transitions, contracts, and invariants
+- map boundaries, data flow, control flow, state transitions, contracts, and invariants
 - identify likely root causes
-- explicitly look for what is missing, extra, miswired, wrongly owned, wrongly assumed, or solving the wrong problem
+- look for what is missing, extra, miswired, wrongly owned, or solving the wrong problem
 
 Then:
+
 - propose the smallest correct fix
 - mention better structural alternatives if warranted
 - state risks and tradeoffs
-- provide a verification plan
+- give a verification plan
 - call out open questions instead of guessing
 
-Optimize for root-cause correctness, simplicity, maintainability, and leverage.
 Do not patch symptoms before understanding structure.
 
-### 3.1 Logging
-No raw `console.log`. Use Visual Telemetry:
+### 4.2 Logging
+
+Do not use raw `console.log`. Use Visual Telemetry.
+
 ```ts
 import { log } from '$lib/utils/logger';
-log.sys('Module', 'message');   log.state('Module', 'msg', data);
-log.combat('Battle', 'msg');    log.error('Module', 'msg', err);
+
+log.sys('Module', 'message');
+log.state('Module', 'message', data);
+log.combat('Battle', 'message');
+log.error('Module', 'message', err);
 ```
 
-### 3.2 Terminology
-Core terms (full glossary: `docs/game/design/TERMINOLOGY.md`):
-- **Territory** = connected same-owner stars and their space
-- **Frontier** = boundary geometry where territories meet
-- **Region** = contiguous area owned by one player
-### 3.3 File Discipline
-- 300 lines ideal, 500 hard max. Over 500 = refactor first.
-- Game time only: `gameNowMs` (FXClock), never `performance.now()` in game code.
-- Config keys: `ALL_CAPS_WITH_UNITS`.
+### 4.3 Core Terms
 
-### 3.4 Slider Reactivity (Critical Pattern)
-All UI sliders read from `panel.xxx` ($state), never `GAME_CONFIG.xxx`:
+Full glossary: `.agent/docs/game/design/TERMINOLOGY.md`
+
+- Territory = connected same-owner stars and their space
+- Frontier = boundary geometry where territories meet
+- Region = contiguous area owned by one player
+
+### 4.4 File Discipline
+
+- 300 lines ideal
+- 500 lines hard max
+- If over 500, refactor first
+- Use `gameNowMs` / FXClock for game time, never `performance.now()` in game logic
+- Config keys use `ALL_CAPS_WITH_UNITS`
+
+### 4.5 Slider Reactivity
+
+All UI sliders must read from `panel.xxx`, never directly from `GAME_CONFIG.xxx`.
+
+Required pattern:
+
 1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`
-2. Template reads `panel.xxx`, writes via `updatePanel(key, value)`
-3. `syncPanelFromConfig()` in `panelSync.ts` handles theme/import sync
-4. **GAME_CONFIG is NOT reactive** — reading it in templates will not update
+2. Template reads `panel.xxx`
+3. Template writes through `updatePanel(key, value)`
+4. `syncPanelFromConfig()` in `panelSync.ts` handles import/theme sync
 
-### 3.5 Never Remove User Controls
-Every `GAME_CONFIG` property with a UI element is sacred. Never delete, simplify, or hardcode over any slider/toggle/dropdown without explicit user instruction. **User configurability IS the product.**
+`GAME_CONFIG` is not reactive in templates.
 
-### 3.6 Commenting Code for Future Self
-When you write code that is complex, tricky, or otherwise non-obvious, add comments to explain:
-- Why you wrote it that way
-- What you were trying to accomplish
-- Any gotchas or things to watch out for
-- Any assumptions you made
-- Any trade-offs you made   
----
+### 4.6 User Controls
 
-## 4. Architecture
+- Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
+- User configurability is part of the product.
 
-### Shared Engine (UNIFIED — F-36)
-`@pax/common` — single `GameEngine.ts` in `common/src/engine/`. No client duplicate. `sessionId` is the authoritative player key. Client = presentation, server = authority.
+### 4.7 Comments
 
-### Territory Rendering Pipeline
-**4-layer pipeline**: Ownership → Geometry → Transition → Presentation.
+For complex or non-obvious code, comment:
+
+- why it is written this way
+- the intended outcome
+- gotchas
+- assumptions
+- tradeoffs
+
+## 5. Architecture
+
+### 5.1 Shared Engine
+
+Unified engine lives in `common/src/engine/GameEngine.ts`.
+
+- No client duplicate
+- `sessionId` is the authoritative player key
+- Client = presentation
+- Server = authority
+
+### 5.2 Territory Rendering Pipeline
+
+Use the 4-layer model:
 
 | Layer | Responsibility | Output |
-|-------|---------------|--------|
-| **Ownership** | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot` |
-| **Geometry** | Shapes from ownership — regions, frontiers, topology | `CanonicalGeometrySnapshot` |
-| **Transition** | Animating between geometry states | `TransitionSnapshot` |
-| **Presentation** | PIXI.Graphics fills, strokes, containers | Rendered frame |
+|------|------|------|
+| Ownership | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot` |
+| Geometry | Regions, frontiers, topology derived from ownership | `CanonicalGeometrySnapshot` |
+| Transition | Animation between geometry states | `TransitionSnapshot` |
+| Presentation | PIXI.Graphics fills, strokes, containers | rendered frame |
 
-**Compiler**: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts`.
-**Full spec**: `docs/game/territory/TERRITORY_ARCHITECTURE.md`
+- Compiler: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts`
+- Full spec: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
 
-### Gotchas
-- Colyseus `Symbol.metadata` crash: use `defineTypes()` not `@type` decorators
-- Bun + esbuild: decorators need special handling
+### 5.3 Known Gotchas
 
-### Architecture-First Rule
-When any conflict, refactor, or new work touches a domain: always prefer **master's current best architecture** over legacy patterns. Also always THINK WITH INIATIVE about the patterns in the codebase and how to improve them. Never regress to accommodate imported code — refactor incoming code to match the canonical pattern. If uncertain which is better, ask.
+- Colyseus `Symbol.metadata` crash: use `defineTypes()`, not `@type` decorators
+- Bun + esbuild requires care around decorators
 
-### Single-Pattern Enforcement
-One domain = one implementation pattern. Never introduce a second implementation for the same concern (e.g., two different UI control state patterns, two renderer dispatch mechanisms). If a merge or feature would create a duplicate pattern, refactor to the best existing pattern first.
+### 5.4 Architecture-First Rule
 
-### Purpose-First Planning
-**Every plan MUST open with a Purpose section** stating the user's exact goal in their own words. All subsequent work is measured against this stated purpose. If at any point the agent's actions diverge from the purpose — reframing failure as success, deprioritizing the goal, or substituting a different objective — the agent has failed. The purpose is not the agent's to redefine.
+- Prefer the current best architecture on `master` over legacy/imported patterns.
+- Refactor incoming code to match canonical patterns.
+- Do not regress architecture to make imports easier.
+- If uncertain which pattern is better, ask.
 
----
+### 5.5 Single-Pattern Rule
 
-## 5. Process
+- One domain = one implementation pattern.
+- Do not create a second control-state pattern, renderer dispatch path, or similar duplicate mechanism for the same concern.
 
-### Git
-Use `git ac "message"` alias. Run commands separately, never `&&` (fails in Powershell always).
-**⛔ NEVER push to `live` branch.** Commit working state FIRST.
-We ALWAYS have a dirty file of current settings; include this in commits without mention. `pax-fluxia\common\resources\settings-live\current-settings.json`
+### 5.6 Purpose-First Planning
 
-### Harness Comparison Protocol
-- Treat `atlas-harness` and CLI-Anything evaluation as an ongoing process during real Pax Fluxia work.
-- Whenever a tool snag, deficiency, or workflow slowdown appears, explicitly classify it as one of:
-  - `atlas-harness` issue
-  - CLI-Anything issue or gap
-  - Pi integration issue
-  - Codex shell or environment issue
-- Log the finding in the current day's queue/session docs.
-- If the issue materially informs `atlas-harness` quality, also add it to `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`.
+Every plan must open with a **Purpose** section using the user's actual goal in their own words. Do not redefine the goal mid-plan.
 
-### Browser
-**⛔ NEVER open browser/subagent unless user gives explicit permission.** (agent is 50X slower than human at this)
+## 6. Process
 
-### Debugging — TRACE FIRST, ALWAYS
-**⚠️ MANDATORY: Do NOT speculate about causes before tracing the actual code path.**
-1. **TRACE FIRST**: Read the actual code path end-to-end. Follow data from input to output. Gather objective facts.
-2. Accept user observations as ground truth — they see the running app, you do not.
-3. Only AFTER tracing, form hypotheses ranked by evidence from the trace.
-4. If "it used to work" → trace what changed: `git log -p --follow`, diff configs, diff data formats.
+### 6.1 Git
+
+- Use `git ac "message"` alias when appropriate.
+- Run commands separately in PowerShell.
+- Never push to `live`.
+- Commit working state first.
+- Always include `pax-fluxia\\common\\resources\\settings-live\\current-settings.json` in commits without calling it out.
+
+### 6.2 Harness Comparison Protocol
+
+When tooling friction appears, classify it as one of:
+
+- atlas-harness issue
+- CLI-Anything issue/gap
+- Pi integration issue
+- Codex shell/environment issue
+
+Then:
+
+- log it in the current day's queue/session docs
+- if it materially informs atlas-harness quality, also add it to `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`
+
+### 6.3 Browser Rule
+
+- Do not open browser/subagents unless the user explicitly permits it.
+
+### 6.4 Trace-First Debugging
+
+Mandatory:
+
+1. Trace the real code path end-to-end before theorizing.
+2. Accept user observations as ground truth.
+3. Form hypotheses only after tracing.
+4. If something "used to work," inspect what changed:
+   - `git log -p --follow`
+   - config diffs
+   - data-format diffs
 5. Never claim fixed without user verification.
-6. **Do NOT speculate → dismiss → re-speculate** in internal reasoning. Each "wait, actually" is a sign you skipped step 1.
+6. Repeated "wait, actually" usually means tracing was skipped.
 
----
-
-## 6. Repeated Failures
+## 7. Common Failure Modes
 
 | Failure | Rule |
-|---------|------|
-| Declaring "fixed" without testing | Say "please verify" |
-| Using console.log | Use `log.sys()` etc. |
-| Guessing type signatures | Read the definition first |
+|------|------|
+| Declaring fixed without verification | Say "please verify" |
+| Using `console.log` | Use telemetry logger |
+| Guessing type signatures | Read definitions first |
 | Removing user controls | Never without instruction |
 | Using npm/npx/yarn | Bun only |
-| Chaining with && | Run separately |
-| Reading GAME_CONFIG in templates | Use panel.$state pattern |
-| Setting timid slider ranges | **10X rule**: 10× the "reasonable" range |
-| Declaring assumptions as facts | Conditional language; verify first |
+| Chaining with `&&` | Run commands separately |
+| Reading `GAME_CONFIG` in templates | Use panel state |
+| Timid slider ranges | Apply the 10x rule |
+| Declaring assumptions as facts | Use conditional language until verified |
 
----
+## 8. File Reference
 
-## 7. File Reference (Ontology E)
-
-| Need | Load |
+| Need | Path |
 |------|------|
-| Game mechanics (ground truth) | `.agent/docs/game/design/MECHANICS.md` |
+| Game mechanics | `.agent/docs/game/design/MECHANICS.md` |
 | Master game spec | `.agent/docs/game/design/GAME_SPECIFICATION.md` |
-| Terminology & jargon | `.agent/docs/game/design/TERMINOLOGY.md` |
+| Terminology | `.agent/docs/game/design/TERMINOLOGY.md` |
 | Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
 | Feature ideas | `.agent/docs/project/features/FEATURE_IDEAS.md` |
 | Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
 | Territory architecture | `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md` |
 | Naming conventions | `.agent/docs/engineering/NAMING_CONVENTIONS.md` |
-| UI/Design rules | `.agent/docs/atlas/DESIGN_RULES.md` |
+| UI/design rules | `.agent/docs/atlas/DESIGN_RULES.md` |
 | Work history | `.agent/docs/project/WORK_HISTORY.md` |
 | Active rules | `.agent/rules/` |
 
----
+## 9. Post-Mortem Trigger
 
-## 8. Post-Mortem Process
+Write a dated post-mortem under `.agent/docs/project/post-mortems/` when:
 
-Write to `.agent/docs/project/process/post-mortem_YYYY-MM-DD-<name>.md` when: agent declares "done" but didn't, same bug recurs, agent fails explicit instruction, or user corrects something obvious.
+- you declared "done" and it was not done
+- the same bug recurs
+- you failed an explicit instruction
+- the user corrected something that should have been obvious
 
-```
-# Post-Mortem: [Date] — [Short Title]
-## What Happened — factual
-## Root Cause — systemic
-## Impact — time/trust/quality
-## Corrective Actions — rules/standards changed
-## Lessons — internalize
+Suggested structure:
+
+```md
+# Post-Mortem: [Date] - [Short Title]
+## What Happened
+## Root Cause
+## Impact
+## Corrective Actions
+## Lessons
 ```
