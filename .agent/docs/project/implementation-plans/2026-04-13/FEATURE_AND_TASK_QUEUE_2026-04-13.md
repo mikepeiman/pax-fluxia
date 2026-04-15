@@ -2,11 +2,12 @@
 
 ## Purpose
 
-Keep the active 2026-04-13 execution queue in one dated place.
+Keep the active 2026-04-13 execution queue in one dated place, including both the lane-geometry/diagnostics tranche and the renderer-branch import tranche that were active that day.
 
 ## Completed This Slice
 
-<<<<<<< HEAD
+### Lane Geometry And Diagnostics
+
 - [x] Add explicit terminology/communication rules in:
   - `.agent/AGENT.md`
   - `.agent/docs/game/design/TERMINOLOGY.md`
@@ -53,7 +54,7 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Remove reduced-clearance lane solving and invalid straight fallback from shared lane geometry.
 - [x] Split lane result classes into `straight`, `angular`, and `curved`.
 - [x] Add adjusted-path style support at shared mapgen level so remapped lanes can remain angular or be converted into sampled curve geometry.
-- [x] Make `generateMap(...)` return the final lane-aware connection truth once, with no downstream `attachLaneWaypoints...` rewrite.
+- [x] Make `generateMap(...)` return the final lane-aware connection truth once, with no downstream rewrite.
 - [x] Make live in-game lane adjustments use the same strict shared geometry builder as Main Menu generation.
 - [x] Make config imports/presets rebuild real lane geometry when lane keys change.
 - [x] Remove renderer-side connection-lane shortening so drawn lane paths come directly from authoritative connection truth.
@@ -69,18 +70,18 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Add a fixed-map lane audit:
   - `bun run debug:lane-audit`
   - frozen-map JSON + SVG + markdown outputs
-  - exact per-lane chord clearance, final clearance, closest blocking star, closest point on lane, and decision reason
-- [x] Remove false-positive curves on the frozen map by making the straight chord the hard first decision.
+  - exact per-lane straight-line clearance, final clearance, closest blocking star, closest point on lane, and decision reason
+- [x] Remove false-positive curves on the frozen map by making the straight line the hard first decision.
 - [x] Prove the high-`Lane Margin` hard limit on the frozen map:
-  - at `LM 175+`, the strict all-pairs straight-only feasible graph is disconnected
+  - at `LM 175+`, the strict straight-only feasible graph is disconnected
 - [x] Encode the explicit hierarchy in shared geometry:
   - full traversal connectivity is the winning constraint
-  - keep straight when chord satisfies LM
-  - if chord fails: remap tries satisfying adjusted paths, prune mode rejects that lane and seeks replacement elsewhere
+  - keep straight when the direct line satisfies LM
+  - if the direct line fails: reshape tries satisfying adjusted paths, prune mode rejects that lane and seeks replacement elsewhere
   - explicit graph-level connectivity restoration only when the strict feasible graph is disconnected
 - [x] Add connectivity-override reporting to the lane audit so high-LM behavior is machine-checkable rather than guessed.
 - [x] Replace the generic remap seed with a deterministic blocking-star vertex rule:
-  - exact nearest blocking star-to-lane witness
+  - exact nearest blocking star-to-lane point
   - vertex inserted on that shortest path
   - vertex pushed to the requested Lane Margin and not beyond it
   - repeated deterministically if another blocker still violates the constraint
@@ -97,15 +98,13 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Fix SP connection creation so authoritative connection objects now carry lane-path truth when maps are generated or rebuilt.
 - [x] Fix saved-map export so map truth preserves `laneWaypoints` and `lanePathKind`.
 - [x] Fix saved-map load so existing saved lane truth is scaled and reused rather than silently regenerated.
-- [x] Update lane rendering so visible lane manifestation is drawn from persisted connection truth plus endpoint trimming, not from renderer-inferred star-gap carving.
+- [x] Update lane rendering so visible lane manifestation is drawn from persisted connection truth plus endpoint trimming, not from renderer-inferred carving.
 - [x] Update lane-cache rebuild helper to return lane-aware connections so cache truth and state truth stay synchronized.
 - [x] Reconcile pre-existing arrow-config type drift in `game.config.ts` so client type-checking can complete again.
 - [x] Validate with:
   - `bunx tsc -p pax-fluxia/tsconfig.json --noEmit --pretty false`
   - `bunx tsc -p common/tsconfig.json --noEmit --pretty false`
-  - direct runtime probe across lane margins `25, 60, 90, 120` showing:
-    - `missingTruth: 0`
-    - `collapsedVisible: 0`
+  - direct runtime probe across lane margins `25, 60, 90, 120`
 - [x] Add a deterministic saved-map probe for lane-margin debugging:
   - `common/resources/saved-maps/lane_margin_ruler_2p.json`
   - 2 players, limited stars, fixed straight lane truth
@@ -113,10 +112,49 @@ Keep the active 2026-04-13 execution queue in one dated place.
 - [x] Extend saved-map schema with `diagnostics.rulerFixtures` and `diagnostics.rulerColor`.
 - [x] Render map-native ruler fixtures from current lane truth in `GameCanvas`, independent of live ruler session state.
 - [x] Verify exact fixture distances by script:
-  - `60`, `90`, `120`, `150`, `180`, `240` all resolve exactly on the saved map
+  - `60`, `90`, `120`, `150`, `180`, `240`
 
-## Top Queue
+### Renderer Branch Import And Territory Work
 
+- [x] Diff the active worktree against `0251` and identify the full Main Menu dependency surface instead of guessing at a local CSS-only cause.
+- [x] Import the `0251` Main Menu surface into this worktree, including `MainMenu.svelte`, the new `main-menu/*` subcomponents, `menuTheme.ts`, `AudioSettings.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, the updated settings sections, and `GameContainer.svelte`.
+- [x] Restore the current worktree's territory/config deltas on top of the imported menu stack where they overlapped.
+- [x] Remove the old unreferenced `MainMenu refactor.svelte` and `MainMenu v2.svelte` prototype files.
+- [x] Verify the imported Main Menu stack compiles with `bun run build`.
+- [x] Recenter on the renderer branch purpose and wire the first family-driven metaball conquest transition path through `territoryTransitionHandler`, `GameCanvas`, `RenderFamilyInput`, `MetaballFamily`, and the new `buildMetaballScene.ts` scene builder.
+- [x] Replace the old single-point DX helper with a shared modular disconnect builder that emits deterministic paired enemy virtual sites around the Euclidean midpoint of disconnected same-owner stars.
+- [x] Add focused renderer tests for the new DX builder and the first metaball conquest transition sample path, then verify the slice with `bunx vitest` and `bunx tsc --noEmit`.
+- [x] Trace the startup settings regression where the game booted into PVV2DY4 until the settings panel was opened and move that bootstrap into `GameContainer`.
+- [x] Restore persistence of the in-game settings column open/closed state by loading `pax-settings-open` during `GameContainer` startup.
+- [x] Force the `Combat & Fleet Pressure` Metaball controls off at startup and in defaults so this renderer branch stops paying perf cost for an undesired effect.
+- [x] Trace the “no visible transition even with `USE_RENDER_FAMILIES` on” report to the actual renderer path.
+- [x] Unify normal `metaball` rendering onto the family-built scene-input path in `GameCanvas` so conquest transitions no longer depend on the `USE_RENDER_FAMILIES` runtime gate.
+- [x] Make the conquered target star's Metaball contribution transition-aware and strengthen the transient samples so the first conquest handoff is materially visible.
+- [x] Re-run focused Metaball/DX tests plus full client `tsc` and `build` after the transition-path fix.
+- [x] Write a project post-mortem for the transition path failure and the earlier “implemented without real runtime verification” mistake.
+- [x] Unify territory/conquest control ownership for transition tuning.
+- [x] Expand the shared transition-mode config contract so `VS_TRANSITION_MODE` can carry contextual Metaball modes.
+- [x] Wire the full `VS_*` conquest tuning surface into Metaball scene building.
+- [x] Add a cached six-slice Metaball conquest mode.
+- [x] Add the `METABALL_BURST_BOUNDARY_BASIS` control and conditional Conquest-panel affordance.
+- [x] Refactor the Metaball family scene builder into shared base-context + transition-mode dispatch helpers.
+- [x] Add focused tests for transition-mode coercion, Metaball six-slice burst sample generation, target-star suppression during burst mode, and boundary-basis cache differences.
+- [x] Lock the gameplay ownership rule that all stars must hold territory space at runtime by normalizing ownerless stars to `neutral`.
+- [x] Add a shared init-time ownership normalizer and run it after client and server map initialization.
+- [x] Move renderer transition tuning out of Conquest and into Territory directly under the renderer mode selectors, then add independent `All | None` subsection visibility toggles to both top-level Territory shells.
+- [x] Add a third Metaball conquest transition mode that holds the conquered star on old ownership while its influence fades to zero.
+- [x] Add a fourth Metaball conquest transition mode for instant ownership switch with grow-in victor influence.
+
+## Follow-Ups
+
+- [ ] User-verify that the imported Main Menu presentation issue is resolved in-app.
+- [ ] If any presentation issue remains, debug against the imported `0251` shell rather than the old local grid path.
+- [ ] User-verify that territory renderer selection now boots straight into the saved Metaball mode without requiring the settings panel to be opened.
+- [ ] User-verify that the settings column open/closed state now survives reloads on desktop.
+- [ ] User-verify that a Metaball conquest now visibly morphs instead of snapping instantly.
+- [ ] If the handoff is still too subtle or too strong, tune the target-star ramp and transient sample strengths from this unified baseline instead of reintroducing a second Metaball runtime path.
+- [ ] User-compare `Lane Push` versus `Six-Slice Burst` in live gameplay and decide which should become the default Metaball conquest mode.
+- [ ] If `Six-Slice Burst` reads too soft or too explosive, tune the shared `VS_*` timings and the `METABALL_BURST_BOUNDARY_BASIS` distance basis before adding any new transition families.
 - [ ] Load `lane_margin_cross_pressure_2p` in-app and verify that authored connectivity stays fixed while only lane geometry changes.
 - [ ] Load `lane_margin_square_layers_2p` and `lane_margin_hex_layers_2p` in-app and verify that every permanent lane fixture remains readable while live Lane Margin changes reshape only lane geometry.
 - [ ] Re-check square-map behavior around `LM 200-205` in-app after the endpoint guard change.
@@ -132,30 +170,14 @@ Keep the active 2026-04-13 execution queue in one dated place.
 
 ## Notes
 
-- This slice is now a strict shared-geometry correction, not a renderer interpretation tweak.
-- The target invariant is explicit:
+- This dated queue now carries two real work slices from the same day:
+  - the lane-geometry/diagnostics hardening tranche
+  - the renderer-branch import and Metaball transition tranche
+- The target invariant for the lane tranche is explicit:
   - connectivity is defined only by lane-aware map truth
   - visible lanes are drawn directly from that same truth
-- Current hard fact from the fixed-map audit:
-  - above roughly `LM 175` on the frozen test map, the strict feasible graph is disconnected
-  - any fully connected result there requires either adjusted satisfying paths or explicit graph-level connectivity restoration
-=======
-- [x] Update `.agent/AGENT.md` to make commit discipline explicit: completed or materially updated work must be committed before yielding the turn.
-- [x] Create the dated 2026-04-13 active queue file so new instructions for today have a canonical location.
-- [x] Commit and push the `codex/ui-main-menu` checkpoint branch state so the main-menu and control-panel refactor is no longer local-only.
-- [x] Expand the menu theme system from shallow theme labels into a canonical theme-token source and apply the new tokenized styling across the main menu shell, settings modal, and menu subcomponents.
-
-## In Progress
-
-- [ ] Verify the new `neon` and `mythic` menu systems in-browser across desktop and mobile breakpoints for contrast, theme parity, and leftover imperial-biased styling.
-
-## Top Queue
-
-- [ ] Continue normal work from the prior day's active queue after the theme-expansion pass is visually verified.
-
-## Notes
-
-- This queue intentionally starts small; the prior day's queue remains the detailed execution ledger for the large 2026-04-12 work tranche.
+- The renderer tranche locked in a second important invariant:
+  - conquest-local territory transition behavior must route through the real runtime family path, not through a detached diagnostic/export path
 
 ## Lossless User Instruction Log
 
@@ -166,4 +188,3 @@ Keep the active 2026-04-13 execution queue in one dated place.
    - "PLEASE IMPLEMENT THIS PLAN:"
    - "Expand `neon` and `mythic` from shallow color variants into full production theme systems across all menu surfaces."
    - "Preserve the current menu architecture and theme IDs, but replace the current imperial-biased styling with a semantic theme token system plus moderate layout polish."
->>>>>>> cfcdac21 (feat: expand neon and mythic menu theme systems)

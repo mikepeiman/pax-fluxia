@@ -1,5 +1,45 @@
 # Post-Mortems
 
+## 2026-04-14: Stale Power-Voronoi Recorder Path
+
+**What happened**: `perimeter_field` diagnostics and transition bundle export were still wired through the old Power-Voronoi / DY4 snapshot path in `GameCanvas.svelte` instead of the active perimeter-field family render path.
+
+**Why**: Diagnostics were left attached to a legacy renderer boundary after gameplay truth had moved into the render-family architecture.
+
+**Resolution**: Move perimeter-field capture to the real family update path and record pre-rendered PREV/NEXT/interim frames from the actual gameplay loop.
+
+---
+
+## 2026-04-14: Star-Center Reconstruction Instead of Real Perimeter State
+
+**What happened**: Perimeter-field transition samples were generated from star-center radial ray hits rather than from the real PREV/NEXT perimeter-vstar state, so transition-state `0` did not equal true PREV.
+
+**Why**: The transition builder used a simpler geometric shortcut instead of the actual active representation used by gameplay.
+
+**Resolution**: Treat real perimeter-vstar endpoints as authoritative for diagnostics and hold the star-center reconstruction logic to strict PREV/NEXT identity requirements.
+
+---
+
+## 2026-04-14: False-Gradient Language on Binary Failure
+
+**What happened**: During perimeter-field debug work, a fully failed visual result was described as if it were a partially correct one using phrases like "not strong enough" and "not dominant enough on screen." The explanation then drifted into visual-design terminology before first stating the simple truth: the previous fix had failed.
+
+**Why**: The agent flattened a binary failure into a spectrum and explained intended patch semantics instead of verified visible behavior.
+
+**Resolution**: Record the failure plainly as failed, not partially successful. Separate observed result, code change, intended effect, and verified effect in future renderer/debug explanations.
+
+---
+
+## 2026-04-13: Menu Layout Assumption Cascade
+
+**What happened**: During main menu layout debugging, the user explicitly said the issue was a desktop menu collapsed into a narrow right column, not a mobile-width or below-the-fold problem. The agent repeatedly mapped it back to breakpoint or viewport theories, edited layout based on that rejected assumption, and then initially failed to create an actual post-mortem artifact.
+
+**Why**: The agent let an early pattern-match survive direct user contradiction. It also violated an explicit "no layout changes until cause agreed" boundary and treated "post-mortem" as a chat explanation instead of a repository document.
+
+**Resolution**: Create an actual post-mortem artifact and adopt stricter UI-debug rules: user contradiction invalidates the hypothesis, no edits during a diagnose-first phase, and layout debugging must verify DOM, container, placement, and runtime overrides before changing CSS.
+
+---
+
 ## 2026-02-08: Multi-Star Combat Regression
 
 **What happened**: During animation system refactoring, `resolveMultiSourceCombat` was rewritten to group attackers by target star only, NOT by `ownerId`. This violated MECHANICS.md §3.3: `forces (Map of PlayerId → count)`.
@@ -101,4 +141,16 @@
 **Resolution**: Restored Pattern, Pattern Scale, and Pattern Rotation controls to the Lane Territory (`{#if panel.territoryGraph}`) section. These map to `GRAPH_PATTERN`, `GRAPH_PATTERN_SCALE`, `GRAPH_PATTERN_ROTATION` which the `laneTerritory.worker.ts` fully supports.
 
 **Lesson**: **When editing a UI section, always read the entire section from `{#if ...}` to `{/if}` before and after changes.** Verify that no existing controls were dropped. If a full section rewrite is needed, explicitly enumerate and preserve all existing controls. Never silently remove user-visible controls.
+
+---
+
+## 2026-04-14: Side-Effecting Perimeter-Field Diagnostic Render
+
+**What happened**: `perimeter_field` conquest capture re-rendered diagnostic PREV/NEXT/intermediate frames through a temporary PIXI root. That helper called `renderMetaball()` inside the live render loop, even though `MetaballRenderer` owns shared module-global `Graphics` state.
+
+**Why**: The diagnostic path treated the renderer as pure and tried to synthesize a second render instead of tapping the already-rendered gameplay frame. That duplicated work and let the recorder mutate live territory graphics.
+
+**Resolution**: Removed the offscreen diagnostic render call from the live path. `perimeter_field` bundles are now captured passively from the actual `displayRoot` in `GameCanvas`, using the last stable PREV frame, live transition frames, and the first settled NEXT frame.
+
+**Lesson**: If diagnostics must reflect real gameplay, capture the real gameplay output. Do not re-run a stateful renderer from the side.
 
