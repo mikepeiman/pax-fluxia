@@ -8,6 +8,7 @@
   import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
+  import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
   import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
   import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
   import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
@@ -57,6 +58,7 @@
   // ── Panel visibility states ──
   let menuTheme = $state<MenuTheme>(loadMenuTheme());
   let showAudioSettings = $state(false);
+  let showTransitionDebugPanel = $state(false);
   let showSurrenderModal = $state(false);
   let showStarInfoPanel = $state(
     typeof localStorage !== "undefined" &&
@@ -109,6 +111,10 @@
   function openAudioSettings() {
     menuTheme = loadMenuTheme();
     showAudioSettings = true;
+  }
+
+  function openTransitionDebugPanel() {
+    showTransitionDebugPanel = true;
   }
 
   // ── In-game menu collapse ──
@@ -194,10 +200,18 @@
   // All theme state is now in the shared themeStore
 
   // Listen for StarInfoPanel toggle from GameSettingsPanel
+  const handleOpenTransitionDebugPanelEvent = () => {
+    openTransitionDebugPanel();
+  };
+
   if (typeof window !== "undefined") {
     window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
       showStarInfoPanel = e.detail;
     }) as EventListener);
+    window.addEventListener(
+      "pax-open-transition-debug-panel",
+      handleOpenTransitionDebugPanelEvent as EventListener,
+    );
 
     // F hotkey — fit game to viewport
     window.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -433,6 +447,12 @@
     if (typeof document !== "undefined") {
       document.body.classList.remove("game-active");
     }
+    if (typeof window !== "undefined") {
+      window.removeEventListener(
+        "pax-open-transition-debug-panel",
+        handleOpenTransitionDebugPanelEvent as EventListener,
+      );
+    }
   });
 </script>
 
@@ -460,6 +480,12 @@
       menuTheme={menuTheme}
       onClose={() => (showAudioSettings = false)}
     />
+
+    {#if showTransitionDebugPanel}
+      <TransitionDebugPanel
+        onClose={() => (showTransitionDebugPanel = false)}
+      />
+    {/if}
 
     <div class="game-layout" class:settings-open={showSettingsPanel}>
       <!-- STATUSBAR (info display) -->

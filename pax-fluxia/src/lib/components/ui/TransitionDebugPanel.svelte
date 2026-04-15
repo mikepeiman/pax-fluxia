@@ -1,7 +1,12 @@
 <script lang="ts">
     import { transitionSnapshotRecorder } from '$lib/territory/devtools/TransitionSnapshotRecorder';
     import type { TransitionDebugBundle } from '$lib/territory/devtools/TransitionSnapshotRecorder';
-    import { downloadBundle, downloadAllBundles } from '$lib/territory/devtools/TransitionBundleSerializer';
+    import {
+        downloadAllBundles,
+        downloadAllDiagnosticPackages,
+        downloadBundle,
+        downloadDiagnosticPackage,
+    } from '$lib/territory/devtools/TransitionBundleSerializer';
     import { overlayConfig } from '$lib/territory/devtools/overlayConfig';
     import { getRulerMeasurement, rulerTool } from '$lib/territory/devtools/rulerTool';
 
@@ -85,11 +90,30 @@
         }
     }
 
+    async function packageOne(bundle: TransitionDebugBundle) {
+        downloading = `pkg:${bundle.id}`;
+        try {
+            await downloadDiagnosticPackage(bundle);
+        } finally {
+            downloading = null;
+        }
+    }
+
     async function downloadAll() {
         downloading = '__all__';
         try {
             const all = [...transitionSnapshotRecorder.getBundles()];
             await downloadAllBundles(all, all[0]?.starPositions ?? new Map());
+        } finally {
+            downloading = null;
+        }
+    }
+
+    async function packageAll() {
+        downloading = '__pkg_all__';
+        try {
+            const all = [...transitionSnapshotRecorder.getBundles()];
+            await downloadAllDiagnosticPackages(all);
         } finally {
             downloading = null;
         }
@@ -234,6 +258,9 @@
             <div class="info-text">
                 On each conquest: renders prev/next geometry + {'{'}7-frame transition series with vertex labels, change anchors, motion trail{'}'}.
             </div>
+            <div class="info-text">
+                Package export writes one ZIP per capture with prev/next, intermediate frames, and compact diagnostic data.
+            </div>
         </section>
 
         <!-- Actions section -->
@@ -243,6 +270,13 @@
                 <button class="action-btn" onclick={refreshBundles}>Refresh</button>
                 <button
                     class="action-btn primary"
+                    disabled={bundles.length === 0 || downloading !== null}
+                    onclick={packageAll}
+                >
+                    {downloading === '__pkg_all__' ? 'Packaging…' : 'Package All'}
+                </button>
+                <button
+                    class="action-btn"
                     disabled={bundles.length === 0 || downloading !== null}
                     onclick={downloadAll}
                 >
@@ -276,13 +310,24 @@
                                 <span class="bundle-conquest">{conquestLabel(bundle)}</span>
                                 <span class="bundle-frames">{frameLabel(bundle)}</span>
                             </div>
-                            <button
-                                class="action-btn small primary"
-                                disabled={downloading === bundle.id}
-                                onclick={() => downloadOne(bundle)}
-                            >
-                                {downloading === bundle.id ? '…' : '↓ DL'}
-                            </button>
+                            <div class="bundle-actions">
+                                <button
+                                    class="action-btn small primary"
+                                    disabled={downloading === `pkg:${bundle.id}`}
+                                    onclick={() => packageOne(bundle)}
+                                    title="Download one ZIP package"
+                                >
+                                    {downloading === `pkg:${bundle.id}` ? '…' : 'Pkg'}
+                                </button>
+                                <button
+                                    class="action-btn small"
+                                    disabled={downloading === bundle.id}
+                                    onclick={() => downloadOne(bundle)}
+                                    title="Download loose files"
+                                >
+                                    {downloading === bundle.id ? '…' : 'DL'}
+                                </button>
+                            </div>
                         </div>
                     {/each}
                 </div>
@@ -596,6 +641,12 @@
         flex-direction: column;
         gap: 1px;
         min-width: 0;
+    }
+
+    .bundle-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .bundle-time {
