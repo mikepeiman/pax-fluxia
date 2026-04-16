@@ -120,6 +120,13 @@
         );
     }
 
+    function exportConquestContactSheet(): void {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(
+            new CustomEvent('pax-export-perimeter-field-contact-sheet'),
+        );
+    }
+
     $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
@@ -813,12 +820,23 @@
     >
         Export Conquest Package
     </button>
+    <button
+        type="button"
+        class="module-all-toggle diag-action-btn"
+        disabled={availableScrubFrameCount <= 0}
+        onclick={exportConquestContactSheet}
+    >
+        Export Contact Sheet
+    </button>
 </div>
 <div class="var-desc">
     Downloads the exact displayed perimeter-field debug snapshot plus the recomputed `power_voronoi_0319` stage outputs and virtual-site inputs for deterministic comparison.
 </div>
 <div class="var-desc">
     Conquest package exports every captured frame for the selected live/replay conquest, plus an all-arcs summary sheet.
+</div>
+<div class="var-desc">
+    Contact sheet export lays the entire conquest out in one glanceable board so you can read frame-to-frame motion without scrubbing.
 </div>
 
 <div class="var-row">
@@ -843,6 +861,70 @@
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('PERIMETER_FIELD_DEBUG_VECTOR_WIDTH', 'perimeterFieldDebugVectorWidth', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="0 = off. Otherwise draw this many ghosted past/future vstar positions on each side of the selected scrub frame."
+        >
+            Onion-Skin Steps
+        </span>
+        <span class="val">
+            {#if (panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0) <= 0}
+                Off
+            {:else}
+                {(panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0)} each side
+            {/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Ghost past and future sample positions around the selected scrub frame. Use `3-5` to study local motion without flooding the screen.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="5"
+        step="1"
+        value={panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT', 'perimeterFieldDebugOnionSkinCount', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="0 = off. Otherwise render every Nth captured conquest frame simultaneously as a stroboscopic trail."
+        >
+            Strobe Frame Stride
+        </span>
+        <span class="val">
+            {#if (panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0) <= 0}
+                Off
+            {:else}
+                Every {(panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0)} frame(s)
+            {/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Renders every Nth captured transition state simultaneously as a motion trail across the whole conquest. Lower values are denser and noisier.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="8"
+        step="1"
+        value={panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('PERIMETER_FIELD_DEBUG_STROBE_STRIDE', 'perimeterFieldDebugStrobeStride', value);
         }}
     />
 </div>

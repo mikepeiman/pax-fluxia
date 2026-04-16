@@ -159,6 +159,9 @@
     let handlePerimeterFieldConquestPackageExport:
         | ((event: Event) => void)
         | null = null;
+    let handlePerimeterFieldContactSheetExport:
+        | ((event: Event) => void)
+        | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -341,6 +344,22 @@
         previousFrame: PerimeterFieldCapturedFrame;
         nextFrame: PerimeterFieldCapturedFrame;
         frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>;
+    };
+
+    type PerimeterFieldDisplayedFrame = {
+        frameIndex: number;
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    };
+
+    type PerimeterFieldReplaySelection = {
+        timestamp: string;
+        label: string;
+        frame: PerimeterFieldDisplayedFrame;
+        frames: readonly PerimeterFieldDisplayedFrame[];
+        selectedIndex: number;
+        conquestEvents: readonly TerritoryConquestEvent[];
     };
 
     let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
@@ -552,12 +571,7 @@
         previousFrame: PerimeterFieldCapturedFrame,
         frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>,
         nextFrame?: PerimeterFieldCapturedFrame | null,
-    ): Array<{
-        frameIndex: number;
-        progress: number;
-        canvas: HTMLCanvasElement;
-        debugSnapshot: PerimeterFieldDebugSnapshot | null;
-    }> {
+    ): PerimeterFieldDisplayedFrame[] {
         const displayedFrames = [
             {
                 frameIndex: 0,
@@ -583,12 +597,9 @@
         return displayedFrames;
     }
 
-    function readPerimeterFieldReplaySelection(): {
-        canvas: HTMLCanvasElement;
-        debugSnapshot: PerimeterFieldDebugSnapshot | null;
-        conquestEvents: readonly TerritoryConquestEvent[];
-        progress: number;
-    } | null {
+    function readSelectedPerimeterFieldReplaySelection():
+        | PerimeterFieldReplaySelection
+        | null {
         const previewEnabled =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
         if (!previewEnabled) return null;
@@ -614,7 +625,11 @@
                 replayFrames.length,
             );
             return {
-                ...replayFrames[selectedIndex]!,
+                timestamp: replay.timestamp,
+                label: replay.label,
+                frame: replayFrames[selectedIndex]!,
+                frames: replayFrames,
+                selectedIndex,
                 conquestEvents: replay.conquestEvents,
             };
         }
@@ -629,7 +644,14 @@
                 liveFrames.length,
             );
             return {
-                ...liveFrames[selectedIndex]!,
+                timestamp: new Date().toISOString(),
+                label:
+                    perimeterFieldCaptureSession.conquestEvents[0] == null
+                        ? "Live perimeter conquest"
+                        : `${perimeterFieldCaptureSession.conquestEvents[0].previousOwner} -> ${perimeterFieldCaptureSession.conquestEvents[0].newOwner} @ ${perimeterFieldCaptureSession.conquestEvents[0].starId}`,
+                frame: liveFrames[selectedIndex]!,
+                frames: liveFrames,
+                selectedIndex,
                 conquestEvents: perimeterFieldCaptureSession.conquestEvents,
             };
         }
@@ -641,7 +663,7 @@
         container: PIXI.Container;
         liveRoot: PIXI.Container;
     }): void {
-        const selected = readPerimeterFieldReplaySelection();
+        const selected = readSelectedPerimeterFieldReplaySelection();
         if (!selected) {
             params.liveRoot.visible = true;
             perimeterFieldDebugSnapshotOverride = null;
@@ -662,7 +684,7 @@
             perimeterFieldReplayTexture.destroy(true);
             perimeterFieldReplayTexture = null;
         }
-        perimeterFieldReplayTexture = PIXI.Texture.from(selected.canvas);
+        perimeterFieldReplayTexture = PIXI.Texture.from(selected.frame.canvas);
         perimeterFieldReplaySprite.texture = perimeterFieldReplayTexture;
         perimeterFieldReplaySprite.x = 0;
         perimeterFieldReplaySprite.y = 0;
@@ -670,7 +692,7 @@
         perimeterFieldReplaySprite.height = GAME_HEIGHT;
         perimeterFieldReplaySprite.visible = true;
         params.liveRoot.visible = false;
-        perimeterFieldDebugSnapshotOverride = selected.debugSnapshot;
+        perimeterFieldDebugSnapshotOverride = selected.frame.debugSnapshot;
     }
 
     function finalizePerimeterFieldCaptureSession(params: {
@@ -951,10 +973,7 @@
             return;
         }
 
-        const { downloadPerimeterFieldConquestPackage } = await import(
-            "$lib/territory/devtools/PerimeterFieldConquestPackage"
-        );
-        await downloadPerimeterFieldConquestPackage({
+        const payload = {
             timestamp: capture.timestamp,
             label: capture.label,
             conquestEvents: capture.conquestEvents,
@@ -986,7 +1005,71 @@
                 : null,
             starPositions: buildDisplayedStarPositionMap(),
             arrowWidth: GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5,
-        });
+        };
+
+        const { downloadPerimeterFieldConquestPackage } = await import(
+            "$lib/territory/devtools/PerimeterFieldConquestPackage"
+        );
+        await downloadPerimeterFieldConquestPackage(payload);
+    }
+
+    async function exportPerimeterFieldConquestContactSheetFromLiveState(): Promise<void> {
+        const activeMode = resolveActiveTerritoryMode();
+        if (activeMode !== "perimeter_field") {
+            log.warn(
+                "PerimeterFieldContactSheet",
+                `export skipped: active mode is ${activeMode}`,
+            );
+            return;
+        }
+
+        const capture = readSelectedPerimeterFieldConquestCapture();
+        if (!capture || capture.transitionFrames.length === 0) {
+            log.warn(
+                "PerimeterFieldContactSheet",
+                "export skipped: no captured conquest frames are available for the selected live/replay source",
+            );
+            return;
+        }
+
+        const payload = {
+            timestamp: capture.timestamp,
+            label: capture.label,
+            conquestEvents: capture.conquestEvents,
+            previousFrame: {
+                frameIndex: 0,
+                progress: 0,
+                canvas: cloneCanvasFrame(capture.previousFrame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    capture.previousFrame.debugSnapshot,
+                ),
+            },
+            transitionFrames: capture.transitionFrames.map((frame) => ({
+                frameIndex: frame.frameIndex,
+                progress: frame.progress,
+                canvas: cloneCanvasFrame(frame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    frame.debugSnapshot,
+                ),
+            })),
+            nextFrame: capture.nextFrame
+                ? {
+                      frameIndex: capture.transitionFrames.length + 1,
+                      progress: 1,
+                      canvas: cloneCanvasFrame(capture.nextFrame.canvas),
+                      debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                          capture.nextFrame.debugSnapshot,
+                      ),
+                  }
+                : null,
+            starPositions: buildDisplayedStarPositionMap(),
+            arrowWidth: GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5,
+        };
+
+        const { downloadPerimeterFieldConquestContactSheet } = await import(
+            "$lib/territory/devtools/PerimeterFieldConquestPackage"
+        );
+        await downloadPerimeterFieldConquestContactSheet(payload);
     }
 
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
@@ -1508,6 +1591,13 @@
             "pax-export-perimeter-field-conquest-package",
             handlePerimeterFieldConquestPackageExport,
         );
+        handlePerimeterFieldContactSheetExport = () => {
+            void exportPerimeterFieldConquestContactSheetFromLiveState();
+        };
+        window.addEventListener(
+            "pax-export-perimeter-field-contact-sheet",
+            handlePerimeterFieldContactSheetExport,
+        );
 
         log.success(
             "GameCanvas",
@@ -1547,6 +1637,13 @@
                 handlePerimeterFieldConquestPackageExport,
             );
             handlePerimeterFieldConquestPackageExport = null;
+        }
+        if (handlePerimeterFieldContactSheetExport) {
+            window.removeEventListener(
+                "pax-export-perimeter-field-contact-sheet",
+                handlePerimeterFieldContactSheetExport,
+            );
+            handlePerimeterFieldContactSheetExport = null;
         }
 
         // F-107: Remove orientation listener and reset transpose flag
@@ -2231,6 +2328,172 @@
         }
     }
 
+    function getPerimeterDiagnosticSampleKey(sample: {
+        id?: string;
+        ownerId?: string;
+        sourceId?: string;
+        sampleIndex?: number;
+    }): string {
+        return (
+            sample.id ??
+            [
+                sample.ownerId ?? "owner",
+                sample.sourceId ?? "source",
+                sample.sampleIndex ?? "sample",
+            ].join(":")
+        );
+    }
+
+    function drawPerimeterGhostSamples(params: {
+        graphics: PIXI.Graphics;
+        samples: ReadonlyArray<{
+            x: number;
+            y: number;
+            ownerColor?: number;
+            ownerId?: string;
+        }>;
+        alpha: number;
+        radius: number;
+        mode: "past" | "future";
+    }): void {
+        for (const sample of params.samples) {
+            const ownerColor =
+                sample.ownerColor ??
+                (sample.ownerId != null
+                    ? colorUtils.getPlayerColor(sample.ownerId)
+                    : 0xffffff);
+            if (params.mode === "past") {
+                params.graphics.circle(sample.x, sample.y, params.radius);
+                params.graphics.fill({
+                    color: ownerColor,
+                    alpha: params.alpha,
+                });
+            } else {
+                params.graphics.circle(sample.x, sample.y, params.radius + 0.5);
+                params.graphics.stroke({
+                    color: ownerColor,
+                    alpha: params.alpha,
+                    width: Math.max(0.8, params.radius * 0.45),
+                });
+            }
+        }
+    }
+
+    function drawPerimeterFieldOnionSkin(params: {
+        graphics: PIXI.Graphics;
+        frames: readonly PerimeterFieldDisplayedFrame[];
+        selectedIndex: number;
+        ghostCount: number;
+    }): void {
+        const maxCount = Math.max(0, Math.round(params.ghostCount));
+        if (maxCount <= 0) return;
+
+        for (let offset = maxCount; offset >= 1; offset--) {
+            const pastFrame = params.frames[params.selectedIndex - offset];
+            const futureFrame = params.frames[params.selectedIndex + offset];
+            const alpha = 0.08 + ((maxCount - offset + 1) / maxCount) * 0.18;
+            const radius = 1.4 + ((maxCount - offset + 1) / maxCount) * 1.1;
+
+            if (pastFrame?.debugSnapshot) {
+                drawPerimeterGhostSamples({
+                    graphics: params.graphics,
+                    samples: pastFrame.debugSnapshot.transitionSamples,
+                    alpha,
+                    radius,
+                    mode: "past",
+                });
+            }
+            if (futureFrame?.debugSnapshot) {
+                drawPerimeterGhostSamples({
+                    graphics: params.graphics,
+                    samples: futureFrame.debugSnapshot.transitionSamples,
+                    alpha: alpha + 0.03,
+                    radius,
+                    mode: "future",
+                });
+            }
+        }
+    }
+
+    function drawPerimeterFieldStrobeTrails(params: {
+        graphics: PIXI.Graphics;
+        frames: readonly PerimeterFieldDisplayedFrame[];
+        selectedIndex: number;
+        stride: number;
+    }): void {
+        const stride = Math.max(0, Math.round(params.stride));
+        if (stride <= 0 || params.frames.length <= 1) return;
+
+        const sampledFrameIndexes: number[] = [];
+        for (let i = 0; i < params.frames.length; i += stride) {
+            sampledFrameIndexes.push(i);
+        }
+        const lastIndex = params.frames.length - 1;
+        if (!sampledFrameIndexes.includes(lastIndex)) {
+            sampledFrameIndexes.push(lastIndex);
+        }
+
+        const traces = new Map<
+            string,
+            {
+                color: number;
+                points: Array<{ x: number; y: number; frameIndex: number }>;
+            }
+        >();
+
+        for (const frameIndex of sampledFrameIndexes) {
+            const snapshot = params.frames[frameIndex]?.debugSnapshot;
+            if (!snapshot) continue;
+            for (const sample of snapshot.transitionSamples) {
+                const key = getPerimeterDiagnosticSampleKey(sample);
+                const ownerColor =
+                    sample.ownerColor ??
+                    colorUtils.getPlayerColor(sample.ownerId);
+                const entry = traces.get(key) ?? {
+                    color: ownerColor,
+                    points: [],
+                };
+                entry.points.push({
+                    x: sample.x,
+                    y: sample.y,
+                    frameIndex,
+                });
+                traces.set(key, entry);
+            }
+        }
+
+        for (const trace of traces.values()) {
+            if (trace.points.length < 2) continue;
+            trace.points.sort((a, b) => a.frameIndex - b.frameIndex);
+
+            params.graphics.moveTo(trace.points[0]!.x, trace.points[0]!.y);
+            for (let i = 1; i < trace.points.length; i++) {
+                params.graphics.lineTo(
+                    trace.points[i]!.x,
+                    trace.points[i]!.y,
+                );
+            }
+            params.graphics.stroke({
+                color: trace.color,
+                alpha: 0.24,
+                width: Math.max(
+                    0.9,
+                    (GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5) *
+                        0.55,
+                ),
+            });
+
+            for (const point of trace.points) {
+                if (point.frameIndex === params.selectedIndex) continue;
+                params.graphics.circle(point.x, point.y, 1.8);
+                params.graphics.fill({
+                    color: trace.color,
+                    alpha: 0.18,
+                });
+            }
+        }
+    }
+
     function buildDisplayedStarPositionMap(): ReadonlyMap<
         string,
         { x: number; y: number; ownerId?: string | null }
@@ -2393,11 +2656,31 @@
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
         const showVstars =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
-        const replaySelection = readPerimeterFieldReplaySelection();
+        const replaySelection = readSelectedPerimeterFieldReplaySelection();
+        const onionSkinCount = Math.max(
+            0,
+            Math.round(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0,
+            ),
+        );
+        const strobeStride = Math.max(
+            0,
+            Math.round(GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0),
+        );
         const showConquestHighlights =
             Boolean(replaySelection) &&
             (replaySelection?.conquestEvents.length ?? 0) > 0;
-        if (!showGeometry && !showVstars && !showConquestHighlights) return;
+        const showMotionDiagnostics =
+            Boolean(replaySelection) &&
+            (onionSkinCount > 0 || strobeStride > 0);
+        if (
+            !showGeometry &&
+            !showVstars &&
+            !showConquestHighlights &&
+            !showMotionDiagnostics
+        ) {
+            return;
+        }
 
         const family = getRenderFamily("perimeter_field");
         if (!(family instanceof PerimeterFieldFamily)) return;
@@ -2427,6 +2710,25 @@
                         2,
                     );
                 }
+            }
+        }
+
+        if (showMotionDiagnostics && replaySelection) {
+            if (strobeStride > 0) {
+                drawPerimeterFieldStrobeTrails({
+                    graphics: debugGraphics,
+                    frames: replaySelection.frames,
+                    selectedIndex: replaySelection.selectedIndex,
+                    stride: strobeStride,
+                });
+            }
+            if (onionSkinCount > 0) {
+                drawPerimeterFieldOnionSkin({
+                    graphics: debugGraphics,
+                    frames: replaySelection.frames,
+                    selectedIndex: replaySelection.selectedIndex,
+                    ghostCount: onionSkinCount,
+                });
             }
         }
 

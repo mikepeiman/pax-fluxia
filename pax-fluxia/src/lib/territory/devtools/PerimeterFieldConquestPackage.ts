@@ -366,15 +366,20 @@ function renderArcSummaryCanvas(args: {
     return canvas;
 }
 
-export async function downloadPerimeterFieldConquestPackage(
+function buildRenderedConquestFrames(
     params: PerimeterFieldConquestPackageParams,
-): Promise<void> {
-    const prefix = filePrefixFromIsoTimestamp(params.timestamp);
-    const zip = new JSZip();
-
-    const frameEntries: Array<{
+): Array<{
+    filename: string;
+    label: string;
+    progress: number;
+    canvas: HTMLCanvasElement;
+    snapshot: Record<string, unknown> | null;
+}> {
+    const frames: Array<{
         filename: string;
+        label: string;
         progress: number;
+        canvas: HTMLCanvasElement;
         snapshot: Record<string, unknown> | null;
     }> = [];
 
@@ -385,14 +390,14 @@ export async function downloadPerimeterFieldConquestPackage(
         starPositions: params.starPositions,
         conquestEvents: params.conquestEvents,
     });
-    await zip.file(
-        'frames/frame_000_prev.png',
-        await (await canvasToBlob(previousCanvas)).arrayBuffer(),
-    );
-    frameEntries.push({
+    frames.push({
         filename: 'frames/frame_000_prev.png',
+        label: 'PREV',
         progress: params.previousFrame.progress,
-        snapshot: compactPerimeterFieldDebugSnapshot(params.previousFrame.debugSnapshot),
+        canvas: previousCanvas,
+        snapshot: compactPerimeterFieldDebugSnapshot(
+            params.previousFrame.debugSnapshot,
+        ),
     });
 
     for (let i = 0; i < params.transitionFrames.length; i++) {
@@ -407,11 +412,11 @@ export async function downloadPerimeterFieldConquestPackage(
         const pct = Math.round(frame.progress * 1000)
             .toString()
             .padStart(4, '0');
-        const filename = `frames/frame_${String(i + 1).padStart(3, '0')}_t${pct}.png`;
-        zip.file(filename, await (await canvasToBlob(canvas)).arrayBuffer());
-        frameEntries.push({
-            filename,
+        frames.push({
+            filename: `frames/frame_${String(i + 1).padStart(3, '0')}_t${pct}.png`,
+            label: `F${frame.frameIndex} · t=${frame.progress.toFixed(3)}`,
             progress: frame.progress,
+            canvas,
             snapshot: compactPerimeterFieldDebugSnapshot(frame.debugSnapshot),
         });
     }
@@ -424,15 +429,89 @@ export async function downloadPerimeterFieldConquestPackage(
             starPositions: params.starPositions,
             conquestEvents: params.conquestEvents,
         });
-        await zip.file(
-            'frames/frame_final_next.png',
-            await (await canvasToBlob(nextCanvas)).arrayBuffer(),
-        );
-        frameEntries.push({
+        frames.push({
             filename: 'frames/frame_final_next.png',
+            label: 'NEXT',
             progress: params.nextFrame.progress,
-            snapshot: compactPerimeterFieldDebugSnapshot(params.nextFrame.debugSnapshot),
+            canvas: nextCanvas,
+            snapshot: compactPerimeterFieldDebugSnapshot(
+                params.nextFrame.debugSnapshot,
+            ),
         });
+    }
+
+    return frames;
+}
+
+function renderContactSheetCanvas(args: {
+    label: string;
+    timestamp: string;
+    frames: ReadonlyArray<{
+        label: string;
+        progress: number;
+        canvas: HTMLCanvasElement;
+    }>;
+}): HTMLCanvasElement {
+    const tileCount = Math.max(1, args.frames.length);
+    const cols = Math.min(3, tileCount);
+    const rows = Math.ceil(tileCount / cols);
+    const tileWidth = args.frames[0]?.canvas.width ?? 400;
+    const tileHeight = args.frames[0]?.canvas.height ?? 240;
+    const cellHeaderHeight = 26;
+    const titleHeight = 42;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = tileWidth * cols;
+    canvas.height = titleHeight + rows * (tileHeight + cellHeaderHeight);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    ctx.fillStyle = '#0b1117';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#121b24';
+    ctx.fillRect(0, 0, canvas.width, titleHeight);
+    ctx.font = '700 16px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#d7e6f3';
+    ctx.fillText(args.label, 14, 17);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = 'rgba(215, 230, 243, 0.72)';
+    ctx.fillText(args.timestamp, 14, 31);
+
+    for (let i = 0; i < args.frames.length; i++) {
+        const frame = args.frames[i]!;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = col * tileWidth;
+        const y = titleHeight + row * (tileHeight + cellHeaderHeight);
+
+        ctx.fillStyle = '#17222e';
+        ctx.fillRect(x, y, tileWidth, cellHeaderHeight);
+        ctx.fillStyle = '#d7e6f3';
+        ctx.font = '700 12px monospace';
+        ctx.fillText(frame.label, x + 10, y + cellHeaderHeight / 2);
+        ctx.drawImage(frame.canvas, x, y + cellHeaderHeight, tileWidth, tileHeight);
+    }
+
+    return canvas;
+}
+
+export async function downloadPerimeterFieldConquestPackage(
+    params: PerimeterFieldConquestPackageParams,
+): Promise<void> {
+    const prefix = filePrefixFromIsoTimestamp(params.timestamp);
+    const zip = new JSZip();
+    const renderedFrames = buildRenderedConquestFrames(params);
+    const frameEntries = renderedFrames.map((frame) => ({
+        filename: frame.filename,
+        progress: frame.progress,
+        snapshot: frame.snapshot,
+    }));
+
+    for (const frame of renderedFrames) {
+        zip.file(frame.filename, await (await canvasToBlob(frame.canvas)).arrayBuffer());
     }
 
     const arcSummaryCanvas = renderArcSummaryCanvas({
@@ -450,6 +529,15 @@ export async function downloadPerimeterFieldConquestPackage(
         'summary/conquest_arc_summary.png',
         await (await canvasToBlob(arcSummaryCanvas)).arrayBuffer(),
     );
+    const contactSheetCanvas = renderContactSheetCanvas({
+        label: params.label,
+        timestamp: params.timestamp,
+        frames: renderedFrames,
+    });
+    await zip.file(
+        'summary/contact_sheet.png',
+        await (await canvasToBlob(contactSheetCanvas)).arrayBuffer(),
+    );
 
     zip.file(
         'README.md',
@@ -465,6 +553,7 @@ export async function downloadPerimeterFieldConquestPackage(
             '- `frames/frame_###_tXXXX.png`: every captured transition frame with previous/current/next vstar markers',
             '- `frames/frame_final_next.png`: final NEXT frame when available',
             '- `summary/conquest_arc_summary.png`: prior-frame base with every vstar arc and intermediate sampled positions',
+            '- `summary/contact_sheet.png`: a glanceable board of the full conquest frame sequence',
             '- `manifest.json`: conquest metadata, frame list, and compact snapshots',
         ].join('\n'),
     );
@@ -493,4 +582,20 @@ export async function downloadPerimeterFieldConquestPackage(
 
     const blob = await zip.generateAsync({ type: 'blob' });
     triggerDownload(blob, `${prefix}_perimeter-field-conquest-package.zip`);
+}
+
+export async function downloadPerimeterFieldConquestContactSheet(
+    params: PerimeterFieldConquestPackageParams,
+): Promise<void> {
+    const prefix = filePrefixFromIsoTimestamp(params.timestamp);
+    const renderedFrames = buildRenderedConquestFrames(params);
+    const contactSheetCanvas = renderContactSheetCanvas({
+        label: params.label,
+        timestamp: params.timestamp,
+        frames: renderedFrames,
+    });
+    triggerDownload(
+        await canvasToBlob(contactSheetCanvas),
+        `${prefix}_perimeter-field-contact-sheet.png`,
+    );
 }

@@ -577,6 +577,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_STROBE_STRIDE' },
     { configKey: 'PERIMETER_FIELD_DEBUG_VECTOR_WIDTH' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },

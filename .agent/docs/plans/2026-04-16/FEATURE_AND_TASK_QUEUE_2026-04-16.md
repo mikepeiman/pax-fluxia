@@ -58,6 +58,10 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Add a focused regression in `pax-fluxia/src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts` covering explicit sample-count override behavior.
 - [x] Add `PERIMETER_FIELD_DEBUG_VECTOR_WIDTH` plus a dedicated `Export Conquest Package` path in `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`, `pax-fluxia/src/lib/components/game/GameCanvas.svelte`, and `pax-fluxia/src/lib/territory/devtools/PerimeterFieldConquestPackage.ts`.
 - [x] Implement conquest package export as a zip containing the prior frame, every captured transition frame, the final next frame when available, an all-arcs summary sheet, and a manifest/readme, with per-frame overlays for previous/current/next vstar positions and adjustable vector stroke width.
+- [x] Diagnose the exported `prev.png` / `next.png` overlay offset as a coordinate-space mismatch in the older transition diagnostic package path: world-space perimeter geometry was being drawn onto the captured screenshot canvas dimensions even when the live frontier world bounds were larger.
+- [x] Patch `pax-fluxia/src/lib/territory/families/perimeterField/perimeterFieldDiagnostics.ts` so exported perimeter diagnostic canvases resolve their size from the captured snapshot `frontierTopology.worldBounds` and scale the base screenshot into that same space before drawing geometry/vstars.
+- [x] Add focused coverage in `pax-fluxia/src/lib/territory/families/perimeterField/perimeterFieldDiagnostics.test.ts` for world-bounds-sized export canvases.
+- [x] Add the approved live motion diagnostics: `PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT`, `PERIMETER_FIELD_DEBUG_STROBE_STRIDE`, live overlay rendering in `pax-fluxia/src/lib/components/game/GameCanvas.svelte`, and `Export Contact Sheet` in `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte` / `pax-fluxia/src/lib/territory/devtools/PerimeterFieldConquestPackage.ts`.
 
 ## In Progress
 
@@ -89,6 +93,9 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The fix is to treat perimeter-field preview as its own capture trigger. The capture/reset gate now checks `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED || transitionSnapshotRecorder.isEnabled()`, so the scrub UI no longer requires the unrelated Debug-panel recorder toggle.
 - There was no direct perimeter-field vstar-count knob before this slice. The only surfaced density control was `PERIMETER_FIELD_SAMPLE_SPACING`, which indirectly changed the number of derived perimeter samples by arc length. The new `PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP` override is explicit and shared by both display and transition sample generation.
 - The conquest package exporter is intentionally derived from the already captured perimeter-field replay/live frames, not the separate global transition snapshot recorder. It packages the exact prior frame plus every captured scrub frame for the selected live/replay conquest source.
+- The offset in the user-shared `prev.png` / `next.png` export was not a geometry bug. The diagnostic renderer was mixing two coordinate spaces: the perimeter-field snapshot used live world-space bounds reaching roughly `1760x990`, while the older transition package composited onto a captured image around `1561x881`. That made the cyan/magenta geometry appear shifted relative to the territory render even when the underlying points were correct.
+- `FrontierTopology.worldBounds` only carries width/height, not an origin. So the required fix here is canvas sizing/space reconciliation, not an extra translation term.
+- The new live motion diagnostics are additive only: onion-skin ghosts, stroboscopic trails, and a conquest contact-sheet export all read from the already captured perimeter-field replay/live frame set and do not alter transition or geometry state.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -106,6 +113,8 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x tsc --noEmit -p tsconfig.json` after adding the perimeter sample-count override and conquest package exporter (from `pax-fluxia/`)
   - `bun x vitest run src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` after wiring the shared sample-count override (from `pax-fluxia/`)
   - `bun x vitest run src/lib/components/ui/settingsDefs.test.ts` after adding new panel/config mappings (from `pax-fluxia/`)
+  - `bun x vitest run src/lib/territory/families/perimeterField/perimeterFieldDiagnostics.test.ts src/lib/components/ui/settingsDefs.test.ts src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts` after patching the transition-package perimeter export canvas sizing and adding the live motion-diagnostics controls (from `pax-fluxia/`)
+  - `bun x tsc --noEmit -p tsconfig.json` after wiring onion-skin, stroboscopic trail, contact-sheet export, and the perimeter export canvas-size fix (from `pax-fluxia/`)
 
 ## Lossless User Instruction Log
 

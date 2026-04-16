@@ -224,9 +224,14 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     showGeometry?: boolean;
     showVstars?: boolean;
 }): HTMLCanvasElement {
+    const { width, height } = resolvePerimeterFieldDiagnosticCanvasSize({
+        requestedWidth: args.width,
+        requestedHeight: args.height,
+        snapshot: args.snapshot,
+    });
     const canvas = document.createElement('canvas');
-    canvas.width = args.width;
-    canvas.height = args.height;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
         return canvas;
@@ -265,6 +270,32 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     }
 
     return canvas;
+}
+
+export function resolvePerimeterFieldDiagnosticCanvasSize(args: {
+    requestedWidth: number;
+    requestedHeight: number;
+    snapshot: PerimeterFieldDebugSnapshot;
+}): { width: number; height: number } {
+    const displayBounds =
+        args.snapshot.displayGeometry.frontierTopology?.worldBounds ?? null;
+    const targetBounds =
+        args.snapshot.transitionTargetGeometry?.frontierTopology?.worldBounds ??
+        null;
+    const bounds = displayBounds ?? targetBounds;
+
+    const width =
+        bounds?.width != null && Number.isFinite(bounds.width) && bounds.width > 0
+            ? Math.round(bounds.width)
+            : Math.max(1, Math.round(args.requestedWidth));
+    const height =
+        bounds?.height != null &&
+        Number.isFinite(bounds.height) &&
+        bounds.height > 0
+            ? Math.round(bounds.height)
+            : Math.max(1, Math.round(args.requestedHeight));
+
+    return { width, height };
 }
 
 function compactSample(sample: PerimeterFieldDebugSample): Record<string, unknown> {

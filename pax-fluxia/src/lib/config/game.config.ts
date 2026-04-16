@@ -388,6 +388,8 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
+    PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: number; // 0 = off, otherwise ghost this many past/future frames on each side of the selected scrub frame
+    PERIMETER_FIELD_DEBUG_STROBE_STRIDE: number; // 0 = off, otherwise render every Nth captured frame as a simultaneous stroboscopic trail
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: number; // Stroke width used by exported conquest diagnostic vectors
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
@@ -1284,6 +1286,8 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
+    PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: 0,
+    PERIMETER_FIELD_DEBUG_STROBE_STRIDE: 0,
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: 2.5,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
