@@ -38,6 +38,7 @@ export function buildRenderFamilyInput(params: {
     geometry?: CanonicalGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
+    transitionTruth?: RenderFamilyInput['transitionTruth'];
     tunableKeys?: readonly string[];
     configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
@@ -56,5 +57,6 @@ export function buildRenderFamilyInput(params: {
         }),
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
+        transitionTruth: params.transitionTruth ?? null,
     };
 }

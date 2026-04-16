@@ -4,6 +4,7 @@ import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
 import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import type { PerimeterFieldTransitionTruth } from './perimeterField/perimeterFieldTransitionTypes';
 
 export interface RenderFamilyTransitionEvent {
     event: ConquestEvent;
@@ -42,6 +43,7 @@ export interface RenderFamilyInput {
     tunables: ReadonlyMap<string, RenderFamilyTunableValue>;
     renderer?: PIXI.Renderer;
     activeTransition?: RenderFamilyActiveTransition | null;
+    transitionTruth?: PerimeterFieldTransitionTruth | null;
 }
 
 export interface RenderFamilyOutput {

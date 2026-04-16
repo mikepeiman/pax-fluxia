@@ -3,6 +3,16 @@ import type {
     PerimeterFieldDebugSample,
     PerimeterFieldDebugSnapshot,
 } from './buildPerimeterFieldScene';
+import type {
+    PerimeterV,
+    TransitionPlan,
+} from './perimeterFieldTransitionTypes';
+
+export type PerimeterFieldSnapshotMode =
+    | 'prev'
+    | 'next'
+    | 'transition'
+    | 'compare';
 
 function hexToCss(hex: number, alpha = 1): string {
     const r = (hex >> 16) & 0xff;
@@ -27,6 +37,285 @@ function getPerimeterDebugLoops(
     return outerLoops.length > 0
         ? outerLoops
         : geometry.territoryRegions.map((region) => region.points);
+}
+
+function getSampleAccentColor(sample: PerimeterFieldDebugSample): number {
+    const role = sample.transitionRole ?? sample.debugState;
+    switch (role) {
+        case 'target':
+            return 0xff5bd1;
+        case 'preserved':
+            return 0xf7d154;
+        case 'mover':
+            return 0xffc145;
+        case 'appearing':
+            return 0x6ee7a7;
+        case 'disappearing':
+            return 0xff8c82;
+        case 'transition-old':
+            return 0xff8c82;
+        case 'transition-new':
+            return 0x6ee7a7;
+        case 'static':
+        default:
+            return 0x47d7ff;
+    }
+}
+
+function buildSampleLabel(sample: PerimeterFieldDebugSample): string | null {
+    if (sample.label) return sample.label;
+    if (sample.moverId) return sample.moverId;
+    if (sample.sampleIndex == null) return sample.vId ?? null;
+
+    const labelPrefix =
+        sample.debugState === 'transition-old'
+            ? 'O'
+            : sample.debugState === 'transition-new'
+              ? 'N'
+              : sample.debugState === 'target'
+                ? 'T'
+                : sample.debugState === 'preserved'
+                  ? 'K'
+                  : sample.debugState === 'mover'
+                    ? 'P'
+                    : sample.debugState === 'appearing'
+                      ? 'A'
+                      : sample.debugState === 'disappearing'
+                        ? 'D'
+                        : 'S';
+    return `${labelPrefix}${sample.sampleIndex}`;
+}
+
+function tupleToHex(
+    tuple: readonly [number, number, number] | undefined,
+): number {
+    const [r, g, b] = tuple ?? [255, 255, 255];
+    return (r << 16) | (g << 8) | b;
+}
+
+function buildDebugSampleFromV(params: {
+    snapshot: PerimeterFieldDebugSnapshot;
+    v: PerimeterV;
+    debugState: PerimeterFieldDebugSample['debugState'];
+    label?: string | null;
+}): PerimeterFieldDebugSample {
+    return {
+        id: params.v.id,
+        x: params.v.x,
+        y: params.v.y,
+        playerIdx: params.v.playerIdx,
+        strength: params.v.strength,
+        ownerId: params.v.ownerId,
+        ownerColor: tupleToHex(
+            params.snapshot.playerColors[params.v.playerIdx],
+        ),
+        sourceId: params.v.loopId,
+        vId: params.v.id,
+        label: params.label ?? undefined,
+        debugState: params.debugState,
+    };
+}
+
+function buildPlanVectorSamples(
+    snapshot: PerimeterFieldDebugSnapshot,
+): PerimeterFieldDebugSample[] {
+    const plan = snapshot.transitionPlan;
+    if (!plan) return [...snapshot.transitionSamples];
+
+    const vectors: PerimeterFieldDebugSample[] = [];
+    for (const pair of plan.preserved) {
+        vectors.push({
+            ...buildDebugSampleFromV({
+                snapshot,
+                v: pair.nextV,
+                debugState: 'preserved',
+                label: pair.nextV.id,
+            }),
+            moverId: pair.preservedId,
+            transitionRole: 'preserved',
+            pathStartX: pair.prevV.x,
+            pathStartY: pair.prevV.y,
+            pathEndX: pair.nextV.x,
+            pathEndY: pair.nextV.y,
+        });
+    }
+
+    for (const mover of plan.movers) {
+        vectors.push({
+            id: `mover:${mover.moverId}`,
+            x: mover.nextPos.x,
+            y: mover.nextPos.y,
+            playerIdx: mover.nextPlayerIdx,
+            strength: mover.strength,
+            ownerId: mover.nextOwnerId,
+            ownerColor: tupleToHex(
+                snapshot.playerColors[mover.nextPlayerIdx],
+            ),
+            moverId: mover.moverId,
+            label: mover.moverId,
+            debugState: 'mover',
+            transitionRole: 'mover',
+            pathStartX: mover.prevPos.x,
+            pathStartY: mover.prevPos.y,
+            pathEndX: mover.nextPos.x,
+            pathEndY: mover.nextPos.y,
+        });
+    }
+
+    for (const entry of plan.appearing) {
+        vectors.push({
+            ...buildDebugSampleFromV({
+                snapshot,
+                v: entry.v,
+                debugState: 'appearing',
+                label: entry.v.id,
+            }),
+            transitionRole: 'appearing',
+            pathStartX: entry.v.x,
+            pathStartY: entry.v.y,
+            pathEndX: entry.v.x,
+            pathEndY: entry.v.y,
+        });
+    }
+
+    for (const entry of plan.disappearing) {
+        vectors.push({
+            ...buildDebugSampleFromV({
+                snapshot,
+                v: entry.v,
+                debugState: 'disappearing',
+                label: entry.v.id,
+            }),
+            transitionRole: 'disappearing',
+            pathStartX: entry.v.x,
+            pathStartY: entry.v.y,
+            pathEndX: entry.v.x,
+            pathEndY: entry.v.y,
+        });
+    }
+
+    return vectors;
+}
+
+function resolveSnapshotRenderState(
+    snapshot: PerimeterFieldDebugSnapshot,
+    mode: PerimeterFieldSnapshotMode,
+): {
+    primaryGeometry: CanonicalGeometrySnapshot;
+    secondaryGeometry: CanonicalGeometrySnapshot | null;
+    staticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    targetStaticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    transitionSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    showChangedSections: boolean;
+} {
+    const plan = snapshot.transitionPlan ?? null;
+    switch (mode) {
+        case 'prev':
+            return {
+                primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
+                secondaryGeometry: null,
+                staticSamples: plan
+                    ? plan.prevVSet.map((v) =>
+                          buildDebugSampleFromV({
+                              snapshot,
+                              v,
+                              debugState: 'static',
+                              label: v.id,
+                          }),
+                      )
+                    : snapshot.staticSamples,
+                targetStaticSamples: [],
+                transitionSamples: [],
+                showChangedSections: false,
+            };
+        case 'next':
+            return {
+                primaryGeometry:
+                    plan?.nextGeometry ??
+                    snapshot.transitionTargetGeometry ??
+                    snapshot.displayGeometry,
+                secondaryGeometry: null,
+                staticSamples: plan
+                    ? plan.nextVSet.map((v) =>
+                          buildDebugSampleFromV({
+                              snapshot,
+                              v,
+                              debugState: 'target',
+                              label: v.id,
+                          }),
+                      )
+                    : snapshot.targetStaticSamples.length > 0
+                      ? snapshot.targetStaticSamples
+                      : snapshot.staticSamples,
+                targetStaticSamples: [],
+                transitionSamples: [],
+                showChangedSections: false,
+            };
+        case 'compare':
+            return {
+                primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
+                secondaryGeometry:
+                    plan?.nextGeometry ?? snapshot.transitionTargetGeometry,
+                staticSamples: plan
+                    ? plan.prevVSet.map((v) =>
+                          buildDebugSampleFromV({
+                              snapshot,
+                              v,
+                              debugState: 'static',
+                              label: v.id,
+                          }),
+                      )
+                    : snapshot.staticSamples,
+                targetStaticSamples: plan
+                    ? plan.nextVSet.map((v) =>
+                          buildDebugSampleFromV({
+                              snapshot,
+                              v,
+                              debugState: 'target',
+                              label: v.id,
+                          }),
+                      )
+                    : snapshot.targetStaticSamples,
+                transitionSamples:
+                    snapshot.transitionSamples.length > 0
+                        ? snapshot.transitionSamples
+                        : buildPlanVectorSamples(snapshot),
+                showChangedSections: true,
+            };
+        case 'transition':
+        default:
+            return {
+                primaryGeometry: snapshot.displayGeometry,
+                secondaryGeometry: snapshot.transitionTargetGeometry,
+                staticSamples: snapshot.staticSamples,
+                targetStaticSamples: snapshot.targetStaticSamples,
+                transitionSamples:
+                    snapshot.transitionSamples.length > 0
+                        ? snapshot.transitionSamples
+                        : buildPlanVectorSamples(snapshot),
+                showChangedSections: true,
+            };
+    }
+}
+
+function getLabelOffset(sample: PerimeterFieldDebugSample): { x: number; y: number } {
+    switch (sample.debugState) {
+        case 'transition-old':
+        case 'disappearing':
+            return { x: -11, y: -11 };
+        case 'transition-new':
+        case 'appearing':
+            return { x: 11, y: 11 };
+        case 'target':
+            return { x: 11, y: -11 };
+        case 'mover':
+            return { x: 0, y: -13 };
+        case 'preserved':
+            return { x: -12, y: 12 };
+        case 'static':
+        default:
+            return { x: -10, y: 10 };
+    }
 }
 
 function drawClosedPolyline(
@@ -103,6 +392,7 @@ function drawSamplePoints(
     for (const sample of samples) {
         const fillColor = sample.ownerColor;
         const borderColor = darken(fillColor, 0.42);
+        const accentColor = getSampleAccentColor(sample);
         const path = buildStarPath(
             sample.x,
             sample.y,
@@ -113,8 +403,8 @@ function drawSamplePoints(
         ctx.save();
         ctx.beginPath();
         ctx.arc(sample.x, sample.y, radius + 1.6, 0, Math.PI * 2);
-        ctx.strokeStyle = hexToCss(fillColor, 0.42);
-        ctx.lineWidth = Math.max(0.8, radius * 0.42);
+        ctx.strokeStyle = hexToCss(accentColor, 0.56);
+        ctx.lineWidth = Math.max(1, radius * 0.48);
         ctx.stroke();
 
         ctx.fillStyle = hexToCss(fillColor, Math.max(0.92, alpha));
@@ -140,10 +430,15 @@ function drawPerimeterSampleTrajectories(
             continue;
         }
 
-        const lineAlpha = sample.debugState === 'transition-old' ? 0.28 : 0.38;
+        const accentColor = getSampleAccentColor(sample);
+        const lineAlpha =
+            sample.debugState === 'transition-old' ||
+            sample.debugState === 'disappearing'
+                ? 0.3
+                : 0.42;
 
         ctx.save();
-        ctx.strokeStyle = hexToCss(sample.ownerColor, lineAlpha);
+        ctx.strokeStyle = hexToCss(accentColor, lineAlpha);
         ctx.lineWidth = 1.15;
         ctx.beginPath();
         ctx.moveTo(sample.pathStartX, sample.pathStartY);
@@ -152,11 +447,11 @@ function drawPerimeterSampleTrajectories(
 
         ctx.beginPath();
         ctx.arc(sample.pathStartX, sample.pathStartY, 1.4, 0, Math.PI * 2);
-        ctx.strokeStyle = hexToCss(sample.ownerColor, 0.65);
+        ctx.strokeStyle = hexToCss(accentColor, 0.65);
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        ctx.strokeStyle = hexToCss(sample.ownerColor, 0.72);
+        ctx.strokeStyle = hexToCss(accentColor, 0.78);
         ctx.strokeRect(sample.pathEndX - 1.6, sample.pathEndY - 1.6, 3.2, 3.2);
         ctx.restore();
 
@@ -179,41 +474,95 @@ function drawPerimeterSampleLabels(
     ctx.textBaseline = 'middle';
 
     for (const sample of samples) {
-        if (sample.sampleIndex == null) continue;
-        const labelPrefix =
-            sample.debugState === 'transition-old'
-                ? 'O'
-                : sample.debugState === 'transition-new'
-                  ? 'N'
-                  : sample.debugState === 'target'
-                    ? 'T'
-                    : 'S';
-        const offsetX =
-            sample.debugState === 'transition-old'
-                ? -10
-                : sample.debugState === 'transition-new'
-                  ? 10
-                  : sample.debugState === 'target'
-                    ? 10
-                    : -10;
-        const offsetY =
-            sample.debugState === 'transition-old'
-                ? -10
-                : sample.debugState === 'transition-new'
-                  ? 10
-                  : sample.debugState === 'target'
-                    ? -10
-                    : 10;
-
-        const text = `${labelPrefix}${sample.sampleIndex}`;
+        const text = buildSampleLabel(sample);
+        if (!text) continue;
+        const offset = getLabelOffset(sample);
+        const accentColor = getSampleAccentColor(sample);
         ctx.strokeStyle = hexToCss(0x081018, 1);
         ctx.lineWidth = 3;
-        ctx.strokeText(text, sample.x + offsetX, sample.y + offsetY);
-        ctx.fillStyle = hexToCss(sample.ownerColor, 1);
-        ctx.fillText(text, sample.x + offsetX, sample.y + offsetY);
+        ctx.strokeText(text, sample.x + offset.x, sample.y + offset.y);
+        ctx.fillStyle = hexToCss(accentColor, 1);
+        ctx.fillText(text, sample.x + offset.x, sample.y + offset.y);
     }
 
     ctx.restore();
+}
+
+function drawTopologySections(
+    ctx: CanvasRenderingContext2D,
+    geometry: CanonicalGeometrySnapshot,
+    sectionIds: ReadonlySet<string>,
+    color: number,
+    width: number,
+    alpha: number,
+): void {
+    if (sectionIds.size === 0 || geometry.frontierTopology.sections.size === 0) return;
+    for (const sectionId of [...sectionIds].sort()) {
+        const section = geometry.frontierTopology.sections.get(sectionId);
+        if (!section || section.points.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(section.points[0]![0], section.points[0]![1]);
+        for (let i = 1; i < section.points.length; i++) {
+            ctx.lineTo(section.points[i]![0], section.points[i]![1]);
+        }
+        ctx.strokeStyle = hexToCss(color, alpha);
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+    }
+}
+
+function drawChangedSections(
+    ctx: CanvasRenderingContext2D,
+    snapshot: PerimeterFieldDebugSnapshot,
+): void {
+    const plan = snapshot.transitionPlan;
+    if (!plan) return;
+
+    const prevChanged = new Set([
+        ...plan.changedSections.removedSectionIds,
+        ...plan.changedSections.sharedChangedSectionIds,
+        ...plan.changedSections.selectedPrevSectionIds,
+    ]);
+    const nextChanged = new Set([
+        ...plan.changedSections.addedSectionIds,
+        ...plan.changedSections.sharedChangedSectionIds,
+        ...plan.changedSections.selectedNextSectionIds,
+    ]);
+
+    const displayVersion = snapshot.displayGeometry.version;
+    const targetVersion = snapshot.transitionTargetGeometry?.version ?? null;
+    if (displayVersion === plan.prevGeometry.version) {
+        drawTopologySections(
+            ctx,
+            snapshot.displayGeometry,
+            prevChanged,
+            0xff8c82,
+            3.6,
+            0.85,
+        );
+    }
+    if (displayVersion === plan.nextGeometry.version) {
+        drawTopologySections(
+            ctx,
+            snapshot.displayGeometry,
+            nextChanged,
+            0x6ee7a7,
+            3.6,
+            0.85,
+        );
+    }
+    if (targetVersion === plan.nextGeometry.version && snapshot.transitionTargetGeometry) {
+        drawTopologySections(
+            ctx,
+            snapshot.transitionTargetGeometry,
+            nextChanged,
+            0x6ee7a7,
+            3.2,
+            0.75,
+        );
+    }
 }
 
 export function renderPerimeterFieldDiagnosticCanvas(args: {
@@ -221,81 +570,157 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     height: number;
     snapshot: PerimeterFieldDebugSnapshot;
     baseCanvas?: HTMLCanvasElement | null;
+    snapshotMode?: PerimeterFieldSnapshotMode;
     showGeometry?: boolean;
     showVstars?: boolean;
+    showIds?: boolean;
+    showVectors?: boolean;
+    transparentBackground?: boolean;
 }): HTMLCanvasElement {
-    const { width, height } = resolvePerimeterFieldDiagnosticCanvasSize({
-        requestedWidth: args.width,
-        requestedHeight: args.height,
-        snapshot: args.snapshot,
-    });
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = args.width;
+    canvas.height = args.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
         return canvas;
     }
 
-    ctx.fillStyle = '#0b1117';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!(args.transparentBackground ?? false)) {
+        ctx.fillStyle = '#0b1117';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
     if (args.baseCanvas) {
         ctx.drawImage(args.baseCanvas, 0, 0, canvas.width, canvas.height);
     }
 
+    const renderState = resolveSnapshotRenderState(
+        args.snapshot,
+        args.snapshotMode ?? 'transition',
+    );
+
     if (args.showGeometry ?? true) {
-        for (const points of getPerimeterDebugLoops(args.snapshot.displayGeometry)) {
+        for (const points of getPerimeterDebugLoops(renderState.primaryGeometry)) {
             drawClosedPolyline(ctx, points, 0x47d7ff, 0.85, 2);
         }
-        if (args.snapshot.transitionTargetGeometry) {
-            for (const points of getPerimeterDebugLoops(
-                args.snapshot.transitionTargetGeometry,
-            )) {
+        if (renderState.secondaryGeometry) {
+            for (const points of getPerimeterDebugLoops(renderState.secondaryGeometry)) {
                 drawClosedPolyline(ctx, points, 0xff5bd1, 0.65, 2);
             }
+        }
+        if (renderState.showChangedSections) {
+            drawChangedSections(ctx, args.snapshot);
         }
     }
 
     if (args.showVstars ?? true) {
-        drawPerimeterSampleTrajectories(ctx, args.snapshot.transitionSamples);
-        drawSamplePoints(ctx, args.snapshot.staticSamples, 0.95, 2.6);
-        drawPerimeterSampleLabels(ctx, args.snapshot.staticSamples);
-        if (args.snapshot.transitionTargetGeometry) {
-            drawSamplePoints(ctx, args.snapshot.targetStaticSamples, 0.75, 2.3);
-            drawPerimeterSampleLabels(ctx, args.snapshot.targetStaticSamples);
+        if (args.showVectors ?? true) {
+            drawPerimeterSampleTrajectories(ctx, renderState.transitionSamples);
         }
-        drawSamplePoints(ctx, args.snapshot.transitionSamples, 0.95, 3.2);
-        drawPerimeterSampleLabels(ctx, args.snapshot.transitionSamples);
+        drawSamplePoints(ctx, renderState.staticSamples, 0.95, 2.6);
+        if (args.showIds ?? true) {
+            drawPerimeterSampleLabels(ctx, renderState.staticSamples);
+        }
+        if (renderState.targetStaticSamples.length > 0) {
+            drawSamplePoints(ctx, renderState.targetStaticSamples, 0.75, 2.3);
+            if (args.showIds ?? true) {
+                drawPerimeterSampleLabels(ctx, renderState.targetStaticSamples);
+            }
+        }
+        drawSamplePoints(ctx, renderState.transitionSamples, 0.95, 3.2);
+        if (args.showIds ?? true) {
+            drawPerimeterSampleLabels(ctx, renderState.transitionSamples);
+        }
     }
 
     return canvas;
 }
 
-export function resolvePerimeterFieldDiagnosticCanvasSize(args: {
-    requestedWidth: number;
-    requestedHeight: number;
-    snapshot: PerimeterFieldDebugSnapshot;
-}): { width: number; height: number } {
-    const displayBounds =
-        args.snapshot.displayGeometry.frontierTopology?.worldBounds ?? null;
-    const targetBounds =
-        args.snapshot.transitionTargetGeometry?.frontierTopology?.worldBounds ??
-        null;
-    const bounds = displayBounds ?? targetBounds;
-
-    const width =
-        bounds?.width != null && Number.isFinite(bounds.width) && bounds.width > 0
-            ? Math.round(bounds.width)
-            : Math.max(1, Math.round(args.requestedWidth));
-    const height =
-        bounds?.height != null &&
-        Number.isFinite(bounds.height) &&
-        bounds.height > 0
-            ? Math.round(bounds.height)
-            : Math.max(1, Math.round(args.requestedHeight));
-
-    return { width, height };
+function compactTransitionPlan(plan: TransitionPlan): Record<string, unknown> {
+    const removedSectionIds = [...plan.changedSections.removedSectionIds].sort();
+    const addedSectionIds = [...plan.changedSections.addedSectionIds].sort();
+    const sharedChangedSectionIds = [
+        ...plan.changedSections.sharedChangedSectionIds,
+    ].sort();
+    const selectedPrevSectionIds = [
+        ...plan.changedSections.selectedPrevSectionIds,
+    ].sort();
+    const selectedNextSectionIds = [
+        ...plan.changedSections.selectedNextSectionIds,
+    ].sort();
+    const straightMovers = plan.movers.filter((mover) => mover.pathType === 'straight').length;
+    const arcMovers = plan.movers.length - straightMovers;
+    return {
+        conquestKey: plan.conquestKey,
+        prevGeometryVersion: plan.prevGeometry.version,
+        nextGeometryVersion: plan.nextGeometry.version,
+        prevVCount: plan.prevVSet.length,
+        nextVCount: plan.nextVSet.length,
+        changedFrontChainCount: plan.changedFronts.chains.length,
+        changedFrontChainIds: plan.changedFronts.chains.map((chain) => chain.chainId),
+        changedFronts: plan.changedFronts.chains.map((chain) => ({
+            chainId: chain.chainId,
+            seedStarId: chain.seedStarId,
+            previousOwnerId: chain.previousOwnerId,
+            newOwnerId: chain.newOwnerId,
+            ownerPairTransition: chain.ownerPairTransition,
+            prevSectionIds: [...chain.prevSectionIds],
+            nextSectionIds: [...chain.nextSectionIds],
+            prevLoopIds: [...chain.prevLoopIds],
+            nextLoopIds: [...chain.nextLoopIds],
+        })),
+        preservedCount: plan.preserved.length,
+        preservedVCount: plan.preservedVIds.size,
+        preservedMatchKeyCount: plan.preservedMatchKeys.size,
+        preservedPairs: plan.preserved.map((pair) => ({
+            preservedId: pair.preservedId,
+            prevVId: pair.prevV.id,
+            nextVId: pair.nextV.id,
+            prev: {
+                x: pair.prevV.x,
+                y: pair.prevV.y,
+            },
+            next: {
+                x: pair.nextV.x,
+                y: pair.nextV.y,
+            },
+        })),
+        moverCount: plan.movers.length,
+        straightMoverCount: straightMovers,
+        arcMoverCount: arcMovers,
+        movers: plan.movers.map((mover) => ({
+            moverId: mover.moverId,
+            ownerRole: mover.ownerRole,
+            pathType: mover.pathType,
+            prevOwnerId: mover.prevOwnerId,
+            nextOwnerId: mover.nextOwnerId,
+            prev: mover.prevPos,
+            next: mover.nextPos,
+            controlPoint: mover.pathControlPoint ?? null,
+        })),
+        appearingCount: plan.appearing.length,
+        disappearingCount: plan.disappearing.length,
+        removedSectionIds,
+        addedSectionIds,
+        sharedChangedSectionIds,
+        selectedPrevSectionIds,
+        selectedNextSectionIds,
+        unchangedSectionCount: plan.changedSections.unchangedSectionIds.size,
+        appearing: plan.appearing.map((entry) => ({
+            vId: entry.v.id,
+            ownerId: entry.v.ownerId,
+            reason: entry.reason,
+            next: { x: entry.v.x, y: entry.v.y },
+        })),
+        disappearing: plan.disappearing.map((entry) => ({
+            vId: entry.v.id,
+            ownerId: entry.v.ownerId,
+            reason: entry.reason,
+            prev: { x: entry.v.x, y: entry.v.y },
+        })),
+    };
 }
 
 function compactSample(sample: PerimeterFieldDebugSample): Record<string, unknown> {
@@ -306,6 +731,10 @@ function compactSample(sample: PerimeterFieldDebugSample): Record<string, unknow
         ownerColor: sample.ownerColor,
         sourceId: sample.sourceId ?? null,
         starIds: sample.starIds ?? null,
+        vId: sample.vId ?? null,
+        moverId: sample.moverId ?? null,
+        transitionRole: sample.transitionRole ?? null,
+        label: sample.label ?? null,
         playerIdx: sample.playerIdx,
         sampleIndex: sample.sampleIndex ?? null,
         x: round(sample.x),
@@ -338,5 +767,8 @@ export function compactPerimeterFieldDebugSnapshot(
         staticSamples: snapshot.staticSamples.map(compactSample),
         targetStaticSamples: snapshot.targetStaticSamples.map(compactSample),
         transitionSamples: snapshot.transitionSamples.map(compactSample),
+        transitionPlan: snapshot.transitionPlan
+            ? compactTransitionPlan(snapshot.transitionPlan)
+            : null,
     };
 }
