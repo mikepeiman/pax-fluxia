@@ -765,7 +765,11 @@
         stars: ReadonlyArray<StarState>;
         nowMs: number;
     }): void {
-        if (!transitionSnapshotRecorder.isEnabled()) {
+        const scrubPreviewEnabled =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
+        const shouldCaptureDiagnostics =
+            scrubPreviewEnabled || transitionSnapshotRecorder.isEnabled();
+        if (!shouldCaptureDiagnostics) {
             perimeterFieldStableFrame = null;
             perimeterFieldCaptureSession = null;
             perimeterFieldReplayHistory = [];

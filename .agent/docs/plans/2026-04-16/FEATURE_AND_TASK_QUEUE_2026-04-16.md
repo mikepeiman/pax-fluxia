@@ -51,6 +51,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Patch `mergeSameOwnerCells()` to repair near-closed shells by explicitly closing them within tolerance, then add focused regression coverage in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts`.
 - [x] Verify the artifact repro after the patch: recomputed `Geometry_0319` now restores `ai-1` merged territories and emits `ai-1|world` border polylines, unblocking perimeter-field sample generation for those previously missing regions.
 - [x] Add replay/scrub conquest highlighting in `pax-fluxia/src/lib/components/game/GameCanvas.svelte` so explicit perimeter-field preview frames illustrate attacker stars, target stars, and conquest vectors on top of the selected replay frame.
+- [x] Identify the replay scrub `0 frames` defect in this branch: perimeter-field diagnostic capture was silently gated behind the separate global `transitionSnapshotRecorder` toggle in `ControlsSection-Debug.svelte`, so enabling perimeter-field preview alone still hard-reset the replay store to empty.
+- [x] Decouple perimeter-field scrub capture from the global recorder by letting `syncPerimeterFieldDiagnosticCapture()` run when either perimeter-field preview or the global snapshot recorder is enabled.
 
 ## In Progress
 
@@ -78,6 +80,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The concrete bug was in `mergeSameOwnerCells()`, not the perimeter-field sampler. That merge pass still required exact first-point/last-point equality, so owner shells with sub-pixel closure drift were silently dropped before world-border extraction. The artifact repro produced `ai-1` loops with endpoint deltas on the order of `0.0018px`, well within the existing `LOOP_CLOSURE_TOLERANCE_PX = 6` used later in `constructFillsFromFrontierChain()`.
 - After applying the same near-closure repair rule in `mergeSameOwnerCells()`, replaying the artifact inputs through `computeGeometry0319()` restored `ai-1` merged territories and `ai-1|world` world-border polylines. That is the specific upstream input the perimeter-field sampler needed in order to generate vstars for those previously missing regions.
 - Replay preview now carries conquest metadata all the way to the debug overlay, and the overlay draws attacker rings, target crosshairs, and conquest vectors for the currently selected live/replay scrub frame. This is diagnostic UI only; it does not alter transition or geometry state.
+- The perimeter-field replay scrub path had a hidden dependency on the separate global snapshot recorder. `syncPerimeterFieldDiagnosticCapture()` immediately reset `liveFrameCount`, `replayFrameCounts`, and replay history unless `transitionSnapshotRecorder.isEnabled()` was true, even if `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED` was already on. That is why the slider stayed at `No frames`.
+- The fix is to treat perimeter-field preview as its own capture trigger. The capture/reset gate now checks `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED || transitionSnapshotRecorder.isEnabled()`, so the scrub UI no longer requires the unrelated Debug-panel recorder toggle.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -91,6 +95,7 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` after patching `mergeSameOwnerCells()` near-closure handling (from `pax-fluxia/`)
   - `bun x tsc --noEmit -p tsconfig.json` after adding replay conquest highlights (from `pax-fluxia/`)
   - Artifact-based repro verification: replaying `C:\Users\mikep\Downloads\pax-perimeter-field-geometry-artifact-2026-04-16T22-43-57-191Z.json` through `computeGeometry0319()` now yields merged territory owner counts including `ai-1: 2` and world-border keys including `ai-1|world`
+  - `bun x tsc --noEmit -p tsconfig.json` after decoupling perimeter-field scrub capture from the global snapshot recorder (from `pax-fluxia/`)
 
 ## Lossless User Instruction Log
 
