@@ -133,6 +133,7 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { buildTerritoryConfigFingerprint } from "$lib/territory/buildTerritoryConfigFingerprint";
     import {
         buildRulerMeasurement,
         getRulerCssColor,
@@ -2209,24 +2210,14 @@
         // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
         const isPausedNow = activeGameStore.isPaused;
         const activeTerritoryMode = resolveActiveTerritoryMode();
-        const territoryConfigFp =
-            `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:` +
-            `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:` +
-            `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:` +
-            `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
-            `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
-            `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
-            `${GAME_CONFIG.TERRITORY_TRANSITION_MS}:` +
-            `${GAME_CONFIG.USE_RENDER_FAMILIES}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING}:${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT}:${GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX}:` +
-            `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
-            `${getTerritoryVisualEpoch()}`;
+        const territoryConfigFp = buildTerritoryConfigFingerprint(
+            GAME_CONFIG as unknown as Record<string, unknown>,
+            {
+                geometryRefreshToken:
+                    (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0,
+                visualEpoch: getTerritoryVisualEpoch(),
+            },
+        );
         const configChanged =
             territoryConfigFp !== (globalThis as any).__lastTerritoryConfigFp;
         if (configChanged)

@@ -29,6 +29,9 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Trace perimeter-field geometry inputs to confirm `_MAP_*` values are only used for the debug hex overlay, while perimeter-field geometry itself is built from `star.ownerId`, star positions, lane endpoints, and the geometry tunables in `buildPerimeterFieldRenderFamilyGeometry()`.
 - [x] Identify and fix a separate theme hygiene bug: exported/imported themes were still carrying `__TERRITORY_VISUAL_EPOCH`, a runtime cache-invalidation counter that should never serialize.
 - [x] Add focused coverage in `pax-fluxia/src/lib/config/themes.test.ts` so theme snapshot/apply paths ignore internal runtime keys.
+- [x] Diff `master` against `codex/perimeter-field-audit-20260414` and identify the concrete branch wiring gap: the rendering branch still lacks the `applyConfigPatch()` side effects that dispatch background events and bump territory visual invalidation after theme import/apply.
+- [x] Prove the remaining geometry divergence path is stale paused-render state, not different owner assignment: `GameCanvas.svelte` was using a hand-built `territoryConfigFp` that omitted geometry-driving keys like `FRONTIER_RESOLUTION`, `CHAIKIN_BOUNDARY_PAD`, `CHAIKIN_BOUNDARY_EPS`, `PERIMETER_FIELD_GEOMETRY_SOURCE`, `TERRITORY_FILL_MODE`, `TERRITORY_FILL_TRANSITION_MODE`, `TERRITORY_BORDER_TRANSITION_MODE`, and `TERRITORY_STYLE_MODE`.
+- [x] Replace the narrow paused-render fingerprint with `pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.ts` and add focused coverage in `pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.test.ts`.
 
 ## In Progress
 
@@ -42,14 +45,15 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The imported pack from `C:\Users\mikep\Downloads\Pax Themes` was not actually committed into `pax-fluxia/src/lib/config/builtin-themes/`; the live bug here is theme application semantics, not missing JSON files in the repo.
 - The fix is intentionally small: make legacy themes self-contained at load/import/apply time instead of depending on ambient `GAME_CONFIG` state.
 - The decisive bug was architectural, not in `MetaballRenderer` winner resolution: theme application had two runtime paths. `GameSettingsPanel` registered the canonical apply callback only while mounted, but the always-visible sidebar selector still called `themeStore.applyTheme()`. With the panel closed, that path wrote config values without the visual/runtime sync side effects.
-- The screenshots also show a second non-theme render input difference: territory colors come from the live player roster (`activeGameStore.getPlayerColor`), not from the theme payload. Different commander rosters/colors will therefore change the rendered appearance even with identical territory tuning values.
 - The two user-provided live settings files differ only on runtime map metadata and a visual-epoch counter. The theme file `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` does not contain `_MAP_*` fields at all, so those values cannot be reconciled through theme import/export.
-- The attached geometry screenshots also show different commander/ownership input, not just different colors: the commander roster count differs between the two runs, and several star IDs belong to different owners. Perimeter-field geometry is built from `star.ownerId` ownership snapshots, so different owner assignment necessarily changes region boundaries even when the geometry sliders match.
+- Earlier queue notes incorrectly blamed commander/ownership drift for the geometry mismatch. The user was right to reject that. The confirmed geometry divergence is stale render state: the rendering branch can update `GAME_CONFIG` and visible controls while a paused perimeter-field frame still reuses old geometry because the invalidation fingerprint missed several geometry-driving keys.
+- The cross-branch visual mismatch is the combination of two issues: the rendering branch is missing the theme-apply side effects now present on `master`, and the paused `GameCanvas` invalidation path was too narrow to force a re-render when imported themes changed omitted geometry keys.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts src/lib/config/themeNames.test.ts`
   - `bun x tsc --noEmit`
+  - `bun x vitest run src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
 
 ## Lossless User Instruction Log
 

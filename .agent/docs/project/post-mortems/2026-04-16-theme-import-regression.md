@@ -38,3 +38,9 @@ I also missed the repo-local process rule in `.agent/AGENT.md` to commit a worki
 - I later misframed the branch screenshot mismatch instead of immediately auditing the mounted vs unmounted theme-apply paths.
 - The concrete defect was that `themeStore.applyTheme()` used a raw config-write fallback whenever `GameSettingsPanel` was unmounted, while the mounted-panel callback also synchronized visuals, runtime stores, and background events.
 - Derived rule: if a feature can be invoked from a control outside the component that owns the canonical side effects, move those side effects into a shared runtime path before diagnosing renderer internals.
+
+## Addendum - Geometry Misdiagnosis
+
+- I then made a second obvious diagnostic mistake by blaming commander/ownership drift after the user had already stated the same map and owner-regions were being compared.
+- The actual geometry divergence was stale paused-render state: `GameCanvas.svelte` was using a hand-built `territoryConfigFp` that omitted multiple perimeter-field geometry keys, so imported theme values could be written to config and shown in the UI while the old region boundaries remained on screen.
+- Derived rule: when the user says "same settings, different render," audit cache keys and invalidation before attributing the difference to simulation input.
