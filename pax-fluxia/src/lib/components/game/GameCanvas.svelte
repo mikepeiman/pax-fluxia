@@ -348,9 +348,14 @@
         compactDebugSnapshot: Record<string, unknown> | null;
     };
 
+    type PerimeterFieldReplayConquestEvent = TerritoryConquestEvent & {
+        attackerStarIds: readonly string[];
+        attackerShipTransfers: readonly number[];
+    };
+
     type PerimeterFieldCaptureSession = {
         key: string;
-        conquestEvents: readonly TerritoryConquestEvent[];
+        conquestEvents: readonly PerimeterFieldReplayConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
         frames: PerimeterFieldCapturedTransitionFrame[];
     };
@@ -358,7 +363,7 @@
     type PerimeterFieldReplayBundle = {
         timestamp: string;
         label: string;
-        conquestEvents: readonly TerritoryConquestEvent[];
+        conquestEvents: readonly PerimeterFieldReplayConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
         nextFrame: PerimeterFieldCapturedFrame;
         frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>;
@@ -377,7 +382,7 @@
         frame: PerimeterFieldDisplayedFrame;
         frames: readonly PerimeterFieldDisplayedFrame[];
         selectedIndex: number;
-        conquestEvents: readonly TerritoryConquestEvent[];
+        conquestEvents: readonly PerimeterFieldReplayConquestEvent[];
     };
 
     let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
@@ -386,6 +391,7 @@
     let perimeterFieldReplayHistory: PerimeterFieldReplayBundle[] = [];
     let perimeterFieldReplaySprite: PIXI.Sprite | null = null;
     let perimeterFieldReplayTexture: PIXI.Texture | null = null;
+    let perimeterFieldReplayHighlightGraphics: PIXI.Graphics | null = null;
     let perimeterFieldSnapshotOverlaySprite: PIXI.Sprite | null = null;
     let perimeterFieldSnapshotOverlayTexture: PIXI.Texture | null = null;
     let perimeterFieldSnapshotOverlayKey: string | null = null;
@@ -449,7 +455,7 @@
 
     function buildPerimeterFieldConquestEvents(
         activeTransition: RenderFamilyActiveTransition,
-    ): TerritoryConquestEvent[] {
+    ): PerimeterFieldReplayConquestEvent[] {
         return activeTransition.events
             .map((entry) => ({
                 ...entry.event,
@@ -624,7 +630,7 @@
     function readSelectedPerimeterFieldConquestCapture(): {
         timestamp: string;
         label: string;
-        conquestEvents: readonly TerritoryConquestEvent[];
+        conquestEvents: readonly PerimeterFieldReplayConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
         transitionFrames: readonly PerimeterFieldCapturedTransitionFrame[];
         nextFrame: PerimeterFieldCapturedFrame | null;
@@ -705,6 +711,33 @@
     function readSelectedPerimeterFieldReplaySelection():
         | PerimeterFieldReplaySelection
         | null {
+    function buildPerimeterFieldSelectionFromReplay(
+        replay: PerimeterFieldReplayBundle,
+        selectedFrameIndex: number,
+    ): PerimeterFieldReplaySelection {
+        const replayFrames = buildPerimeterFieldDisplayedFrames(
+            replay.previousFrame,
+            replay.frames,
+            replay.nextFrame,
+        );
+        const selectedIndex = clampPerimeterFieldFrameIndex(
+            selectedFrameIndex,
+            replayFrames.length,
+        );
+        const selectedFrame = replayFrames[selectedIndex]!;
+        return {
+            timestamp: replay.timestamp,
+            label: replay.label,
+            frame: selectedFrame,
+            frames: replayFrames,
+            selectedIndex,
+            conquestEvents: replay.conquestEvents,
+        };
+    }
+
+    function readSelectedPerimeterFieldReplaySelection():
+        | PerimeterFieldReplaySelection
+        | null {
         const previewEnabled =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
         if (!previewEnabled) return null;
@@ -716,23 +749,10 @@
         if (replaySlot > 0) {
             const replay = perimeterFieldReplayHistory[replaySlot - 1];
             if (!replay) return null;
-            const replayFrames = buildPerimeterFieldDisplayedFrames(
-                replay.previousFrame,
-                replay.frames,
-                replay.nextFrame,
-            );
-            const selectedIndex = clampPerimeterFieldFrameIndex(
+            return buildPerimeterFieldSelectionFromReplay(
+                replay,
                 GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
-                replayFrames.length,
             );
-            return {
-                timestamp: replay.timestamp,
-                label: replay.label,
-                frame: replayFrames[selectedIndex]!,
-                frames: replayFrames,
-                selectedIndex,
-                conquestEvents: replay.conquestEvents,
-            };
         }
 
         if (perimeterFieldCaptureSession) {
@@ -757,7 +777,29 @@
             };
         }
 
+        const latestReplay = perimeterFieldReplayHistory[0];
+        if (latestReplay) {
+            return buildPerimeterFieldSelectionFromReplay(
+                latestReplay,
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
+            );
+        }
+
         return null;
+    }
+
+    function readPerimeterFieldReplaySelection(): {
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+        conquestEvents: readonly PerimeterFieldReplayConquestEvent[];
+    } | null {
+        const selection = readSelectedPerimeterFieldReplaySelection();
+        if (!selection) return null;
+        return {
+            canvas: selection.frame.canvas,
+            debugSnapshot: selection.frame.debugSnapshot,
+            conquestEvents: selection.conquestEvents,
+        };
     }
 
     type PerimeterFieldSnapshotFrame = {
@@ -828,6 +870,30 @@
                           debugSnapshot: family.debugSnapshot,
                       }
                     : null,
+            };
+        }
+
+        const latestReplay = perimeterFieldReplayHistory[0];
+        if (latestReplay) {
+            const replayFrames = buildPerimeterFieldDisplayedFrames(
+                latestReplay.previousFrame,
+                latestReplay.frames,
+                latestReplay.nextFrame,
+            );
+            const selectedIndex = clampPerimeterFieldFrameIndex(
+                selectedFrameIndex,
+                replayFrames.length,
+            );
+            return {
+                prev: {
+                    canvas: latestReplay.previousFrame.canvas,
+                    debugSnapshot: latestReplay.previousFrame.debugSnapshot,
+                },
+                current: replayFrames[selectedIndex] ?? null,
+                next: {
+                    canvas: latestReplay.nextFrame.canvas,
+                    debugSnapshot: latestReplay.nextFrame.debugSnapshot,
+                },
             };
         }
 
@@ -1045,6 +1111,162 @@
         perimeterFieldReplaySprite.visible = true;
         params.liveRoot.visible = false;
         perimeterFieldDebugSnapshotOverride = selected.frame.debugSnapshot;
+    }
+
+    function hidePerimeterFieldReplayHighlight(): void {
+        if (perimeterFieldReplayHighlightGraphics) {
+            perimeterFieldReplayHighlightGraphics.clear();
+            perimeterFieldReplayHighlightGraphics.visible = false;
+        }
+    }
+
+    function drawPerimeterFieldConquestVector(
+        graphics: PIXI.Graphics,
+        from: { x: number; y: number },
+        to: { x: number; y: number },
+        color: number,
+    ): void {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.hypot(dx, dy);
+        if (length <= 1e-3) return;
+
+        const ux = dx / length;
+        const uy = dy / length;
+        const arrowSize = Math.min(16, Math.max(8, length * 0.08));
+        const tipX = to.x - ux * 20;
+        const tipY = to.y - uy * 20;
+        const leftX = tipX - ux * arrowSize - uy * arrowSize * 0.6;
+        const leftY = tipY - uy * arrowSize + ux * arrowSize * 0.6;
+        const rightX = tipX - ux * arrowSize + uy * arrowSize * 0.6;
+        const rightY = tipY - uy * arrowSize - ux * arrowSize * 0.6;
+
+        graphics.moveTo(from.x, from.y);
+        graphics.lineTo(tipX, tipY);
+        graphics.stroke({ color, alpha: 0.92, width: 3.2 });
+
+        graphics.moveTo(tipX, tipY);
+        graphics.lineTo(leftX, leftY);
+        graphics.lineTo(rightX, rightY);
+        graphics.lineTo(tipX, tipY);
+        graphics.stroke({ color, alpha: 0.92, width: 2.4 });
+    }
+
+    function drawPerimeterFieldHighlightRing(
+        graphics: PIXI.Graphics,
+        position: { x: number; y: number },
+        outerRadius: number,
+        innerRadius: number,
+        color: number,
+    ): void {
+        graphics.circle(position.x, position.y, outerRadius);
+        graphics.stroke({ color: 0xffffff, alpha: 0.92, width: 3.2 });
+        graphics.circle(position.x, position.y, innerRadius);
+        graphics.stroke({ color, alpha: 0.98, width: 2.2 });
+    }
+
+    function resolvePerimeterFieldHighlightedConquests(params: {
+        activeTransition: RenderFamilyActiveTransition | null;
+    }): readonly PerimeterFieldReplayConquestEvent[] {
+        const replaySelection = readPerimeterFieldReplaySelection();
+        if (replaySelection?.conquestEvents?.length) {
+            return replaySelection.conquestEvents;
+        }
+
+        const snapshotMode =
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE ??
+                "off") as PerimeterFieldSnapshotMode | "off";
+        if (snapshotMode !== "off") {
+            const replaySlot = resolvePerimeterFieldReplaySlot(
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0,
+            );
+            const snapshotReplay =
+                replaySlot > 0
+                    ? perimeterFieldReplayHistory[replaySlot - 1]
+                    : perimeterFieldReplayHistory[0];
+            if (snapshotReplay?.conquestEvents?.length) {
+                return snapshotReplay.conquestEvents;
+            }
+        }
+
+        if (perimeterFieldCaptureSession?.conquestEvents?.length) {
+            return perimeterFieldCaptureSession.conquestEvents;
+        }
+
+        return params.activeTransition
+            ? buildPerimeterFieldConquestEvents(params.activeTransition)
+            : [];
+    }
+
+    function applyPerimeterFieldReplayHighlight(params: {
+        container: PIXI.Container;
+        stars: ReadonlyArray<StarState>;
+        activeTransition: RenderFamilyActiveTransition | null;
+    }): void {
+        const previewEnabled =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
+        const snapshotMode =
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE ??
+                "off") as PerimeterFieldSnapshotMode | "off";
+        if (!previewEnabled && snapshotMode === "off" && !params.activeTransition) {
+            hidePerimeterFieldReplayHighlight();
+            return;
+        }
+
+        const conquestEvents = resolvePerimeterFieldHighlightedConquests({
+            activeTransition: params.activeTransition,
+        });
+        if (conquestEvents.length === 0) {
+            hidePerimeterFieldReplayHighlight();
+            return;
+        }
+
+        if (!perimeterFieldReplayHighlightGraphics) {
+            perimeterFieldReplayHighlightGraphics = new PIXI.Graphics();
+            params.container.addChild(perimeterFieldReplayHighlightGraphics);
+        } else if (
+            perimeterFieldReplayHighlightGraphics.parent !== params.container
+        ) {
+            params.container.addChild(perimeterFieldReplayHighlightGraphics);
+        }
+
+        const graphics = perimeterFieldReplayHighlightGraphics;
+        const starPositions = buildStarPositionsMap(params.stars);
+        graphics.clear();
+        graphics.visible = true;
+
+        for (const event of conquestEvents) {
+            const target = starPositions.get(event.starId);
+            if (!target) continue;
+
+            const attackerColor = colorUtils.getPlayerColor(event.previousOwner);
+            const targetColor = colorUtils.getPlayerColor(event.newOwner);
+            drawPerimeterFieldHighlightRing(
+                graphics,
+                target,
+                24,
+                18,
+                targetColor,
+            );
+
+            for (const attackerStarId of event.attackerStarIds) {
+                const attacker = starPositions.get(attackerStarId);
+                if (!attacker) continue;
+                drawPerimeterFieldConquestVector(
+                    graphics,
+                    attacker,
+                    target,
+                    attackerColor,
+                );
+                drawPerimeterFieldHighlightRing(
+                    graphics,
+                    attacker,
+                    18,
+                    12,
+                    attackerColor,
+                );
+            }
+        }
     }
 
     function finalizePerimeterFieldCaptureSession(params: {
@@ -3559,6 +3781,11 @@
                         applyPerimeterFieldSnapshotOverlay({
                             container: voronoiContainer,
                             family: pf,
+                        });
+                        applyPerimeterFieldReplayHighlight({
+                            container: voronoiContainer,
+                            stars,
+                            activeTransition,
                         });
                         break;
                     }
