@@ -95,7 +95,11 @@ function rotateLoopToAnchor(points: ReadonlyArray<[number, number]>): [number, n
     return [...points.slice(bestIndex), ...points.slice(0, bestIndex)];
 }
 
-function sampleClosedLoop(points: ReadonlyArray<[number, number]>, spacing: number): [number, number][] {
+function sampleClosedLoop(
+    points: ReadonlyArray<[number, number]>,
+    spacing: number,
+    countPerLoop = 0,
+): [number, number][] {
     if (points.length < 3) return [...points];
     const loop = rotateLoopToAnchor(points);
     const closed = [...loop, loop[0]!];
@@ -108,7 +112,10 @@ function sampleClosedLoop(points: ReadonlyArray<[number, number]>, spacing: numb
         cumulative.push(total);
     }
     if (total <= 1e-6) return [...loop];
-    const count = Math.max(3, Math.round(total / Math.max(4, spacing)));
+    const count =
+        countPerLoop > 0
+            ? Math.max(3, Math.round(countPerLoop))
+            : Math.max(3, Math.round(total / Math.max(4, spacing)));
     const samples: [number, number][] = [];
     for (let i = 0; i < count; i++) {
         const target = (i / count) * total;
@@ -295,6 +302,7 @@ function buildPerimeterSourceSampleSets(params: {
     sources: readonly PerimeterSource[];
     ownerToCluster: ReadonlyMap<string, number>;
     spacing: number;
+    countPerLoop: number;
     offsetPx: number;
     strength: number;
     debugState: 'static' | 'target';
@@ -304,7 +312,11 @@ function buildPerimeterSourceSampleSets(params: {
     for (const source of params.sources) {
         const playerIdx = params.ownerToCluster.get(source.ownerId);
         if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) continue;
-        const sampled = sampleClosedLoop(source.points, params.spacing);
+        const sampled = sampleClosedLoop(
+            source.points,
+            params.spacing,
+            params.countPerLoop,
+        );
         const samples: PerimeterFieldDebugSample[] = [];
         for (let i = 0; i < sampled.length; i++) {
             const [x, y] = offsetSampleInsideLoop({
@@ -531,6 +543,16 @@ export function buildPerimeterFieldScene(params: {
         'PERIMETER_FIELD_SAMPLE_SPACING',
         GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING ?? 28,
     );
+    const countPerLoop = Math.max(
+        0,
+        Math.round(
+            readNumber(
+                params.input,
+                'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP',
+                GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0,
+            ),
+        ),
+    );
     const offsetPx = Math.max(
         0,
         readNumber(
@@ -571,6 +593,7 @@ export function buildPerimeterFieldScene(params: {
         sources: displaySources,
         ownerToCluster: clusterScene.ownerToCluster,
         spacing,
+        countPerLoop,
         offsetPx,
         strength,
         debugState: 'static',
@@ -584,6 +607,7 @@ export function buildPerimeterFieldScene(params: {
               sources: targetSources,
               ownerToCluster: clusterScene.ownerToCluster,
               spacing,
+              countPerLoop,
               offsetPx,
               strength,
               debugState: 'target',

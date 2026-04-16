@@ -563,6 +563,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
     { configKey: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
     { configKey: 'PERIMETER_FIELD_SAMPLE_SPACING' },
+    { configKey: 'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP' },
     { configKey: 'PERIMETER_FIELD_INWARD_OFFSET_PX' },
     { configKey: 'PERIMETER_FIELD_INFLUENCE_RADIUS' },
     { configKey: 'PERIMETER_FIELD_INFLUENCE_WEIGHT' },
@@ -576,6 +577,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
+    { configKey: 'PERIMETER_FIELD_DEBUG_VECTOR_WIDTH' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

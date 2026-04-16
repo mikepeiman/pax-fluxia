@@ -230,6 +230,37 @@ describe('buildPerimeterFieldScene', () => {
         ).toBe(true);
     });
 
+    it('supports an explicit sample-count override per loop', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [20, 20],
+                [80, 20],
+                [80, 80],
+                [20, 80],
+            ],
+            starIds: ['target'],
+        });
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 8,
+                    PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: 5,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.debug.staticSamples).toHaveLength(5);
+        expect(scene.sceneInput.samples).toHaveLength(5);
+    });
+
     it('offsets static perimeter samples inside the source boundary', () => {
         const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
         const geometry = makeGeometry({

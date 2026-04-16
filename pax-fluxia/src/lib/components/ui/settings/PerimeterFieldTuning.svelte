@@ -113,6 +113,13 @@
         );
     }
 
+    function exportConquestPackage(): void {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(
+            new CustomEvent('pax-export-perimeter-field-conquest-package'),
+        );
+    }
+
     $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
@@ -518,6 +525,38 @@
     <div class="row-top">
         <span
             class="var-name"
+            title="0 = derive the perimeter vstar count from spacing. Nonzero = explicit sample count for each perimeter loop."
+        >
+            Perimeter Samples / Loop
+        </span>
+        <span class="val">
+            {#if (panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0) <= 0}
+                Auto
+            {:else}
+                {panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0}
+            {/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Directly limits the number of derived perimeter vstars per loop. `0` falls back to spacing-based auto sampling. This also drives the old/new transition sample counts.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="96"
+        step="1"
+        value={panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP', 'perimeterFieldSampleCountPerLoop', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
             title="How far inward from the source boundary each perimeter vstar is placed. Higher values move the samples deeper into the region interior."
         >
             Perimeter Inward Offset
@@ -766,9 +805,46 @@
     >
         Export Geometry Artifact
     </button>
+    <button
+        type="button"
+        class="module-all-toggle diag-action-btn"
+        disabled={availableScrubFrameCount <= 0}
+        onclick={exportConquestPackage}
+    >
+        Export Conquest Package
+    </button>
 </div>
 <div class="var-desc">
     Downloads the exact displayed perimeter-field debug snapshot plus the recomputed `power_voronoi_0319` stage outputs and virtual-site inputs for deterministic comparison.
+</div>
+<div class="var-desc">
+    Conquest package exports every captured frame for the selected live/replay conquest, plus an all-arcs summary sheet.
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="Stroke width used by exported conquest-vector overlays."
+        >
+            Diagnostic Arrow Width
+        </span>
+        <span class="val">{(panel.perimeterFieldDebugVectorWidth ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5).toFixed(2)}px</span>
+    </div>
+    <div class="var-desc">
+        Controls the exported conquest-vector stroke width for per-frame and all-arcs diagnostic images.
+    </div>
+    <input
+        type="range"
+        min="0.5"
+        max="12"
+        step="0.25"
+        value={panel.perimeterFieldDebugVectorWidth ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('PERIMETER_FIELD_DEBUG_VECTOR_WIDTH', 'perimeterFieldDebugVectorWidth', value);
+        }}
+    />
 </div>
 
 <label class="toggle-row">
@@ -927,6 +1003,8 @@
     .diag-action-row {
         display: flex;
         justify-content: flex-start;
+        gap: 8px;
+        flex-wrap: wrap;
         margin: 10px 0 6px;
     }
 

@@ -53,6 +53,11 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Add replay/scrub conquest highlighting in `pax-fluxia/src/lib/components/game/GameCanvas.svelte` so explicit perimeter-field preview frames illustrate attacker stars, target stars, and conquest vectors on top of the selected replay frame.
 - [x] Identify the replay scrub `0 frames` defect in this branch: perimeter-field diagnostic capture was silently gated behind the separate global `transitionSnapshotRecorder` toggle in `ControlsSection-Debug.svelte`, so enabling perimeter-field preview alone still hard-reset the replay store to empty.
 - [x] Decouple perimeter-field scrub capture from the global recorder by letting `syncPerimeterFieldDiagnosticCapture()` run when either perimeter-field preview or the global snapshot recorder is enabled.
+- [x] Add a direct perimeter-field sample-count override in `pax-fluxia/src/lib/config/game.config.ts`, `pax-fluxia/src/lib/components/ui/settingsDefs.ts`, `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`, and `pax-fluxia/src/lib/territory/families/perimeterField/buildPerimeterFieldScene.ts` so users can explicitly limit derived vstars per perimeter loop instead of only tuning spacing.
+- [x] Verify that the explicit perimeter sample-count override affects both steady-state and transition vstar counts because `buildPerimeterFieldScene()` feeds the same `countPerLoop` value into both display and target sample-set builders before transition matching.
+- [x] Add a focused regression in `pax-fluxia/src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts` covering explicit sample-count override behavior.
+- [x] Add `PERIMETER_FIELD_DEBUG_VECTOR_WIDTH` plus a dedicated `Export Conquest Package` path in `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`, `pax-fluxia/src/lib/components/game/GameCanvas.svelte`, and `pax-fluxia/src/lib/territory/devtools/PerimeterFieldConquestPackage.ts`.
+- [x] Implement conquest package export as a zip containing the prior frame, every captured transition frame, the final next frame when available, an all-arcs summary sheet, and a manifest/readme, with per-frame overlays for previous/current/next vstar positions and adjustable vector stroke width.
 
 ## In Progress
 
@@ -82,6 +87,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - Replay preview now carries conquest metadata all the way to the debug overlay, and the overlay draws attacker rings, target crosshairs, and conquest vectors for the currently selected live/replay scrub frame. This is diagnostic UI only; it does not alter transition or geometry state.
 - The perimeter-field replay scrub path had a hidden dependency on the separate global snapshot recorder. `syncPerimeterFieldDiagnosticCapture()` immediately reset `liveFrameCount`, `replayFrameCounts`, and replay history unless `transitionSnapshotRecorder.isEnabled()` was true, even if `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED` was already on. That is why the slider stayed at `No frames`.
 - The fix is to treat perimeter-field preview as its own capture trigger. The capture/reset gate now checks `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED || transitionSnapshotRecorder.isEnabled()`, so the scrub UI no longer requires the unrelated Debug-panel recorder toggle.
+- There was no direct perimeter-field vstar-count knob before this slice. The only surfaced density control was `PERIMETER_FIELD_SAMPLE_SPACING`, which indirectly changed the number of derived perimeter samples by arc length. The new `PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP` override is explicit and shared by both display and transition sample generation.
+- The conquest package exporter is intentionally derived from the already captured perimeter-field replay/live frames, not the separate global transition snapshot recorder. It packages the exact prior frame plus every captured scrub frame for the selected live/replay conquest source.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -96,6 +103,9 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x tsc --noEmit -p tsconfig.json` after adding replay conquest highlights (from `pax-fluxia/`)
   - Artifact-based repro verification: replaying `C:\Users\mikep\Downloads\pax-perimeter-field-geometry-artifact-2026-04-16T22-43-57-191Z.json` through `computeGeometry0319()` now yields merged territory owner counts including `ai-1: 2` and world-border keys including `ai-1|world`
   - `bun x tsc --noEmit -p tsconfig.json` after decoupling perimeter-field scrub capture from the global snapshot recorder (from `pax-fluxia/`)
+  - `bun x tsc --noEmit -p tsconfig.json` after adding the perimeter sample-count override and conquest package exporter (from `pax-fluxia/`)
+  - `bun x vitest run src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` after wiring the shared sample-count override (from `pax-fluxia/`)
+  - `bun x vitest run src/lib/components/ui/settingsDefs.test.ts` after adding new panel/config mappings (from `pax-fluxia/`)
 
 ## Lossless User Instruction Log
 

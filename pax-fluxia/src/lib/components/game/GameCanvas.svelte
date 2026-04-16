@@ -156,6 +156,9 @@
     let handlePerimeterFieldArtifactExport:
         | ((event: Event) => void)
         | null = null;
+    let handlePerimeterFieldConquestPackageExport:
+        | ((event: Event) => void)
+        | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -332,6 +335,7 @@
     };
 
     type PerimeterFieldReplayBundle = {
+        timestamp: string;
         label: string;
         conquestEvents: readonly TerritoryConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
@@ -493,6 +497,49 @@
         syncPerimeterFieldDebugPlaybackState();
     }
 
+    function readSelectedPerimeterFieldConquestCapture(): {
+        timestamp: string;
+        label: string;
+        conquestEvents: readonly TerritoryConquestEvent[];
+        previousFrame: PerimeterFieldCapturedFrame;
+        transitionFrames: readonly PerimeterFieldCapturedTransitionFrame[];
+        nextFrame: PerimeterFieldCapturedFrame | null;
+    } | null {
+        const replaySlot = Math.max(
+            0,
+            Math.min(
+                3,
+                Math.round(GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0),
+            ),
+        );
+
+        if (replaySlot > 0) {
+            const replay = perimeterFieldReplayHistory[replaySlot - 1];
+            if (!replay) return null;
+            return {
+                timestamp: replay.timestamp,
+                label: replay.label,
+                conquestEvents: replay.conquestEvents,
+                previousFrame: replay.previousFrame,
+                transitionFrames: replay.frames,
+                nextFrame: replay.nextFrame,
+            };
+        }
+
+        if (!perimeterFieldCaptureSession) return null;
+        return {
+            timestamp: new Date().toISOString(),
+            label:
+                perimeterFieldCaptureSession.conquestEvents[0] == null
+                    ? "Live perimeter conquest"
+                    : `${perimeterFieldCaptureSession.conquestEvents[0].previousOwner} -> ${perimeterFieldCaptureSession.conquestEvents[0].newOwner} @ ${perimeterFieldCaptureSession.conquestEvents[0].starId}`,
+            conquestEvents: perimeterFieldCaptureSession.conquestEvents,
+            previousFrame: perimeterFieldCaptureSession.previousFrame,
+            transitionFrames: perimeterFieldCaptureSession.frames,
+            nextFrame: null,
+        };
+    }
+
     function clampPerimeterFieldFrameIndex(
         frameIndex: number,
         frameCount: number,
@@ -650,6 +697,7 @@
         const transitionFrames = [...session.frames];
 
         pushPerimeterFieldReplayBundle({
+            timestamp: new Date().toISOString(),
             label:
                 session.conquestEvents[0] == null
                     ? "Replay"
@@ -881,6 +929,63 @@
             worldHeight: GAME_HEIGHT,
             activeMode,
             replayOverrideActive: Boolean(perimeterFieldDebugSnapshotOverride),
+        });
+    }
+
+    async function exportPerimeterFieldConquestPackageFromLiveState(): Promise<void> {
+        const activeMode = resolveActiveTerritoryMode();
+        if (activeMode !== "perimeter_field") {
+            log.warn(
+                "PerimeterFieldPackage",
+                `export skipped: active mode is ${activeMode}`,
+            );
+            return;
+        }
+
+        const capture = readSelectedPerimeterFieldConquestCapture();
+        if (!capture || capture.transitionFrames.length === 0) {
+            log.warn(
+                "PerimeterFieldPackage",
+                "export skipped: no captured conquest frames are available for the selected live/replay source",
+            );
+            return;
+        }
+
+        const { downloadPerimeterFieldConquestPackage } = await import(
+            "$lib/territory/devtools/PerimeterFieldConquestPackage"
+        );
+        await downloadPerimeterFieldConquestPackage({
+            timestamp: capture.timestamp,
+            label: capture.label,
+            conquestEvents: capture.conquestEvents,
+            previousFrame: {
+                frameIndex: 0,
+                progress: 0,
+                canvas: cloneCanvasFrame(capture.previousFrame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    capture.previousFrame.debugSnapshot,
+                ),
+            },
+            transitionFrames: capture.transitionFrames.map((frame) => ({
+                frameIndex: frame.frameIndex,
+                progress: frame.progress,
+                canvas: cloneCanvasFrame(frame.canvas),
+                debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                    frame.debugSnapshot,
+                ),
+            })),
+            nextFrame: capture.nextFrame
+                ? {
+                      frameIndex: capture.transitionFrames.length + 1,
+                      progress: 1,
+                      canvas: cloneCanvasFrame(capture.nextFrame.canvas),
+                      debugSnapshot: clonePerimeterFieldDebugSnapshot(
+                          capture.nextFrame.debugSnapshot,
+                      ),
+                  }
+                : null,
+            starPositions: buildDisplayedStarPositionMap(),
+            arrowWidth: GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5,
         });
     }
 
@@ -1396,6 +1501,13 @@
             "pax-export-perimeter-field-geometry-artifact",
             handlePerimeterFieldArtifactExport,
         );
+        handlePerimeterFieldConquestPackageExport = () => {
+            void exportPerimeterFieldConquestPackageFromLiveState();
+        };
+        window.addEventListener(
+            "pax-export-perimeter-field-conquest-package",
+            handlePerimeterFieldConquestPackageExport,
+        );
 
         log.success(
             "GameCanvas",
@@ -1428,6 +1540,13 @@
                 handlePerimeterFieldArtifactExport,
             );
             handlePerimeterFieldArtifactExport = null;
+        }
+        if (handlePerimeterFieldConquestPackageExport) {
+            window.removeEventListener(
+                "pax-export-perimeter-field-conquest-package",
+                handlePerimeterFieldConquestPackageExport,
+            );
+            handlePerimeterFieldConquestPackageExport = null;
         }
 
         // F-107: Remove orientation listener and reset transpose flag

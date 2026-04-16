@@ -374,6 +374,7 @@ interface GameConfigType {
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
+    PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: number; // 0 = auto by spacing, otherwise explicit derived sample count per perimeter loop
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
     PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
@@ -387,6 +388,7 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
+    PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: number; // Stroke width used by exported conquest diagnostic vectors
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1268,6 +1270,7 @@ const _rawConfig: GameConfigType = {
     METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' as const,
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319' as const,
     PERIMETER_FIELD_SAMPLE_SPACING: 28,
+    PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: 0,
     PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
     PERIMETER_FIELD_INFLUENCE_RADIUS: 52,
     PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.35,
@@ -1281,6 +1284,7 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
+    PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: 2.5,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
