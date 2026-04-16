@@ -579,6 +579,38 @@ describe('buildPerimeterFieldScene', () => {
         ).toBe(true);
     });
 
+    it('keeps power-voronoi perimeter samples strictly inside the authoritative loop when inward offset is positive', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = makeTopologyGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop-offset',
+            bounds: [20, 20, 80, 80],
+            starIds: ['target'],
+            sourceMethod: 'power_voronoi',
+        });
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
+        for (const sample of scene.sceneInput.samples) {
+            expect(sample.x).toBeGreaterThan(20);
+            expect(sample.x).toBeLessThan(80);
+            expect(sample.y).toBeGreaterThan(20);
+            expect(sample.y).toBeLessThan(80);
+        }
+    });
+
     it('offsets static perimeter samples inside the source boundary', () => {
         const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
         const geometry = makeGeometry({

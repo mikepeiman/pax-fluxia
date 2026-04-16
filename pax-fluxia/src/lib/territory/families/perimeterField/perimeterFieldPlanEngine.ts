@@ -202,6 +202,20 @@ function chooseOffsetPoint(
     };
 }
 
+function chooseOffsetPointFromNeighbors(
+    point: [number, number],
+    prevPoint: [number, number],
+    nextPoint: [number, number],
+    polygon: ReadonlyArray<[number, number]>,
+    offsetPx: number,
+): { x: number; y: number; normalX: number; normalY: number } {
+    const tangent = normalizeVector(
+        nextPoint[0] - prevPoint[0],
+        nextPoint[1] - prevPoint[1],
+    );
+    return chooseOffsetPoint(point, tangent, polygon, offsetPx);
+}
+
 function getSectionPoints(
     section: FrontierSection,
     direction: 'forward' | 'reverse',
@@ -421,23 +435,32 @@ export function sampleVSetFromGeometry(params: {
             options.spacing,
         );
         const visibleCumulative = buildCumulativeLengths(visibleLoopPoints, true);
-        const perSectionIndexes = new Map<string, number>();
-
-        for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
+        const sampledLoopPoints = Array.from({ length: sampleCount }, (_, sampleIndex) => {
             const visibleTarget = (sampleIndex / sampleCount) * visibleLoopPerimeter;
             const topologyTarget =
                 (visibleTarget / visibleLoopPerimeter) * topologyLoopPerimeter;
-            const span = resolveLoopSectionSpan(spans, topologyTarget, topologyLoopPerimeter);
-            if (!span) continue;
-
-            const { point, tangent } = interpolateAlongClosedLoop(
+            const { point } = interpolateAlongClosedLoop(
                 visibleLoopPoints,
                 visibleCumulative,
                 visibleTarget,
             );
-            const offset = chooseOffsetPoint(
-                point,
-                tangent,
+            return { point, visibleTarget, topologyTarget };
+        });
+        const perSectionIndexes = new Map<string, number>();
+
+        for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
+            const sampled = sampledLoopPoints[sampleIndex]!;
+            const prevSample = sampledLoopPoints[(sampleIndex + sampleCount - 1) % sampleCount]!;
+            const nextSample = sampledLoopPoints[(sampleIndex + 1) % sampleCount]!;
+            const visibleTarget = sampled.visibleTarget;
+            const topologyTarget = sampled.topologyTarget;
+            const span = resolveLoopSectionSpan(spans, topologyTarget, topologyLoopPerimeter);
+            if (!span) continue;
+
+            const offset = chooseOffsetPointFromNeighbors(
+                sampled.point,
+                prevSample.point,
+                nextSample.point,
                 visibleLoopPoints,
                 adjustedOffset,
             );
