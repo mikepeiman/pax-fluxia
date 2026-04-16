@@ -152,6 +152,24 @@ Then:
 
 Do not patch symptoms before understanding structure.
 
+### 4.1a Plan / Spec / Status-First Rule
+
+Before investigating any bug, regression, deficiency, or "broken" behavior:
+
+1. Identify the active plan.
+2. Identify the governing spec / requirement docs.
+3. State current implementation status against those docs.
+4. Explicitly decide whether the code is:
+   - on-spec and failing, or
+   - off-spec and therefore wrong by definition.
+5. Only then begin bug-level hypothesis work.
+
+Hard rules:
+
+- Never treat implementation drift as intended design.
+- Never enter "mysterious debug mode" before plan/spec/status alignment is checked.
+- If the implementation contradicts the plan or spec, the implementation is wrong.
+
 ### 4.2 Logging
 
 Do not use raw `console.log`. Use Visual Telemetry.
@@ -289,13 +307,14 @@ Mandatory:
 
 1. Trace the real code path end-to-end before theorizing.
 2. Accept user observations as ground truth.
-3. Form hypotheses only after tracing.
-4. If something "used to work," inspect what changed:
+3. Check active plan/spec/status before treating the issue as a mysterious bug.
+4. Form hypotheses only after tracing.
+5. If something "used to work," inspect what changed:
    - `git log -p --follow`
    - config diffs
    - data-format diffs
-5. Never claim fixed without user verification.
-6. Repeated "wait, actually" usually means tracing was skipped.
+6. Never claim fixed without user verification.
+7. Repeated "wait, actually" usually means tracing or plan/spec/status review was skipped.
 
 ## 7. Common Failure Modes
 

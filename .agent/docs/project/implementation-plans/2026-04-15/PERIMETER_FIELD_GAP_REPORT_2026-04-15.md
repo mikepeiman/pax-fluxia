@@ -1,5 +1,7 @@
 # Perimeter Field Gap Report
 
+Status: Historical analysis. Superseded as an active contract by `PERIMETER_FIELD_IMPLEMENTATION_PLAN_2026-04-15.md`.
+
 Date: 2026-04-15  
 Scope: `perimeter_field` only  
 Status: Current-state gap-to-spec report
@@ -169,7 +171,7 @@ Still needed:
 
 Still needed:
 - guaranteed atomic capture of true `PREV` at transition start
-- guaranteed atomic capture of true `NEXT` at settle
+- guaranteed atomic capture of true `NEXT` at conquest start
 - scrub frames sourced from actual live gameplay frames only
 
 ### G. Fully compliant diagnostics/export
@@ -213,8 +215,8 @@ This is the required implementation sequence.
    - Capture true gameplay `PREV` at the exact moment the transition begins.
    - Stop relying on a rolling stable-frame fallback for `PREV`.
 
-2. Make settle capture explicit and atomic.
-   - Capture true gameplay `NEXT` at the exact moment the transition settles.
+2. Make `NEXT` capture explicit and atomic.
+   - Capture true gameplay `NEXT` at conquest start, immediately after the conquest-state mutation.
 
 3. Preserve deterministic geometry identity end to end.
    - replace synthetic region IDs with stable territory IDs

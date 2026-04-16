@@ -32,7 +32,8 @@ The authoritative design is:
 2. Place perimeter vstars around the resulting perimeter.
 3. Zero out real star ownership influence for displayed territory after base geometry derivation.
 4. Render the displayed territory from the perimeter-vstar field.
-5. On conquest, determine changed vstars from ownership-change identity plus changed fronts / contested topology, then move them from real `PREV` to real `NEXT`.
+5. On conquest start, capture both real `PREV` and real `NEXT` geometry truth and perimeter-vstar truth.
+6. Determine changed vstars from ownership-change identity plus changed fronts / contested topology, then move them from real `PREV` to real `NEXT`.
 
 ---
 
@@ -63,10 +64,12 @@ The authoritative design is:
 ### 4. Transition Model
 
 - `PREV` and `NEXT` each have their own real perimeter-vstar state.
+- Both truth snapshots are known at conquest start. `NEXT` is not a later "settled" truth.
 - Transition is the correspondence and motion between those real states.
 - Change vstars are determined from changed active fronts / contested topology, not from star-center heuristics.
 - Some moving samples may require non-linear paths, including arcs, when straight-line motion would cross unrelated frontiers.
 - Unchanged fronts remain static.
+- Classifying unmatched changed V's as pure `appearing` / `disappearing` is only a provisional implementation device unless proven correct. The final model may need 100% changed-`PREV`/`NEXT` matching.
 
 ### 5. Diagnostics Truth
 

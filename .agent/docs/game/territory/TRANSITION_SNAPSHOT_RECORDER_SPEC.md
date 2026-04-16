@@ -68,7 +68,7 @@ Plus top-level manifest: `debug/territory-transitions/index.json`
 ## `perimeter_field` Recorder Rules
 
 - `PREV` must be captured from the real gameplay frame immediately before the conquest transition begins.
-- `NEXT` must be captured from the real gameplay frame immediately after the transition settles.
+- `NEXT` must be captured from the real gameplay frame produced by the conquest-state mutation at conquest start, not from a later visual settle frame.
 - Every scrub frame must be a captured live gameplay frame, not a reconstructed debug surrogate.
 - Diagnostic overlays may be generated for inspection, but they must not replace the clean gameplay capture in artifacts that are intended to represent gameplay truth.
 - Diagnostics must be read-only and must never alter live gameplay rendering as a side effect of capture.
