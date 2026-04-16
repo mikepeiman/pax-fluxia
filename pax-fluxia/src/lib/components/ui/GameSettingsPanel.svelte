@@ -685,15 +685,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     function handleSaveTheme() {
         const name = fullSaveName.trim();
         if (!name) return;
-        themeStore.saveTheme(name);
+        const savedTheme = themeStore.saveTheme(name);
         fullSaveName = "";
         showFullSaveInput = false;
-        configStatus = `\u2705 Theme \"${name}\" saved`;
+        configStatus = `\u2705 Theme \"${savedTheme.name}\" saved`;
         configStatusColor = "#4ade80";
         fullSaveFlash = true;
         setTimeout(() => (fullSaveFlash = false), 600);
         // Download theme JSON
-        themeStore.exportTheme(name);
+        themeStore.exportTheme(savedTheme.name);
     }
 
     function handleUpdateTheme() {
@@ -724,8 +724,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             try {
                 const text = await file.text();
                 const theme = JSON.parse(text) as GameTheme;
-                if (themeStore.importTheme(theme)) {
-                    configStatus = `\u2705 Theme \"${theme.name}\" imported`;
+                const importedTheme = themeStore.importTheme(theme, file.name);
+                if (importedTheme) {
+                    configStatus = `\u2705 Theme \"${importedTheme.name}\" imported`;
                     configStatusColor = "#4ade80";
                 } else {
                     configStatus = "\u274C Invalid theme file";

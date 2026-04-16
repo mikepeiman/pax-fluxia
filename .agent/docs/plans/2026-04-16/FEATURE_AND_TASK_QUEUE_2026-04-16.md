@@ -14,12 +14,15 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Apply normalization to user theme import/load paths in `pax-fluxia/src/lib/stores/themeStore.svelte.ts`.
 - [x] Route canvas-side active territory-mode resolution through the same helper in `pax-fluxia/src/lib/components/game/GameCanvas.svelte`.
 - [x] Add focused verification coverage in `pax-fluxia/src/lib/config/themeRouting.test.ts`.
+- [x] Clean up imported and user-theme names so they resolve to a semantic label plus date, using source filenames when available and generated render-family names as fallback.
+- [x] Add naming coverage in `pax-fluxia/src/lib/config/themeNames.test.ts`.
 - [x] Write the required post-mortem at `.agent/docs/project/post-mortems/2026-04-16-theme-import-regression.md`.
 
 ## In Progress
 
 - [ ] User verification that older legacy themes now switch into their expected render families in the live app.
 - [ ] User verification that explicit-mode themes like `pax-theme-apr_15_metaball-2026-04-16T16-40-14.json` still reproduce as expected.
+- [ ] Diagnose why the same saved settings render differently across branches for the perimeter/metaball path, using `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` and the user-provided branch screenshots as ground truth.
 
 ## Notes
 
