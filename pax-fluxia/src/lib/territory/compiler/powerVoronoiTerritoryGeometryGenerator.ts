@@ -30,6 +30,12 @@ import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
+import {
+    buildSortedOutgoingArcMap,
+    normalizePlanarAngle,
+    pickClockwiseAdjacentArc,
+    type DirectedPlanarArc,
+} from './planarWalk';
 
 // ---------------------------------------------------------------------------
 // Geometry types (canonical contracts for PVV2 path)
@@ -80,6 +86,50 @@ export interface SharedPolyline {
 }
 
 const LOOP_CLOSURE_TOLERANCE_PX = 6;
+
+interface DirectedEdgeArc extends DirectedPlanarArc {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    idx: number;
+}
+
+function buildDirectedEdgeArcs(
+    edges: ReadonlyArray<{ x1: number; y1: number; x2: number; y2: number }>,
+): DirectedEdgeArc[] {
+    const arcs: DirectedEdgeArc[] = [];
+    for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i]!;
+        const forwardFromKey = ptKey(edge.x1, edge.y1);
+        const forwardToKey = ptKey(edge.x2, edge.y2);
+        const reverseFromKey = ptKey(edge.x2, edge.y2);
+        const reverseToKey = ptKey(edge.x1, edge.y1);
+        arcs.push({
+            physicalIdx: i,
+            idx: i,
+            x1: edge.x1,
+            y1: edge.y1,
+            x2: edge.x2,
+            y2: edge.y2,
+            fromKey: forwardFromKey,
+            toKey: forwardToKey,
+            angle: normalizePlanarAngle(Math.atan2(edge.y2 - edge.y1, edge.x2 - edge.x1)),
+        });
+        arcs.push({
+            physicalIdx: i,
+            idx: i,
+            x1: edge.x2,
+            y1: edge.y2,
+            x2: edge.x1,
+            y2: edge.y1,
+            fromKey: reverseFromKey,
+            toKey: reverseToKey,
+            angle: normalizePlanarAngle(Math.atan2(edge.y1 - edge.y2, edge.x1 - edge.x2)),
+        });
+    }
+    return arcs;
+}
 
 // ---------------------------------------------------------------------------
 // Output type
@@ -495,21 +545,7 @@ export function mergeSameOwnerCells(
         if (ownerId === DISCONNECT_OWNER_ID) continue;
         if (edges.length === 0) continue;
 
-        // Build bidirectional adjacency: each physical edge adds two directed half-edges
-        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
-        const allEdges: IEdge[] = [];
-        for (let i = 0; i < edges.length; i++) {
-            const e = edges[i];
-            allEdges.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, idx: i });
-            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
-        }
-
-        const adj = new Map<string, IEdge[]>();
-        for (const ie of allEdges) {
-            const k = ptKey(ie.x1, ie.y1);
-            if (!adj.has(k)) adj.set(k, []);
-            adj.get(k)!.push(ie);
-        }
+        const adjacency = buildSortedOutgoingArcMap(buildDirectedEdgeArcs(edges));
 
         const used = new Set<number>();
         for (let start = 0; start < edges.length; start++) {
@@ -519,30 +555,47 @@ export function mergeSameOwnerCells(
             const chain: [number, number][] = [[e0.x1, e0.y1], [e0.x2, e0.y2]];
             const startPt = ptKey(e0.x1, e0.y1);
             let curEnd = ptKey(e0.x2, e0.y2);
+            let currentArc: DirectedEdgeArc = {
+                physicalIdx: start,
+                idx: start,
+                x1: e0.x1,
+                y1: e0.y1,
+                x2: e0.x2,
+                y2: e0.y2,
+                fromKey: startPt,
+                toKey: curEnd,
+                angle: normalizePlanarAngle(Math.atan2(e0.y2 - e0.y1, e0.x2 - e0.x1)),
+            };
             let safety = edges.length * 2;
 
             while (curEnd !== startPt && safety-- > 0) {
-                const cands = adj.get(curEnd);
-                if (!cands) break;
-                let stepped = false;
-                for (const c of cands) {
-                    if (used.has(c.idx)) continue;
-                    used.add(c.idx);
-                    curEnd = ptKey(c.x2, c.y2);
-                    chain.push([c.x2, c.y2]);
-                    stepped = true;
-                    break;
-                }
-                if (!stepped) break;
+                const nextArc = pickClockwiseAdjacentArc({
+                    adjacency,
+                    current: currentArc,
+                    isAvailable: (arc) => !used.has(arc.idx),
+                });
+                if (!nextArc) break;
+                used.add(nextArc.idx);
+                curEnd = nextArc.toKey;
+                chain.push([nextArc.x2, nextArc.y2]);
+                currentArc = nextArc;
             }
 
             if (chain.length >= 3) {
-                // Ensure closed polygon
-                if (chain[0][0] !== chain[chain.length - 1][0] ||
-                    chain[0][1] !== chain[chain.length - 1][1]) {
+                const dx = Math.abs(chain[0][0] - chain[chain.length - 1][0]);
+                const dy = Math.abs(chain[0][1] - chain[chain.length - 1][1]);
+                const nearClosed =
+                    dx <= LOOP_CLOSURE_TOLERANCE_PX &&
+                    dy <= LOOP_CLOSURE_TOLERANCE_PX;
+                if (nearClosed && (dx > 0.01 || dy > 0.01)) {
                     chain.push([chain[0][0], chain[0][1]]);
                 }
-                result.push({ points: chain as [number, number][], ownerId, color: 0, starIds: [...(clusterStarIds.get(ck) ?? [])] });
+                if (
+                    chain[0][0] === chain[chain.length - 1][0] &&
+                    chain[0][1] === chain[chain.length - 1][1]
+                ) {
+                    result.push({ points: chain as [number, number][], ownerId, color: 0, starIds: [...(clusterStarIds.get(ck) ?? [])] });
+                }
             }
         }
     }
@@ -733,20 +786,7 @@ export function chainSharedEdgesIntoPolylines(
         // Build bidirectional adjacency with EDGE INDEX tracking.
         // Vertex-mark walks fail at junctions (degree > 2) — edge-index tracking
         // ensures every physical edge is consumed exactly once regardless of topology.
-        type IEdge = { x1: number; y1: number; x2: number; y2: number; idx: number };
-        const allEdges: IEdge[] = [];
-        for (let i = 0; i < pairEdges.length; i++) {
-            const e = pairEdges[i];
-            allEdges.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, idx: i });
-            allEdges.push({ x1: e.x2, y1: e.y2, x2: e.x1, y2: e.y1, idx: i });
-        }
-
-        const adj = new Map<string, IEdge[]>();
-        for (const ie of allEdges) {
-            const k = ptKey(ie.x1, ie.y1);
-            if (!adj.has(k)) adj.set(k, []);
-            adj.get(k)!.push(ie);
-        }
+        const adjacency = buildSortedOutgoingArcMap(buildDirectedEdgeArcs(pairEdges));
 
         const used = new Set<number>();
         for (let start = 0; start < pairEdges.length; start++) {
@@ -755,21 +795,30 @@ export function chainSharedEdgesIntoPolylines(
             used.add(start);
             const chain: [number, number][] = [[e0.x1, e0.y1], [e0.x2, e0.y2]];
             let curEnd = ptKey(e0.x2, e0.y2);
+            let currentArc: DirectedEdgeArc = {
+                physicalIdx: start,
+                idx: start,
+                x1: e0.x1,
+                y1: e0.y1,
+                x2: e0.x2,
+                y2: e0.y2,
+                fromKey: ptKey(e0.x1, e0.y1),
+                toKey: curEnd,
+                angle: normalizePlanarAngle(Math.atan2(e0.y2 - e0.y1, e0.x2 - e0.x1)),
+            };
             let safety = pairEdges.length * 2;
 
             while (safety-- > 0) {
-                const cands = adj.get(curEnd);
-                if (!cands) break;
-                let stepped = false;
-                for (const c of cands) {
-                    if (used.has(c.idx)) continue;
-                    used.add(c.idx);
-                    curEnd = ptKey(c.x2, c.y2);
-                    chain.push([c.x2, c.y2]);
-                    stepped = true;
-                    break;
-                }
-                if (!stepped) break;
+                const nextArc = pickClockwiseAdjacentArc({
+                    adjacency,
+                    current: currentArc,
+                    isAvailable: (arc) => !used.has(arc.idx),
+                });
+                if (!nextArc) break;
+                used.add(nextArc.idx);
+                curEnd = nextArc.toKey;
+                chain.push([nextArc.x2, nextArc.y2]);
+                currentArc = nextArc;
             }
 
             if (chain.length >= 2) {

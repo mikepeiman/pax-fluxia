@@ -37,6 +37,12 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Identify the structural geometry bug in `constructFillsFromFrontierChain()`: partial-open chain-walk output was still being promoted into `MergedTerritory` fill polygons and then implicitly closed later, creating bogus long closure chords.
 - [x] Patch `constructFillsFromFrontierChain()` to drop clearly open loops and only repair small near-closure gaps within the existing tolerance, then add focused regression coverage in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts`.
 - [x] Correct the adapted power-voronoi diagnostics in `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts` so `closureReliable` reflects actual loop closure instead of always claiming success.
+- [x] Accept the user report that the prior open-loop fix was insufficient because the same erroneous disconnected geometry persisted on the same topology.
+- [x] Prove the live `power_voronoi_0319` path still uses corridor and disconnect virtual stars with aggressive settings (`MODIFIED_VORONOI_CORRIDOR_ENABLED=true`, `TERRITORY_CX_COUNT=12`, `TERRITORY_CX_WEIGHT=1.25`, `MODIFIED_VORONOI_DISCONNECT_ENABLED=true`, `TERRITORY_DX_WEIGHT=0.95`), making high-degree junctions plausible on long lanes.
+- [x] Build a synthetic repro showing that `chainSharedEdgesIntoPolylines()` is order-dependent at a branched junction: the same edge graph produces a spur-crossing chain when the spur edge is inserted earlier.
+- [x] Build a second synthetic repro showing that `constructFillsFromFrontierChain()` can emit a bogus disconnected owner fill at a junction by taking the first available spur instead of the clockwise-adjacent boundary continuation.
+- [x] Replace the greedy `first unused edge` junction traversal in `chainSharedEdgesIntoPolylines()`, `mergeSameOwnerCells()`, and `executeChainWalk()` with clockwise-adjacent angular traversal via `pax-fluxia/src/lib/territory/compiler/planarWalk.ts`.
+- [x] Add focused regression coverage proving the patched walkers keep the intended loop intact at branched junctions instead of crossing into the first spur by insertion order.
 
 ## In Progress
 
@@ -55,6 +61,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The cross-branch visual mismatch is the combination of two issues: the rendering branch is missing the theme-apply side effects now present on `master`, and the paused `GameCanvas` invalidation path was too narrow to force a re-render when imported themes changed omitted geometry keys.
 - The screenshot-annotated cyan lines were a real geometry defect. In metaball perimeter-field mode, the cyan overlay comes from `debugSnapshot.displayGeometry`, which is the canonical geometry fed into perimeter-field sampling. The metaball field did not invent those chords; it inherited them from permissive fill reconstruction upstream.
 - The root cause was in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`: `constructFillsFromFrontierChain()` flattened chain-walk output into fill polygons even when `loop.closed === false`. Those partial-open chains then got implicitly closed later by polygon consumers/debug drawing, producing the erroneous long straight segments visible in the screenshot.
+- That open-loop bug was real but not sufficient. The persistent live defect was order-dependent junction walking in the `Geometry_0319` / power-voronoi path: `mergeSameOwnerCells()`, `chainSharedEdgesIntoPolylines()`, and `executeChainWalk()` all selected the first unused touching edge/polyline instead of the clockwise-adjacent continuation around the incoming edge.
+- Corridor and disconnect virtual stars were a trigger, not the ownership/topology bug itself. They increase the number of intermediate cells and 3+-way junctions along long lanes, which makes the greedy walker far more likely to stitch the wrong branch into a visually disconnected boundary.
 - A separate process failure also occurred in-thread: after the user controlled for storage, theme, topology, ownership, and timing, I still reused earlier screenshot-origin arguments and territory-render-mode framing. That is now documented in `.agent/docs/project/post-mortems/2026-04-16-user-feedback-contradiction-and-misframing.md`.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -63,6 +71,8 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x tsc --noEmit`
   - `bun x vitest run src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
   - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
+  - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` (from `pax-fluxia/`)
+  - `bun x tsc --noEmit -p tsconfig.json` (from `pax-fluxia/`)
 
 ## Lossless User Instruction Log
 
