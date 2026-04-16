@@ -15,6 +15,7 @@ import {
 import { normalizeThemeValues } from '$lib/config/themeRouting';
 import {
     type GameTheme,
+    filterThemeValues,
     loadThemes,
     saveThemes,
     saveTheme as persistTheme,
@@ -63,8 +64,10 @@ function prepareUserThemeForStorage(
         typeof theme.created === 'string' && !Number.isNaN(Date.parse(theme.created))
             ? theme.created
             : new Date().toISOString();
-    const values = normalizeThemeValues(
-        theme.values as Record<string, number | string | boolean>,
+    const values = filterThemeValues(
+        normalizeThemeValues(
+            theme.values as Record<string, number | string | boolean>,
+        ),
     );
 
     let name = options?.preserveName

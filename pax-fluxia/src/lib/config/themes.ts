@@ -27,6 +27,28 @@ const THEME_DENYLIST: Set<string> = new Set([
     'AI_EVALUATION_FREQUENCY', 'AI_TACTICAL_AGGRESSION', 'AI_RANDOM_AGGRESSION',
 ]);
 
+function isThemeEligibleKey(key: string): boolean {
+    // Internal/runtime keys are prefixed with "_" and should never round-trip through themes.
+    return !key.startsWith('_') && !THEME_DENYLIST.has(key);
+}
+
+export function filterThemeValues(
+    values: Record<string, unknown>,
+): Record<string, number | string | boolean> {
+    const filtered: Record<string, number | string | boolean> = {};
+    for (const [key, value] of Object.entries(values)) {
+        if (!isThemeEligibleKey(key)) continue;
+        if (
+            typeof value === 'number'
+            || typeof value === 'string'
+            || typeof value === 'boolean'
+        ) {
+            filtered[key] = value;
+        }
+    }
+    return filtered;
+}
+
 // ── Theme Type ──────────────────────────────────────────────────────────────
 
 export interface GameTheme {
@@ -45,16 +67,9 @@ const THEME_STORAGE_KEY = 'pax-game-themes';
  * Uses denylist — automatically includes any new config keys.
  */
 export function extractTheme(name: string, description: string): GameTheme {
-    const values: Record<string, number | string | boolean> = {};
-    for (const key of Object.keys(GAME_CONFIG)) {
-        if (!THEME_DENYLIST.has(key)) {
-            const val = (GAME_CONFIG as any)[key];
-            // Only snapshot primitives (skip objects/arrays if any)
-            if (typeof val === 'number' || typeof val === 'string' || typeof val === 'boolean') {
-                values[key] = val;
-            }
-        }
-    }
+    const values = filterThemeValues(
+        GAME_CONFIG as unknown as Record<string, unknown>,
+    );
     return {
         name,
         description,
@@ -69,7 +84,7 @@ export function extractTheme(name: string, description: string): GameTheme {
  */
 export function applyTheme(theme: GameTheme): void {
     for (const [key, value] of Object.entries(theme.values)) {
-        if (!THEME_DENYLIST.has(key) && key in GAME_CONFIG) {
+        if (isThemeEligibleKey(key) && key in GAME_CONFIG) {
             (GAME_CONFIG as any)[key] = value;
         }
     }

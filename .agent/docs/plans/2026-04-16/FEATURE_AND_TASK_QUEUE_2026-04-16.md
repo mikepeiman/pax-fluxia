@@ -24,6 +24,11 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Add focused regression coverage in `pax-fluxia/src/lib/renderers/MetaballRenderer.test.ts`.
 - [x] Definitively identify the live theme-apply wiring gap: `themeStore.applyTheme()` fell back to a raw `applyThemeToConfig()` path whenever `GameSettingsPanel` was unmounted, so sidebar theme selection skipped the panel/runtime synchronization path entirely.
 - [x] Identify the specific background mismatch bug inside the mounted apply path: `applyConfigPatch()` wrote `GAME_CONFIG.BG_IMAGE_URL` before visual sync, suppressing the `pax-bg-change` event and allowing the previous background sprite to persist.
+- [x] Compare the user-provided `current-settings 1420 master thread.json` and `current-settings 1422 rendering branch.json` files and verify that the imported theme did not diverge on any actual perimeter-field geometry/constraint tunables.
+- [x] Prove the remaining live-setting deltas are runtime-only fields: `_MAP_HEX_RADIUS`, `_MAP_WIDTH`, `_MAP_HEIGHT`, `_MAP_PADDING_X`, `_MAP_PADDING_Y`, and `__TERRITORY_VISUAL_EPOCH`.
+- [x] Trace perimeter-field geometry inputs to confirm `_MAP_*` values are only used for the debug hex overlay, while perimeter-field geometry itself is built from `star.ownerId`, star positions, lane endpoints, and the geometry tunables in `buildPerimeterFieldRenderFamilyGeometry()`.
+- [x] Identify and fix a separate theme hygiene bug: exported/imported themes were still carrying `__TERRITORY_VISUAL_EPOCH`, a runtime cache-invalidation counter that should never serialize.
+- [x] Add focused coverage in `pax-fluxia/src/lib/config/themes.test.ts` so theme snapshot/apply paths ignore internal runtime keys.
 
 ## In Progress
 
@@ -38,9 +43,13 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The fix is intentionally small: make legacy themes self-contained at load/import/apply time instead of depending on ambient `GAME_CONFIG` state.
 - The decisive bug was architectural, not in `MetaballRenderer` winner resolution: theme application had two runtime paths. `GameSettingsPanel` registered the canonical apply callback only while mounted, but the always-visible sidebar selector still called `themeStore.applyTheme()`. With the panel closed, that path wrote config values without the visual/runtime sync side effects.
 - The screenshots also show a second non-theme render input difference: territory colors come from the live player roster (`activeGameStore.getPlayerColor`), not from the theme payload. Different commander rosters/colors will therefore change the rendered appearance even with identical territory tuning values.
+- The two user-provided live settings files differ only on runtime map metadata and a visual-epoch counter. The theme file `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` does not contain `_MAP_*` fields at all, so those values cannot be reconciled through theme import/export.
+- The attached geometry screenshots also show different commander/ownership input, not just different colors: the commander roster count differs between the two runs, and several star IDs belong to different owners. Perimeter-field geometry is built from `star.ownerId` ownership snapshots, so different owner assignment necessarily changes region boundaries even when the geometry sliders match.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
+  - `bun x vitest run src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts src/lib/config/themeNames.test.ts`
+  - `bun x tsc --noEmit`
 
 ## Lossless User Instruction Log
 
