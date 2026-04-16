@@ -22,18 +22,22 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Prove the `MetaballRenderer` perf rewrite is not the primary semantic break by reproducing old/new owner-grid equivalence on synthetic scenes.
 - [x] Fix a real shared-renderer cache bug: scene-driven `influenceRadiusPx` / `ownershipMarginPx` were omitted from the metaball/perimeter cache fingerprint, allowing stale field reuse across theme changes inside the same render family.
 - [x] Add focused regression coverage in `pax-fluxia/src/lib/renderers/MetaballRenderer.test.ts`.
+- [x] Definitively identify the live theme-apply wiring gap: `themeStore.applyTheme()` fell back to a raw `applyThemeToConfig()` path whenever `GameSettingsPanel` was unmounted, so sidebar theme selection skipped the panel/runtime synchronization path entirely.
+- [x] Identify the specific background mismatch bug inside the mounted apply path: `applyConfigPatch()` wrote `GAME_CONFIG.BG_IMAGE_URL` before visual sync, suppressing the `pax-bg-change` event and allowing the previous background sprite to persist.
 
 ## In Progress
 
 - [ ] User verification that older legacy themes now switch into their expected render families in the live app.
 - [ ] User verification that explicit-mode themes like `pax-theme-apr_15_metaball-2026-04-16T16-40-14.json` still reproduce as expected.
 - [ ] User verification of the renderer-cache fix using perimeter-field themes that differ mainly by influence radius / ownership-margin-adjacent behavior.
+- [ ] User verification that sidebar theme selection now fully refreshes background, alpha, and territory visuals even with the settings panel closed.
 
 ## Notes
 
 - The imported pack from `C:\Users\mikep\Downloads\Pax Themes` was not actually committed into `pax-fluxia/src/lib/config/builtin-themes/`; the live bug here is theme application semantics, not missing JSON files in the repo.
 - The fix is intentionally small: make legacy themes self-contained at load/import/apply time instead of depending on ambient `GAME_CONFIG` state.
-- The user-provided branch screenshots are not a clean render A/B. The current evidence says they differ primarily because `localhost:1420` and `localhost:1422` are different browser origins with different localStorage-backed theme/session state, and the visible game sessions themselves are different.
+- The decisive bug was architectural, not in `MetaballRenderer` winner resolution: theme application had two runtime paths. `GameSettingsPanel` registered the canonical apply callback only while mounted, but the always-visible sidebar selector still called `themeStore.applyTheme()`. With the panel closed, that path wrote config values without the visual/runtime sync side effects.
+- The screenshots also show a second non-theme render input difference: territory colors come from the live player roster (`activeGameStore.getPlayerColor`), not from the theme payload. Different commander rosters/colors will therefore change the rendered appearance even with identical territory tuning values.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`

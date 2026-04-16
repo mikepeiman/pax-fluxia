@@ -32,3 +32,9 @@ I also missed the repo-local process rule in `.agent/AGENT.md` to commit a worki
 - A legacy fallback is not real compatibility if another explicit state key preempts that fallback.
 - Static config analysis is insufficient when behavior depends on merge semantics with existing live config.
 - "Implemented" is not "works" until the user verifies the observed app behavior.
+
+## Addendum - Theme Apply Runtime Gap
+
+- I later misframed the branch screenshot mismatch instead of immediately auditing the mounted vs unmounted theme-apply paths.
+- The concrete defect was that `themeStore.applyTheme()` used a raw config-write fallback whenever `GameSettingsPanel` was unmounted, while the mounted-panel callback also synchronized visuals, runtime stores, and background events.
+- Derived rule: if a feature can be invoked from a control outside the component that owns the canonical side effects, move those side effects into a shared runtime path before diagnosing renderer internals.

@@ -6,6 +6,8 @@
 // ============================================================================
 
 import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
+import { normalizeBgImagePath } from '$lib/config/bgManifest';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     buildThemeDisplayName,
     ensureUniqueThemeDisplayName,
@@ -13,7 +15,6 @@ import {
 import { normalizeThemeValues } from '$lib/config/themeRouting';
 import {
     type GameTheme,
-    applyTheme as applyThemeToConfig,
     loadThemes,
     saveThemes,
     saveTheme as persistTheme,
@@ -21,7 +22,20 @@ import {
     extractTheme,
     exportThemeJSON,
 } from '$lib/config/themes';
+import {
+    applyVisuals,
+    loadPanelSettings,
+    loadVisuals,
+    panelDefaultsFromConfig,
+    savePanelSettings,
+    saveVisuals,
+} from '$lib/components/ui/panelSync';
+import { setSettingsFromConfigPatch } from '$lib/components/ui/settingsState';
 import { audioManager } from '$lib/services/audioManager.svelte';
+import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
+import { animationStore } from '$lib/stores/animationStore.svelte';
+import { gameStore } from '$lib/stores/gameStore.svelte';
+import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 
 
 // ── One-time migration from old themePresets system ─────────────────────────
@@ -100,6 +114,54 @@ function loadUserThemesNormalized(): GameTheme[] {
     }
 
     return normalizedThemes;
+}
+
+function applyThemeValuesFallback(
+    valuesPatch: Record<string, number | string | boolean>,
+): void {
+    const panel = loadPanelSettings(panelDefaultsFromConfig());
+    setSettingsFromConfigPatch(panel, valuesPatch, savePanelSettings);
+
+    const nextVisuals = {
+        ...loadVisuals(),
+        laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
+        laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
+        shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
+        shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+        bgImage: GAME_CONFIG.BG_IMAGE_URL,
+    };
+    saveVisuals(nextVisuals);
+    applyVisuals(nextVisuals);
+
+    activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
+    animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
+
+    const affectsLaneTopology =
+        'MAPGEN_LANE_MARGIN_PX' in valuesPatch
+        || 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' in valuesPatch;
+    const affectsLanePaths =
+        affectsLaneTopology
+        || 'MAPGEN_LANE_MODE' in valuesPatch;
+    const affectsAuthoredConnectivityPolicy =
+        'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in valuesPatch;
+    if (affectsLaneTopology || affectsLanePaths || affectsAuthoredConnectivityPolicy) {
+        (gameStore as any).rebuildLaneConstraintsFromConfig?.();
+    }
+
+    bumpTerritoryVisualConfig();
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent('pax-bg-change', {
+                detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+            }),
+        );
+        window.dispatchEvent(
+            new CustomEvent('pax-bg-alpha-change', {
+                detail: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5,
+            }),
+        );
+    }
 }
 
 function migrateOldPresets(): void {
@@ -205,7 +267,7 @@ export const themeStore = {
         const theme = allThemes.find(t => t.name === name);
         if (!theme) return false;
         if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
-        else applyThemeToConfig(theme);
+        else applyThemeValuesFallback(theme.values as Record<string, number | string | boolean>);
         // Sync AudioManager's reactive state mirrors from the freshly-written GAME_CONFIG
         audioManager.syncFromConfig();
         _selectedThemeName = name;
@@ -271,7 +333,7 @@ export const themeStore = {
         });
         persistTheme(normalizedTheme);
         if (_applyCallback) _applyCallback(normalizedTheme.values as Record<string, number | string | boolean>);
-        else applyThemeToConfig(normalizedTheme);
+        else applyThemeValuesFallback(normalizedTheme.values as Record<string, number | string | boolean>);
         // Sync AudioManager after import too
         audioManager.syncFromConfig();
         _userThemes = loadUserThemesNormalized();

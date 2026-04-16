@@ -12,6 +12,8 @@
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log, logFlags } from "$lib/utils/logger";
+    import { normalizeBgImagePath } from "$lib/config/bgManifest";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
         COMBAT_VARIABLES,
         AI_VARIABLES,
@@ -250,6 +252,35 @@
             gameStore.rebuildLaneConstraintsFromConfig();
         } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
             gameStore.rebuildLaneConstraintsFromConfig();
+        }
+        if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
+            window.dispatchEvent(
+                new CustomEvent("pax-bg-change", {
+                    detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+                }),
+            );
+        }
+        if (typeof window !== "undefined" && "BG_IMAGE_ALPHA" in configPatch) {
+            window.dispatchEvent(
+                new CustomEvent("pax-bg-alpha-change", {
+                    detail: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5,
+                }),
+            );
+        }
+        if (
+            Object.keys(configPatch).some((key) =>
+                key === "BG_IMAGE_URL"
+                || key === "BG_IMAGE_ALPHA"
+                || key === "MIN_COLOR_LIGHTNESS"
+                || key.startsWith("TERRITORY_")
+                || key.startsWith("PERIMETER_FIELD_")
+                || key.startsWith("METABALL_")
+                || key.startsWith("VORONOI_")
+                || key.startsWith("MODIFIED_VORONOI_")
+                || key.startsWith("DF_"),
+            )
+        ) {
+            bumpTerritoryVisualConfig();
         }
     }
 
