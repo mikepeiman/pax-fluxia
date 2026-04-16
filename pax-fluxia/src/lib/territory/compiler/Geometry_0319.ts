@@ -191,28 +191,16 @@ export function computeGeometry0319(
         }
 
         // ── Stage 1: Power diagram ──────────────────────────────────────────
-        // Compute clip rectangle from actual site positions (symmetric extent)
-        // instead of (0,0)→(worldWidth,worldHeight) which creates asymmetric fills.
-        // Compute clip rectangle from REAL site positions only (exclude ghost/extra sites).
-        // Ghost sites have negative weight during fade-out and would shift the clip rect
-        // differently during transition vs static frames, causing a snap.
+        // Use the configured world clip, matching the authoritative power-voronoi
+        // geometry path. World-border edges must be true world bounds, not a
+        // star-local rectangle, or owner-vs-world polylines collapse into
+        // internal bars and boxes.
         const pad = config.boundaryPad;
-        let sMinX = Infinity, sMinY = Infinity, sMaxX = -Infinity, sMaxY = -Infinity;
-        const realSiteCount = sites.length - (extraSites?.length ?? 0);
-        for (let i = 0; i < realSiteCount; i++) {
-            const s = sites[i];
-            if (s.x < sMinX) sMinX = s.x;
-            if (s.y < sMinY) sMinY = s.y;
-            if (s.x > sMaxX) sMaxX = s.x;
-            if (s.y > sMaxY) sMaxY = s.y;
-        }
-        // Use starMargin + boundaryPad for generous symmetric clip
-        const clipPad = starMargin + pad;
         const clip: [number, number][] = [
-            [sMinX - clipPad, sMinY - clipPad],
-            [sMaxX + clipPad, sMinY - clipPad],
-            [sMaxX + clipPad, sMaxY + clipPad],
-            [sMinX - clipPad, sMaxY + clipPad],
+            [-pad, -pad],
+            [worldWidth + pad, -pad],
+            [worldWidth + pad, worldHeight + pad],
+            [-pad, worldHeight + pad],
         ];
 
         let polygons: any[];
