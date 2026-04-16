@@ -53,8 +53,14 @@ export interface CanonicalShell {
     shellId: string;
     /** Owner of this shell. */
     ownerId: string;
-    /** Optional star/site membership carried through when the source geometry can identify this shell deterministically. */
+    /** Optional star/site membership carried through when the source geometry can identify this shell deterministically.
+     *  May include virtual-site IDs. Consumers that need only real gameplay stars should read `anchorStarIds`. */
     starIds?: string[];
+    /** Real gameplay star IDs only (no virtual CX/DX/disconnect sites).
+     *  When populated, downstream consumers must prefer this over `starIds` for gameplay-identity uses. */
+    anchorStarIds?: string[];
+    /** Virtual-site IDs (CX, DX, lane-pair ghosts) that contributed to this shell's geometry. */
+    contributingSiteIds?: string[];
     /** Outer boundary points (clockwise winding). Chaikin-smoothed in the compiler. */
     points: [number, number][];
     /** Area of the outer boundary (shoelace formula). */
@@ -78,8 +84,13 @@ export interface CanonicalShellLoop {
     shellId?: string;
     /** Owner of this loop. */
     ownerId: string;
-    /** Optional star/site membership carried through when the source geometry can identify this loop deterministically. */
+    /** Optional star/site membership carried through when the source geometry can identify this loop deterministically.
+     *  May include virtual-site IDs. Consumers that need only real gameplay stars should read `anchorStarIds`. */
     starIds?: string[];
+    /** Real gameplay star IDs only (no virtual CX/DX/disconnect sites). */
+    anchorStarIds?: string[];
+    /** Virtual-site IDs (CX, DX, lane-pair ghosts) that contributed to this loop's geometry. */
+    contributingSiteIds?: string[];
     /** Points forming the loop boundary. */
     points: [number, number][];
     /** Classification of this loop within its shell. */
@@ -92,12 +103,18 @@ export interface CanonicalShellLoop {
 
 /** A territory region with identity and confidence. */
 export interface TerritoryRegionShape {
-    /** Stable region identifier. */
+    /** Stable region identifier.
+     *  Deterministic across equivalent snapshots — must not depend on enumeration/index order. */
     regionId: string;
     /** Owner of this region. */
     ownerId: string;
-    /** Optional star/site membership carried through when the source geometry can identify the owning region deterministically. */
+    /** Optional star/site membership carried through when the source geometry can identify the owning region deterministically.
+     *  May include virtual-site IDs. Consumers that need only real gameplay stars should read `anchorStarIds`. */
     starIds?: string[];
+    /** Real gameplay star IDs only (no virtual CX/DX/disconnect sites). */
+    anchorStarIds?: string[];
+    /** Virtual-site IDs (CX, DX, lane-pair ghosts) that contributed to this region's geometry. */
+    contributingSiteIds?: string[];
     /** Boundary points. */
     points: [number, number][];
     /** 0–1 confidence score. */
