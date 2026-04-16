@@ -19,6 +19,7 @@ import {
     listPerimeterGeometryLoops,
 } from './buildPerimeterFieldScene';
 import {
+    buildChangedFrontSelection,
     buildTransitionPlan,
     sampleVSetFromGeometry,
 } from './perimeterFieldPlanEngine';
@@ -382,6 +383,60 @@ function makeTopologyGeometry(params: {
             identityReliable: true,
             closureReliable: true,
             notes: [],
+        },
+    };
+}
+
+function combineTopologyGeometries(
+    geometries: CanonicalGeometrySnapshot[],
+): CanonicalGeometrySnapshot {
+    const first = geometries[0]!;
+    const vertices = new Map<string, FrontierVertex>();
+    const sections = new Map<string, FrontierSection>();
+    const loops: RegionLoop[] = [];
+    const sectionsByOwnerPair = new Map<string, string[]>();
+    const sectionsByVertex = new Map<string, string[]>();
+    const sectionsByOwner = new Map<string, string[]>();
+
+    for (const geometry of geometries) {
+        for (const [id, vertex] of geometry.frontierTopology.vertices) {
+            vertices.set(id, vertex);
+        }
+        for (const [id, section] of geometry.frontierTopology.sections) {
+            sections.set(id, section);
+        }
+        loops.push(...geometry.frontierTopology.loops);
+        for (const [key, ids] of geometry.frontierTopology.sectionsByOwnerPair) {
+            const bucket = sectionsByOwnerPair.get(key) ?? [];
+            bucket.push(...ids);
+            sectionsByOwnerPair.set(key, bucket);
+        }
+        for (const [key, ids] of geometry.frontierTopology.sectionsByVertex) {
+            const bucket = sectionsByVertex.get(key) ?? [];
+            bucket.push(...ids);
+            sectionsByVertex.set(key, bucket);
+        }
+        for (const [key, ids] of geometry.frontierTopology.sectionsByOwner) {
+            const bucket = sectionsByOwner.get(key) ?? [];
+            bucket.push(...ids);
+            sectionsByOwner.set(key, bucket);
+        }
+    }
+
+    return {
+        ...first,
+        version: geometries.map((geometry) => geometry.version).join('|'),
+        territoryRegions: geometries.flatMap((geometry) => geometry.territoryRegions),
+        shells: geometries.flatMap((geometry) => geometry.shells),
+        shellLoops: geometries.flatMap((geometry) => geometry.shellLoops),
+        frontierTopology: {
+            ...first.frontierTopology,
+            vertices,
+            sections,
+            loops,
+            sectionsByOwnerPair,
+            sectionsByVertex,
+            sectionsByOwner,
         },
     };
 }
@@ -823,6 +878,113 @@ describe('buildPerimeterFieldScene', () => {
             ),
         ).toBe(true);
         expect(scene.sceneInput.influenceRadiusPx).toBe(44);
+    });
+
+    it('does not fan a conquest out to every owner loop when seed loop resolution fails', () => {
+        const prevGeometry = combineTopologyGeometries([
+            {
+                ...makeTopologyGeometry({
+                    ownerId: 'red',
+                    loopId: 'red-target-loop',
+                    bounds: [10, 10, 40, 40],
+                    starIds: [],
+                    sourceMethod: 'power_voronoi',
+                }),
+                shellLoops: [
+                    {
+                        ...makeTopologyGeometry({
+                            ownerId: 'red',
+                            loopId: 'red-target-loop',
+                            bounds: [10, 10, 40, 40],
+                            starIds: [],
+                            sourceMethod: 'power_voronoi',
+                        }).shellLoops[0]!,
+                        starIds: [],
+                        anchorStarIds: [],
+                    },
+                ],
+            },
+            {
+                ...makeTopologyGeometry({
+                    ownerId: 'red',
+                    loopId: 'red-other-loop',
+                    bounds: [60, 10, 90, 40],
+                    starIds: [],
+                    sourceMethod: 'power_voronoi',
+                }),
+                shellLoops: [
+                    {
+                        ...makeTopologyGeometry({
+                            ownerId: 'red',
+                            loopId: 'red-other-loop',
+                            bounds: [60, 10, 90, 40],
+                            starIds: [],
+                            sourceMethod: 'power_voronoi',
+                        }).shellLoops[0]!,
+                        starIds: [],
+                        anchorStarIds: [],
+                    },
+                ],
+            },
+        ]);
+        const nextGeometry = combineTopologyGeometries([
+            {
+                ...makeTopologyGeometry({
+                    ownerId: 'blue',
+                    loopId: 'blue-target-loop',
+                    bounds: [10, 10, 40, 40],
+                    starIds: [],
+                    sourceMethod: 'power_voronoi',
+                }),
+                shellLoops: [
+                    {
+                        ...makeTopologyGeometry({
+                            ownerId: 'blue',
+                            loopId: 'blue-target-loop',
+                            bounds: [10, 10, 40, 40],
+                            starIds: [],
+                            sourceMethod: 'power_voronoi',
+                        }).shellLoops[0]!,
+                        starIds: [],
+                        anchorStarIds: [],
+                    },
+                ],
+            },
+            {
+                ...makeTopologyGeometry({
+                    ownerId: 'blue',
+                    loopId: 'blue-other-loop',
+                    bounds: [60, 10, 90, 40],
+                    starIds: [],
+                    sourceMethod: 'power_voronoi',
+                }),
+                shellLoops: [
+                    {
+                        ...makeTopologyGeometry({
+                            ownerId: 'blue',
+                            loopId: 'blue-other-loop',
+                            bounds: [60, 10, 90, 40],
+                            starIds: [],
+                            sourceMethod: 'power_voronoi',
+                        }).shellLoops[0]!,
+                        starIds: [],
+                        anchorStarIds: [],
+                    },
+                ],
+            },
+        ]);
+
+        const selection = buildChangedFrontSelection({
+            prevGeometry,
+            nextGeometry,
+            conquestEvents: makeTransition().events,
+        });
+
+        expect(selection.chains).toHaveLength(1);
+        expect(selection.chains[0]?.prevLoopIds).toEqual([]);
+        expect(selection.chains[0]?.nextLoopIds).toEqual([]);
+        expect(selection.changedSections.selectedPrevSectionIds.size).toBe(0);
+        expect(selection.changedSections.selectedNextSectionIds.size).toBe(0);
     });
 
     it('uses exact PREV at frame 0 and exact NEXT at frame 1 for raw power_voronoi geometry', () => {

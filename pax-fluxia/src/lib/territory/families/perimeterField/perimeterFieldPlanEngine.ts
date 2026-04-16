@@ -543,18 +543,24 @@ function buildRawLoopRecords(
     points: ReadonlyArray<[number, number]>;
     starIds: readonly string[];
 }> {
-    if (geometry.sourceMethod === 'power_voronoi') {
-        const outerLoops = geometry.shellLoops.filter(
-            (loop) => loop.classification === 'outer' && Boolean(loop.ownerId),
-        );
-        if (outerLoops.length > 0) {
-            return outerLoops.map((loop) => ({
-                ownerId: loop.ownerId!,
-                loopId: loop.shellLoopId,
-                points: loop.points,
-                starIds: [...(loop.anchorStarIds ?? loop.starIds ?? [])],
-            }));
-        }
+    const outerLoops = geometry.shellLoops.filter(
+        (loop) => loop.classification === 'outer' && Boolean(loop.ownerId),
+    );
+    if (outerLoops.length > 0) {
+        return outerLoops.map((loop) => ({
+            ownerId: loop.ownerId!,
+            loopId: loop.shellLoopId,
+            points: loop.points,
+            starIds: [...(loop.anchorStarIds ?? loop.starIds ?? [])],
+        }));
+    }
+    if (geometry.territoryRegions.length > 0) {
+        return geometry.territoryRegions.map((region) => ({
+            ownerId: region.ownerId,
+            loopId: region.regionId,
+            points: region.points,
+            starIds: [...(region.anchorStarIds ?? region.starIds ?? [])],
+        }));
     }
     if (geometry.frontierTopology.loops.length > 0) {
         return geometry.frontierTopology.loops
@@ -569,12 +575,7 @@ function buildRawLoopRecords(
                 starIds: [],
             }));
     }
-    return geometry.territoryRegions.map((region) => ({
-        ownerId: region.ownerId,
-        loopId: region.regionId,
-        points: region.points,
-        starIds: [...(region.anchorStarIds ?? region.starIds ?? [])],
-    }));
+    return [];
 }
 
 function centroidOfPoints(
@@ -649,10 +650,7 @@ function collectSeedLoopIds(params: {
         .map((loop) => mapRawLoopToTopologyLoop(loop, params.topology)?.id ?? null)
         .filter((loopId): loopId is string => loopId !== null);
     if (resolved.length > 0) return [...new Set(resolved)];
-    return params.topology.loops
-        .filter((loop) => loop.ownerId === params.ownerId)
-        .map((loop) => loop.id)
-        .sort((a, b) => a.localeCompare(b));
+    return [];
 }
 
 function expandChangedSectionsFromSeeds(params: {
