@@ -611,6 +611,43 @@ describe('buildPerimeterFieldScene', () => {
         }
     });
 
+    it('does not drop a valid power-voronoi region when the topology loop orientation is negative', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = makeTopologyGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop-negative-orientation',
+            bounds: [20, 20, 80, 80],
+            starIds: ['target'],
+            sourceMethod: 'power_voronoi',
+        });
+        geometry.frontierTopology.loops = geometry.frontierTopology.loops.map((loop) => ({
+            ...loop,
+            signedArea: -Math.abs(loop.signedArea),
+        }));
+
+        expect(listPerimeterGeometryLoops(geometry)).toHaveLength(1);
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
+        expect(
+            scene.sceneInput.samples.every((sample) =>
+                sample.id?.startsWith('v:red-loop-negative-orientation:'),
+            ),
+        ).toBe(true);
+    });
+
     it('offsets static perimeter samples inside the source boundary', () => {
         const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
         const geometry = makeGeometry({

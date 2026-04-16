@@ -38,6 +38,10 @@ function buildTopologyLoopStarIds(
     return [...starIds].sort();
 }
 
+function isUsableOwnedTopologyLoop(loop: { ownerId: string; signedArea: number }): boolean {
+    return Boolean(loop.ownerId) && Math.abs(loop.signedArea) > 1e-6;
+}
+
 export function listPerimeterGeometryLoops(
     geometry: CanonicalGeometrySnapshot,
 ): PerimeterGeometryLoop[] {
@@ -83,7 +87,7 @@ export function listPerimeterGeometryLoops(
 
     if (hasUsableFrontierTopology(geometry)) {
         const topologyLoops = geometry.frontierTopology.loops
-            .filter((loop) => loop.signedArea > 0 && Boolean(loop.ownerId))
+            .filter(isUsableOwnedTopologyLoop)
             .sort((a, b) => a.id.localeCompare(b.id))
             .map((loop) => {
                 const points = flattenRegionLoopPoints(

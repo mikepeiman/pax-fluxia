@@ -344,6 +344,10 @@ function scoreVisibleLoopMatch(
     return Math.abs(areaDelta) * 4 + centroidDistance;
 }
 
+function isUsableOwnedTopologyLoop(loop: { ownerId: string; signedArea: number }): boolean {
+    return Boolean(loop.ownerId) && Math.abs(loop.signedArea) > 1e-6;
+}
+
 function matchVisibleLoopsByTopology(
     geometry: CanonicalGeometrySnapshot,
 ): ReadonlyMap<string, PerimeterGeometryLoop> {
@@ -355,7 +359,7 @@ function matchVisibleLoopsByTopology(
         (loop) => loop.points.length >= 3 && Boolean(loop.ownerId),
     );
     const topologyLoops = [...geometry.frontierTopology.loops]
-        .filter((loop) => loop.signedArea > 0 && Boolean(loop.ownerId))
+        .filter(isUsableOwnedTopologyLoop)
         .sort((a, b) => a.id.localeCompare(b.id));
 
     const byOwner = new Map<string, Array<{ index: number; loop: PerimeterGeometryLoop }>>();
@@ -404,7 +408,7 @@ export function sampleVSetFromGeometry(params: {
 
     const vs: PerimeterV[] = [];
     const loops = [...topology.loops]
-        .filter((loop) => loop.signedArea > 0 && Boolean(loop.ownerId))
+        .filter(isUsableOwnedTopologyLoop)
         .sort((a, b) => a.id.localeCompare(b.id));
     const visibleLoopMapping = matchVisibleLoopsByTopology(geometry);
 
@@ -593,7 +597,7 @@ function mapRawLoopToTopologyLoop(
     topology: FrontierTopology,
 ): RegionLoop | null {
     const candidates = topology.loops.filter(
-        (loop) => loop.ownerId === rawLoop.ownerId && loop.signedArea > 0,
+        (loop) => loop.ownerId === rawLoop.ownerId && Math.abs(loop.signedArea) > 1e-6,
     );
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return candidates[0]!;
