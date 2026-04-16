@@ -106,6 +106,13 @@
         setScrubFrameIndex(currentScrubFrameIndex() + delta);
     }
 
+    function exportGeometryArtifact(): void {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(
+            new CustomEvent('pax-export-perimeter-field-geometry-artifact'),
+        );
+    }
+
     $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
@@ -751,6 +758,19 @@
     Cyan shows the current base geometry. In paused scrub mode, magenta shows the next-state geometry as well.
 </div>
 
+<div class="diag-action-row">
+    <button
+        type="button"
+        class="module-all-toggle diag-action-btn"
+        onclick={exportGeometryArtifact}
+    >
+        Export Geometry Artifact
+    </button>
+</div>
+<div class="var-desc">
+    Downloads the exact displayed perimeter-field debug snapshot plus the recomputed `power_voronoi_0319` stage outputs and virtual-site inputs for deterministic comparison.
+</div>
+
 <label class="toggle-row">
     <input
         type="checkbox"
@@ -902,6 +922,16 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+    }
+
+    .diag-action-row {
+        display: flex;
+        justify-content: flex-start;
+        margin: 10px 0 6px;
+    }
+
+    .diag-action-btn {
+        min-width: 180px;
     }
 
     .module-all-toggle {

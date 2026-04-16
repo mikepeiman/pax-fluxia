@@ -43,6 +43,9 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Build a second synthetic repro showing that `constructFillsFromFrontierChain()` can emit a bogus disconnected owner fill at a junction by taking the first available spur instead of the clockwise-adjacent boundary continuation.
 - [x] Replace the greedy `first unused edge` junction traversal in `chainSharedEdgesIntoPolylines()`, `mergeSameOwnerCells()`, and `executeChainWalk()` with clockwise-adjacent angular traversal via `pax-fluxia/src/lib/territory/compiler/planarWalk.ts`.
 - [x] Add focused regression coverage proving the patched walkers keep the intended loop intact at branched junctions instead of crossing into the first spur by insertion order.
+- [x] Stop further root-cause claims after the user verified the live geometry remained unchanged and instead add a deterministic perimeter-field artifact export path that captures the exact on-screen debug snapshot, current generator inputs, virtual-site inputs, and a same-settings `power_voronoi_0319` recomputation for side-by-side provenance tracing.
+- [x] Add an explicit `Export Geometry Artifact` control to `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte` and wire it through `pax-fluxia/src/lib/components/game/GameCanvas.svelte` to `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`.
+- [x] Refactor the `power_voronoi_0319` settings builder in `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts` into an exported helper so the live renderer path and the artifact recomputation path use the same generator settings.
 
 ## In Progress
 
@@ -64,6 +67,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - That open-loop bug was real but not sufficient. The persistent live defect was order-dependent junction walking in the `Geometry_0319` / power-voronoi path: `mergeSameOwnerCells()`, `chainSharedEdgesIntoPolylines()`, and `executeChainWalk()` all selected the first unused touching edge/polyline instead of the clockwise-adjacent continuation around the incoming edge.
 - Corridor and disconnect virtual stars were a trigger, not the ownership/topology bug itself. They increase the number of intermediate cells and 3+-way junctions along long lanes, which makes the greedy walker far more likely to stitch the wrong branch into a visually disconnected boundary.
 - A separate process failure also occurred in-thread: after the user controlled for storage, theme, topology, ownership, and timing, I still reused earlier screenshot-origin arguments and territory-render-mode framing. That is now documented in `.agent/docs/project/post-mortems/2026-04-16-user-feedback-contradiction-and-misframing.md`.
+- The angle-aware walker patch was not accepted as the live fix; the user verified that the exact erroneous disconnected geometry remained unchanged on the same topology. The correct next step is artifact-level provenance tracing from the live `displayGeometry` back through the `power_voronoi_0319` inputs and recomputation, not another verbal root-cause claim.
+- The new artifact export path is intentionally diagnostic, not corrective. It captures the exact perimeter-field debug snapshot being drawn on screen, the displayed stars/lanes, the virtual stars derived from current settings, and a same-settings recomputation so the first point of divergence can be identified from data instead of screenshots.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -73,6 +78,7 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
   - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` (from `pax-fluxia/`)
   - `bun x tsc --noEmit -p tsconfig.json` (from `pax-fluxia/`)
+  - `bun x tsc --noEmit -p tsconfig.json` after wiring the perimeter-field geometry artifact exporter (from `pax-fluxia/`)
 
 ## Lossless User Instruction Log
 

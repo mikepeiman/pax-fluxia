@@ -219,7 +219,40 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     ownershipVersion: string;
     sourceStyle: CanonicalGeometrySnapshot['sourceStyle'];
 }): CanonicalGeometrySnapshot | null {
-    const settings: TerritoryGeneratorSettings = {
+    const settings = buildPowerVoronoi0319Settings({
+        lanes: params.lanes,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+    });
+
+    const result = computeGeometry0319(
+        [...params.stars],
+        [...params.lanes],
+        settings,
+    );
+    if ('kind' in result) {
+        log.error(
+            'PerimeterFieldGeometry',
+            `Geometry_0319 fallback to canonical compiler: ${result.message}`,
+        );
+        return null;
+    }
+
+    return adaptPowerVoronoiGeometryToSnapshot({
+        geometry: result,
+        ownershipVersion: params.ownershipVersion,
+        sourceStyle: params.sourceStyle,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+    });
+}
+
+export function buildPowerVoronoi0319Settings(params: {
+    lanes: ReadonlyArray<StarConnection>;
+    worldWidth: number;
+    worldHeight: number;
+}): TerritoryGeneratorSettings {
+    return {
         starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
         corridorEnabled:
             Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) &&
@@ -244,27 +277,6 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
         worldWidth: params.worldWidth,
         worldHeight: params.worldHeight,
     };
-
-    const result = computeGeometry0319(
-        [...params.stars],
-        [...params.lanes],
-        settings,
-    );
-    if ('kind' in result) {
-        log.error(
-            'PerimeterFieldGeometry',
-            `Geometry_0319 fallback to canonical compiler: ${result.message}`,
-        );
-        return null;
-    }
-
-    return adaptPowerVoronoiGeometryToSnapshot({
-        geometry: result,
-        ownershipVersion: params.ownershipVersion,
-        sourceStyle: params.sourceStyle,
-        worldWidth: params.worldWidth,
-        worldHeight: params.worldHeight,
-    });
 }
 
 export function buildPerimeterFieldRenderFamilyGeometry(params: {

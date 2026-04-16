@@ -153,6 +153,9 @@
 
     let canvasContainer: HTMLDivElement;
     let app: PIXI.Application | null = null;
+    let handlePerimeterFieldArtifactExport:
+        | ((event: Event) => void)
+        | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -810,6 +813,59 @@
         ) ?? "none";
     }
 
+    async function exportPerimeterFieldGeometryArtifactFromLiveState(): Promise<void> {
+        const activeMode = resolveActiveTerritoryMode();
+        if (activeMode !== "perimeter_field") {
+            log.warn(
+                "PerimeterFieldArtifact",
+                `export skipped: active mode is ${activeMode}`,
+            );
+            return;
+        }
+
+        const family = getRenderFamily("perimeter_field");
+        if (!(family instanceof PerimeterFieldFamily)) {
+            log.warn(
+                "PerimeterFieldArtifact",
+                "export skipped: perimeter_field family is unavailable",
+            );
+            return;
+        }
+
+        const snapshot =
+            perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
+        if (!snapshot) {
+            log.warn(
+                "PerimeterFieldArtifact",
+                "export skipped: no live perimeter-field debug snapshot is available",
+            );
+            return;
+        }
+
+        const stars = activeGameStore.stars as StarState[];
+        const displayStars: StarState[] = mapTranspose.active
+            ? stars.map((star) => ({
+                  ...star,
+                  x: mapTranspose.x(star),
+                  y: mapTranspose.y(star),
+              }))
+            : stars.map((star) => ({ ...star }));
+        const lanes = activeGameStore.connections as StarConnection[];
+
+        const { downloadPerimeterFieldGeometryArtifact } = await import(
+            "$lib/territory/devtools/perimeterFieldGeometryArtifact"
+        );
+        await downloadPerimeterFieldGeometryArtifact({
+            snapshot,
+            stars: displayStars,
+            lanes,
+            worldWidth: GAME_WIDTH,
+            worldHeight: GAME_HEIGHT,
+            activeMode,
+            replayOverrideActive: Boolean(perimeterFieldDebugSnapshotOverride),
+        });
+    }
+
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─
     let canonicalBridge: GameCanvasBridge | null = null;
     let canonicalBridgeFallbackLogged = false;
@@ -1315,6 +1371,14 @@
         };
         window.addEventListener("pax-bg-alpha-change", handleBgAlpha);
 
+        handlePerimeterFieldArtifactExport = () => {
+            void exportPerimeterFieldGeometryArtifactFromLiveState();
+        };
+        window.addEventListener(
+            "pax-export-perimeter-field-geometry-artifact",
+            handlePerimeterFieldArtifactExport,
+        );
+
         log.success(
             "GameCanvas",
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
@@ -1340,6 +1404,13 @@
         log.sys("GameCanvas", "Destroying PixiJS application");
 
         window.removeEventListener("resize", handleResize);
+        if (handlePerimeterFieldArtifactExport) {
+            window.removeEventListener(
+                "pax-export-perimeter-field-geometry-artifact",
+                handlePerimeterFieldArtifactExport,
+            );
+            handlePerimeterFieldArtifactExport = null;
+        }
 
         // F-107: Remove orientation listener and reset transpose flag
         if (orientationQuery) {
