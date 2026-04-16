@@ -587,12 +587,19 @@ export function mergeSameOwnerCells(
                 const nearClosed =
                     dx <= LOOP_CLOSURE_TOLERANCE_PX &&
                     dy <= LOOP_CLOSURE_TOLERANCE_PX;
-                if (nearClosed && (dx > 0.01 || dy > 0.01)) {
+                if (
+                    nearClosed &&
+                    (dx > 0.01 || dy > 0.01)
+                ) {
+                    // Power Voronoi cell boundaries often drift by sub-pixel amounts at
+                    // loop closure. Treat those as the same vertex so world-border
+                    // extraction does not drop an otherwise valid merged owner shell.
                     chain.push([chain[0][0], chain[0][1]]);
                 }
                 if (
-                    chain[0][0] === chain[chain.length - 1][0] &&
-                    chain[0][1] === chain[chain.length - 1][1]
+                    (chain[0][0] === chain[chain.length - 1][0] &&
+                        chain[0][1] === chain[chain.length - 1][1]) ||
+                    nearClosed
                 ) {
                     result.push({ points: chain as [number, number][], ownerId, color: 0, starIds: [...(clusterStarIds.get(ck) ?? [])] });
                 }

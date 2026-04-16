@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
     chainSharedEdgesIntoPolylines,
     constructFillsFromFrontierChain,
+    mergeSameOwnerCells,
     type SharedBorderEdge,
     type SharedPolyline,
+    type TerritoryCell,
 } from './powerVoronoiTerritoryGeometryGenerator';
 
 describe('constructFillsFromFrontierChain', () => {
@@ -207,5 +209,41 @@ describe('chainSharedEdgesIntoPolylines', () => {
             [10, 0],
             [20, 0],
         ]);
+    });
+});
+
+describe('mergeSameOwnerCells', () => {
+    it('repairs near-closed owner shells instead of dropping them', () => {
+        const cells: TerritoryCell[] = [
+            {
+                ownerId: 'red',
+                siteId: 'star-0',
+                points: [
+                    [0, 0],
+                    [10, 0],
+                    [10, 10],
+                    [0, 10],
+                    [0, 0.5],
+                ],
+            },
+            {
+                ownerId: 'blue',
+                siteId: 'star-1',
+                points: [
+                    [10, 0],
+                    [20, 0],
+                    [20, 20],
+                    [10, 20],
+                    [10, 10],
+                    [10, 0],
+                ],
+            },
+        ];
+
+        const merged = mergeSameOwnerCells(cells, false, new Map());
+        const red = merged.find((territory) => territory.ownerId === 'red');
+
+        expect(red).toBeDefined();
+        expect(red?.points[0]).toEqual(red?.points.at(-1));
     });
 });

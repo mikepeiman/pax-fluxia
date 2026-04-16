@@ -333,6 +333,7 @@
 
     type PerimeterFieldReplayBundle = {
         label: string;
+        conquestEvents: readonly TerritoryConquestEvent[];
         previousFrame: PerimeterFieldCapturedFrame;
         nextFrame: PerimeterFieldCapturedFrame;
         frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>;
@@ -538,6 +539,8 @@
     function readPerimeterFieldReplaySelection(): {
         canvas: HTMLCanvasElement;
         debugSnapshot: PerimeterFieldDebugSnapshot | null;
+        conquestEvents: readonly TerritoryConquestEvent[];
+        progress: number;
     } | null {
         const previewEnabled =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
@@ -563,7 +566,10 @@
                 GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
                 replayFrames.length,
             );
-            return replayFrames[selectedIndex]!;
+            return {
+                ...replayFrames[selectedIndex]!,
+                conquestEvents: replay.conquestEvents,
+            };
         }
 
         if (perimeterFieldCaptureSession) {
@@ -575,7 +581,10 @@
                 GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ?? 0,
                 liveFrames.length,
             );
-            return liveFrames[selectedIndex]!;
+            return {
+                ...liveFrames[selectedIndex]!,
+                conquestEvents: perimeterFieldCaptureSession.conquestEvents,
+            };
         }
 
         return null;
@@ -645,6 +654,11 @@
                 session.conquestEvents[0] == null
                     ? "Replay"
                     : `${session.conquestEvents[0].previousOwner} -> ${session.conquestEvents[0].newOwner} @ ${session.conquestEvents[0].starId}`,
+            conquestEvents: session.conquestEvents.map((event) => ({
+                ...event,
+                attackerStarIds: [...event.attackerStarIds],
+                attackerShipTransfers: [...event.attackerShipTransfers],
+            })),
             previousFrame: {
                 geometry: session.previousFrame.geometry,
                 ownership: session.previousFrame.ownership,
@@ -2094,13 +2108,173 @@
         }
     }
 
+    function buildDisplayedStarPositionMap(): ReadonlyMap<
+        string,
+        { x: number; y: number; ownerId?: string | null }
+    > {
+        const stars = activeGameStore.stars as StarState[];
+        const displayedStars = mapTranspose.active
+            ? stars.map((star) => ({
+                  ...star,
+                  x: mapTranspose.x(star),
+                  y: mapTranspose.y(star),
+              }))
+            : stars;
+        const positions = new Map<
+            string,
+            { x: number; y: number; ownerId?: string | null }
+        >();
+        for (const star of displayedStars) {
+            positions.set(star.id, {
+                x: star.x,
+                y: star.y,
+                ownerId: star.ownerId,
+            });
+        }
+        return positions;
+    }
+
+    function drawPerimeterConquestHighlights(params: {
+        graphics: PIXI.Graphics;
+        textContainer: PIXI.Container | null;
+        conquestEvents: readonly TerritoryConquestEvent[];
+    }): void {
+        if (params.conquestEvents.length === 0) return;
+        const starPositions = buildDisplayedStarPositionMap();
+
+        for (const conquest of params.conquestEvents) {
+            const target = starPositions.get(conquest.starId);
+            if (!target) continue;
+
+            const vectorColor =
+                conquest.newOwner != null
+                    ? colorUtils.getPlayerColor(conquest.newOwner)
+                    : 0xfff36b;
+            const targetColor = 0xfff36b;
+
+            for (const attackerStarId of conquest.attackerStarIds) {
+                const attacker = starPositions.get(attackerStarId);
+                if (!attacker) continue;
+
+                const dx = target.x - attacker.x;
+                const dy = target.y - attacker.y;
+                const length = Math.hypot(dx, dy);
+                if (length <= 1e-6) continue;
+
+                const nx = dx / length;
+                const ny = dy / length;
+                const endX = target.x - nx * 22;
+                const endY = target.y - ny * 22;
+                const wingX = -ny;
+                const wingY = nx;
+
+                params.graphics.moveTo(attacker.x, attacker.y);
+                params.graphics.lineTo(endX, endY);
+                params.graphics.stroke({
+                    color: vectorColor,
+                    alpha: 0.88,
+                    width: 2.6,
+                });
+
+                params.graphics.moveTo(endX, endY);
+                params.graphics.lineTo(
+                    endX - nx * 12 + wingX * 6,
+                    endY - ny * 12 + wingY * 6,
+                );
+                params.graphics.moveTo(endX, endY);
+                params.graphics.lineTo(
+                    endX - nx * 12 - wingX * 6,
+                    endY - ny * 12 - wingY * 6,
+                );
+                params.graphics.stroke({
+                    color: vectorColor,
+                    alpha: 0.92,
+                    width: 2.6,
+                });
+
+                params.graphics.circle(attacker.x, attacker.y, 11);
+                params.graphics.stroke({
+                    color: vectorColor,
+                    alpha: 0.95,
+                    width: 2.2,
+                });
+                params.graphics.circle(attacker.x, attacker.y, 16);
+                params.graphics.stroke({
+                    color: vectorColor,
+                    alpha: 0.45,
+                    width: 1.2,
+                });
+
+                if (params.textContainer) {
+                    const label = new PIXI.Text({
+                        text: "A",
+                        style: {
+                            fontFamily: "monospace",
+                            fontSize: 12,
+                            fontWeight: "700",
+                            fill: vectorColor,
+                            stroke: { color: 0x081018, width: 3 },
+                        },
+                    });
+                    label.anchor.set(0.5);
+                    label.x = attacker.x;
+                    label.y = attacker.y - 22;
+                    params.textContainer.addChild(label);
+                }
+            }
+
+            params.graphics.circle(target.x, target.y, 16);
+            params.graphics.stroke({
+                color: targetColor,
+                alpha: 0.98,
+                width: 3,
+            });
+            params.graphics.circle(target.x, target.y, 24);
+            params.graphics.stroke({
+                color: targetColor,
+                alpha: 0.45,
+                width: 1.5,
+            });
+            params.graphics.moveTo(target.x - 18, target.y);
+            params.graphics.lineTo(target.x + 18, target.y);
+            params.graphics.moveTo(target.x, target.y - 18);
+            params.graphics.lineTo(target.x, target.y + 18);
+            params.graphics.stroke({
+                color: targetColor,
+                alpha: 0.85,
+                width: 1.8,
+            });
+
+            if (params.textContainer) {
+                const label = new PIXI.Text({
+                    text: "T",
+                    style: {
+                        fontFamily: "monospace",
+                        fontSize: 13,
+                        fontWeight: "700",
+                        fill: targetColor,
+                        stroke: { color: 0x081018, width: 3 },
+                    },
+                });
+                label.anchor.set(0.5);
+                label.x = target.x;
+                label.y = target.y - 28;
+                params.textContainer.addChild(label);
+            }
+        }
+    }
+
     function renderPerimeterFieldDebugOverlay(activeMode: string): void {
         if (activeMode !== "perimeter_field" || !debugGraphics) return;
         const showGeometry =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
         const showVstars =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
-        if (!showGeometry && !showVstars) return;
+        const replaySelection = readPerimeterFieldReplaySelection();
+        const showConquestHighlights =
+            Boolean(replaySelection) &&
+            (replaySelection?.conquestEvents.length ?? 0) > 0;
+        if (!showGeometry && !showVstars && !showConquestHighlights) return;
 
         const family = getRenderFamily("perimeter_field");
         if (!(family instanceof PerimeterFieldFamily)) return;
@@ -2177,6 +2351,14 @@
                     snapshot.transitionSamples,
                 );
             }
+        }
+
+        if (showConquestHighlights && replaySelection) {
+            drawPerimeterConquestHighlights({
+                graphics: debugGraphics,
+                textContainer: debugTextContainer,
+                conquestEvents: replaySelection.conquestEvents,
+            });
         }
     }
 

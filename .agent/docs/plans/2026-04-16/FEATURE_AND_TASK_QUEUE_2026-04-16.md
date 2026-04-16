@@ -46,6 +46,11 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Stop further root-cause claims after the user verified the live geometry remained unchanged and instead add a deterministic perimeter-field artifact export path that captures the exact on-screen debug snapshot, current generator inputs, virtual-site inputs, and a same-settings `power_voronoi_0319` recomputation for side-by-side provenance tracing.
 - [x] Add an explicit `Export Geometry Artifact` control to `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte` and wire it through `pax-fluxia/src/lib/components/game/GameCanvas.svelte` to `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`.
 - [x] Refactor the `power_voronoi_0319` settings builder in `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts` into an exported helper so the live renderer path and the artifact recomputation path use the same generator settings.
+- [x] Use the exported artifact `pax-perimeter-field-geometry-artifact-2026-04-16T22-43-57-191Z.json` to prove that the missing perimeter vstars were not a sampler omission: `power_voronoi_0319` emitted 64 `ai-1` cells but zero merged territories and zero `ai-1|world` border polylines, so the owner disappeared before perimeter-field sample generation.
+- [x] Identify the concrete cause in `mergeSameOwnerCells()`: near-closed owner shells were still being dropped unless the final vertex matched the start vertex exactly, even though later chain-walk fill reconstruction already accepted the same loop under the existing `6px` closure tolerance.
+- [x] Patch `mergeSameOwnerCells()` to repair near-closed shells by explicitly closing them within tolerance, then add focused regression coverage in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts`.
+- [x] Verify the artifact repro after the patch: recomputed `Geometry_0319` now restores `ai-1` merged territories and emits `ai-1|world` border polylines, unblocking perimeter-field sample generation for those previously missing regions.
+- [x] Add replay/scrub conquest highlighting in `pax-fluxia/src/lib/components/game/GameCanvas.svelte` so explicit perimeter-field preview frames illustrate attacker stars, target stars, and conquest vectors on top of the selected replay frame.
 
 ## In Progress
 
@@ -69,6 +74,10 @@ Diagnose why imported and saved themes were not activating the expected territor
 - A separate process failure also occurred in-thread: after the user controlled for storage, theme, topology, ownership, and timing, I still reused earlier screenshot-origin arguments and territory-render-mode framing. That is now documented in `.agent/docs/project/post-mortems/2026-04-16-user-feedback-contradiction-and-misframing.md`.
 - The angle-aware walker patch was not accepted as the live fix; the user verified that the exact erroneous disconnected geometry remained unchanged on the same topology. The correct next step is artifact-level provenance tracing from the live `displayGeometry` back through the `power_voronoi_0319` inputs and recomputation, not another verbal root-cause claim.
 - The new artifact export path is intentionally diagnostic, not corrective. It captures the exact perimeter-field debug snapshot being drawn on screen, the displayed stars/lanes, the virtual stars derived from current settings, and a same-settings recomputation so the first point of divergence can be identified from data instead of screenshots.
+- The exported artifact identified a separate deterministic failure mode: `power_voronoi_0319` had already lost `ai-1` before perimeter-field sampling. `recomputed0319.cells` contained 64 `ai-1` cells, but `mergedTerritories` contained no `ai-1` regions at all and `worldBorderPolylines` had no `ai-1|world` entries. That made missing perimeter samples inevitable for those regions.
+- The concrete bug was in `mergeSameOwnerCells()`, not the perimeter-field sampler. That merge pass still required exact first-point/last-point equality, so owner shells with sub-pixel closure drift were silently dropped before world-border extraction. The artifact repro produced `ai-1` loops with endpoint deltas on the order of `0.0018px`, well within the existing `LOOP_CLOSURE_TOLERANCE_PX = 6` used later in `constructFillsFromFrontierChain()`.
+- After applying the same near-closure repair rule in `mergeSameOwnerCells()`, replaying the artifact inputs through `computeGeometry0319()` restored `ai-1` merged territories and `ai-1|world` world-border polylines. That is the specific upstream input the perimeter-field sampler needed in order to generate vstars for those previously missing regions.
+- Replay preview now carries conquest metadata all the way to the debug overlay, and the overlay draws attacker rings, target crosshairs, and conquest vectors for the currently selected live/replay scrub frame. This is diagnostic UI only; it does not alter transition or geometry state.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
   - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -79,6 +88,9 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` (from `pax-fluxia/`)
   - `bun x tsc --noEmit -p tsconfig.json` (from `pax-fluxia/`)
   - `bun x tsc --noEmit -p tsconfig.json` after wiring the perimeter-field geometry artifact exporter (from `pax-fluxia/`)
+  - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts` after patching `mergeSameOwnerCells()` near-closure handling (from `pax-fluxia/`)
+  - `bun x tsc --noEmit -p tsconfig.json` after adding replay conquest highlights (from `pax-fluxia/`)
+  - Artifact-based repro verification: replaying `C:\Users\mikep\Downloads\pax-perimeter-field-geometry-artifact-2026-04-16T22-43-57-191Z.json` through `computeGeometry0319()` now yields merged territory owner counts including `ai-1: 2` and world-border keys including `ai-1|world`
 
 ## Lossless User Instruction Log
 
