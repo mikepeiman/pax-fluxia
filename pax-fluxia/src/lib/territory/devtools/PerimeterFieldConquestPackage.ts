@@ -131,14 +131,28 @@ function drawMarker(
     ctx.restore();
 }
 
+function clipMiddleLabel(value: string, maxLength = 22): string {
+    if (value.length <= maxLength) return value;
+    const lead = Math.max(6, Math.floor((maxLength - 1) / 2));
+    const tail = Math.max(6, maxLength - lead - 1);
+    return `${value.slice(0, lead)}…${value.slice(-tail)}`;
+}
+
 function resolveSampleLabel(sample: PerimeterFieldDebugSample): string {
-    if (sample.sampleIndex != null) {
-        return `#${sample.sampleIndex}`;
-    }
     if (typeof sample.id === 'string' && sample.id.length > 0) {
-        return sample.id.slice(-12);
+        return clipMiddleLabel(sample.id);
     }
-    return sample.sourceId ? sample.sourceId.slice(-12) : 'sample';
+    if (sample.sourceId) {
+        return clipMiddleLabel(
+            sample.sampleIndex != null
+                ? `${sample.sourceId}:${sample.sampleIndex}`
+                : sample.sourceId,
+        );
+    }
+    if (sample.sampleIndex != null) {
+        return `sample:${sample.sampleIndex}`;
+    }
+    return 'sample';
 }
 
 function drawLabel(
