@@ -1,22 +1,20 @@
 // ============================================================================
-// Built-In Themes — Filesystem-resident, survives localStorage wipes
+// Built-in themes - filesystem-resident, survives localStorage wipes
 // ============================================================================
 //
 // Uses Vite's import.meta.glob to load all JSON files from builtin-themes/
-// at build time. Theme JSON files can be in either format:
-//   (a) Standard: { name, description?, created?, values: { ... } }
+// recursively at build time. Theme JSON files can be in either format:
+//   (a) Standard: { name, description?, created?, createdAt?, values: { ... } }
 //   (b) Legacy flat: { KEY: val, ... }
 //
-// All themes are converted to ComposedTheme format for the theme picker.
+// All themes are converted to ComposedTheme / GameTheme-like objects for the
+// theme picker while preserving non-category keys in the flat loader path.
 // ============================================================================
 
 import { type ComposedTheme, type ThemeCategory, CATEGORY_KEYS } from './categoryThemes';
+import { normalizeThemeValues, type ThemePrimitiveValues } from './themeRouting';
 
-// ── Load all JSON files at build time ──────────────────────────────────────
-
-const themeModules = import.meta.glob<Record<string, unknown>>('./builtin-themes/*.json', { eager: true });
-
-// ── Human-readable names (override the JSON "name" field for keepers) ──────
+const themeModules = import.meta.glob<Record<string, unknown>>('./builtin-themes/**/*.json', { eager: true });
 
 const NAME_OVERRIDES: Record<string, string> = {
     'clean-mode': 'Clean Mode (Mar 14)',
@@ -28,13 +26,29 @@ const NAME_OVERRIDES: Record<string, string> = {
     'clean-voronoi': 'Clean Voronoi',
     'distance-field': 'Distance Field',
     'streaming-ships': 'Streaming Ships',
-    // Mar 2026 additions
     'mar16-new-arch': 'Mar 16 Default (DY4)',
     'classic-mar15-v2': 'Classic Mar 15 v2',
     'classic-3': 'Classic 3',
 };
 
-// ── Helper: split flat values into per-category snapshots ──────────────────
+const GENERIC_THEME_NAMES = new Set(['custom', 'theme', 'preset']);
+const FILE_TIMESTAMP_RE =
+    /(?:^|[-_])(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(?:$|[-_])/;
+
+interface BuiltinThemeEntry {
+    name: string;
+    description: string;
+    createdAt: string;
+    values: Record<string, number | string | boolean>;
+    builtIn: true;
+}
+
+interface RawBuiltinThemeEntry extends BuiltinThemeEntry {
+    baseName: string;
+    isImported: boolean;
+    sourcePath: string;
+    sourceSlug: string;
+}
 
 function splitIntoCategories(
     values: Record<string, unknown>,
@@ -42,68 +56,198 @@ function splitIntoCategories(
     const result: Partial<Record<ThemeCategory, Record<string, unknown>>> = {};
     const keyToCategory = new Map<string, ThemeCategory>();
 
-    for (const [cat, keys] of Object.entries(CATEGORY_KEYS) as [ThemeCategory, string[]][]) {
-        for (const k of keys) {
-            keyToCategory.set(k, cat);
+    for (const [category, keys] of Object.entries(CATEGORY_KEYS) as [ThemeCategory, string[]][]) {
+        for (const key of keys) {
+            keyToCategory.set(key, category);
         }
     }
 
-    for (const [key, val] of Object.entries(values)) {
-        const cat = keyToCategory.get(key);
-        if (cat) {
-            if (!result[cat]) result[cat] = {};
-            result[cat]![key] = val;
-        }
+    for (const [key, value] of Object.entries(values)) {
+        const category = keyToCategory.get(key);
+        if (!category) continue;
+        if (!result[category]) result[category] = {};
+        result[category]![key] = value;
     }
 
     return result;
 }
 
-// ── Convert loaded modules to ComposedTheme[] ──────────────────────────────
-
-function buildBuiltinThemes(): ComposedTheme[] {
-    const themes: ComposedTheme[] = [];
-
-    for (const [path, mod] of Object.entries(themeModules)) {
-        // Extract slug from path: './builtin-themes/clean-mode.json' → 'clean-mode'
-        const slug = path.replace(/^.*\//, '').replace(/\.json$/, '');
-        const data = (mod as any).default ?? mod;
-
-        // Detect format: standard (has "values" key) vs legacy flat
-        const isStandard = typeof data.values === 'object' && data.values !== null;
-        const values: Record<string, unknown> = isStandard ? data.values : data;
-
-        // Determine name
-        const name = NAME_OVERRIDES[slug]
-            ?? (isStandard && data.name ? String(data.name) : slug);
-
-        const theme: ComposedTheme = {
-            name,
-            createdAt: isStandard && data.created ? String(data.created) : new Date().toISOString(),
-            builtIn: true,
-            categories: splitIntoCategories(values),
-        };
-
-        themes.push(theme);
-    }
-
-    // Sort: newest first
-    themes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-    return themes;
+function getSourcePath(modulePath: string): string {
+    return modulePath
+        .replace(/^\.\//, '')
+        .replace(/^builtin-themes\//, '')
+        .replace(/\.json$/i, '');
 }
 
-/** All built-in themes as ComposedTheme, lazily computed on first access. */
+function getFileStem(sourcePath: string): string {
+    return sourcePath.replace(/^.*\//, '');
+}
+
+function getThemeData(mod: Record<string, unknown>): Record<string, unknown> {
+    return (mod as { default?: Record<string, unknown> }).default ?? mod;
+}
+
+function getRawValues(data: Record<string, unknown>): Record<string, unknown> {
+    if (typeof data.values === 'object' && data.values !== null) {
+        return data.values as Record<string, unknown>;
+    }
+    return data;
+}
+
+function coercePrimitiveValues(
+    rawValues: Record<string, unknown>,
+): Record<string, number | string | boolean> {
+    const values: Record<string, number | string | boolean> = {};
+    for (const [key, value] of Object.entries(rawValues)) {
+        if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+            values[key] = value;
+        }
+    }
+    return normalizeThemeValues(
+        values as ThemePrimitiveValues,
+    ) as Record<string, number | string | boolean>;
+}
+
+function parseCreatedAtFromFilename(sourceSlug: string): string | null {
+    const match = sourceSlug.match(FILE_TIMESTAMP_RE);
+    if (!match) return null;
+    const [, date, hours, minutes, seconds] = match;
+    return `${date}T${hours}:${minutes}:${seconds}.000Z`;
+}
+
+function resolveCreatedAt(
+    data: Record<string, unknown>,
+    sourceSlug: string,
+): string {
+    const direct =
+        typeof data.created === 'string'
+            ? data.created
+            : typeof data.createdAt === 'string'
+              ? data.createdAt
+              : null;
+    if (direct && !Number.isNaN(Date.parse(direct))) return direct;
+    const fromFileName = parseCreatedAtFromFilename(sourceSlug);
+    if (fromFileName) return fromFileName;
+    return '1970-01-01T00:00:00.000Z';
+}
+
+function prettifySourceSlug(fileStem: string): string {
+    return fileStem
+        .replace(/^pax-theme-/, '')
+        .replace(FILE_TIMESTAMP_RE, '')
+        .replace(/[_-]+/g, ' ')
+        .trim() || fileStem;
+}
+
+function formatCreatedAtLabel(createdAt: string, fallback: string): string {
+    const parsed = Date.parse(createdAt);
+    if (Number.isNaN(parsed)) return fallback;
+    return new Date(parsed).toISOString().slice(0, 16).replace('T', ' ');
+}
+
+function resolveBaseName(
+    data: Record<string, unknown>,
+    fileStem: string,
+): string {
+    const named =
+        typeof data.name === 'string'
+            ? data.name.trim()
+            : '';
+    return NAME_OVERRIDES[fileStem] || named || prettifySourceSlug(fileStem);
+}
+
+function needsDisambiguation(baseName: string, duplicateCount: number): boolean {
+    return duplicateCount > 1 || GENERIC_THEME_NAMES.has(baseName.trim().toLowerCase());
+}
+
+function loadRawBuiltinThemeEntries(): RawBuiltinThemeEntry[] {
+    return Object.entries(themeModules).map(([modulePath, mod]) => {
+        const sourcePath = getSourcePath(modulePath);
+        const sourceSlug = getFileStem(sourcePath);
+        const data = getThemeData(mod);
+        const rawValues = getRawValues(data);
+
+        return {
+            name: '',
+            baseName: resolveBaseName(data, sourceSlug),
+            description: typeof data.description === 'string' ? data.description : '',
+            createdAt: resolveCreatedAt(data, sourceSlug),
+            values: coercePrimitiveValues(rawValues),
+            builtIn: true as const,
+            isImported: sourcePath.startsWith('imported/'),
+            sourcePath,
+            sourceSlug,
+        };
+    });
+}
+
+function resolveDisplayNames(rawEntries: RawBuiltinThemeEntry[]): BuiltinThemeEntry[] {
+    const grouped = new Map<string, RawBuiltinThemeEntry[]>();
+    for (const entry of rawEntries) {
+        const key = entry.baseName.trim().toLowerCase();
+        const list = grouped.get(key) ?? [];
+        list.push(entry);
+        grouped.set(key, list);
+    }
+
+    const resolvedNames = new Map<RawBuiltinThemeEntry, string>();
+    const usedNames = new Set<string>();
+
+    for (const entries of grouped.values()) {
+        entries.sort((a, b) => {
+            if (a.isImported !== b.isImported) {
+                return a.isImported ? 1 : -1;
+            }
+            return a.sourcePath.localeCompare(b.sourcePath);
+        });
+
+        const keepPrimaryName =
+            entries.length > 1
+            && !GENERIC_THEME_NAMES.has(entries[0].baseName.trim().toLowerCase());
+
+        entries.forEach((entry, index) => {
+            let name = entry.baseName;
+            if (!keepPrimaryName || index > 0 || needsDisambiguation(entry.baseName, entries.length)) {
+                name = `${entry.baseName} - ${formatCreatedAtLabel(entry.createdAt, entry.sourceSlug)}`;
+            }
+            if (usedNames.has(name)) {
+                name = `${name} [${entry.sourceSlug}]`;
+            }
+            usedNames.add(name);
+            resolvedNames.set(entry, name);
+        });
+    }
+
+    return rawEntries.map((entry) => ({
+        name: resolvedNames.get(entry) ?? entry.baseName,
+        description: entry.description,
+        createdAt: entry.createdAt,
+        values: entry.values,
+        builtIn: true as const,
+    }));
+}
+
+function loadBuiltinThemeEntries(): BuiltinThemeEntry[] {
+    const entries = resolveDisplayNames(loadRawBuiltinThemeEntries());
+    entries.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name));
+    return entries;
+}
+
+function buildBuiltinThemes(): ComposedTheme[] {
+    return loadBuiltinThemeEntries().map((entry) => ({
+        name: entry.name,
+        createdAt: entry.createdAt,
+        builtIn: true,
+        categories: splitIntoCategories(entry.values),
+    }));
+}
+
 let _builtinThemesCache: ComposedTheme[] | null = null;
 export function getBuiltinThemes(): ComposedTheme[] {
     if (!_builtinThemesCache) _builtinThemesCache = buildBuiltinThemes();
     return _builtinThemesCache;
 }
 
-/**
- * Built-in themes as GameTheme format (flat values) for themeStore compatibility.
- * GameTheme has { name, description, created, values: Record<string, ...> }
- */
 let _builtinGameThemesCache: Array<{
     name: string;
     description: string;
@@ -114,47 +258,17 @@ let _builtinGameThemesCache: Array<{
 
 export function getBuiltinGameThemes() {
     if (!_builtinGameThemesCache) {
-        _builtinGameThemesCache = [];
-
-        for (const [path, mod] of Object.entries(themeModules)) {
-            const slug = path.replace(/^.*\//, '').replace(/\.json$/, '');
-            const data = (mod as any).default ?? mod;
-
-            // Use raw flat values directly from JSON — avoids the lossy
-            // splitIntoCategories roundtrip that silently drops keys not in CATEGORY_KEYS
-            const isStandard = typeof data.values === 'object' && data.values !== null;
-            const rawValues: Record<string, unknown> = isStandard ? data.values : data;
-
-            const name = NAME_OVERRIDES[slug]
-                ?? (isStandard && data.name ? String(data.name) : slug);
-
-            const values: Record<string, number | string | boolean> = {};
-            for (const [k, v] of Object.entries(rawValues)) {
-                if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-                    values[k] = v;
-                }
-            }
-
-            _builtinGameThemesCache.push({
-                name,
-                description: isStandard && data.description ? String(data.description) : '',
-                created: isStandard && data.created ? String(data.created) : new Date().toISOString(),
-                values,
-                builtIn: true as const,
-            });
-        }
-
-        // Sort: newest first
-        _builtinGameThemesCache.sort((a, b) => b.created.localeCompare(a.created));
+        _builtinGameThemesCache = loadBuiltinThemeEntries().map((entry) => ({
+            name: entry.name,
+            description: entry.description,
+            created: entry.createdAt,
+            values: entry.values,
+            builtIn: true as const,
+        }));
     }
     return _builtinGameThemesCache;
 }
 
-
-/**
- * Extract per-category built-in presets from full themes.
- * Returns built-in CategoryPresets for a given category.
- */
 export function getBuiltinCategoryPresets(category: ThemeCategory) {
     const presets: Array<{
         name: string;
@@ -165,18 +279,16 @@ export function getBuiltinCategoryPresets(category: ThemeCategory) {
     }> = [];
 
     for (const theme of getBuiltinThemes()) {
-        const catValues = theme.categories[category];
-        if (catValues && Object.keys(catValues).length > 0) {
-            presets.push({
-                name: `${theme.name}`,
-                category,
-                values: { ...catValues },
-                createdAt: theme.createdAt,
-                builtIn: true,
-            });
-        }
+        const categoryValues = theme.categories[category];
+        if (!categoryValues || Object.keys(categoryValues).length === 0) continue;
+        presets.push({
+            name: theme.name,
+            category,
+            values: { ...categoryValues },
+            createdAt: theme.createdAt,
+            builtIn: true,
+        });
     }
 
     return presets;
 }
-

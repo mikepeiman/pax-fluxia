@@ -8,6 +8,7 @@
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { resolveThemeRenderMode } from "$lib/config/themeRouting";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import {
         getOrbitSlot,
@@ -803,22 +804,9 @@
     }
 
     function resolveActiveTerritoryMode(): string {
-        let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
-        if (!activeMode) {
-            if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
-            else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
-                activeMode = "power_voronoi";
-            else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
-                activeMode = "distance_field";
-            else if (GAME_CONFIG.TERRITORY_VORONOI) activeMode = "voronoi";
-            else if (GAME_CONFIG.TERRITORY_METABALL) activeMode = "metaball";
-            else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
-            else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
-            else if (GAME_CONFIG.TERRITORY_CONTOUR) activeMode = "contour";
-            else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
-                activeMode = "territory_engine";
-        }
-        return activeMode ?? "none";
+        return resolveThemeRenderMode(
+            GAME_CONFIG as unknown as Record<string, unknown>,
+        ) ?? "none";
     }
 
     // ── Canonical territory instances (class-encapsulated, no module-level state) ─

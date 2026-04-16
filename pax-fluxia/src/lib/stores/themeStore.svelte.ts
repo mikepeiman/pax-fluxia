@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
+import { normalizeThemeValues } from '$lib/config/themeRouting';
 import {
     type GameTheme,
     applyTheme as applyThemeToConfig,
@@ -88,9 +89,21 @@ let _userThemes = $state<GameTheme[]>(
 
 let _selectedThemeName = $state('');
 
+function normalizeTheme(theme: GameTheme): GameTheme {
+    return {
+        ...theme,
+        values: normalizeThemeValues(
+            theme.values as Record<string, number | string | boolean>,
+        ),
+    };
+}
+
 // ── Derived ─────────────────────────────────────────────────────────────────
 
-const allThemes = $derived([...getBuiltinGameThemes(), ..._userThemes]);
+const allThemes = $derived([
+    ...getBuiltinGameThemes(),
+    ..._userThemes.map(normalizeTheme),
+]);
 
 // ── Callbacks ───────────────────────────────────────────────────────────────
 
@@ -169,13 +182,14 @@ export const themeStore = {
         if (!theme.name || !theme.values || typeof theme.values !== 'object') {
             return false;
         }
-        persistTheme(theme);
-        if (_applyCallback) _applyCallback(theme.values as Record<string, number | string | boolean>);
-        else applyThemeToConfig(theme);
+        const normalizedTheme = normalizeTheme(theme);
+        persistTheme(normalizedTheme);
+        if (_applyCallback) _applyCallback(normalizedTheme.values as Record<string, number | string | boolean>);
+        else applyThemeToConfig(normalizedTheme);
         // Sync AudioManager after import too
         audioManager.syncFromConfig();
         _userThemes = loadThemes();
-        _selectedThemeName = theme.name;
+        _selectedThemeName = normalizedTheme.name;
         _syncCallback?.();
         return true;
     },
