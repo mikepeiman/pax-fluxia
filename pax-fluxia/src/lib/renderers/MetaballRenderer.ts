@@ -379,16 +379,29 @@ function combatActivityBucket(s: StarState, gameTick: number | undefined): numbe
     return 0;
 }
 
-function buildFingerprint(
-    stars: StarState[],
-    gameTick: number | undefined,
-    sceneFingerprint?: string,
-): string {
+export function buildMetaballCacheFingerprint(params: {
+    stars: StarState[];
+    gameTick: number | undefined;
+    sceneFingerprint?: string;
+    sceneInfluenceRadiusPx?: number;
+    sceneOwnershipMarginPx?: number;
+}): string {
+    const {
+        stars,
+        gameTick,
+        sceneFingerprint,
+        sceneInfluenceRadiusPx,
+        sceneOwnershipMarginPx,
+    } = params;
     let fp = '';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}:${shipInfluenceBucket(s)}:${combatActivityBucket(s, gameTick)}|`;
     }
-    fp += `${GAME_CONFIG.METABALL_INFLUENCE_RADIUS}:${GAME_CONFIG.METABALL_FALLOFF}`;
+    const effectiveInfluenceRadius =
+        sceneInfluenceRadiusPx ?? GAME_CONFIG.METABALL_INFLUENCE_RADIUS;
+    const effectiveOwnershipMargin =
+        sceneOwnershipMarginPx ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN;
+    fp += `${effectiveInfluenceRadius}:${GAME_CONFIG.METABALL_FALLOFF}`;
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
     fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
@@ -402,7 +415,7 @@ function buildFingerprint(
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS}:${GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
-    fp += `:msr${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
+    fp += `:msr${effectiveOwnershipMargin}`;
     fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
     fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
     if (sceneFingerprint) {
@@ -734,7 +747,13 @@ function renderMetaballImpl(
     if (!territoryGraphics || !borderGraphics) return;
 
     const fingerprint =
-        buildFingerprint(stars, gameTick, sceneInput?.fingerprint) +
+        buildMetaballCacheFingerprint({
+            stars,
+            gameTick,
+            sceneFingerprint: sceneInput?.fingerprint,
+            sceneInfluenceRadiusPx: sceneInput?.influenceRadiusPx,
+            sceneOwnershipMarginPx: sceneInput?.ownershipMarginPx,
+        }) +
         `:${worldWidth}:${worldHeight}` +
         `:colors:${buildColorFingerprint(stars, colorUtils)}`;
     if (fingerprint === cachedFingerprint) {

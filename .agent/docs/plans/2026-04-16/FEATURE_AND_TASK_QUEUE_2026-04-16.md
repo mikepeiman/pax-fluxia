@@ -17,18 +17,26 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Clean up imported and user-theme names so they resolve to a semantic label plus date, using source filenames when available and generated render-family names as fallback.
 - [x] Add naming coverage in `pax-fluxia/src/lib/config/themeNames.test.ts`.
 - [x] Write the required post-mortem at `.agent/docs/project/post-mortems/2026-04-16-theme-import-regression.md`.
+- [x] Trace the branch screenshot mismatch far enough to prove the attached images are not the same runtime state: different theme selection, different theme counts, different tick values, different commander totals, and different map topology.
+- [x] Verify that `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` matches the `codex/perimeter-field-audit-20260414` worktree live settings exactly, while `master` differs only on `CONQUEST_TRAVEL_SPEED`.
+- [x] Prove the `MetaballRenderer` perf rewrite is not the primary semantic break by reproducing old/new owner-grid equivalence on synthetic scenes.
+- [x] Fix a real shared-renderer cache bug: scene-driven `influenceRadiusPx` / `ownershipMarginPx` were omitted from the metaball/perimeter cache fingerprint, allowing stale field reuse across theme changes inside the same render family.
+- [x] Add focused regression coverage in `pax-fluxia/src/lib/renderers/MetaballRenderer.test.ts`.
 
 ## In Progress
 
 - [ ] User verification that older legacy themes now switch into their expected render families in the live app.
 - [ ] User verification that explicit-mode themes like `pax-theme-apr_15_metaball-2026-04-16T16-40-14.json` still reproduce as expected.
-- [ ] Diagnose why the same saved settings render differently across branches for the perimeter/metaball path, using `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` and the user-provided branch screenshots as ground truth.
+- [ ] User verification of the renderer-cache fix using perimeter-field themes that differ mainly by influence radius / ownership-margin-adjacent behavior.
 
 ## Notes
 
 - The imported pack from `C:\Users\mikep\Downloads\Pax Themes` was not actually committed into `pax-fluxia/src/lib/config/builtin-themes/`; the live bug here is theme application semantics, not missing JSON files in the repo.
 - The fix is intentionally small: make legacy themes self-contained at load/import/apply time instead of depending on ambient `GAME_CONFIG` state.
-- Verification run completed: `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
+- The user-provided branch screenshots are not a clean render A/B. The current evidence says they differ primarily because `localhost:1420` and `localhost:1422` are different browser origins with different localStorage-backed theme/session state, and the visible game sessions themselves are different.
+- Verification runs completed:
+  - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
+  - `bun x vitest run src/lib/renderers/MetaballRenderer.test.ts src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
 
 ## Lossless User Instruction Log
 
