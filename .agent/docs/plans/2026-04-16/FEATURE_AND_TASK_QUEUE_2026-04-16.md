@@ -33,6 +33,10 @@ Diagnose why imported and saved themes were not activating the expected territor
 - [x] Prove the remaining geometry divergence path is stale paused-render state, not different owner assignment: `GameCanvas.svelte` was using a hand-built `territoryConfigFp` that omitted geometry-driving keys like `FRONTIER_RESOLUTION`, `CHAIKIN_BOUNDARY_PAD`, `CHAIKIN_BOUNDARY_EPS`, `PERIMETER_FIELD_GEOMETRY_SOURCE`, `TERRITORY_FILL_MODE`, `TERRITORY_FILL_TRANSITION_MODE`, `TERRITORY_BORDER_TRANSITION_MODE`, and `TERRITORY_STYLE_MODE`.
 - [x] Replace the narrow paused-render fingerprint with `pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.ts` and add focused coverage in `pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.test.ts`.
 - [x] Write a separate post-mortem for the conversational/diagnostic failure: repeatedly contradicting controlled user feedback, reusing dead hypotheses, and continuing to misframe the defect after explicit correction.
+- [x] Trace the cyan perimeter debug chords in metaball perimeter-field mode back to the actual geometry source and confirm they are upstream of metaball sampling, not a downstream field-only artifact.
+- [x] Identify the structural geometry bug in `constructFillsFromFrontierChain()`: partial-open chain-walk output was still being promoted into `MergedTerritory` fill polygons and then implicitly closed later, creating bogus long closure chords.
+- [x] Patch `constructFillsFromFrontierChain()` to drop clearly open loops and only repair small near-closure gaps within the existing tolerance, then add focused regression coverage in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts`.
+- [x] Correct the adapted power-voronoi diagnostics in `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts` so `closureReliable` reflects actual loop closure instead of always claiming success.
 
 ## In Progress
 
@@ -49,6 +53,8 @@ Diagnose why imported and saved themes were not activating the expected territor
 - The two user-provided live settings files differ only on runtime map metadata and a visual-epoch counter. The theme file `pax-theme-apr_16_metaball_tweak-2026-04-16T18-11-44.json` does not contain `_MAP_*` fields at all, so those values cannot be reconciled through theme import/export.
 - Earlier queue notes incorrectly blamed commander/ownership drift for the geometry mismatch. The user was right to reject that. The confirmed geometry divergence is stale render state: the rendering branch can update `GAME_CONFIG` and visible controls while a paused perimeter-field frame still reuses old geometry because the invalidation fingerprint missed several geometry-driving keys.
 - The cross-branch visual mismatch is the combination of two issues: the rendering branch is missing the theme-apply side effects now present on `master`, and the paused `GameCanvas` invalidation path was too narrow to force a re-render when imported themes changed omitted geometry keys.
+- The screenshot-annotated cyan lines were a real geometry defect. In metaball perimeter-field mode, the cyan overlay comes from `debugSnapshot.displayGeometry`, which is the canonical geometry fed into perimeter-field sampling. The metaball field did not invent those chords; it inherited them from permissive fill reconstruction upstream.
+- The root cause was in `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`: `constructFillsFromFrontierChain()` flattened chain-walk output into fill polygons even when `loop.closed === false`. Those partial-open chains then got implicitly closed later by polygon consumers/debug drawing, producing the erroneous long straight segments visible in the screenshot.
 - A separate process failure also occurred in-thread: after the user controlled for storage, theme, topology, ownership, and timing, I still reused earlier screenshot-origin arguments and territory-render-mode framing. That is now documented in `.agent/docs/project/post-mortems/2026-04-16-user-feedback-contradiction-and-misframing.md`.
 - Verification runs completed:
   - `bun x vitest run src/lib/config/themeRouting.test.ts src/lib/components/ui/settingsDefs.test.ts`
@@ -56,6 +62,7 @@ Diagnose why imported and saved themes were not activating the expected territor
   - `bun x vitest run src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts src/lib/config/themeNames.test.ts`
   - `bun x tsc --noEmit`
   - `bun x vitest run src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
+  - `bun x vitest run src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts src/lib/territory/buildTerritoryConfigFingerprint.test.ts src/lib/config/themes.test.ts src/lib/config/themeRouting.test.ts`
 
 ## Lossless User Instruction Log
 

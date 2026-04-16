@@ -79,6 +79,8 @@ export interface SharedPolyline {
     color: number;   // renderer fills this in; 0 from stage
 }
 
+const LOOP_CLOSURE_TOLERANCE_PX = 6;
+
 // ---------------------------------------------------------------------------
 // Output type
 // ---------------------------------------------------------------------------
@@ -571,16 +573,47 @@ export function constructFillsFromFrontierChain(
 
     // Flatten each walk loop into a MergedTerritory
     const result: MergedTerritory[] = [];
+    let droppedOpenLoopCount = 0;
+    let repairedNearClosedLoopCount = 0;
     for (const loop of walkResult.loops) {
         const chain = flattenLoopPoints(loop);
-        if (chain.length >= 3) {
-            result.push({
-                points: chain,
-                ownerId: loop.ownerId,
-                color: 0,
-                starIds: [],
-            });
+        if (chain.length < 3) continue;
+
+        const first = chain[0];
+        const last = chain[chain.length - 1];
+        const dx = Math.abs(first[0] - last[0]);
+        const dy = Math.abs(first[1] - last[1]);
+        const nearClosed =
+            dx <= LOOP_CLOSURE_TOLERANCE_PX &&
+            dy <= LOOP_CLOSURE_TOLERANCE_PX;
+
+        if (!loop.closed && !nearClosed) {
+            droppedOpenLoopCount += 1;
+            continue;
         }
+
+        const points =
+            loop.closed || (dx < 0.01 && dy < 0.01)
+                ? chain
+                : [...chain, [first[0], first[1]] as [number, number]];
+
+        if (!loop.closed && nearClosed) {
+            repairedNearClosedLoopCount += 1;
+        }
+
+        result.push({
+            points,
+            ownerId: loop.ownerId,
+            color: 0,
+            starIds: [],
+        });
+    }
+
+    if (droppedOpenLoopCount > 0 || repairedNearClosedLoopCount > 0) {
+        log.renderer(
+            'PVV2Stage',
+            `CHAIN WALK FILTER | droppedOpen=${droppedOpenLoopCount} repairedNearClosed=${repairedNearClosedLoopCount} kept=${result.length}`,
+        );
     }
 
     // Populate starIds from cells using graph ownership (not geometric approximation).

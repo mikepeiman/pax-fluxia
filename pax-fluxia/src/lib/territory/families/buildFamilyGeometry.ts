@@ -156,6 +156,15 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         classification: 'outer',
         confidence: shell.confidence,
     }));
+    const closureReliable = territoryRegions.every((region) => {
+        if (region.points.length < 3) return false;
+        const first = region.points[0];
+        const last = region.points[region.points.length - 1];
+        return (
+            Math.abs(first[0] - last[0]) <= 6 &&
+            Math.abs(first[1] - last[1]) <= 6
+        );
+    });
 
     return {
         version: `${params.geometry.fingerprint}:pfield`,
@@ -191,8 +200,13 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         diagnostics: {
             topologyReliable: false,
             identityReliable: false,
-            closureReliable: true,
-            notes: ['Perimeter-field base geometry synthesized from Power-Voronoi render-layer geometry'],
+            closureReliable,
+            notes: [
+                'Perimeter-field base geometry synthesized from Power-Voronoi render-layer geometry',
+                closureReliable
+                    ? 'All adapted territory loops satisfied closure tolerance'
+                    : 'At least one adapted territory loop failed closure tolerance',
+            ],
         },
     };
 }

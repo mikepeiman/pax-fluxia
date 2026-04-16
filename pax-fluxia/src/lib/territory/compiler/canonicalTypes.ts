@@ -94,9 +94,10 @@ export interface CanonicalEdge {
  * - `partial-open`: chain walk did not close — emitted as best-effort
  * - `degraded-repaired`: loop required gap repair or tolerance fix
  *
- * Legacy `constructFillsFromFrontierChain` emits partial-open loops as
- * valid MergedTerritory (permissive). Canonical consumers should check
- * this status before trusting loop integrity.
+ * Chain-walk diagnostics may still report partial-open loops even though fill
+ * reconstruction now drops clearly open chains and only repairs small
+ * near-closure gaps. Canonical consumers should still check this status before
+ * trusting loop integrity.
  */
 export type CanonicalLoopValidity =
     | 'valid-closed'
