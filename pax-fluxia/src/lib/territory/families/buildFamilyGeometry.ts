@@ -76,6 +76,34 @@ function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
     return area * 0.5;
 }
 
+/**
+ * A site ID is "virtual" when it names a contributing virtual site used by the
+ * power-voronoi generator rather than a real gameplay star. Current generator
+ * prefixes are `corridor_` (CX/lane-pair ghosts) and `disconnect_` (DX midpoint
+ * ghosts). See powerVoronoiTerritoryGeometryGenerator.ts L850–874.
+ *
+ * Consumers that need only gameplay star identity should read `anchorStarIds`;
+ * consumers that need geometric contributor identity should read
+ * `contributingSiteIds`.
+ */
+function isVirtualSiteId(id: string): boolean {
+    return id.startsWith('corridor_') || id.startsWith('disconnect_');
+}
+
+/**
+ * Deterministic region ID derived from the set of real anchor stars forming
+ * the region. Two snapshots with the same gameplay anchor membership produce
+ * the same region ID regardless of enumeration order. Falls back to a
+ * contributor-included identity when no real stars are present (e.g. a
+ * geometry region composed entirely of disconnect ghosts — extreme edge).
+ */
+function deriveStableRegionId(ownerId: string, starIds: ReadonlyArray<string>): string {
+    const anchors = starIds.filter((id) => !isVirtualSiteId(id));
+    const identity = anchors.length > 0 ? anchors : [...starIds];
+    const sortedKey = [...identity].sort().join('+');
+    return `region:${ownerId}:${sortedKey}`;
+}
+
 function buildSharedFrontierMapFromPolylines(
     polylines: ReadonlyArray<CanonicalFrontierPolyline>,
 ): SharedFrontierMap {
@@ -99,13 +127,20 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
     worldHeight: number;
 }): CanonicalGeometrySnapshot {
     const territoryRegions: TerritoryRegionShape[] = params.geometry.mergedTerritories.map(
-        (territory, index) => ({
-            regionId: `pfield-region:${territory.ownerId}:${index}`,
-            ownerId: territory.ownerId,
-            starIds: [...territory.starIds],
-            points: territory.points,
-            confidence: 1,
-        }),
+        (territory) => {
+            const starIds = [...territory.starIds];
+            const anchorStarIds = starIds.filter((id) => !isVirtualSiteId(id));
+            const contributingSiteIds = starIds.filter(isVirtualSiteId);
+            return {
+                regionId: deriveStableRegionId(territory.ownerId, starIds),
+                ownerId: territory.ownerId,
+                starIds,
+                anchorStarIds,
+                contributingSiteIds,
+                points: territory.points,
+                confidence: 1,
+            } satisfies TerritoryRegionShape;
+        },
     );
 
     const frontierPolylines: CanonicalFrontierPolyline[] =
@@ -132,18 +167,26 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         }));
 
     const shells: CanonicalShell[] = params.geometry.mergedTerritories.map(
-        (territory, index) => {
+        (territory) => {
             const area = computePolygonArea(territory.points);
+            const starIds = [...territory.starIds];
+            const anchorStarIds = starIds.filter((id) => !isVirtualSiteId(id));
+            const contributingSiteIds = starIds.filter(isVirtualSiteId);
+            const stableKey = [...(anchorStarIds.length ? anchorStarIds : starIds)]
+                .sort()
+                .join('+');
             return {
-                shellId: `pfield-shell:${territory.ownerId}:${index}`,
+                shellId: `shell:${territory.ownerId}:${stableKey}`,
                 ownerId: territory.ownerId,
-                starIds: [...territory.starIds],
+                starIds,
+                anchorStarIds,
+                contributingSiteIds,
                 points: territory.points,
                 area,
                 absArea: Math.abs(area),
                 confidence: 1,
                 holeLoopIds: [],
-            };
+            } satisfies CanonicalShell;
         },
     );
 
@@ -152,6 +195,8 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         shellId: shell.shellId,
         ownerId: shell.ownerId,
         starIds: [...(shell.starIds ?? [])],
+        anchorStarIds: [...(shell.anchorStarIds ?? [])],
+        contributingSiteIds: [...(shell.contributingSiteIds ?? [])],
         points: shell.points,
         classification: 'outer',
         confidence: shell.confidence,
