@@ -1088,6 +1088,12 @@ describe('buildPerimeterFieldScene', () => {
         expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
             sampleSignature(nextScene.sceneInput.samples),
         );
+        expect(sampleSignature(frame0Scene.debug.renderedSamples)).toEqual(
+            sampleSignature(frame0Scene.sceneInput.samples),
+        );
+        expect(sampleSignature(frame1Scene.debug.renderedSamples)).toEqual(
+            sampleSignature(frame1Scene.sceneInput.samples),
+        );
     });
 
     it('never emits legacy synthetic transition sample ids on the active path', () => {
@@ -1284,6 +1290,12 @@ describe('buildPerimeterFieldScene', () => {
         );
         expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
             sampleSignature(nextScene.sceneInput.samples),
+        );
+        expect(sampleSignature(frame0Scene.debug.renderedSamples)).toEqual(
+            sampleSignature(frame0Scene.sceneInput.samples),
+        );
+        expect(sampleSignature(frame1Scene.debug.renderedSamples)).toEqual(
+            sampleSignature(frame1Scene.sceneInput.samples),
         );
     });
 });

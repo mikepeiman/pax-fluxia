@@ -56,6 +56,7 @@ export interface PerimeterFieldDebugSnapshot {
     displayGeometry: CanonicalGeometrySnapshot;
     transitionTargetGeometry: CanonicalGeometrySnapshot | null;
     playerColors: ReadonlyArray<readonly [number, number, number]>;
+    renderedSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     staticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     targetStaticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     transitionSamples: ReadonlyArray<PerimeterFieldDebugSample>;
@@ -428,6 +429,7 @@ function buildPlanScene(params: {
                 displayGeometry: params.geometry,
                 transitionTargetGeometry: null,
                 playerColors: clusterScene.playerColors,
+                renderedSamples: staticSamples,
                 staticSamples,
                 targetStaticSamples: [],
                 transitionSamples: [],
@@ -625,6 +627,7 @@ function buildPlanScene(params: {
             displayGeometry: params.geometry,
             transitionTargetGeometry: plan.nextGeometry,
             playerColors: clusterScene.playerColors,
+            renderedSamples: samples,
             staticSamples,
             targetStaticSamples,
             transitionSamples,

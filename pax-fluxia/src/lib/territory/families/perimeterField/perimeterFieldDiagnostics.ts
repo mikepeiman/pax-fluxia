@@ -203,9 +203,9 @@ function resolveSnapshotRenderState(
 ): {
     primaryGeometry: CanonicalGeometrySnapshot;
     secondaryGeometry: CanonicalGeometrySnapshot | null;
-    staticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
-    targetStaticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
-    transitionSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    currentSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    referenceSamples: ReadonlyArray<PerimeterFieldDebugSample>;
+    vectorSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     showChangedSections: boolean;
 } {
     const plan = snapshot.transitionPlan ?? null;
@@ -214,7 +214,7 @@ function resolveSnapshotRenderState(
             return {
                 primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
                 secondaryGeometry: null,
-                staticSamples: plan
+                currentSamples: plan
                     ? plan.prevVSet.map((v) =>
                           buildDebugSampleFromV({
                               snapshot,
@@ -223,9 +223,9 @@ function resolveSnapshotRenderState(
                               label: v.id,
                           }),
                       )
-                    : snapshot.staticSamples,
-                targetStaticSamples: [],
-                transitionSamples: [],
+                    : snapshot.renderedSamples,
+                referenceSamples: [],
+                vectorSamples: [],
                 showChangedSections: false,
             };
         case 'next':
@@ -235,7 +235,7 @@ function resolveSnapshotRenderState(
                     snapshot.transitionTargetGeometry ??
                     snapshot.displayGeometry,
                 secondaryGeometry: null,
-                staticSamples: plan
+                currentSamples: plan
                     ? plan.nextVSet.map((v) =>
                           buildDebugSampleFromV({
                               snapshot,
@@ -244,11 +244,9 @@ function resolveSnapshotRenderState(
                               label: v.id,
                           }),
                       )
-                    : snapshot.targetStaticSamples.length > 0
-                      ? snapshot.targetStaticSamples
-                      : snapshot.staticSamples,
-                targetStaticSamples: [],
-                transitionSamples: [],
+                    : snapshot.renderedSamples,
+                referenceSamples: [],
+                vectorSamples: [],
                 showChangedSections: false,
             };
         case 'compare':
@@ -256,7 +254,7 @@ function resolveSnapshotRenderState(
                 primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
                 secondaryGeometry:
                     plan?.nextGeometry ?? snapshot.transitionTargetGeometry,
-                staticSamples: plan
+                currentSamples: plan
                     ? plan.prevVSet.map((v) =>
                           buildDebugSampleFromV({
                               snapshot,
@@ -265,8 +263,8 @@ function resolveSnapshotRenderState(
                               label: v.id,
                           }),
                       )
-                    : snapshot.staticSamples,
-                targetStaticSamples: plan
+                    : snapshot.renderedSamples,
+                referenceSamples: plan
                     ? plan.nextVSet.map((v) =>
                           buildDebugSampleFromV({
                               snapshot,
@@ -276,8 +274,9 @@ function resolveSnapshotRenderState(
                           }),
                       )
                     : snapshot.targetStaticSamples,
-                transitionSamples:
-                    snapshot.transitionSamples.length > 0
+                vectorSamples:
+                    snapshot.transitionSamples.length > 0 ||
+                    snapshot.transitionPlan == null
                         ? snapshot.transitionSamples
                         : buildPlanVectorSamples(snapshot),
                 showChangedSections: true,
@@ -287,10 +286,11 @@ function resolveSnapshotRenderState(
             return {
                 primaryGeometry: snapshot.displayGeometry,
                 secondaryGeometry: snapshot.transitionTargetGeometry,
-                staticSamples: snapshot.staticSamples,
-                targetStaticSamples: snapshot.targetStaticSamples,
-                transitionSamples:
-                    snapshot.transitionSamples.length > 0
+                currentSamples: snapshot.renderedSamples,
+                referenceSamples: [],
+                vectorSamples:
+                    snapshot.transitionSamples.length > 0 ||
+                    snapshot.transitionPlan == null
                         ? snapshot.transitionSamples
                         : buildPlanVectorSamples(snapshot),
                 showChangedSections: true,
@@ -616,22 +616,18 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     }
 
     if (args.showVstars ?? true) {
-        if (args.showVectors ?? true) {
-            drawPerimeterSampleTrajectories(ctx, renderState.transitionSamples);
+        if ((args.showVectors ?? true) && renderState.vectorSamples.length > 0) {
+            drawPerimeterSampleTrajectories(ctx, renderState.vectorSamples);
         }
-        drawSamplePoints(ctx, renderState.staticSamples, 0.95, 2.6);
+        drawSamplePoints(ctx, renderState.currentSamples, 0.95, 2.6);
         if (args.showIds ?? true) {
-            drawPerimeterSampleLabels(ctx, renderState.staticSamples);
+            drawPerimeterSampleLabels(ctx, renderState.currentSamples);
         }
-        if (renderState.targetStaticSamples.length > 0) {
-            drawSamplePoints(ctx, renderState.targetStaticSamples, 0.75, 2.3);
+        if (renderState.referenceSamples.length > 0) {
+            drawSamplePoints(ctx, renderState.referenceSamples, 0.75, 2.3);
             if (args.showIds ?? true) {
-                drawPerimeterSampleLabels(ctx, renderState.targetStaticSamples);
+                drawPerimeterSampleLabels(ctx, renderState.referenceSamples);
             }
-        }
-        drawSamplePoints(ctx, renderState.transitionSamples, 0.95, 3.2);
-        if (args.showIds ?? true) {
-            drawPerimeterSampleLabels(ctx, renderState.transitionSamples);
         }
     }
 
@@ -764,6 +760,7 @@ export function compactPerimeterFieldDebugSnapshot(
         displayGeometryVersion: snapshot.displayGeometry.version,
         transitionTargetGeometryVersion:
             snapshot.transitionTargetGeometry?.version ?? null,
+        renderedSamples: snapshot.renderedSamples.map(compactSample),
         staticSamples: snapshot.staticSamples.map(compactSample),
         targetStaticSamples: snapshot.targetStaticSamples.map(compactSample),
         transitionSamples: snapshot.transitionSamples.map(compactSample),

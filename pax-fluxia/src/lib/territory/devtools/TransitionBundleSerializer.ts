@@ -3,6 +3,7 @@ import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
 import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
+import type { PerimeterFieldSnapshotMode } from '../families/perimeterField/perimeterFieldDiagnostics';
 import {
     compactGeometrySnapshotForExport,
     compactFrontierTopologyForExport,
@@ -300,6 +301,7 @@ function selectPerimeterDiagnosticFrames(
 function renderPerimeterFieldExportCanvas(args: {
     baseCanvas: HTMLCanvasElement | null;
     snapshot: PerimeterFieldDebugSnapshot | null;
+    snapshotMode?: PerimeterFieldSnapshotMode;
 }): HTMLCanvasElement | null {
     if (!args.baseCanvas) return null;
     if (!args.snapshot) return args.baseCanvas;
@@ -308,6 +310,7 @@ function renderPerimeterFieldExportCanvas(args: {
         height: args.baseCanvas.height,
         snapshot: args.snapshot,
         baseCanvas: args.baseCanvas,
+        snapshotMode: args.snapshotMode,
         showGeometry: true,
         showVstars: true,
     });
@@ -521,6 +524,7 @@ export async function downloadBundle(
                     snapshot:
                         perimeterDiagnostics?.transitionFrames[i]?.fullSnapshot ??
                         null,
+                    snapshotMode: 'transition',
                 }) ?? canvas;
             const pctString = Math.round(progress * 100).toString().padStart(3, '0');
             triggerDownload(
@@ -645,6 +649,7 @@ export async function downloadDiagnosticPackage(
             renderPerimeterFieldExportCanvas({
                 baseCanvas: bundle.prevCanvas,
                 snapshot: perimeterDiagnostics?.previousFrame.fullSnapshot ?? null,
+                snapshotMode: 'prev',
             }) ?? bundle.prevCanvas;
         await addCanvasToZip(zip, 'render/prev.png', prevCanvas);
     }
@@ -659,6 +664,7 @@ export async function downloadDiagnosticPackage(
             renderPerimeterFieldExportCanvas({
                 baseCanvas: source.canvas,
                 snapshot: overlaySnapshot,
+                snapshotMode: 'transition',
             }) ?? source.canvas;
         await addCanvasToZip(zip, `render/${frame.filename}`, frameCanvas);
     }
@@ -668,6 +674,7 @@ export async function downloadDiagnosticPackage(
             renderPerimeterFieldExportCanvas({
                 baseCanvas: bundle.nextCanvas,
                 snapshot: perimeterDiagnostics?.nextFrame.fullSnapshot ?? null,
+                snapshotMode: 'next',
             }) ?? bundle.nextCanvas;
         await addCanvasToZip(zip, 'render/next.png', nextCanvas);
     }

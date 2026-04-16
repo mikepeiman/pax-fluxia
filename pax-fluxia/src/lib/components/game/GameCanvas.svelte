@@ -423,6 +423,9 @@
             displayGeometry: snapshot.displayGeometry,
             transitionTargetGeometry: snapshot.transitionTargetGeometry,
             playerColors: snapshot.playerColors.map((entry) => [...entry] as const),
+            renderedSamples: snapshot.renderedSamples.map((sample) => ({
+                ...sample,
+            })),
             staticSamples: snapshot.staticSamples.map((sample) => ({ ...sample })),
             targetStaticSamples: snapshot.targetStaticSamples.map((sample) => ({
                 ...sample,
@@ -3725,11 +3728,6 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
-                        const captureTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                            );
                         const lanes = activeGameStore
                             .connections as StarConnection[];
                         const activeOwnership =
@@ -3770,7 +3768,7 @@
                         syncPerimeterFieldDiagnosticCapture({
                             family: pf,
                             input: pfInput,
-                            activeTransition: captureTransition,
+                            activeTransition,
                             stars,
                             nowMs: fxOrchestrator.gameTime,
                         });
