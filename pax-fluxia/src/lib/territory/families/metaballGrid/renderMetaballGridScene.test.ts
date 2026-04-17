@@ -131,7 +131,7 @@ function mixedFixture() {
 }
 
 describe('renderMetaballGridScene', () => {
-    it('emits exactly one cell per native vstar at NEXT color, alpha 1', () => {
+    it('does NOT emit native cells — they are covered by the ownership-geometry underlayer (perf + anti-moat)', () => {
         const { classification, plan } = mixedFixture();
         const scene = renderMetaballGridScene({
             classification,
@@ -143,14 +143,14 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
-        // Left column cells stay native A. Gather them.
         const nativeIds = new Set(classification.byRole.native);
         const nativeCells = scene.cells.filter((c) => nativeIds.has(c.vId));
-        expect(nativeCells.length).toBe(nativeIds.size);
-        for (const c of nativeCells) {
-            expect(c.alpha).toBe(1);
-            expect(c.colorIdx).toBe(OWNER_COLORS.get('A'));
-            expect(c.pass).toBe('single');
+        expect(nativeCells.length).toBe(0);
+        // And: every emitted cell is from an active role (not native, not outside).
+        const outsideIds = new Set(classification.byRole.outside);
+        for (const c of scene.cells) {
+            expect(nativeIds.has(c.vId)).toBe(false);
+            expect(outsideIds.has(c.vId)).toBe(false);
         }
     });
 
@@ -353,10 +353,10 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
-    it('native invariance: native cells do not change across progress values', () => {
+    it('native cells never appear in emitted scene cells at any progress value', () => {
         const { classification, plan } = mixedFixture();
-        const nativeIds = classification.byRole.native;
-        if (nativeIds.length === 0) return;
+        const nativeIds = new Set(classification.byRole.native);
+        if (nativeIds.size === 0) return;
         const snapshots = [0, 0.25, 0.5, 0.75, 1].map((p) =>
             renderMetaballGridScene({
                 classification,
@@ -369,14 +369,9 @@ describe('renderMetaballGridScene', () => {
                 ownerColorIdx: OWNER_COLORS,
             }),
         );
-        for (const nid of nativeIds) {
-            const perSnapshot = snapshots.map((s) => {
-                const c = s.cells.find((cc) => cc.vId === nid)!;
-                return { color: c.colorIdx, alpha: c.alpha, strength: c.strength, pass: c.pass };
-            });
-            // All snapshots should be identical for natives.
-            for (let i = 1; i < perSnapshot.length; i++) {
-                expect(perSnapshot[i]).toEqual(perSnapshot[0]);
+        for (const snap of snapshots) {
+            for (const c of snap.cells) {
+                expect(nativeIds.has(c.vId)).toBe(false);
             }
         }
     });

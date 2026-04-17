@@ -240,50 +240,6 @@ export class MetaballGridFamily implements RenderFamily {
         return { transitionKey, classification, wavePlan, prevGeometry };
     }
 
-    /**
-     * Build a steady-state plan (no active transition): prev === next, so the
-     * classification yields natives everywhere and the wave plan is empty.
-     */
-    private buildSteadyStatePlan(params: {
-        input: RenderFamilyInput;
-        currentGeometry: CanonicalGeometrySnapshot;
-    }): CachedPlan {
-        const { input, currentGeometry } = params;
-
-        const spacingPx = Math.max(
-            2,
-            readTunableNumber(input, 'METABALL_GRID_SPACING_PX', GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24),
-        );
-        const originMode = readTunableString<GridOriginMode>(
-            input,
-            'METABALL_GRID_ORIGIN_MODE',
-            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
-            ['centered', 'corner'],
-        );
-
-        const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
-            spacingPx,
-            originMode,
-            prevGeometry: currentGeometry,
-            nextGeometry: currentGeometry,
-            conquestEvents: [],
-        });
-        const wavePlan = planGridWave({
-            classification,
-            seeding: 'winner_natives',
-            geometry: 'grid_bfs',
-            adjacency: '8',
-            conquestEvents: [],
-        });
-        return {
-            transitionKey: 'steady',
-            classification,
-            wavePlan,
-            prevGeometry: currentGeometry,
-        };
-    }
-
     update(input: RenderFamilyInput): RenderFamilyOutput {
         const nextSessionKey = buildSessionKey(input);
         if (this.sessionKey !== nextSessionKey) {
@@ -300,23 +256,41 @@ export class MetaballGridFamily implements RenderFamily {
 
         const transitionKey = buildTransitionKey(input);
 
-        // Rebuild the plan only when (transitionKey, session) changes. Per-frame
-        // work is scoped to the scene builder.
-        if (transitionKey) {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
-                this.cachedPlan = this.buildPlanForTransition({
-                    input,
-                    currentGeometry,
-                    transitionKey,
-                });
+        // PERF: between transitions, the grid layer contributes nothing —
+        // native cells are covered by the ownership-geometry underlayer. Skip
+        // classification/plan construction entirely and push an empty sample
+        // set. This cuts the common-case cost of metaball-grid to ~0.
+        if (!transitionKey) {
+            if (this.cachedPlan !== null) {
+                this.cachedPlan = null;
             }
-        } else {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== 'steady') {
-                this.cachedPlan = this.buildSteadyStatePlan({
-                    input,
-                    currentGeometry,
-                });
-            }
+            const baseCtxIdle = buildMetaballBaseContext(input, this.colorUtils, new Map());
+            const idleSceneInput: MetaballSceneInput = {
+                ownedStars: baseCtxIdle.ownedStars,
+                clusterMap: baseCtxIdle.clusterMap,
+                playerColors: baseCtxIdle.playerColors,
+                clusterShips: baseCtxIdle.clusterShips,
+                samples: [],
+                fingerprint: `mg:idle:${input.stars.length}`,
+            };
+            renderMetaball(
+                [...input.stars],
+                this.root,
+                this.colorUtils,
+                input.world.width,
+                input.world.height,
+                [...input.lanes],
+                { gameTick: input.gameTick, sceneInput: idleSceneInput },
+            );
+            return { container: this.root };
+        }
+
+        if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
+            this.cachedPlan = this.buildPlanForTransition({
+                input,
+                currentGeometry,
+                transitionKey,
+            });
         }
 
         const cached = this.cachedPlan;
