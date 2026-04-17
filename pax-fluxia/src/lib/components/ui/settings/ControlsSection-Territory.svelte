@@ -21,6 +21,7 @@
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
+  import MetaballGridTuning from "./MetaballGridTuning.svelte";
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -79,6 +80,7 @@
     | "none"
     | "metaball"
     | "perimeter-field"
+    | "metaball-grid"
     | "topology"
     | "border-transition"
     | "surface";
@@ -473,6 +475,14 @@
         id: "perimeter-field",
         label: "Perimeter",
         icon: "◎",
+      });
+    }
+
+    if (resolveActiveStyleId() === "metaball_grid") {
+      modules.unshift({
+        id: "metaball-grid",
+        label: "Grid",
+        icon: "▦",
       });
     }
 
@@ -2127,6 +2137,62 @@
     <TerritorySlaWidget
       title="Territory border (width + SLA)"
       help="Perimeter Field borders are rendered through the shared territory border surface. Use this for basic border width, saturation, lightness, and alpha."
+      {panel}
+      onUpdate={debouncedConfigUpdate}
+      configWidth="METABALL_BORDER_WIDTH"
+      panelWidth="metaballBorderWidth"
+      defaultWidth={3}
+      widthMin={0.5}
+      widthMax={12}
+      widthStep={0.5}
+      configSat="METABALL_BORDER_SATURATION"
+      panelSat="metaballBorderSaturation"
+      defaultSat={1}
+      configLight="METABALL_BORDER_LIGHTNESS"
+      panelLight="metaballBorderLightness"
+      defaultLight={1}
+      configAlpha="METABALL_BORDER_ALPHA"
+      panelAlpha="metaballBorderAlpha"
+      defaultAlpha={1} />
+  </div>
+{/if}
+
+{#if showRendererModule("metaball-grid") && resolveActiveStyleId() === "metaball_grid"}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Metaball Grid (Experimental)</h4>
+      <p class="territory-card__intro">
+        Ownership-geometry underlayer plus a world-anchored grid of
+        metaball cells. Conquest transitions flip cells cell-by-cell in a
+        wave seeded from the winner's footprint.
+      </p>
+    </div>
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+      Two-layer family: ownership geometry stays truth; the visible grid
+      layer is re-composited per frame as the wave crosses each cell's
+      flipTime.
+    </div>
+    <MetaballGridTuning {panel} {updatePanel} />
+    <TerritorySlaWidget
+      title="Territory fill (SLA)"
+      help="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, and alpha here."
+      {panel}
+      onUpdate={debouncedConfigUpdate}
+      configSat="METABALL_SATURATION"
+      panelSat="metaballSaturation"
+      defaultSat={1.05}
+      configLight="METABALL_LIGHTNESS"
+      panelLight="metaballLightness"
+      defaultLight={0.65}
+      configAlpha="METABALL_ALPHA"
+      panelAlpha="metaballAlpha"
+      defaultAlpha={0.5} />
+
+    <TerritorySlaWidget
+      title="Territory border (width + SLA)"
+      help="Metaball Grid borders are rendered through the shared territory border surface. Use this for basic border width, saturation, lightness, and alpha."
       {panel}
       onUpdate={debouncedConfigUpdate}
       configWidth="METABALL_BORDER_WIDTH"
