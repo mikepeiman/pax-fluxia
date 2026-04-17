@@ -8,6 +8,11 @@ const EXEMPT_FROM_FAMILY_GATE = new Set<string>([
     'none',
     'territory_canonical',
     'perimeter_field',
+    // metaball_grid requires its family adapter (no legacy fallback), and the
+    // adapter registers itself on first dispatch. Exempting it from the gate
+    // avoids the chicken-and-egg where the mode would be non-selectable until
+    // it had already been selected at least once.
+    'metaball_grid',
 ]);
 
 export interface TerritoryRenderModeDefinition {
@@ -72,6 +77,13 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         legacyDispatch: true,
     },
     { id: 'metaball', label: 'Metaball', shortDescription: 'CPU influence field', legacyDispatch: true },
+    {
+        id: 'metaball_grid',
+        label: 'Metaball grid',
+        shortDescription:
+            'Ownership geometry underlayer + world-anchored grid of metaball cells; conquest waves flip cells cell-by-cell',
+        legacyDispatch: true,
+    },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },
     { id: 'graph', label: 'Lane graph', shortDescription: 'Graph/lane influence', legacyDispatch: true },
     { id: 'contour', label: 'Contour', shortDescription: 'Marching squares worker', legacyDispatch: true },

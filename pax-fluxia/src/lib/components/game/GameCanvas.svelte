@@ -109,6 +109,7 @@
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
+    import { MetaballGridFamily, createMetaballGridFamily } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
     import {
@@ -2498,6 +2499,50 @@
                             container: voronoiContainer,
                             liveRoot: pf.displayRoot,
                         });
+                        break;
+                    }
+                    case "metaball_grid": {
+                        let fam = getRenderFamily("metaball_grid");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballGridFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("metaball_grid")!;
+                        }
+                        const mg = fam as MetaballGridFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        const lanes = activeGameStore
+                            .connections as StarConnection[];
+                        const mgInput = buildRenderFamilyInput({
+                            stars,
+                            lanes,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            nowMs: fxOrchestrator.gameTime,
+                            paused: isPausedNow,
+                            gameTick: activeGameStore.currentTick,
+                            ownership: buildRenderFamilyOwnershipSnapshot(
+                                stars,
+                                activeTransition,
+                            ),
+                            geometry: getCurrentRenderFamilyGeometry(
+                                stars,
+                                lanes,
+                            ),
+                            renderer: app?.renderer ?? undefined,
+                            activeTransition,
+                            tunableKeys: mg.tunableKeys,
+                        });
+                        mg.update(mgInput);
+                        if (mg.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(mg.displayRoot);
+                        }
+                        mg.displayRoot.visible = true;
                         break;
                     }
                     case "pixel":
