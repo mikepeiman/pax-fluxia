@@ -26,3 +26,4 @@ Unify territory and transition diagnostics into one actual user-facing diagnosti
 - Added a post-mortem at `.agent/docs/project/post-mortems/2026-04-17-diagnostics-scope-regression.md`.
 - Added an explicit perimeter-field conquest capture toggle, capture-history clear action, and replay-slot status so conquest package export no longer depends on an implicit capture path.
 - Extended the conquest package to emit onion-skin and strobe summary images when those diagnostics are enabled.
+- Promoted the perimeter-field conquest recorder control to the top of the floating diagnostics panel, renamed it to `Record Conquest`, and removed the buried duplicate from the lower diagnostics module so the capture path is no longer hidden under the legacy recorder sections.

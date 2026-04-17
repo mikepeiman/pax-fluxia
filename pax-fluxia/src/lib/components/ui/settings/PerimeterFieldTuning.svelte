@@ -21,6 +21,7 @@
         updatePanel: (key: string, value: any) => void;
         showDiagnosticsSection?: boolean;
         visibleModules?: PerimeterFieldVisibleModuleId[];
+        showCaptureControls?: boolean;
     }
 
     let {
@@ -28,6 +29,7 @@
         updatePanel,
         showDiagnosticsSection = true,
         visibleModules = [],
+        showCaptureControls = true,
     }: Props = $props();
 
     const CORE_PERIMETER_FIELD_MODULES = [
@@ -845,6 +847,7 @@
 <div class="module-block">
 <div class="sub-heading">Diagnostics</div>
 
+{#if showCaptureControls}
 <label class="toggle-row">
     <input
         type="checkbox"
@@ -858,7 +861,7 @@
         class="var-name"
         title="Record each perimeter-field conquest into the live capture slot and rolling replay history so scrub and package export have data."
     >
-        Capture Conquest Diagnostics
+        Record Conquest
     </span>
     <span class="val">
         {(panel.perimeterFieldDebugCaptureEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false)
@@ -867,7 +870,7 @@
     </span>
 </label>
 <div class="var-desc">
-    This is the perimeter-field package capture toggle. Turn it on before a conquest if you want replay slots, scrub, `Export Conquest Package`, and `Export Contact Sheet` to have data. It is separate from the legacy transition recorder shown higher in the Diagnostics panel.
+    Turn this on before a conquest if you want replay slots, scrub, `Export Conquest Package`, and `Export Contact Sheet` to have data. It is separate from the legacy transition recorder shown higher in the Diagnostics panel.
 </div>
 
 <div class="diag-action-row">
@@ -883,6 +886,7 @@
     Capture status: live {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.liveFrameCount)} · replay 1 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[0])} · replay 2 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[1])} · replay 3 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[2])}
 </div>
 
+{/if}
 <label class="toggle-row">
     <input
         type="checkbox"
