@@ -162,6 +162,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     const dispossessedByEventId: Record<string, string[]> = {};
 
     const vstars: GridVStar[] = new Array(cols * rows);
+    const activeVstars: GridVStar[] = [];
 
     for (let iy = 0; iy < rows; iy++) {
         for (let ix = 0; ix < cols; ix++) {
@@ -192,6 +193,9 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
             };
             vstars[iy * cols + ix] = vstar;
             roleBins[role].push(id);
+            if (role !== 'native' && role !== 'outside') {
+                activeVstars.push(vstar);
+            }
         }
     }
 
@@ -201,6 +205,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         spacingPx,
         originMode,
         vstars,
+        activeVstars,
         byRole: {
             native: roleBins.native,
             dispossessed: roleBins.dispossessed,

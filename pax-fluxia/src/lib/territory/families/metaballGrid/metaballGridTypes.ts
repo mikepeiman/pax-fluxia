@@ -105,6 +105,14 @@ export interface GridClassification {
     readonly originMode: GridOriginMode;
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
+    /**
+     * PERF-hot path: vstars whose role can contribute to the metaball field
+     * during a transition (dispossessed + emergent + vacating). Natives and
+     * outside cells are excluded. The per-frame scene builder iterates this
+     * array instead of all `vstars`, cutting work from O(cols*rows) to
+     * O(|activeCells|) — typically one or two orders of magnitude smaller.
+     */
+    readonly activeVstars: readonly GridVStar[];
     /** By-role bins, each carrying vstar ids (not positions) for fast iteration. */
     readonly byRole: Readonly<Record<GridVRole, readonly string[]>>;
     /** `eventId → dispossessed vstar ids`, including the synthetic default bucket. */
@@ -204,7 +212,11 @@ export interface GridRenderCell {
 export interface GridMetaballScene {
     /** Scrub position this scene was built at, `∈ [0, 1]`. */
     readonly progress: number;
-    /** Emitted cells. Natives appear every frame; `outside` never appears. */
+    /**
+     * Emitted cells. Only active roles (dispossessed / emergent / vacating)
+     * are ever emitted — natives are covered by the ownership-geometry
+     * underlayer and outside cells are never emitted.
+     */
     readonly cells: readonly GridRenderCell[];
     /** Flip style the scene was built under. */
     readonly flipTransition: GridFlipTransition;
