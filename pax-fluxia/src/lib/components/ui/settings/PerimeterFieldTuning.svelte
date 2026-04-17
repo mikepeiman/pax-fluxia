@@ -162,6 +162,18 @@
         );
     }
 
+    function clearConquestCaptures(): void {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(
+            new CustomEvent('pax-clear-perimeter-field-captures'),
+        );
+    }
+
+    function formatReplayStatusLabel(frameCount: number): string {
+        if (frameCount <= 0) return 'empty';
+        return `${frameCount} frame${frameCount === 1 ? '' : 's'}`;
+    }
+
     $effect(() => {
         if (!showDiagnosticsSection && activeModule === 'diagnostics') {
             setActiveModule('all');
@@ -836,6 +848,44 @@
 <label class="toggle-row">
     <input
         type="checkbox"
+        checked={panel.perimeterFieldDebugCaptureEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            writeConfig('PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED', 'perimeterFieldDebugCaptureEnabled', value);
+        }}
+    />
+    <span
+        class="var-name"
+        title="Record each perimeter-field conquest into the live capture slot and rolling replay history so scrub and package export have data."
+    >
+        Capture Conquest Diagnostics
+    </span>
+    <span class="val">
+        {(panel.perimeterFieldDebugCaptureEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false)
+            ? 'On'
+            : 'Off'}
+    </span>
+</label>
+<div class="var-desc">
+    This is the perimeter-field package capture toggle. Turn it on before a conquest if you want replay slots, scrub, `Export Conquest Package`, and `Export Contact Sheet` to have data. It is separate from the legacy transition recorder shown higher in the Diagnostics panel.
+</div>
+
+<div class="diag-action-row">
+    <button
+        type="button"
+        class="module-all-toggle diag-action-btn"
+        onclick={clearConquestCaptures}
+    >
+        Clear Captured Conquests
+    </button>
+</div>
+<div class="var-desc">
+    Capture status: live {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.liveFrameCount)} · replay 1 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[0])} · replay 2 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[1])} · replay 3 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[2])}
+</div>
+
+<label class="toggle-row">
+    <input
+        type="checkbox"
         checked={panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false}
         onchange={(event) => {
             const value = (event.target as HTMLInputElement).checked;
@@ -887,7 +937,7 @@
     Downloads the exact displayed perimeter-field debug snapshot plus the recomputed `power_voronoi_0319` stage outputs and virtual-site inputs for deterministic comparison.
 </div>
 <div class="var-desc">
-    Conquest package exports every captured frame for the selected live/replay conquest, plus an all-arcs summary sheet.
+    Conquest package exports the selected live/replay conquest: prior frame, every captured transition frame, next frame when available, all-arcs summary, and optional onion-skin/strobe summary images when those diagnostics are enabled.
 </div>
 <div class="var-desc">
     Contact sheet export lays the entire conquest out in one glanceable board so you can read frame-to-frame motion without scrubbing.
@@ -935,9 +985,9 @@
             {/if}
         </span>
     </div>
-    <div class="var-desc">
-        Ghost past and future sample positions around the selected scrub frame. Use `3-5` to study local motion without flooding the screen.
-    </div>
+<div class="var-desc">
+    Live overlay: around the current scrubbed frame, draw ghosted past and future vstar positions on both sides of the selected frame. Package export: also writes `summary/onion_skin_selected.png` when this is above `0`.
+</div>
     <input
         type="range"
         min="0"
@@ -967,9 +1017,9 @@
             {/if}
         </span>
     </div>
-    <div class="var-desc">
-        Renders every Nth captured transition state simultaneously as a motion trail across the whole conquest. Lower values are denser and noisier.
-    </div>
+<div class="var-desc">
+    Live overlay: render every Nth captured transition state simultaneously as a motion trail across the conquest. Package export: also writes `summary/strobe_trail.png` when this is above `0`.
+</div>
     <input
         type="range"
         min="0"
@@ -1030,7 +1080,7 @@
     </span>
 </label>
     <div class="var-desc">
-    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. Turn it off for normal gameplay; pause alone will no longer switch views.
+    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. This preview consumes already-captured conquest frames; it does not itself guarantee capture.
     </div>
 
 <div class="var-row">

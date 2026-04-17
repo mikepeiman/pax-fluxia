@@ -384,6 +384,7 @@ interface GameConfigType {
     PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: boolean; // Show derived perimeter vstars and transition-local override points
+    PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: boolean; // Capture perimeter-field conquests into live/replay slots for package export and scrub
     PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: boolean; // When paused, override transition progress with the scrub slider
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
@@ -1282,6 +1283,7 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: false,
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: false,
+    PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: false,
     PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: false,
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,

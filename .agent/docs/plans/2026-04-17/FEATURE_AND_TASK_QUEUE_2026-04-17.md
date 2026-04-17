@@ -24,3 +24,5 @@ Unify territory and transition diagnostics into one actual user-facing diagnosti
 
 - Restricted the diagnostics panel to the diagnostics-only module from `PerimeterFieldTuning` after the first unification patch incorrectly exposed non-diagnostic source, field, and transition controls there.
 - Added a post-mortem at `.agent/docs/project/post-mortems/2026-04-17-diagnostics-scope-regression.md`.
+- Added an explicit perimeter-field conquest capture toggle, capture-history clear action, and replay-slot status so conquest package export no longer depends on an implicit capture path.
+- Extended the conquest package to emit onion-skin and strobe summary images when those diagnostics are enabled.

@@ -28,6 +28,9 @@ export interface PerimeterFieldConquestPackageParams {
     nextFrame?: PerimeterFieldPackageFrame | null;
     starPositions: ReadonlyMap<string, { x: number; y: number }>;
     arrowWidth: number;
+    selectedFrameIndex: number;
+    onionSkinCount: number;
+    strobeStride: number;
 }
 
 type ConquestOverlayEvent = TerritoryConquestEvent & {
@@ -155,6 +158,17 @@ function resolveSampleLabel(sample: PerimeterFieldDebugSample): string {
     return 'sample';
 }
 
+function getPackageSampleKey(sample: PerimeterFieldDebugSample): string {
+    return (
+        sample.id ??
+        [
+            sample.ownerId,
+            sample.sourceId ?? 'source',
+            sample.sampleIndex ?? 'sample',
+        ].join(':')
+    );
+}
+
 function drawLabel(
     ctx: CanvasRenderingContext2D,
     point: SamplePoint,
@@ -219,6 +233,25 @@ function drawConquestStars(
             ctx.stroke();
             ctx.restore();
         }
+    }
+}
+
+function drawGhostSamples(args: {
+    ctx: CanvasRenderingContext2D;
+    samples: ReadonlyArray<PerimeterFieldDebugSample>;
+    alpha: number;
+    radius: number;
+    mode: 'past' | 'future';
+}): void {
+    for (const sample of args.samples) {
+        const color = sample.ownerColor ?? 0xffffff;
+        drawMarker(
+            args.ctx,
+            { x: sample.x, y: sample.y },
+            color,
+            args.alpha + (args.mode === 'future' ? 0.03 : 0),
+            args.radius,
+        );
     }
 }
 
@@ -366,6 +399,143 @@ function renderArcSummaryCanvas(args: {
     return canvas;
 }
 
+function renderOnionSkinCanvas(args: {
+    frames: ReadonlyArray<{
+        canvas: HTMLCanvasElement;
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }>;
+    selectedIndex: number;
+    ghostCount: number;
+}): HTMLCanvasElement | null {
+    const ghostCount = Math.max(0, Math.round(args.ghostCount));
+    if (ghostCount <= 0 || args.frames.length === 0) return null;
+
+    const selectedIndex = Math.max(
+        0,
+        Math.min(args.frames.length - 1, Math.round(args.selectedIndex)),
+    );
+    const selectedFrame = args.frames[selectedIndex]!;
+    const canvas = document.createElement('canvas');
+    canvas.width = selectedFrame.canvas.width;
+    canvas.height = selectedFrame.canvas.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.drawImage(selectedFrame.canvas, 0, 0);
+
+    for (let offset = ghostCount; offset >= 1; offset--) {
+        const pastFrame = args.frames[selectedIndex - offset];
+        const futureFrame = args.frames[selectedIndex + offset];
+        const alpha = 0.08 + ((ghostCount - offset + 1) / ghostCount) * 0.18;
+        const radius = 1.4 + ((ghostCount - offset + 1) / ghostCount) * 1.1;
+
+        if (pastFrame?.debugSnapshot) {
+            drawGhostSamples({
+                ctx,
+                samples: pastFrame.debugSnapshot.transitionSamples,
+                alpha,
+                radius,
+                mode: 'past',
+            });
+        }
+
+        if (futureFrame?.debugSnapshot) {
+            drawGhostSamples({
+                ctx,
+                samples: futureFrame.debugSnapshot.transitionSamples,
+                alpha,
+                radius,
+                mode: 'future',
+            });
+        }
+    }
+
+    return canvas;
+}
+
+function renderStrobeTrailCanvas(args: {
+    baseCanvas: HTMLCanvasElement;
+    frames: ReadonlyArray<{
+        debugSnapshot: PerimeterFieldDebugSnapshot | null;
+    }>;
+    selectedIndex: number;
+    stride: number;
+    arrowWidth: number;
+}): HTMLCanvasElement | null {
+    const stride = Math.max(0, Math.round(args.stride));
+    if (stride <= 0 || args.frames.length <= 1) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = args.baseCanvas.width;
+    canvas.height = args.baseCanvas.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.drawImage(args.baseCanvas, 0, 0);
+
+    const sampledFrameIndexes: number[] = [];
+    for (let i = 0; i < args.frames.length; i += stride) {
+        sampledFrameIndexes.push(i);
+    }
+    const lastIndex = args.frames.length - 1;
+    if (!sampledFrameIndexes.includes(lastIndex)) {
+        sampledFrameIndexes.push(lastIndex);
+    }
+
+    const traces = new Map<
+        string,
+        {
+            color: number;
+            points: Array<{ x: number; y: number; frameIndex: number }>;
+        }
+    >();
+
+    for (const frameIndex of sampledFrameIndexes) {
+        const snapshot = args.frames[frameIndex]?.debugSnapshot;
+        if (!snapshot) continue;
+        for (const sample of snapshot.transitionSamples) {
+            const key = getPackageSampleKey(sample);
+            const entry = traces.get(key) ?? {
+                color: sample.ownerColor ?? 0xffffff,
+                points: [],
+            };
+            entry.points.push({ x: sample.x, y: sample.y, frameIndex });
+            traces.set(key, entry);
+        }
+    }
+
+    for (const trace of traces.values()) {
+        if (trace.points.length < 2) continue;
+        trace.points.sort((a, b) => a.frameIndex - b.frameIndex);
+
+        ctx.save();
+        ctx.strokeStyle = hexToCss(trace.color, 0.24);
+        ctx.lineWidth = Math.max(0.9, args.arrowWidth * 0.55);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(trace.points[0]!.x, trace.points[0]!.y);
+        for (let i = 1; i < trace.points.length; i++) {
+            ctx.lineTo(trace.points[i]!.x, trace.points[i]!.y);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        for (const point of trace.points) {
+            if (point.frameIndex === args.selectedIndex) continue;
+            drawMarker(
+                ctx,
+                { x: point.x, y: point.y },
+                trace.color,
+                0.18,
+                1.8,
+            );
+        }
+    }
+
+    return canvas;
+}
+
 function buildRenderedConquestFrames(
     params: PerimeterFieldConquestPackageParams,
 ): Array<{
@@ -504,6 +674,24 @@ export async function downloadPerimeterFieldConquestPackage(
     const prefix = filePrefixFromIsoTimestamp(params.timestamp);
     const zip = new JSZip();
     const renderedFrames = buildRenderedConquestFrames(params);
+    const diagnosticFrames = [
+        {
+            canvas: params.previousFrame.canvas,
+            debugSnapshot: params.previousFrame.debugSnapshot,
+        },
+        ...params.transitionFrames.map((frame) => ({
+            canvas: frame.canvas,
+            debugSnapshot: frame.debugSnapshot,
+        })),
+        ...(params.nextFrame
+            ? [
+                  {
+                      canvas: params.nextFrame.canvas,
+                      debugSnapshot: params.nextFrame.debugSnapshot,
+                  },
+              ]
+            : []),
+    ];
     const frameEntries = renderedFrames.map((frame) => ({
         filename: frame.filename,
         progress: frame.progress,
@@ -538,6 +726,33 @@ export async function downloadPerimeterFieldConquestPackage(
         'summary/contact_sheet.png',
         await (await canvasToBlob(contactSheetCanvas)).arrayBuffer(),
     );
+    const onionSkinCanvas = renderOnionSkinCanvas({
+        frames: diagnosticFrames,
+        selectedIndex: params.selectedFrameIndex,
+        ghostCount: params.onionSkinCount,
+    });
+    if (onionSkinCanvas) {
+        await zip.file(
+            'summary/onion_skin_selected.png',
+            await (await canvasToBlob(onionSkinCanvas)).arrayBuffer(),
+        );
+    }
+    const strobeTrailCanvas = renderStrobeTrailCanvas({
+        baseCanvas: params.previousFrame.canvas,
+        frames: diagnosticFrames,
+        selectedIndex: Math.max(
+            0,
+            Math.min(diagnosticFrames.length - 1, params.selectedFrameIndex),
+        ),
+        stride: params.strobeStride,
+        arrowWidth: params.arrowWidth,
+    });
+    if (strobeTrailCanvas) {
+        await zip.file(
+            'summary/strobe_trail.png',
+            await (await canvasToBlob(strobeTrailCanvas)).arrayBuffer(),
+        );
+    }
 
     zip.file(
         'README.md',
@@ -554,6 +769,8 @@ export async function downloadPerimeterFieldConquestPackage(
             '- `frames/frame_final_next.png`: final NEXT frame when available',
             '- `summary/conquest_arc_summary.png`: prior-frame base with every vstar arc and intermediate sampled positions',
             '- `summary/contact_sheet.png`: a glanceable board of the full conquest frame sequence',
+            '- `summary/onion_skin_selected.png`: selected scrub frame with past/future ghost positions when onion skin is enabled',
+            '- `summary/strobe_trail.png`: sampled-frame trail summary when strobe stride is enabled',
             '- `manifest.json`: conquest metadata, frame list, and compact snapshots',
         ].join('\n'),
     );
@@ -566,6 +783,9 @@ export async function downloadPerimeterFieldConquestPackage(
                 label: params.label,
                 timestamp: params.timestamp,
                 arrowWidth: params.arrowWidth,
+                selectedFrameIndex: params.selectedFrameIndex,
+                onionSkinCount: params.onionSkinCount,
+                strobeStride: params.strobeStride,
                 conquestEvents: params.conquestEvents,
                 starPositions: Object.fromEntries(
                     [...params.starPositions.entries()].map(([starId, point]) => [

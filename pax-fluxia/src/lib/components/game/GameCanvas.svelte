@@ -162,6 +162,9 @@
     let handlePerimeterFieldContactSheetExport:
         | ((event: Event) => void)
         | null = null;
+    let handlePerimeterFieldCaptureClear:
+        | ((event: Event) => void)
+        | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -835,10 +838,10 @@
         stars: ReadonlyArray<StarState>;
         nowMs: number;
     }): void {
-        const scrubPreviewEnabled =
-            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false;
+        const perimeterCaptureEnabled =
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false;
         const shouldCaptureDiagnostics =
-            scrubPreviewEnabled || transitionSnapshotRecorder.isEnabled();
+            perimeterCaptureEnabled || transitionSnapshotRecorder.isEnabled();
         if (!shouldCaptureDiagnostics) {
             perimeterFieldStableFrame = null;
             perimeterFieldCaptureSession = null;
@@ -893,6 +896,16 @@
             liveFrame,
         );
         syncPerimeterFieldDebugPlaybackState();
+    }
+
+    function clearPerimeterFieldDiagnosticCaptures(): void {
+        perimeterFieldStableFrame = null;
+        perimeterFieldCaptureSession = null;
+        perimeterFieldReplayHistory = [];
+        perimeterFieldDebugSnapshotOverride = null;
+        resetPerimeterFieldDebugPlaybackState();
+        GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT = 0;
+        GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX = 0;
     }
 
     function resolveActiveTerritoryMode(): string {
@@ -1005,6 +1018,12 @@
                 : null,
             starPositions: buildDisplayedStarPositionMap(),
             arrowWidth: GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5,
+            selectedFrameIndex:
+                readSelectedPerimeterFieldReplaySelection()?.selectedIndex ?? 0,
+            onionSkinCount:
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0,
+            strobeStride:
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0,
         };
 
         const { downloadPerimeterFieldConquestPackage } = await import(
@@ -1064,6 +1083,12 @@
                 : null,
             starPositions: buildDisplayedStarPositionMap(),
             arrowWidth: GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5,
+            selectedFrameIndex:
+                readSelectedPerimeterFieldReplaySelection()?.selectedIndex ?? 0,
+            onionSkinCount:
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0,
+            strobeStride:
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0,
         };
 
         const { downloadPerimeterFieldConquestContactSheet } = await import(
@@ -1598,6 +1623,13 @@
             "pax-export-perimeter-field-contact-sheet",
             handlePerimeterFieldContactSheetExport,
         );
+        handlePerimeterFieldCaptureClear = () => {
+            clearPerimeterFieldDiagnosticCaptures();
+        };
+        window.addEventListener(
+            "pax-clear-perimeter-field-captures",
+            handlePerimeterFieldCaptureClear,
+        );
 
         log.success(
             "GameCanvas",
@@ -1644,6 +1676,13 @@
                 handlePerimeterFieldContactSheetExport,
             );
             handlePerimeterFieldContactSheetExport = null;
+        }
+        if (handlePerimeterFieldCaptureClear) {
+            window.removeEventListener(
+                "pax-clear-perimeter-field-captures",
+                handlePerimeterFieldCaptureClear,
+            );
+            handlePerimeterFieldCaptureClear = null;
         }
 
         // F-107: Remove orientation listener and reset transpose flag
