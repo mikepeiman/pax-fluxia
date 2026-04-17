@@ -392,6 +392,17 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: number; // 0 = off, otherwise ghost this many past/future frames on each side of the selected scrub frame
     PERIMETER_FIELD_DEBUG_STROBE_STRIDE: number; // 0 = off, otherwise render every Nth captured frame as a simultaneous stroboscopic trail
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: number; // Stroke width used by exported conquest diagnostic vectors
+    // ── Metaball Grid (additive new render family, additive to perimeter_field) ──
+    METABALL_GRID_ENABLED: boolean; // Enable metaball-grid render family (default false)
+    METABALL_GRID_SPACING_PX: number; // World-space spacing between grid vstars (px, perf-sensitive)
+    METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid origin offset mode
+    METABALL_GRID_ADJACENCY: '4' | '8'; // BFS adjacency used by grid_bfs wave geometry
+    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' | 'euclidean_band'; // Wave rank source for flip-time assignment
+    METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Wave seed set
+    METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell flip style at flipTime
+    METABALL_GRID_FLIP_WINDOW: number; // Lerp window half-width around flipTime (0-1)
+    METABALL_GRID_STRENGTH: number; // Per-vstar metaball influence strength
+    METABALL_GRID_INWARD_OFFSET_PX: number; // Optional inward offset applied to edge cells (0 = none)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1291,6 +1302,17 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: 0,
     PERIMETER_FIELD_DEBUG_STROBE_STRIDE: 0,
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: 2.5,
+    // ── Metaball Grid (additive new render family, MG1) ──────────────────────────
+    METABALL_GRID_ENABLED: false,
+    METABALL_GRID_SPACING_PX: 24,
+    METABALL_GRID_ORIGIN_MODE: 'centered' as const,
+    METABALL_GRID_ADJACENCY: '8' as const,
+    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
+    METABALL_GRID_WAVE_SEEDING: 'winner_natives' as const,
+    METABALL_GRID_FLIP_TRANSITION: 'hard' as const,
+    METABALL_GRID_FLIP_WINDOW: 0.06,
+    METABALL_GRID_STRENGTH: 1.35,
+    METABALL_GRID_INWARD_OFFSET_PX: 0,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
