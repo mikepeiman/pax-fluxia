@@ -9,6 +9,7 @@
     } from '$lib/territory/devtools/TransitionBundleSerializer';
     import { overlayConfig } from '$lib/territory/devtools/overlayConfig';
     import { getRulerMeasurement, rulerTool } from '$lib/territory/devtools/rulerTool';
+    import PerimeterFieldDiagnosticsPanel from '$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte';
 
     interface Props {
         onClose: () => void;
@@ -149,9 +150,18 @@
     <div class="panel">
         <!-- Header bar -->
         <div class="panel-header">
-            <span class="panel-title">◈ Transition Debug</span>
+            <span class="panel-title">Diagnostics</span>
             <button class="close-btn" onclick={onClose} title="Close">✕</button>
         </div>
+
+        <section class="section">
+            <div class="section-title">What This Panel Owns</div>
+            <div class="info-text">
+                This is now the single diagnostics surface. Use it for live overlay
+                toggles, ruler, recorder bundles, perimeter-field scrub, geometry
+                artifact export, conquest package export, and contact-sheet export.
+            </div>
+        </section>
 
         <!-- Live overlay section -->
         <section class="section">
@@ -245,7 +255,7 @@
 
         <!-- Recorder section -->
         <section class="section">
-            <div class="section-title">Snapshot Recorder</div>
+            <div class="section-title">Legacy Transition Recorder</div>
             <div class="row">
                 <label class="toggle-label">
                     <input type="checkbox" checked={recorderEnabled} onchange={toggleRecorder} />
@@ -256,10 +266,13 @@
                 <div class="bundle-count">{bundles.length} bundle{bundles.length !== 1 ? 's' : ''}</div>
             </div>
             <div class="info-text">
-                On each conquest: renders prev/next geometry + {'{'}7-frame transition series with vertex labels, change anchors, motion trail{'}'}.
+                This recorder feeds the older transition bundle exports that produce
+                the legacy `prev.png` / `next.png` package.
             </div>
             <div class="info-text">
-                Package export writes one ZIP per capture with prev/next, intermediate frames, and compact diagnostic data.
+                Use the perimeter-field section below for scrub controls, geometry
+                artifact export, conquest package export, contact sheets, onion
+                skins, and stroboscopic trails.
             </div>
         </section>
 
@@ -273,14 +286,14 @@
                     disabled={bundles.length === 0 || downloading !== null}
                     onclick={packageAll}
                 >
-                    {downloading === '__pkg_all__' ? 'Packaging…' : 'Package All'}
+                    {downloading === '__pkg_all__' ? 'Packaging…' : 'Legacy Package All'}
                 </button>
                 <button
                     class="action-btn"
                     disabled={bundles.length === 0 || downloading !== null}
                     onclick={downloadAll}
                 >
-                    {downloading === '__all__' ? 'Downloading…' : 'Download All'}
+                    {downloading === '__all__' ? 'Downloading…' : 'Legacy Download All'}
                 </button>
                 <button
                     class="action-btn danger"
@@ -292,9 +305,13 @@
             </div>
         </section>
 
+        <section class="section">
+            <PerimeterFieldDiagnosticsPanel />
+        </section>
+
         <!-- Bundle list -->
         <section class="section bundles-section">
-            <div class="section-title">Bundles (newest first)</div>
+            <div class="section-title">Legacy Bundles (newest first)</div>
             {#if bundles.length === 0}
                 <div class="empty-state">
                     {recorderEnabled
@@ -360,7 +377,7 @@
         position: fixed;
         bottom: 64px;
         right: 12px;
-        width: 340px;
+        width: min(440px, calc(100vw - 24px));
         max-height: calc(100vh - 80px);
         overflow-y: auto;
         background: rgba(12, 12, 22, 0.92);

@@ -6,9 +6,14 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
+        showDiagnosticsSection?: boolean;
     }
 
-    let { panel, updatePanel }: Props = $props();
+    let {
+        panel,
+        updatePanel,
+        showDiagnosticsSection = true,
+    }: Props = $props();
 
     type PerimeterFieldModuleId =
         | 'all'
@@ -18,12 +23,16 @@
         | 'transition'
         | 'diagnostics';
 
-    const PERIMETER_FIELD_MODULES = [
+    const CORE_PERIMETER_FIELD_MODULES = [
         { id: 'source', label: 'Source' },
         { id: 'field', label: 'Field' },
         { id: 'transition', label: 'Transition' },
-        { id: 'diagnostics', label: 'Diagnostics' },
     ] as const;
+
+    const DIAGNOSTICS_PERIMETER_FIELD_MODULE = {
+        id: 'diagnostics',
+        label: 'Diagnostics',
+    } as const;
 
     const PERIMETER_FIELD_MODULE_PANEL_KEY = 'perimeterFieldModuleVisibility';
 
@@ -39,6 +48,15 @@
 
     function setActiveModule(value: PerimeterFieldModuleId): void {
         updatePanel(PERIMETER_FIELD_MODULE_PANEL_KEY, value);
+    }
+
+    function perimeterFieldModules() {
+        return showDiagnosticsSection
+            ? [
+                  ...CORE_PERIMETER_FIELD_MODULES,
+                  DIAGNOSTICS_PERIMETER_FIELD_MODULE,
+              ]
+            : [...CORE_PERIMETER_FIELD_MODULES];
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -128,6 +146,12 @@
     }
 
     $effect(() => {
+        if (!showDiagnosticsSection && activeModule === 'diagnostics') {
+            setActiveModule('all');
+        }
+    });
+
+    $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
                 (panel.perimeterFieldDebugScrubFrameIndex ??
@@ -172,7 +196,7 @@
 </div>
 
 <div class="module-nav">
-    {#each PERIMETER_FIELD_MODULES as module}
+    {#each perimeterFieldModules() as module}
         <button
             type="button"
             class="module-chip"
@@ -775,7 +799,7 @@
 </div>
 {/if}
 
-{#if showModule('diagnostics')}
+{#if showDiagnosticsSection && showModule('diagnostics')}
 <div class="module-block">
 <div class="sub-heading">Diagnostics</div>
 

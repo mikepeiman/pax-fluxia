@@ -2108,7 +2108,7 @@
       Real star ownership still generates the base geometry. The displayed field
       is then driven only by derived perimeter samples.
     </div>
-    <PerimeterFieldTuning {panel} {updatePanel} />
+    <PerimeterFieldTuning {panel} {updatePanel} showDiagnosticsSection={false} />
     <TerritorySlaWidget
       title="Territory fill (SLA)"
       help="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, and alpha here."

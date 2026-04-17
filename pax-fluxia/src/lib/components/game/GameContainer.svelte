@@ -22,7 +22,6 @@
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
-  import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
 
@@ -261,24 +260,8 @@
   let isResizing = $state(false);
   let settingsPanelWidth = $state(loadSettingsPanelWidth());
   let isSettingsResizing = $state(false);
-  let forceOpenSettingsSection = $state<"debug" | null>(null);
-  let forceOpenSettingsSectionNonce = $state(0);
-
-  function revealSettingsSection(section: "debug") {
-    forceOpenSettingsSection = section;
-    forceOpenSettingsSectionNonce += 1;
-  }
-
   function toggleRulerDiagnostics() {
-    const nextEnabled = !rulerTool.getState().enabled;
-    rulerTool.setEnabled(nextEnabled);
-    if (nextEnabled) {
-      diagnosticsUi.requestControlsOpen();
-      setSettingsPanelOpen(true);
-      revealSettingsSection("debug");
-      return;
-    }
-    diagnosticsUi.setOpen(false);
+    rulerTool.toggle();
   }
 
   function startResize(e: PointerEvent) {
@@ -461,6 +444,12 @@
     onSettingsClick={gameStore.currentView !== "game"
       ? openAudioSettings
       : undefined}
+    onDiagnosticsClick={gameStore.currentView === "game"
+      ? openTransitionDebugPanel
+      : undefined}
+    diagnosticsActive={gameStore.currentView === "game"
+      ? showTransitionDebugPanel
+      : false}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
@@ -569,10 +558,7 @@
             title="Close Settings">✕</button
           >
           <div class="panel-section section-tuning">
-            <GameSettingsPanel
-              forceOpenSection={forceOpenSettingsSection}
-              forceOpenSectionNonce={forceOpenSettingsSectionNonce}
-            />
+            <GameSettingsPanel />
           </div>
         </div>
       {/if}
@@ -926,6 +912,17 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="fab-scrim" onclick={() => (showSettingsFab = false)}></div>
       <div class="fab-popup glass-panel">
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
+            openTransitionDebugPanel();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">◎</span>
+          <span>Diagnostics</span>
+        </button>
         <button
           class="fab-item"
           onclick={() => {

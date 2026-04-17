@@ -3,17 +3,21 @@
 
   interface Props {
     onSettingsClick?: () => void;
+    onDiagnosticsClick?: () => void;
     onHelpClick?: () => void;
     onFitViewport?: () => void;
     onRulerToggle?: () => void;
+    diagnosticsActive?: boolean;
     rulerActive?: boolean;
   }
 
   let {
     onSettingsClick,
+    onDiagnosticsClick,
     onHelpClick,
     onFitViewport,
     onRulerToggle,
+    diagnosticsActive = false,
     rulerActive = false,
   }: Props = $props();
 
@@ -49,6 +53,16 @@
     {/if}
   </div>
 </div>
+
+{#if onDiagnosticsClick}
+  <button
+    class="diagnostics-fab"
+    class:active={diagnosticsActive}
+    onclick={onDiagnosticsClick}
+    title="Diagnostics">
+    ◎
+  </button>
+{/if}
 
 {#if onRulerToggle}
   <button
@@ -161,6 +175,7 @@
 
   .help-fab,
   .fit-fab,
+  .diagnostics-fab,
   .ruler-fab {
     position: fixed;
     bottom: 20px;
@@ -180,24 +195,30 @@
   }
 
   .help-fab {
-    right: 20px;
+    right: 64px;
     font-family: "Exo", sans-serif;
     font-size: 1rem;
     font-weight: 700;
   }
 
   .fit-fab {
-    right: 64px;
+    right: 108px;
+    font-size: 1rem;
+  }
+
+  .diagnostics-fab {
+    right: 20px;
     font-size: 1rem;
   }
 
   .ruler-fab {
-    right: 108px;
+    right: 152px;
     font-size: 1rem;
   }
 
   .help-fab:hover,
   .fit-fab:hover,
+  .diagnostics-fab:hover,
   .ruler-fab:hover {
     color: #fff;
     border-color: rgba(0, 255, 255, 0.4);
@@ -205,6 +226,7 @@
     box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
   }
 
+  .diagnostics-fab.active,
   .ruler-fab.active {
     color: #57f8ff;
     border-color: rgba(87, 248, 255, 0.5);

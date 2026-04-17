@@ -1,12 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
-    import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
-    import {
-        downloadAllDiagnosticPackages,
-        downloadBundle,
-        downloadDiagnosticPackage,
-    } from "$lib/territory/devtools/TransitionBundleSerializer";
 
     interface Props {
         panel: Record<string, any>;
@@ -38,9 +32,6 @@
         GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START ?? false,
     );
 
-    let recorderEnabled = $state(transitionSnapshotRecorder.isEnabled());
-    let bundleCount = $state(transitionSnapshotRecorder.count);
-
     function toggleLabels() {
         showLabels = !showLabels;
         GAME_CONFIG.DEBUG_MORPH_VERTEX_LABELS = showLabels;
@@ -67,49 +58,6 @@
     function toggleTrace() {
         traceLog = !traceLog;
         GAME_CONFIG.DEBUG_MORPH_TRACE_LOG = traceLog;
-    }
-
-    function toggleRecorder() {
-        recorderEnabled = !recorderEnabled;
-        transitionSnapshotRecorder.setEnabled(recorderEnabled);
-    }
-
-    function refreshBundleCount() {
-        bundleCount = transitionSnapshotRecorder.count;
-    }
-
-    $effect(() => {
-        if (!recorderEnabled) return;
-        const interval = setInterval(refreshBundleCount, 500);
-        return () => clearInterval(interval);
-    });
-
-    async function handleDownloadLatest() {
-        const bundles = transitionSnapshotRecorder.getBundles();
-        if (bundles.length === 0) return;
-        const latest = bundles[bundles.length - 1];
-        await downloadBundle(latest, latest.starPositions);
-        refreshBundleCount();
-    }
-
-    async function handlePackageLatest() {
-        const bundles = transitionSnapshotRecorder.getBundles();
-        if (bundles.length === 0) return;
-        const latest = bundles[bundles.length - 1];
-        await downloadDiagnosticPackage(latest);
-        refreshBundleCount();
-    }
-
-    async function handlePackageAll() {
-        const bundles = transitionSnapshotRecorder.getBundles();
-        if (bundles.length === 0) return;
-        await downloadAllDiagnosticPackages(bundles);
-        refreshBundleCount();
-    }
-
-    function handleClearBundles() {
-        transitionSnapshotRecorder.clear();
-        refreshBundleCount();
     }
 
     function handleOpenTransitionPanel() {
@@ -260,44 +208,18 @@
     Transition: {GAME_CONFIG.TERRITORY_TRANSITION_MS}ms · Control pts: {GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
 </div>
 
-<h4 class="sub-heading">Transition Snapshot Recorder</h4>
-
-<button class="debug-btn" class:active={recorderEnabled} onclick={toggleRecorder}>
-    {recorderEnabled ? "Recorder ON" : "Recorder OFF"}
-    <span class="debug-hint">{bundleCount} capture{bundleCount !== 1 ? "s" : ""}</span>
-</button>
-
-{#if recorderEnabled}
-    <div class="readout">
-        Captures conquest events with before/after geometry and transition diagnostics.
-    </div>
-{/if}
+<h4 class="sub-heading">Diagnostics Panel</h4>
 
 <div class="readout">
-    The detailed Transition Debug panel is a separate floating inspector. Open it from here.
+    Recorder bundles, perimeter-field scrub, geometry artifact export, conquest package
+    export, contact sheets, onion skins, and stroboscopic trails now live in one floating
+    Diagnostics panel.
 </div>
 
 <div class="snapshot-actions">
     <button class="snapshot-btn" onclick={handleOpenTransitionPanel}>
-        Open Panel
+        Open Diagnostics
     </button>
-    {#if bundleCount > 0}
-        <button class="snapshot-btn" onclick={handlePackageLatest}>
-            Package Latest
-        </button>
-        <button class="snapshot-btn" onclick={handleDownloadLatest}>
-            Download Latest
-        </button>
-        <button class="snapshot-btn" onclick={handlePackageAll}>
-            Package All ({bundleCount})
-        </button>
-        <button
-            class="snapshot-btn snapshot-btn-danger"
-            onclick={handleClearBundles}
-        >
-            Clear
-        </button>
-    {/if}
 </div>
 
 <style>
