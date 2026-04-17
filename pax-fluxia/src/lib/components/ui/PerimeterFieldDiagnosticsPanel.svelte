@@ -44,7 +44,11 @@
         </button>
     </div>
 
-    <PerimeterFieldTuning {panel} {updatePanel} />
+    <PerimeterFieldTuning
+        {panel}
+        {updatePanel}
+        visibleModules={['diagnostics']}
+    />
 </div>
 
 <style>

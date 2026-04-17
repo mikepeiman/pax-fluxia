@@ -19,3 +19,8 @@ Unify territory and transition diagnostics into one actual user-facing diagnosti
 - Replaced the old Debug-section recorder/package controls with a single `Open Diagnostics` entry point.
 - Added a bottom-right diagnostics button and a mobile quick-menu diagnostics entry.
 - Verified the slice with `bun x tsc --noEmit -p tsconfig.json`.
+
+## Corrections
+
+- Restricted the diagnostics panel to the diagnostics-only module from `PerimeterFieldTuning` after the first unification patch incorrectly exposed non-diagnostic source, field, and transition controls there.
+- Added a post-mortem at `.agent/docs/project/post-mortems/2026-04-17-diagnostics-scope-regression.md`.

@@ -3,18 +3,6 @@
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { perimeterFieldDebugPlaybackStore } from '$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore';
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        showDiagnosticsSection?: boolean;
-    }
-
-    let {
-        panel,
-        updatePanel,
-        showDiagnosticsSection = true,
-    }: Props = $props();
-
     type PerimeterFieldModuleId =
         | 'all'
         | 'none'
@@ -22,6 +10,25 @@
         | 'field'
         | 'transition'
         | 'diagnostics';
+
+    type PerimeterFieldVisibleModuleId = Exclude<
+        PerimeterFieldModuleId,
+        'all' | 'none'
+    >;
+
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+        showDiagnosticsSection?: boolean;
+        visibleModules?: PerimeterFieldVisibleModuleId[];
+    }
+
+    let {
+        panel,
+        updatePanel,
+        showDiagnosticsSection = true,
+        visibleModules = [],
+    }: Props = $props();
 
     const CORE_PERIMETER_FIELD_MODULES = [
         { id: 'source', label: 'Source' },
@@ -40,9 +47,10 @@
         (panel[PERIMETER_FIELD_MODULE_PANEL_KEY] ?? 'all') as PerimeterFieldModuleId,
     );
 
-    function showModule(
-        id: Exclude<PerimeterFieldModuleId, 'all' | 'none'>,
-    ): boolean {
+    function showModule(id: PerimeterFieldVisibleModuleId): boolean {
+        if (perimeterFieldModules().length === 1) {
+            return perimeterFieldModules()[0]?.id === id;
+        }
         return activeModule === 'all' || activeModule === id;
     }
 
@@ -50,13 +58,22 @@
         updatePanel(PERIMETER_FIELD_MODULE_PANEL_KEY, value);
     }
 
-    function perimeterFieldModules() {
-        return showDiagnosticsSection
+    function perimeterFieldModules(): Array<{
+        id: PerimeterFieldVisibleModuleId;
+        label: string;
+    }> {
+        const baseModules = showDiagnosticsSection
             ? [
                   ...CORE_PERIMETER_FIELD_MODULES,
                   DIAGNOSTICS_PERIMETER_FIELD_MODULE,
               ]
             : [...CORE_PERIMETER_FIELD_MODULES];
+
+        if (visibleModules.length === 0) {
+            return baseModules;
+        }
+
+        return baseModules.filter((module) => visibleModules.includes(module.id));
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -152,6 +169,17 @@
     });
 
     $effect(() => {
+        const visibleModuleIds = perimeterFieldModules().map((module) => module.id);
+        if (
+            activeModule !== 'all' &&
+            activeModule !== 'none' &&
+            !visibleModuleIds.includes(activeModule)
+        ) {
+            setActiveModule('all');
+        }
+    });
+
+    $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
                 (panel.perimeterFieldDebugScrubFrameIndex ??
@@ -176,39 +204,41 @@
     });
 </script>
 
-<div class="module-head">
-    <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'all'}
-            onclick={() => {
-                setActiveModule('all');
-            }}>All</button>
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'none'}
-            onclick={() => {
-                setActiveModule('none');
-            }}>None</button>
+{#if perimeterFieldModules().length > 1}
+    <div class="module-head">
+        <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
+            <button
+                type="button"
+                class="module-all-toggle"
+                class:active={activeModule === 'all'}
+                onclick={() => {
+                    setActiveModule('all');
+                }}>All</button>
+            <button
+                type="button"
+                class="module-all-toggle"
+                class:active={activeModule === 'none'}
+                onclick={() => {
+                    setActiveModule('none');
+                }}>None</button>
+        </div>
     </div>
-</div>
 
-<div class="module-nav">
-    {#each perimeterFieldModules() as module}
-        <button
-            type="button"
-            class="module-chip"
-            class:active={activeModule === module.id}
-            onclick={() => {
-                setActiveModule(activeModule === module.id ? 'all' : module.id);
-            }}
-        >
-            {module.label}
-        </button>
-    {/each}
-</div>
+    <div class="module-nav">
+        {#each perimeterFieldModules() as module}
+            <button
+                type="button"
+                class="module-chip"
+                class:active={activeModule === module.id}
+                onclick={() => {
+                    setActiveModule(activeModule === module.id ? 'all' : module.id);
+                }}
+            >
+                {module.label}
+            </button>
+        {/each}
+    </div>
+{/if}
 
 {#if showModule('source')}
 <div class="module-block">
