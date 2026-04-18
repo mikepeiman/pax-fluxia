@@ -29,7 +29,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
-import { adjustColorHSL } from '$lib/utils/colorUtils';
+import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
@@ -53,8 +53,18 @@ import { renderMetaballGridScene } from './renderMetaballGridScene';
 
 // ─── Tunable option unions (mirror METABALL_GRID_* keys) ──────────────────────
 
-type GridCellShape = 'square' | 'circle' | 'diamond';
+type GridCellShape = 'square' | 'circle' | 'diamond' | 'hex';
 type GridBorderMode = 'off' | 'per_cell' | 'territory_edge';
+
+/** Flat-topped hex vertex offsets (× radius) used by the cell-shape painter. */
+const HEX_VERTICES: ReadonlyArray<readonly [number, number]> = (() => {
+    const out: Array<[number, number]> = [];
+    for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i; // 0, 60, 120, ... — flat-topped on left/right
+        out.push([Math.cos(a), Math.sin(a)]);
+    }
+    return out;
+})();
 type GridWaveEase =
     | 'linear'
     | 'ease_in'
@@ -117,6 +127,7 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_CELL_INSET_PX',
     'METABALL_GRID_CELL_CORNER_PX',
     'METABALL_GRID_BORDER_MODE',
+    'METABALL_GRID_BORDER_BLEND',
     'METABALL_GRID_WAVE_EASE',
     'METABALL_GRID_FLIP_WINDOW_JITTER',
     // Shared HSLA knobs (reused from metaball family) — fill + border colour energy.
@@ -448,7 +459,7 @@ export class MetaballGridFamily implements RenderFamily {
             input,
             'METABALL_GRID_CELL_SHAPE',
             (GAME_CONFIG.METABALL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
-            ['square', 'circle', 'diamond'],
+            ['square', 'circle', 'diamond', 'hex'],
         );
         const cellInsetPx = Math.max(
             0,
@@ -463,6 +474,11 @@ export class MetaballGridFamily implements RenderFamily {
             'METABALL_GRID_BORDER_MODE',
             (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ?? 'off',
             ['off', 'per_cell', 'territory_edge'],
+        );
+        const borderBlend = readTunableBoolean(
+            input,
+            'METABALL_GRID_BORDER_BLEND',
+            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true,
         );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
@@ -554,41 +570,46 @@ export class MetaballGridFamily implements RenderFamily {
         const cornerR = cellShape === 'square' ? Math.min(cellCornerPx, half) : 0;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        const drawBlendedEdges = drawBorders && drawTerritoryEdgeOnly && borderBlend;
 
-        // For 'territory_edge' borders we need to know the cell's neighbours in
-        // the classification grid to decide whether to stroke. Pre-build an id→cell
-        // map from the full vstar list lazily.
-        let neighborOwnerLookup: ((x: number, y: number, ownerIdx: number) => boolean) | null = null;
-        if (drawTerritoryEdgeOnly) {
-            // Scene cells carry colorIdx (= palette index). We need to compare
-            // against the NEXT-owner colorIdx of the 4 grid neighbours.
-            const cols = cached.classification.cols;
-            const vstars = cached.classification.vstars;
-            const ownerIdxByGridIdx = new Int32Array(vstars.length);
-            for (let i = 0; i < vstars.length; i++) {
-                const v = vstars[i];
+        // Build an effective per-grid-index colorIdx so both "per-cell stroke
+        // gating" and "centered blended edge drawing" read the same truth.
+        // Populated from scene cells — so during transitions the boundary
+        // follows whichever side is currently dominant.
+        const cols = cached.classification.cols;
+        const rows = cached.classification.rows;
+        const vstarCount = cached.classification.vstars.length;
+        let effectiveColorIdxByGridIdx: Int32Array | null = null;
+        if (drawBorders && drawTerritoryEdgeOnly) {
+            effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
+            effectiveColorIdxByGridIdx.fill(-1);
+            // Seed with NEXT owner as the baseline, so cells whose scene
+            // entry was culled (alpha <= 0) still participate in neighbour
+            // compares coherently.
+            for (let i = 0; i < vstarCount; i++) {
+                const v = cached.classification.vstars[i];
                 const ownerId = v.nextOwnerId ?? v.prevOwnerId;
                 const idx = ownerId ? ownerColorIdx.get(ownerId) : undefined;
-                ownerIdxByGridIdx[i] = idx === undefined ? -1 : idx;
+                effectiveColorIdxByGridIdx[i] = idx === undefined ? -1 : idx;
             }
-            const originMode = cached.classification.originMode;
-            const offset = originMode === 'centered' ? spacingPx * 0.5 : 0;
-            neighborOwnerLookup = (cx, cy, cellOwnerIdx) => {
-                // Recover grid indices from world coords.
-                const ix = Math.round((cx - offset) / spacingPx);
-                const iy = Math.round((cy - offset) / spacingPx);
-                const rows = cached.classification.rows;
-                const check = (nx: number, ny: number): boolean => {
-                    if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true; // world edge = edge
-                    const nIdx = ownerIdxByGridIdx[ny * cols + nx];
-                    return nIdx !== cellOwnerIdx;
-                };
-                return (
-                    check(ix - 1, iy) || check(ix + 1, iy) || check(ix, iy - 1) || check(ix, iy + 1)
-                );
-            };
+            // Overlay scene cell colour indices — the last write wins for
+            // dual_pass_blend (we'll take NEXT-pass if it exists, otherwise
+            // PREV-pass or single). That gives a reasonable "currently dominant"
+            // colour at the boundary.
+            for (let i = 0; i < scene.cells.length; i++) {
+                const c = scene.cells[i];
+                if (c.alpha <= 0) continue;
+                const parts = c.vId.split(':');
+                if (parts.length !== 3) continue;
+                const ix = Number(parts[1]);
+                const iy = Number(parts[2]);
+                if (!Number.isFinite(ix) || !Number.isFinite(iy)) continue;
+                if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) continue;
+                effectiveColorIdxByGridIdx[iy * cols + ix] = c.colorIdx;
+            }
         }
 
+        // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
         for (let i = 0; i < scene.cells.length; i++) {
             const c = scene.cells[i];
             if (c.alpha <= 0) continue;
@@ -608,6 +629,12 @@ export class MetaballGridFamily implements RenderFamily {
                     color: fillHex,
                     alpha,
                 });
+            } else if (cellShape === 'hex') {
+                const pts: number[] = [];
+                for (let k = 0; k < 6; k++) {
+                    pts.push(x + HEX_VERTICES[k][0] * half, y + HEX_VERTICES[k][1] * half);
+                }
+                g.poly(pts).fill({ color: fillHex, alpha });
             } else if (cornerR > 0) {
                 g.roundRect(x - half, y - half, size, size, cornerR).fill({
                     color: fillHex,
@@ -617,10 +644,28 @@ export class MetaballGridFamily implements RenderFamily {
                 g.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
             }
 
-            // Border stroke (optional)
+            // Per-cell border stroke: skipped for blended-edge path (drawn
+            // once per shared edge below instead) and for any cell whose
+            // neighbours all share its owner under territory_edge mode.
             if (!drawBorders) continue;
-            if (drawTerritoryEdgeOnly && neighborOwnerLookup && !neighborOwnerLookup(x, y, c.colorIdx)) {
-                continue; // interior cell, skip stroke
+            if (drawBlendedEdges) continue; // handled by the edge pass below
+            if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
+                const parts = c.vId.split(':');
+                if (parts.length === 3) {
+                    const ix = Number(parts[1]);
+                    const iy = Number(parts[2]);
+                    const self = c.colorIdx;
+                    const neighbourDiffers = (nx: number, ny: number): boolean => {
+                        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
+                        return effectiveColorIdxByGridIdx![ny * cols + nx] !== self;
+                    };
+                    const isEdge =
+                        neighbourDiffers(ix - 1, iy) ||
+                        neighbourDiffers(ix + 1, iy) ||
+                        neighbourDiffers(ix, iy - 1) ||
+                        neighbourDiffers(ix, iy + 1);
+                    if (!isEdge) continue;
+                }
             }
             const borderHex = borderHexByColorIdx[c.colorIdx];
             if (borderHex === undefined) continue;
@@ -629,10 +674,63 @@ export class MetaballGridFamily implements RenderFamily {
                 g.circle(x, y, half).stroke(strokeOpts);
             } else if (cellShape === 'diamond') {
                 g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).stroke(strokeOpts);
+            } else if (cellShape === 'hex') {
+                const pts: number[] = [];
+                for (let k = 0; k < 6; k++) {
+                    pts.push(x + HEX_VERTICES[k][0] * half, y + HEX_VERTICES[k][1] * half);
+                }
+                g.poly(pts).stroke(strokeOpts);
             } else if (cornerR > 0) {
                 g.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
             } else {
                 g.rect(x - half, y - half, size, size).stroke(strokeOpts);
+            }
+        }
+
+        // ── Centered-blended territory-edge stroke pass ─────────────────────
+        // One segment per ownership-boundary grid-edge, in the 50/50 blended
+        // colour of the two owners' border hexes. Each edge is visited once
+        // (right-neighbour + bottom-neighbour walks over the full grid).
+        if (drawBlendedEdges && effectiveColorIdxByGridIdx) {
+            const originOffset = cached.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
+            const trueHalf = spacingPx * 0.5;
+            const strokeOpts = { color: 0xffffff, alpha: borderAlpha, width: borderWidth };
+            for (let iy = 0; iy < rows; iy++) {
+                for (let ix = 0; ix < cols; ix++) {
+                    const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
+                    if (selfIdx < 0) continue;
+                    const cx = ix * spacingPx + originOffset;
+                    const cy = iy * spacingPx + originOffset;
+
+                    // Right neighbour → vertical segment on the shared edge.
+                    if (ix + 1 < cols) {
+                        const rIdx = effectiveColorIdxByGridIdx[iy * cols + ix + 1];
+                        if (rIdx >= 0 && rIdx !== selfIdx) {
+                            const hexA = borderHexByColorIdx[selfIdx];
+                            const hexB = borderHexByColorIdx[rIdx];
+                            if (hexA !== undefined && hexB !== undefined) {
+                                strokeOpts.color = blendColors(hexA, hexB, 0.5);
+                                g.moveTo(cx + trueHalf, cy - trueHalf)
+                                    .lineTo(cx + trueHalf, cy + trueHalf)
+                                    .stroke(strokeOpts);
+                            }
+                        }
+                    }
+                    // Bottom neighbour → horizontal segment on the shared edge.
+                    if (iy + 1 < rows) {
+                        const dIdx = effectiveColorIdxByGridIdx[(iy + 1) * cols + ix];
+                        if (dIdx >= 0 && dIdx !== selfIdx) {
+                            const hexA = borderHexByColorIdx[selfIdx];
+                            const hexB = borderHexByColorIdx[dIdx];
+                            if (hexA !== undefined && hexB !== undefined) {
+                                strokeOpts.color = blendColors(hexA, hexB, 0.5);
+                                g.moveTo(cx - trueHalf, cy + trueHalf)
+                                    .lineTo(cx + trueHalf, cy + trueHalf)
+                                    .stroke(strokeOpts);
+                            }
+                        }
+                    }
+                }
             }
         }
 
