@@ -6,3 +6,5 @@
 - Add inline config-key metadata and hover descriptions across the settings panels, including diagnostics/local-state controls where applicable.
 - Merge `claude/goofy-raman` metaball-grid renderer work onto `master`, including the render family, canvas dispatch, and territory tuning UI.
 - Patch post-merge integration drift for metaball-grid: add panel-sync mappings for every `METABALL_GRID_*` control, extend settings metadata coverage so the new controls show config-key chips/tooltips, and fix the `Origin Mode` UI to write the live `'corner'` enum value instead of a dead `'origin'` string.
+- Audit Metaball Grid settings wiring end to end (panel -> config -> family plan cache -> renderer draw path) after user reported dead controls.
+- Fix dead Metaball Grid controls: honor `METABALL_GRID_ENABLED`, rebuild cached classification/wave plans when geometry-generation knobs change, and make `METABALL_GRID_INWARD_OFFSET_PX` actually move boundary cells inward during draw.

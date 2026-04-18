@@ -205,13 +205,13 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Where the grid is anchored in world space. 'Centered' offsets by half-spacing so cells center within the world bounds; 'Origin' starts cells at (0,0).">
+        <span class="var-name" title="Where the grid is anchored in world space. 'Centered' offsets by half-spacing so cells center within the world bounds; 'Corner / origin' starts cells at (0,0).">
             Origin Mode
         </span>
         <span class="val">{currentOriginMode() === 'centered' ? 'Centered' : 'Corner'}</span>
     </div>
     <div class="var-desc">
-        Anchor mode for grid sample positions. Centered places the first cell at (spacing/2, spacing/2); Origin places it at (0, 0).
+        Anchor mode for grid sample positions. Centered places the first cell at (spacing/2, spacing/2); Corner / origin places it at (0, 0).
     </div>
     <select
         class="mode-select"

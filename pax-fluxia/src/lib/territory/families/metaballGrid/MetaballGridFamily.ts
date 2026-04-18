@@ -48,6 +48,10 @@ import type {
     GridWavePlan,
     GridWaveSeeding,
 } from './metaballGridTypes';
+import {
+    buildMetaballGridPlanKey,
+    computeGridInwardOffset,
+} from './metaballGridRuntime';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 
@@ -265,10 +269,19 @@ function buildSessionKey(input: RenderFamilyInput): string {
 }
 
 interface CachedPlan {
-    readonly transitionKey: string;
+    readonly planKey: string;
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+}
+
+interface MetaballGridPlanSettings {
+    readonly spacingPx: number;
+    readonly originMode: GridOriginMode;
+    readonly adjacency: GridAdjacency;
+    readonly waveGeometry: GridWaveGeometry;
+    readonly waveSeeding: GridWaveSeeding;
+    readonly geometrySource: string | null;
 }
 
 /**
@@ -302,9 +315,10 @@ export class MetaballGridFamily implements RenderFamily {
     private buildPlanForTransition(params: {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
-        transitionKey: string;
+        planKey: string;
+        settings: MetaballGridPlanSettings;
     }): CachedPlan {
-        const { input, currentGeometry, transitionKey } = params;
+        const { input, currentGeometry, planKey, settings } = params;
 
         // PREV = rebuild from reverted stars using the same underlayer as NEXT.
         const revertedStars = revertStarsForTransition(input);
@@ -314,38 +328,8 @@ export class MetaballGridFamily implements RenderFamily {
             worldWidth: input.world.width,
             worldHeight: input.world.height,
             nowMs: input.nowMs,
-            geometrySource:
-                (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as string | undefined) ?? null,
+            geometrySource: settings.geometrySource,
         });
-
-        const spacingPx = Math.max(
-            2,
-            readTunableNumber(input, 'METABALL_GRID_SPACING_PX', GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24),
-        );
-        const originMode = readTunableString<GridOriginMode>(
-            input,
-            'METABALL_GRID_ORIGIN_MODE',
-            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
-            ['centered', 'corner'],
-        );
-        const adjacency = readTunableString<GridAdjacency>(
-            input,
-            'METABALL_GRID_ADJACENCY',
-            (GAME_CONFIG.METABALL_GRID_ADJACENCY as GridAdjacency | undefined) ?? '8',
-            ['4', '8'],
-        );
-        const waveGeometry = readTunableString<GridWaveGeometry>(
-            input,
-            'METABALL_GRID_WAVE_GEOMETRY',
-            (GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ?? 'grid_bfs',
-            ['grid_bfs', 'euclidean_band'],
-        );
-        const waveSeeding = readTunableString<GridWaveSeeding>(
-            input,
-            'METABALL_GRID_WAVE_SEEDING',
-            (GAME_CONFIG.METABALL_GRID_WAVE_SEEDING as GridWaveSeeding | undefined) ?? 'winner_natives',
-            ['winner_natives', 'conquered_star_center', 'winner_nearest_edge'],
-        );
 
         const conquestEvents = (input.activeTransition?.conquestEvents ?? []);
         const starById = new Map<string, StarState>();
@@ -360,8 +344,8 @@ export class MetaballGridFamily implements RenderFamily {
 
         const classification = buildGridClassification({
             world: { width: input.world.width, height: input.world.height },
-            spacingPx,
-            originMode,
+            spacingPx: settings.spacingPx,
+            originMode: settings.originMode,
             prevGeometry,
             nextGeometry: currentGeometry,
             conquestEvents,
@@ -371,14 +355,14 @@ export class MetaballGridFamily implements RenderFamily {
         });
         const wavePlan = planGridWave({
             classification,
-            seeding: waveSeeding,
-            geometry: waveGeometry,
-            adjacency,
+            seeding: settings.waveSeeding,
+            geometry: settings.waveGeometry,
+            adjacency: settings.adjacency,
             conquestEvents,
             resolveStarPosition,
         });
 
-        return { transitionKey, classification, wavePlan, prevGeometry };
+        return { planKey, classification, wavePlan, prevGeometry };
     }
 
     /**
@@ -391,25 +375,16 @@ export class MetaballGridFamily implements RenderFamily {
     private buildSteadyStatePlan(params: {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
+        planKey: string;
+        settings: MetaballGridPlanSettings;
     }): CachedPlan {
-        const { input, currentGeometry } = params;
-
-        const spacingPx = Math.max(
-            2,
-            readTunableNumber(input, 'METABALL_GRID_SPACING_PX', GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48),
-        );
-        const originMode = readTunableString<GridOriginMode>(
-            input,
-            'METABALL_GRID_ORIGIN_MODE',
-            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
-            ['centered', 'corner'],
-        );
+        const { input, currentGeometry, planKey, settings } = params;
         const ownedStars = toOwnedStars(input.stars);
 
         const classification = buildGridClassification({
             world: { width: input.world.width, height: input.world.height },
-            spacingPx,
-            originMode,
+            spacingPx: settings.spacingPx,
+            originMode: settings.originMode,
             prevGeometry: currentGeometry,
             nextGeometry: currentGeometry,
             conquestEvents: [],
@@ -424,7 +399,7 @@ export class MetaballGridFamily implements RenderFamily {
             conquestEvents: [],
         });
         return {
-            transitionKey: 'steady',
+            planKey,
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
@@ -443,25 +418,96 @@ export class MetaballGridFamily implements RenderFamily {
             this.root.visible = false;
             return { container: this.root };
         }
+
+        const enabled = readTunableBoolean(
+            input,
+            'METABALL_GRID_ENABLED',
+            GAME_CONFIG.METABALL_GRID_ENABLED ?? false,
+        );
+        if (!enabled) {
+            this.graphics.clear();
+            this.root.visible = false;
+            return { container: this.root };
+        }
         this.root.visible = true;
 
         const transitionKey = buildTransitionKey(input);
+        const settings: MetaballGridPlanSettings = {
+            spacingPx: Math.max(
+                2,
+                readTunableNumber(
+                    input,
+                    'METABALL_GRID_SPACING_PX',
+                    GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48,
+                ),
+            ),
+            originMode: readTunableString<GridOriginMode>(
+                input,
+                'METABALL_GRID_ORIGIN_MODE',
+                (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ??
+                    'centered',
+                ['centered', 'corner'],
+            ),
+            adjacency: readTunableString<GridAdjacency>(
+                input,
+                'METABALL_GRID_ADJACENCY',
+                (GAME_CONFIG.METABALL_GRID_ADJACENCY as GridAdjacency | undefined) ??
+                    '8',
+                ['4', '8'],
+            ),
+            waveGeometry: readTunableString<GridWaveGeometry>(
+                input,
+                'METABALL_GRID_WAVE_GEOMETRY',
+                (GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ??
+                    'grid_bfs',
+                ['grid_bfs', 'euclidean_band'],
+            ),
+            waveSeeding: readTunableString<GridWaveSeeding>(
+                input,
+                'METABALL_GRID_WAVE_SEEDING',
+                (GAME_CONFIG.METABALL_GRID_WAVE_SEEDING as GridWaveSeeding | undefined) ??
+                    'winner_natives',
+                [
+                    'winner_natives',
+                    'conquered_star_center',
+                    'winner_nearest_edge',
+                ],
+            ),
+            geometrySource:
+                (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as
+                    | string
+                    | undefined) ?? null,
+        };
+        const planKey = buildMetaballGridPlanKey({
+            transitionKey: transitionKey ?? 'steady',
+            geometryVersion: currentGeometry.version,
+            geometrySource: settings.geometrySource,
+            spacingPx: settings.spacingPx,
+            originMode: settings.originMode,
+            adjacency: transitionKey ? settings.adjacency : undefined,
+            waveGeometry: transitionKey ? settings.waveGeometry : undefined,
+            waveSeeding: transitionKey ? settings.waveSeeding : undefined,
+        });
 
-        // Rebuild the plan only when (transitionKey, session) changes. Per-frame
-        // work is scoped to the scene builder.
+        // Rebuild the expensive PREV/NEXT classification + wave plan only when
+        // the geometry truth or the plan-generation knobs change. Shape / draw
+        // knobs are read every frame below.
         if (transitionKey) {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
+            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
                 this.cachedPlan = this.buildPlanForTransition({
                     input,
                     currentGeometry,
-                    transitionKey,
+                    planKey,
+                    settings,
                 });
             }
         } else {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== 'steady') {
+            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
                 this.cachedPlan = this.buildSteadyStatePlan({
                     input,
                     currentGeometry,
+                    planKey,
+                    settings,
                 });
             }
         }
@@ -646,7 +692,7 @@ export class MetaballGridFamily implements RenderFamily {
         const rows = cached.classification.rows;
         const vstarCount = cached.classification.vstars.length;
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
-        if (drawBorders && drawTerritoryEdgeOnly) {
+        if (inwardOffsetPx > 0 || (drawBorders && drawTerritoryEdgeOnly)) {
             effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
             effectiveColorIdxByGridIdx.fill(-1);
             // Seed with NEXT owner as the baseline, so cells whose scene
@@ -703,8 +749,21 @@ export class MetaballGridFamily implements RenderFamily {
                 if (Number.isFinite(piy)) iy = piy;
             }
 
-            const x = c.x;
-            const y = c.y;
+            let x = c.x;
+            let y = c.y;
+            if (inwardOffsetPx > 0 && effectiveColorIdxByGridIdx && ix >= 0 && iy >= 0) {
+                const inward = computeGridInwardOffset({
+                    ix,
+                    iy,
+                    cols,
+                    rows,
+                    selfColorIdx: c.colorIdx,
+                    colorIdxByGridIdx: effectiveColorIdxByGridIdx,
+                    distancePx: inwardOffsetPx,
+                });
+                x += inward.x;
+                y += inward.y;
+            }
             const hexXOffset = cellShape === 'hex' && (iy & 1) === 1 ? spacingPx * 0.5 : 0;
             const xHex = x + hexXOffset;
 
@@ -982,12 +1041,6 @@ export class MetaballGridFamily implements RenderFamily {
                 }
             }
         }
-
-        // Silence unused-var lint for `inwardOffsetPx` — it is intentionally
-        // read + passed to the scene builder but the builder currently leaves
-        // positions unchanged (see renderMetaballGridScene docstring). Keeping
-        // the plumbing makes MG9 debug overlay work straightforward.
-        void inwardOffsetPx;
 
         return { container: this.root };
     }
