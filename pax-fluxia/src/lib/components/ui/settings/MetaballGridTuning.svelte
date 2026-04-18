@@ -141,7 +141,7 @@
         <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
             Cell Spacing
         </span>
-        <span class="val">{panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24}px</span>
+        <span class="val">{panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48}px</span>
     </div>
     <div class="var-desc">
         Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)×(worldHeight/spacing).
@@ -151,7 +151,7 @@
         min="8"
         max="96"
         step="1"
-        value={panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24}
+        value={panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);

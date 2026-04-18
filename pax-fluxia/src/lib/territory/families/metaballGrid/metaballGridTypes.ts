@@ -106,13 +106,13 @@ export interface GridClassification {
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
     /**
-     * PERF-hot path: vstars whose role can contribute to the metaball field
-     * during a transition (dispossessed + emergent + vacating). Natives and
-     * outside cells are excluded. The per-frame scene builder iterates this
-     * array instead of all `vstars`, cutting work from O(cols*rows) to
-     * O(|activeCells|) — typically one or two orders of magnitude smaller.
+     * PERF-hot path: vstars that can contribute to the metaball field at
+     * any progress value (native + dispossessed + emergent + vacating).
+     * Excludes only `outside`. The per-frame scene builder iterates this
+     * array instead of all `vstars`, skipping the null-null cells that
+     * would early-return anyway.
      */
-    readonly activeVstars: readonly GridVStar[];
+    readonly emittableVstars: readonly GridVStar[];
     /** By-role bins, each carrying vstar ids (not positions) for fast iteration. */
     readonly byRole: Readonly<Record<GridVRole, readonly string[]>>;
     /** `eventId → dispossessed vstar ids`, including the synthetic default bucket. */
@@ -213,9 +213,9 @@ export interface GridMetaballScene {
     /** Scrub position this scene was built at, `∈ [0, 1]`. */
     readonly progress: number;
     /**
-     * Emitted cells. Only active roles (dispossessed / emergent / vacating)
-     * are ever emitted — natives are covered by the ownership-geometry
-     * underlayer and outside cells are never emitted.
+     * Emitted cells: native (every frame, static NEXT color) + active roles
+     * (dispossessed / emergent / vacating) under their flip mechanics.
+     * Outside cells are never emitted.
      */
     readonly cells: readonly GridRenderCell[];
     /** Flip style the scene was built under. */
@@ -226,6 +226,18 @@ export interface GridMetaballScene {
 // Build-input bundles (keep external callers terse).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Ownership snapshot of a star at one of the PREV/NEXT time points. Used for
+ * nearest-owned-star fallback when polygon coverage has gaps (e.g. MSR-induced
+ * moats in the underlying voronoi geometry).
+ */
+export interface GridOwnedStar {
+    readonly id: string;
+    readonly ownerId: string;
+    readonly x: number;
+    readonly y: number;
+}
+
 export interface BuildGridClassificationParams {
     readonly world: { width: number; height: number };
     readonly spacingPx: number;
@@ -234,11 +246,26 @@ export interface BuildGridClassificationParams {
     readonly nextGeometry: CanonicalGeometrySnapshot;
     readonly conquestEvents: ReadonlyArray<ConquestEvent>;
     /**
-     * Resolver for conquered-star world position given `starId`. Used for
+     * Resolver for conquested-star world position given `starId`. Used for
      * tiebreak during event attribution. Returning `null` falls back to
      * first-match event.
      */
     readonly resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
+    /**
+     * Owned stars under PREV snapshot. When provided, cells that fall outside
+     * every PREV polygon but are within `coverageRadiusPx` of an owned star
+     * inherit that star's owner. This fills gaps created by weighted-voronoi
+     * MSR holes so the grid shows continuous territory rather than moats.
+     */
+    readonly prevOwnedStars?: ReadonlyArray<GridOwnedStar>;
+    /** Owned stars under NEXT snapshot — same behavior as `prevOwnedStars`. */
+    readonly nextOwnedStars?: ReadonlyArray<GridOwnedStar>;
+    /**
+     * Max distance (world px) a grid cell may be from an owned star to
+     * inherit its owner via the nearest-star fallback. Cells farther than
+     * this from any owned star remain `outside`. Default: 3 × spacingPx.
+     */
+    readonly coverageRadiusPx?: number;
 }
 
 export interface PlanGridWaveParams {

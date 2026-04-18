@@ -1294,7 +1294,11 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
     // ── Metaball Grid (additive new render family, MG1) ──────────────────────────
     METABALL_GRID_ENABLED: false,
-    METABALL_GRID_SPACING_PX: 24,
+    // MG-PERF: 48 px keeps sample count ~4× smaller than 24 px and still stays
+    // well inside METABALL_INFLUENCE_RADIUS (default 90) so neighbor samples
+    // overlap cleanly (no between-cell moats). Lower values for finer waves
+    // cost more CPU on the metaball compositor.
+    METABALL_GRID_SPACING_PX: 48,
     METABALL_GRID_ORIGIN_MODE: 'centered' as const,
     METABALL_GRID_ADJACENCY: '8' as const,
     METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
