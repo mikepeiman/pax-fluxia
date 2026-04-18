@@ -1,0 +1,595 @@
+import {
+    AI_VARIABLES,
+    COMBAT_VARIABLES,
+    DENSITY_VARIABLES,
+    LOG_CATEGORIES,
+    STAR_LABEL_SLIDERS,
+} from '../settingsDefs';
+
+export type SettingScope =
+    | 'ai'
+    | 'audio'
+    | 'battle'
+    | 'conquest'
+    | 'debug'
+    | 'economy'
+    | 'logging'
+    | 'players'
+    | 'rules'
+    | 'ships'
+    | 'surge'
+    | 'territory'
+    | 'timing'
+    | 'travel'
+    | 'visuals';
+
+type SettingMeta = {
+    key: string;
+    description?: string;
+};
+
+type SettingMetaMap = Record<string, SettingMeta>;
+
+type LabelScopeMap = Partial<Record<SettingScope, SettingMetaMap>>;
+
+function normalizeLabel(label: string): string {
+    return label
+        .replace(/^[^\p{L}\p{N}]+/u, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildSliderMeta(
+    defs: Array<{ key: string; label: string; desc?: string }>,
+): SettingMetaMap {
+    return Object.fromEntries(
+        defs.map((def) => [
+            normalizeLabel(def.label),
+            { key: def.key, description: def.desc },
+        ]),
+    );
+}
+
+const AI_META = buildSliderMeta(AI_VARIABLES);
+const BATTLE_META = buildSliderMeta(COMBAT_VARIABLES);
+const LOGGING_META = Object.fromEntries(
+    LOG_CATEGORIES.map((category) => [
+        normalizeLabel(category.label),
+        {
+            key: `local.logFlags.${category.key}`,
+            description: `Local log channel toggle for ${category.desc.toLowerCase()}.`,
+        },
+    ]),
+) as SettingMetaMap;
+const STAR_LABEL_META = buildSliderMeta(STAR_LABEL_SLIDERS);
+const DENSITY_META = buildSliderMeta(DENSITY_VARIABLES);
+
+const SCOPE_LABEL_META: LabelScopeMap = {
+    ai: AI_META,
+    audio: {
+        'Master Volume': {
+            key: 'AUDIO_MASTER_VOLUME',
+            description: 'Master volume multiplier applied to all game sounds.',
+        },
+        'Sound Enabled': {
+            key: 'AUDIO_MUTED',
+            description:
+                'Inverse control for AUDIO_MUTED. Turning this off mutes the full audio mixer.',
+        },
+        Separate: {
+            key: 'AUDIO_SEPARATE_CONQUEST',
+            description:
+                'Splits conquest audio into subtype-specific sounds instead of one shared conquest clip.',
+        },
+    },
+    battle: BATTLE_META,
+    conquest: {
+        'Conquest Mode': { key: 'CONQUEST_ANIMATION_MODE' },
+        'Color Delay': { key: 'CONQUEST_COLOR_DELAY_TICKS' },
+        'Flash Duration': { key: 'CONQUEST_FLASH_TICKS' },
+        'Lerp Delay': { key: 'CONQUEST_LERP_DELAY_MS' },
+        'Travel Speed': { key: 'CONQUEST_TRAVEL_SPEED' },
+        'Settle Duration': { key: 'CONQUEST_SETTLE_MS' },
+        'Surge Stagger': { key: 'CONQUEST_SURGE_STAGGER_MS' },
+        'Scale Glow With Force': { key: 'CONQUEST_FORCE_GLOW' },
+        'Glow Multiplier': { key: 'CONQUEST_FORCE_GLOW_MULT' },
+        Taper: { key: 'ARROW_TAPER' },
+        'Formation Width': { key: 'ARROW_WIDTH' },
+        'Arrowhead Speed': { key: 'ARROW_SPEED' },
+        'Arrowhead Easing': { key: 'ARROW_EASING' },
+        'Auto Stagger': { key: 'ARROW_STAGGER_AUTO' },
+        'Arrowhead Stagger': { key: 'ARROW_STAGGER_MS' },
+        'Engulf Mode': { key: 'ARROW_ENGULF_MODE' },
+        'Engulf Radius': { key: 'ARROW_ENGULF_RADIUS' },
+        'Min Degrees': { key: 'ARROW_SPIRAL_MIN_DEG' },
+        'Max Degrees': { key: 'ARROW_SPIRAL_MAX_DEG' },
+        'Random Spiral': { key: 'ARROW_SPIRAL_RANDOM' },
+        'Spiral Duration': { key: 'ARROW_SPIRAL_DURATION_MS' },
+    },
+    debug: {
+        'Morph Slow-Mo': {
+            key: 'DEBUG_MORPH_SLOWMO',
+            description:
+                'Slows morph transitions by 10x so individual vertex behavior is easier to inspect.',
+        },
+        'Show vertex dots': {
+            key: 'DEBUG_MORPH_VERTICES',
+            description:
+                'Draws diagnostic dots on morph vertices during territory transitions.',
+        },
+        'Color mode': {
+            key: 'DEBUG_MORPH_VERTEX_COLOR_MODE',
+            description:
+                'Changes the diagnostic coloring scheme used for morph vertices.',
+        },
+        'Show vertex labels': {
+            key: 'DEBUG_MORPH_VERTEX_LABELS',
+            description: 'Draws numeric labels on diagnostic morph vertices.',
+        },
+        'Vertex trace log': {
+            key: 'DEBUG_MORPH_TRACE_LOG',
+            description: 'Emits per-vertex morph diagnostics to the console.',
+        },
+        'Dot size': {
+            key: 'DEBUG_MORPH_VERTEX_SIZE',
+            description: 'Sets the pixel size of diagnostic morph vertex dots.',
+        },
+        'Pin threshold': {
+            key: 'DEBUG_MORPH_PIN_THRESHOLD',
+            description:
+                'Distance threshold used to classify morph vertices as pinned.',
+        },
+        'Show every': {
+            key: 'DEBUG_MORPH_VERTEX_NTH',
+            description:
+                'Only shows every Nth diagnostic vertex to reduce overlay clutter.',
+        },
+        'Morph radius': {
+            key: 'MORPH_CONQUEST_RADIUS',
+            description:
+                'Constrains morph diagnostics to conquests within this radius from the conquered star.',
+        },
+        'Disable Fill Crossfade': {
+            key: 'DEBUG_DY4_DISABLE_FILL_CROSSFADE',
+            description:
+                'Turns off DY4 fill alpha crossfading so border behavior can be isolated.',
+        },
+        'Disable Border Transition': {
+            key: 'DEBUG_DY4_DISABLE_BORDER_TRANSITION',
+            description:
+                'Snaps DY4 borders instead of animating them so fill issues can be isolated.',
+        },
+        'Force Transition Start': {
+            key: 'DEBUG_DY4_FORCE_TRANSITION_START',
+            description:
+                'Overrides DY4 transition gating checks so the transition path always starts.',
+        },
+    },
+    economy: {
+        Production: {
+            key: 'BASE_PRODUCTION',
+            description:
+                'Base production applied to each owned star before star-type multipliers.',
+        },
+        'Transfer Rate': {
+            key: 'TRANSFER_RATE',
+            description:
+                'Share of a star’s active ships moved each tick when issuing reinforcements.',
+        },
+        'Min Transfer': { key: 'MIN_SHIPS_PER_TRANSFER' },
+        'Max Transfer': { key: 'MAX_SHIPS_PER_TRANSFER' },
+        'Repair Rate': { key: 'REPAIR_RATE' },
+        'Repair Suppress (Attacking)': { key: 'REPAIR_SUPPRESS_ATTACKER' },
+        'Repair Suppress (Defending)': { key: 'REPAIR_SUPPRESS_DEFENDER' },
+        'Starting Ships': { key: 'STARTING_SHIPS' },
+        'Defense Multiplier': {
+            key: 'AGGRESSOR_ADVANTAGE',
+            description:
+                'Inverse UI for AGGRESSOR_ADVANTAGE. Higher defense multiplier means defenders survive better.',
+        },
+    },
+    logging: LOGGING_META,
+    players: {
+        'Anchor Hue': {
+            key: 'local.playerPalette.anchorHue',
+            description:
+                'Persisted local palette anchor hue used to generate the six-player roster colors.',
+        },
+        'Hue Nudge': {
+            key: 'local.playerPalette.nudges[selected]',
+            description:
+                'Per-player local hue offset applied on top of the anchored palette spread.',
+        },
+        Saturation: {
+            key: 'local.playerPalette.saturation',
+            description:
+                'Persisted local palette saturation used when generating player colors.',
+        },
+        Lightness: {
+            key: 'local.playerPalette.lightness',
+            description:
+                'Persisted local palette lightness used when generating player colors.',
+        },
+    },
+    rules: {
+        'Retain Orders After Conquest': { key: 'RETAIN_ORDER_ON_CONQUEST' },
+        'Allow Opposing Orders': { key: 'ALLOW_OPPOSING_ORDERS' },
+    },
+    ships: {
+        ...STAR_LABEL_META,
+        ...DENSITY_META,
+        'System Scale': { key: 'STAR_SYSTEM_SCALE' },
+        'Visual Radius': { key: 'SHIP_VISUAL_RADIUS' },
+        'Scale Multiplier': { key: 'SHIP_SCALE_MULT' },
+        'Ship Outline': { key: 'SHIP_OUTLINE_ON' },
+        'Outline px': { key: 'SHIP_OUTLINE_PX' },
+        'Glow Intensity': { key: 'SHIP_GLOW_INTENSITY' },
+        'Glow Radius': { key: 'SHIP_GLOW_RADIUS' },
+        'Min Contrast': { key: 'MIN_COLOR_LIGHTNESS' },
+        'Show Halos': { key: 'SHOW_STAR_POWER' },
+        'Halo Alpha': { key: 'STAR_POWER_ALPHA' },
+        'Halo Radius': { key: 'STAR_POWER_RADIUS_MULT' },
+        'Halo Layers': { key: 'STAR_POWER_LAYERS' },
+        'Halo Blur': { key: 'STAR_POWER_BLUR' },
+        'Fleet Glow': { key: 'HALO_FLEET_SCALE' },
+        'Fleet Intensity': { key: 'HALO_FLEET_INTENSITY' },
+        'Fleet Mode': { key: 'HALO_FLEET_MODE' },
+        'Step Size': { key: 'HALO_FLEET_STEP_SIZE' },
+        'Max Ships': { key: 'HALO_FLEET_MAX_SHIPS' },
+        'Inner Orbit Padding': { key: 'ORBIT_BASE_RADIUS' },
+        'Orbit Spacing Size': { key: 'SHIP_BASE_SIZE' },
+        'Ring Spacing': { key: 'ORBIT_RING_MULT' },
+        'Ships Per Ring': { key: 'ORBIT_DENSITY' },
+        'Max Ships/Star': { key: 'MAX_VISUAL_SHIPS' },
+        'Star Radius': { key: 'STAR_RENDER_RADIUS' },
+        'Shape Mode': { key: 'STAR_SHAPE_MODE' },
+        'Icon Scale': { key: 'STAR_ICON_SCALE' },
+        'Corner Radius': { key: 'STAR_CORNER_RADIUS' },
+        'Ring Radius': { key: 'STAR_RING_RADIUS' },
+        'Ring Offset (Legacy)': { key: 'STAR_RING_OFFSET' },
+        'Ring Width': { key: 'STAR_RING_WIDTH' },
+        'Ring Alpha': { key: 'STAR_RING_ALPHA' },
+        'Ring Saturation': { key: 'STAR_RING_SATURATION' },
+        'Ring Lightness': { key: 'STAR_RING_LIGHTNESS' },
+        'Tag Color': { key: 'STAR_LABEL_COLOR_MODE' },
+        'Arrowhead Size': { key: 'ARROW_HEAD_SIZE' },
+        'Arrowhead Style': { key: 'ARROW_HEAD_STYLE' },
+        'Arrowhead Spread': { key: 'ARROW_HEAD_SPREAD_DEG' },
+        'Arrowhead Notch': { key: 'ARROW_HEAD_NOTCH' },
+        'Shaft Width': { key: 'ARROW_SHAFT_WIDTH' },
+        'Arrow Opacity': { key: 'ARROW_ALPHA' },
+        'Arrow Length': { key: 'ARROW_LENGTH_FRACTION' },
+        'Gradient Steps': { key: 'ARROW_SHAFT_STEPS' },
+        'Flow Speed': { key: 'ARROW_FLOW_SPEED' },
+        'Dash Length': { key: 'ARROW_DASH_LENGTH' },
+        'Dash Gap': { key: 'ARROW_DASH_GAP' },
+        'Head Opacity': { key: 'ARROW_HEAD_ALPHA' },
+        'Head VFX': { key: 'ARROW_HEAD_VFX_ALPHA' },
+        'Outline Width': { key: 'ARROW_OUTLINE_WIDTH' },
+        'Outline Opacity': { key: 'ARROW_OUTLINE_ALPHA' },
+        'Outline Tone': { key: 'ARROW_OUTLINE_COLOR' },
+        'Force Reactivity': { key: 'ARROW_FORCE_INTENSITY' },
+        'Force Ceiling': { key: 'ARROW_FORCE_INTENSITY_MAX_SHIPS' },
+        'Damaged Scale': { key: 'DAMAGED_SHIP_SCALE' },
+        'Hit Zone Radius': { key: 'STAR_HIT_RADIUS' },
+        'Alternate Darkening': { key: 'DENSITY_DARKEN_ALT' },
+        'Glow Enabled': { key: 'STAR_GLOW_ON' },
+        'Active Ships': { key: 'STAR_LABEL_SHOW_ACTIVE' },
+    },
+    surge: {
+        'Force-Reactive Surge': { key: 'ATTACK_SURGE_PROPORTIONAL' },
+        'Surge Displacement': { key: 'ATTACK_SURGE_MULT' },
+        'Force Cofactor': { key: 'ATTACK_SURGE_FORCE_COFACTOR' },
+        'Surge Ramp': { key: 'ATTACK_SURGE_RAMP_MS' },
+        'Surge Shape': { key: 'ATTACK_SURGE_SHAPE' },
+        'Pulse Duration': { key: 'SURGE_PULSE_DURATION_MS' },
+        'Merge Ships Into Orb': { key: 'ORB_TRAVEL' },
+        'Base Radius': { key: 'ORB_BASE_RADIUS' },
+        'Radius Scale': { key: 'ORB_RADIUS_SCALE' },
+        'Glow Multiplier': { key: 'ORB_GLOW_MULT' },
+        'Outer Alpha': { key: 'ORB_OUTER_ALPHA' },
+        'Outer Scale': { key: 'ORB_OUTER_SCALE' },
+        'Mid Alpha': { key: 'ORB_MID_ALPHA' },
+        'Mid Scale': { key: 'ORB_MID_SCALE' },
+        'Core Alpha': { key: 'ORB_CORE_ALPHA' },
+        'Core Scale': { key: 'ORB_CORE_SCALE' },
+        'Center Alpha': { key: 'ORB_CENTER_ALPHA' },
+    },
+    territory: {
+        'Transition Mode': { key: 'VS_TRANSITION_MODE' },
+        'Frontier Resolution': { key: 'FRONTIER_RESOLUTION' },
+        'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
+        'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
+        'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
+        'Base Geometry Source': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
+        'Source MSR': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Source CX Corridors': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+        'Source CX Lane Pairs': {
+            key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',
+        },
+        'Source CX Lane-Pair Count': {
+            key: 'TERRITORY_CX_CONTEST_PAIR_COUNT',
+        },
+        'Source CX Lane-Pair Weight': {
+            key: 'TERRITORY_CX_CONTEST_PAIR_WEIGHT',
+        },
+        'Source CX Count': { key: 'TERRITORY_CX_COUNT' },
+        'Source CX Weight': { key: 'TERRITORY_CX_WEIGHT' },
+        'Source CX Spacing': { key: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+        'Source DX Disconnect': {
+            key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED',
+        },
+        'Source DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
+        'Source DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+        'Perimeter Vstar Spacing': { key: 'PERIMETER_FIELD_SAMPLE_SPACING' },
+        'Perimeter Samples / Loop': {
+            key: 'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP',
+        },
+        'Perimeter Inward Offset': { key: 'PERIMETER_FIELD_INWARD_OFFSET_PX' },
+        'Perimeter Vstar Radius': {
+            key: 'PERIMETER_FIELD_INFLUENCE_RADIUS',
+        },
+        'Perimeter Vstar Power': {
+            key: 'PERIMETER_FIELD_INFLUENCE_WEIGHT',
+        },
+        'Transition Slice Count': {
+            key: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
+        },
+        'Transition Duration': { key: 'TERRITORY_TRANSITION_MS' },
+        'Hold Base State During Transition': {
+            key: 'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
+        },
+        'Old Boundary Persistence': {
+            key: 'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
+        },
+        'New Boundary Assertion': {
+            key: 'PERIMETER_FIELD_NEW_BOUNDARY_GROW',
+        },
+        'Record Conquest': { key: 'PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED' },
+        'Show Underlying Geometry': {
+            key: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY',
+        },
+        'Diagnostic Arrow Width': { key: 'PERIMETER_FIELD_DEBUG_VECTOR_WIDTH' },
+        'Onion-Skin Steps': { key: 'PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT' },
+        'Strobe Frame Stride': {
+            key: 'PERIMETER_FIELD_DEBUG_STROBE_STRIDE',
+        },
+        'Show Perimeter Vstars': {
+            key: 'PERIMETER_FIELD_DEBUG_SHOW_VSTARS',
+        },
+        'Enable Transition Preview': {
+            key: 'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
+        },
+        'Replay Source': { key: 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT' },
+        'Transition Scrub': {
+            key: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
+        },
+        'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
+        'Influence radius': { key: 'METABALL_INFLUENCE_RADIUS' },
+        'Influence falloff': { key: 'METABALL_FALLOFF' },
+        'Strength multiplier': { key: 'METABALL_STRENGTH_MULT' },
+        'GPU blur': { key: 'METABALL_BLUR' },
+        'Blur affects borders': { key: 'METABALL_BLUR_AFFECTS_BORDERS' },
+        'Faction blend sharpness': { key: 'METABALL_BLEND_SHARPNESS' },
+        'Fill follows geometry ownership': {
+            key: 'METABALL_FILL_FOLLOWS_GEOM',
+        },
+        'Border Chaikin passes': { key: 'METABALL_CHAIKIN_PASSES' },
+        'Combat recency (ticks)': { key: 'METABALL_COMBAT_BORDER_TICKS' },
+        'Combat border proximity (px)': {
+            key: 'METABALL_COMBAT_BORDER_PROXIMITY_PX',
+        },
+        'Combat width boost': { key: 'METABALL_COMBAT_BORDER_WIDTH_BOOST' },
+        'Combat alpha boost': { key: 'METABALL_COMBAT_BORDER_ALPHA_BOOST' },
+        'Fleet pressure on borders': { key: 'METABALL_BORDER_FORCE_RATIO' },
+        'Coverage padding': { key: 'METABALL_COVERAGE' },
+        'CX Corridors': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+        'Contest midpoint pair': {
+            key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',
+        },
+        'CX Count': { key: 'TERRITORY_CX_COUNT' },
+        'CX Weight': { key: 'TERRITORY_CX_WEIGHT' },
+        'CX Spacing': { key: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+        'DX Disconnect': { key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
+        'DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
+        'DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+        'Transition Easing': { key: 'BORDER_TRANS_EASING' },
+        'Morph Control Points': { key: 'TERRITORY_MORPH_CONTROL_POINTS' },
+        'Morph Easing': { key: 'DF_MORPH_EASING' },
+        'Boundary Mode': { key: 'TERRITORY_BOUNDARY_MODE' },
+        'Fill Alpha': { key: 'VORONOI_ALPHA' },
+        'Neutral Transparent': { key: 'NEUTRAL_TERRITORY_TRANSPARENT' },
+        'Border Width': { key: 'VORONOI_BORDER_WIDTH' },
+        'Border Alpha': { key: 'VORONOI_BORDER_ALPHA' },
+        'Geometry Smooth Passes': { key: 'VORONOI_BORDER_SMOOTH' },
+        Saturation: { key: 'VORONOI_SATURATION' },
+        Lightness: { key: 'VORONOI_LIGHTNESS' },
+        'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Min dominance (winner / top-2)': { key: 'TERRITORY_MIN_DOMINANCE' },
+        'Trace Mode': { key: 'TERRITORY_ENGINE_TRACE_MODE' },
+        'Trace Inspector': { key: 'TERRITORY_ENGINE_TRACE_MODE' },
+        'Step Mode': { key: 'TERRITORY_ENGINE_STEP_MODE' },
+        'Advance Stage': { key: 'TERRITORY_ENGINE_STEP_ADVANCE_TOKEN' },
+    },
+    timing: {
+        'Tick Interval': {
+            key: 'BASE_TICK_MS',
+            description: 'Authoritative tick duration used by the engine loop.',
+        },
+        'Bind Animation Speed To Tick': { key: 'BIND_ANIMATION_TO_TICK' },
+        'Animation Speed': { key: 'ANIMATION_SPEED_MS' },
+        'Bind Territory Transition To Tick': {
+            key: 'TERRITORY_TRANSITION_BIND_TO_TICK',
+        },
+        'Territory Transition': { key: 'TERRITORY_TRANSITION_MS' },
+    },
+    travel: {
+        'Travel Mode': { key: 'TRAVEL_MODE' },
+        'Travel Easing': { key: 'TRAVEL_EASING' },
+        'Easing Power': { key: 'TRAVEL_EASING_POWER' },
+        'Travel Duration': { key: 'TRAVEL_DURATION_MULT' },
+        'Ships follow lane paths': { key: 'TRAVEL_FOLLOW_LANE_PATHS' },
+        'Arc Intensity': { key: 'TRAVEL_ARC_INTENSITY' },
+        'Depart Mode': { key: 'DEPART_MODE' },
+        'Stream Departure': { key: 'DEPART_STAGGER' },
+        'Depart Fraction': { key: 'DEPART_FRACTION' },
+        'Depart Arc': { key: 'DEPART_ARC_INTENSITY' },
+        'Depart Jitter': { key: 'DEPART_JITTER_MS' },
+        'Settle Duration': { key: 'SETTLE_DURATION_MS' },
+        'Arrival Spread': { key: 'ARRIVAL_SPREAD' },
+        'Arrival Arc': { key: 'ARRIVAL_ARC_INTENSITY' },
+        'Wobble Amplitude': { key: 'WOBBLE_AMP' },
+        'Lane Offset': { key: 'LANE_OFFSET_PX' },
+        'Lane Convergence': { key: 'LANE_CONVERGENCE' },
+        'Convergence Point': { key: 'LANE_CONVERGENCE_POINT' },
+        'Orbit Density': { key: 'ORBIT_DENSITY' },
+        'Bias Strength': { key: 'ORBIT_BIAS_STRENGTH' },
+        'Oscillate Bias': { key: 'ORBIT_BIAS_OSCILLATE' },
+        'Bias Min': { key: 'ORBIT_BIAS_MIN' },
+        'Bias Max': { key: 'ORBIT_BIAS_MAX' },
+        'Oscillation Frequency': { key: 'ORBIT_BIAS_FREQ' },
+    },
+    visuals: {
+        'Background Asset': {
+            key: 'BG_IMAGE_URL',
+            description:
+                'Background image asset path shown behind the battlefield.',
+        },
+        'BG Opacity': { key: 'BG_IMAGE_ALPHA' },
+        'Show Hex Grid': { key: 'SHOW_HEX_GRID' },
+        'Star Inspector': {
+            key: 'local.ui.starInspectorVisible',
+            description:
+                'Local-only toggle persisted in localStorage as pax-show-star-info.',
+        },
+        'Rotate Map (Transpose)': {
+            key: 'local.mapTranspose.active',
+            description:
+                'Local-only transpose flag that swaps display axes without mutating star data.',
+        },
+        'MSR (territory boundaries)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
+        'Reshape bias': { key: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
+        'Recompute connectivity': {
+            key: 'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS',
+        },
+        'Lane path': { key: 'MAPGEN_LANE_MODE' },
+        'Label Anim Mode': { key: 'LABEL_ANIM_MODE' },
+        'Label Transition': { key: 'NUMBER_TRANSITION_MS' },
+        'Arrow Length': { key: 'ARROW_LENGTH_FRACTION' },
+        'Arrows follow lane paths': { key: 'ORDER_ARROWS_FOLLOW_LANE_PATHS' },
+        'Arrow Path Padding': { key: 'ARROW_PATH_PADDING' },
+        'Static Orbits': { key: 'STATIC_ORBITS' },
+        'Selection Hex': { key: 'SHOW_SELECTION_HEX' },
+        'Lane Width': { key: 'CONNECTION_WIDTH' },
+        'Lane Opacity': { key: 'CONNECTION_ALPHA' },
+        'Shadow Width': { key: 'CONNECTION_SHADOW_WIDTH' },
+        'Shadow Opacity': { key: 'CONNECTION_SHADOW_ALPHA' },
+    },
+};
+
+function findExistingDescription(target: HTMLElement): string | undefined {
+    const explicit =
+        target.dataset.settingDescription
+        || target.getAttribute('title')
+        || target.getAttribute('aria-label')
+        || undefined;
+    if (explicit) return explicit.trim();
+
+    const row = target.closest('.var-row, .setting-row, .offset-row, .capture-strip');
+    const detail = row?.querySelector<HTMLElement>(
+        '.var-desc, .future-desc, .capture-desc, .row-bottom',
+    );
+    return detail?.textContent?.replace(/\s+/g, ' ').trim() || undefined;
+}
+
+function buildFallbackDescription(label: string, meta: SettingMeta): string {
+    if (meta.description) return meta.description;
+    if (meta.key.startsWith('local.logFlags.')) {
+        return `Local-only log channel toggle for ${label}.`;
+    }
+    if (meta.key.startsWith('local.')) {
+        return `Local-only control for ${label}.`;
+    }
+    return `Controls ${label}. Writes GAME_CONFIG.${meta.key}.`;
+}
+
+function createConfigChip(key: string): HTMLSpanElement {
+    const chip = document.createElement('span');
+    chip.className = 'setting-config-chip';
+    chip.textContent = key;
+    chip.style.display = 'inline-flex';
+    chip.style.alignItems = 'center';
+    chip.style.padding = '1px 5px';
+    chip.style.borderRadius = '999px';
+    chip.style.border = '1px solid rgba(125, 211, 252, 0.24)';
+    chip.style.background = 'rgba(14, 165, 233, 0.12)';
+    chip.style.color = 'rgba(186, 230, 253, 0.92)';
+    chip.style.fontFamily = '"JetBrains Mono", monospace';
+    chip.style.fontSize = '10px';
+    chip.style.fontWeight = '600';
+    chip.style.letterSpacing = '0.02em';
+    chip.style.lineHeight = '1.2';
+    chip.style.whiteSpace = 'nowrap';
+    chip.style.marginLeft = '6px';
+    chip.style.verticalAlign = 'middle';
+    return chip;
+}
+
+function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
+    const normalizedLabel = normalizeLabel(
+        target.dataset.settingLabel || target.textContent || '',
+    );
+    if (!normalizedLabel) return;
+
+    const explicitKey = target.dataset.settingConfigKey;
+    const scopedMeta = explicitKey
+        ? {
+              key: explicitKey,
+              description: target.dataset.settingDescription,
+          }
+        : SCOPE_LABEL_META[scope]?.[normalizedLabel];
+
+    if (!scopedMeta) return;
+
+    const description =
+        target.dataset.settingDescription
+        || findExistingDescription(target)
+        || buildFallbackDescription(normalizedLabel, scopedMeta);
+
+    target.title = description
+        ? `${scopedMeta.key}\n${description}`
+        : scopedMeta.key;
+
+    if (target.querySelector(':scope > .setting-config-chip')) return;
+    target.appendChild(createConfigChip(scopedMeta.key));
+}
+
+export function enhanceSettingMetadata(
+    node: HTMLElement,
+    options: { scope: SettingScope },
+): { update: (next: { scope: SettingScope }) => void; destroy: () => void } {
+    let scope = options.scope;
+
+    const run = () => {
+        const targets = new Set<HTMLElement>();
+        node.querySelectorAll<HTMLElement>(
+            '.var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]',
+        ).forEach((element) => targets.add(element));
+        targets.forEach((element) => enhanceTarget(element, scope));
+    };
+
+    const observer = new MutationObserver(() => run());
+    run();
+    observer.observe(node, { childList: true, subtree: true });
+
+    return {
+        update(next) {
+            scope = next.scope;
+            run();
+        },
+        destroy() {
+            observer.disconnect();
+        },
+    };
+}

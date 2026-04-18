@@ -69,7 +69,9 @@
     {#each varsFor(group.keys) as variable}
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">{variable.label}</span>
+                <span class="var-name" data-setting-config-key={variable.key}
+                    >{variable.label}</span
+                >
                 <span class="val">{getCombatValue(variable.key).toFixed(2)}</span>
             </div>
             <input

@@ -6,8 +6,9 @@
 // ============================================================================
 
 import type { Star, StarType } from './types';
-import type { EngineConfig } from './config';
-import { STAR_TYPE_STATS } from './config';
+import { DEFAULT_ENGINE_CONFIG, type EngineConfig, STAR_TYPE_STATS } from './config';
+
+const WHOLE_SHIP_EPSILON = 1e-9;
 
 // ============================================================================
 // Production
@@ -21,16 +22,29 @@ import { STAR_TYPE_STATS } from './config';
  *   - Grey:   1 × 0.5 × 1 = 0.5 → 1 ship every 2 ticks
  *   - Yellow: 1 × 0.5 × 2 = 1.0 → 1 ship every tick
  */
-export function applyProduction(star: Star, cfg: EngineConfig): void {
-    if (!star.ownerId || star.ownerId === 'neutral') return;
+export function getStarProductionPerTick(
+    star: Pick<Star, 'ownerId' | 'productionRate' | 'starType'>,
+    cfg: Pick<EngineConfig, 'BASE_PRODUCTION'> = DEFAULT_ENGINE_CONFIG,
+): number {
+    if (!star.ownerId || star.ownerId === 'neutral') return 0;
 
     const typeMult = STAR_TYPE_STATS[star.starType as StarType]?.prod ?? 1.0;
-    star.productionOverflow += star.productionRate * cfg.BASE_PRODUCTION * typeMult;
+    return star.productionRate * cfg.BASE_PRODUCTION * typeMult;
+}
 
-    if (star.productionOverflow >= 1) {
-        const newShips = Math.floor(star.productionOverflow);
+export function applyProduction(star: Star, cfg: EngineConfig): void {
+    const productionPerTick = getStarProductionPerTick(star, cfg);
+    if (productionPerTick <= 0) return;
+
+    star.productionOverflow += productionPerTick;
+
+    if (star.productionOverflow + WHOLE_SHIP_EPSILON >= 1) {
+        const newShips = Math.floor(star.productionOverflow + WHOLE_SHIP_EPSILON);
         star.activeShips += newShips;
         star.productionOverflow -= newShips;
+        if (Math.abs(star.productionOverflow) < WHOLE_SHIP_EPSILON) {
+            star.productionOverflow = 0;
+        }
     }
 }
 
@@ -82,9 +96,11 @@ export function applyRepair(star: Star, currentTick: number, cfg: EngineConfig):
 // ============================================================================
 
 /** @deprecated Use applyProduction instead */
-export function calculateProduction(star: Star): number {
-    if (!star.ownerId || star.ownerId === 'neutral') return 0;
-    return star.productionRate;
+export function calculateProduction(
+    star: Star,
+    cfg: Pick<EngineConfig, 'BASE_PRODUCTION'> = DEFAULT_ENGINE_CONFIG,
+): number {
+    return getStarProductionPerTick(star, cfg);
 }
 
 /** @deprecated Use applyRepair instead */

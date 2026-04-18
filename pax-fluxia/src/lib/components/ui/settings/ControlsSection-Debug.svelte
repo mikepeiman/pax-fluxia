@@ -71,19 +71,33 @@
 <h4 class="sub-heading">Morph Diagnostics</h4>
 
 <button class="debug-btn" class:active={slowMoActive} onclick={toggleSlowMo}>
-    {slowMoActive ? "10X SLOW-MO ON" : "Normal Speed"}
+    <span
+        class="debug-label"
+        data-setting-config-key="DEBUG_MORPH_SLOWMO"
+        data-setting-label="Morph Slow-Mo"
+        data-setting-description="Slows territory morph timing by 10x for inspection."
+        >{slowMoActive ? "10X SLOW-MO ON" : "Normal Speed"}</span
+    >
     <span class="debug-hint">{GAME_CONFIG.TERRITORY_TRANSITION_MS}ms</span>
 </button>
 
 <label class="toggle-row">
     <input type="checkbox" checked={showVertices} onchange={toggleVertices} />
-    <span>Show vertex dots</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_MORPH_VERTICES"
+        >Show vertex dots</span
+    >
     <span class="debug-hint">Pinned vs morph</span>
 </label>
 
 {#if showVertices}
     <div class="slider-row">
-        <span class="slider-label">Color mode</span>
+        <span
+            class="slider-label"
+            data-setting-config-key="DEBUG_MORPH_VERTEX_COLOR_MODE"
+            >Color mode</span
+        >
         <select
             class="mode-select"
             value={colorMode}
@@ -101,18 +115,30 @@
 
 <label class="toggle-row">
     <input type="checkbox" checked={showLabels} onchange={toggleLabels} />
-    <span>Show vertex labels</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_MORPH_VERTEX_LABELS"
+        >Show vertex labels</span
+    >
     <span class="debug-hint">Numeric index</span>
 </label>
 
 <label class="toggle-row">
     <input type="checkbox" checked={traceLog} onchange={toggleTrace} />
-    <span>Vertex trace log</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_MORPH_TRACE_LOG"
+        >Vertex trace log</span
+    >
     <span class="debug-hint">Console output</span>
 </label>
 
 <div class="slider-row">
-    <span class="slider-label">Dot size</span>
+    <span
+        class="slider-label"
+        data-setting-config-key="DEBUG_MORPH_VERTEX_SIZE"
+        >Dot size</span
+    >
     <input
         type="range"
         min="1"
@@ -128,7 +154,11 @@
 </div>
 
 <div class="slider-row">
-    <span class="slider-label">Pin threshold</span>
+    <span
+        class="slider-label"
+        data-setting-config-key="DEBUG_MORPH_PIN_THRESHOLD"
+        >Pin threshold</span
+    >
     <input
         type="range"
         min="1"
@@ -144,7 +174,11 @@
 </div>
 
 <div class="slider-row">
-    <span class="slider-label">Show every</span>
+    <span
+        class="slider-label"
+        data-setting-config-key="DEBUG_MORPH_VERTEX_NTH"
+        >Show every</span
+    >
     <input
         type="range"
         min="1"
@@ -160,7 +194,11 @@
 </div>
 
 <div class="slider-row">
-    <span class="slider-label">Morph radius</span>
+    <span
+        class="slider-label"
+        data-setting-config-key="MORPH_CONQUEST_RADIUS"
+        >Morph radius</span
+    >
     <input
         type="range"
         min="0"
@@ -180,27 +218,42 @@
 <label class="toggle-row">
     <input type="checkbox" checked={dy4DisableFillCrossfade} onchange={() => {
         dy4DisableFillCrossfade = !dy4DisableFillCrossfade;
+        GAME_CONFIG.DEBUG_DY4_DISABLE_FILL_CROSSFADE = dy4DisableFillCrossfade;
         updatePanel("debugDy4DisableFillCrossfade", dy4DisableFillCrossfade);
     }} />
-    <span>Disable Fill Crossfade</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_DY4_DISABLE_FILL_CROSSFADE"
+        >Disable Fill Crossfade</span
+    >
     <span class="debug-hint">Skip alpha morphing</span>
 </label>
 
 <label class="toggle-row">
     <input type="checkbox" checked={dy4DisableBorderTransition} onchange={() => {
         dy4DisableBorderTransition = !dy4DisableBorderTransition;
+        GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION = dy4DisableBorderTransition;
         updatePanel("debugDy4DisableBorderTransition", dy4DisableBorderTransition);
     }} />
-    <span>Disable Border Transition</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_DY4_DISABLE_BORDER_TRANSITION"
+        >Disable Border Transition</span
+    >
     <span class="debug-hint">Snap immediately</span>
 </label>
 
 <label class="toggle-row">
     <input type="checkbox" checked={dy4ForceTransitionStart} onchange={() => {
         dy4ForceTransitionStart = !dy4ForceTransitionStart;
+        GAME_CONFIG.DEBUG_DY4_FORCE_TRANSITION_START = dy4ForceTransitionStart;
         updatePanel("debugDy4ForceTransitionStart", dy4ForceTransitionStart);
     }} />
-    <span>Force Transition Start</span>
+    <span
+        class="var-name"
+        data-setting-config-key="DEBUG_DY4_FORCE_TRANSITION_START"
+        >Force Transition Start</span
+    >
     <span class="debug-hint">Override checks</span>
 </label>
 
@@ -253,6 +306,10 @@
         font-size: 9px;
         color: #888;
         margin-left: auto;
+    }
+    .debug-label {
+        color: inherit;
+        font-weight: 600;
     }
     .toggle-row {
         display: flex;

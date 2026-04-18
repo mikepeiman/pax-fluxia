@@ -108,7 +108,12 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Anchor Hue</span>
+        <span
+            class="var-name"
+            data-setting-config-key="local.playerPalette.anchorHue"
+            data-setting-description="Persisted local anchor hue used to generate the player palette."
+            >Anchor Hue</span
+        >
         <span class="val">{Math.round(anchorHue)}°</span>
     </div>
     <input
@@ -146,7 +151,12 @@
     </div>
     <div class="var-row compact-row">
         <div class="row-top">
-            <span class="var-name">Hue Nudge</span>
+            <span
+                class="var-name"
+                data-setting-config-key="local.playerPalette.nudges[selected]"
+                data-setting-description="Per-player local hue offset layered on top of the anchored palette."
+                >Hue Nudge</span
+            >
             <span class="val">
                 {(nudges[selectedPaletteIndex] ?? 0) > 0 ? "+" : ""}{nudges[selectedPaletteIndex] ?? 0}°
             </span>
@@ -177,7 +187,12 @@
     <div class="players-detail-grid">
         <div class="var-row compact-row">
             <div class="row-top">
-                <span class="var-name">Saturation</span>
+                <span
+                    class="var-name"
+                    data-setting-config-key="local.playerPalette.saturation"
+                    data-setting-description="Persisted local saturation used when generating player colors."
+                    >Saturation</span
+                >
                 <span class="val">{saturation}%</span>
             </div>
             <input
@@ -191,7 +206,12 @@
         </div>
         <div class="var-row compact-row">
             <div class="row-top">
-                <span class="var-name">Lightness</span>
+                <span
+                    class="var-name"
+                    data-setting-config-key="local.playerPalette.lightness"
+                    data-setting-description="Persisted local lightness used when generating player colors."
+                    >Lightness</span
+                >
                 <span class="val">{lightness}%</span>
             </div>
             <input

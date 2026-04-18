@@ -8,6 +8,7 @@
         savePanelSettings,
         syncPanelFromConfig,
     } from '$lib/components/ui/panelSync';
+    import { enhanceSettingMetadata } from '$lib/components/ui/settings/settingMetadata';
 
     let panel = $state(
         panelDefaultsFromConfig(GAME_CONFIG as unknown as Record<string, any>),
@@ -40,7 +41,7 @@
     }
 </script>
 
-<div class="perimeter-diagnostics-panel">
+<div class="perimeter-diagnostics-panel" use:enhanceSettingMetadata={{ scope: 'territory' }}>
     <div class="panel-head">
         <div>
             <div class="panel-title">Perimeter Field Diagnostics</div>

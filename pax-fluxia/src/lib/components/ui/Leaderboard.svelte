@@ -29,6 +29,14 @@
         return player.id === localId || (player as any).sessionId === localId;
     }
 
+    function formatProduction(value: number | undefined): string {
+        const numeric = value ?? 0;
+        const rounded = Math.round(numeric * 100) / 100;
+        return Number.isInteger(rounded)
+            ? `${rounded}`
+            : rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
     // Derived to ensure reactivity with updated player data
     const sortedPlayers = $derived(
         [...players].sort((a, b) => (b.totalShips ?? 0) - (a.totalShips ?? 0)),
@@ -119,8 +127,8 @@
                         <span class="stat-stars" title="Stars Owned"
                             >⭐{player.starCount ?? 0}</span
                         >
-                        <span class="stat-prod" title="Production/sec"
-                            >+{player.production ?? 0}</span
+                        <span class="stat-prod" title="Production per tick"
+                            >+{formatProduction(player.production)}</span
                         >
                     </span>
                 </li>

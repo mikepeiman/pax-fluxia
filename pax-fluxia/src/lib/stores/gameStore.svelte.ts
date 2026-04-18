@@ -32,6 +32,7 @@ import {
     DEFAULT_ENGINE_CONFIG,
     generateMap,
     generateConnections,
+    getStarProductionPerTick,
     NEUTRAL_OWNER_ID,
     normalizeInitialOwnerId,
     normalizeUnownedStarsToNeutral,
@@ -179,13 +180,15 @@ const leaderboard = $derived(
  * This is the bridge between the shared engine's schema and the UI layer.
  */
 function toGameState(s: GameRoomState): GameState {
+    const engineCfg = buildEngineConfig();
     // Pre-compute per-player production from owned stars
     const productionByPlayer = new Map<string, number>();
     s.stars.forEach((star) => {
         if (star.ownerId) {
             productionByPlayer.set(
                 star.ownerId,
-                (productionByPlayer.get(star.ownerId) ?? 0) + (star.productionRate ?? 0),
+                (productionByPlayer.get(star.ownerId) ?? 0)
+                    + getStarProductionPerTick(star as any, engineCfg),
             );
         }
     });

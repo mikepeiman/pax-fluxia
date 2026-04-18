@@ -58,7 +58,12 @@
                     logRefresh++;
                 }}
             />
-            <span class="log-label">{cat.label}</span>
+            <span
+                class="log-label"
+                data-setting-config-key={`local.logFlags.${cat.key}`}
+                data-setting-description={cat.desc}
+                >{cat.label}</span
+            >
             <span class="log-desc">{cat.desc}</span>
         </label>
     {/key}

@@ -74,7 +74,12 @@
                 updatePanel("audioMuted", audioManager.muted);
             }}
         />
-        <span class="toggle-label">Sound Enabled</span>
+        <span
+            class="toggle-label"
+            data-setting-config-key="AUDIO_MUTED"
+            data-setting-description="Inverse control for AUDIO_MUTED. Turning this off mutes the full audio mixer."
+            >Sound Enabled</span
+        >
     </label>
 </div>
 
@@ -103,7 +108,12 @@
 {#each NON_CONQUEST_TYPES as stype}
     <div class="setting-row" class:disabled={audioManager.muted}>
         <div class="row-top">
-            <span class="var-name">{SOUND_LABELS[stype]}</span>
+            <span
+                class="var-name"
+                data-setting-config-key={`AUDIO_VOL_${stype.toUpperCase()}`}
+                data-setting-description="Volume multiplier for this sound event."
+                >{SOUND_LABELS[stype]}</span
+            >
             <span class="val"
                 >{Math.round(audioManager.soundVolumes[stype] * 100)}%</span
             >
@@ -137,6 +147,9 @@
         >
             <div
                 class="file-picker-trigger"
+                data-setting-config-key={`AUDIO_FILE_${stype.toUpperCase()}`}
+                data-setting-label={`${SOUND_LABELS[stype]} File`}
+                data-setting-description="Selected sound file for this sound event."
                 onclick={() => toggleDropdown(stype)}
             >
                 <span class="file-picker-label">
@@ -177,7 +190,13 @@
             {/if}
         </div>
         <div class="offset-row">
-            <span class="offset-label">Offset</span>
+            <span
+                class="offset-label"
+                data-setting-config-key={`AUDIO_OFFSET_${stype.toUpperCase()}`}
+                data-setting-label={`${SOUND_LABELS[stype]} Offset`}
+                data-setting-description="Playback offset applied to this sound event."
+                >Offset</span
+            >
             <input
                 type="range"
                 min="0"
@@ -216,7 +235,12 @@
                 }}
                 disabled={audioManager.muted}
             />
-            <span class="toggle-label">Separate</span>
+            <span
+                class="toggle-label"
+                data-setting-config-key="AUDIO_SEPARATE_CONQUEST"
+                data-setting-description="Use separate conquest subtype sounds instead of a shared conquest clip."
+                >Separate</span
+            >
             <span class="toggle-hint"
                 >{audioManager.separateConquestSounds
                     ? "3 distinct"
@@ -236,7 +260,12 @@
             class:conquest-inactive={isInactive}
         >
             <div class="row-top">
-                <span class="var-name">{SOUND_LABELS[stype]}</span>
+                <span
+                    class="var-name"
+                    data-setting-config-key={`AUDIO_VOL_${stype.toUpperCase()}`}
+                    data-setting-description="Volume multiplier for this sound event."
+                    >{SOUND_LABELS[stype]}</span
+                >
                 <span class="val"
                     >{Math.round(audioManager.soundVolumes[stype] * 100)}%</span
                 >
@@ -264,10 +293,13 @@
             <!-- svelte-ignore a11y_click_events_have_key_events -->
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="file-picker" class:disabled={audioManager.muted}>
-                <div
-                    class="file-picker-trigger"
-                    onclick={() => toggleDropdown(stype)}
-                >
+            <div
+                class="file-picker-trigger"
+                data-setting-config-key={`AUDIO_FILE_${stype.toUpperCase()}`}
+                data-setting-label={`${SOUND_LABELS[stype]} File`}
+                data-setting-description="Selected sound file for this sound event."
+                onclick={() => toggleDropdown(stype)}
+            >
                     <span class="file-picker-label">
                         {audioManager
                             .getAvailableFiles(stype)
@@ -309,7 +341,13 @@
                 {/if}
             </div>
             <div class="offset-row">
-                <span class="offset-label">Offset</span>
+                <span
+                    class="offset-label"
+                    data-setting-config-key={`AUDIO_OFFSET_${stype.toUpperCase()}`}
+                    data-setting-label={`${SOUND_LABELS[stype]} Offset`}
+                    data-setting-description="Playback offset applied to this sound event."
+                    >Offset</span
+                >
                 <input
                     type="range"
                     min="0"

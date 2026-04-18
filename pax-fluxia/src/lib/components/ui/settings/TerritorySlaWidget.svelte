@@ -78,7 +78,9 @@
     {#if configWidth && panelWidth && defaultWidth !== undefined}
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name">Width (px)</span><span class="val"
+                <span class="var-name" data-setting-config-key={configWidth}
+                    >Width (px)</span
+                ><span class="val"
                     >{val(panelWidth, configWidth, defaultWidth).toFixed(
                         widthStep < 1 ? 1 : 0,
                     )}</span
@@ -100,7 +102,9 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Saturation</span><span class="val"
+            <span class="var-name" data-setting-config-key={configSat}
+                >Saturation</span
+            ><span class="val"
                 >{val(panelSat, configSat, defaultSat).toFixed(2)}</span
             >
         </div>
@@ -119,7 +123,9 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Lightness</span><span class="val"
+            <span class="var-name" data-setting-config-key={configLight}
+                >Lightness</span
+            ><span class="val"
                 >{val(panelLight, configLight, defaultLight).toFixed(2)}</span
             >
         </div>
@@ -138,7 +144,9 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Alpha</span><span class="val"
+            <span class="var-name" data-setting-config-key={configAlpha}
+                >Alpha</span
+            ><span class="val"
                 >{val(panelAlpha, configAlpha, defaultAlpha).toFixed(2)}</span
             >
         </div>

@@ -72,6 +72,10 @@
         MD_EXPORT_SECTIONS,
         formatAnimValue,
     } from "./settingsDefs";
+    import {
+        enhanceSettingMetadata,
+        type SettingScope,
+    } from "./settings/settingMetadata";
 
     // Aliases for the imported arrays (matches existing template references)
     const variables = COMBAT_VARIABLES;
@@ -1010,6 +1014,24 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let sectionSubsections = $state<Record<string, SubsectionChip[]>>({});
     let activeSubsections = $state<Record<string, string>>({});
 
+    const SETTING_SCOPE_BY_SECTION: Record<SectionId, SettingScope | null> = {
+        players: "players",
+        speed: "timing",
+        rules: "rules",
+        economy: "economy",
+        battle: "battle",
+        ships: "ships",
+        travel: "travel",
+        surge: "surge",
+        conquest: "conquest",
+        territory: "territory",
+        visuals: "visuals",
+        ai: "ai",
+        logging: "logging",
+        audio: "audio",
+        debug: "debug",
+    };
+
     const SUBSECTION_ICON_OVERRIDES: Record<string, string> = {
         "global rhythm": "◷",
         "transition clock": "◎",
@@ -1403,6 +1425,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 use:registerSectionBody={{
                     sectionId: sec.id,
                     activeSubsection: activeSubsections[sec.id] ?? "all",
+                }}
+                use:enhanceSettingMetadata={{
+                    scope: SETTING_SCOPE_BY_SECTION[sec.id] ?? "territory",
                 }}
             >
                 <!-- ⚡ TIMING -->

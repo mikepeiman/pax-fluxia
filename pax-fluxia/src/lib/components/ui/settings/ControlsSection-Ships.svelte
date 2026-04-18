@@ -189,7 +189,9 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <label class="toggle-label"
+        <label
+            class="toggle-label"
+            data-setting-config-key="SHIP_OUTLINE_ON"
             ><input
                 type="checkbox"
                 checked={panel.shipOutlineOn}

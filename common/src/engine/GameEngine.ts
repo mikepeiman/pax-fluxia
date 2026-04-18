@@ -13,7 +13,7 @@ import {
     PlayerSchema
 } from "../schema/GameState";
 import { calculateCombat, getEffectiveDefenderForce, checkConquestThreshold, COMBAT_CONFIG } from "../combat";
-import { applyProduction, applyRepair } from "../production";
+import { applyProduction, applyRepair, getStarProductionPerTick } from "../production";
 import { applyConquest } from "../conquest";
 import type { ConquestContext } from "../conquest";
 import { resolveMultiSourceCombat as sharedResolveCombat } from "../combatResolution";
@@ -65,7 +65,7 @@ export class GameEngine {
         this.processRepair(state, cfg);
 
         // 4. PLAYER STATS - Update player totals
-        this.updatePlayerStats(state);
+        this.updatePlayerStats(state, cfg);
 
         // 5. WIN CHECK
         this.checkWinCondition(state);
@@ -322,7 +322,10 @@ export class GameEngine {
     // PLAYER STATS
     // ════════════════════════════════════════════════════════════════════════
 
-    public static updatePlayerStats(state: GameRoomState): void {
+    public static updatePlayerStats(
+        state: GameRoomState,
+        cfg: EngineConfig = DEFAULT_ENGINE_CONFIG,
+    ): void {
         // Reset all player stats
         state.players.forEach(player => {
             player.starCount = 0;
@@ -340,7 +343,7 @@ export class GameEngine {
                 player.activeShips += star.activeShips;
                 player.damagedShips += star.damagedShips;
                 player.totalShips = player.activeShips + player.damagedShips;
-                player.production += star.productionRate;
+                player.production += getStarProductionPerTick(star as any, cfg);
             }
         });
 

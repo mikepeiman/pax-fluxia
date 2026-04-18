@@ -44,6 +44,17 @@
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Background</h4>
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            data-setting-config-key="BG_IMAGE_URL"
+            data-setting-description="Background image asset path displayed behind the battlefield."
+            >Background Asset</span
+        >
+        <span class="val">{vis.bgImage || "none"}</span>
+    </div>
+</div>
 <div class="bg-grid">
     <button
         class="bg-thumb"
@@ -126,7 +137,12 @@
             );
         }}
     />
-    <span class="var-name">🔍 Star Inspector</span><span
+    <span
+        class="var-name"
+        data-setting-config-key="local.ui.starInspectorVisible"
+        data-setting-description="Local-only toggle persisted in localStorage as pax-show-star-info."
+        >🔍 Star Inspector</span
+    ><span
         class="val"
         style="font-size:9px;opacity:0.6">click star to inspect</span
     ></label
@@ -142,7 +158,12 @@
             window.dispatchEvent(new Event("resize"));
         }}
     />
-    <span class="var-name">🔄 Rotate Map (Transpose)</span><span
+    <span
+        class="var-name"
+        data-setting-config-key="local.mapTranspose.active"
+        data-setting-description="Local-only transpose flag that swaps display axes without mutating star data."
+        >🔄 Rotate Map (Transpose)</span
+    ><span
         class="val"
         style="font-size:9px;opacity:0.6">Flip X↔Y axes</span
     ></label

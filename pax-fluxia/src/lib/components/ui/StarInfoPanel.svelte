@@ -1,7 +1,8 @@
 <script lang="ts">
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
-    import { STAR_TYPE_STATS } from "@pax/common";
+    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { getStarProductionPerTick, STAR_TYPE_STATS } from "@pax/common";
     import type { StarType } from "@pax/common";
 
     // Star type → icon name and shape
@@ -41,6 +42,10 @@
             damagedShips: star.damagedShips,
             totalShips: star.activeShips + star.damagedShips,
             productionRate: star.productionRate,
+            productionPerTick: getStarProductionPerTick(star, {
+                BASE_PRODUCTION: GAME_CONFIG.BASE_PRODUCTION,
+            }),
+            baseProduction: GAME_CONFIG.BASE_PRODUCTION,
             repairRate: star.repairRate,
             transferRate: star.transferRate,
             defenseStrength: star.defenseStrength,
@@ -123,12 +128,22 @@
 
             <!-- Rates -->
             <div class="stat-row">
-                <span class="stat-label">Prod Rate</span>
+                <span class="stat-label">Prod / Tick</span>
                 <span class="stat-value"
-                    >{info.productionRate} (overflow: {info.productionOverflow.toFixed(
-                        2,
-                    )})</span
+                    >{info.productionPerTick.toFixed(2)}</span
                 >
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Prod Inputs</span>
+                <span class="stat-value"
+                    >{info.productionRate.toFixed(2)} × {info.baseProduction.toFixed(
+                        2,
+                    )} × {info.prodMult}x</span
+                >
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Prod Overflow</span>
+                <span class="stat-value">{info.productionOverflow.toFixed(2)}</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">Repair Rate</span>

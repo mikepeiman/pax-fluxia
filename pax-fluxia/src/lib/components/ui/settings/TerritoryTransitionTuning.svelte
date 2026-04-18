@@ -259,9 +259,11 @@
             updatePanel("vsBindToTick", value);
         }}
     />
-    <span
-        class="var-name"
-        title={modeSemantics.bindDesc}>{modeSemantics.bindLabel}</span>
+        <span
+            class="var-name"
+            data-setting-config-key="VS_BIND_TO_TICK"
+            data-setting-description={modeSemantics.bindDesc}
+            title={modeSemantics.bindDesc}>{modeSemantics.bindLabel}</span>
     <span class="val">
         {(panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true)
             ? "On"
@@ -274,7 +276,12 @@
     {@const slider = semantic.slider}
     <div class="var-row" class:locked={animLockModes[slider.key] != null}>
         <div class="row-top">
-            <span class="var-name" title={semantic.desc}>{semantic.label}</span>
+                    <span
+                        class="var-name"
+                        data-setting-config-key={slider.key}
+                        data-setting-description={semantic.desc}
+                        title={semantic.desc}>{semantic.label}</span
+                    >
             <span class="val-group">
                 <span class="val"
                     >{formatAnimValue(getAnimValue(slider.key), slider.unit ?? "")}</span
@@ -328,7 +335,11 @@
 {#if showMetaballBurstBoundaryBasis}
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Burst Boundary Basis</span>
+                    <span
+                        class="var-name"
+                        data-setting-config-key="METABALL_BURST_BOUNDARY_BASIS"
+                        >Burst Boundary Basis</span
+                    >
             <span class="val">
                 {panel.metaballBurstBoundaryBasis ??
                     GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
