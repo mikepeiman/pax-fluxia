@@ -39,12 +39,12 @@
     }
 
     // Resolved values.
-    function currentOriginMode(): 'centered' | 'origin' {
+    function currentOriginMode(): 'centered' | 'corner' {
         const raw =
             panel.metaballGridOriginMode ??
             GAME_CONFIG.METABALL_GRID_ORIGIN_MODE ??
             'centered';
-        return raw === 'origin' ? 'origin' : 'centered';
+        return raw === 'corner' ? 'corner' : 'centered';
     }
 
     function currentAdjacency(): '4' | '8' {
@@ -208,7 +208,7 @@
         <span class="var-name" title="Where the grid is anchored in world space. 'Centered' offsets by half-spacing so cells center within the world bounds; 'Origin' starts cells at (0,0).">
             Origin Mode
         </span>
-        <span class="val">{currentOriginMode() === 'centered' ? 'Centered' : 'Origin'}</span>
+        <span class="val">{currentOriginMode() === 'centered' ? 'Centered' : 'Corner'}</span>
     </div>
     <div class="var-desc">
         Anchor mode for grid sample positions. Centered places the first cell at (spacing/2, spacing/2); Origin places it at (0, 0).
@@ -222,7 +222,7 @@
         }}
     >
         <option value="centered">Centered (half-spacing offset)</option>
-        <option value="origin">Origin (0,0 anchor)</option>
+        <option value="corner">Corner / origin (0,0 anchor)</option>
     </select>
 </div>
 
