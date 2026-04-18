@@ -428,6 +428,13 @@ export class MetaballGridFamily implements RenderFamily {
         };
     }
 
+    /**
+     * Steady-state plan (no active transition). PREV === NEXT, so classification
+     * yields `native` for every cell inside ownership regions and `outside`
+     * for the rest. The wave plan is empty. The resulting scene paints a flat
+     * grid of native cells — this is the primary visible fill between
+     * transitions.
+     */
     update(input: RenderFamilyInput): RenderFamilyOutput {
         const startedAtMs = performance.now();
         const nextSessionKey = buildSessionKey(input);

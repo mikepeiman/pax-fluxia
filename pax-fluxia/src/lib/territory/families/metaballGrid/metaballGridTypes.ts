@@ -245,7 +245,7 @@ export interface GridMetaballScene {
 /**
  * Ownership snapshot of a star at one of the PREV/NEXT time points. Used for
  * nearest-owned-star fallback when polygon coverage has gaps created by
- * minimum-star-margin clearance in the underlying geometry.
+ * minimum-star-margin clearance, including MSR-style moats in the source geometry.
  */
 export interface GridOwnedStar {
     readonly id: string;
@@ -270,8 +270,8 @@ export interface BuildGridClassificationParams {
     /**
      * Owned stars under PREV snapshot. When provided, cells that fall outside
      * every PREV polygon but are within `coverageRadiusPx` of an owned star
-     * inherit that star's owner. This fills clearance gaps left around stars
-     * so the grid layer remains continuous.
+     * inherit that star's owner. This fills geometry gaps left around stars,
+     * including weighted-voronoi MSR holes, so the grid layer remains continuous.
      */
     readonly prevOwnedStars?: ReadonlyArray<GridOwnedStar>;
     /** Owned stars under NEXT snapshot — same behavior as `prevOwnedStars`. */

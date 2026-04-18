@@ -247,7 +247,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
             const id = `g:${ix}:${iy}`;
 
             // Polygon-first; nearest-owned-star fallback fills gaps left by
-            // explicit min-star-margin and other geometry clearance shaping.
+            // explicit margin shaping, including MSR-style moats in the source geometry.
             let prevOwnerId = resolveOwnerAt(x, y, prevRegions);
             if (prevOwnerId === null) {
                 prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStars, coverageRadiusSq);
