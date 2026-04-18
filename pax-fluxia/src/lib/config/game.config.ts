@@ -396,8 +396,14 @@ interface GameConfigType {
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Wave seed set
     METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell flip style at flipTime
     METABALL_GRID_FLIP_WINDOW: number; // Lerp window half-width around flipTime (0-1)
-    METABALL_GRID_STRENGTH: number; // Per-vstar metaball influence strength
+    METABALL_GRID_STRENGTH: number; // Fill-alpha multiplier applied to every cell (0 = invisible, 1 = full)
     METABALL_GRID_INWARD_OFFSET_PX: number; // Optional inward offset applied to edge cells (0 = none)
+    METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond'; // Per-cell quad primitive (visual only)
+    METABALL_GRID_CELL_INSET_PX: number; // Shrink each cell by this amount on all sides (creates grid-lines when > 0)
+    METABALL_GRID_CELL_CORNER_PX: number; // Rounded-corner radius for square cells (0 = sharp)
+    METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Where to draw per-cell borders
+    METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Progress easing curve applied before flip math
+    METABALL_GRID_FLIP_WINDOW_JITTER: number; // Per-cell deterministic jitter applied to flipTime (0..0.5 fraction)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1305,8 +1311,14 @@ const _rawConfig: GameConfigType = {
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' as const,
     METABALL_GRID_FLIP_TRANSITION: 'hard' as const,
     METABALL_GRID_FLIP_WINDOW: 0.06,
-    METABALL_GRID_STRENGTH: 1.35,
+    METABALL_GRID_STRENGTH: 1.0,
     METABALL_GRID_INWARD_OFFSET_PX: 0,
+    METABALL_GRID_CELL_SHAPE: 'square' as const,
+    METABALL_GRID_CELL_INSET_PX: 0,
+    METABALL_GRID_CELL_CORNER_PX: 0,
+    METABALL_GRID_BORDER_MODE: 'off' as const,
+    METABALL_GRID_WAVE_EASE: 'linear' as const,
+    METABALL_GRID_FLIP_WINDOW_JITTER: 0,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
