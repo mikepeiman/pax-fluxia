@@ -5,6 +5,9 @@
     onSettingsClick?: () => void;
     onHelpClick?: () => void;
     onFitViewport?: () => void;
+    onAuthoredMeasurementsToggle?: () => void;
+    authoredMeasurementsActive?: boolean;
+    authoredMeasurementsAvailable?: boolean;
     onRulerToggle?: () => void;
     rulerActive?: boolean;
   }
@@ -13,6 +16,9 @@
     onSettingsClick,
     onHelpClick,
     onFitViewport,
+    onAuthoredMeasurementsToggle,
+    authoredMeasurementsActive = false,
+    authoredMeasurementsAvailable = false,
     onRulerToggle,
     rulerActive = false,
   }: Props = $props();
@@ -57,6 +63,16 @@
     onclick={onRulerToggle}
     title={rulerActive ? "Turn Ruler Off" : "Turn Ruler On"}>
     📏
+  </button>
+{/if}
+
+{#if onAuthoredMeasurementsToggle && authoredMeasurementsAvailable}
+  <button
+    class="measurements-fab"
+    class:active={authoredMeasurementsActive}
+    onclick={onAuthoredMeasurementsToggle}
+    title={authoredMeasurementsActive ? "Hide Map Measurements" : "Show Map Measurements"}>
+    ⇄
   </button>
 {/if}
 
@@ -161,6 +177,7 @@
 
   .help-fab,
   .fit-fab,
+  .measurements-fab,
   .ruler-fab {
     position: fixed;
     bottom: 20px;
@@ -191,13 +208,19 @@
     font-size: 1rem;
   }
 
-  .ruler-fab {
+  .measurements-fab {
     right: 108px;
+    font-size: 1rem;
+  }
+
+  .ruler-fab {
+    right: 152px;
     font-size: 1rem;
   }
 
   .help-fab:hover,
   .fit-fab:hover,
+  .measurements-fab:hover,
   .ruler-fab:hover {
     color: #fff;
     border-color: rgba(0, 255, 255, 0.4);
@@ -205,6 +228,7 @@
     box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
   }
 
+  .measurements-fab.active,
   .ruler-fab.active {
     color: #57f8ff;
     border-color: rgba(87, 248, 255, 0.5);

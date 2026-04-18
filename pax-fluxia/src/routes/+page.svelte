@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import "../app.css";
   import LandingPage from "$lib/components/landing/LandingPage.svelte";
-  import GameContainer from "$lib/components/game/GameContainer.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
-
-  let showGame = $state(false);
 
   onMount(() => {
     audioManager.init();
@@ -13,20 +11,18 @@
 
   function handlePlay() {
     audioManager.play("play");
-    // In production, redirect to play subdomain; in dev, toggle in-page
     const isProd =
       typeof window !== "undefined" &&
       window.location.hostname === "paxfluxia.com";
     if (isProd) {
       window.location.href = "https://play.paxfluxia.com";
-    } else {
-      showGame = true;
+      return;
     }
+    void goto("/play");
   }
 </script>
 
 <svelte:head>
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"
@@ -40,11 +36,7 @@
 </svelte:head>
 
 <main>
-  {#if showGame}
-    <GameContainer />
-  {:else}
-    <LandingPage onPlay={handlePlay} />
-  {/if}
+  <LandingPage onPlay={handlePlay} />
   <script
     type="text/javascript"
     async

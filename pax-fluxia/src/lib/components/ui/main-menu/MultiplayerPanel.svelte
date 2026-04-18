@@ -44,6 +44,10 @@
             "Unknown"
         );
     }
+
+    function getRoomMapLabel(room: RoomListing): string {
+        return room.metadata?.customMapName || room.metadata?.mapType || "standard";
+    }
 </script>
 
 <section class="menu-panel multiplayer-panel">
@@ -198,12 +202,6 @@
             </div>
         </div>
 
-        {#if mapMode === "custom"}
-            <div class="signal-card">
-                Custom maps currently launch in single-player only.
-            </div>
-        {/if}
-
         {#if selectedRoom}
             <div class="selected-room">
                 <div class="selected-room__header">
@@ -213,7 +211,7 @@
                 <strong class="selected-room__host">{getRoomLabel(selectedRoom)}</strong>
                 <div class="selected-room__meta">
                     <span>{selectedRoom.clients}/{selectedRoom.maxClients} players</span>
-                    <span>{selectedRoom.metadata?.mapType || "standard"}</span>
+                    <span>{getRoomMapLabel(selectedRoom)}</span>
                     <span>{selectedRoom.metadata?.starsPerPlayer || "?"} stars / player</span>
                 </div>
             </div>
@@ -251,7 +249,7 @@
 
                         <div class="room-browser__meta">
                             <span>{room.clients}/{room.maxClients} players</span>
-                            <span>{room.metadata?.mapType || "standard"}</span>
+                            <span>{getRoomMapLabel(room)}</span>
                             <span>{room.metadata?.shipsPerStar || "?"} ships / star</span>
                         </div>
 

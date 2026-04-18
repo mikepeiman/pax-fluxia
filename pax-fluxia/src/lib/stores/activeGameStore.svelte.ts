@@ -11,7 +11,7 @@
 import { multiplayerStore } from './multiplayerStore.svelte';
 import { gameStore } from './gameStore.svelte';
 import { animationStore } from './animationStore.svelte';
-import type { Star, Player, Connection, GameSpeed } from '@pax/common';
+import type { Star, Player, Connection, GameSpeed, MapDiagnostics } from '@pax/common';
 import { validateOrder } from '@pax/common';
 import type { TickEvents } from '@pax/common';
 import type { StarState, PlayerState, ConnectionState, GameHistoryEntry } from '$lib/types/game.types';
@@ -190,6 +190,13 @@ function getConnections(): Connection[] {
     } else {
         return (gameStore.snapshot?.connections ?? []) as unknown as Connection[];
     }
+}
+
+function getMapDiagnostics(): MapDiagnostics {
+    if (isMultiplayerMode()) {
+        return multiplayerStore.mapDiagnostics;
+    }
+    return gameStore.snapshot?.mapDiagnostics ?? { measurements: [] };
 }
 
 /**
@@ -525,6 +532,7 @@ export const activeGameStore = {
     get phase() { return getPhase(); },
     get stars() { return getStars(); },
     get connections() { return getConnections(); },
+    get mapDiagnostics() { return getMapDiagnostics(); },
     get players() { return getPlayers(); },
     get localPlayerId() { return getLocalPlayerId(); },
     get isPaused() { return getIsPaused(); },

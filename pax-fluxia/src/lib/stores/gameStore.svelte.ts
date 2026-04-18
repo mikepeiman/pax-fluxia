@@ -8,6 +8,7 @@ import type {
     GameSpeed,
     GameSettings,
     GameState,
+    MapDiagnosticMeasurement,
     StarId,
     PlayerState,
     GameHistoryEntry
@@ -27,6 +28,8 @@ import {
     GameRoomState,
     StarSchema,
     ConnectionSchema,
+    MapMeasurementSchema,
+    PointSchema,
     PlayerSchema,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
@@ -36,6 +39,13 @@ import {
     normalizeInitialOwnerId,
     normalizeUnownedStarsToNeutral,
 } from '@pax/common';
+import {
+    AUTHORED_NEUTRAL_OWNER_ID,
+    coerceAuthoredMapDefinition,
+    resolveRuntimeMap,
+    validateAuthoredMapDefinition,
+    type RuntimeAuthoredMap,
+} from '@pax/common/maps';
 import type { AIConfig } from '@pax/common';
 import { AI, createAI, DEFAULT_AI_CONFIG } from '@pax/common';
 import { combatLog } from '$lib/stores/combatLogStore';
@@ -231,6 +241,25 @@ function toGameState(s: GameRoomState): GameState {
     }));
 
     const connections = toLaneAwareConnections(Array.from(s.connections));
+    const measurements: MapDiagnosticMeasurement[] = Array.from(s.mapMeasurements ?? []).map((measurement) => ({
+        id: measurement.id,
+        mode: measurement.mode as 'manual' | 'generated',
+        preset: measurement.preset ? (measurement.preset as 'lane_length') : undefined,
+        label: measurement.label || undefined,
+        startX: measurement.startX,
+        startY: measurement.startY,
+        endX: measurement.endX,
+        endY: measurement.endY,
+        dx: measurement.dx,
+        dy: measurement.dy,
+        distance: measurement.distance,
+        midX: measurement.midX,
+        midY: measurement.midY,
+        visibleByDefault: measurement.visibleByDefault,
+        relatedLaneId: measurement.relatedLaneId || undefined,
+        relatedLaneLabel: measurement.relatedLaneLabel || undefined,
+        starPairLabel: measurement.starPairLabel || undefined,
+    }));
 
     // Find winner
     let winnerPlayer: PlayerState | null = null;
@@ -250,6 +279,7 @@ function toGameState(s: GameRoomState): GameState {
         players,
         stars,
         connections,
+        mapDiagnostics: { measurements },
         winner: winnerPlayer,
     };
 }
@@ -452,23 +482,135 @@ function createDebugStar(id: string, x: number, y: number, ownerId: string): voi
 }
 
 /** Helper: add bidirectional connection */
-function addDebugConnection(sourceId: string, targetId: string): void {
+function addDebugConnection(
+    sourceId: string,
+    targetId: string,
+    distanceOverride?: number,
+    laneWaypoints?: Array<[number, number]>,
+    lanePathKind?: 'straight' | 'angular' | 'curved',
+    laneConstraintStatus?: string,
+): void {
     const source = state!.stars.get(sourceId);
     const target = state!.stars.get(targetId);
     if (!source || !target) return;
-    const distance = Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+    const distance = distanceOverride ?? Math.sqrt((source.x - target.x) ** 2 + (source.y - target.y) ** 2);
+
+    const assignLaneData = (
+        connection: ConnectionSchema,
+        waypoints?: Array<[number, number]>,
+        pathKind?: 'straight' | 'angular' | 'curved',
+        constraintStatus?: string,
+    ) => {
+        connection.lanePathKind = pathKind ?? '';
+        connection.laneConstraintStatus = constraintStatus ?? '';
+        if (!waypoints || waypoints.length < 2) return;
+        for (const [x, y] of waypoints) {
+            const point = new PointSchema();
+            point.x = x;
+            point.y = y;
+            connection.laneWaypoints.push(point);
+        }
+    };
 
     const c1 = new ConnectionSchema();
     c1.sourceId = sourceId;
     c1.targetId = targetId;
     c1.distance = distance;
+    assignLaneData(c1, laneWaypoints, lanePathKind, laneConstraintStatus);
     state!.connections.push(c1);
 
     const c2 = new ConnectionSchema();
     c2.sourceId = targetId;
     c2.targetId = sourceId;
     c2.distance = distance;
+    assignLaneData(
+        c2,
+        laneWaypoints ? [...laneWaypoints].reverse() : undefined,
+        lanePathKind,
+        laneConstraintStatus,
+    );
     state!.connections.push(c2);
+}
+
+function setStateMeasurementsFromRuntimeMap(runtimeMap: RuntimeAuthoredMap): void {
+    state!.mapMeasurements.length = 0;
+    for (const measurement of runtimeMap.diagnostics.measurements) {
+        const schemaMeasurement = new MapMeasurementSchema();
+        schemaMeasurement.id = measurement.id;
+        schemaMeasurement.mode = measurement.mode;
+        schemaMeasurement.preset = measurement.preset ?? '';
+        schemaMeasurement.label = measurement.label ?? '';
+        schemaMeasurement.startX = measurement.startX;
+        schemaMeasurement.startY = measurement.startY;
+        schemaMeasurement.endX = measurement.endX;
+        schemaMeasurement.endY = measurement.endY;
+        schemaMeasurement.dx = measurement.dx;
+        schemaMeasurement.dy = measurement.dy;
+        schemaMeasurement.distance = measurement.distance;
+        schemaMeasurement.midX = measurement.midX;
+        schemaMeasurement.midY = measurement.midY;
+        schemaMeasurement.visibleByDefault = measurement.visibleByDefault;
+        schemaMeasurement.relatedLaneId = measurement.relatedLaneId ?? '';
+        schemaMeasurement.relatedLaneLabel = measurement.relatedLaneLabel ?? '';
+        schemaMeasurement.starPairLabel = measurement.starPairLabel ?? '';
+        state!.mapMeasurements.push(schemaMeasurement);
+    }
+}
+
+function buildRuntimeMapOptions(playerIds: string[]) {
+    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    return {
+        playerIds,
+        startingShips: GAME_CONFIG.STARTING_SHIPS,
+        mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        mapgenLaneMarginPx: laneDClearancePx(),
+        scaleLegacyIfSmall: true,
+        targetWidth: isPortrait ? 900 : 1600,
+        targetHeight: isPortrait ? 1600 : 900,
+        spacingMultiplier: GAME_CONFIG.CLASSIC_MAP_SPACING ?? 1,
+        paddingRatio: 0.075,
+    } as const;
+}
+
+function applyRuntimeMapToState(runtimeMap: RuntimeAuthoredMap): void {
+    for (const starData of runtimeMap.stars) {
+        const stats = STAR_TYPE_STATS[starData.starType] || STAR_TYPE_STATS['grey'];
+        const star = new StarSchema();
+        star.id = starData.id;
+        star.x = starData.x;
+        star.y = starData.y;
+        star.ownerId = normalizeInitialOwnerId(starData.ownerId);
+        star.starType = starData.starType;
+        star.activeShips = starData.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
+        star.damagedShips = starData.damagedShips ?? 0;
+        star.targetId = starData.targetId ?? '';
+        star.productionRate = starData.productionRate ?? 1;
+        star.repairRate = stats.repairRate;
+        star.transferRate = stats.transferRate;
+        star.activationRate = stats.activationRate;
+        star.defensivePosture = stats.defensivePosture;
+        star.defenseStrength = stats.defenseStrength;
+        star.radius = 25;
+        star.icon = '🌟';
+        star.productionOverflow = 0;
+        star.repairOverflow = 0;
+        star.lastCombatTick = -1;
+        star.lastAttackTick = -1;
+        state!.stars.set(star.id, star);
+    }
+
+    for (const connection of runtimeMap.connections) {
+        addDebugConnection(
+            connection.sourceId,
+            connection.targetId,
+            connection.distance,
+            connection.laneWaypoints,
+            connection.lanePathKind,
+            connection.laneConstraintStatus,
+        );
+    }
+
+    setStateMeasurementsFromRuntimeMap(runtimeMap);
 }
 
 /** Lane margin: clearance for chords / sampled centerlines vs non-endpoint stars (`@pax/common` mapgen). */
@@ -721,6 +863,7 @@ function initStandardMap(playerIds: string[]): void {
 
 let lastMapDefinition: MapDefinition | null = null;
 let pendingSavedMap: MapDefinition | null = null;
+let currentLoadedMap: MapDefinition | null = null;
 let savedMaps: MapDefinition[] = $state(loadSavedMaps());
 
 // F-148: Default map preference — auto-load a saved map on game start
@@ -729,7 +872,14 @@ let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || ''
 function loadSavedMaps(): MapDefinition[] {
     try {
         const raw = localStorage.getItem('pax_savedMaps');
-        const userMaps: MapDefinition[] = raw ? JSON.parse(raw) : [];
+        const parsed = raw ? JSON.parse(raw) : [];
+        const userMaps: MapDefinition[] = Array.isArray(parsed)
+            ? parsed.map((map) =>
+                coerceAuthoredMapDefinition(map as MapDefinition, {
+                    kind: 'legacy-json',
+                }),
+            )
+            : [];
 
         // Merge built-in maps (builtIn flag set), dedup by name
         const builtins = getBuiltinMaps();
@@ -746,6 +896,12 @@ function loadSavedMaps(): MapDefinition[] {
 
 function persistSavedMaps(): void {
     localStorage.setItem('pax_savedMaps', JSON.stringify(savedMaps));
+}
+
+function coerceRepositoryMap(map: MapDefinition): MapDefinition {
+    return coerceAuthoredMapDefinition(map as MapDefinition, {
+        kind: 'legacy-json',
+    });
 }
 
 /** Save a single map to filesystem (fire-and-forget) */
@@ -773,7 +929,9 @@ async function loadFilesystemMaps(): Promise<void> {
     try {
         const res = await fetch('/__maps');
         if (!res.ok) return;
-        const fsMaps: MapDefinition[] = await res.json();
+        const fsMaps: MapDefinition[] = (await res.json()).map((map: MapDefinition) =>
+            coerceRepositoryMap(map),
+        );
         if (!fsMaps.length) return;
 
         // Merge: filesystem maps that aren't already in localStorage
@@ -799,7 +957,7 @@ loadFilesystemMaps();
 // Trigger async builtin maps load (fetch from /maps/)
 async function loadBuiltinMapsAsync(): Promise<void> {
     try {
-        const builtins = await loadBuiltinMaps();
+        const builtins = (await loadBuiltinMaps()).map((map) => coerceRepositoryMap(map));
         if (!builtins.length) return;
         const existingNames = new Set(savedMaps.map(m => m.metadata.name));
         let added = 0;
@@ -927,75 +1085,192 @@ function clearDefaultMap(): void {
 /** Export current map as a TOPOLOGY-ONLY MapDefinition (no live game state).
  * Ships reset to STARTING_SHIPS, no orders, no targets.
  */
-function exportMapTopology(): MapDefinition | null {
+function slugifyMapId(value: string): string {
+    const slug = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug || `map-${Date.now()}`;
+}
+
+function getAuthoredStarById(starId: string): MapDefinition['stars'][number] | undefined {
+    return currentLoadedMap?.stars.find((star) => star.id === starId);
+}
+
+function getAuthoredLaneByPair(sourceId: string, targetId: string): MapDefinition['connections'][number] | undefined {
+    return currentLoadedMap?.connections.find((lane) => (
+        (lane.sourceId === sourceId && lane.targetId === targetId)
+        || (lane.sourceId === targetId && lane.targetId === sourceId)
+    ));
+}
+
+function exportMeasurementDefinitions(): NonNullable<MapDefinition['measurements']> {
+    if (currentLoadedMap?.measurements?.length) {
+        return currentLoadedMap.measurements.map((measurement) => ({
+            ...measurement,
+            start: { ...measurement.start },
+            end: { ...measurement.end },
+        }));
+    }
+
+    return Array.from(state?.mapMeasurements ?? []).map((measurement) => ({
+        id: measurement.id,
+        mode: (measurement.mode as 'manual' | 'generated') ?? 'manual',
+        preset: measurement.preset ? (measurement.preset as 'lane_length') : undefined,
+        label: measurement.label || undefined,
+        visibleByDefault: measurement.visibleByDefault,
+        relatedLaneId: measurement.relatedLaneId || undefined,
+        relatedLaneLabel: measurement.relatedLaneLabel || undefined,
+        starPairLabel: measurement.starPairLabel || undefined,
+        start: {
+            x: measurement.startX,
+            y: measurement.startY,
+            snapKind: 'free',
+        },
+        end: {
+            x: measurement.endX,
+            y: measurement.endY,
+            snapKind: 'free',
+        },
+    }));
+}
+
+function buildExportedMap(includeLiveState: boolean): MapDefinition | null {
     if (!state) return null;
+
+    const now = new Date().toISOString();
     const stars: MapDefinition['stars'] = [];
-    state.stars.forEach((s) => {
+    state.stars.forEach((starState) => {
+        const authoredStar = getAuthoredStarById(starState.id);
         stars.push({
-            id: s.id, x: s.x, y: s.y,
-            ownerId: s.ownerId,
-            starType: s.starType as StarType,
-            activeShips: GAME_CONFIG.STARTING_SHIPS, // Reset to starting ships
-            damagedShips: 0,
-            // No targetId — clean start
+            id: starState.id,
+            x: starState.x,
+            y: starState.y,
+            ownerId: authoredStar?.ownerId ?? starState.ownerId,
+            starType: starState.starType as StarType,
+            activeShips: includeLiveState
+                ? starState.activeShips
+                : (authoredStar?.activeShips ?? GAME_CONFIG.STARTING_SHIPS),
+            damagedShips: includeLiveState ? starState.damagedShips : 0,
+            targetId: includeLiveState ? (starState.targetId || undefined) : undefined,
+            productionRate: authoredStar?.productionRate,
+            specialTraits: authoredStar?.specialTraits ? [...authoredStar.specialTraits] : undefined,
         });
     });
-    const connSet = new Set<string>();
+
+    const seenPairs = new Set<string>();
     const connections: MapDefinition['connections'] = [];
-    for (let i = 0; i < state.connections.length; i++) {
-        const c = state.connections[i];
-        const key = [c.sourceId, c.targetId].sort().join('|');
-        if (!connSet.has(key)) {
-            connSet.add(key);
-            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
-        }
+    for (let index = 0; index < state.connections.length; index++) {
+        const connection = state.connections[index];
+        const pairKey = [connection.sourceId, connection.targetId].sort().join('|');
+        if (seenPairs.has(pairKey)) continue;
+        seenPairs.add(pairKey);
+
+        const authoredLane = getAuthoredLaneByPair(connection.sourceId, connection.targetId);
+        const laneSourceId = authoredLane?.sourceId ?? connection.sourceId;
+        const laneTargetId = authoredLane?.targetId ?? connection.targetId;
+        const orientedConnection =
+            state.connections.find((candidate) =>
+                candidate.sourceId === laneSourceId && candidate.targetId === laneTargetId,
+            ) ?? connection;
+        const laneWaypoints = orientedConnection.laneWaypoints.length >= 2
+            ? Array.from(orientedConnection.laneWaypoints).map((point) => [point.x, point.y] as [number, number])
+            : undefined;
+        const pathMode = authoredLane?.pathMode ?? (laneWaypoints ? 'manual' : 'auto');
+        const shouldPersistWaypoints = pathMode === 'manual';
+
+        connections.push({
+            id: authoredLane?.id ?? `lane-${connections.length}-${pairKey.replace(/\|/g, '-')}`,
+            sourceId: laneSourceId,
+            targetId: laneTargetId,
+            distance: orientedConnection.distance,
+            pathMode,
+            laneWaypoints: shouldPersistWaypoints ? laneWaypoints : undefined,
+            lanePathKind: shouldPersistWaypoints
+                ? ((orientedConnection.lanePathKind || authoredLane?.lanePathKind || undefined) as MapDefinition['connections'][number]['lanePathKind'])
+                : undefined,
+            laneConstraintStatus: shouldPersistWaypoints
+                ? ((orientedConnection.laneConstraintStatus || authoredLane?.laneConstraintStatus || undefined) as MapDefinition['connections'][number]['laneConstraintStatus'])
+                : undefined,
+        });
     }
-    return {
-        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
-        stars, connections,
+
+    const baseName = currentLoadedMap?.metadata.name || 'Untitled';
+    const metadata: MapDefinition['metadata'] = {
+        mapId: currentLoadedMap?.metadata.mapId ?? slugifyMapId(baseName),
+        name: baseName,
+        author: currentLoadedMap?.metadata.author,
+        description: currentLoadedMap?.metadata.description,
+        version: currentLoadedMap?.metadata.version ?? 1,
+        createdAt: currentLoadedMap?.metadata.createdAt ?? now,
+        updatedAt: now,
+        tags: currentLoadedMap?.metadata.tags ? [...currentLoadedMap.metadata.tags] : undefined,
+        importedFrom: currentLoadedMap?.metadata.importedFrom ?? { kind: 'editor' },
+        autosaveRevisionId: currentLoadedMap?.metadata.autosaveRevisionId,
+        autosaveSequence: currentLoadedMap?.metadata.autosaveSequence,
+        thumbnailDataUrl: currentLoadedMap?.metadata.thumbnailDataUrl,
     };
+
+    return {
+        metadata,
+        factions: currentLoadedMap?.factions?.map((faction) => ({ ...faction }))
+            ?? [...new Set(stars.map((star) => star.ownerId ?? AUTHORED_NEUTRAL_OWNER_ID))]
+                .filter((ownerId) => ownerId !== AUTHORED_NEUTRAL_OWNER_ID)
+                .sort()
+                .map((ownerId, order) => ({
+                    id: ownerId!,
+                    label: `Faction ${order + 1}`,
+                    order,
+                })),
+        stars,
+        connections,
+        measurements: exportMeasurementDefinitions(),
+        customRules: includeLiveState
+            ? {
+                ...(currentLoadedMap?.customRules ?? {}),
+                tick: state.tick,
+            }
+            : currentLoadedMap?.customRules,
+    };
+}
+
+function exportMapTopology(): MapDefinition | null {
+    return buildExportedMap(false);
 }
 
 /** Export current game state as a MapDefinition (legacy — includes live state) */
 function exportMapDefinition(): MapDefinition | null {
-    if (!state) return null;
-    const stars: MapDefinition['stars'] = [];
-    state.stars.forEach((s) => {
-        stars.push({
-            id: s.id, x: s.x, y: s.y,
-            ownerId: s.ownerId,
-            starType: s.starType as StarType,
-            activeShips: s.activeShips,
-            damagedShips: s.damagedShips,
-            targetId: s.targetId || undefined,
-        });
-    });
-    const connSet = new Set<string>();
-    const connections: MapDefinition['connections'] = [];
-    for (let i = 0; i < state.connections.length; i++) {
-        const c = state.connections[i];
-        const key = [c.sourceId, c.targetId].sort().join('|');
-        if (!connSet.has(key)) {
-            connSet.add(key);
-            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
-        }
+    return buildExportedMap(true);
+}
+
+function upsertSavedMapDefinition(map: MapDefinition): MapDefinition {
+    const normalizedMap = coerceRepositoryMap(map);
+    savedMaps = [normalizedMap, ...savedMaps.filter((savedMap) => savedMap.metadata.name !== normalizedMap.metadata.name)];
+    persistSavedMaps();
+    persistMapToFilesystem(normalizedMap);
+
+    if (
+        currentLoadedMap?.metadata.mapId === normalizedMap.metadata.mapId
+        || currentLoadedMap?.metadata.name === normalizedMap.metadata.name
+    ) {
+        currentLoadedMap = normalizedMap;
     }
-    return {
-        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
-        stars, connections,
-        customRules: { tick: state.tick },
-    };
+
+    return normalizedMap;
 }
 
 /** Save current map TOPOLOGY with a name (B-58: topology only, no game state) */
 function saveCurrentMap(name: string): void {
     const map = exportMapTopology();
     if (!map) return;
-    map.metadata.name = name;
-    savedMaps = savedMaps.filter(m => m.metadata.name !== name);
-    savedMaps = [map, ...savedMaps];
-    persistSavedMaps();
-    persistMapToFilesystem(map);
+    map.metadata = {
+        ...map.metadata,
+        mapId: map.metadata.mapId || slugifyMapId(name),
+        name,
+        updatedAt: new Date().toISOString(),
+    };
+    upsertSavedMapDefinition(map);
 }
 
 /** Delete a saved map by name */
@@ -1011,105 +1286,23 @@ function deleteSavedMap(name: string): void {
 
 /** Set a saved map to be loaded on next startGame() */
 function loadSavedMap(map: MapDefinition): void {
-    pendingSavedMap = map;
+    pendingSavedMap = coerceRepositoryMap(map);
 }
 
 /** Initialize from a saved MapDefinition */
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
-    const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
+    const normalizedMap = coerceRepositoryMap(map);
+    validateAuthoredMapDefinition(normalizedMap);
+    const runtimeMap = resolveRuntimeMap(normalizedMap, buildRuntimeMapOptions(playerIds));
 
-    // Build faction → playerID remap table
-    // Mid-game saves use runtime IDs ('human-player', 'ai-1') — use identity map.
-    // Classic maps use custom faction IDs ('player-A', 'player-B') — remap alphabetically.
-    const factionRemap = new Map<string, string>();
-    const mapFactions = new Set<string>();
-    for (const s of map.stars) {
-        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
-        if (normalizedOwnerId !== NEUTRAL_OWNER_ID) {
-            mapFactions.add(normalizedOwnerId);
-        }
-    }
+    applyRuntimeMapToState(runtimeMap);
+    currentLoadedMap = normalizedMap;
 
-    // Detect mid-game saves: if ANY saved ownerId matches a runtime playerID, use identity
-    const playerIdSet = new Set(playerIds);
-    const isMidGameSave = Array.from(mapFactions).some(f => playerIdSet.has(f));
-
-    if (isMidGameSave) {
-        // Identity map — ownerIds already correct, don't remap
-        for (const faction of mapFactions) {
-            factionRemap.set(faction, faction);
-        }
-    } else {
-        // Classic map format — remap alphabetically to runtime playerIds
-        const sortedFactions = Array.from(mapFactions).sort();
-        sortedFactions.forEach((faction, i) => {
-            if (i < playerIds.length) {
-                factionRemap.set(faction, playerIds[i]);
-            } else {
-                factionRemap.set(faction, 'neutral');
-            }
-        });
-    }
-    // B-43 diagnostic: trace faction remap
-    console.log(`[MAP] Factions found: [${Array.from(mapFactions).join(', ')}] | isMidGameSave=${isMidGameSave}`);
-    console.log(`[B43/MAP] Player IDs: [${playerIds.join(', ')}]`);
-    factionRemap.forEach((playerId, faction) => {
-        console.log(`[B43/MAP]   ${faction} → ${playerId}`);
-    });
-
-    // Calculate coordinate scale — classic maps use ~800×500 coordinate space;
-    // scale to match current viewport if coordinates are in that range
-    const maxX = Math.max(...map.stars.map(s => s.x));
-    const maxY = Math.max(...map.stars.map(s => s.y));
-    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
-    const targetW = isPortrait ? 900 : 1600;
-    const targetH = isPortrait ? 1600 : 900;
-    // Only scale if the map is small (legacy), leave modern maps as-is
-    const needsScale = maxX < 1000 && maxY < 600;
-    const spacingMult = GAME_CONFIG.CLASSIC_MAP_SPACING ?? 1.0;
-    const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) * spacingMult : 1;
-    const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) * spacingMult : 1;
-    const offsetX = needsScale ? targetW * 0.075 : 0;
-    const offsetY = needsScale ? targetH * 0.075 : 0;
-
-    map.stars.forEach((s: MapDefinition['stars'][0]) => {
-        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
-        const ownerId =
-            normalizedOwnerId === NEUTRAL_OWNER_ID
-                ? NEUTRAL_OWNER_ID
-                : (factionRemap.get(normalizedOwnerId) ?? normalizedOwnerId);
-        const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
-        const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
-        const star = new StarSchema();
-        star.id = s.id;
-        star.x = s.x * scaleX + offsetX;
-        star.y = s.y * scaleY + offsetY;
-        star.ownerId = ownerId;
-        star.starType = starType;
-        star.activeShips = s.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
-        star.damagedShips = s.damagedShips ?? 0;
-        star.targetId = s.targetId ?? '';
-        star.productionRate = 1;
-        star.repairRate = stats.repairRate;
-        star.transferRate = stats.transferRate;
-        star.activationRate = stats.activationRate;
-        star.defensivePosture = stats.defensivePosture;
-        star.defenseStrength = stats.defenseStrength;
-        star.radius = 25;
-        star.icon = '🌟';
-        star.productionOverflow = 0;
-        star.repairOverflow = 0;
-        star.lastCombatTick = -1;
-        state!.stars.set(star.id, star);
-    });
-    for (const conn of map.connections) {
-        addDebugConnection(conn.sourceId, conn.targetId);
-    }
-    const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const uniSaved = canonicalUniConnections(state!.connections);
+    const nodes = runtimeMap.stars.map((star) => ({ id: star.id, x: star.x, y: star.y }));
+    const uniConnections = canonicalUniConnections(state!.connections);
     rebuildLanePolylineCache(
-        nodesSaved,
-        uniSaved,
+        nodes,
+        uniConnections,
         (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
         laneDClearancePx(),
     );
@@ -1120,6 +1313,7 @@ function initializeState(): void {
     state.isPaused = true;
     state.speed = 1;
     state.tick = 0;
+    currentLoadedMap = null;
 
     const playerIds: string[] = [HUMAN_PLAYER_ID];
     for (let i = 1; i < settings.playerCount; i++) {
@@ -1514,6 +1708,7 @@ export const gameStore = {
     get savedMaps() { return savedMaps; },
     get lastMapDefinition() { return lastMapDefinition; },
     saveCurrentMap,
+    upsertSavedMapDefinition,
     deleteSavedMap,
     loadSavedMap,
 

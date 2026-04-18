@@ -5,6 +5,7 @@
         startDisabled: boolean;
         createDisabled: boolean;
         joinDisabled: boolean;
+        onOpenEditor?: () => void;
         onStart: () => void;
         onCreateLobby: () => void;
         onJoinSelected: () => void;
@@ -16,6 +17,7 @@
         startDisabled,
         createDisabled,
         joinDisabled,
+        onOpenEditor,
         onStart,
         onCreateLobby,
         onJoinSelected,
@@ -56,6 +58,15 @@
         >
             Join Selected
         </button>
+        {#if onOpenEditor}
+            <button
+                type="button"
+                class="command-bar__button"
+                onclick={onOpenEditor}
+            >
+                Map Editor
+            </button>
+        {/if}
     </div>
 </div>
 

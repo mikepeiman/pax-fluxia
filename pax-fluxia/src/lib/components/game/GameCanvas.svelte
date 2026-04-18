@@ -22,6 +22,7 @@
     } from "$lib/utils/render.utils";
     import { distance } from "$lib/utils/math.utils";
     import type {
+        MapDiagnosticMeasurement,
         StarState,
         StarConnection,
         StarId,
@@ -143,6 +144,7 @@
         type RulerMeasurement,
         type RulerPoint,
     } from "$lib/territory/devtools/rulerTool";
+    import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
@@ -181,6 +183,7 @@
     let debugGraphics: PIXI.Graphics | null = null; // New debug layer
     let debugTextContainer: PIXI.Container | null = null;
     let rulerLabels: PIXI.Text[] = [];
+    let authoredMeasurementLabels: PIXI.Text[] = [];
 
     // ParticleContainer ship rendering (high-perf batched sprites)
     let shipCircleTexture: PIXI.Texture | null = null;
@@ -1670,6 +1673,10 @@
             label.destroy();
         }
         rulerLabels = [];
+        for (const label of authoredMeasurementLabels) {
+            label.destroy();
+        }
+        authoredMeasurementLabels = [];
         canonicalBridge?.reset();
         canonicalBridge = null;
         canonicalController = null;
@@ -2105,6 +2112,7 @@
             debugGraphics.stroke({ width: 1, color: 0x00ff00, alpha: 0.3 });
         }
 
+        renderAuthoredMeasurementOverlay(debugGraphics);
         renderRulerOverlay(debugGraphics);
     }
 
@@ -3869,10 +3877,13 @@
         return measurement;
     }
 
-    function ensureRulerLabel(index: number): PIXI.Text | null {
+    function ensureMeasurementLabel(
+        pool: PIXI.Text[],
+        index: number,
+    ): PIXI.Text | null {
         const stageParent = debugGraphics?.parent;
         if (!stageParent) return null;
-        while (rulerLabels.length <= index) {
+        while (pool.length <= index) {
             const label = new PIXI.Text({
                 text: "",
                 style: {
@@ -3885,16 +3896,138 @@
             });
             label.anchor.set(0.5);
             label.visible = false;
-            rulerLabels.push(label);
+            pool.push(label);
             stageParent.addChild(label);
         }
-        return rulerLabels[index];
+        return pool[index];
     }
 
-    function hideUnusedRulerLabels(fromIndex: number): void {
-        for (let i = fromIndex; i < rulerLabels.length; i++) {
-            rulerLabels[i].visible = false;
+    function hideUnusedMeasurementLabels(
+        pool: PIXI.Text[],
+        fromIndex: number,
+    ): void {
+        for (let i = fromIndex; i < pool.length; i++) {
+            pool[i].visible = false;
         }
+    }
+
+    function drawMeasurementPoint(
+        graphics: PIXI.Graphics,
+        point: Pick<RulerPoint, "x" | "y" | "snapKind">,
+        color: PIXI.ColorSource,
+        alpha: number,
+    ): void {
+        graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
+        graphics.fill({
+            color,
+            alpha: Math.max(0.18, alpha * 0.28),
+        });
+        graphics.stroke({ color, width: 2, alpha });
+
+        graphics.moveTo(point.x - 10, point.y);
+        graphics.lineTo(point.x + 10, point.y);
+        graphics.moveTo(point.x, point.y - 10);
+        graphics.lineTo(point.x, point.y + 10);
+        graphics.stroke({
+            color,
+            width: 1.5,
+            alpha: Math.max(0.65, alpha),
+        });
+    }
+
+    function drawMeasurementSegment(
+        graphics: PIXI.Graphics,
+        pool: PIXI.Text[],
+        labelIndex: number,
+        color: PIXI.ColorSource,
+        alpha: number,
+        start: Pick<RulerPoint, "x" | "y" | "snapKind">,
+        end: Pick<RulerPoint, "x" | "y" | "snapKind">,
+        measurement: {
+            distance: number;
+            midX: number;
+            midY: number;
+            label?: string;
+        },
+        showEndpoints = true,
+    ): number {
+        graphics.moveTo(start.x, start.y);
+        graphics.lineTo(end.x, end.y);
+        graphics.stroke({ color, width: 2.5, alpha });
+
+        if (showEndpoints) {
+            drawMeasurementPoint(graphics, start, color, alpha);
+            drawMeasurementPoint(graphics, end, color, alpha);
+        }
+
+        const label = ensureMeasurementLabel(pool, labelIndex);
+        if (!label) return labelIndex;
+        label.text = measurement.label ?? `${measurement.distance.toFixed(2)} px`;
+        label.style.fill = color;
+        label.position.set(measurement.midX, measurement.midY - 18);
+        label.visible = true;
+
+        const paddingX = 8;
+        const paddingY = 4;
+        const boxW = label.width + paddingX * 2;
+        const boxH = label.height + paddingY * 2;
+        graphics.roundRect(
+            label.x - boxW * 0.5,
+            label.y - boxH * 0.5,
+            boxW,
+            boxH,
+            6,
+        );
+        graphics.fill({ color: 0x050812, alpha: 0.82 });
+        graphics.stroke({
+            color,
+            width: 1,
+            alpha: Math.max(0.7, alpha),
+        });
+
+        return labelIndex + 1;
+    }
+
+    function renderAuthoredMeasurementOverlay(graphics: PIXI.Graphics): void {
+        const measurements = activeGameStore.mapDiagnostics.measurements;
+        if (!authoredMeasurementsUi.shouldRender(measurements)) {
+            hideUnusedMeasurementLabels(authoredMeasurementLabels, 0);
+            return;
+        }
+
+        let labelIndex = 0;
+        for (const measurement of measurements as MapDiagnosticMeasurement[]) {
+            labelIndex = drawMeasurementSegment(
+                graphics,
+                authoredMeasurementLabels,
+                labelIndex,
+                0xffc857,
+                0.92,
+                {
+                    x: measurement.startX,
+                    y: measurement.startY,
+                    snapKind: measurement.relatedLaneId ? "lane" : "free",
+                },
+                {
+                    x: measurement.endX,
+                    y: measurement.endY,
+                    snapKind: measurement.relatedLaneId ? "lane" : "free",
+                },
+                {
+                    distance: measurement.distance,
+                    midX: measurement.midX,
+                    midY: measurement.midY,
+                    label:
+                        measurement.label
+                        ?? measurement.relatedLaneLabel
+                        ?? measurement.starPairLabel
+                        ?? `${measurement.distance.toFixed(2)} px`,
+                },
+                false,
+            );
+        }
+
+        hideUnusedMeasurementLabels(authoredMeasurementLabels, labelIndex);
     }
 
     function renderRulerOverlay(graphics: PIXI.Graphics): void {
@@ -3903,81 +4036,39 @@
         const color = getRulerCssColor(state);
         let labelIndex = 0;
 
-        const drawPoint = (point: RulerPoint) => {
-            graphics.circle(point.x, point.y, point.snapKind === "free" ? 6 : 8);
-            graphics.fill({
-                color,
-                alpha: Math.max(0.18, state.color.a * 0.28),
-            });
-            graphics.stroke({ color, width: 2, alpha: state.color.a });
-
-            graphics.moveTo(point.x - 10, point.y);
-            graphics.lineTo(point.x + 10, point.y);
-            graphics.moveTo(point.x, point.y - 10);
-            graphics.lineTo(point.x, point.y + 10);
-            graphics.stroke({
-                color,
-                width: 1.5,
-                alpha: Math.max(0.65, state.color.a),
-            });
-        };
-
-        const drawMeasuredSegment = (
-            start: RulerPoint,
-            end: RulerPoint,
-            measurement: {
-                distance: number;
-                midX: number;
-                midY: number;
-            },
-        ) => {
-            graphics.moveTo(start.x, start.y);
-            graphics.lineTo(end.x, end.y);
-            graphics.stroke({ color, width: 2.5, alpha: state.color.a });
-            drawPoint(start);
-            drawPoint(end);
-
-            const label = ensureRulerLabel(labelIndex++);
-            if (!label) return;
-            label.text = `${measurement.distance.toFixed(2)} px`;
-            label.style.fill = color;
-            label.position.set(measurement.midX, measurement.midY - 18);
-            label.visible = true;
-
-            const paddingX = 8;
-            const paddingY = 4;
-            const boxW = label.width + paddingX * 2;
-            const boxH = label.height + paddingY * 2;
-            graphics.roundRect(
-                label.x - boxW * 0.5,
-                label.y - boxH * 0.5,
-                boxW,
-                boxH,
-                6,
-            );
-            graphics.fill({ color: 0x050812, alpha: 0.82 });
-            graphics.stroke({
-                color,
-                width: 1,
-                alpha: Math.max(0.7, state.color.a),
-            });
-        };
-
         if (state.mode === "persistent") {
             for (const measurement of state.measurements) {
-                drawMeasuredSegment(measurement.start, measurement.end, measurement);
+                labelIndex = drawMeasurementSegment(
+                    graphics,
+                    rulerLabels,
+                    labelIndex,
+                    color,
+                    state.color.a,
+                    measurement.start,
+                    measurement.end,
+                    measurement,
+                );
             }
         }
 
         if (state.start) {
-            drawPoint(state.start);
+            drawMeasurementPoint(graphics, state.start, color, state.color.a);
         }
 
         if (draftMeasurement && state.start && state.end) {
-            drawMeasuredSegment(state.start, state.end, draftMeasurement);
+            labelIndex = drawMeasurementSegment(
+                graphics,
+                rulerLabels,
+                labelIndex,
+                color,
+                state.color.a,
+                state.start,
+                state.end,
+                draftMeasurement,
+            );
         }
 
-        hideUnusedRulerLabels(labelIndex);
+        hideUnusedMeasurementLabels(rulerLabels, labelIndex);
     }
 
     function handlePointerDown(event: PointerEvent) {

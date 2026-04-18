@@ -80,6 +80,30 @@ export interface Connection {
     laneConstraintStatus?: LaneConstraintStatus;
 }
 
+export interface MapDiagnosticMeasurement {
+    id: string;
+    mode: 'manual' | 'generated';
+    preset?: 'lane_length';
+    label?: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    dx: number;
+    dy: number;
+    distance: number;
+    midX: number;
+    midY: number;
+    visibleByDefault: boolean;
+    relatedLaneId?: string;
+    relatedLaneLabel?: string;
+    starPairLabel?: string;
+}
+
+export interface MapDiagnostics {
+    measurements: MapDiagnosticMeasurement[];
+}
+
 // === Game State ===
 
 export interface GameState {
@@ -91,6 +115,7 @@ export interface GameState {
     players: Player[];
     stars: Star[];
     connections: Connection[];
+    mapDiagnostics?: MapDiagnostics;
     winner?: Player | null;
     hostSessionId?: string;
 }
@@ -99,7 +124,7 @@ export interface GameState {
 
 export interface GameSettings {
     playerCount: number;
-    mapType?: 'standard' | 'debug' | 'debug-b';
+    mapType?: 'standard' | 'debug' | 'debug-b' | 'custom';
     starSpacing?: number;
     minLinksPerStar?: number;
     maxLinksPerStar?: number;

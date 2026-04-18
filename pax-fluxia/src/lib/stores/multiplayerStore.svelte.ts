@@ -4,7 +4,16 @@
 
 import { Client, Room } from '@colyseus/sdk';
 import type { EngineConfig } from '@pax/common';
-import type { PlayerState, StarState, StarConnection, StarId, GameHistoryEntry } from '$lib/types/game.types';
+import type {
+    PlayerState,
+    StarState,
+    StarConnection,
+    StarId,
+    GameHistoryEntry,
+    MapDiagnosticMeasurement,
+    MapDiagnostics,
+} from '$lib/types/game.types';
+import type { MapDefinition } from '$lib/types/map.types';
 import { log } from '$lib/utils/logger';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { TickEvents, TransferEvent } from '@pax/common';
@@ -18,6 +27,7 @@ import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualCon
 export type CreateRoomOptions = {
     playerCount?: number;
     mapType?: string;
+    customMap?: MapDefinition;
     starsPerPlayer?: number;
     shipsPerStar?: number;
     starSpacing?: number;
@@ -64,6 +74,7 @@ let localSessionId = $state<string | null>(null);
 let players = $state<PlayerState[]>([]);
 let stars = $state<StarState[]>([]);
 let connections = $state<StarConnection[]>([]);
+let mapDiagnostics = $state<MapDiagnostics>({ measurements: [] });
 let pendingTransfers = $state<TransferEvent[]>([]);
 let gameHistory = $state<GameHistoryEntry[]>([]);
 
@@ -251,6 +262,7 @@ function leaveRoom(): void {
     players = [];
     stars = [];
     connections = [];
+    mapDiagnostics = { measurements: [] };
     gameHistory = [];
     restartVoteInfo = null;
     startVoteInfo = null;
@@ -285,6 +297,7 @@ export interface RoomListing {
         tick?: number;
         playerNames?: string[];
         aiPlayers?: { sessionId: string; name: string; color: string }[];
+        customMapName?: string | null;
     };
 }
 
@@ -559,6 +572,29 @@ function syncStateFromRoom(state: any): void {
     }
     stars = starArray;
 
+    const measurements: MapDiagnosticMeasurement[] = state.mapMeasurements
+        ? Array.from(state.mapMeasurements).map((measurement: any) => ({
+            id: measurement.id,
+            mode: measurement.mode as 'manual' | 'generated',
+            preset: measurement.preset ? (measurement.preset as 'lane_length') : undefined,
+            label: measurement.label || undefined,
+            startX: measurement.startX,
+            startY: measurement.startY,
+            endX: measurement.endX,
+            endY: measurement.endY,
+            dx: measurement.dx,
+            dy: measurement.dy,
+            distance: measurement.distance,
+            midX: measurement.midX,
+            midY: measurement.midY,
+            visibleByDefault: measurement.visibleByDefault,
+            relatedLaneId: measurement.relatedLaneId || undefined,
+            relatedLaneLabel: measurement.relatedLaneLabel || undefined,
+            starPairLabel: measurement.starPairLabel || undefined,
+        }))
+        : [];
+    mapDiagnostics = { measurements };
+
     // Convert connections array
     connections = state.connections
         ? seedLaneCacheFromConnections(state.connections) as StarConnection[]
@@ -778,6 +814,7 @@ export const multiplayerStore = {
     get players() { return players; },
     get stars() { return stars; },
     get connections() { return connections; },
+    get mapDiagnostics() { return mapDiagnostics; },
     get localPlayer() { return players.find(p => (p as any).sessionId === localSessionId); },
     get pendingTransfers() { return pendingTransfers; },
     get history() { return gameHistory; },
