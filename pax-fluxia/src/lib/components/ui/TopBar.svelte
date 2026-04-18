@@ -6,6 +6,9 @@
     onDiagnosticsClick?: () => void;
     onHelpClick?: () => void;
     onFitViewport?: () => void;
+    onAuthoredMeasurementsToggle?: () => void;
+    authoredMeasurementsActive?: boolean;
+    authoredMeasurementsAvailable?: boolean;
     onRulerToggle?: () => void;
     diagnosticsActive?: boolean;
     rulerActive?: boolean;
@@ -16,6 +19,9 @@
     onDiagnosticsClick,
     onHelpClick,
     onFitViewport,
+    onAuthoredMeasurementsToggle,
+    authoredMeasurementsActive = false,
+    authoredMeasurementsAvailable = false,
     onRulerToggle,
     diagnosticsActive = false,
     rulerActive = false,
@@ -71,6 +77,16 @@
     onclick={onRulerToggle}
     title={rulerActive ? "Turn Ruler Off" : "Turn Ruler On"}>
     📏
+  </button>
+{/if}
+
+{#if onAuthoredMeasurementsToggle && authoredMeasurementsAvailable}
+  <button
+    class="measurements-fab"
+    class:active={authoredMeasurementsActive}
+    onclick={onAuthoredMeasurementsToggle}
+    title={authoredMeasurementsActive ? "Hide Map Measurements" : "Show Map Measurements"}>
+    ⇄
   </button>
 {/if}
 
@@ -176,6 +192,7 @@
   .help-fab,
   .fit-fab,
   .diagnostics-fab,
+  .measurements-fab,
   .ruler-fab {
     position: fixed;
     bottom: 20px;
@@ -211,14 +228,20 @@
     font-size: 1rem;
   }
 
-  .ruler-fab {
+  .measurements-fab {
     right: 152px;
+    font-size: 1rem;
+  }
+
+  .ruler-fab {
+    right: 196px;
     font-size: 1rem;
   }
 
   .help-fab:hover,
   .fit-fab:hover,
   .diagnostics-fab:hover,
+  .measurements-fab:hover,
   .ruler-fab:hover {
     color: #fff;
     border-color: rgba(0, 255, 255, 0.4);
@@ -227,6 +250,7 @@
   }
 
   .diagnostics-fab.active,
+  .measurements-fab.active,
   .ruler-fab.active {
     color: #57f8ff;
     border-color: rgba(87, 248, 255, 0.5);

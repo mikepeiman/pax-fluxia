@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
     import { fade, fly } from "svelte/transition";
     import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
     import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -756,24 +757,13 @@
 
     function startSPGame() {
         saveAllSettings();
-        const selectedSavedMapName =
-            mapMode === "classic"
-                ? selectedClassicMap
-                : mapMode === "custom"
-                  ? selectedCustomMap
-                  : null;
-
-        if (selectedSavedMapName) {
-            const savedMap = gameStore.savedMaps.find(
-                (map) => map.metadata.name === selectedSavedMapName,
-            );
-            if (savedMap) {
-                applyConfig();
-                gameStore.loadSavedMap(savedMap);
-                gameStore.restart();
-                visible = false;
-                return;
-            }
+        const savedMap = getSelectedSavedMap();
+        if (savedMap) {
+            applyConfig();
+            gameStore.loadSavedMap(savedMap);
+            gameStore.restart();
+            visible = false;
+            return;
         }
 
         applyConfig();
@@ -802,9 +792,31 @@
         applyConfig();
 
         if (mapMode === "custom") {
+            const savedMap = getSelectedSavedMap();
+            if (!savedMap) {
+                multiplayerStore.playerName = playerName || "Commander";
+                multiplayerStore.playerColor = getPlayerColorHex(0);
+                multiplayerStore.fetchRooms();
+                return;
+            }
+
+            await multiplayerStore.createRoom({
+                playerCount,
+                mapType: "custom",
+                customMap: savedMap,
+                starsPerPlayer,
+                shipsPerStar,
+                starSpacing,
+                mapBoardFit,
+                minLinks,
+                maxLinks,
+                retainOrderOnConquest,
+                gameplayConfig: buildEngineConfig(),
+                playerColors: getConfiguredPlayerColors(playerCount),
+            });
+
             multiplayerStore.playerName = playerName || "Commander";
             multiplayerStore.playerColor = getPlayerColorHex(0);
-            multiplayerStore.fetchRooms();
             return;
         }
 
@@ -873,6 +885,30 @@
     function triggerJoinSelectedAction() {
         audioManager.play("click");
         void handleJoinSelectedRoom();
+    }
+
+    function getSelectedSavedMap() {
+        const selectedSavedMapName =
+            mapMode === "classic"
+                ? selectedClassicMap
+                : mapMode === "custom"
+                  ? selectedCustomMap
+                  : null;
+
+        if (!selectedSavedMapName) {
+            return null;
+        }
+
+        return (
+            gameStore.savedMaps.find(
+                (map) => map.metadata.name === selectedSavedMapName,
+            ) ?? null
+        );
+    }
+
+    function openMapEditor() {
+        audioManager.play("click");
+        void goto("/dev/map-editor");
     }
 
     function handleMapModeChange(mode: MapMode) {
@@ -1178,8 +1214,10 @@
                 selectedRoomLabel={selectedRoomLabel}
                 startDisabled={multiplayerStore.isConnected}
                 loadMapDisabled={multiplayerStore.isConnected || getLoadableMaps().length === 0}
-                createDisabled={mapMode === "custom" || multiplayerStore.isConnected}
+                createDisabled={multiplayerStore.isConnected}
+                loadMapDisabled={multiplayerStore.isConnected || getLoadableMaps().length === 0}
                 joinDisabled={!selectedRoom || multiplayerStore.isConnected}
+                onOpenEditor={openMapEditor}
                 onStart={triggerStartAction}
                 onLoadMap={triggerLoadMapAction}
                 onCreateLobby={triggerCreateLobbyAction}

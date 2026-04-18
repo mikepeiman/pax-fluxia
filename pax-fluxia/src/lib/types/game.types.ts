@@ -11,6 +11,8 @@ export type {
   AILevel,
   GameState,
   GameSettings,
+  MapDiagnosticMeasurement,
+  MapDiagnostics,
   Player,
   Star,
   Connection,

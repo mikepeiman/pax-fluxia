@@ -65,6 +65,35 @@ Keep speculation separate from verified facts.
 
 ## Active Entries
 
+### 2026-04-17 A7. Workspace/file tools still unreliable in active Pax Fluxia worktree, forcing shell fallback
+
+- Status: open
+- Category: tool initialization failure
+- Surface: atlas-harness workspace and file tools in Codex session
+
+#### Verified observation
+
+During the authored-map editor implementation session in the active worktree:
+
+- atlas workspace/file usage remained unreliable enough that local inspection had to fall back to PowerShell reads
+- the practical symptom matched prior sessions: atlas file/workspace calls could not be trusted as the primary read/edit surface for ordinary repo inspection
+
+#### Impact
+
+- forced repeated fallback to raw shell reads and `apply_patch`
+- reduced atlas-harness value during a large cross-package refactor where fast, reliable workspace reads matter most
+- prevented normal use of atlas-harness as the default repo inspection path in this thread
+
+#### Workaround
+
+- use PowerShell `Get-Content` / `Select-String` and direct repo-relative workdir commands for the affected session
+
+#### Desired fix or success condition
+
+- atlas-harness should consistently bind to the active Pax Fluxia worktree in Codex sessions
+- file/workspace tools should fail with a specific readiness error instead of degrading into trial-and-error fallback decisions
+- an agent should be able to trust atlas-harness for routine local reads before reaching for shell fallback
+
 ### 2026-04-13 A6. Workspace file tools still initialize from `C:\WINDOWS\system32` in some Codex calls
 
 - Status: open

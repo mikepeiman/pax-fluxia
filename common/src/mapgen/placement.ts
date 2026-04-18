@@ -15,6 +15,24 @@ interface HexCoord {
     y: number;
 }
 
+export interface IndexedHexCoord extends HexCoord {
+    q: number;
+    r: number;
+}
+
+interface PlacementGridContext {
+    hexes: MapPosition[];
+    hexRadius: number;
+    width: number;
+    height: number;
+    paddingX: number;
+    paddingY: number;
+    minSpacing: number;
+    physicsMinSpacing: number;
+    boardFit: number;
+    fullBoardFit: boolean;
+}
+
 /**
  * Generate a regular hexagonal grid of positions.
  * Uses pointy-top hex packing for even distribution.
@@ -24,7 +42,11 @@ interface HexCoord {
  * @param radius - Hex cell radius (center to vertex)
  * @returns Array of hex center positions
  */
-export function generateHexGrid(width: number, height: number, radius: number): HexCoord[] {
+export function generateIndexedHexGrid(
+    width: number,
+    height: number,
+    radius: number,
+): IndexedHexCoord[] {
     const hexWidth = radius * 2;
     const hexHeight = Math.sqrt(3) * radius;
     const xStep = hexWidth * 0.75;
@@ -32,7 +54,7 @@ export function generateHexGrid(width: number, height: number, radius: number): 
 
     const cols = Math.floor(width / xStep);
     const rows = Math.floor(height / yStep);
-    const coords: HexCoord[] = [];
+    const coords: IndexedHexCoord[] = [];
 
     for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -41,11 +63,20 @@ export function generateHexGrid(width: number, height: number, radius: number): 
             if (col % 2 === 1) y += hexHeight / 2;
 
             if (x + radius <= width && y + radius <= height) {
-                coords.push({ x: Math.round(x), y: Math.round(y) });
+                coords.push({
+                    q: col,
+                    r: row,
+                    x: Math.round(x),
+                    y: Math.round(y),
+                });
             }
         }
     }
     return coords;
+}
+
+export function generateHexGrid(width: number, height: number, radius: number): HexCoord[] {
+    return generateIndexedHexGrid(width, height, radius).map(({ x, y }) => ({ x, y }));
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +261,87 @@ const RING_SPACING = SHIP_BASE_SIZE * 1.4;
 const MAX_ORBIT_LAYERS = 5;
 const SPACING_BUFFER = 20;
 
+function buildPlacementGridContext(config: {
+    width: number;
+    height: number;
+    totalStars: number;
+    spacingMultiplier?: number;
+    hexRadius?: number;
+    boardFit?: number;
+}): PlacementGridContext {
+    const { totalStars, spacingMultiplier = 1.0, boardFit = 0 } = config;
+    const fullBoardFit = boardFit >= 0.999;
+    const nearFullBoardBlend = fullBoardFit
+        ? 1
+        : Math.max(0, Math.min(1, (boardFit - 0.9) / 0.1));
+    const scaleFactor = Math.max(1, spacingMultiplier);
+    const width = Math.round(config.width * scaleFactor);
+    const height = Math.round(config.height * scaleFactor);
+
+    const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
+    const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
+    const paddingX = fullBoardFit
+        ? 0
+        : Math.round(basePaddingX * scaleFactor * (1 - nearFullBoardBlend));
+    const paddingY = fullBoardFit
+        ? 0
+        : Math.round(basePaddingY * scaleFactor * (1 - nearFullBoardBlend));
+
+    let hexRadius = config.hexRadius ?? 60;
+    const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
+    const neededPositions = totalStars * 3;
+    const maxHexArea = gridArea / neededPositions;
+    const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
+    hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
+
+    const gridWidth = width - paddingX * 2;
+    const gridHeight = height - paddingY * 2;
+    const rawHexes = generateHexGrid(gridWidth, gridHeight, hexRadius);
+    const hexes = rawHexes.map((hex) => ({ x: hex.x + paddingX, y: hex.y + paddingY }));
+
+    const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
+    const minSpacing = physicsMinSpacing * spacingMultiplier;
+
+    return {
+        hexes,
+        hexRadius,
+        width,
+        height,
+        paddingX,
+        paddingY,
+        minSpacing,
+        physicsMinSpacing,
+        boardFit: Math.max(0, Math.min(1, boardFit)),
+        fullBoardFit,
+    };
+}
+
+export function generatePlacementHexGrid(config: {
+    width: number;
+    height: number;
+    totalStars: number;
+    spacingMultiplier?: number;
+    hexRadius?: number;
+    boardFit?: number;
+}): {
+    hexes: MapPosition[];
+    hexRadius: number;
+    width: number;
+    height: number;
+    paddingX: number;
+    paddingY: number;
+} {
+    const { hexes, hexRadius, width, height, paddingX, paddingY } = buildPlacementGridContext(config);
+    return {
+        hexes,
+        hexRadius,
+        width,
+        height,
+        paddingX,
+        paddingY,
+    };
+}
+
 /**
  * Generate star positions for a map.
  * Handles adaptive hex radius, physics-aware spacing, and padding.
@@ -244,42 +356,19 @@ export function generateStarPositions(config: {
     hexRadius?: number;
     boardFit?: number;
 }): { positions: MapPosition[]; hexRadius: number; width: number; height: number; paddingX: number; paddingY: number } {
-    const { totalStars, spacingMultiplier = 1.0, boardFit = 0 } = config;
-    const fullBoardFit = boardFit >= 0.999;
-    const nearFullBoardBlend = fullBoardFit
-        ? 1
-        : Math.max(0, Math.min(1, (boardFit - 0.9) / 0.1));
-    const scaleFactor = Math.max(1, spacingMultiplier);
-    const width = Math.round(config.width * scaleFactor);
-    const height = Math.round(config.height * scaleFactor);
-
-    // Dynamic padding
-    const basePaddingX = totalStars > 50 ? 80 : totalStars > 20 ? 120 : 150;
-    const basePaddingY = totalStars > 50 ? 60 : totalStars > 20 ? 80 : 100;
-    const paddingX = fullBoardFit
-        ? 0
-        : Math.round(basePaddingX * scaleFactor * (1 - nearFullBoardBlend));
-    const paddingY = fullBoardFit
-        ? 0
-        : Math.round(basePaddingY * scaleFactor * (1 - nearFullBoardBlend));
-
-    // Adaptive hex radius
-    let hexRadius = config.hexRadius ?? 60;
-    const gridArea = (width - paddingX * 2) * (height - paddingY * 2);
-    const neededPositions = totalStars * 3;
-    const maxHexArea = gridArea / neededPositions;
-    const maxHexRadius = Math.sqrt(maxHexArea / (1.5 * Math.sqrt(3)));
-    hexRadius = Math.max(20, Math.min(hexRadius, Math.floor(maxHexRadius)));
-
-    // Generate hex grid within padded area
-    const gridWidth = width - paddingX * 2;
-    const gridHeight = height - paddingY * 2;
-    const rawHexes = generateHexGrid(gridWidth, gridHeight, hexRadius);
-    const hexes = rawHexes.map(h => ({ x: h.x + paddingX, y: h.y + paddingY }));
-
-    // Physics-aware minimum spacing
-    const physicsMinSpacing = (STAR_RADIUS * 2) + (RING_SPACING * MAX_ORBIT_LAYERS * 2) + SPACING_BUFFER;
-    const minSpacing = physicsMinSpacing * spacingMultiplier;
+    const { totalStars } = config;
+    const {
+        hexes,
+        hexRadius,
+        width,
+        height,
+        paddingX,
+        paddingY,
+        minSpacing,
+        physicsMinSpacing,
+        boardFit,
+        fullBoardFit,
+    } = buildPlacementGridContext(config);
 
     let positions: MapPosition[];
     if (fullBoardFit) {

@@ -81,6 +81,27 @@ export const ConnectionSchema = schema({
 }, "ConnectionSchema");
 export type ConnectionSchema = SchemaType<typeof ConnectionSchema>;
 
+export const MapMeasurementSchema = schema({
+    id: "string",
+    mode: "string",
+    preset: "string",
+    label: "string",
+    startX: "number",
+    startY: "number",
+    endX: "number",
+    endY: "number",
+    dx: "number",
+    dy: "number",
+    distance: "number",
+    midX: "number",
+    midY: "number",
+    visibleByDefault: "boolean",
+    relatedLaneId: "string",
+    relatedLaneLabel: "string",
+    starPairLabel: "string",
+}, "MapMeasurementSchema");
+export type MapMeasurementSchema = SchemaType<typeof MapMeasurementSchema>;
+
 // ============================================================================
 // Territory Polygon (for Voronoi)
 // ============================================================================
@@ -113,6 +134,9 @@ export const GameRoomState = schema({
 
     // Connections (array for iteration)
     connections: { array: ConnectionSchema },
+
+    // Map-authored diagnostics
+    mapMeasurements: { array: MapMeasurementSchema },
 
     // Territories (optional, for visualization)
     territories: { map: TerritorySchema },

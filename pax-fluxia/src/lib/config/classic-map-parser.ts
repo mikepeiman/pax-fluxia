@@ -15,6 +15,7 @@
 //   Connections: space-separated 0-based indices of connected stars
 // ============================================================================
 
+import { createLegacyClassicMap, importLegacyMapDefinition } from '@pax/common/maps';
 import type { MapDefinition } from '$lib/types/map.types';
 import type { StarType } from '$lib/types/game.types';
 
@@ -122,6 +123,7 @@ export function parseClassicMap(name: string, text: string): MapDefinition {
                 const s2 = stars[j];
                 const distance = Math.sqrt((s1.x - s2.x) ** 2 + (s1.y - s2.y) ** 2);
                 connections.push({
+                    id: `lane-${connections.length}-${key.replace(/\|/g, '-')}`,
                     sourceId: `star-${i}`,
                     targetId: `star-${j}`,
                     distance,
@@ -133,16 +135,13 @@ export function parseClassicMap(name: string, text: string): MapDefinition {
     // Extract unique factions for metadata
     const factions = new Set(stars.map(s => s.ownerId).filter(id => id !== 'neutral'));
 
-    return {
-        metadata: {
-            name,
-            author: 'Pax Galaxia Classic',
-            description: `${stars.length} stars, ${playerCount || factions.size} players, ${connections.length} links`,
-            createdAt: '2020-01-01T00:00:00Z', // Original game era
+    return importLegacyMapDefinition(
+        createLegacyClassicMap(name, stars, connections),
+        {
+            kind: 'classic',
+            sourceId: name,
         },
-        stars,
-        connections,
-    };
+    );
 }
 
 /**

@@ -1,5 +1,13 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
+    import {
+        downloadAllDiagnosticPackages,
+        downloadBundle,
+        downloadDiagnosticPackage,
+    } from "$lib/territory/devtools/TransitionBundleSerializer";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     interface Props {
@@ -9,6 +17,9 @@
     }
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
+    const hasAuthoredMeasurements = $derived(
+        activeGameStore.mapDiagnostics.measurements.length > 0,
+    );
 
     let slowMoActive = $state(GAME_CONFIG.DEBUG_MORPH_SLOWMO);
     let showVertices = $state(GAME_CONFIG.DEBUG_MORPH_VERTICES);
@@ -64,9 +75,31 @@
         if (typeof window === "undefined") return;
         window.dispatchEvent(new CustomEvent("pax-open-transition-debug-panel"));
     }
+
+    function toggleAuthoredMeasurements() {
+        if (!hasAuthoredMeasurements) return;
+        authoredMeasurementsUi.toggle();
+    }
 </script>
 
 <CategoryThemeBar category="debug" onApply={() => syncFromConfig?.()} />
+
+<h4 class="sub-heading">Map Diagnostics</h4>
+
+<label class="toggle-row" class:is-disabled={!hasAuthoredMeasurements}>
+    <input
+        type="checkbox"
+        checked={$authoredMeasurementsUi.visible}
+        disabled={!hasAuthoredMeasurements}
+        onchange={toggleAuthoredMeasurements}
+    />
+    <span>Show authored measurements</span>
+    <span class="debug-hint">
+        {hasAuthoredMeasurements
+            ? `${activeGameStore.mapDiagnostics.measurements.length} lines`
+            : "No measurements in this map"}
+    </span>
+</label>
 
 <h4 class="sub-heading">Morph Diagnostics</h4>
 
@@ -319,6 +352,10 @@
         padding: 3px 0;
         color: #ccc;
         cursor: pointer;
+    }
+    .toggle-row.is-disabled {
+        opacity: 0.45;
+        cursor: default;
     }
     .toggle-row input[type="checkbox"] {
         accent-color: #66ccaa;

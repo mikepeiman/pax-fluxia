@@ -109,11 +109,74 @@ function mapPersistPlugin() {
   };
 }
 
+// Dev-only plugin: expose fixture maps from common/resources via /__fixture-maps
+function fixtureMapPlugin() {
+  return {
+    name: "fixture-maps",
+    /** @param {import('vite').ViteDevServer} server */
+    configureServer(server) {
+      const resourceRoot = path.resolve(server.config.root, "..", "common", "resources");
+      const fixtureDir = path.join(resourceRoot, "fixture-maps");
+
+      server.middlewares.use("/__fixture-maps", (/** @type {import('http').IncomingMessage} */ req, /** @type {import('http').ServerResponse} */ res) => {
+        res.setHeader("Content-Type", "application/json");
+
+        if (req.method !== "GET") {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: "Method not allowed" }));
+          return;
+        }
+
+        try {
+          const url = new URL(req.url || "", "http://localhost");
+          const requestedPath = url.searchParams.get("path");
+          const requestedId = url.searchParams.get("id");
+
+          if (!requestedPath && !requestedId) {
+            const manifest = fs.existsSync(fixtureDir)
+              ? fs
+                  .readdirSync(fixtureDir)
+                  .filter((file) => file.endsWith(".json"))
+                  .map((file) => ({
+                    id: path.basename(file, ".json"),
+                    resourcePath: `common/resources/fixture-maps/${file}`,
+                  }))
+              : [];
+            res.statusCode = 200;
+            res.end(JSON.stringify(manifest));
+            return;
+          }
+
+          const relativePath = requestedPath || `common/resources/fixture-maps/${requestedId}.json`;
+          const absolutePath = path.resolve(server.config.root, "..", relativePath);
+          if (!absolutePath.startsWith(resourceRoot)) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: "Invalid fixture path" }));
+            return;
+          }
+          if (!fs.existsSync(absolutePath)) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: "Fixture map not found" }));
+            return;
+          }
+
+          const content = fs.readFileSync(absolutePath, "utf-8");
+          res.statusCode = 200;
+          res.end(content);
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+    },
+  };
+}
+
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
+  plugins: [sveltekit(), settingsDumpPlugin(), mapPersistPlugin(), fixtureMapPlugin()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
