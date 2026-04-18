@@ -73,10 +73,9 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
     const progressClamped = clamp01(progress);
     const cells: GridRenderCell[] = [];
 
-    // PERF: iterate only active vstars (dispossessed + emergent + vacating).
-    // Native cells are intentionally not emitted — the ownership-geometry
-    // underlayer paints them. Outside cells are not emitted by definition.
-    for (const v of classification.activeVstars) {
+    // PERF: iterate only emittable vstars (native + dispossessed + emergent
+    // + vacating). Outside cells would early-return anyway.
+    for (const v of classification.emittableVstars) {
         emitForVStar({
             v,
             progress: progressClamped,
@@ -108,15 +107,22 @@ function emitForVStar(args: {
         case 'outside':
             return;
 
-        case 'native':
-            // PERF/VISUAL: native cells are emitted by the ownership-geometry
-            // underlayer already. Re-emitting them here (a) doubles the
-            // compositor sample count by ~N_cells across the whole map every
-            // frame, and (b) sums with the underlayer's star-centered influence
-            // producing a visible "moat" dip around most stars. The grid layer
-            // only needs to contribute during an active conquest transition,
-            // and only for cells whose ownership is actually changing.
+        case 'native': {
+            // Native cells ARE the primary fill for grid mode. Emit one
+            // cell per native vstar at NEXT color with full alpha.
+            const colorIdx = resolveColorIdx(v.nextOwnerId, ownerColorIdx);
+            if (colorIdx === null) return;
+            out.push({
+                vId: v.id,
+                x: v.x,
+                y: v.y,
+                colorIdx,
+                alpha: 1,
+                strength,
+                pass: 'single',
+            });
             return;
+        }
 
         case 'dispossessed':
         case 'emergent':

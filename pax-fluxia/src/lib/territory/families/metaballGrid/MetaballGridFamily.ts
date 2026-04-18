@@ -37,6 +37,7 @@ import type {
     GridClassification,
     GridFlipTransition,
     GridOriginMode,
+    GridOwnedStar,
     GridWaveGeometry,
     GridWavePlan,
     GridWaveSeeding,
@@ -104,6 +105,17 @@ function revertStarsForTransition(input: RenderFamilyInput): StarState[] {
         const ownerId = overrides.get(star.id);
         return ownerId === undefined ? { ...star } : { ...star, ownerId };
     });
+}
+
+/** Filter + project stars that have a non-null owner — for the nearest-star fallback. */
+function toOwnedStars(stars: ReadonlyArray<StarState>): GridOwnedStar[] {
+    const out: GridOwnedStar[] = [];
+    for (const s of stars) {
+        if (s.ownerId !== null && s.ownerId !== undefined) {
+            out.push({ id: s.id, ownerId: s.ownerId, x: s.x, y: s.y });
+        }
+    }
+    return out;
 }
 
 function buildTransitionKey(input: RenderFamilyInput): string | null {
@@ -219,6 +231,9 @@ export class MetaballGridFamily implements RenderFamily {
             return s ? { x: s.x, y: s.y } : null;
         };
 
+        const revertedOwnedStars = toOwnedStars(revertedStars);
+        const currentOwnedStars = toOwnedStars(input.stars);
+
         const classification = buildGridClassification({
             world: { width: input.world.width, height: input.world.height },
             spacingPx,
@@ -227,6 +242,8 @@ export class MetaballGridFamily implements RenderFamily {
             nextGeometry: currentGeometry,
             conquestEvents,
             resolveStarPosition,
+            prevOwnedStars: revertedOwnedStars,
+            nextOwnedStars: currentOwnedStars,
         });
         const wavePlan = planGridWave({
             classification,
@@ -238,6 +255,56 @@ export class MetaballGridFamily implements RenderFamily {
         });
 
         return { transitionKey, classification, wavePlan, prevGeometry };
+    }
+
+    /**
+     * Steady-state plan (no active transition). PREV === NEXT, so classification
+     * yields `native` for every cell inside ownership regions and `outside`
+     * for the rest. The wave plan is empty. The resulting scene paints a flat
+     * grid of native cells — this is the primary visible fill between
+     * transitions.
+     */
+    private buildSteadyStatePlan(params: {
+        input: RenderFamilyInput;
+        currentGeometry: CanonicalGeometrySnapshot;
+    }): CachedPlan {
+        const { input, currentGeometry } = params;
+
+        const spacingPx = Math.max(
+            2,
+            readTunableNumber(input, 'METABALL_GRID_SPACING_PX', GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48),
+        );
+        const originMode = readTunableString<GridOriginMode>(
+            input,
+            'METABALL_GRID_ORIGIN_MODE',
+            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
+            ['centered', 'corner'],
+        );
+        const ownedStars = toOwnedStars(input.stars);
+
+        const classification = buildGridClassification({
+            world: { width: input.world.width, height: input.world.height },
+            spacingPx,
+            originMode,
+            prevGeometry: currentGeometry,
+            nextGeometry: currentGeometry,
+            conquestEvents: [],
+            prevOwnedStars: ownedStars,
+            nextOwnedStars: ownedStars,
+        });
+        const wavePlan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'grid_bfs',
+            adjacency: '8',
+            conquestEvents: [],
+        });
+        return {
+            transitionKey: 'steady',
+            classification,
+            wavePlan,
+            prevGeometry: currentGeometry,
+        };
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
@@ -256,41 +323,23 @@ export class MetaballGridFamily implements RenderFamily {
 
         const transitionKey = buildTransitionKey(input);
 
-        // PERF: between transitions, the grid layer contributes nothing —
-        // native cells are covered by the ownership-geometry underlayer. Skip
-        // classification/plan construction entirely and push an empty sample
-        // set. This cuts the common-case cost of metaball-grid to ~0.
-        if (!transitionKey) {
-            if (this.cachedPlan !== null) {
-                this.cachedPlan = null;
+        // Rebuild the plan only when (transitionKey, session) changes. Per-frame
+        // work is scoped to the scene builder.
+        if (transitionKey) {
+            if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
+                this.cachedPlan = this.buildPlanForTransition({
+                    input,
+                    currentGeometry,
+                    transitionKey,
+                });
             }
-            const baseCtxIdle = buildMetaballBaseContext(input, this.colorUtils, new Map());
-            const idleSceneInput: MetaballSceneInput = {
-                ownedStars: baseCtxIdle.ownedStars,
-                clusterMap: baseCtxIdle.clusterMap,
-                playerColors: baseCtxIdle.playerColors,
-                clusterShips: baseCtxIdle.clusterShips,
-                samples: [],
-                fingerprint: `mg:idle:${input.stars.length}`,
-            };
-            renderMetaball(
-                [...input.stars],
-                this.root,
-                this.colorUtils,
-                input.world.width,
-                input.world.height,
-                [...input.lanes],
-                { gameTick: input.gameTick, sceneInput: idleSceneInput },
-            );
-            return { container: this.root };
-        }
-
-        if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
-            this.cachedPlan = this.buildPlanForTransition({
-                input,
-                currentGeometry,
-                transitionKey,
-            });
+        } else {
+            if (!this.cachedPlan || this.cachedPlan.transitionKey !== 'steady') {
+                this.cachedPlan = this.buildSteadyStatePlan({
+                    input,
+                    currentGeometry,
+                });
+            }
         }
 
         const cached = this.cachedPlan;

@@ -22,6 +22,7 @@ import type {
     BuildGridClassificationParams,
     GridClassification,
     GridOriginMode,
+    GridOwnedStar,
     GridVRole,
     GridVStar,
 } from './metaballGridTypes';
@@ -57,6 +58,34 @@ function resolveOwnerAt(
         }
     }
     return null;
+}
+
+/**
+ * Nearest-owned-star fallback. Used when polygon coverage misses a cell that
+ * is clearly inside a player's star-sector (e.g. weighted voronoi MSR holes
+ * at star centers). Returns the `ownerId` of the nearest owned star, but only
+ * if it is within `coverageRadiusPxSq` (distance squared). Otherwise `null`.
+ */
+function resolveOwnerByNearestStar(
+    x: number,
+    y: number,
+    ownedStars: ReadonlyArray<GridOwnedStar> | undefined,
+    coverageRadiusPxSq: number,
+): string | null {
+    if (!ownedStars || ownedStars.length === 0) return null;
+    let bestOwner: string | null = null;
+    let bestDist = Infinity;
+    for (let i = 0; i < ownedStars.length; i++) {
+        const s = ownedStars[i];
+        const dx = s.x - x;
+        const dy = s.y - y;
+        const d = dx * dx + dy * dy;
+        if (d < bestDist) {
+            bestDist = d;
+            bestOwner = s.ownerId;
+        }
+    }
+    return bestDist <= coverageRadiusPxSq ? bestOwner : null;
 }
 
 /**
@@ -139,6 +168,9 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         nextGeometry,
         conquestEvents,
         resolveStarPosition,
+        prevOwnedStars,
+        nextOwnedStars,
+        coverageRadiusPx,
     } = params;
 
     if (spacingPx <= 0) throw new Error('spacingPx must be > 0');
@@ -151,6 +183,9 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     const prevRegions = prevGeometry.territoryRegions;
     const nextRegions = nextGeometry.territoryRegions;
 
+    const coverageRadius = coverageRadiusPx ?? spacingPx * 3;
+    const coverageRadiusSq = coverageRadius * coverageRadius;
+
     // Role bins (string arrays so downstream can skip vstar[] realloc).
     const roleBins: Record<GridVRole, string[]> = {
         native: [],
@@ -162,7 +197,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     const dispossessedByEventId: Record<string, string[]> = {};
 
     const vstars: GridVStar[] = new Array(cols * rows);
-    const activeVstars: GridVStar[] = [];
+    const emittableVstars: GridVStar[] = [];
 
     for (let iy = 0; iy < rows; iy++) {
         for (let ix = 0; ix < cols; ix++) {
@@ -170,8 +205,15 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
             const y = iy * spacingPx + offsetY;
             const id = `g:${ix}:${iy}`;
 
-            const prevOwnerId = resolveOwnerAt(x, y, prevRegions);
-            const nextOwnerId = resolveOwnerAt(x, y, nextRegions);
+            // Polygon-first; nearest-owned-star fallback fills MSR moats.
+            let prevOwnerId = resolveOwnerAt(x, y, prevRegions);
+            if (prevOwnerId === null) {
+                prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStars, coverageRadiusSq);
+            }
+            let nextOwnerId = resolveOwnerAt(x, y, nextRegions);
+            if (nextOwnerId === null) {
+                nextOwnerId = resolveOwnerByNearestStar(x, y, nextOwnedStars, coverageRadiusSq);
+            }
             const role = classifyRole(prevOwnerId, nextOwnerId);
 
             let eventId: string | null = null;
@@ -193,8 +235,8 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
             };
             vstars[iy * cols + ix] = vstar;
             roleBins[role].push(id);
-            if (role !== 'native' && role !== 'outside') {
-                activeVstars.push(vstar);
+            if (role !== 'outside') {
+                emittableVstars.push(vstar);
             }
         }
     }
@@ -205,7 +247,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         spacingPx,
         originMode,
         vstars,
-        activeVstars,
+        emittableVstars,
         byRole: {
             native: roleBins.native,
             dispossessed: roleBins.dispossessed,

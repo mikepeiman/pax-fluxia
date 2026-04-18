@@ -131,7 +131,7 @@ function mixedFixture() {
 }
 
 describe('renderMetaballGridScene', () => {
-    it('does NOT emit native cells — they are covered by the ownership-geometry underlayer (perf + anti-moat)', () => {
+    it('emits exactly one cell per native vstar at NEXT color, alpha 1', () => {
         const { classification, plan } = mixedFixture();
         const scene = renderMetaballGridScene({
             classification,
@@ -145,11 +145,15 @@ describe('renderMetaballGridScene', () => {
         });
         const nativeIds = new Set(classification.byRole.native);
         const nativeCells = scene.cells.filter((c) => nativeIds.has(c.vId));
-        expect(nativeCells.length).toBe(0);
-        // And: every emitted cell is from an active role (not native, not outside).
+        expect(nativeCells.length).toBe(nativeIds.size);
+        for (const c of nativeCells) {
+            expect(c.alpha).toBe(1);
+            expect(c.colorIdx).toBe(OWNER_COLORS.get('A'));
+            expect(c.pass).toBe('single');
+        }
+        // Outside cells still must not appear.
         const outsideIds = new Set(classification.byRole.outside);
         for (const c of scene.cells) {
-            expect(nativeIds.has(c.vId)).toBe(false);
             expect(outsideIds.has(c.vId)).toBe(false);
         }
     });
@@ -353,10 +357,10 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
-    it('native cells never appear in emitted scene cells at any progress value', () => {
+    it('native invariance: native cells do not change across progress values', () => {
         const { classification, plan } = mixedFixture();
-        const nativeIds = new Set(classification.byRole.native);
-        if (nativeIds.size === 0) return;
+        const nativeIds = classification.byRole.native;
+        if (nativeIds.length === 0) return;
         const snapshots = [0, 0.25, 0.5, 0.75, 1].map((p) =>
             renderMetaballGridScene({
                 classification,
@@ -369,9 +373,13 @@ describe('renderMetaballGridScene', () => {
                 ownerColorIdx: OWNER_COLORS,
             }),
         );
-        for (const snap of snapshots) {
-            for (const c of snap.cells) {
-                expect(nativeIds.has(c.vId)).toBe(false);
+        for (const nid of nativeIds) {
+            const perSnapshot = snapshots.map((s) => {
+                const c = s.cells.find((cc) => cc.vId === nid)!;
+                return { color: c.colorIdx, alpha: c.alpha, strength: c.strength, pass: c.pass };
+            });
+            for (let i = 1; i < perSnapshot.length; i++) {
+                expect(perSnapshot[i]).toEqual(perSnapshot[0]);
             }
         }
     });

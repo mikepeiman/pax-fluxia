@@ -351,6 +351,88 @@ describe('buildGridClassification', () => {
         expect(b.dispossessedByEventId).toEqual(a.dispossessedByEventId);
     });
 
+    it('MOAT: fills polygon-coverage gaps via nearest-owned-star fallback', () => {
+        // Underlayer has two rect regions covering [0,40]×[0,100] (A) and
+        // [60,100]×[0,100] (B), with a 20 px "moat" column [40,60] where
+        // NO polygon covers the grid cells. An owned A star sits at (30, 50)
+        // and an owned B star at (70, 50). Without the fallback, the middle
+        // column of cells would be role=outside. With the fallback, they
+        // inherit the nearest owner (A for cells in [40,50), B for [50,60]).
+        const geom = makeSnapshot([
+            rect('A', 'rA', 0, 0, 40, 100),
+            rect('B', 'rB', 60, 0, 100, 100),
+        ]);
+        const ownedStars = [
+            { id: 'sA', ownerId: 'A', x: 30, y: 50 },
+            { id: 'sB', ownerId: 'B', x: 70, y: 50 },
+        ];
+        // Without fallback:
+        const withoutFallback = buildGridClassification({
+            world: WORLD,
+            spacingPx: SPACING,
+            originMode: ORIGIN,
+            prevGeometry: geom,
+            nextGeometry: geom,
+            conquestEvents: [],
+        });
+        expect(withoutFallback.byRole.outside.length).toBeGreaterThan(0);
+
+        // With fallback: the moat gap should be covered as native.
+        const withFallback = buildGridClassification({
+            world: WORLD,
+            spacingPx: SPACING,
+            originMode: ORIGIN,
+            prevGeometry: geom,
+            nextGeometry: geom,
+            conquestEvents: [],
+            prevOwnedStars: ownedStars,
+            nextOwnedStars: ownedStars,
+            coverageRadiusPx: 200,
+        });
+        expect(withFallback.byRole.outside.length).toBe(0);
+        expect(withFallback.byRole.native.length).toBe(withFallback.vstars.length);
+    });
+
+    it('MOAT: honours coverageRadiusPx — cells too far from any star stay outside', () => {
+        // Empty geometry, one owned star at (50, 50). Small coverage radius
+        // should only rescue a cluster of cells near the star; corners stay
+        // outside.
+        const geom = makeSnapshot([]);
+        const ownedStars = [{ id: 'sA', ownerId: 'A', x: 50, y: 50 }];
+        const res = buildGridClassification({
+            world: WORLD,
+            spacingPx: SPACING,
+            originMode: ORIGIN,
+            prevGeometry: geom,
+            nextGeometry: geom,
+            conquestEvents: [],
+            prevOwnedStars: ownedStars,
+            nextOwnedStars: ownedStars,
+            coverageRadiusPx: 25,
+        });
+        // Center cell(s) rescued; corner cells remain outside.
+        expect(res.byRole.native.length).toBeGreaterThan(0);
+        expect(res.byRole.outside.length).toBeGreaterThan(0);
+    });
+
+    it('emittableVstars = native + dispossessed + emergent + vacating; excludes outside', () => {
+        const prev = makeSnapshot([rect('A', 'rA', 0, 0, 50, 100)]);
+        const next = makeSnapshot([rect('B', 'rB', 0, 0, 50, 100)]);
+        const res = buildGridClassification({
+            world: WORLD,
+            spacingPx: SPACING,
+            originMode: ORIGIN,
+            prevGeometry: prev,
+            nextGeometry: next,
+            conquestEvents: [makeEvent({ starId: 's:AB', prev: 'A', next: 'B' })],
+        });
+        const outsideIds = new Set(res.byRole.outside);
+        expect(res.emittableVstars.length).toBe(res.vstars.length - outsideIds.size);
+        for (const v of res.emittableVstars) {
+            expect(v.role).not.toBe('outside');
+        }
+    });
+
     it('rejects non-positive spacing and world dimensions', () => {
         const prev = makeSnapshot([]);
         const next = makeSnapshot([]);
