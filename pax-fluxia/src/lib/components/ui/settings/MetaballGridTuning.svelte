@@ -84,13 +84,14 @@
         return 'hard';
     }
 
-    function currentCellShape(): 'square' | 'circle' | 'diamond' {
+    function currentCellShape(): 'square' | 'circle' | 'diamond' | 'hex' {
         const raw =
             panel.metaballGridCellShape ??
             GAME_CONFIG.METABALL_GRID_CELL_SHAPE ??
             'square';
         if (raw === 'circle') return 'circle';
         if (raw === 'diamond') return 'diamond';
+        if (raw === 'hex') return 'hex';
         return 'square';
     }
 
@@ -283,11 +284,12 @@
         <span class="val">
             {#if currentCellShape() === 'square'}Square
             {:else if currentCellShape() === 'circle'}Circle
-            {:else}Diamond{/if}
+            {:else if currentCellShape() === 'diamond'}Diamond
+            {:else}Hex{/if}
         </span>
     </div>
     <div class="var-desc">
-        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look.
+        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws flat-topped hexagons (sits on the square grid so edges don't tile cleanly — intentional ornamental look).
     </div>
     <select
         class="mode-select"
@@ -300,6 +302,7 @@
         <option value="square">Square</option>
         <option value="circle">Circle</option>
         <option value="diamond">Diamond</option>
+        <option value="hex">Hex (flat-top)</option>
     </select>
 </div>
 
@@ -375,6 +378,27 @@
         <option value="territory_edge">Territory edge (owner boundaries only)</option>
         <option value="per_cell">Per cell (full grid outline)</option>
     </select>
+</div>
+
+<label class="toggle-row" class:disabled={currentBorderMode() !== 'territory_edge'}>
+    <input
+        type="checkbox"
+        disabled={currentBorderMode() !== 'territory_edge'}
+        checked={panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
+        }}
+    />
+    <span class="var-name" title="Centered-blended borders: a single stroke on each ownership-boundary edge, coloured as the 50/50 blend of the two players' border colours. Off: each cell draws its own stroke in its own colour, so boundaries show two abutting strokes.">
+        Centered-blended borders
+    </span>
+    <span class="val">
+        {(panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true) ? 'On' : 'Off'}
+    </span>
+</label>
+<div class="var-desc">
+    Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).
 </div>
 </div>
 {/if}
