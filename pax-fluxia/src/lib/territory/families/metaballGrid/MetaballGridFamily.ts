@@ -56,15 +56,67 @@ import { renderMetaballGridScene } from './renderMetaballGridScene';
 type GridCellShape = 'square' | 'circle' | 'diamond' | 'hex';
 type GridBorderMode = 'off' | 'per_cell' | 'territory_edge';
 
-/** Flat-topped hex vertex offsets (× radius) used by the cell-shape painter. */
-const HEX_VERTICES: ReadonlyArray<readonly [number, number]> = (() => {
+const SQRT3 = Math.sqrt(3);
+
+/**
+ * Pointy-top hex vertex offsets (× radius).
+ *
+ * Used by the cell-shape painter. Every other row is shifted horizontally
+ * by half-spacing so the hexes honey-comb instead of stacking into vertical
+ * columns — this is the "geometrically-repeating" layout the user asked for.
+ *
+ * Note: with a square classification grid, a pure pointy-top tessellation
+ * cannot be perfect in both axes — horizontal pitch = spacingPx dictates
+ * `r = spacingPx / sqrt(3)`, which leaves a ~13% vertical gap between rows
+ * (ideal vertical pitch would be 1.5r = 0.866·spacingPx). That gap reads
+ * as thin honeycomb grid lines and is intentional.
+ */
+const HEX_VERTICES_POINTY: ReadonlyArray<readonly [number, number]> = (() => {
     const out: Array<[number, number]> = [];
+    // Clockwise from top vertex (y-down screen coords):
+    // angle 0 → (0,-1), 60 → (.866,-.5), 120 → (.866,.5), 180 → (0,1), 240 → (-.866,.5), 300 → (-.866,-.5)
     for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i; // 0, 60, 120, ... — flat-topped on left/right
-        out.push([Math.cos(a), Math.sin(a)]);
+        const a = (Math.PI / 3) * i;
+        out.push([Math.sin(a), -Math.cos(a)]);
     }
     return out;
 })();
+
+/**
+ * One Chaikin corner-cutting pass. Replaces each interior vertex with
+ * a pair of points at 1/4 and 3/4 along the segments meeting there.
+ * For `closed`, treats the points as a loop (wraps around).
+ *
+ * Input/output format: flat `[x0, y0, x1, y1, ...]`.
+ */
+function chaikinOnce(pts: number[], closed: boolean): number[] {
+    const n = pts.length >> 1;
+    if (n < 3) return pts.slice();
+    const out: number[] = [];
+    const last = closed ? n : n - 1;
+    if (!closed) out.push(pts[0], pts[1]);
+    for (let i = 0; i < last; i++) {
+        const i0 = i * 2;
+        const i1 = ((i + 1) % n) * 2;
+        const x0 = pts[i0], y0 = pts[i0 + 1];
+        const x1 = pts[i1], y1 = pts[i1 + 1];
+        out.push(
+            x0 + 0.25 * (x1 - x0),
+            y0 + 0.25 * (y1 - y0),
+            x0 + 0.75 * (x1 - x0),
+            y0 + 0.75 * (y1 - y0),
+        );
+    }
+    if (!closed) out.push(pts[pts.length - 2], pts[pts.length - 1]);
+    return out;
+}
+
+/** Run multiple Chaikin passes. */
+function chaikinSmooth(pts: number[], passes: number, closed: boolean): number[] {
+    let p = pts;
+    for (let i = 0; i < passes; i++) p = chaikinOnce(p, closed);
+    return p;
+}
 type GridWaveEase =
     | 'linear'
     | 'ease_in'
@@ -128,6 +180,7 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_CELL_CORNER_PX',
     'METABALL_GRID_BORDER_MODE',
     'METABALL_GRID_BORDER_BLEND',
+    'METABALL_GRID_BORDER_CHAIKIN_PASSES',
     'METABALL_GRID_WAVE_EASE',
     'METABALL_GRID_FLIP_WINDOW_JITTER',
     // Shared HSLA knobs (reused from metaball family) — fill + border colour energy.
@@ -480,6 +533,19 @@ export class MetaballGridFamily implements RenderFamily {
             'METABALL_GRID_BORDER_BLEND',
             GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true,
         );
+        const borderChaikinPasses = Math.max(
+            0,
+            Math.min(
+                4,
+                Math.round(
+                    readTunableNumber(
+                        input,
+                        'METABALL_GRID_BORDER_CHAIKIN_PASSES',
+                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0,
+                    ),
+                ),
+            ),
+        );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
         const fillSat = readTunableNumber(input, 'METABALL_SATURATION', GAME_CONFIG.METABALL_SATURATION ?? 1.05);
@@ -609,6 +675,13 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
+        // Pointy-top hex "radius" (vertex-to-center distance). Bound to `size`
+        // so METABALL_GRID_CELL_INSET_PX shrinks hexes uniformly. At inset=0
+        // the horizontal pitch (hexR * sqrt(3)) equals spacingPx, producing
+        // clean tessellation along rows; adjacent rows are offset by
+        // spacingPx/2 for honeycomb interlock.
+        const hexR = size / SQRT3;
+
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
         for (let i = 0; i < scene.cells.length; i++) {
             const c = scene.cells[i];
@@ -618,8 +691,22 @@ export class MetaballGridFamily implements RenderFamily {
             const alpha = c.alpha * fillAlphaMult;
             if (alpha <= 0) continue;
 
+            // Parse grid indices once — used by hex odd-row offset and by the
+            // territory_edge per-cell stroke gate.
+            const vIdParts = c.vId.split(':');
+            let ix = -1;
+            let iy = -1;
+            if (vIdParts.length === 3) {
+                const pix = Number(vIdParts[1]);
+                const piy = Number(vIdParts[2]);
+                if (Number.isFinite(pix)) ix = pix;
+                if (Number.isFinite(piy)) iy = piy;
+            }
+
             const x = c.x;
             const y = c.y;
+            const hexXOffset = cellShape === 'hex' && (iy & 1) === 1 ? spacingPx * 0.5 : 0;
+            const xHex = x + hexXOffset;
 
             // Fill primitive
             if (cellShape === 'circle') {
@@ -632,7 +719,10 @@ export class MetaballGridFamily implements RenderFamily {
             } else if (cellShape === 'hex') {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
-                    pts.push(x + HEX_VERTICES[k][0] * half, y + HEX_VERTICES[k][1] * half);
+                    pts.push(
+                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        y + HEX_VERTICES_POINTY[k][1] * hexR,
+                    );
                 }
                 g.poly(pts).fill({ color: fillHex, alpha });
             } else if (cornerR > 0) {
@@ -650,10 +740,7 @@ export class MetaballGridFamily implements RenderFamily {
             if (!drawBorders) continue;
             if (drawBlendedEdges) continue; // handled by the edge pass below
             if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
-                const parts = c.vId.split(':');
-                if (parts.length === 3) {
-                    const ix = Number(parts[1]);
-                    const iy = Number(parts[2]);
+                if (ix >= 0 && iy >= 0) {
                     const self = c.colorIdx;
                     const neighbourDiffers = (nx: number, ny: number): boolean => {
                         if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
@@ -669,7 +756,13 @@ export class MetaballGridFamily implements RenderFamily {
             }
             const borderHex = borderHexByColorIdx[c.colorIdx];
             if (borderHex === undefined) continue;
-            const strokeOpts = { color: borderHex, alpha: borderAlpha, width: borderWidth };
+            const strokeOpts = {
+                color: borderHex,
+                alpha: borderAlpha,
+                width: borderWidth,
+                cap: 'round' as const,
+                join: 'round' as const,
+            };
             if (cellShape === 'circle') {
                 g.circle(x, y, half).stroke(strokeOpts);
             } else if (cellShape === 'diamond') {
@@ -677,7 +770,10 @@ export class MetaballGridFamily implements RenderFamily {
             } else if (cellShape === 'hex') {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
-                    pts.push(x + HEX_VERTICES[k][0] * half, y + HEX_VERTICES[k][1] * half);
+                    pts.push(
+                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        y + HEX_VERTICES_POINTY[k][1] * hexR,
+                    );
                 }
                 g.poly(pts).stroke(strokeOpts);
             } else if (cornerR > 0) {
@@ -687,49 +783,202 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
-        // ── Centered-blended territory-edge stroke pass ─────────────────────
-        // One segment per ownership-boundary grid-edge, in the 50/50 blended
-        // colour of the two owners' border hexes. Each edge is visited once
-        // (right-neighbour + bottom-neighbour walks over the full grid).
+        // ── Centered-blended territory-edge polyline pass ───────────────────
+        // Rather than drawing each ownership-boundary grid-edge in isolation
+        // (which gave butt-capped corners), we:
+        //   1. collect all boundary edges, keyed by (min, max) owner colour-idx
+        //   2. per colour-pair group, build a vertex adjacency graph,
+        //   3. walk it into polylines starting from odd-degree / branch vertices,
+        //      then mop up any all-degree-2 closed loops,
+        //   4. optionally Chaikin-smooth each polyline,
+        //   5. stroke each polyline once with round caps + round joins.
+        // The result is continuous, corner-joined boundaries in the 50/50
+        // blended colour of the two owners' border hexes.
         if (drawBlendedEdges && effectiveColorIdxByGridIdx) {
             const originOffset = cached.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
             const trueHalf = spacingPx * 0.5;
-            const strokeOpts = { color: 0xffffff, alpha: borderAlpha, width: borderWidth };
+            // Vertex grid is (cols+1) × (rows+1); vertex id = ivy * vCols + ivx.
+            const vCols = cols + 1;
+            const vertexX = (vid: number): number => {
+                const ivx = vid % vCols;
+                return ivx * spacingPx + originOffset - trueHalf;
+            };
+            const vertexY = (vid: number): number => {
+                const ivx = vid % vCols;
+                const ivy = (vid - ivx) / vCols;
+                return ivy * spacingPx + originOffset - trueHalf;
+            };
+
+            // Edge buckets by "min|max" colour-idx pair.
+            interface BoundaryEdge {
+                readonly v0: number;
+                readonly v1: number;
+            }
+            const edgesByPair = new Map<string, BoundaryEdge[]>();
+            const pushEdge = (a: number, b: number, v0: number, v1: number): void => {
+                const lo = a < b ? a : b;
+                const hi = a < b ? b : a;
+                const key = `${lo}|${hi}`;
+                let list = edgesByPair.get(key);
+                if (!list) {
+                    list = [];
+                    edgesByPair.set(key, list);
+                }
+                list.push({ v0, v1 });
+            };
+
             for (let iy = 0; iy < rows; iy++) {
                 for (let ix = 0; ix < cols; ix++) {
                     const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
                     if (selfIdx < 0) continue;
-                    const cx = ix * spacingPx + originOffset;
-                    const cy = iy * spacingPx + originOffset;
-
-                    // Right neighbour → vertical segment on the shared edge.
+                    // Right neighbour → vertical shared edge,
+                    // vertex (ix+1, iy) → vertex (ix+1, iy+1).
                     if (ix + 1 < cols) {
                         const rIdx = effectiveColorIdxByGridIdx[iy * cols + ix + 1];
                         if (rIdx >= 0 && rIdx !== selfIdx) {
-                            const hexA = borderHexByColorIdx[selfIdx];
-                            const hexB = borderHexByColorIdx[rIdx];
-                            if (hexA !== undefined && hexB !== undefined) {
-                                strokeOpts.color = blendColors(hexA, hexB, 0.5);
-                                g.moveTo(cx + trueHalf, cy - trueHalf)
-                                    .lineTo(cx + trueHalf, cy + trueHalf)
-                                    .stroke(strokeOpts);
-                            }
+                            pushEdge(
+                                selfIdx,
+                                rIdx,
+                                iy * vCols + (ix + 1),
+                                (iy + 1) * vCols + (ix + 1),
+                            );
                         }
                     }
-                    // Bottom neighbour → horizontal segment on the shared edge.
+                    // Bottom neighbour → horizontal shared edge,
+                    // vertex (ix, iy+1) → vertex (ix+1, iy+1).
                     if (iy + 1 < rows) {
                         const dIdx = effectiveColorIdxByGridIdx[(iy + 1) * cols + ix];
                         if (dIdx >= 0 && dIdx !== selfIdx) {
-                            const hexA = borderHexByColorIdx[selfIdx];
-                            const hexB = borderHexByColorIdx[dIdx];
-                            if (hexA !== undefined && hexB !== undefined) {
-                                strokeOpts.color = blendColors(hexA, hexB, 0.5);
-                                g.moveTo(cx - trueHalf, cy + trueHalf)
-                                    .lineTo(cx + trueHalf, cy + trueHalf)
-                                    .stroke(strokeOpts);
-                            }
+                            pushEdge(
+                                selfIdx,
+                                dIdx,
+                                (iy + 1) * vCols + ix,
+                                (iy + 1) * vCols + (ix + 1),
+                            );
                         }
                     }
+                }
+            }
+
+            const strokeOpts = {
+                color: 0xffffff,
+                alpha: borderAlpha,
+                width: borderWidth,
+                cap: 'round' as const,
+                join: 'round' as const,
+            };
+
+            for (const [key, edges] of edgesByPair) {
+                if (edges.length === 0) continue;
+                const sep = key.indexOf('|');
+                const aIdx = Number(key.slice(0, sep));
+                const bIdx = Number(key.slice(sep + 1));
+                const hexA = borderHexByColorIdx[aIdx];
+                const hexB = borderHexByColorIdx[bIdx];
+                if (hexA === undefined || hexB === undefined) continue;
+                strokeOpts.color = blendColors(hexA, hexB, 0.5);
+
+                // Adjacency: vertexId → [otherVertexId, edgeIndex][].
+                const adj = new Map<number, Array<[number, number]>>();
+                for (let e = 0; e < edges.length; e++) {
+                    const { v0, v1 } = edges[e];
+                    let la = adj.get(v0);
+                    if (!la) {
+                        la = [];
+                        adj.set(v0, la);
+                    }
+                    la.push([v1, e]);
+                    let lb = adj.get(v1);
+                    if (!lb) {
+                        lb = [];
+                        adj.set(v1, lb);
+                    }
+                    lb.push([v0, e]);
+                }
+
+                const usedEdge = new Uint8Array(edges.length);
+
+                const drawChain = (vertexChain: number[], closed: boolean): void => {
+                    if (vertexChain.length < 2) return;
+                    let pts: number[] = [];
+                    for (const vid of vertexChain) {
+                        pts.push(vertexX(vid), vertexY(vid));
+                    }
+                    if (borderChaikinPasses > 0) {
+                        pts = chaikinSmooth(pts, borderChaikinPasses, closed);
+                    }
+                    g.moveTo(pts[0], pts[1]);
+                    for (let k = 2; k < pts.length; k += 2) {
+                        g.lineTo(pts[k], pts[k + 1]);
+                    }
+                    if (closed) g.lineTo(pts[0], pts[1]);
+                    g.stroke(strokeOpts);
+                };
+
+                // Walk a chain from `startVertex` through unused edges until
+                // no unused edge is incident. Returns the vertex sequence.
+                const walkFrom = (startVertex: number): number[] => {
+                    const chain: number[] = [startVertex];
+                    let cur = startVertex;
+                    while (true) {
+                        const neighbours = adj.get(cur);
+                        if (!neighbours) break;
+                        let nextVertex = -1;
+                        let nextEdge = -1;
+                        for (const [other, eIdx] of neighbours) {
+                            if (usedEdge[eIdx]) continue;
+                            nextVertex = other;
+                            nextEdge = eIdx;
+                            break;
+                        }
+                        if (nextEdge < 0) break;
+                        usedEdge[nextEdge] = 1;
+                        chain.push(nextVertex);
+                        cur = nextVertex;
+                    }
+                    return chain;
+                };
+
+                // Pass 1: chains starting at non-degree-2 vertices (endpoints
+                // and branch points). Multiple chains may start at one branch.
+                for (const [vid, list] of adj) {
+                    if (list.length === 2) continue;
+                    while (list.some(([, eIdx]) => !usedEdge[eIdx])) {
+                        const chain = walkFrom(vid);
+                        if (chain.length < 2) break;
+                        drawChain(chain, false);
+                    }
+                }
+
+                // Pass 2: remaining closed loops (every incident vertex was
+                // degree 2, so they were never used as a pass-1 start).
+                for (let e = 0; e < edges.length; e++) {
+                    if (usedEdge[e]) continue;
+                    usedEdge[e] = 1;
+                    const { v0, v1 } = edges[e];
+                    const chain: number[] = [v0, v1];
+                    let cur = v1;
+                    while (cur !== v0) {
+                        const neighbours = adj.get(cur);
+                        if (!neighbours) break;
+                        let nextVertex = -1;
+                        let nextEdge = -1;
+                        for (const [other, eIdx] of neighbours) {
+                            if (usedEdge[eIdx]) continue;
+                            nextVertex = other;
+                            nextEdge = eIdx;
+                            break;
+                        }
+                        if (nextEdge < 0) break;
+                        usedEdge[nextEdge] = 1;
+                        chain.push(nextVertex);
+                        cur = nextVertex;
+                    }
+                    const closed = cur === v0;
+                    // When closed, chain's last vertex equals the start; drop
+                    // the duplicate so Chaikin sees a clean ring.
+                    if (closed) chain.pop();
+                    drawChain(chain, closed);
                 }
             }
         }

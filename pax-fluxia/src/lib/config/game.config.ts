@@ -403,6 +403,7 @@ interface GameConfigType {
     METABALL_GRID_CELL_CORNER_PX: number; // Rounded-corner radius for square cells (0 = sharp)
     METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Where to draw per-cell borders
     METABALL_GRID_BORDER_BLEND: boolean; // In territory_edge mode, draw one centered blended stroke on each owner-boundary edge instead of two abutting per-player strokes
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Chaikin corner-cutting passes applied to blended-edge polylines (0..4, 0 = off)
     METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Progress easing curve applied before flip math
     METABALL_GRID_FLIP_WINDOW_JITTER: number; // Per-cell deterministic jitter applied to flipTime (0..0.5 fraction)
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
@@ -1319,6 +1320,7 @@ const _rawConfig: GameConfigType = {
     METABALL_GRID_CELL_CORNER_PX: 0,
     METABALL_GRID_BORDER_MODE: 'off' as const,
     METABALL_GRID_BORDER_BLEND: true,
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
     METABALL_GRID_WAVE_EASE: 'linear' as const,
     METABALL_GRID_FLIP_WINDOW_JITTER: 0,
     /** Number of control points for frontier loop morphing (5-300) */
