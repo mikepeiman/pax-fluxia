@@ -289,7 +289,7 @@
         </span>
     </div>
     <div class="var-desc">
-        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws flat-topped hexagons (sits on the square grid so edges don't tile cleanly — intentional ornamental look).
+        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws pointy-top hexagons with honeycomb row-offset tessellation (≈13% vertical gap reads as fine grid lines — pure pointy-top can't perfectly tile a square grid).
     </div>
     <select
         class="mode-select"
@@ -302,7 +302,7 @@
         <option value="square">Square</option>
         <option value="circle">Circle</option>
         <option value="diamond">Diamond</option>
-        <option value="hex">Hex (flat-top)</option>
+        <option value="hex">Hex (pointy-top honeycomb)</option>
     </select>
 </div>
 
@@ -399,6 +399,29 @@
 </label>
 <div class="var-desc">
     Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
+            Border Chaikin Passes
+        </span>
+        <span class="val">{panel.metaballGridBorderChaikinPasses ?? GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0}</span>
+    </div>
+    <div class="var-desc">
+        Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="4"
+        step="1"
+        value={panel.metaballGridBorderChaikinPasses ?? GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+        }}
+    />
 </div>
 </div>
 {/if}
