@@ -9,10 +9,11 @@
 
     let { panel, updatePanel }: Props = $props();
 
-    type MetaballGridModuleId = 'all' | 'none' | 'grid' | 'wave' | 'flip';
+    type MetaballGridModuleId = 'all' | 'none' | 'grid' | 'shape' | 'wave' | 'flip';
 
     const METABALL_GRID_MODULES = [
         { id: 'grid', label: 'Grid' },
+        { id: 'shape', label: 'Shape' },
         { id: 'wave', label: 'Wave' },
         { id: 'flip', label: 'Flip' },
     ] as const;
@@ -82,6 +83,48 @@
         if (raw === 'dual_pass_blend') return 'dual_pass_blend';
         return 'hard';
     }
+
+    function currentCellShape(): 'square' | 'circle' | 'diamond' {
+        const raw =
+            panel.metaballGridCellShape ??
+            GAME_CONFIG.METABALL_GRID_CELL_SHAPE ??
+            'square';
+        if (raw === 'circle') return 'circle';
+        if (raw === 'diamond') return 'diamond';
+        return 'square';
+    }
+
+    function currentBorderMode(): 'off' | 'per_cell' | 'territory_edge' {
+        const raw =
+            panel.metaballGridBorderMode ??
+            GAME_CONFIG.METABALL_GRID_BORDER_MODE ??
+            'off';
+        if (raw === 'per_cell') return 'per_cell';
+        if (raw === 'territory_edge') return 'territory_edge';
+        return 'off';
+    }
+
+    function currentWaveEase():
+        | 'linear'
+        | 'ease_in'
+        | 'ease_out'
+        | 'ease_in_out'
+        | 'back_out'
+        | 'elastic_out' {
+        const raw =
+            panel.metaballGridWaveEase ??
+            GAME_CONFIG.METABALL_GRID_WAVE_EASE ??
+            'linear';
+        if (
+            raw === 'ease_in' ||
+            raw === 'ease_out' ||
+            raw === 'ease_in_out' ||
+            raw === 'back_out' ||
+            raw === 'elastic_out'
+        )
+            return raw;
+        return 'linear';
+    }
 </script>
 
 <div class="module-head">
@@ -148,8 +191,8 @@
     </div>
     <input
         type="range"
-        min="8"
-        max="96"
+        min="4"
+        max="200"
         step="1"
         value={panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48}
         oninput={(event) => {
@@ -207,25 +250,131 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Strength multiplier fed to each grid cell's metaball influence sample. Higher = fuller fill, stronger blob.">
-            Cell Strength
+        <span class="var-name" title="Fill-alpha multiplier applied to every cell. 0 = invisible, 1 = use only METABALL_ALPHA + per-cell alpha, >1 = saturate (but cells are clamped to alpha 1 at the PIXI layer so the effect caps out).">
+            Cell Alpha Gain
         </span>
-        <span class="val">{(panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.35).toFixed(2)}</span>
+        <span class="val">{(panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0).toFixed(2)}</span>
     </div>
     <div class="var-desc">
-        Per-cell compositor strength. Since grid cells are 1:1 with Vstars on a world grid, a slightly higher strength (~1.35) keeps interiors saturated.
+        Global per-cell alpha multiplier stacked on top of the Territory fill alpha. Leave at 1.0 for pure HSLA control; lower it to fade the entire grid, or raise to force-saturate during transitions.
     </div>
     <input
         type="range"
-        min="0.1"
-        max="6"
+        min="0"
+        max="3"
         step="0.05"
-        value={panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.35}
+        value={panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_STRENGTH', 'metaballGridStrength', value);
         }}
     />
+</div>
+</div>
+{/if}
+
+{#if showModule('shape')}
+<div class="module-block">
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Per-cell primitive. Square tiles the grid cleanly; circle and diamond create visible inter-cell gaps naturally.">
+            Cell Shape
+        </span>
+        <span class="val">
+            {#if currentCellShape() === 'square'}Square
+            {:else if currentCellShape() === 'circle'}Circle
+            {:else}Diamond{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look.
+    </div>
+    <select
+        class="mode-select"
+        value={currentCellShape()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('METABALL_GRID_CELL_SHAPE', 'metaballGridCellShape', value);
+        }}
+    >
+        <option value="square">Square</option>
+        <option value="circle">Circle</option>
+        <option value="diamond">Diamond</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Shrink each cell by this many pixels on every side. Creates gridline gaps between cells. Capped to 45% of spacing so cells never collapse.">
+            Cell Inset (px)
+        </span>
+        <span class="val">{panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}px</span>
+    </div>
+    <div class="var-desc">
+        Per-cell inward shrink on every side. 0 = fully tiled; small values draw visible grid lines; large values isolate each cell as a small shape.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="48"
+        step="0.5"
+        value={panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Rounded-corner radius for square cells only. Circle/diamond ignore this knob.">
+            Square Corner (px)
+        </span>
+        <span class="val">{panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}px</span>
+    </div>
+    <div class="var-desc">
+        Rounded-corner radius for square cells. Ignored for circle and diamond primitives. Clamped to half the cell size.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="48"
+        step="0.5"
+        value={panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_CELL_CORNER_PX', 'metaballGridCellCornerPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Where to draw the Territory border stroke. Off = no borders. Per cell = stroke every visible cell. Territory edge = stroke only cells on the boundary between owners (or the world edge).">
+            Border Mode
+        </span>
+        <span class="val">
+            {#if currentBorderMode() === 'off'}Off
+            {:else if currentBorderMode() === 'per_cell'}Per cell
+            {:else}Territory edge{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Border stroke target. Per-cell draws a full grid outline; Territory-edge only outlines ownership boundaries — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below.
+    </div>
+    <select
+        class="mode-select"
+        value={currentBorderMode()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
+        }}
+    >
+        <option value="off">Off (no borders)</option>
+        <option value="territory_edge">Territory edge (owner boundaries only)</option>
+        <option value="per_cell">Per cell (full grid outline)</option>
+    </select>
 </div>
 </div>
 {/if}
@@ -351,12 +500,69 @@
     <input
         type="range"
         min="0"
-        max="0.5"
+        max="1"
         step="0.005"
         value={panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Progress easing curve applied BEFORE the per-cell flip math. Linear leaves transition timing as-is; ease_in/out bias the wave to the start/end; elastic_out/back_out add overshoot flavor.">
+            Wave Easing
+        </span>
+        <span class="val">
+            {#if currentWaveEase() === 'linear'}Linear
+            {:else if currentWaveEase() === 'ease_in'}Ease in
+            {:else if currentWaveEase() === 'ease_out'}Ease out
+            {:else if currentWaveEase() === 'ease_in_out'}Ease in-out
+            {:else if currentWaveEase() === 'back_out'}Back out
+            {:else}Elastic out{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Remaps transition progress before the flip math runs. Back-out / elastic-out briefly overshoot 1 so the NEXT cells visibly "settle" into place — good with Lerp / Dual-pass flip modes.
+    </div>
+    <select
+        class="mode-select"
+        value={currentWaveEase()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('METABALL_GRID_WAVE_EASE', 'metaballGridWaveEase', value);
+        }}
+    >
+        <option value="linear">Linear (no easing)</option>
+        <option value="ease_in">Ease in (quadratic)</option>
+        <option value="ease_out">Ease out (quadratic)</option>
+        <option value="ease_in_out">Ease in-out</option>
+        <option value="back_out">Back out (slight overshoot)</option>
+        <option value="elastic_out">Elastic out (spring)</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Per-cell deterministic shift applied to flipTime, in progress units. 0.05 = each cell flips up to ±5 percent earlier/later than the wave rank would dictate. Breaks up rigid fronts for a more organic feel.">
+            FlipTime Jitter
+        </span>
+        <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        Deterministic per-cell scatter of flip-time (seeded by cell id, stable across runs). Great for softening straight wave fronts.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="0.5"
+        step="0.005"
+        value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_FLIP_WINDOW_JITTER', 'metaballGridFlipWindowJitter', value);
         }}
     />
 </div>
@@ -409,7 +615,7 @@
 
     .module-nav {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
         margin: 0 0 10px;
     }

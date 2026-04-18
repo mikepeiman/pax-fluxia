@@ -29,6 +29,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
+import { adjustColorHSL } from '$lib/utils/colorUtils';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
@@ -50,6 +51,57 @@ import type {
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 
+// ─── Tunable option unions (mirror METABALL_GRID_* keys) ──────────────────────
+
+type GridCellShape = 'square' | 'circle' | 'diamond';
+type GridBorderMode = 'off' | 'per_cell' | 'territory_edge';
+type GridWaveEase =
+    | 'linear'
+    | 'ease_in'
+    | 'ease_out'
+    | 'ease_in_out'
+    | 'back_out'
+    | 'elastic_out';
+
+// ─── Easing functions ─────────────────────────────────────────────────────────
+
+function easeProgress(ease: GridWaveEase, t: number): number {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    switch (ease) {
+        case 'linear':
+            return t;
+        case 'ease_in':
+            return t * t;
+        case 'ease_out':
+            return 1 - (1 - t) * (1 - t);
+        case 'ease_in_out':
+            return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) * (-2 * t + 2) / 2;
+        case 'back_out': {
+            const c1 = 1.70158;
+            const c3 = c1 + 1;
+            return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+        }
+        case 'elastic_out': {
+            const c4 = (2 * Math.PI) / 3;
+            return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+        }
+    }
+}
+
+// ─── Stable hash → [0,1) for per-cell jitter ─────────────────────────────────
+
+function hash01(id: string): number {
+    // FNV-1a 32-bit
+    let h = 0x811c9dc5;
+    for (let i = 0; i < id.length; i++) {
+        h ^= id.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    // Map to [0, 1)
+    return ((h >>> 0) % 100000) / 100000;
+}
+
 const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_ENABLED',
     'METABALL_GRID_SPACING_PX',
@@ -61,6 +113,20 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_FLIP_WINDOW',
     'METABALL_GRID_STRENGTH',
     'METABALL_GRID_INWARD_OFFSET_PX',
+    'METABALL_GRID_CELL_SHAPE',
+    'METABALL_GRID_CELL_INSET_PX',
+    'METABALL_GRID_CELL_CORNER_PX',
+    'METABALL_GRID_BORDER_MODE',
+    'METABALL_GRID_WAVE_EASE',
+    'METABALL_GRID_FLIP_WINDOW_JITTER',
+    // Shared HSLA knobs (reused from metaball family) — fill + border colour energy.
+    'METABALL_SATURATION',
+    'METABALL_LIGHTNESS',
+    'METABALL_ALPHA',
+    'METABALL_BORDER_WIDTH',
+    'METABALL_BORDER_ALPHA',
+    'METABALL_BORDER_SATURATION',
+    'METABALL_BORDER_LIGHTNESS',
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
 ] as const;
 
@@ -337,8 +403,9 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         const cached = this.cachedPlan;
-        const progress = input.activeTransition?.progress ?? 1;
+        const rawProgress = input.activeTransition?.progress ?? 1;
 
+        // ── Transition / flip knobs ──────────────────────────────────────────
         const flipTransition = readTunableString<GridFlipTransition>(
             input,
             'METABALL_GRID_FLIP_TRANSITION',
@@ -351,24 +418,91 @@ export class MetaballGridFamily implements RenderFamily {
         );
         const strength = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_GRID_STRENGTH', GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.35),
+            readTunableNumber(input, 'METABALL_GRID_STRENGTH', GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0),
         );
         const inwardOffsetPx = readTunableNumber(
             input,
             'METABALL_GRID_INWARD_OFFSET_PX',
             GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0,
         );
+        const waveEase = readTunableString<GridWaveEase>(
+            input,
+            'METABALL_GRID_WAVE_EASE',
+            (GAME_CONFIG.METABALL_GRID_WAVE_EASE as GridWaveEase | undefined) ?? 'linear',
+            ['linear', 'ease_in', 'ease_out', 'ease_in_out', 'back_out', 'elastic_out'],
+        );
+        const flipTimeJitter = Math.max(
+            0,
+            Math.min(
+                0.5,
+                readTunableNumber(
+                    input,
+                    'METABALL_GRID_FLIP_WINDOW_JITTER',
+                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0,
+                ),
+            ),
+        );
 
-        // Owner → (colorIdx, hex) palette. Indices are an internal, stable
-        // per-owner id used by the scene builder; hex is what we actually draw.
+        // ── Shape / border knobs ─────────────────────────────────────────────
+        const cellShape = readTunableString<GridCellShape>(
+            input,
+            'METABALL_GRID_CELL_SHAPE',
+            (GAME_CONFIG.METABALL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
+            ['square', 'circle', 'diamond'],
+        );
+        const cellInsetPx = Math.max(
+            0,
+            readTunableNumber(input, 'METABALL_GRID_CELL_INSET_PX', GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0),
+        );
+        const cellCornerPx = Math.max(
+            0,
+            readTunableNumber(input, 'METABALL_GRID_CELL_CORNER_PX', GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0),
+        );
+        const borderMode = readTunableString<GridBorderMode>(
+            input,
+            'METABALL_GRID_BORDER_MODE',
+            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ?? 'off',
+            ['off', 'per_cell', 'territory_edge'],
+        );
+
+        // ── Shared HSLA knobs (fill + border) ───────────────────────────────
+        const fillSat = readTunableNumber(input, 'METABALL_SATURATION', GAME_CONFIG.METABALL_SATURATION ?? 1.05);
+        const fillLight = readTunableNumber(input, 'METABALL_LIGHTNESS', GAME_CONFIG.METABALL_LIGHTNESS ?? 0.65);
+        const fillAlphaMult = Math.max(
+            0,
+            Math.min(1, readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.5)),
+        );
+        const borderWidth = Math.max(
+            0,
+            readTunableNumber(input, 'METABALL_BORDER_WIDTH', GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5),
+        );
+        const borderAlpha = Math.max(
+            0,
+            Math.min(1, readTunableNumber(input, 'METABALL_BORDER_ALPHA', GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6)),
+        );
+        const borderSat = readTunableNumber(
+            input,
+            'METABALL_BORDER_SATURATION',
+            GAME_CONFIG.METABALL_BORDER_SATURATION ?? 1.0,
+        );
+        const borderLight = readTunableNumber(
+            input,
+            'METABALL_BORDER_LIGHTNESS',
+            GAME_CONFIG.METABALL_BORDER_LIGHTNESS ?? 1.0,
+        );
+
+        // ── Palette: owner → (colorIdx, adjusted fill hex, adjusted border hex) ─
         const ownerColorIdx = new Map<string, number>();
-        const hexByColorIdx: number[] = [];
+        const fillHexByColorIdx: number[] = [];
+        const borderHexByColorIdx: number[] = [];
         const ensureOwner = (ownerId: string | null | undefined): void => {
             if (!ownerId) return;
             if (ownerColorIdx.has(ownerId)) return;
-            const idx = hexByColorIdx.length;
+            const idx = fillHexByColorIdx.length;
             ownerColorIdx.set(ownerId, idx);
-            hexByColorIdx.push(this.colorUtils.getPlayerColor(ownerId));
+            const base = this.colorUtils.getPlayerColor(ownerId);
+            fillHexByColorIdx.push(adjustColorHSL(base, fillSat, fillLight));
+            borderHexByColorIdx.push(adjustColorHSL(base, borderSat, borderLight));
         };
         for (const s of input.stars) ensureOwner(s.ownerId);
         for (const entry of input.activeTransition?.events ?? []) {
@@ -376,9 +510,31 @@ export class MetaballGridFamily implements RenderFamily {
             ensureOwner(entry.event.newOwner);
         }
 
+        // ── Apply easing to progress (before flip math) ─────────────────────
+        const progress = easeProgress(waveEase, rawProgress);
+
+        // ── Apply deterministic flip-time jitter to the wave plan ───────────
+        // For transitions only — steady state has no dispossessed cells. We
+        // build a shadow map when jitter > 0; the scene builder reads through
+        // the same ReadonlyMap contract.
+        let jitteredFlipTimeByVId = cached.wavePlan.flipTimeByVId;
+        if (flipTimeJitter > 0 && cached.wavePlan.flipTimeByVId.size > 0) {
+            const shifted = new Map<string, number>();
+            for (const [vId, t] of cached.wavePlan.flipTimeByVId) {
+                const jitter = (hash01(vId) * 2 - 1) * flipTimeJitter;
+                const next = t + jitter;
+                shifted.set(vId, next < 0 ? 0 : next > 1 ? 1 : next);
+            }
+            jitteredFlipTimeByVId = shifted;
+        }
+
+        const wavePlanForScene: GridWavePlan = jitteredFlipTimeByVId === cached.wavePlan.flipTimeByVId
+            ? cached.wavePlan
+            : { perEvent: cached.wavePlan.perEvent, flipTimeByVId: jitteredFlipTimeByVId };
+
         const scene = renderMetaballGridScene({
             classification: cached.classification,
-            wavePlan: cached.wavePlan,
+            wavePlan: wavePlanForScene,
             progress,
             flipTransition,
             flipWindow,
@@ -387,23 +543,97 @@ export class MetaballGridFamily implements RenderFamily {
             ownerColorIdx,
         });
 
-        // Direct rect painting — one quad per scene cell. O(N). Far cheaper
-        // than the shared metaball compositor (O(samples × internal_cells)
-        // with per-pair gaussian falloff) and also eliminates the
-        // "star-bubbles" artifact for this mode.
+        // ── Paint: one shape per scene cell. O(N). ──────────────────────────
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
-        const half = spacingPx * 0.5;
+        // Clamp inset so a cell never collapses to 0.
+        const effInset = Math.min(cellInsetPx, spacingPx * 0.45);
+        const size = spacingPx - effInset * 2;
+        const half = size * 0.5;
+        const cornerR = cellShape === 'square' ? Math.min(cellCornerPx, half) : 0;
+        const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
+        const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+
+        // For 'territory_edge' borders we need to know the cell's neighbours in
+        // the classification grid to decide whether to stroke. Pre-build an id→cell
+        // map from the full vstar list lazily.
+        let neighborOwnerLookup: ((x: number, y: number, ownerIdx: number) => boolean) | null = null;
+        if (drawTerritoryEdgeOnly) {
+            // Scene cells carry colorIdx (= palette index). We need to compare
+            // against the NEXT-owner colorIdx of the 4 grid neighbours.
+            const cols = cached.classification.cols;
+            const vstars = cached.classification.vstars;
+            const ownerIdxByGridIdx = new Int32Array(vstars.length);
+            for (let i = 0; i < vstars.length; i++) {
+                const v = vstars[i];
+                const ownerId = v.nextOwnerId ?? v.prevOwnerId;
+                const idx = ownerId ? ownerColorIdx.get(ownerId) : undefined;
+                ownerIdxByGridIdx[i] = idx === undefined ? -1 : idx;
+            }
+            const originMode = cached.classification.originMode;
+            const offset = originMode === 'centered' ? spacingPx * 0.5 : 0;
+            neighborOwnerLookup = (cx, cy, cellOwnerIdx) => {
+                // Recover grid indices from world coords.
+                const ix = Math.round((cx - offset) / spacingPx);
+                const iy = Math.round((cy - offset) / spacingPx);
+                const rows = cached.classification.rows;
+                const check = (nx: number, ny: number): boolean => {
+                    if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true; // world edge = edge
+                    const nIdx = ownerIdxByGridIdx[ny * cols + nx];
+                    return nIdx !== cellOwnerIdx;
+                };
+                return (
+                    check(ix - 1, iy) || check(ix + 1, iy) || check(ix, iy - 1) || check(ix, iy + 1)
+                );
+            };
+        }
+
         for (let i = 0; i < scene.cells.length; i++) {
             const c = scene.cells[i];
             if (c.alpha <= 0) continue;
-            const hex = hexByColorIdx[c.colorIdx];
-            if (hex === undefined) continue;
-            g.rect(c.x - half, c.y - half, spacingPx, spacingPx).fill({
-                color: hex,
-                alpha: c.alpha,
-            });
+            const fillHex = fillHexByColorIdx[c.colorIdx];
+            if (fillHex === undefined) continue;
+            const alpha = c.alpha * fillAlphaMult;
+            if (alpha <= 0) continue;
+
+            const x = c.x;
+            const y = c.y;
+
+            // Fill primitive
+            if (cellShape === 'circle') {
+                g.circle(x, y, half).fill({ color: fillHex, alpha });
+            } else if (cellShape === 'diamond') {
+                g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).fill({
+                    color: fillHex,
+                    alpha,
+                });
+            } else if (cornerR > 0) {
+                g.roundRect(x - half, y - half, size, size, cornerR).fill({
+                    color: fillHex,
+                    alpha,
+                });
+            } else {
+                g.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
+            }
+
+            // Border stroke (optional)
+            if (!drawBorders) continue;
+            if (drawTerritoryEdgeOnly && neighborOwnerLookup && !neighborOwnerLookup(x, y, c.colorIdx)) {
+                continue; // interior cell, skip stroke
+            }
+            const borderHex = borderHexByColorIdx[c.colorIdx];
+            if (borderHex === undefined) continue;
+            const strokeOpts = { color: borderHex, alpha: borderAlpha, width: borderWidth };
+            if (cellShape === 'circle') {
+                g.circle(x, y, half).stroke(strokeOpts);
+            } else if (cellShape === 'diamond') {
+                g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).stroke(strokeOpts);
+            } else if (cornerR > 0) {
+                g.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
+            } else {
+                g.rect(x - half, y - half, size, size).stroke(strokeOpts);
+            }
         }
 
         // Silence unused-var lint for `inwardOffsetPx` — it is intentionally
