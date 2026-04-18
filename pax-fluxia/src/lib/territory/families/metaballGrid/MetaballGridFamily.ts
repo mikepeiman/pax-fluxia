@@ -1,9 +1,17 @@
 /**
- * metaball-grid — RenderFamily adapter (MG5)
+ * metaball-grid — RenderFamily adapter (MG5, MG-PERF v3)
  *
  * Wires the pure functions (classification → wave plan → scene) into the live
- * render loop. Converts the per-frame `GridRenderCell[]` into a
- * `MetaballSceneInput` and hands it to the shared `renderMetaball` compositor.
+ * render loop and paints the per-frame `GridRenderCell[]` as direct PIXI
+ * rectangles. We intentionally BYPASS the shared `renderMetaball` compositor:
+ *
+ * - That compositor is O(samples × internal_grid_cells) with a per-pair
+ *   gaussian falloff. For a mode whose scene is already N discrete filled
+ *   cells (one per grid vstar), the compositor does redundant work and
+ *   dominates frame time (profile: ~80% self time at >3k samples).
+ * - Direct rect rendering is O(N) and produces flat quads, which also removes
+ *   the "star-bubbles" visual artifact (localized gaussian bulges around each
+ *   sample point).
  *
  * Truth source:
  * - `NEXT` geometry = `input.geometry` (the current live `CanonicalGeometrySnapshot`).
@@ -19,13 +27,10 @@
 
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import type { MetaballInfluenceSample, MetaballSceneInput } from '$lib/renderers/MetaballRenderer';
-import { renderMetaball, resetMetaballCache } from '$lib/renderers/MetaballRenderer';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
-import { buildMetaballBaseContext } from '../metaball/metaballSceneBase';
 import type {
     RenderFamily,
     RenderFamilyInput,
@@ -56,19 +61,6 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_FLIP_WINDOW',
     'METABALL_GRID_STRENGTH',
     'METABALL_GRID_INWARD_OFFSET_PX',
-    // Shared knobs already consumed by the metaball compositor:
-    'METABALL_INFLUENCE_RADIUS',
-    'METABALL_FALLOFF',
-    'METABALL_BLEND_SHARPNESS',
-    'METABALL_ALPHA',
-    'METABALL_CELL_SIZE',
-    'METABALL_THRESHOLD',
-    'METABALL_STRENGTH_MULT',
-    'METABALL_EDGE_FADE',
-    'METABALL_BORDER_WIDTH',
-    'METABALL_BORDER_ALPHA',
-    'METABALL_BLUR',
-    'METABALL_CHAIKIN_PASSES',
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
 ] as const;
 
@@ -158,12 +150,14 @@ export class MetaballGridFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = METABALL_GRID_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
+    private readonly graphics = new PIXI.Graphics();
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
+        this.root.addChild(this.graphics);
     }
 
     /** PIXI root used by the canvas to mount/unmount this family's output. */
@@ -365,28 +359,21 @@ export class MetaballGridFamily implements RenderFamily {
             GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0,
         );
 
-        // Build the palette bridge from the existing metaball base context. This
-        // guarantees colour indices align with the shared compositor.
-        const baseContext = buildMetaballBaseContext(input, this.colorUtils, new Map());
+        // Owner → (colorIdx, hex) palette. Indices are an internal, stable
+        // per-owner id used by the scene builder; hex is what we actually draw.
         const ownerColorIdx = new Map<string, number>();
-        // ensureOwnerClusterIdx may add synthetic entries; seed with every known owner.
-        for (const info of baseContext.clusterMap.values()) {
-            ownerColorIdx.set(info.ownerId, baseContext.ensureOwnerClusterIdx(info.ownerId));
-        }
-        // Any event owners not yet seeded (e.g. from activeTransition).
+        const hexByColorIdx: number[] = [];
+        const ensureOwner = (ownerId: string | null | undefined): void => {
+            if (!ownerId) return;
+            if (ownerColorIdx.has(ownerId)) return;
+            const idx = hexByColorIdx.length;
+            ownerColorIdx.set(ownerId, idx);
+            hexByColorIdx.push(this.colorUtils.getPlayerColor(ownerId));
+        };
+        for (const s of input.stars) ensureOwner(s.ownerId);
         for (const entry of input.activeTransition?.events ?? []) {
-            if (!ownerColorIdx.has(entry.event.previousOwner)) {
-                ownerColorIdx.set(
-                    entry.event.previousOwner,
-                    baseContext.ensureOwnerClusterIdx(entry.event.previousOwner),
-                );
-            }
-            if (!ownerColorIdx.has(entry.event.newOwner)) {
-                ownerColorIdx.set(
-                    entry.event.newOwner,
-                    baseContext.ensureOwnerClusterIdx(entry.event.newOwner),
-                );
-            }
+            ensureOwner(entry.event.previousOwner);
+            ensureOwner(entry.event.newOwner);
         }
 
         const scene = renderMetaballGridScene({
@@ -400,47 +387,40 @@ export class MetaballGridFamily implements RenderFamily {
             ownerColorIdx,
         });
 
-        // Convert grid cells → metaball influence samples. Fold alpha into
-        // strength so the metaball field naturally weights each contribution.
-        const samples: MetaballInfluenceSample[] = [];
-        for (const c of scene.cells) {
-            if (c.alpha <= 0 || c.strength <= 0) continue;
-            samples.push({
-                id: c.pass === 'single' ? c.vId : `${c.vId}#${c.pass}`,
-                x: c.x,
-                y: c.y,
-                playerIdx: c.colorIdx,
-                strength: c.strength * c.alpha,
+        // Direct rect painting — one quad per scene cell. O(N). Far cheaper
+        // than the shared metaball compositor (O(samples × internal_cells)
+        // with per-pair gaussian falloff) and also eliminates the
+        // "star-bubbles" artifact for this mode.
+        const g = this.graphics;
+        g.clear();
+        const spacingPx = cached.classification.spacingPx;
+        const half = spacingPx * 0.5;
+        for (let i = 0; i < scene.cells.length; i++) {
+            const c = scene.cells[i];
+            if (c.alpha <= 0) continue;
+            const hex = hexByColorIdx[c.colorIdx];
+            if (hex === undefined) continue;
+            g.rect(c.x - half, c.y - half, spacingPx, spacingPx).fill({
+                color: hex,
+                alpha: c.alpha,
             });
         }
 
-        const sceneInput: MetaballSceneInput = {
-            ownedStars: baseContext.ownedStars,
-            clusterMap: baseContext.clusterMap,
-            playerColors: baseContext.playerColors,
-            clusterShips: baseContext.clusterShips,
-            samples,
-            fingerprint: `mg:${cached.transitionKey}:${progress.toFixed(4)}:${flipTransition}:${flipWindow}:${strength}:${samples.length}`,
-        };
-
-        renderMetaball(
-            [...input.stars],
-            this.root,
-            this.colorUtils,
-            input.world.width,
-            input.world.height,
-            [...input.lanes],
-            { gameTick: input.gameTick, sceneInput },
-        );
+        // Silence unused-var lint for `inwardOffsetPx` — it is intentionally
+        // read + passed to the scene builder but the builder currently leaves
+        // positions unchanged (see renderMetaballGridScene docstring). Keeping
+        // the plumbing makes MG9 debug overlay work straightforward.
+        void inwardOffsetPx;
 
         return { container: this.root };
     }
 
     dispose(): void {
-        resetMetaballCache();
         this.sessionKey = null;
         this.resetState();
+        this.graphics.clear();
         this.root.removeChildren();
+        this.root.addChild(this.graphics);
     }
 }
 
