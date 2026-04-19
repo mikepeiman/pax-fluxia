@@ -156,13 +156,26 @@ export function makeEventId(event: ConquestEvent): string {
 }
 
 /**
+ * Deterministic 32-bit integer hash of two ints. Mirrors the simple mix used
+ * elsewhere in metaball-grid for flip-time jitter; kept here to avoid an
+ * import cycle. Result is in [0, 2^32).
+ */
+function hash2Int(a: number, b: number): number {
+    let h = (a | 0) * 374761393 + (b | 0) * 668265263;
+    h = (h ^ (h >>> 13)) >>> 0;
+    h = (h * 1274126177) >>> 0;
+    h = (h ^ (h >>> 16)) >>> 0;
+    return h;
+}
+
+/**
  * Build a deterministic classification of the visual-truth grid for one
  * PREV→NEXT transition.
  */
 export function buildGridClassification(params: BuildGridClassificationParams): GridClassification {
     const {
         world,
-        spacingPx,
+        spacingPx: requestedSpacingPx,
         originMode,
         prevGeometry,
         nextGeometry,
@@ -171,14 +184,44 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         prevOwnedStars,
         nextOwnedStars,
         coverageRadiusPx,
+        maxCells,
+        distribution: distributionArg,
+        positionJitter: positionJitterArg,
     } = params;
 
-    if (spacingPx <= 0) throw new Error('spacingPx must be > 0');
+    if (requestedSpacingPx <= 0) throw new Error('spacingPx must be > 0');
     if (world.width <= 0 || world.height <= 0) throw new Error('world dimensions must be > 0');
+
+    // Coarsen spacing upward if a maxCells cap would otherwise be exceeded.
+    // A grid at `s` px has `ceil(w/s) * ceil(h/s)` cells. We approximate the
+    // minimum spacing that stays under the cap with
+    // `s_eff = max(requested, ceil(sqrt(w*h / maxCells)))`, then iterate once
+    // more in case the ceilings push us back over.
+    let spacingPx = requestedSpacingPx;
+    if (maxCells && maxCells > 0) {
+        const floorSpacing = Math.sqrt((world.width * world.height) / maxCells);
+        if (requestedSpacingPx < floorSpacing) {
+            spacingPx = floorSpacing;
+        }
+        // Tighten after the ceiling-based cell count is computed; if still
+        // over the cap, bump spacing by the sqrt of the overshoot ratio.
+        const provCols = Math.ceil(world.width / spacingPx);
+        const provRows = Math.ceil(world.height / spacingPx);
+        const provCells = provCols * provRows;
+        if (provCells > maxCells) {
+            spacingPx *= Math.sqrt(provCells / maxCells);
+        }
+    }
 
     const cols = Math.ceil(world.width / spacingPx);
     const rows = Math.ceil(world.height / spacingPx);
     const { offsetX, offsetY } = resolveOffset(spacingPx, originMode);
+
+    const distribution = distributionArg ?? 'square';
+    // Clamp jitter fraction to [0, 0.5]; > 0.5 lets neighbours swap slots.
+    const positionJitter = distribution === 'jittered'
+        ? Math.max(0, Math.min(0.5, positionJitterArg ?? 0))
+        : 0;
 
     const prevRegions = prevGeometry.territoryRegions;
     const nextRegions = nextGeometry.territoryRegions;
@@ -199,10 +242,23 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     const vstars: GridVStar[] = new Array(cols * rows);
     const emittableVstars: GridVStar[] = [];
 
+    const halfSpacing = spacingPx * 0.5;
+    const jitterAmp = positionJitter * spacingPx;
+
     for (let iy = 0; iy < rows; iy++) {
+        // `hex_offset`: shift odd rows by half-spacing for honeycomb packing.
+        const rowXShift = distribution === 'hex_offset' && (iy & 1) === 1 ? halfSpacing : 0;
         for (let ix = 0; ix < cols; ix++) {
-            const x = ix * spacingPx + offsetX;
-            const y = iy * spacingPx + offsetY;
+            let x = ix * spacingPx + offsetX + rowXShift;
+            let y = iy * spacingPx + offsetY;
+            if (jitterAmp > 0) {
+                // Deterministic per-cell scatter. Use two independent hashes
+                // so x/y offsets do not correlate diagonally.
+                const hx = hash2Int(ix, iy) / 0x1_0000_0000; // [0, 1)
+                const hy = hash2Int(ix + 104729, iy + 48611) / 0x1_0000_0000; // [0, 1)
+                x += (hx * 2 - 1) * jitterAmp;
+                y += (hy * 2 - 1) * jitterAmp;
+            }
             const id = `g:${ix}:${iy}`;
 
             // Polygon-first; nearest-owned-star fallback fills MSR moats.
@@ -245,7 +301,9 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         cols,
         rows,
         spacingPx,
+        requestedSpacingPx,
         originMode,
+        distribution,
         vstars,
         emittableVstars,
         byRole: {

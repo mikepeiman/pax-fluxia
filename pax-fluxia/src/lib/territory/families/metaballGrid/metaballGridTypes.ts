@@ -25,6 +25,15 @@ import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContract
 
 export type GridOriginMode = 'centered' | 'corner';
 
+/**
+ * Cell-position distribution mode. `square` is the classical row-major grid.
+ * `hex_offset` shifts odd rows by half-spacing to produce honeycomb packing
+ * (pairs naturally with `METABALL_GRID_CELL_SHAPE === 'hex'`). `jittered`
+ * applies a deterministic per-cell scatter whose amplitude is controlled by
+ * `METABALL_GRID_POSITION_JITTER` (fraction of spacing).
+ */
+export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
+
 /** BFS connectivity used by `grid_bfs` wave geometry. */
 export type GridAdjacency = '4' | '8';
 
@@ -99,10 +108,18 @@ export interface GridClassification {
     readonly cols: number;
     /** Row count: `ceil(height / spacing)`. */
     readonly rows: number;
-    /** Spacing in world px this classification was built at. */
+    /**
+     * Spacing actually used to build this classification, in world px. Equal to
+     * the requested spacing unless the `METABALL_GRID_MAX_CELLS` cap coarsened
+     * it. See `requestedSpacingPx` for the uncoarsened input.
+     */
     readonly spacingPx: number;
+    /** Spacing as requested by the caller (before maxCells coarsening). */
+    readonly requestedSpacingPx: number;
     /** Origin offset mode used. */
     readonly originMode: GridOriginMode;
+    /** Distribution mode used when computing cell positions. */
+    readonly distribution: GridDistribution;
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
     /**
@@ -266,6 +283,26 @@ export interface BuildGridClassificationParams {
      * this from any owned star remain `outside`. Default: 3 × spacingPx.
      */
     readonly coverageRadiusPx?: number;
+    /**
+     * Hard cap on total cell count (cols × rows). When the grid built from
+     * `spacingPx` would exceed this, the builder coarsens spacing upward to
+     * stay under the cap. The effective spacing is reported as
+     * `GridClassification.spacingPx`; the requested spacing is preserved as
+     * `requestedSpacingPx`. Default: no cap.
+     */
+    readonly maxCells?: number;
+    /**
+     * Distribution mode for cell positions. See {@link GridDistribution}.
+     * Default: `'square'`.
+     */
+    readonly distribution?: GridDistribution;
+    /**
+     * Deterministic per-cell position scatter, expressed as a fraction of
+     * spacing. 0 = none; 0.5 ≈ neighbours can overlap. Seeded by `(ix, iy)`
+     * so positions are stable across frames and sessions. Only applied when
+     * `distribution === 'jittered'`. Default: 0.
+     */
+    readonly positionJitter?: number;
 }
 
 export interface PlanGridWaveParams {
