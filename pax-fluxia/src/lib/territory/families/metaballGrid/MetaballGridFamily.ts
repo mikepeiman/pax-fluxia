@@ -274,6 +274,12 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    /**
+     * Reference to the NEXT geometry the plan was built against. When upstream
+     * caches invalidate (e.g. a territory source-shaping knob edit yields a
+     * new snapshot object), we detect the reference change and rebuild.
+     */
+    readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
 
 /**
@@ -350,17 +356,20 @@ export class MetaballGridFamily implements RenderFamily {
     }): CachedPlan {
         const { input, currentGeometry, transitionKey } = params;
 
-        // PREV = rebuild from reverted stars using the same underlayer as NEXT.
+        // PREV comes from GameCanvas's shared cache (MG-PERF Phase C, 2026-04-19).
+        // Fallback to a local rebuild if the orchestrator didn't supply one —
+        // keeps this family usable outside the live render loop (tests, tools).
         const revertedStars = revertStarsForTransition(input);
-        const prevGeometry = buildPerimeterFieldRenderFamilyGeometry({
-            stars: revertedStars,
-            lanes: input.lanes,
-            worldWidth: input.world.width,
-            worldHeight: input.world.height,
-            nowMs: input.nowMs,
-            geometrySource:
-                (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as string | undefined) ?? null,
-        });
+        const prevGeometry = input.prevGeometry
+            ?? buildPerimeterFieldRenderFamilyGeometry({
+                stars: revertedStars,
+                lanes: input.lanes,
+                worldWidth: input.world.width,
+                worldHeight: input.world.height,
+                nowMs: input.nowMs,
+                geometrySource:
+                    (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as string | undefined) ?? null,
+            });
 
         const spacingPx = Math.max(
             2,
@@ -441,7 +450,13 @@ export class MetaballGridFamily implements RenderFamily {
             resolveStarPosition,
         });
 
-        return { transitionKey, classification, wavePlan, prevGeometry };
+        return {
+            transitionKey,
+            classification,
+            wavePlan,
+            prevGeometry,
+            nextGeometryRef: currentGeometry,
+        };
     }
 
     /**
@@ -510,6 +525,7 @@ export class MetaballGridFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
+            nextGeometryRef: currentGeometry,
         };
     }
 
@@ -570,10 +586,20 @@ export class MetaballGridFamily implements RenderFamily {
 
         const transitionKey = buildTransitionKey(input);
 
-        // Rebuild the plan only when (transitionKey, session) changes. Per-frame
-        // work is scoped to the scene builder.
+        // Rebuild the plan when (transitionKey, session, classification params,
+        // or geometry reference) changes. Geometry reference check ensures
+        // upstream cache invalidation (config/CX/DX/MSR edits) propagates here
+        // without requiring a new transitionKey (MG-PERF Phase C, 2026-04-19).
+        // Inline conditions keep TypeScript's control-flow analysis happy so that
+        // `this.cachedPlan` is always non-null after both branches.
+        const prevGeoRef = input.prevGeometry ?? null;
         if (transitionKey) {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== transitionKey) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.transitionKey !== transitionKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+                || (prevGeoRef !== null && this.cachedPlan.prevGeometry !== prevGeoRef)
+            ) {
                 this.cachedPlan = this.buildPlanForTransition({
                     input,
                     currentGeometry,
@@ -581,7 +607,11 @@ export class MetaballGridFamily implements RenderFamily {
                 });
             }
         } else {
-            if (!this.cachedPlan || this.cachedPlan.transitionKey !== 'steady') {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.transitionKey !== 'steady'
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+            ) {
                 this.cachedPlan = this.buildSteadyStatePlan({
                     input,
                     currentGeometry,

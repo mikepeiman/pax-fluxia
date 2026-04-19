@@ -36,6 +36,7 @@ export function buildRenderFamilyInput(params: {
     gameTick?: number;
     ownership?: RenderFamilyInput['ownership'];
     geometry?: CanonicalGeometrySnapshot | null;
+    prevGeometry?: CanonicalGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
     tunableKeys?: readonly string[];
@@ -44,6 +45,7 @@ export function buildRenderFamilyInput(params: {
     return {
         ownership: params.ownership ?? null,
         geometry: params.geometry ?? null,
+        prevGeometry: params.prevGeometry ?? null,
         nowMs: params.nowMs,
         paused: params.paused ?? false,
         gameTick: params.gameTick,

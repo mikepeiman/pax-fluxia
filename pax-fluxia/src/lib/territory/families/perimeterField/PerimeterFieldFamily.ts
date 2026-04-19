@@ -169,19 +169,29 @@ export class PerimeterFieldFamily implements RenderFamily {
         const transitionKey = buildTransitionKey(input);
         if (transitionKey) {
             if (this.oldGeometryKey !== transitionKey || !this.oldGeometry) {
-                const revertedStars = revertStarsForTransition(input);
-                this.oldGeometry = buildPerimeterFieldRenderFamilyGeometry({
-                    stars: revertedStars,
-                    lanes: input.lanes,
-                    worldWidth: input.world.width,
-                    worldHeight: input.world.height,
-                    nowMs: input.nowMs,
-                    geometrySource:
-                        (input.tunables.get(
-                            'PERIMETER_FIELD_GEOMETRY_SOURCE',
-                        ) as string | undefined) ?? null,
-                });
+                // MG-PERF Phase C (2026-04-19): prefer PREV from GameCanvas's
+                // shared cache when available; fall back to a local rebuild so
+                // the family still works standalone (tests, tools).
+                if (input.prevGeometry) {
+                    this.oldGeometry = input.prevGeometry;
+                } else {
+                    const revertedStars = revertStarsForTransition(input);
+                    this.oldGeometry = buildPerimeterFieldRenderFamilyGeometry({
+                        stars: revertedStars,
+                        lanes: input.lanes,
+                        worldWidth: input.world.width,
+                        worldHeight: input.world.height,
+                        nowMs: input.nowMs,
+                        geometrySource:
+                            (input.tunables.get(
+                                'PERIMETER_FIELD_GEOMETRY_SOURCE',
+                            ) as string | undefined) ?? null,
+                    });
+                }
                 this.oldGeometryKey = transitionKey;
+            } else if (input.prevGeometry && input.prevGeometry !== this.oldGeometry) {
+                // Upstream cache invalidated PREV (e.g. config edit). Adopt it.
+                this.oldGeometry = input.prevGeometry;
             }
         } else {
             this.oldGeometryKey = null;
