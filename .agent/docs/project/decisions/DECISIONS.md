@@ -655,3 +655,65 @@ Three-phase execution, user-directed:
 - ParticleContainer backend restricts cell shape to tinted-quad (square/circle); hex/diamond stay on Graphics.
 - Static RenderTexture GPU memory = `worldWidth × worldHeight × 4 bytes`; ½-res fallback may be needed for world > 4000 px.
 - Upstream truth-capture change (Phase C) crosses the family boundary; coordinate with perimeter_field revised-plan work on alt-worktree.
+
+---
+
+# Decision: CX / CP / DX / MSR — Canonical Acronym Record
+
+**Date:** 2026-04-19
+**Status:** Active — corrects prior record in D-MG-PERF-2026-04-18 and in `CHAT_2026-04-18.md`
+**Ref:** D-TERR-ACRONYMS-2026-04-19
+**Supersedes:** Any prior definitions in this file or session logs for CX / CP / DX / MSR.
+
+## Context
+Yesterday's docs + chat summary used incorrect expansions for CX and MSR: CX was called "Corridor Exclusion" and MSR was called "Separation Radius" with an intentional moat. User corrected the record today. Per AGENT.md §3.6 (lossless chat rule), yesterday's `CHAT_2026-04-18.md` is left verbatim; this entry is the canonical correction.
+
+## Decision
+The canonical expansions and semantics for the four territory-geometry constraints are:
+
+### CX — Corridor Extension
+- **Expansion:** *distributed corridor virtual stars along lanes.*
+- **Purpose:** Ensure same-owner lanes remain fully within that owner's territory. On contested lanes, ensure the two contesting owners' fronts meet along the lane's midline (arc-length midpoint, not necessarily geometric center) and that no third player impinges on the corridor.
+- **Stage:** pre-metaball, in the geometry source pipeline. Mutates the site set fed to `power_voronoi_0319` / `computeGeometry0319`.
+- **Knobs:** `MODIFIED_VORONOI_CORRIDOR_ENABLED`, `MODIFIED_VORONOI_CORRIDOR_SPACING`, `TERRITORY_CX_COUNT` (explicit count overrides spacing when > 0), `TERRITORY_CX_WEIGHT`.
+- **Implementation:** `src/lib/territory/corridor/buildCorridorVirtualSites.ts` L1-288.
+
+### CP — Contested-lane midpoint Pair
+- **Expansion:** *paired virtual stars on either side of the midpoint of an enemy-owned (contested) lane.*
+- **Purpose:** CX's contested-case mechanism. The paired Vs pull the two contesting owners' regions forward toward the midline and block any third party from touching the lane.
+- **Stage:** pre-metaball, same pipeline as CX.
+- **Knobs:** `TERRITORY_CX_CONTEST_MIDPOINT_VSTARS` (on/off), `TERRITORY_CX_CONTEST_PAIR_COUNT`, `TERRITORY_CX_CONTEST_PAIR_WEIGHT`.
+- **Implementation:** `src/lib/territory/corridor/buildCorridorVirtualSites.ts` L183-242.
+- **Known bugs flagged externally (to audit/fix later):** one metaball-family wiring gap; short lanes can suppress pair emission entirely.
+
+### DX — Disconnect eXclusion
+- **Expansion:** *conditional enemy virtual stars between disconnected same-owner components.*
+- **Purpose:** Prevents territory rendering from visually suggesting star-star connections that don't exist as lanes.
+- **Stage:** pre-metaball, same pipeline. Conditional by design — on many maps legitimately produces nothing (no owner has ≥ 2 disconnected components).
+- **Knobs:** `MODIFIED_VORONOI_DISCONNECT_ENABLED`, `MODIFIED_VORONOI_DISCONNECT_DISTANCE`, `TERRITORY_DX_WEIGHT`.
+- **Implementation:** `src/lib/territory/disconnect/buildDisconnectVirtualSites.ts` L1-229+.
+
+### MSR — Minimum Star Range
+- **Expansion:** *margin around a star within which lanes that do not originate at that star should not pass.*
+- **Current implementation:** power-diagram site-weight term (`MODIFIED_VORONOI_STAR_MARGIN`, internally squared) in `powerVoronoiTerritoryGeometryGenerator.ts` L110-125. Not a hard "push geometry inward" stage — a weighting nudge. Can feel weak or ambiguous rather than presenting as a clean visible moat.
+- **Semantics vs. implementation gap:** the *correct* semantic is a constraint on lane routing: lanes whose endpoints are neither endpoint of a given star must stay outside that star's MSR. A lane-level enforcement filter in `src/lib/lanes/**` is currently **missing**. The power-diagram weighting is the only MSR effect today.
+- **Moat clarification:** the visible "moat" around stars at high MSR values is a side effect of the weighting scheme (uncovered regions in the power-diagram), not a requested feature. The fallback in `buildGridClassification.ts` L63-88 (`resolveOwnerByNearestStar` + `coverageRadiusPxSq`) exists to mask it by attributing uncovered cells to the nearest owned star.
+
+## How these reach metaball-grid (and other families)
+
+All four are upstream-geometry concerns. They mutate the site set that `computeGeometry0319` feeds to the power-Voronoi solver, so by the time a render family reads `territoryRegions` off the `CanonicalGeometrySnapshot`, CX/CP/DX/MSR are already baked into the polygons.
+
+- **Consume pre-shaped polygons → get CX/CP/DX/MSR for free:** metaball-grid, perimeter-field, any future polygon-consuming family.
+- **Re-sample-and-shape:** legacy `MetaballRenderer.ts` uses `buildCorridorSamples` / `buildDisconnectSamples` in sample space; this is a parallel shaping path that does not affect metaball-grid.
+
+## Actions triggered by this entry
+
+1. `TerritoryGeometrySourceTuning` widget added to the metaball-grid settings card so the four knobs are accessible without switching sections. *(This session.)*
+2. MSR tooltip/description corrected in `TerritoryGeometrySourceTuning.svelte`. *(This session.)*
+3. **New queued task — MG-MSR-LANE-FILTER:** implement the missing lane-level MSR filter as a separate pass in lane generation, independent of the Voronoi site weight. Queued in today's daily queue; not scheduled yet.
+4. **New queued task — MG-CP-SHORT-LANE-AUDIT:** verify CP emission on short lanes + the metaball-family wiring gap. Queued; not scheduled yet.
+
+## Risks Logged
+
+- MSR-as-weight and the new MSR-as-lane-filter may produce *different* visuals at the same numeric setting. Needs either (a) separation into two config keys or (b) a clear policy that the lane filter is the user-facing MSR and the weight is a downstream derivation.
+- Enabling CX/DX by default is a visual change; do not flip defaults without explicit user sign-off.
