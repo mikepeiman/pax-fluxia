@@ -160,7 +160,7 @@ export interface FrontierLoop {
 // ---------------------------------------------------------------------------
 
 export interface TerritoryGeneratorSettings {
-    starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN
+    starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN — shared power-voronoi scale term for real-site weight, clip padding, and contested midpoint spacing
     corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
     cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)

@@ -205,7 +205,8 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
             const y = iy * spacingPx + offsetY;
             const id = `g:${ix}:${iy}`;
 
-            // Polygon-first; nearest-owned-star fallback fills MSR moats.
+            // Polygon-first; nearest-owned-star fallback fills star-centered
+            // coverage holes left by the current star-margin-weighted geometry.
             let prevOwnerId = resolveOwnerAt(x, y, prevRegions);
             if (prevOwnerId === null) {
                 prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStars, coverageRadiusSq);

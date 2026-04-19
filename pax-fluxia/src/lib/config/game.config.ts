@@ -4,10 +4,15 @@
 
 import { calculateCombat as sharedCalculateCombat } from '@pax/common';
 import type { EngineConfig } from '@pax/common';
+import {
+    formatGeometry0319DebugConfig,
+    snapshotGeometry0319DebugConfig,
+} from '$lib/config/geometry0319Debug';
 import type {
     MetaballBurstBoundaryBasis,
     VsTransitionModeId,
 } from '$lib/territory/transitions/territoryTransitionModes';
+import { log } from '$lib/utils/logger';
 
 /**
  * Build an EngineConfig from the current GAME_CONFIG values.
@@ -484,7 +489,7 @@ interface GameConfigType {
     DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
-    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory ownership boundary margin from star centers (px, 0–500); not used for mapgen lane clearance
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Shared power-voronoi scale input: base real-site weight/radius term, clip padding contributor, and contested midpoint-pair spacing source (px, 0–500)
     MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
     MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
@@ -720,6 +725,12 @@ function loadSavedConfig(): Partial<GameConfigType> {
                 o.MAPGEN_LANE_MARGIN_PX = msr + buf;
                 delete o.MAPGEN_LANE_BUFFER_PX;
             }
+            const geometrySnapshot = snapshotGeometry0319DebugConfig(o);
+            log.renderer(
+                'ConfigLoad',
+                `pax-fluxia-game-config ${formatGeometry0319DebugConfig(geometrySnapshot)}`,
+                geometrySnapshot,
+            );
             return o as Partial<GameConfigType>;
         }
     } catch { /* ignore corrupt data */ }
