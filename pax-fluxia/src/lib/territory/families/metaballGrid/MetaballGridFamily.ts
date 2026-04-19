@@ -296,6 +296,20 @@ interface MetaballGridPlanSettings {
 }
 
 /**
+ * Quantize progress to a 1/2048 grid so visually-identical frames reuse the
+ * same paint signature. 2048 steps over one transition ≈ sub-pixel fidelity
+ * on any practical cell flipWindow and avoids perf-thrash when the host
+ * renderer calls update() with micro-changed progress values.
+ */
+const PROGRESS_QUANT_STEPS = 2048;
+function quantProgress(t: number): number {
+    if (!Number.isFinite(t)) return 0;
+    if (t <= 0) return 0;
+    if (t >= 1) return PROGRESS_QUANT_STEPS;
+    return Math.round(t * PROGRESS_QUANT_STEPS);
+}
+
+/**
  * RenderFamily implementation for metaball-grid.
  */
 export class MetaballGridFamily implements RenderFamily {
@@ -308,8 +322,25 @@ export class MetaballGridFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    /**
+     * Last paint-output signature. When the next update() computes the same
+     * signature, the scene build + paint is short-circuited — the existing
+     * PIXI.Graphics draw list remains visible at zero cost. This is the
+     * Phase A dirty-flag gate (2026-04-19).
+     */
+    private lastPaintSig: string | null = null;
+    /**
+     * Classification-affecting tunable fingerprint. When this changes we
+     * invalidate `cachedPlan` so spacing / origin / distribution / jitter /
+     * maxCells edits in the settings UI are picked up live (previously the
+     * plan only rebuilt on transitionKey change, which hid tunable edits
+     * until the next conquest).
+     */
+    private lastPlanParamsKey: string | null = null;
+    /** EMA of per-update wall-clock time (ms). Seeded lazily. */
     private emaUpdateMs = 0;
     private frameCount = 0;
+    private skippedFrameCount = 0;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -323,8 +354,11 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.lastPaintSig = null;
+        this.lastPlanParamsKey = null;
         this.emaUpdateMs = 0;
         this.frameCount = 0;
+        this.skippedFrameCount = 0;
         resetMetaballGridStats();
     }
 
@@ -436,7 +470,7 @@ export class MetaballGridFamily implements RenderFamily {
      * transitions.
      */
     update(input: RenderFamilyInput): RenderFamilyOutput {
-        const startedAtMs = performance.now();
+        const startMs = performance.now();
         const nextSessionKey = buildSessionKey(input);
         if (this.sessionKey !== nextSessionKey) {
             this.sessionKey = nextSessionKey;
@@ -462,6 +496,46 @@ export class MetaballGridFamily implements RenderFamily {
             return { container: this.root };
         }
         this.root.visible = true;
+
+        // ── Classification-affecting tunables, hoisted so plan invalidation
+        //    picks up settings-UI edits live. Read values are the same that
+        //    the plan builders will re-read one level down; cheap map lookups.
+        const requestedSpacingPx = Math.max(
+            2,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_SPACING_PX',
+                GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24,
+            ),
+        );
+        const originModeHoisted = readTunableString<GridOriginMode>(
+            input,
+            'METABALL_GRID_ORIGIN_MODE',
+            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
+            ['centered', 'corner'],
+        );
+        const distributionHoisted = readTunableString<GridDistribution>(
+            input,
+            'METABALL_GRID_DISTRIBUTION',
+            (GAME_CONFIG.METABALL_GRID_DISTRIBUTION as GridDistribution | undefined) ?? 'square',
+            ['square', 'hex_offset', 'jittered'],
+        );
+        const positionJitterHoisted = readTunableNumber(
+            input,
+            'METABALL_GRID_POSITION_JITTER',
+            GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0,
+        );
+        const maxCellsHoisted = readTunableNumber(
+            input,
+            'METABALL_GRID_MAX_CELLS',
+            GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0,
+        );
+        const planParamsKey =
+            `${requestedSpacingPx}|${originModeHoisted}|${distributionHoisted}|${positionJitterHoisted}|${maxCellsHoisted}`;
+        if (this.cachedPlan && this.lastPlanParamsKey !== planParamsKey) {
+            this.cachedPlan = null;
+        }
+        this.lastPlanParamsKey = planParamsKey;
 
         const transitionKey = buildTransitionKey(input);
         const settings: MetaballGridPlanSettings = {
@@ -691,6 +765,70 @@ export class MetaballGridFamily implements RenderFamily {
         for (const entry of input.activeTransition?.events ?? []) {
             ensureOwner(entry.event.previousOwner);
             ensureOwner(entry.event.newOwner);
+        }
+
+        // ── Dirty-flag paint gate (MG-PERF Phase A) ─────────────────────────
+        // Build a signature from every input that can change the painted
+        // output. When the signature matches the last frame's, the existing
+        // PIXI.Graphics draw list is still valid — skip scene build + paint.
+        // Progress is quantized to PROGRESS_QUANT_STEPS so sub-step progress
+        // changes don't thrash the gate.
+        const palFillSig = fillHexByColorIdx.join(',');
+        const palBorderSig = borderHexByColorIdx.join(',');
+        const paintSig = [
+            this.sessionKey ?? '',
+            cached.planKey,
+            quantProgress(rawProgress),
+            flipTransition,
+            flipWindow.toFixed(4),
+            strength.toFixed(4),
+            inwardOffsetPx.toFixed(2),
+            waveEase,
+            flipTimeJitter.toFixed(4),
+            cellShape,
+            cellInsetPx.toFixed(2),
+            cellCornerPx.toFixed(2),
+            borderMode,
+            borderBlend ? '1' : '0',
+            borderChaikinPasses,
+            fillSat.toFixed(4),
+            fillLight.toFixed(4),
+            fillAlphaMult.toFixed(4),
+            borderWidth.toFixed(4),
+            borderAlpha.toFixed(4),
+            borderSat.toFixed(4),
+            borderLight.toFixed(4),
+            // Classification-level knobs (also drive plan invalidation above,
+            // but included here so plan-rebuilds with same-looking output
+            // still get a fresh sig when the underlying grid moved).
+            requestedSpacingPx,
+            originModeHoisted,
+            distributionHoisted,
+            positionJitterHoisted.toFixed(4),
+            maxCellsHoisted,
+            palFillSig,
+            palBorderSig,
+        ].join('|');
+
+        if (this.lastPaintSig === paintSig) {
+            this.frameCount += 1;
+            this.skippedFrameCount += 1;
+            const elapsed = performance.now() - startMs;
+            this.emaUpdateMs = this.emaUpdateMs === 0
+                ? elapsed
+                : this.emaUpdateMs * 0.9 + elapsed * 0.1;
+            updateMetaballGridStats({
+                requestedSpacingPx: cached.classification.requestedSpacingPx,
+                effectiveSpacingPx: cached.classification.spacingPx,
+                totalCells: cached.classification.cols * cached.classification.rows,
+                emittableCells: cached.classification.emittableVstars.length,
+                lastUpdateMs: elapsed,
+                emaUpdateMs: this.emaUpdateMs,
+                lastFrameSkipped: true,
+                frameCount: this.frameCount,
+                skippedFrameCount: this.skippedFrameCount,
+            });
+            return { container: this.root };
         }
 
         // ── Apply easing to progress (before flip math) ─────────────────────
@@ -1106,29 +1244,31 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
-        const elapsedMs = performance.now() - startedAtMs;
+        // Record paint-sig + live stats for the now-painted frame. This is the
+        // non-skipped side of the Phase A dirty-paint gate.
+
+        // ── Record paint-sig + stats (MG-PERF Phase A) ──────────────────────
+        this.lastPaintSig = paintSig;
         this.frameCount += 1;
-        this.emaUpdateMs =
-            this.frameCount === 1
-                ? elapsedMs
-                : this.emaUpdateMs * 0.9 + elapsedMs * 0.1;
         let paintedCells = 0;
         for (let i = 0; i < scene.cells.length; i++) {
-            if (scene.cells[i]!.alpha > 0) {
-                paintedCells += 1;
-            }
+            if (scene.cells[i].alpha > 0) paintedCells++;
         }
+        const elapsed = performance.now() - startMs;
+        this.emaUpdateMs = this.emaUpdateMs === 0
+            ? elapsed
+            : this.emaUpdateMs * 0.9 + elapsed * 0.1;
         updateMetaballGridStats({
             requestedSpacingPx: cached.classification.requestedSpacingPx,
             effectiveSpacingPx: cached.classification.spacingPx,
             totalCells: cached.classification.cols * cached.classification.rows,
             emittableCells: cached.classification.emittableVstars.length,
             paintedCells,
-            lastUpdateMs: elapsedMs,
+            lastUpdateMs: elapsed,
             emaUpdateMs: this.emaUpdateMs,
             lastFrameSkipped: false,
             frameCount: this.frameCount,
-            skippedFrameCount: 0,
+            skippedFrameCount: this.skippedFrameCount,
         });
 
         return { container: this.root };

@@ -26,11 +26,11 @@ import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContract
 export type GridOriginMode = 'centered' | 'corner';
 
 /**
- * Placement pattern for grid sample positions before ownership resolution.
- *
- * - `square`: classical row-major lattice
- * - `hex_offset`: odd rows shift by half-spacing for honeycomb packing
- * - `jittered`: square lattice with deterministic per-cell scatter
+ * Cell-position distribution mode. `square` is the classical row-major grid.
+ * `hex_offset` shifts odd rows by half-spacing to produce honeycomb packing
+ * (pairs naturally with `METABALL_GRID_CELL_SHAPE === 'hex'`). `jittered`
+ * applies a deterministic per-cell scatter whose amplitude is controlled by
+ * `METABALL_GRID_POSITION_JITTER` (fraction of spacing).
  */
 export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
 
@@ -109,15 +109,16 @@ export interface GridClassification {
     /** Row count: `ceil(height / spacing)`. */
     readonly rows: number;
     /**
-     * Effective spacing used to build this classification. This can be larger
-     * than `requestedSpacingPx` when `maxCells` forces coarsening.
+     * Spacing actually used to build this classification, in world px. Equal to
+     * the requested spacing unless the `METABALL_GRID_MAX_CELLS` cap coarsened
+     * it. See `requestedSpacingPx` for the uncoarsened input.
      */
     readonly spacingPx: number;
-    /** Spacing requested by the caller before any max-cells coarsening. */
+    /** Spacing as requested by the caller (before maxCells coarsening). */
     readonly requestedSpacingPx: number;
     /** Origin offset mode used. */
     readonly originMode: GridOriginMode;
-    /** Distribution mode used when placing grid sample positions. */
+    /** Distribution mode used when computing cell positions. */
     readonly distribution: GridDistribution;
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
@@ -283,16 +284,23 @@ export interface BuildGridClassificationParams {
      */
     readonly coverageRadiusPx?: number;
     /**
-     * Hard cap on total cell count. When the requested spacing would exceed
-     * this many cells, the builder coarsens spacing upward to stay under it.
-     * `0` or undefined leaves spacing unchanged.
+     * Hard cap on total cell count (cols × rows). When the grid built from
+     * `spacingPx` would exceed this, the builder coarsens spacing upward to
+     * stay under the cap. The effective spacing is reported as
+     * `GridClassification.spacingPx`; the requested spacing is preserved as
+     * `requestedSpacingPx`. Default: no cap.
      */
     readonly maxCells?: number;
-    /** Distribution mode for grid sample positions. Default: `square`. */
+    /**
+     * Distribution mode for cell positions. See {@link GridDistribution}.
+     * Default: `'square'`.
+     */
     readonly distribution?: GridDistribution;
     /**
-     * Deterministic scatter amplitude as a fraction of spacing. Only applies
-     * when `distribution === 'jittered'`.
+     * Deterministic per-cell position scatter, expressed as a fraction of
+     * spacing. 0 = none; 0.5 ≈ neighbours can overlap. Seeded by `(ix, iy)`
+     * so positions are stable across frames and sessions. Only applied when
+     * `distribution === 'jittered'`. Default: 0.
      */
     readonly positionJitter?: number;
 }
