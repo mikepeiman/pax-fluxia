@@ -322,13 +322,13 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Inward bias applied to edge-adjacent cells during compositing. 0 = no offset.">
+        <span class="var-name" title="Extra inset applied only to non-native (boundary / in-transition) cells on top of Cell Inset. Visually pulls the territory edge inward from its classified extent. 0 = no extra offset.">
             Inward Offset
         </span>
         <span class="val">{panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}px</span>
     </div>
     <div class="var-desc">
-        Optional visual pull of edge cells toward owner interiors. Set to 0 to pass positions through unchanged.
+        Extra inset on non-native cells (boundary + in-transition). Adds to the base Cell Inset, so boundary cells render smaller than interior-territory cells. 0 = no extra offset.
     </div>
     <input
         type="range"

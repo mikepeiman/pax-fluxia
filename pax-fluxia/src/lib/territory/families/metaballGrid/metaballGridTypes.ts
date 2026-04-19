@@ -217,12 +217,27 @@ export interface GridRenderCell {
     readonly y: number;
     /** Owner color palette index this cell contributes. */
     readonly colorIdx: number;
-    /** Alpha 0..1. */
+    /**
+     * Alpha 0..1. `METABALL_GRID_STRENGTH` (the UI "Alpha Gain" knob) is
+     * already folded into this value by `renderMetaballGridScene` at emit
+     * time, so downstream painters can use it directly without a second
+     * multiply.
+     */
     readonly alpha: number;
-    /** Metaball influence strength for this cell. */
+    /**
+     * Reserved for any future additive-field compositor that wants a
+     * separate strength channel. Current direct-paint family uses only
+     * `alpha` (with strength already applied) and ignores this field.
+     */
     readonly strength: number;
     /** For `dual_pass_blend`: which side this cell represents. */
     readonly pass: 'single' | 'prev' | 'next';
+    /**
+     * Role of the source vstar. Painters that want to apply a different
+     * visual treatment to ownership-boundary cells (e.g.
+     * `METABALL_GRID_INWARD_OFFSET_PX`) key on `role !== 'native'`.
+     */
+    readonly role: GridVRole;
 }
 
 /** Complete scene emitted per frame. */
