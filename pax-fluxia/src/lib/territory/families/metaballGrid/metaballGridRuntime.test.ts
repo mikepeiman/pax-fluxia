@@ -11,6 +11,9 @@ describe('buildMetaballGridPlanKey', () => {
         geometrySource: 'power_voronoi_0319',
         spacingPx: 48,
         originMode: 'centered' as const,
+        distribution: 'square' as const,
+        positionJitter: 0,
+        maxCells: 0,
     };
 
     it('changes when steady-state geometry-generation knobs change', () => {
@@ -20,6 +23,15 @@ describe('buildMetaballGridPlanKey', () => {
         ).not.toBe(key);
         expect(
             buildMetaballGridPlanKey({ ...base, originMode: 'corner' }),
+        ).not.toBe(key);
+        expect(
+            buildMetaballGridPlanKey({ ...base, distribution: 'hex_offset' }),
+        ).not.toBe(key);
+        expect(
+            buildMetaballGridPlanKey({ ...base, positionJitter: 0.15 }),
+        ).not.toBe(key);
+        expect(
+            buildMetaballGridPlanKey({ ...base, maxCells: 60000 }),
         ).not.toBe(key);
         expect(
             buildMetaballGridPlanKey({ ...base, geometryVersion: 'geom:v2' }),

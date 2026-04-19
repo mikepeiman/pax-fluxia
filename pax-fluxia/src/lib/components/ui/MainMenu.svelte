@@ -37,6 +37,7 @@
     import { BG_IMAGES, normalizeBgImagePath } from "$lib/config/bgManifest";
     import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
     import type { MainMenuPreviewRequest, MainMenuPreviewResult } from "$lib/utils/mainMenuPreview";
+    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
     import GameMapPanel from "./main-menu/GameMapPanel.svelte";
     import PlayersPanel from "./main-menu/PlayersPanel.svelte";
@@ -417,9 +418,20 @@
                     45,
             ),
             laneMargin: Math.round(
-                panelSettings.mapgenLaneMarginPx ??
-                    GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
-                    75,
+                resolveEffectiveLaneMarginPx({
+                    MAPGEN_LANE_MARGIN_ENABLED:
+                        panelSettings.mapgenLaneMarginEnabled ??
+                        GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ??
+                        true,
+                    MAPGEN_LANE_MARGIN_PX:
+                        panelSettings.mapgenLaneMarginPx ??
+                        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
+                        75,
+                    MODIFIED_VORONOI_STAR_MARGIN:
+                        panelSettings.starMargin ??
+                        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                        45,
+                }),
             ),
             curveVsPruneBias: Math.min(
                 1,
@@ -504,7 +516,12 @@
             neutralStarCount,
             specialStarPercentage,
             mapgenStarMarginPx: menuStarMargin,
-            mapgenLaneMarginPx: menuLaneMargin,
+            mapgenLaneMarginPx: resolveEffectiveLaneMarginPx({
+                MAPGEN_LANE_MARGIN_ENABLED:
+                    GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ?? true,
+                MAPGEN_LANE_MARGIN_PX: menuLaneMargin,
+                MODIFIED_VORONOI_STAR_MARGIN: menuStarMargin,
+            }),
             mapgenLaneCurveVsPruneBias: menuCurveVsPruneBias,
             mapLaneMode: menuLaneMode,
         };

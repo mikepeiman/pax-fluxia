@@ -11,6 +11,7 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
+    import { patchTouchesLaneTopology } from "$lib/lanes/laneMargin";
     import { log, logFlags } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -244,9 +245,10 @@
         );
         applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig();
-        const affectsLaneTopology =
-            'MAPGEN_LANE_MARGIN_PX' in configPatch
-            || 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' in configPatch;
+        const affectsLaneTopology = patchTouchesLaneTopology(
+            configPatch,
+            GAME_CONFIG,
+        );
         const affectsLanePaths =
             affectsLaneTopology
             || 'MAPGEN_LANE_MODE' in configPatch;

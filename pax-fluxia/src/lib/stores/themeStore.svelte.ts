@@ -7,6 +7,7 @@
 
 import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
+import { patchTouchesLaneTopology } from '$lib/lanes/laneMargin';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     buildThemeDisplayName,
@@ -139,9 +140,10 @@ function applyThemeValuesFallback(
     activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
     animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
 
-    const affectsLaneTopology =
-        'MAPGEN_LANE_MARGIN_PX' in valuesPatch
-        || 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' in valuesPatch;
+    const affectsLaneTopology = patchTouchesLaneTopology(
+        valuesPatch,
+        GAME_CONFIG,
+    );
     const affectsLanePaths =
         affectsLaneTopology
         || 'MAPGEN_LANE_MODE' in valuesPatch;

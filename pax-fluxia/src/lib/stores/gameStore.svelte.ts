@@ -53,6 +53,7 @@ import {
     canonicalUniConnections,
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
+import { resolveEffectiveLaneMarginPx } from '$lib/lanes/laneMargin';
 import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
 import {
     PLAYER_PALETTE_DEFAULTS,
@@ -476,7 +477,7 @@ function addDebugConnection(sourceId: string, targetId: string): void {
 
 /** Lane margin: clearance for chords / sampled centerlines vs non-endpoint stars (`@pax/common` mapgen). */
 function laneDClearancePx(): number {
-    return Math.max(0, GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75);
+    return resolveEffectiveLaneMarginPx(GAME_CONFIG);
 }
 
 function refreshLanePolylinesFromConfig(): void {
@@ -610,7 +611,7 @@ function generateMapPreview(opts: {
         neutralStarCount: opts.neutralStarCount,
         specialStarPercentage: opts.specialStarPercentage,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        mapgenLaneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+        mapgenLaneMarginPx: laneDClearancePx(),
         mapgenLaneCurveVsPruneBias: Math.min(
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
@@ -639,7 +640,7 @@ function initStandardMap(playerIds: string[]): void {
         maxLinksPerStar: settings.maxLinksPerStar ?? 5,
         boardFit: settings.mapBoardFit ?? 0,
         mapgenStarMarginPx: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        mapgenLaneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+        mapgenLaneMarginPx: laneDClearancePx(),
         mapgenLaneCurveVsPruneBias: Math.min(
             1,
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
@@ -1531,6 +1532,9 @@ export const gameStore = {
 
     /** Rebuild lane graph from current star positions using MSR + lane buffer (paused / live tuning). */
     rebuildConnectionsFromLaneClearance,
+
+    /** Apply the current effective lane-clearance config and rebuild lanes + links. */
+    rebuildLaneConstraintsFromConfig: rebuildConnectionsFromLaneClearance,
 
     /** Recompute curved lane polylines from current stars + links (e.g. lane mode change). */
     refreshLanePolylinesFromConfig,

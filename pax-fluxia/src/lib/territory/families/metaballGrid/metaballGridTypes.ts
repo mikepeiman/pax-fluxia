@@ -25,6 +25,15 @@ import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContract
 
 export type GridOriginMode = 'centered' | 'corner';
 
+/**
+ * Placement pattern for grid sample positions before ownership resolution.
+ *
+ * - `square`: classical row-major lattice
+ * - `hex_offset`: odd rows shift by half-spacing for honeycomb packing
+ * - `jittered`: square lattice with deterministic per-cell scatter
+ */
+export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
+
 /** BFS connectivity used by `grid_bfs` wave geometry. */
 export type GridAdjacency = '4' | '8';
 
@@ -99,10 +108,17 @@ export interface GridClassification {
     readonly cols: number;
     /** Row count: `ceil(height / spacing)`. */
     readonly rows: number;
-    /** Spacing in world px this classification was built at. */
+    /**
+     * Effective spacing used to build this classification. This can be larger
+     * than `requestedSpacingPx` when `maxCells` forces coarsening.
+     */
     readonly spacingPx: number;
+    /** Spacing requested by the caller before any max-cells coarsening. */
+    readonly requestedSpacingPx: number;
     /** Origin offset mode used. */
     readonly originMode: GridOriginMode;
+    /** Distribution mode used when placing grid sample positions. */
+    readonly distribution: GridDistribution;
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
     /**
@@ -228,8 +244,8 @@ export interface GridMetaballScene {
 
 /**
  * Ownership snapshot of a star at one of the PREV/NEXT time points. Used for
- * nearest-owned-star fallback when polygon coverage has gaps (e.g. MSR-induced
- * moats in the underlying voronoi geometry).
+ * nearest-owned-star fallback when polygon coverage has gaps created by
+ * minimum-star-margin clearance in the underlying geometry.
  */
 export interface GridOwnedStar {
     readonly id: string;
@@ -254,8 +270,8 @@ export interface BuildGridClassificationParams {
     /**
      * Owned stars under PREV snapshot. When provided, cells that fall outside
      * every PREV polygon but are within `coverageRadiusPx` of an owned star
-     * inherit that star's owner. This fills gaps created by weighted-voronoi
-     * MSR holes so the grid shows continuous territory rather than moats.
+     * inherit that star's owner. This fills clearance gaps left around stars
+     * so the grid layer remains continuous.
      */
     readonly prevOwnedStars?: ReadonlyArray<GridOwnedStar>;
     /** Owned stars under NEXT snapshot — same behavior as `prevOwnedStars`. */
@@ -266,6 +282,19 @@ export interface BuildGridClassificationParams {
      * this from any owned star remain `outside`. Default: 3 × spacingPx.
      */
     readonly coverageRadiusPx?: number;
+    /**
+     * Hard cap on total cell count. When the requested spacing would exceed
+     * this many cells, the builder coarsens spacing upward to stay under it.
+     * `0` or undefined leaves spacing unchanged.
+     */
+    readonly maxCells?: number;
+    /** Distribution mode for grid sample positions. Default: `square`. */
+    readonly distribution?: GridDistribution;
+    /**
+     * Deterministic scatter amplitude as a fraction of spacing. Only applies
+     * when `distribution === 'jittered'`.
+     */
+    readonly positionJitter?: number;
 }
 
 export interface PlanGridWaveParams {

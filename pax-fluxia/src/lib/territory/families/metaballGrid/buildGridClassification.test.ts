@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
 import type { CanonicalGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification, makeEventId } from './buildGridClassification';
-import type { GridOriginMode } from './metaballGridTypes';
+import type { GridDistribution, GridOriginMode } from './metaballGridTypes';
 
 function makeSnapshot(regions: TerritoryRegionShape[]): CanonicalGeometrySnapshot {
     return {
@@ -79,6 +79,28 @@ const WORLD = { width: 100, height: 100 };
 const SPACING = 20;
 const ORIGIN: GridOriginMode = 'centered';
 
+function classificationAt(
+    overrides: Partial<{
+        spacingPx: number;
+        originMode: GridOriginMode;
+        distribution: GridDistribution;
+        positionJitter: number;
+        maxCells: number;
+    }> = {},
+) {
+    return buildGridClassification({
+        world: WORLD,
+        spacingPx: overrides.spacingPx ?? SPACING,
+        originMode: overrides.originMode ?? ORIGIN,
+        prevGeometry: makeSnapshot([]),
+        nextGeometry: makeSnapshot([]),
+        conquestEvents: [],
+        distribution: overrides.distribution,
+        positionJitter: overrides.positionJitter,
+        maxCells: overrides.maxCells,
+    });
+}
+
 describe('buildGridClassification', () => {
     it('produces cols = ceil(w/s), rows = ceil(h/s)', () => {
         const prev = makeSnapshot([]);
@@ -97,29 +119,41 @@ describe('buildGridClassification', () => {
     });
 
     it('centered origin places cell (0,0) at (spacing/2, spacing/2)', () => {
-        const result = buildGridClassification({
-            world: WORLD,
-            spacingPx: SPACING,
-            originMode: 'centered',
-            prevGeometry: makeSnapshot([]),
-            nextGeometry: makeSnapshot([]),
-            conquestEvents: [],
-        });
+        const result = classificationAt({ originMode: 'centered' });
         expect(result.vstars[0].x).toBe(10);
         expect(result.vstars[0].y).toBe(10);
     });
 
     it('corner origin places cell (0,0) at (0, 0)', () => {
-        const result = buildGridClassification({
-            world: WORLD,
-            spacingPx: SPACING,
-            originMode: 'corner',
-            prevGeometry: makeSnapshot([]),
-            nextGeometry: makeSnapshot([]),
-            conquestEvents: [],
-        });
+        const result = classificationAt({ originMode: 'corner' });
         expect(result.vstars[0].x).toBe(0);
         expect(result.vstars[0].y).toBe(0);
+    });
+
+    it('hex_offset shifts odd rows by half-spacing', () => {
+        const result = classificationAt({ distribution: 'hex_offset' });
+        const evenRow = result.vstars[result.cols];
+        const oddRow = result.vstars[result.cols + 1];
+        expect(result.distribution).toBe('hex_offset');
+        expect(evenRow!.iy).toBe(1);
+        expect(evenRow!.x).toBe(20);
+        expect(oddRow!.x).toBe(40);
+    });
+
+    it('jittered distribution is deterministic and moves cell centers', () => {
+        const a = classificationAt({ distribution: 'jittered', positionJitter: 0.2 });
+        const b = classificationAt({ distribution: 'jittered', positionJitter: 0.2 });
+        expect(a.vstars[0]!.x).not.toBe(10);
+        expect(a.vstars[0]!.y).not.toBe(10);
+        expect(b.vstars[0]!.x).toBe(a.vstars[0]!.x);
+        expect(b.vstars[0]!.y).toBe(a.vstars[0]!.y);
+    });
+
+    it('coarsens spacing upward when maxCells would be exceeded', () => {
+        const result = classificationAt({ spacingPx: 5, maxCells: 25 });
+        expect(result.requestedSpacingPx).toBe(5);
+        expect(result.spacingPx).toBeGreaterThan(5);
+        expect(result.cols * result.rows).toBeLessThanOrEqual(25);
     });
 
     it('vstar id is deterministic g:ix:iy', () => {
@@ -351,9 +385,9 @@ describe('buildGridClassification', () => {
         expect(b.dispossessedByEventId).toEqual(a.dispossessedByEventId);
     });
 
-    it('MOAT: fills polygon-coverage gaps via nearest-owned-star fallback', () => {
+    it('fills clearance gaps via nearest-owned-star fallback', () => {
         // Underlayer has two rect regions covering [0,40]×[0,100] (A) and
-        // [60,100]×[0,100] (B), with a 20 px "moat" column [40,60] where
+        // [60,100]×[0,100] (B), with a 20 px uncovered column [40,60] where
         // NO polygon covers the grid cells. An owned A star sits at (30, 50)
         // and an owned B star at (70, 50). Without the fallback, the middle
         // column of cells would be role=outside. With the fallback, they
@@ -377,7 +411,7 @@ describe('buildGridClassification', () => {
         });
         expect(withoutFallback.byRole.outside.length).toBeGreaterThan(0);
 
-        // With fallback: the moat gap should be covered as native.
+        // With fallback: the uncovered gap should be covered as native.
         const withFallback = buildGridClassification({
             world: WORLD,
             spacingPx: SPACING,
@@ -393,7 +427,7 @@ describe('buildGridClassification', () => {
         expect(withFallback.byRole.native.length).toBe(withFallback.vstars.length);
     });
 
-    it('MOAT: honours coverageRadiusPx — cells too far from any star stay outside', () => {
+    it('honours coverageRadiusPx — cells too far from any star stay outside', () => {
         // Empty geometry, one owned star at (50, 50). Small coverage radius
         // should only rescue a cluster of cells near the star; corners stay
         // outside.

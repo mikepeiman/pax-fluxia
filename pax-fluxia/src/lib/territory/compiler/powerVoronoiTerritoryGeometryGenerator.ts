@@ -30,6 +30,7 @@ import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
+import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
 import {
     buildSortedOutgoingArcMap,
     normalizePlanarAngle,
@@ -1071,6 +1072,21 @@ export function generateVoronoiTerritoryGeometry(
         // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
         // Eliminates fill/border geometry divergence (B-42).
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
+        const minStarMargin = applyExplicitMinStarMargin(
+            mergedTerritories,
+            ownedStars,
+            starMargin,
+        );
+        if (
+            minStarMargin.appliedMarginPx > 0
+            && Math.abs(minStarMargin.appliedMarginPx - minStarMargin.requestedMarginPx) >
+                0.01
+        ) {
+            log.renderer(
+                'PVV2Stage',
+                `MSR clamp ${minStarMargin.requestedMarginPx.toFixed(2)} -> ${minStarMargin.appliedMarginPx.toFixed(2)}`,
+            );
+        }
         log.renderer('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
 
         log.renderer('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);

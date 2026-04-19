@@ -326,6 +326,7 @@ interface GameConfigType {
      * Drives Delaunay pass-through prune and curved-lane solver only — **not** territory MSR.
      */
     MAPGEN_LANE_MARGIN_PX: number;
+    MAPGEN_LANE_MARGIN_ENABLED: boolean;
     /**
      * Lane centerline: `straight` = chord only. `curved` = chord when it clears other
      * stars at lane margin and does not cross other lanes; else Bézier or a short detour.
@@ -416,6 +417,9 @@ interface GameConfigType {
     METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Chaikin corner-cutting passes applied to blended-edge polylines (0..4, 0 = off)
     METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Progress easing curve applied before flip math
     METABALL_GRID_FLIP_WINDOW_JITTER: number; // Per-cell deterministic jitter applied to flipTime (0..0.5 fraction)
+    METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Cell-position distribution pattern
+    METABALL_GRID_POSITION_JITTER: number; // Deterministic per-cell position scatter, fraction of spacing (0..0.5). Only applied under 'jittered'.
+    METABALL_GRID_MAX_CELLS: number; // Hard cap on cols*rows; builder coarsens spacing to stay under cap. 0 = uncapped.
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1219,6 +1223,7 @@ const _rawConfig: GameConfigType = {
 
     /** Lane–obstacle clearance for mapgen + live lane rebuild (default ≈ old 45 MSR + 30 buffer) */
     MAPGEN_LANE_MARGIN_PX: 75,
+    MAPGEN_LANE_MARGIN_ENABLED: true,
 
     MAPGEN_LANE_MODE: 'curved',
 
@@ -1344,6 +1349,9 @@ const _rawConfig: GameConfigType = {
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
     METABALL_GRID_WAVE_EASE: 'linear' as const,
     METABALL_GRID_FLIP_WINDOW_JITTER: 0,
+    METABALL_GRID_DISTRIBUTION: 'square' as const,
+    METABALL_GRID_POSITION_JITTER: 0,
+    METABALL_GRID_MAX_CELLS: 80000,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+    import { metaballGridStats } from '$lib/territory/families/metaballGrid/metaballGridStats';
 
     interface Props {
         panel: Record<string, any>;
@@ -9,13 +10,21 @@
 
     let { panel, updatePanel }: Props = $props();
 
-    type MetaballGridModuleId = 'all' | 'none' | 'grid' | 'shape' | 'wave' | 'flip';
+    type MetaballGridModuleId =
+        | 'all'
+        | 'none'
+        | 'grid'
+        | 'shape'
+        | 'wave'
+        | 'flip'
+        | 'perf';
 
     const METABALL_GRID_MODULES = [
         { id: 'grid', label: 'Grid' },
         { id: 'shape', label: 'Shape' },
         { id: 'wave', label: 'Wave' },
         { id: 'flip', label: 'Flip' },
+        { id: 'perf', label: 'Perf' },
     ] as const;
 
     const METABALL_GRID_MODULE_PANEL_KEY = 'metaballGridModuleVisibility';
@@ -39,6 +48,16 @@
     }
 
     // Resolved values.
+    function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
+        const raw =
+            panel.metaballGridDistribution ??
+            GAME_CONFIG.METABALL_GRID_DISTRIBUTION ??
+            'square';
+        if (raw === 'hex_offset') return 'hex_offset';
+        if (raw === 'jittered') return 'jittered';
+        return 'square';
+    }
+
     function currentOriginMode(): 'centered' | 'corner' {
         const raw =
             panel.metaballGridOriginMode ??
@@ -224,6 +243,81 @@
         <option value="centered">Centered (half-spacing offset)</option>
         <option value="corner">Corner / origin (0,0 anchor)</option>
     </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Placement pattern for the grid sample points before ownership resolution. Square = classical lattice. Hex offset = odd rows shifted by half-spacing. Jittered = deterministic scatter from the square lattice.">
+            Distribution
+        </span>
+        <span class="val">
+            {#if currentDistribution() === 'square'}Square
+            {:else if currentDistribution() === 'hex_offset'}Hex offset
+            {:else}Jittered{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Controls the planner lattice itself, not just how cells are painted. Hex offset changes cell-center placement to honeycomb packing. Jittered keeps the same ownership logic but scatters sample centers deterministically.
+    </div>
+    <select
+        class="mode-select"
+        value={currentDistribution()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('METABALL_GRID_DISTRIBUTION', 'metaballGridDistribution', value);
+        }}
+    >
+        <option value="square">Square</option>
+        <option value="hex_offset">Hex offset</option>
+        <option value="jittered">Jittered</option>
+    </select>
+</div>
+
+<div class="var-row" class:disabled={currentDistribution() !== 'jittered'}>
+    <div class="row-top">
+        <span class="var-name" title="Deterministic per-cell scatter as a fraction of spacing. Only active when Distribution = Jittered.">
+            Position Jitter
+        </span>
+        <span class="val">{(panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0).toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        Fraction of spacing used to scatter each cell center. 0 = none. 0.5 is the practical upper limit before neighbouring cells swap order.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="0.5"
+        step="0.005"
+        disabled={currentDistribution() !== 'jittered'}
+        value={panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_POSITION_JITTER', 'metaballGridPositionJitter', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Hard cap on total cells. If the requested spacing would exceed this count, the planner coarsens spacing upward to stay under the cap.">
+            Max Cells
+        </span>
+        <span class="val">{Math.round(panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0)}</span>
+    </div>
+    <div class="var-desc">
+        Planner safety cap. Use the Perf tab to compare requested spacing against effective spacing when this cap is active. Set to 0 to remove the cap.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="200000"
+        step="1000"
+        value={panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_MAX_CELLS', 'metaballGridMaxCells', value);
+        }}
+    />
 </div>
 
 <div class="var-row">
@@ -616,6 +710,45 @@
 </div>
 {/if}
 
+{#if showModule('perf')}
+<div class="module-block">
+<div class="var-desc" style="opacity:0.9;margin-bottom:8px;">
+    Live planner/readout surface for metaball-grid. Requested spacing is the knob value; effective spacing is what the planner actually used after max-cell coarsening. Painted cells are the cells that survived the current frame’s alpha/scene cull.
+</div>
+
+<div class="perf-grid">
+    <div class="perf-label">Cells (painted / emittable / total)</div>
+    <div class="perf-value">
+        {$metaballGridStats.paintedCells.toLocaleString()}
+        <span class="perf-sub">/ {$metaballGridStats.emittableCells.toLocaleString()} / {$metaballGridStats.totalCells.toLocaleString()}</span>
+    </div>
+
+    <div class="perf-label">Spacing (requested / effective)</div>
+    <div class="perf-value">
+        {$metaballGridStats.requestedSpacingPx.toFixed(1)} px
+        <span class="perf-sub">
+            / {$metaballGridStats.effectiveSpacingPx.toFixed(1)} px
+            {#if $metaballGridStats.effectiveSpacingPx > $metaballGridStats.requestedSpacingPx + 0.01}
+                <span class="perf-coarsen">(coarsened)</span>
+            {/if}
+        </span>
+    </div>
+
+    <div class="perf-label">Frame time (last / EMA)</div>
+    <div class="perf-value">
+        {$metaballGridStats.lastUpdateMs.toFixed(2)} ms
+        <span class="perf-sub">/ {$metaballGridStats.emaUpdateMs.toFixed(2)} ms</span>
+    </div>
+
+    <div class="perf-label">Frames</div>
+    <div class="perf-value">
+        {$metaballGridStats.frameCount.toLocaleString()}
+        <span class="perf-sub">skipped {$metaballGridStats.skippedFrameCount.toLocaleString()}</span>
+    </div>
+</div>
+</div>
+{/if}
+
 <style>
     @import "./panel-shared.css";
 
@@ -662,7 +795,7 @@
 
     .module-nav {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 8px;
         margin: 0 0 10px;
     }
@@ -708,5 +841,43 @@
         color: rgba(220, 232, 245, 0.72);
         font-size: 10px;
         line-height: 1.35;
+    }
+
+    .var-row.disabled {
+        opacity: 0.55;
+    }
+
+    .perf-grid {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 6px 14px;
+        align-items: baseline;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(7, 12, 24, 0.4);
+        font-size: 11px;
+    }
+
+    .perf-label {
+        color: rgba(220, 232, 245, 0.7);
+        letter-spacing: 0.04em;
+    }
+
+    .perf-value {
+        color: rgba(248, 250, 252, 0.95);
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .perf-sub {
+        color: rgba(220, 232, 245, 0.55);
+        margin-left: 6px;
+    }
+
+    .perf-coarsen {
+        color: rgba(255, 196, 105, 0.9);
+        margin-left: 4px;
+        font-size: 10px;
     }
 </style>

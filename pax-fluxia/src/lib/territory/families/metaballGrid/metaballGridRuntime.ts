@@ -1,5 +1,6 @@
 import type {
     GridAdjacency,
+    GridDistribution,
     GridOriginMode,
     GridWaveGeometry,
     GridWaveSeeding,
@@ -11,6 +12,9 @@ export interface MetaballGridPlanKeyParams {
     readonly geometrySource: string | null;
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
+    readonly distribution?: GridDistribution;
+    readonly positionJitter?: number;
+    readonly maxCells?: number;
     readonly adjacency?: GridAdjacency;
     readonly waveGeometry?: GridWaveGeometry;
     readonly waveSeeding?: GridWaveSeeding;
@@ -31,6 +35,9 @@ export function buildMetaballGridPlanKey(
         params.geometrySource ?? '',
         params.spacingPx,
         params.originMode,
+        params.distribution ?? '',
+        params.positionJitter ?? '',
+        params.maxCells ?? '',
         params.adjacency ?? '',
         params.waveGeometry ?? '',
         params.waveSeeding ?? '',

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -30,6 +31,24 @@
         (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
             | "straight"
             | "curved",
+    );
+    let laneMarginEnabled = $derived(
+        (panel.mapgenLaneMarginEnabled ??
+            GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ??
+            true) as boolean,
+    );
+    let effectiveLaneMarginPx = $derived(
+        resolveEffectiveLaneMarginPx({
+            MAPGEN_LANE_MARGIN_ENABLED: laneMarginEnabled,
+            MAPGEN_LANE_MARGIN_PX:
+                panel.mapgenLaneMarginPx ??
+                GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
+                75,
+            MODIFIED_VORONOI_STAR_MARGIN:
+                panel.starMargin ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                45,
+        }),
     );
 
     // ── Background Image Picker ──
@@ -171,8 +190,9 @@
 
 <h4 class="sub-heading">Map & lanes (live)</h4>
 <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-    <strong>MSR</strong> — territory boundaries only. <strong>Lane margin</strong> — minimum distance from a
-    non-endpoint star center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
+    <strong>MSR</strong> — minimum star margin used by territory geometry, and also the fallback lane clearance when
+    dedicated lane margin is off. <strong>Lane margin</strong> — dedicated minimum distance from a non-endpoint star
+    center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
     tries to reshape a violating connection before removing it during connectivity recompute.
 </p>
 <div class="var-row">
@@ -194,9 +214,31 @@
             GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
             updatePanel("starMargin", v);
             bumpTerritoryVisualConfig();
+            if (!laneMarginEnabled) {
+                gameStore.rebuildLaneConstraintsFromConfig();
+            }
         }}
     />
 </div>
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={laneMarginEnabled}
+        onchange={(e) => {
+            const v = (e.target as HTMLInputElement).checked;
+            GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED = v;
+            updatePanel("mapgenLaneMarginEnabled", v);
+            gameStore.rebuildLaneConstraintsFromConfig();
+        }}
+    />
+    <span
+        class="var-name"
+        data-setting-config-key="MAPGEN_LANE_MARGIN_ENABLED"
+        data-setting-description="When off, curved-lane clearance uses MODIFIED_VORONOI_STAR_MARGIN instead of MAPGEN_LANE_MARGIN_PX."
+        >Use dedicated lane margin</span
+    >
+    <span class="val">{laneMarginEnabled ? "On" : `MSR fallback (${Math.round(effectiveLaneMarginPx)}px)`}</span>
+</label>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Lane margin (mapgen)</span><span class="val"
@@ -205,11 +247,18 @@
             )}px</span
         >
     </div>
+    <div class="row-bottom" style="font-size:10px;opacity:0.68;">
+        Effective lane clearance: {Math.round(effectiveLaneMarginPx)}px
+        {#if !laneMarginEnabled}
+            (from MSR while dedicated lane margin is off)
+        {/if}
+    </div>
     <input
         type="range"
         min="0"
         max="250"
         step="5"
+        disabled={!laneMarginEnabled}
         value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;

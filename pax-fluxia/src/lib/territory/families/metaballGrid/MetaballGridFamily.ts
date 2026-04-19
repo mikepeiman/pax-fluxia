@@ -41,6 +41,7 @@ import { buildGridClassification } from './buildGridClassification';
 import type {
     GridAdjacency,
     GridClassification,
+    GridDistribution,
     GridFlipTransition,
     GridOriginMode,
     GridOwnedStar,
@@ -54,6 +55,10 @@ import {
 } from './metaballGridRuntime';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
+import {
+    resetMetaballGridStats,
+    updateMetaballGridStats,
+} from './metaballGridStats';
 
 // ─── Tunable option unions (mirror METABALL_GRID_* keys) ──────────────────────
 
@@ -187,6 +192,9 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_BORDER_CHAIKIN_PASSES',
     'METABALL_GRID_WAVE_EASE',
     'METABALL_GRID_FLIP_WINDOW_JITTER',
+    'METABALL_GRID_DISTRIBUTION',
+    'METABALL_GRID_POSITION_JITTER',
+    'METABALL_GRID_MAX_CELLS',
     // Shared HSLA knobs (reused from metaball family) — fill + border colour energy.
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
@@ -278,6 +286,9 @@ interface CachedPlan {
 interface MetaballGridPlanSettings {
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
+    readonly distribution: GridDistribution;
+    readonly positionJitter: number;
+    readonly maxCells: number;
     readonly adjacency: GridAdjacency;
     readonly waveGeometry: GridWaveGeometry;
     readonly waveSeeding: GridWaveSeeding;
@@ -297,6 +308,8 @@ export class MetaballGridFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    private emaUpdateMs = 0;
+    private frameCount = 0;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -310,6 +323,9 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.emaUpdateMs = 0;
+        this.frameCount = 0;
+        resetMetaballGridStats();
     }
 
     private buildPlanForTransition(params: {
@@ -352,6 +368,9 @@ export class MetaballGridFamily implements RenderFamily {
             resolveStarPosition,
             prevOwnedStars: revertedOwnedStars,
             nextOwnedStars: currentOwnedStars,
+            maxCells: settings.maxCells,
+            distribution: settings.distribution,
+            positionJitter: settings.positionJitter,
         });
         const wavePlan = planGridWave({
             classification,
@@ -390,6 +409,9 @@ export class MetaballGridFamily implements RenderFamily {
             conquestEvents: [],
             prevOwnedStars: ownedStars,
             nextOwnedStars: ownedStars,
+            maxCells: settings.maxCells,
+            distribution: settings.distribution,
+            positionJitter: settings.positionJitter,
         });
         const wavePlan = planGridWave({
             classification,
@@ -407,6 +429,7 @@ export class MetaballGridFamily implements RenderFamily {
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
+        const startedAtMs = performance.now();
         const nextSessionKey = buildSessionKey(input);
         if (this.sessionKey !== nextSessionKey) {
             this.sessionKey = nextSessionKey;
@@ -416,6 +439,7 @@ export class MetaballGridFamily implements RenderFamily {
         const currentGeometry = input.geometry;
         if (!currentGeometry) {
             this.root.visible = false;
+            resetMetaballGridStats();
             return { container: this.root };
         }
 
@@ -427,6 +451,7 @@ export class MetaballGridFamily implements RenderFamily {
         if (!enabled) {
             this.graphics.clear();
             this.root.visible = false;
+            resetMetaballGridStats();
             return { container: this.root };
         }
         this.root.visible = true;
@@ -447,6 +472,26 @@ export class MetaballGridFamily implements RenderFamily {
                 (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ??
                     'centered',
                 ['centered', 'corner'],
+            ),
+            distribution: readTunableString<GridDistribution>(
+                input,
+                'METABALL_GRID_DISTRIBUTION',
+                (GAME_CONFIG.METABALL_GRID_DISTRIBUTION as GridDistribution | undefined) ??
+                    'square',
+                ['square', 'hex_offset', 'jittered'],
+            ),
+            positionJitter: readTunableNumber(
+                input,
+                'METABALL_GRID_POSITION_JITTER',
+                GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0,
+            ),
+            maxCells: Math.max(
+                0,
+                readTunableNumber(
+                    input,
+                    'METABALL_GRID_MAX_CELLS',
+                    GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0,
+                ),
             ),
             adjacency: readTunableString<GridAdjacency>(
                 input,
@@ -484,6 +529,9 @@ export class MetaballGridFamily implements RenderFamily {
             geometrySource: settings.geometrySource,
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
+            distribution: settings.distribution,
+            positionJitter: settings.positionJitter,
+            maxCells: settings.maxCells,
             adjacency: transitionKey ? settings.adjacency : undefined,
             waveGeometry: transitionKey ? settings.waveGeometry : undefined,
             waveSeeding: transitionKey ? settings.waveSeeding : undefined,
@@ -682,7 +730,11 @@ export class MetaballGridFamily implements RenderFamily {
         const cornerR = cellShape === 'square' ? Math.min(cellCornerPx, half) : 0;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
-        const drawBlendedEdges = drawBorders && drawTerritoryEdgeOnly && borderBlend;
+        const drawBlendedEdges =
+            drawBorders
+            && drawTerritoryEdgeOnly
+            && borderBlend
+            && cached.classification.distribution === 'square';
 
         // Build an effective per-grid-index colorIdx so both "per-cell stroke
         // gating" and "centered blended edge drawing" read the same truth.
@@ -764,7 +816,12 @@ export class MetaballGridFamily implements RenderFamily {
                 x += inward.x;
                 y += inward.y;
             }
-            const hexXOffset = cellShape === 'hex' && (iy & 1) === 1 ? spacingPx * 0.5 : 0;
+            const hexXOffset =
+                cellShape === 'hex'
+                && cached.classification.distribution === 'square'
+                && (iy & 1) === 1
+                    ? spacingPx * 0.5
+                    : 0;
             const xHex = x + hexXOffset;
 
             // Fill primitive
@@ -1041,6 +1098,31 @@ export class MetaballGridFamily implements RenderFamily {
                 }
             }
         }
+
+        const elapsedMs = performance.now() - startedAtMs;
+        this.frameCount += 1;
+        this.emaUpdateMs =
+            this.frameCount === 1
+                ? elapsedMs
+                : this.emaUpdateMs * 0.9 + elapsedMs * 0.1;
+        let paintedCells = 0;
+        for (let i = 0; i < scene.cells.length; i++) {
+            if (scene.cells[i]!.alpha > 0) {
+                paintedCells += 1;
+            }
+        }
+        updateMetaballGridStats({
+            requestedSpacingPx: cached.classification.requestedSpacingPx,
+            effectiveSpacingPx: cached.classification.spacingPx,
+            totalCells: cached.classification.cols * cached.classification.rows,
+            emittableCells: cached.classification.emittableVstars.length,
+            paintedCells,
+            lastUpdateMs: elapsedMs,
+            emaUpdateMs: this.emaUpdateMs,
+            lastFrameSkipped: false,
+            frameCount: this.frameCount,
+            skippedFrameCount: 0,
+        });
 
         return { container: this.root };
     }

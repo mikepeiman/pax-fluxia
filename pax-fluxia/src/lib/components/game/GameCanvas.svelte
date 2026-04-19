@@ -78,6 +78,7 @@
         renderModifiedVoronoi as renderModifiedVoronoiModule,
         resetModifiedVoronoiCache,
     } from "$lib/renderers/ModifiedVoronoiRenderer";
+    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import {
         renderPowerVoronoi as renderPowerVoronoiModule,
         resetPowerVoronoiCache,
@@ -3937,7 +3938,7 @@
         }
 
         const measurement = buildRulerMeasurement(start, end, {
-            laneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX,
+            laneMarginPx: resolveEffectiveLaneMarginPx(GAME_CONFIG),
             starPairLabel,
             relatedLaneKey,
             relatedLaneLabel,

@@ -367,6 +367,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Metaball Grid Enabled': { key: 'METABALL_GRID_ENABLED' },
         'Cell Spacing': { key: 'METABALL_GRID_SPACING_PX' },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
+        Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
+        'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },
+        'Max Cells': { key: 'METABALL_GRID_MAX_CELLS' },
         'Inward Offset': { key: 'METABALL_GRID_INWARD_OFFSET_PX' },
         'Cell Alpha Gain': { key: 'METABALL_GRID_STRENGTH' },
         'Cell Shape': { key: 'METABALL_GRID_CELL_SHAPE' },
@@ -384,6 +387,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Flip Window': { key: 'METABALL_GRID_FLIP_WINDOW' },
         'Wave Easing': { key: 'METABALL_GRID_WAVE_EASE' },
         'FlipTime Jitter': { key: 'METABALL_GRID_FLIP_WINDOW_JITTER' },
+        'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
+        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
         'Influence radius': { key: 'METABALL_INFLUENCE_RADIUS' },
         'Influence falloff': { key: 'METABALL_FALLOFF' },
@@ -488,6 +493,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
                 'Local-only transpose flag that swaps display axes without mutating star data.',
         },
         'MSR (territory boundaries)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Use dedicated lane margin': {
+            key: 'MAPGEN_LANE_MARGIN_ENABLED',
+        },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Reshape bias': { key: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
         'Recompute connectivity': {

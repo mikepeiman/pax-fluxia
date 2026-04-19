@@ -46,6 +46,7 @@ import {
     buildTerritoryGeometryFingerprint,
 } from './powerVoronoiTerritoryGeometryGenerator';
 import { buildFrontierMap } from './buildFrontierMap';
+import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '$lib/renderers/territoryFeatures';
@@ -336,6 +337,21 @@ export function computeGeometry0319(
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
+        const minStarMargin = applyExplicitMinStarMargin(
+            mergedTerritories,
+            ownedStars,
+            starMargin,
+        );
+        if (
+            minStarMargin.appliedMarginPx > 0
+            && Math.abs(minStarMargin.appliedMarginPx - minStarMargin.requestedMarginPx) >
+                0.01
+        ) {
+            log.renderer(
+                'Geometry_0319',
+                `MSR clamp ${minStarMargin.requestedMarginPx.toFixed(2)} -> ${minStarMargin.appliedMarginPx.toFixed(2)}`,
+            );
+        }
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config) + ':g0319';
 

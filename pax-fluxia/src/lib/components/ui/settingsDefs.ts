@@ -328,6 +328,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DEBUG_DY4_FORCE_TRANSITION_START' },
     // Territory invariants (MSR / CX / DX)
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
+    { panelKey: 'mapgenLaneMarginEnabled', configKey: 'MAPGEN_LANE_MARGIN_ENABLED' },
     { panelKey: 'corridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
     { panelKey: 'corridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
     { panelKey: 'cxCount', configKey: 'TERRITORY_CX_COUNT' },
@@ -600,6 +601,9 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_BORDER_CHAIKIN_PASSES' },
     { configKey: 'METABALL_GRID_WAVE_EASE' },
     { configKey: 'METABALL_GRID_FLIP_WINDOW_JITTER' },
+    { configKey: 'METABALL_GRID_DISTRIBUTION' },
+    { configKey: 'METABALL_GRID_POSITION_JITTER' },
+    { configKey: 'METABALL_GRID_MAX_CELLS' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },
