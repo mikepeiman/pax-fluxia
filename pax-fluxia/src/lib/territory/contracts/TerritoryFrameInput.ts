@@ -1,12 +1,13 @@
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import type { TerritoryModeSelection } from './TerritoryModeSelection';
+import type { TerritoryGeometryTunables } from '../geometry/geometryTuning';
 
 export interface TerritoryWorldBounds {
     width: number;
     height: number;
 }
 
-export interface TerritoryTunables {
+export interface TerritoryTunables extends TerritoryGeometryTunables {
     // --- Transition timing ---
     transitionDurationMs: number;
 
@@ -14,29 +15,6 @@ export interface TerritoryTunables {
     borderWidth: number;
     fillAlpha: number;
     borderAlpha: number;
-
-    // --- Geometry: smoothing ---
-    geometrySmoothingPasses: number;
-    frontierResolution: number;
-    boundaryPad: number;
-    boundaryEps: number;
-
-    // --- Geometry: MSR (Minimum Star Radius) ---
-    starMargin: number;
-
-    // --- Geometry: CX (Corridor Connection) ---
-    corridorEnabled: boolean;
-    corridorSpacing: number;
-    corridorCount: number;
-    corridorWeight: number;
-
-    // --- Geometry: DX (Disconnect Zones) ---
-    disconnectEnabled: boolean;
-    disconnectDistance: number;
-    disconnectWeight: number;
-
-    // --- Geometry: Cluster splitting ---
-    clusterSplitThreshold: number;
 }
 
 export interface TerritoryFrameInput {

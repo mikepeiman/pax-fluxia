@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState } from '$lib/types/game.types';
 import { buildMetaballCacheFingerprint } from './MetaballRenderer';
 
@@ -54,5 +55,33 @@ describe('buildMetaballCacheFingerprint', () => {
         });
 
         expect(next).not.toBe(base);
+    });
+
+    it('changes when contested midpoint-pair settings change', () => {
+        const originalCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT;
+        const originalWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT;
+
+        try {
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = 1;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = 0.25;
+            const base = buildMetaballCacheFingerprint({
+                stars: TEST_STARS,
+                gameTick: 10,
+                sceneFingerprint: 'scene-a',
+            });
+
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = 3;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = 0.8;
+            const next = buildMetaballCacheFingerprint({
+                stars: TEST_STARS,
+                gameTick: 10,
+                sceneFingerprint: 'scene-a',
+            });
+
+            expect(next).not.toBe(base);
+        } finally {
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = originalCount;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = originalWeight;
+        }
     });
 });

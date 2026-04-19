@@ -5,6 +5,7 @@ import type {
     TerritoryWorkerGeometryRequest,
     TerritoryWorkerGeometryResponse,
 } from './TerritoryWorkerProtocol';
+import { buildTerritoryGeometryCacheKeyParts } from '../geometry/geometryTuning';
 
 function buildWorkerCacheKey(request: TerritoryWorkerGeometryRequest): string {
     const t = request.tunables;
@@ -17,19 +18,7 @@ function buildWorkerCacheKey(request: TerritoryWorkerGeometryRequest): string {
         request.world.width,
         request.world.height,
         // All geometry-affecting tunables must be in the cache key
-        t.geometrySmoothingPasses,
-        t.frontierResolution,
-        t.starMargin,
-        t.corridorEnabled,
-        t.corridorSpacing,
-        t.corridorCount,
-        t.corridorWeight,
-        t.disconnectEnabled,
-        t.disconnectDistance,
-        t.disconnectWeight,
-        t.clusterSplitThreshold,
-        t.boundaryPad,
-        t.boundaryEps,
+        ...buildTerritoryGeometryCacheKeyParts(t),
     ].join('|');
 }
 

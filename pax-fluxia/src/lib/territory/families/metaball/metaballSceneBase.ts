@@ -314,10 +314,25 @@ export function buildMetaballBaseContext(
         'TERRITORY_CX_WEIGHT',
         GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
     );
+    const cxContestPairCount = readTunableNumber(
+        input,
+        'TERRITORY_CX_CONTEST_PAIR_COUNT',
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+    );
+    const cxContestPairWeight = readTunableNumber(
+        input,
+        'TERRITORY_CX_CONTEST_PAIR_WEIGHT',
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
+    );
     const cxCount = readTunableNumber(
         input,
         'TERRITORY_CX_COUNT',
         GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
+    );
+    const starMargin = readTunableNumber(
+        input,
+        'MODIFIED_VORONOI_STAR_MARGIN',
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
     );
 
     const corridorSites = buildCorridorVirtualSites(
@@ -330,6 +345,9 @@ export function buildMetaballBaseContext(
         contestMidpointEnabled,
         corridorEnabled,
         corridorEnabled,
+        Math.max(0, cxContestPairWeight),
+        Math.max(1, Math.round(cxContestPairCount)),
+        Math.max(0, starMargin),
     );
     for (let i = 0; i < corridorSites.length; i++) {
         const site = corridorSites[i];

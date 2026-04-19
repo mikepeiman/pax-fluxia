@@ -8,3 +8,6 @@
 - Patch post-merge integration drift for metaball-grid: add panel-sync mappings for every `METABALL_GRID_*` control, extend settings metadata coverage so the new controls show config-key chips/tooltips, and fix the `Origin Mode` UI to write the live `'corner'` enum value instead of a dead `'origin'` string.
 - Audit Metaball Grid settings wiring end to end (panel -> config -> family plan cache -> renderer draw path) after user reported dead controls.
 - Fix dead Metaball Grid controls: honor `METABALL_GRID_ENABLED`, rebuild cached classification/wave plans when geometry-generation knobs change, and make `METABALL_GRID_INWARD_OFFSET_PX` actually move boundary cells inward during draw.
+- Stop treating `common/resources/settings-live/current-settings.json` as runtime input after confirming it is a dev-only write sink, and add deterministic `Geometry_0319` runtime telemetry for config load, panel hydration, theme apply, and generator entry.
+
+- Audit metaball grid renderer mode end-to-end: explain code-path behavior, surfaced and hidden settings, vstar counts/spacing semantics, and identify any missing or dead wiring before it becomes the default render mode.

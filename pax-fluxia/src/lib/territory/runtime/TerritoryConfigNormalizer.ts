@@ -3,8 +3,10 @@ import {
     DEFAULT_TERRITORY_MODE_SELECTION,
     type TerritoryModeSelection,
 } from '../contracts/TerritoryModeSelection';
+import { normalizeTerritoryGeometryTunables } from '../geometry/geometryTuning';
 
 function normalizeTunables(t: TerritoryTunables): TerritoryTunables {
+    const geometry = normalizeTerritoryGeometryTunables(t);
     return {
         // Transition timing
         transitionDurationMs: Math.max(0, Math.round(t.transitionDurationMs)),
@@ -12,24 +14,7 @@ function normalizeTunables(t: TerritoryTunables): TerritoryTunables {
         borderWidth: Math.max(0, t.borderWidth),
         fillAlpha: Math.min(1, Math.max(0, t.fillAlpha)),
         borderAlpha: Math.min(1, Math.max(0, t.borderAlpha)),
-        // Geometry: smoothing
-        geometrySmoothingPasses: Math.max(0, Math.min(5, Math.round(t.geometrySmoothingPasses))),
-        frontierResolution: Math.max(1, Math.min(32, Math.round(t.frontierResolution))),
-        boundaryPad: Math.max(0, Math.round(t.boundaryPad)),
-        boundaryEps: Math.max(0, Math.round(t.boundaryEps)),
-        // Geometry: MSR
-        starMargin: Math.max(0, Math.min(500, t.starMargin ?? 45)),
-        // Geometry: CX
-        corridorEnabled: t.corridorEnabled ?? true,
-        corridorSpacing: Math.max(10, Math.min(200, t.corridorSpacing ?? 60)),
-        corridorCount: Math.max(0, Math.min(10, Math.round(t.corridorCount ?? 0))),
-        corridorWeight: Math.max(0, Math.min(1, t.corridorWeight ?? 0.5)),
-        // Geometry: DX
-        disconnectEnabled: t.disconnectEnabled ?? true,
-        disconnectDistance: Math.max(0, Math.min(1000, t.disconnectDistance ?? 400)),
-        disconnectWeight: Math.max(0, Math.min(1, t.disconnectWeight ?? 0.3)),
-        // Geometry: cluster splitting
-        clusterSplitThreshold: Math.max(0, Math.min(1, t.clusterSplitThreshold ?? 0)),
+        ...geometry,
     };
 }
 

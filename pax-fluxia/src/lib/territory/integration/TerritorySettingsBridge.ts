@@ -3,6 +3,7 @@ import {
     type TerritoryModeSelection,
 } from '../contracts/TerritoryModeSelection';
 import type { TerritoryTunables } from '../contracts/TerritoryFrameInput';
+import { readTerritoryGeometryTunables } from '../geometry/geometryTuning';
 
 export interface TerritoryRuntimeSettingsSnapshot {
     selection: TerritoryModeSelection;
@@ -62,6 +63,7 @@ function resolveStyleMode(config: Record<string, unknown>): TerritoryModeSelecti
 export function readTerritoryRuntimeSettings(
     config: Record<string, unknown>,
 ): TerritoryRuntimeSettingsSnapshot {
+    const geometryTunables = readTerritoryGeometryTunables(config);
     return {
         selection: {
             ownershipMode: DEFAULT_TERRITORY_MODE_SELECTION.ownershipMode,
@@ -82,23 +84,7 @@ export function readTerritoryRuntimeSettings(
             borderWidth: asNumber(config.VORONOI_BORDER_WIDTH, 2),
             fillAlpha: asNumber(config.VORONOI_ALPHA, 0.2),
             borderAlpha: asNumber(config.VORONOI_BORDER_ALPHA, 0.5),
-            geometrySmoothingPasses: asNumber(config.VORONOI_BORDER_SMOOTH, 2),
-            frontierResolution: asNumber(config.FRONTIER_RESOLUTION, 5),
-            boundaryPad: asNumber(config.CHAIKIN_BOUNDARY_PAD, 50),
-            boundaryEps: asNumber(config.CHAIKIN_BOUNDARY_EPS, 6),
-            // --- Geometry: MSR ---
-            starMargin: asNumber(config.MODIFIED_VORONOI_STAR_MARGIN, 45),
-            // --- Geometry: CX (Corridor Connection) ---
-            corridorEnabled: Boolean(config.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true),
-            corridorSpacing: asNumber(config.MODIFIED_VORONOI_CORRIDOR_SPACING, 60),
-            corridorCount: asNumber(config.TERRITORY_CX_COUNT, 0),
-            corridorWeight: asNumber(config.TERRITORY_CX_WEIGHT, 0.5),
-            // --- Geometry: DX (Disconnect Zones) ---
-            disconnectEnabled: Boolean(config.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false),
-            disconnectDistance: asNumber(config.MODIFIED_VORONOI_DISCONNECT_DISTANCE, 400),
-            disconnectWeight: asNumber(config.TERRITORY_DX_WEIGHT, 0.3),
-            // --- Geometry: Cluster splitting ---
-            clusterSplitThreshold: config.TERRITORY_CLUSTER_SPLIT ? 1 : 0,
+            ...geometryTunables,
         },
     };
 }

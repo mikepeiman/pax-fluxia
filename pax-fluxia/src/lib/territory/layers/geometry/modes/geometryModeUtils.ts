@@ -4,6 +4,7 @@ import type {
 } from '../../../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type { CompileError } from '../../../compiler/types';
 import type { TerritoryTunables, TerritoryWorldBounds } from '../../../contracts/TerritoryFrameInput';
+import { buildTerritoryGeneratorSettingsFromTunables } from '../../../geometry/geometryTuning';
 
 export function isCompileError(value: unknown): value is CompileError {
     return (value as CompileError)?.kind === 'error';
@@ -13,23 +14,10 @@ export function buildGeneratorSettings(
     world: TerritoryWorldBounds,
     tunables: TerritoryTunables,
 ): TerritoryGeneratorSettings {
-    return {
-        starMargin: tunables.starMargin,
-        corridorEnabled: tunables.corridorEnabled,
-        corridorSpacing: tunables.corridorSpacing,
-        cxCount: tunables.corridorCount,
-        cxWeight: tunables.corridorWeight,
-        disconnectEnabled: tunables.disconnectEnabled,
-        disconnectDistance: tunables.disconnectDistance,
-        dxWeight: tunables.disconnectWeight,
-        clusterSplit: tunables.clusterSplitThreshold > 0,
-        chaikinPasses: tunables.geometrySmoothingPasses,
-        frontierResolution: tunables.frontierResolution,
-        boundaryPad: tunables.boundaryPad,
-        boundaryEps: tunables.boundaryEps,
-        worldWidth: world.width,
-        worldHeight: world.height,
-    };
+    return buildTerritoryGeneratorSettingsFromTunables({
+        world,
+        tunables,
+    });
 }
 
 export function createEmptyTerritoryGeometryData(

@@ -1290,6 +1290,12 @@ export function renderPowerVoronoi(
             corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
             cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
             cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
+            cxContestMidpointVstars:
+                GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+            cxContestPairCount:
+                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+            cxContestPairWeight:
+                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
             disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
             disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
             dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
@@ -1480,6 +1486,12 @@ export function renderPowerVoronoi(
                 corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
                 cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
                 cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
+                cxContestMidpointVstars:
+                    GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+                cxContestPairCount:
+                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+                cxContestPairWeight:
+                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
                 disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
                 disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
                 dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,

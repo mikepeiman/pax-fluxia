@@ -125,6 +125,57 @@ describe('buildMetaballScene', () => {
         expect(disconnectIds).toHaveLength(2);
     });
 
+    it('honors contested midpoint-pair count and weight tunables in the metaball-family path', () => {
+        const stars = [
+            makeStar({ id: 'left', x: 0, y: 0, ownerId: 'blue' }),
+            makeStar({ id: 'right', x: 120, y: 0, ownerId: 'red' }),
+        ];
+        const lanes = [{ sourceId: 'left', targetId: 'right', distance: 120 }];
+
+        const base = buildMetaballScene(
+            makeInput({
+                stars,
+                lanes,
+                tunables: {
+                    MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                    TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: true,
+                    TERRITORY_CX_CONTEST_PAIR_COUNT: 1,
+                    TERRITORY_CX_CONTEST_PAIR_WEIGHT: 0.25,
+                },
+            }),
+            colorUtils,
+        );
+
+        const amplified = buildMetaballScene(
+            makeInput({
+                stars,
+                lanes,
+                tunables: {
+                    MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                    TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: true,
+                    TERRITORY_CX_CONTEST_PAIR_COUNT: 3,
+                    TERRITORY_CX_CONTEST_PAIR_WEIGHT: 0.8,
+                },
+            }),
+            colorUtils,
+        );
+
+        const baseCorridor = base.samples.filter((sample) =>
+            (sample.id ?? '').startsWith('corridor:'),
+        );
+        const amplifiedCorridor = amplified.samples.filter((sample) =>
+            (sample.id ?? '').startsWith('corridor:'),
+        );
+
+        expect(baseCorridor).toHaveLength(2);
+        expect(amplifiedCorridor).toHaveLength(6);
+        expect(
+            Math.max(...amplifiedCorridor.map((sample) => sample.strength)),
+        ).toBeGreaterThan(
+            Math.max(...baseCorridor.map((sample) => sample.strength)),
+        );
+    });
+
     it('builds weight-only conquest transition samples without lane-tube samples', () => {
         const stars = [
             makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),

@@ -19,6 +19,10 @@
  */
 
 import type { StarState, StarConnection } from '$lib/types/game.types';
+import {
+    formatGeometry0319DebugConfig,
+    snapshotGeometry0319DebugConfig,
+} from '$lib/config/geometry0319Debug';
 import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
 
@@ -147,7 +151,20 @@ export function computeGeometry0319(
         }
 
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, config.cxWeight, config.cxCount || undefined);
+            const corridorVirtuals = computeCorridorVirtuals(
+                ownedStars,
+                connections,
+                config.corridorSpacing,
+                config.cxWeight,
+                config.cxCount || undefined,
+                undefined,
+                config.cxContestMidpointVstars,
+                true,
+                true,
+                config.cxContestPairWeight,
+                config.cxContestPairCount,
+                config.starMargin,
+            );
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
@@ -342,6 +359,31 @@ export function computeGeometry0319(
 
         // Single consolidated summary log (replaces ~8 individual stage logs)
         const closureOk = closedCount === mergedTerritories.length;
+        const geometrySnapshot = snapshotGeometry0319DebugConfig({
+            PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319',
+            FRONTIER_RESOLUTION: config.frontierResolution,
+            MODIFIED_VORONOI_STAR_MARGIN: config.starMargin,
+            MODIFIED_VORONOI_CORRIDOR_ENABLED: config.corridorEnabled,
+            MODIFIED_VORONOI_CORRIDOR_SPACING: config.corridorSpacing,
+            TERRITORY_CX_COUNT: config.cxCount,
+            TERRITORY_CX_WEIGHT: config.cxWeight,
+            TERRITORY_CX_CONTEST_MIDPOINT_VSTARS:
+                config.cxContestMidpointVstars,
+            TERRITORY_CX_CONTEST_PAIR_COUNT: config.cxContestPairCount,
+            TERRITORY_CX_CONTEST_PAIR_WEIGHT: config.cxContestPairWeight,
+            MODIFIED_VORONOI_DISCONNECT_ENABLED: config.disconnectEnabled,
+            MODIFIED_VORONOI_DISCONNECT_DISTANCE: config.disconnectDistance,
+            TERRITORY_DX_WEIGHT: config.dxWeight,
+            TERRITORY_CLUSTER_SPLIT: config.clusterSplit,
+            VORONOI_BORDER_SMOOTH: config.chaikinPasses,
+            CHAIKIN_BOUNDARY_PAD: config.boundaryPad,
+            CHAIKIN_BOUNDARY_EPS: config.boundaryEps,
+        });
+        log.renderer(
+            'Geometry_0319 Config',
+            formatGeometry0319DebugConfig(geometrySnapshot),
+            geometrySnapshot,
+        );
         log.renderer('Geometry_0319',
             `${ownedStars.length} stars → ${cells.length} cells → ${mergedRaw.length} merged → ` +
             `${allPolylines.length} polylines (${sharedPolylines.length} shared + ${worldBorderPolylines.length} world) → ` +

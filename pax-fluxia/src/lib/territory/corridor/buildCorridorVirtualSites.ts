@@ -170,7 +170,6 @@ export function buildCorridorVirtualSites(
             countMode != null
                 ? countMode
                 : Math.max(0, Math.floor(pathLen / spacingPx) - 1);
-        if (nSites <= 0) continue;
 
         const sameOwner = starA.ownerId === starB.ownerId;
         const halfArc = usePoly ? pathLen * 0.5 : null;
@@ -240,6 +239,8 @@ export function buildCorridorVirtualSites(
                 });
             }
         }
+
+        if (nSites <= 0) continue;
 
         for (let i = 1; i <= nSites; i++) {
             const t = i / (nSites + 1);

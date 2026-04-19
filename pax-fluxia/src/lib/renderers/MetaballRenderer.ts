@@ -261,6 +261,16 @@ function buildCorridorSamples(
     const spacing = Math.max(12, GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60);
     const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
     const cxWeight = Math.max(0, GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5);
+    const cxContestPairCount =
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1;
+    const cxContestPairWeight = Math.max(
+        0,
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
+    );
+    const starMargin = Math.max(
+        0,
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+    );
 
     const ownedStars = [...starById.values()].filter((s) => Boolean(s.ownerId));
     const sites = buildCorridorVirtualSites(
@@ -273,6 +283,9 @@ function buildCorridorSamples(
         contestMidpointEnabled,
         corridorEnabled,
         corridorEnabled,
+        cxContestPairWeight,
+        Math.max(1, Math.round(cxContestPairCount)),
+        starMargin,
     );
 
     const out: MetaballInfluenceSample[] = [];
@@ -416,7 +429,7 @@ export function buildMetaballCacheFingerprint(params: {
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
     fp += `:msr${effectiveOwnershipMargin}`;
-    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
+    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}`;
     fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
     if (sceneFingerprint) {
         fp += `:scene:${sceneFingerprint}`;

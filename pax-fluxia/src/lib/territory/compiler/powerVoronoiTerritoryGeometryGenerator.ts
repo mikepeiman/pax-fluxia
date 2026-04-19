@@ -165,6 +165,9 @@ export interface TerritoryGeneratorSettings {
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
     cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)
     cxWeight: number;             // TERRITORY_CX_WEIGHT — weight multiplier (0.0-2.0)
+    cxContestMidpointVstars: boolean; // TERRITORY_CX_CONTEST_MIDPOINT_VSTARS
+    cxContestPairCount: number;       // TERRITORY_CX_CONTEST_PAIR_COUNT
+    cxContestPairWeight: number;      // TERRITORY_CX_CONTEST_PAIR_WEIGHT
     disconnectEnabled: boolean;   // MODIFIED_VORONOI_DISCONNECT_ENABLED
     disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
     dxWeight: number;             // TERRITORY_DX_WEIGHT — weight multiplier (0.0-2.0)
