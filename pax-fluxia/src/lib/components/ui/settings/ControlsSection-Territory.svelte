@@ -1102,7 +1102,6 @@
         }} />
     </div>
 
-    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
@@ -2048,6 +2047,12 @@
       flipTime.
     </div>
     <MetaballGridTuning {panel} {updatePanel} />
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin:10px 0 2px;">
+      <strong>Source geometry constraints</strong> — CX corridor virtuals along lanes, CP contested-lane midpoint pairs, DX disconnect virtuals between same-owner components, and MSR (Minimum Star Range, power-diagram site weight). These shape the underlying territoryRegions that metaball-grid classifies cells against.
+    </div>
+    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}

@@ -69,14 +69,14 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="Minimum Star Region. Base ownership footprint around each star before source-geometry frontiers are solved."
+            title="Minimum Star Range. Per-site weight (px; internally squared) applied in the power-Voronoi diagram. Higher values pull each star's cell outward; it is not a hard ‘push geometry inward’ stage, so it can feel weak or ambiguous relative to a clean visible moat. Semantically the knob corresponds to ‘lanes that do not originate at that star should not pass within MSR of it’ — current implementation is the power-diagram proxy."
         >
             Source MSR
         </span>
         <span class="val">{panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}px</span>
     </div>
     <div class="var-desc">
-        Minimum star territory size in the source geometry.
+        Minimum Star Range: margin around each star within which non-originating lanes should not pass. Currently implemented as the power-diagram site-weight term in power_voronoi_0319 (see DECISIONS 2026-04-19).
     </div>
     <input
         type="range"
