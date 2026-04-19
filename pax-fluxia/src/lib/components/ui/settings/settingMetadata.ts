@@ -1,7 +1,9 @@
 import {
     AI_VARIABLES,
     COMBAT_VARIABLES,
+    CONFIG_TO_PANEL_KEY,
     DENSITY_VARIABLES,
+    derivePanelKey,
     LOG_CATEGORIES,
     STAR_LABEL_SLIDERS,
 } from '../settingsDefs';
@@ -25,6 +27,7 @@ export type SettingScope =
 
 type SettingMeta = {
     key: string;
+    panelKey?: string;
     description?: string;
 };
 
@@ -542,6 +545,22 @@ function buildFallbackDescription(label: string, meta: SettingMeta): string {
     return `Controls ${label}. Writes GAME_CONFIG.${meta.key}.`;
 }
 
+function resolvePanelKey(configKey: string, explicitPanelKey?: string): string {
+    if (explicitPanelKey) return explicitPanelKey;
+    if (configKey.startsWith('local.')) return configKey;
+    return CONFIG_TO_PANEL_KEY[configKey] ?? derivePanelKey(configKey);
+}
+
+function buildTooltipText(
+    panelKey: string,
+    configKey: string,
+    description?: string,
+): string {
+    const lines = [`panel: ${panelKey}`, `config: ${configKey}`];
+    if (description) lines.push(description);
+    return lines.join('\n');
+}
+
 function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
     const normalizedLabel = normalizeLabel(
         target.dataset.settingLabel || target.textContent || '',
@@ -552,6 +571,7 @@ function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
     const scopedMeta = explicitKey
         ? {
               key: explicitKey,
+              panelKey: target.dataset.settingPanelKey,
               description: target.dataset.settingDescription,
           }
         : SCOPE_LABEL_META[scope]?.[normalizedLabel];
@@ -562,10 +582,9 @@ function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
         target.dataset.settingDescription
         || findExistingDescription(target)
         || buildFallbackDescription(normalizedLabel, scopedMeta);
+    const panelKey = resolvePanelKey(scopedMeta.key, scopedMeta.panelKey);
 
-    target.title = description
-        ? `Config: ${scopedMeta.key}\n${description}`
-        : `Config: ${scopedMeta.key}`;
+    target.title = buildTooltipText(panelKey, scopedMeta.key, description);
 }
 
 export function enhanceSettingMetadata(

@@ -7,4 +7,5 @@
 - Implement explicit lane-margin fallback semantics: `MAPGEN_LANE_MARGIN_ENABLED` now chooses between dedicated lane clearance and `MODIFIED_VORONOI_STAR_MARGIN`, with shared helpers reused by map preview, live lane rebuild, theme apply, and diagnostics readouts.
 - Execute the metaball-grid restoration on master without regressing newer family behavior: keep master's inward-offset/live family fixes, add missing distribution/jitter/max-cells planner inputs, restore the perf readout surface, and gate square-only blended-edge drawing so non-square distributions do not fake a square topology.
 - Remove visible config-key chips from the settings UI and keep config key + description in hover tooltips only, per original spec.
+- Expand settings hover metadata so each tooltip shows both `panel:` and `config:` identifiers, not just the config key.
 
