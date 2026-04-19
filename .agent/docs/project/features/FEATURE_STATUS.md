@@ -31,6 +31,7 @@ This is the current working queue distilled from the last two days of rendering,
 
 - Metaball steady-state fill does not yet reliably match actual owned territory boundaries.
 - Metaball conquest transition is still missing and needs a controlled in-game bakeoff of candidate approaches rather than one unexamined implementation.
+- **metaball-grid mode (2026-04-17 → 2026-04-18, branch `claude/goofy-raman`)**: MG5..MG-BORDER v2 shipped (HSLA fill/border, 4 cell shapes with pointy-top honeycomb hex, polyline-joined territory borders with Chaikin smoothing, 6 easing curves, flip-time jitter). Known perf cliffs: (a) per-transition Power-Voronoi rebuild for PREV geometry dominates at dense spacing (45.8 % at 4 px in 2026-04-18 trace); (b) steady-state paint redundantly re-issues draw calls with no dirty-flag gate. 3-phase plan filed: `.agent/docs/plans/2026-04-18/METABALL_GRID_PERF_PLAN_2026-04-18.md`. Tuning handles for distribution modes / jitter / cell-count cap / render-backend are planned (Phase A) but not yet implemented.
 
 ### Map tooling
 
