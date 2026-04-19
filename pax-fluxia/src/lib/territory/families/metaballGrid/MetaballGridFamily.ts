@@ -30,6 +30,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
+import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
@@ -753,9 +754,16 @@ export class MetaballGridFamily implements RenderFamily {
         // changes don't thrash the gate.
         const palFillSig = fillHexByColorIdx.join(',');
         const palBorderSig = borderHexByColorIdx.join(',');
+        // Territory-source config epoch (CX/CP/DX/MSR edits bump this through
+        // `bumpTerritoryVisualConfig`). Including it in the paint-sig ensures
+        // the dirty-flag gate invalidates when the upstream snapshot is
+        // reshaped — previously the gate could short-circuit paint even after
+        // the plan rebuilt against a fresh snapshot, hiding visible changes.
+        const territoryEpoch = getTerritoryVisualEpoch();
         const paintSig = [
             this.sessionKey ?? '',
             cached.transitionKey,
+            territoryEpoch,
             quantProgress(rawProgress),
             flipTransition,
             flipWindow.toFixed(4),
@@ -846,14 +854,35 @@ export class MetaballGridFamily implements RenderFamily {
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
-        // Clamp inset so a cell never collapses to 0.
-        const effInset = Math.min(cellInsetPx, spacingPx * 0.45);
-        const size = spacingPx - effInset * 2;
-        const half = size * 0.5;
-        const cornerR = cellShape === 'square' ? Math.min(cellCornerPx, half) : 0;
+        // Clamp inset so a cell never collapses to 0. Non-native cells get an
+        // extra `inwardOffsetPx` added to the inset, so ownership-boundary
+        // cells read visually smaller than interior-territory cells — this is
+        // the semantic the "Inward Offset" knob advertises.
+        const insetMax = spacingPx * 0.45;
+        const nativeInset = Math.min(cellInsetPx, insetMax);
+        const boundaryInset = Math.min(cellInsetPx + Math.max(0, inwardOffsetPx), insetMax);
+        // Defaults for square shape at native inset — reused inside the loop
+        // when a cell is native. Boundary cells recompute.
+        const nativeSize = spacingPx - nativeInset * 2;
+        const nativeHalf = nativeSize * 0.5;
+        const nativeCornerR = cellShape === 'square' ? Math.min(cellCornerPx, nativeHalf) : 0;
+        const nativeHexR = nativeSize / SQRT3;
+        const boundarySize = spacingPx - boundaryInset * 2;
+        const boundaryHalf = boundarySize * 0.5;
+        const boundaryCornerR = cellShape === 'square' ? Math.min(cellCornerPx, boundaryHalf) : 0;
+        const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
-        const drawBlendedEdges = drawBorders && drawTerritoryEdgeOnly && borderBlend;
+        // Blended-edge polyline assumes a regular square vertex lattice
+        // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
+        // and jittered distributions break that assumption, so fall back to
+        // per-cell strokes in those modes — otherwise borders visibly detach
+        // from their fills.
+        const drawBlendedEdges =
+            drawBorders &&
+            drawTerritoryEdgeOnly &&
+            borderBlend &&
+            cached.classification.distribution === 'square';
 
         // Build an effective per-grid-index colorIdx so both "per-cell stroke
         // gating" and "centered blended edge drawing" read the same truth.
@@ -892,13 +921,6 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
-        // Pointy-top hex "radius" (vertex-to-center distance). Bound to `size`
-        // so METABALL_GRID_CELL_INSET_PX shrinks hexes uniformly. At inset=0
-        // the horizontal pitch (hexR * sqrt(3)) equals spacingPx, producing
-        // clean tessellation along rows; adjacent rows are offset by
-        // spacingPx/2 for honeycomb interlock.
-        const hexR = size / SQRT3;
-
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
         for (let i = 0; i < scene.cells.length; i++) {
             const c = scene.cells[i];
@@ -908,8 +930,8 @@ export class MetaballGridFamily implements RenderFamily {
             const alpha = c.alpha * fillAlphaMult;
             if (alpha <= 0) continue;
 
-            // Parse grid indices once — used by hex odd-row offset and by the
-            // territory_edge per-cell stroke gate.
+            // Parse grid indices once — used by the territory_edge per-cell
+            // stroke gate.
             const vIdParts = c.vId.split(':');
             let ix = -1;
             let iy = -1;
@@ -920,10 +942,23 @@ export class MetaballGridFamily implements RenderFamily {
                 if (Number.isFinite(piy)) iy = piy;
             }
 
+            // Trust the scene cell's (x, y) — classification already applied
+            // any distribution-driven row shift (hex_offset) or jitter. A
+            // previous revision double-shifted odd rows here when cellShape
+            // was 'hex', which misaligned fill vs. border polylines.
             const x = c.x;
             const y = c.y;
-            const hexXOffset = cellShape === 'hex' && (iy & 1) === 1 ? spacingPx * 0.5 : 0;
-            const xHex = x + hexXOffset;
+
+            // Boundary cells (anything but 'native') get the inward-offset
+            // inset so the visible territory edge recedes from its classified
+            // extent. Pointy-top hex "radius" is vertex-to-center distance;
+            // honeycomb interlock for hex cells is produced by the
+            // `hex_offset` distribution (row shift applied in classification).
+            const isBoundary = c.role !== 'native';
+            const half = isBoundary ? boundaryHalf : nativeHalf;
+            const size = isBoundary ? boundarySize : nativeSize;
+            const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
+            const hexR = isBoundary ? boundaryHexR : nativeHexR;
 
             // Fill primitive
             if (cellShape === 'circle') {
@@ -937,7 +972,7 @@ export class MetaballGridFamily implements RenderFamily {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
                     pts.push(
-                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        x + HEX_VERTICES_POINTY[k][0] * hexR,
                         y + HEX_VERTICES_POINTY[k][1] * hexR,
                     );
                 }
@@ -988,7 +1023,7 @@ export class MetaballGridFamily implements RenderFamily {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
                     pts.push(
-                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        x + HEX_VERTICES_POINTY[k][0] * hexR,
                         y + HEX_VERTICES_POINTY[k][1] * hexR,
                     );
                 }
@@ -1199,12 +1234,6 @@ export class MetaballGridFamily implements RenderFamily {
                 }
             }
         }
-
-        // Silence unused-var lint for `inwardOffsetPx` — it is intentionally
-        // read + passed to the scene builder but the builder currently leaves
-        // positions unchanged (see renderMetaballGridScene docstring). Keeping
-        // the plumbing makes MG9 debug overlay work straightforward.
-        void inwardOffsetPx;
 
         // ── Record paint-sig + stats (MG-PERF Phase A) ──────────────────────
         this.lastPaintSig = paintSig;

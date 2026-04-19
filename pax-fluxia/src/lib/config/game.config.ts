@@ -1327,7 +1327,10 @@ const _rawConfig: GameConfigType = {
     METABALL_GRID_WAVE_EASE: 'linear' as const,
     METABALL_GRID_FLIP_WINDOW_JITTER: 0,
     METABALL_GRID_DISTRIBUTION: 'square' as const,
-    METABALL_GRID_POSITION_JITTER: 0,
+    // Default 0.15 (15 % of spacing) so switching METABALL_GRID_DISTRIBUTION
+    // to 'jittered' produces a visible scatter out-of-box. Users can still
+    // pin to 0 via the settings UI to see pure aligned positions.
+    METABALL_GRID_POSITION_JITTER: 0.15,
     // 80k cells ≈ 1920×1080 @ 4.7 px spacing. Above that a single PIXI.Graphics
     // flush starts to miss frames on iGPU. Set to 0 to disable the cap.
     METABALL_GRID_MAX_CELLS: 80000,

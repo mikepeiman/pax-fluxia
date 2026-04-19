@@ -117,9 +117,10 @@ function emitForVStar(args: {
                 x: v.x,
                 y: v.y,
                 colorIdx,
-                alpha: 1,
+                alpha: clamp01(strength),
                 strength,
                 pass: 'single',
+                role: v.role,
             });
             return;
         }
@@ -208,9 +209,10 @@ function emitHard(args: {
         x: v.x,
         y: v.y,
         colorIdx: activeColor,
-        alpha: 1,
+        alpha: clamp01(strength),
         strength,
         pass: 'single',
+        role: v.role,
     });
 }
 
@@ -230,30 +232,31 @@ function emitLerpPerCell(args: {
     const lo = flipTime - flipWindow;
     const hi = flipTime + flipWindow;
 
+    const gain = clamp01(strength);
     if (progress <= lo) {
         // Fully PREV.
         if (emitPrev && prevColor !== null) {
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: 1, strength, pass: 'single' });
+            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitNext && nextColor !== null) {
             // Only NEXT allowed (emergent) — hard-present under role rule.
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: 0, strength, pass: 'single' });
+            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
     }
     if (progress >= hi) {
         if (emitNext && nextColor !== null) {
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: 1, strength, pass: 'single' });
+            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitPrev && prevColor !== null) {
             // Only PREV allowed (vacating) — faded out after window.
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: 0, strength, pass: 'single' });
+            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
     }
 
     // Inside window: complementary alphas. smoothstep from lo→hi.
     const s = smoothstep(lo, hi, progress);
-    const prevAlpha = (1 - s) * (emitPrev ? 1 : 0);
-    const nextAlpha = s * (emitNext ? 1 : 0);
+    const prevAlpha = (1 - s) * (emitPrev ? 1 : 0) * gain;
+    const nextAlpha = s * (emitNext ? 1 : 0) * gain;
 
     if (emitPrev && prevColor !== null) {
         out.push({
@@ -264,6 +267,7 @@ function emitLerpPerCell(args: {
             alpha: prevAlpha,
             strength,
             pass: 'prev',
+            role: v.role,
         });
     }
     if (emitNext && nextColor !== null) {
@@ -275,6 +279,7 @@ function emitLerpPerCell(args: {
             alpha: nextAlpha,
             strength,
             pass: 'next',
+            role: v.role,
         });
     }
 }
@@ -295,8 +300,9 @@ function emitDualPass(args: {
     const lo = flipTime - flipWindow;
     const hi = flipTime + flipWindow;
     const s = smoothstep(lo, hi, progress);
-    const prevAlpha = (1 - s) * (emitPrev ? 1 : 0);
-    const nextAlpha = s * (emitNext ? 1 : 0);
+    const gain = clamp01(strength);
+    const prevAlpha = (1 - s) * (emitPrev ? 1 : 0) * gain;
+    const nextAlpha = s * (emitNext ? 1 : 0) * gain;
 
     if (emitPrev && prevColor !== null) {
         out.push({
@@ -307,6 +313,7 @@ function emitDualPass(args: {
             alpha: prevAlpha,
             strength,
             pass: 'prev',
+            role: v.role,
         });
     }
     if (emitNext && nextColor !== null) {
@@ -318,6 +325,7 @@ function emitDualPass(args: {
             alpha: nextAlpha,
             strength,
             pass: 'next',
+            role: v.role,
         });
     }
 }
