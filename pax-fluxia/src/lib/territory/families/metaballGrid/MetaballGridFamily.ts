@@ -281,6 +281,12 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    /**
+     * Reference to the NEXT geometry the plan was built against. When upstream
+     * caches invalidate (e.g. a territory source-shaping knob edit yields a
+     * new snapshot object), we detect the reference change and rebuild.
+     */
+    readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
 
 interface MetaballGridPlanSettings {
@@ -370,16 +376,20 @@ export class MetaballGridFamily implements RenderFamily {
     }): CachedPlan {
         const { input, currentGeometry, planKey, settings } = params;
 
-        // PREV = rebuild from reverted stars using the same underlayer as NEXT.
+        // PREV comes from GameCanvas's shared cache (MG-PERF Phase C, 2026-04-19).
+        // Fallback to a local rebuild if the orchestrator didn't supply one —
+        // keeps this family usable outside the live render loop (tests, tools).
         const revertedStars = revertStarsForTransition(input);
-        const prevGeometry = buildPerimeterFieldRenderFamilyGeometry({
-            stars: revertedStars,
-            lanes: input.lanes,
-            worldWidth: input.world.width,
-            worldHeight: input.world.height,
-            nowMs: input.nowMs,
-            geometrySource: settings.geometrySource,
-        });
+        const prevGeometry =
+            input.prevGeometry ??
+            buildPerimeterFieldRenderFamilyGeometry({
+                stars: revertedStars,
+                lanes: input.lanes,
+                worldWidth: input.world.width,
+                worldHeight: input.world.height,
+                nowMs: input.nowMs,
+                geometrySource: settings.geometrySource,
+            });
 
         const conquestEvents = (input.activeTransition?.conquestEvents ?? []);
         const starById = new Map<string, StarState>();
@@ -415,7 +425,13 @@ export class MetaballGridFamily implements RenderFamily {
             resolveStarPosition,
         });
 
-        return { planKey, classification, wavePlan, prevGeometry };
+        return {
+            planKey,
+            classification,
+            wavePlan,
+            prevGeometry,
+            nextGeometryRef: currentGeometry,
+        };
     }
 
     /**
@@ -459,6 +475,7 @@ export class MetaballGridFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
+            nextGeometryRef: currentGeometry,
         };
     }
 
@@ -618,11 +635,18 @@ export class MetaballGridFamily implements RenderFamily {
             waveSeeding: transitionKey ? settings.waveSeeding : undefined,
         });
 
-        // Rebuild the expensive PREV/NEXT classification + wave plan only when
-        // the geometry truth or the plan-generation knobs change. Shape / draw
-        // knobs are read every frame below.
+        // Rebuild the plan when the plan key or input geometry reference changes.
+        // The extra geometry-reference checks preserve the Phase C behavior:
+        // if GameCanvas invalidates and recomputes PREV/NEXT geometry without a
+        // new conquest key, this family still rebuilds against the new truth.
+        const prevGeoRef = input.prevGeometry ?? null;
         if (transitionKey) {
-            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.planKey !== planKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+                || (prevGeoRef !== null && this.cachedPlan.prevGeometry !== prevGeoRef)
+            ) {
                 this.cachedPlan = this.buildPlanForTransition({
                     input,
                     currentGeometry,
@@ -631,7 +655,11 @@ export class MetaballGridFamily implements RenderFamily {
                 });
             }
         } else {
-            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.planKey !== planKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+            ) {
                 this.cachedPlan = this.buildSteadyStatePlan({
                     input,
                     currentGeometry,
