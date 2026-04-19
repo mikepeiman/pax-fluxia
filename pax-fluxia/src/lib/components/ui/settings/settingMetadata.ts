@@ -542,28 +542,6 @@ function buildFallbackDescription(label: string, meta: SettingMeta): string {
     return `Controls ${label}. Writes GAME_CONFIG.${meta.key}.`;
 }
 
-function createConfigChip(key: string): HTMLSpanElement {
-    const chip = document.createElement('span');
-    chip.className = 'setting-config-chip';
-    chip.textContent = key;
-    chip.style.display = 'inline-flex';
-    chip.style.alignItems = 'center';
-    chip.style.padding = '1px 5px';
-    chip.style.borderRadius = '999px';
-    chip.style.border = '1px solid rgba(125, 211, 252, 0.24)';
-    chip.style.background = 'rgba(14, 165, 233, 0.12)';
-    chip.style.color = 'rgba(186, 230, 253, 0.92)';
-    chip.style.fontFamily = '"JetBrains Mono", monospace';
-    chip.style.fontSize = '10px';
-    chip.style.fontWeight = '600';
-    chip.style.letterSpacing = '0.02em';
-    chip.style.lineHeight = '1.2';
-    chip.style.whiteSpace = 'nowrap';
-    chip.style.marginLeft = '6px';
-    chip.style.verticalAlign = 'middle';
-    return chip;
-}
-
 function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
     const normalizedLabel = normalizeLabel(
         target.dataset.settingLabel || target.textContent || '',
@@ -586,11 +564,8 @@ function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
         || buildFallbackDescription(normalizedLabel, scopedMeta);
 
     target.title = description
-        ? `${scopedMeta.key}\n${description}`
-        : scopedMeta.key;
-
-    if (target.querySelector(':scope > .setting-config-chip')) return;
-    target.appendChild(createConfigChip(scopedMeta.key));
+        ? `Config: ${scopedMeta.key}\n${description}`
+        : `Config: ${scopedMeta.key}`;
 }
 
 export function enhanceSettingMetadata(
