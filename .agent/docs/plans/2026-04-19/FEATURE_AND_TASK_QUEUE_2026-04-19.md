@@ -9,3 +9,34 @@
 - Remove visible config-key chips from the settings UI and keep config key + description in hover tooltips only, per original spec.
 - Expand settings hover metadata so each tooltip shows both `panel:` and `config:` identifiers, not just the config key.
 
+## Additional Historical Branch Thread
+
+### Goofy-Raman Metaball-Grid Phase A/C Record
+
+Source branch: `claude/goofy-raman`.
+
+Completed in that branch thread:
+
+- Acronym correction recorded in the decisions ledger as the canonical `CX / CP / DX / MSR` record.
+- `TerritoryGeometrySourceTuning` plus explanatory preamble surfaced in the Metaball Grid settings card.
+- Phase A delivered:
+  - dirty-flag paint gate
+  - plan-parameter invalidation on classification-tunable edits
+  - three new tunables: distribution, position jitter, max cells
+  - live perf readouts via `metaballGridStats`
+- Phase C delivered:
+  - PREV geometry capture lifted into `GameCanvas`
+  - new `RenderFamilyInput.prevGeometry`
+  - `PerimeterFieldFamily` and `MetaballGridFamily` consume upstream PREV geometry and invalidate plans on PREV/NEXT geometry reference change
+
+Historical queued next items from that branch:
+
+- [ ] MG-PERF-PHASE-B - two-layer RenderTexture caching
+- [ ] MG-MSR-LANE-FILTER - explicit lane-proximity MSR semantics in lane generation
+- [ ] MG-CP-SHORT-LANE-AUDIT - verify CP suppression threshold on short lanes
+- [ ] MG-DEFAULTS-REVISIT - revisit default enablement for corridor and disconnect helpers
+- [ ] MG-MOAT-AUDIT - reassess the moat-fill fallback after MSR lane filtering exists
+- [ ] MG-PERF-PHASE-D - splat-and-threshold or JFA-based territory field
+- [ ] MG7 / MG8 / MG9 - acceptance tests, perf bench default profile, paused debug overlay
+- [ ] TUNABLE-PLAN-INVALIDATION-WAVE - invalidate the wave plan when adjacency / wave-geometry / wave-seeding change mid-transition
+
