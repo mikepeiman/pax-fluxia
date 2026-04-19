@@ -621,3 +621,37 @@ Refactoring the territory renderer uses a **dual-adapter approach**: a new `refa
 - Modifying in-place risks breaking the SACROSANCT DY4 border animation
 - Dual-adapter gives instant rollback via UI dropdown without git operations
 - Enables incremental migration of state into class fields
+
+---
+
+# Decision: Metaball-Grid 3-Phase Perf Plan
+
+**Date:** 2026-04-18
+**Status:** Planned (awaiting user go-ahead per phase)
+**Ref:** D-MG-PERF-2026-04-18
+**Plan:** `.agent/docs/plans/2026-04-18/METABALL_GRID_PERF_PLAN_2026-04-18.md`
+
+## Context
+metaball-grid mode (shipped MG5..MG-BORDER v2 over 2026-04-17..18) lags at dense spacings. User captured DevTools traces at 16 px (8 160 cells) and 4 px (129 600 cells). Web research + local audit completed.
+
+## Key Trace Finding
+At 4 px the dominant cost is the **per-transition Power-Voronoi PREV-geometry rebuild** inside `MetaballGridFamily.buildPlanForTransition` (45.8 % of trace time) — not per-frame paint. This was flagged as a known simplification in the family file header. Phase C promotes that checkpoint to blocking.
+
+## Decision
+Three-phase execution, user-directed:
+
+- **Phase A (3-4 h):** tuning surface (distribution modes, jitter, cell-count cap, render-backend toggle) + steady-state dirty-flag gate + live cell-count / frame-ms readouts.
+- **Phase B (1-2 d):** two-layer caching — static RenderTexture for natives + dirty-rect blit on ownership change + dynamic overlay for dispossessed cells during transitions. Target: 100 k+ cells @ 60 fps on iGPU.
+- **Phase C (~1 d):** lift PREV-geometry capture upstream into `GameCanvas` so transitions stop triggering Power-Voronoi rebuild. Addresses the dense-spacing cliff directly.
+- **Phase D (stretch, 1-5 d):** pick one — splat-and-threshold metaballs (real soft blobs, ≤50 k splats) OR JFA territory field (resolution-bound, decouples from N).
+
+## Rationale
+- Phase A is net-new tuning surface + free steady-state win; low risk.
+- Phase C is the biggest direct fix for the 4 px trace; modest scope.
+- Phase B is the correct long-term architecture but touches more code.
+- Phase D deferred until A+B+C land and visual direction is confirmed.
+
+## Risks Logged
+- ParticleContainer backend restricts cell shape to tinted-quad (square/circle); hex/diamond stay on Graphics.
+- Static RenderTexture GPU memory = `worldWidth × worldHeight × 4 bytes`; ½-res fallback may be needed for world > 4000 px.
+- Upstream truth-capture change (Phase C) crosses the family boundary; coordinate with perimeter_field revised-plan work on alt-worktree.
