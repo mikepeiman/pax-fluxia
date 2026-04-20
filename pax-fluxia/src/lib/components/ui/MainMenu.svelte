@@ -908,7 +908,7 @@
 
     function openMapEditor() {
         audioManager.play("click");
-        void goto("/dev/map-editor");
+        void goto("/map-editor");
     }
 
     function handleMapModeChange(mode: MapMode) {
@@ -1215,7 +1215,6 @@
                 startDisabled={multiplayerStore.isConnected}
                 loadMapDisabled={multiplayerStore.isConnected || getLoadableMaps().length === 0}
                 createDisabled={multiplayerStore.isConnected}
-                loadMapDisabled={multiplayerStore.isConnected || getLoadableMaps().length === 0}
                 joinDisabled={!selectedRoom || multiplayerStore.isConnected}
                 onOpenEditor={openMapEditor}
                 onStart={triggerStartAction}

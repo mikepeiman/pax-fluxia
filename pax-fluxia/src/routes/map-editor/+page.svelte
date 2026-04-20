@@ -3,7 +3,7 @@
   import { goto } from "$app/navigation";
   import { AUTHORED_NEUTRAL_OWNER_ID } from "@pax/common/maps";
   import type { StarType } from "@pax/common";
-  import "../../../app.css";
+  import "../../app.css";
   import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
   import MapEditorBoardHud from "$lib/components/editor/MapEditorBoardHud.svelte";
   import MapEditorCommandDock from "$lib/components/editor/MapEditorCommandDock.svelte";
