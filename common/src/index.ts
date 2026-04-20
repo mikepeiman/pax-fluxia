@@ -37,6 +37,9 @@ export * from './mapgen';
 // Re-export AI
 export * from './ai';
 
+// Re-export authored map definitions and helpers
+export * from './maps';
+
 // Re-export fixture registry
 export * from './fixtureMaps';
 

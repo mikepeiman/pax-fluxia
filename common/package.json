@@ -11,7 +11,8 @@
         "./production": "./src/production.ts",
         "./orders": "./src/orders.ts",
         "./schema": "./src/schema/GameState.ts",
-        "./mapgen": "./src/mapgen/index.ts"
+        "./mapgen": "./src/mapgen/index.ts",
+        "./maps": "./src/maps/index.ts"
     },
     "dependencies": {
         "d3-delaunay": "^6.0.4"

@@ -5,3 +5,11 @@
 - Add a direct `Load Map` action to the main menu command band with a saved-map picker.
 - Add a direct `Load Map` action to the in-game settings panel so maps can be restarted from settings.
 - Verify whether a real custom map editor exists on this branch before wiring any main-menu entry; do not add a dead button.
+
+## Completed Today
+
+- Wrote a merge handoff document for the custom map editor work so another agent can port the authored-map/editor changes onto another branch with less ambiguity.
+
+## Artifacts
+
+- `.agent/docs/plans/2026-04-20/MAP_EDITOR_MERGE_HANDOFF_2026-04-20.md`

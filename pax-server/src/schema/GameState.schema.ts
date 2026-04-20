@@ -9,6 +9,7 @@ export {
     StarSchema,
     ConnectionSchema,
     PointSchema,
+    MapMeasurementSchema,
     TerritorySchema,
     GameRoomState,
     MapSchema,

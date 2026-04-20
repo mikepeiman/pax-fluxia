@@ -16,11 +16,18 @@ import {
     GameEngine,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
+    MapMeasurementSchema,
     normalizeInitialOwnerId,
     normalizeUnownedStarsToNeutral,
 } from "@pax/common";
 import { attachLaneWaypointsToConnections, generateMap, type LanePathKind, type MapConnection, type MapLaneMode } from "@pax/common/mapgen";
 import type { EngineConfig } from "@pax/common";
+import {
+    resolveRuntimeMap,
+    validateAuthoredMapDefinition,
+    type AuthoredMapDefinition,
+    type RuntimeAuthoredMap,
+} from "@pax/common/maps";
 import { log } from '../utils/logger';
 
 // Player colors palette (same as GameEngine)
@@ -37,7 +44,8 @@ const PLAYER_COLORS = [
 // Room options passed from client (shared between SP MainMenu and MP Lobby)
 interface RoomOptions {
     playerCount?: number;
-    mapType?: 'standard' | 'debug' | 'debug-b';
+    mapType?: 'standard' | 'debug' | 'debug-b' | 'custom';
+    customMap?: AuthoredMapDefinition;
     starsPerPlayer?: number;
     shipsPerStar?: number;
     starSpacing?: number;
@@ -400,6 +408,7 @@ export class GameRoom extends Room {
         });
         this.setMetadata({
             mapType: this.roomOptions.mapType || 'standard',
+            customMapName: this.roomOptions.customMap?.metadata.name ?? null,
             playerCount: humanCount,
             maxPlayers: this.maxClients,
             phase: this.state.phase,
@@ -463,6 +472,7 @@ export class GameRoom extends Room {
                 this.state.maxPlayers = message.playerCount;
             }
             if (message.mapType) this.roomOptions.mapType = message.mapType;
+            if (message.customMap) this.roomOptions.customMap = message.customMap;
             if (message.starsPerPlayer) this.roomOptions.starsPerPlayer = message.starsPerPlayer;
             if (message.shipsPerStar) this.roomOptions.shipsPerStar = message.shipsPerStar;
             if (message.starSpacing) this.roomOptions.starSpacing = message.starSpacing;
@@ -748,10 +758,15 @@ export class GameRoom extends Room {
         }
 
         this.state.playerCount = this.state.players.size;
+        this.state.stars.clear();
+        this.state.connections.splice(0, this.state.connections.length);
+        this.state.mapMeasurements.splice(0, this.state.mapMeasurements.length);
 
         // Generate map based on mapType
         const mt = this.roomOptions.mapType || 'standard';
-        if (mt === 'debug' || mt === 'debug-b') {
+        if (mt === 'custom' && this.roomOptions.customMap) {
+            this.initCustomMap();
+        } else if (mt === 'debug' || mt === 'debug-b') {
             this.initDebugMap();
         } else {
             this.initStandardMap();
@@ -769,6 +784,76 @@ export class GameRoom extends Room {
 
         // Tally initial player stats so leaderboard shows correct values immediately
         GameEngine.updatePlayerStats(this.state);
+    }
+
+    private applyRuntimeMap(runtimeMap: RuntimeAuthoredMap) {
+        for (const star of runtimeMap.stars) {
+            this.createStar(
+                star.id,
+                star.x,
+                star.y,
+                star.ownerId,
+                star.starType,
+                star.activeShips,
+                star.damagedShips,
+                star.targetId,
+                star.productionRate,
+            );
+        }
+
+        for (const connection of runtimeMap.connections) {
+            this.addConnection(
+                connection.sourceId,
+                connection.targetId,
+                connection.distance,
+                connection.laneWaypoints,
+                connection.lanePathKind,
+            );
+        }
+
+        for (const measurement of runtimeMap.diagnostics.measurements) {
+            const schemaMeasurement = new MapMeasurementSchema();
+            schemaMeasurement.id = measurement.id;
+            schemaMeasurement.mode = measurement.mode;
+            schemaMeasurement.preset = measurement.preset ?? "";
+            schemaMeasurement.label = measurement.label ?? "";
+            schemaMeasurement.startX = measurement.startX;
+            schemaMeasurement.startY = measurement.startY;
+            schemaMeasurement.endX = measurement.endX;
+            schemaMeasurement.endY = measurement.endY;
+            schemaMeasurement.dx = measurement.dx;
+            schemaMeasurement.dy = measurement.dy;
+            schemaMeasurement.distance = measurement.distance;
+            schemaMeasurement.midX = measurement.midX;
+            schemaMeasurement.midY = measurement.midY;
+            schemaMeasurement.visibleByDefault = measurement.visibleByDefault;
+            schemaMeasurement.relatedLaneId = measurement.relatedLaneId ?? "";
+            schemaMeasurement.relatedLaneLabel = measurement.relatedLaneLabel ?? "";
+            schemaMeasurement.starPairLabel = measurement.starPairLabel ?? "";
+            this.state.mapMeasurements.push(schemaMeasurement);
+        }
+    }
+
+    private initCustomMap() {
+        const customMap = this.roomOptions.customMap;
+        if (!customMap) {
+            this.initStandardMap();
+            return;
+        }
+
+        validateAuthoredMapDefinition(customMap);
+        const playerIds = Array.from(this.state.players.values()).map((player) => player.sessionId);
+        const runtimeMap = resolveRuntimeMap(customMap, {
+            playerIds,
+            startingShips: this.roomOptions.shipsPerStar ?? 40,
+            mapLaneMode: this.getLaneGenerationOptions().mapLaneMode,
+            mapgenLaneMarginPx: this.getLaneGenerationOptions().laneMarginPx,
+            scaleLegacyIfSmall: false,
+            targetWidth: 1600,
+            targetHeight: 900,
+        });
+
+        this.applyRuntimeMap(runtimeMap);
     }
 
     private initDebugMap() {
@@ -853,7 +938,17 @@ export class GameRoom extends Room {
         }
     }
 
-    private createStar(id: string, x: number, y: number, ownerId: string, starType: string) {
+    private createStar(
+        id: string,
+        x: number,
+        y: number,
+        ownerId: string,
+        starType: string,
+        activeShips?: number,
+        damagedShips?: number,
+        targetId?: string,
+        productionRate?: number,
+    ) {
         const star = new StarSchema();
         const stats = STAR_TYPE_STATS[starType as import("@pax/common").StarType] || STAR_TYPE_STATS['grey'];
         star.id = id;
@@ -861,9 +956,10 @@ export class GameRoom extends Room {
         star.y = y;
         star.ownerId = normalizeInitialOwnerId(ownerId);
         star.starType = starType;
-        star.activeShips = this.roomOptions.shipsPerStar ?? 40;
-        star.damagedShips = 0;
-        star.productionRate = 1;
+        star.activeShips = activeShips ?? this.roomOptions.shipsPerStar ?? 40;
+        star.damagedShips = damagedShips ?? 0;
+        star.targetId = targetId ?? "";
+        star.productionRate = productionRate ?? 1;
         star.repairRate = stats.repairRate;
         star.transferRate = stats.transferRate;
         star.activationRate = stats.activationRate;
@@ -1145,6 +1241,7 @@ export class GameRoom extends Room {
         // Clear map data
         this.state.stars.clear();
         this.state.connections.splice(0, this.state.connections.length);
+        this.state.mapMeasurements.splice(0, this.state.mapMeasurements.length);
 
         // Remove AI players, keep human players
         const aiSessionIds: string[] = [];

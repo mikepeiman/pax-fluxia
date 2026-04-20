@@ -25,6 +25,7 @@
   import { sentence as txtSentence } from 'txtgen';
   import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
+  import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
 
   if (typeof window !== "undefined") {
@@ -290,6 +291,10 @@
     diagnosticsUi.setOpen(false);
   }
 
+  function toggleAuthoredMeasurements() {
+    authoredMeasurementsUi.toggle();
+  }
+
   function startResize(e: PointerEvent) {
     e.preventDefault();
     isResizing = true;
@@ -439,6 +444,10 @@
   }
 
   $effect(() => {
+    authoredMeasurementsUi.syncDefault(activeGameStore.mapDiagnostics.measurements);
+  });
+
+  $effect(() => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
     }
@@ -483,6 +492,15 @@
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
       : undefined}
+    onAuthoredMeasurementsToggle={gameStore.currentView === "game" &&
+    activeGameStore.mapDiagnostics.measurements.length > 0
+      ? toggleAuthoredMeasurements
+      : undefined}
+    authoredMeasurementsActive={gameStore.currentView === "game"
+      ? $authoredMeasurementsUi.visible
+      : false}
+    authoredMeasurementsAvailable={gameStore.currentView === "game" &&
+    activeGameStore.mapDiagnostics.measurements.length > 0}
     onRulerToggle={gameStore.currentView === "game"
       ? toggleRulerDiagnostics
       : undefined}

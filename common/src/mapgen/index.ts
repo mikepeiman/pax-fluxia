@@ -28,7 +28,13 @@ export {
     debugResolveLaneConnection,
     effectiveLaneClearanceForChord,
 } from './lanePolylines';
-export { generateHexGrid, selectPositions, generateStarPositions } from './placement';
+export {
+    generateHexGrid,
+    generateIndexedHexGrid,
+    generatePlacementHexGrid,
+    selectPositions,
+    generateStarPositions,
+} from './placement';
 export { generateConnections, listDelaunayConnections, pointToSegmentDistance } from './connections';
 
 import type { MapGenConfig, MapGenResult } from './types';
