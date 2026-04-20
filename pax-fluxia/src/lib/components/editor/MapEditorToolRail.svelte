@@ -91,6 +91,7 @@
   const activeStarType = $derived(
     starTypeOptions.find((option) => option.id === mapEditorStore.starTypeBrush) ?? starTypeOptions[0],
   );
+  let showHotkeyChips = $state(false);
 
   function panelButtonStyle(color: string) {
     return `--owner-color:${color}`;
@@ -152,7 +153,21 @@
     return activePanel === panel || (tool ? mapEditorStore.tool === tool : false);
   }
 
+  function syncHotkeyChips(event: KeyboardEvent) {
+    showHotkeyChips = event.altKey;
+  }
+
+  function clearHotkeyChips() {
+    showHotkeyChips = false;
+  }
+
 </script>
+
+<svelte:window
+  onkeydown={syncHotkeyChips}
+  onkeyup={syncHotkeyChips}
+  onblur={clearHotkeyChips}
+/>
 
 <div class="tool-rail-shell" data-density={density} data-expanded={railExpanded}>
   <div class="tool-rail">
@@ -189,6 +204,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="m6 3 11 9h-5.1l2.2 7-2.8.9-2.2-7L5.7 16z" fill="currentColor" /><path d="M15 5h4v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.72" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">V</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -209,6 +227,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><polygon points="12,3 14.8,8.3 20.7,9.2 16.4,13.4 17.4,19.3 12,16.4 6.6,19.3 7.6,13.4 3.3,9.2 9.2,8.3" fill="currentColor" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">1-6</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -229,6 +250,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M7 4v16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M8 5h9l-2.7 3.2L17 11H8z" fill="currentColor" /><circle cx="17" cy="17" r="2.5" fill="currentColor" opacity="0.7" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">O</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -249,6 +273,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="m6 14 4-6 4 6H6Zm5 4 3-4 3 4h-6Zm-6 0 3-4 3 4H5Z" fill="currentColor" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">F</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -271,6 +298,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M7 8h10M8.2 9.2l7.6 5.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="6" cy="8" r="2.6" fill="currentColor" /><circle cx="18" cy="8" r="2.6" fill="currentColor" opacity="0.92" /><circle cx="18" cy="16" r="2.6" fill="currentColor" opacity="0.72" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">C</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -293,6 +323,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M5 17 17 5l2 2-12 12H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><path d="M10 12 12 14M12.8 9.2l2 2M7.2 14.8l2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">R</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -313,6 +346,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M6 7h10M6 12h6M6 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="18" cy="7" r="2.2" fill="currentColor" /><circle cx="14" cy="12" r="2.2" fill="currentColor" opacity="0.84" /><circle cx="18" cy="17" r="2.2" fill="currentColor" opacity="0.68" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">U</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -333,6 +369,9 @@
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M5 10h14M10 5v14" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.85" /></svg>
+        {#if showHotkeyChips}
+          <span class="hotkey-chip">G</span>
+        {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
@@ -656,6 +695,33 @@
     color: color-mix(in srgb, var(--tool-accent, #94a3b8) 82%, white 18%);
     position: relative;
     z-index: 1;
+  }
+
+  .hotkey-chip {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    min-width: 1.35rem;
+    min-height: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--tool-accent, #94a3b8) 48%, rgba(255, 255, 255, 0.16));
+    background:
+      linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.94));
+    box-shadow:
+      0 6px 14px rgba(2, 8, 23, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: rgba(15, 23, 42, 0.96);
+    pointer-events: none;
+    z-index: 2;
   }
 
   .drawer-toggle__icon svg,
