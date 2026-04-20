@@ -1,5 +1,20 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ANIM_SLIDERS, PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, derivePanelKey } from './settingsDefs';
+
+const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SETTINGS_DIR = path.join(THIS_DIR, 'settings');
+const GAME_CONFIG_PATH = path.join(THIS_DIR, '..', '..', 'config', 'game.config.ts');
+
+function walkSvelteFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) return walkSvelteFiles(fullPath);
+        return entry.isFile() && entry.name.endsWith('.svelte') ? [fullPath] : [];
+    });
+}
 
 describe('settingsDefs', () => {
     it('every ANIM_SLIDER configKey has a panel mapping in CONFIG_TO_PANEL_KEY', () => {
@@ -28,5 +43,44 @@ describe('settingsDefs', () => {
             const derived = derivePanelKey(m.configKey);
             expect(CONFIG_TO_PANEL_KEY[m.configKey]).toBe(derived);
         }
+    });
+
+    it('theme-critical controls stay wired into the panel mapping', () => {
+        expect(CONFIG_TO_PANEL_KEY.BG_IMAGE_ALPHA).toBe('bgImageAlpha');
+        expect(CONFIG_TO_PANEL_KEY.FRONTIER_RESOLUTION).toBe('frontierResolution');
+        expect(CONFIG_TO_PANEL_KEY.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS).toBe(
+            'mapgenRecomputeConnectivityOnAuthoredMaps',
+        );
+    });
+
+    it('settings controls do not reference unmapped panel keys', () => {
+        const usedPanelKeys = new Set<string>();
+        for (const file of walkSvelteFiles(SETTINGS_DIR)) {
+            const text = readFileSync(file, 'utf8');
+            for (const match of text.matchAll(/\bpanel\.([A-Za-z0-9_]+)/g)) {
+                usedPanelKeys.add(match[1]);
+            }
+        }
+
+        const missing = [...usedPanelKeys].filter((key) => !Object.values(CONFIG_TO_PANEL_KEY).includes(key));
+        expect(missing).toEqual([]);
+    });
+
+    it('settings controls only reference declared GAME_CONFIG keys', () => {
+        const gameConfigSource = readFileSync(GAME_CONFIG_PATH, 'utf8');
+        const declaredConfigKeys = new Set(
+            [...gameConfigSource.matchAll(/^\s{4}([A-Z_][A-Z0-9_]*)\s*:/gm)].map((match) => match[1]),
+        );
+        const usedConfigKeys = new Set<string>();
+
+        for (const file of walkSvelteFiles(SETTINGS_DIR)) {
+            const text = readFileSync(file, 'utf8');
+            for (const match of text.matchAll(/GAME_CONFIG\.([A-Z_][A-Z0-9_]*)/g)) {
+                usedConfigKeys.add(match[1]);
+            }
+        }
+
+        const missing = [...usedConfigKeys].filter((key) => !declaredConfigKeys.has(key)).sort();
+        expect(missing).toEqual([]);
     });
 });

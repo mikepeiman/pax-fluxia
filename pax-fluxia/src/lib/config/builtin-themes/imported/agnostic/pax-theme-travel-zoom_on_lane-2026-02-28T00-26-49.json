@@ -1,0 +1,31 @@
+{
+  "name": "zoom_on_lane",
+  "category": "travel",
+  "values": {
+    "TRAVEL_MODE": "lane",
+    "TRAVEL_EASING": "linear",
+    "TRAVEL_EASING_POWER": 1.3,
+    "TRAVEL_DURATION_MULT": 0.9,
+    "TRAVEL_ARC_INTENSITY": 2,
+    "LANE_CONVERGENCE": 1,
+    "LANE_CONVERGENCE_POINT": 25,
+    "LANE_OFFSET_PX": 4,
+    "DEPART_MODE": "nearside",
+    "DEPART_FRACTION": 0.55,
+    "DEPART_JITTER_MS": 175,
+    "DEPART_STAGGER": true,
+    "DEPART_ARC_INTENSITY": 0.1,
+    "ARRIVAL_ARC_INTENSITY": 0.1,
+    "SETTLE_DURATION_MS": 0,
+    "ARRIVAL_SPREAD": 1.1,
+    "WOBBLE_AMP": 0,
+    "ORBIT_BIAS_STRENGTH": 0,
+    "ORBIT_BIAS_OSCILLATE": false,
+    "ORBIT_BIAS_MIN": 0,
+    "ORBIT_BIAS_MAX": 0.95,
+    "ORBIT_BIAS_FREQ": 0.25,
+    "ORBIT_DENSITY": 1.7,
+    "STATIC_ORBITS": true
+  },
+  "createdAt": "2026-02-28T00:26:49.115Z"
+}

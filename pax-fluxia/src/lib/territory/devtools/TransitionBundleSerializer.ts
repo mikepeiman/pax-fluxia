@@ -3,6 +3,7 @@ import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
 import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
+import type { PerimeterFieldSnapshotMode } from '../families/perimeterField/perimeterFieldDiagnostics';
 import {
     compactGeometrySnapshotForExport,
     compactFrontierTopologyForExport,
@@ -300,6 +301,7 @@ function selectPerimeterDiagnosticFrames(
 function renderPerimeterFieldExportCanvas(args: {
     baseCanvas: HTMLCanvasElement | null;
     snapshot: PerimeterFieldDebugSnapshot | null;
+    snapshotMode?: PerimeterFieldSnapshotMode;
 }): HTMLCanvasElement | null {
     if (!args.baseCanvas) return null;
     if (!args.snapshot) return args.baseCanvas;
@@ -308,6 +310,7 @@ function renderPerimeterFieldExportCanvas(args: {
         height: args.baseCanvas.height,
         snapshot: args.snapshot,
         baseCanvas: args.baseCanvas,
+        snapshotMode: args.snapshotMode,
         showGeometry: true,
         showVstars: true,
     });
@@ -425,8 +428,11 @@ function buildDiagnosticReadme(
     const conquestLine = evt
         ? `Conquest: ${evt.starId} ${evt.previousOwner} -> ${evt.newOwner}`
         : 'Conquest: unavailable';
-    const frameLines = selectedFrames.length
-        ? selectedFrames.map((frame) => `- ${frame.filename} (progress=${frame.progress.toFixed(3)})`)
+    const renderFrameLines = selectedFrames.length
+        ? selectedFrames.map(
+              (frame) =>
+                  `- render/${frame.filename} (progress=${frame.progress.toFixed(3)})`,
+          )
         : ['- No intermediate transition frames were captured for this bundle.'];
 
     return [
@@ -436,13 +442,21 @@ function buildDiagnosticReadme(
         `Timestamp: ${bundle.timestamp}`,
         conquestLine,
         '',
-        'Files:',
-        '- prev.png',
-        ...frameLines,
-        '- next.png',
-        '- diagnostic.json',
+        'Directories:',
+        '- render/: captured images for previous, intermediate, and next frames',
+        '- debug/: compact geometry, topology, and capture metadata',
         '',
-        'diagnostic.json contains compact previous/next geometry, compact previous/next topology, conquest metadata, modes, and star positions.',
+        'Render files:',
+        '- render/prev.png',
+        ...renderFrameLines,
+        '- render/next.png',
+        '',
+        'Debug files:',
+        '- debug/diagnostic.json',
+        '- debug/topology.json',
+        '- debug/geometry_snapshot.json',
+        '',
+        'debug/diagnostic.json contains compact previous/next geometry, topology summaries, conquest metadata, modes, and capture diagnostics.',
     ].join('\n');
 }
 
@@ -510,6 +524,7 @@ export async function downloadBundle(
                     snapshot:
                         perimeterDiagnostics?.transitionFrames[i]?.fullSnapshot ??
                         null,
+                    snapshotMode: 'transition',
                 }) ?? canvas;
             const pctString = Math.round(progress * 100).toString().padStart(3, '0');
             triggerDownload(
@@ -586,17 +601,57 @@ export async function downloadDiagnosticPackage(
     )
         ? bundle.extraDiagnostics
         : null;
+    const compactGeometry = {
+        exportKind: perimeterDiagnostics
+            ? ('perimeter_field_compact' as const)
+            : ('compact' as const),
+        polylineDiffSemantics: bundle.meta.polylineDiffSemantics,
+        conquestEvents: bundle.context.conquestEvents,
+        previousGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(
+                  bundle.context.previousGeometry ?? null,
+                  buildAffectedOwnerSet(bundle),
+              )
+            : compactGeometrySnapshotForExport(
+                  bundle.context.previousGeometry ?? null,
+              ),
+        nextGeometry: perimeterDiagnostics
+            ? compactPerimeterFieldGeometry(
+                  bundle.context.nextGeometry,
+                  buildAffectedOwnerSet(bundle),
+              )
+            : compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+        captureDiagnostics: perimeterDiagnostics
+            ? buildDiagnosticManifest(
+                  bundle,
+                  selectDiagnosticIntermediateFrames(bundle.transitionFrames),
+              ).captureDiagnostics
+            : bundle.extraDiagnostics,
+    };
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
-    zip.file('diagnostic.json', JSON.stringify(manifest, null, 2));
+    zip.file('debug/diagnostic.json', JSON.stringify(manifest, null, 2));
+    zip.file(
+        'debug/topology.json',
+        JSON.stringify(serializeTopologyPairCompact(bundle), null, 2),
+    );
+    zip.file(
+        'debug/geometry_snapshot.json',
+        JSON.stringify(
+            compactGeometry,
+            (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),
+            2,
+        ),
+    );
 
     if (bundle.prevCanvas) {
         const prevCanvas =
             renderPerimeterFieldExportCanvas({
                 baseCanvas: bundle.prevCanvas,
                 snapshot: perimeterDiagnostics?.previousFrame.fullSnapshot ?? null,
+                snapshotMode: 'prev',
             }) ?? bundle.prevCanvas;
-        await addCanvasToZip(zip, 'prev.png', prevCanvas);
+        await addCanvasToZip(zip, 'render/prev.png', prevCanvas);
     }
 
     for (const frame of selectedFrames) {
@@ -609,8 +664,9 @@ export async function downloadDiagnosticPackage(
             renderPerimeterFieldExportCanvas({
                 baseCanvas: source.canvas,
                 snapshot: overlaySnapshot,
+                snapshotMode: 'transition',
             }) ?? source.canvas;
-        await addCanvasToZip(zip, frame.filename, frameCanvas);
+        await addCanvasToZip(zip, `render/${frame.filename}`, frameCanvas);
     }
 
     if (bundle.nextCanvas) {
@@ -618,8 +674,9 @@ export async function downloadDiagnosticPackage(
             renderPerimeterFieldExportCanvas({
                 baseCanvas: bundle.nextCanvas,
                 snapshot: perimeterDiagnostics?.nextFrame.fullSnapshot ?? null,
+                snapshotMode: 'next',
             }) ?? bundle.nextCanvas;
-        await addCanvasToZip(zip, 'next.png', nextCanvas);
+        await addCanvasToZip(zip, 'render/next.png', nextCanvas);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

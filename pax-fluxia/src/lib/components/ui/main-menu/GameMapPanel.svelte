@@ -212,7 +212,10 @@
                                 bind:max={dualMax}
                                 minLimit={1}
                                 maxLimit={8}
-                                onChange={(nextMin, nextMax) => {
+                                onChange={(
+                                    nextMin: number,
+                                    nextMax: number,
+                                ) => {
                                     onMinLinksChange(nextMin);
                                     onMaxLinksChange(nextMax);
                                 }}

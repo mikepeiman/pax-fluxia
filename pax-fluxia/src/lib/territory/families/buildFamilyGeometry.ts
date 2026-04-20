@@ -15,14 +15,48 @@ import type {
     TerritoryGeometryData,
     TerritoryGeneratorSettings,
 } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
-import {
-    buildTerritoryGeneratorSettingsFromTunables,
-    readTerritoryGeometryTunables,
-} from '../geometry/geometryTuning';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
+import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
 
 type PerimeterFieldGeometrySourceId = 'canonical_vector' | 'power_voronoi_0319';
+
+export function buildPowerVoronoi0319Settings(params: {
+    lanes: ReadonlyArray<StarConnection>;
+    worldWidth: number;
+    worldHeight: number;
+}): TerritoryGeneratorSettings {
+    return {
+        starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+        corridorEnabled:
+            Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) &&
+            params.lanes.length > 0,
+        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+        cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
+        cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
+        cxContestMidpointVstars:
+            GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+        cxContestPairCount: GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 0,
+        cxContestPairWeight:
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
+        disconnectEnabled:
+            Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) &&
+            params.lanes.length > 0,
+        disconnectDistance:
+            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+        dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
+        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
+        chaikinPasses: Math.max(
+            0,
+            Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)),
+        ),
+        frontierResolution: 0,
+        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
+        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+    };
+}
 
 export function buildOwnershipSnapshotFromStars(
     stars: ReadonlyArray<StarState>,
@@ -161,14 +195,17 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         });
 
     const worldBorderPolylines: CanonicalFrontierPolyline[] =
-        params.geometry.worldBorderPolylines.map((polyline, index) => ({
-            frontierId: `pfield-world:${polyline.ownerPairKey}:${index}`,
-            ownerA: polyline.ownerPairKey,
-            ownerB: 'world',
-            ownerPairKey: `${polyline.ownerPairKey}|world`,
-            points: polyline.points,
-            confidence: 1,
-        }));
+        params.geometry.worldBorderPolylines.map((polyline, index) => {
+            const [ownerA] = polyline.ownerPairKey.split('|');
+            return {
+                frontierId: `pfield-world:${polyline.ownerPairKey}:${index}`,
+                ownerA,
+                ownerB: 'world',
+                ownerPairKey: polyline.ownerPairKey,
+                points: polyline.points,
+                confidence: 1,
+            };
+        });
 
     const shells: CanonicalShell[] = params.geometry.mergedTerritories.map(
         (territory) => {
@@ -205,14 +242,14 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         classification: 'outer',
         confidence: shell.confidence,
     }));
-    const closureReliable = territoryRegions.every((region) => {
-        if (region.points.length < 3) return false;
-        const first = region.points[0];
-        const last = region.points[region.points.length - 1];
-        return (
-            Math.abs(first[0] - last[0]) <= 6 &&
-            Math.abs(first[1] - last[1]) <= 6
-        );
+
+    const topologyResult = buildPowerVoronoiFrontierTopology({
+        sharedPolylines: params.geometry.sharedPolylines,
+        worldBorderPolylines: params.geometry.worldBorderPolylines,
+        ownershipVersion: params.ownershipVersion,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+        fingerprint: params.geometry.fingerprint,
     });
 
     return {
@@ -226,35 +263,23 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         frontierPolylines,
         worldBorderPolylines,
         sharedFrontierMap: buildSharedFrontierMapFromPolylines(frontierPolylines),
-        frontierTopology: {
-            version: `${params.geometry.fingerprint}:pfield-topology`,
-            ownershipVersion: params.ownershipVersion,
-            worldBounds: {
-                width: params.worldWidth,
-                height: params.worldHeight,
-            },
-            vertices: new Map(),
-            sections: new Map(),
-            loops: [],
-            sectionsByOwnerPair: new Map(),
-            sectionsByVertex: new Map(),
-            sectionsByOwner: new Map(),
-        },
+        frontierTopology: topologyResult.topology,
         shells,
         shellLoops,
         provenance: {
             derivedFromField: false,
-            notes: ['Adapted from Geometry_0319 / Power-Voronoi merged territories for perimeter-field sampling'],
+            notes: [
+                'Adapted from Geometry_0319 / Power-Voronoi merged territories for perimeter-field sampling',
+                ...topologyResult.notes,
+            ],
         },
         diagnostics: {
-            topologyReliable: false,
-            identityReliable: false,
-            closureReliable,
+            topologyReliable: topologyResult.topologyReliable,
+            identityReliable: true,
+            closureReliable: topologyResult.topologyReliable,
             notes: [
                 'Perimeter-field base geometry synthesized from Power-Voronoi render-layer geometry',
-                closureReliable
-                    ? 'All adapted territory loops satisfied closure tolerance'
-                    : 'At least one adapted territory loop failed closure tolerance',
+                ...topologyResult.notes,
             ],
         },
     };
@@ -293,23 +318,6 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
         sourceStyle: params.sourceStyle,
         worldWidth: params.worldWidth,
         worldHeight: params.worldHeight,
-    });
-}
-
-export function buildPowerVoronoi0319Settings(params: {
-    lanes: ReadonlyArray<StarConnection>;
-    worldWidth: number;
-    worldHeight: number;
-}): TerritoryGeneratorSettings {
-    const tunables = readTerritoryGeometryTunables(
-        GAME_CONFIG as unknown as Record<string, unknown>,
-    );
-    tunables.corridorEnabled = tunables.corridorEnabled && params.lanes.length > 0;
-    tunables.disconnectEnabled =
-        tunables.disconnectEnabled && params.lanes.length > 0;
-    return buildTerritoryGeneratorSettingsFromTunables({
-        world: { width: params.worldWidth, height: params.worldHeight },
-        tunables,
     });
 }
 

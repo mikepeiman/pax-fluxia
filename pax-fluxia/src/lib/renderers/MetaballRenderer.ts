@@ -416,10 +416,12 @@ export function buildMetaballCacheFingerprint(params: {
         sceneOwnershipMarginPx ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN;
     fp += `${effectiveInfluenceRadius}:${GAME_CONFIG.METABALL_FALLOFF}`;
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
+    fp += `:${GAME_CONFIG.METABALL_FILL_ENABLED ? 1 : 0}`;
     fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.METABALL_COVERAGE}`;
     fp += `:${GAME_CONFIG.METABALL_BLUR}:${GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ? 1 : 0}:${GAME_CONFIG.TERRITORY_METABALL}`;
+    fp += `:${GAME_CONFIG.METABALL_BORDER_ENABLED ? 1 : 0}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_WIDTH}:${GAME_CONFIG.METABALL_BORDER_ALPHA}`;
     fp += `:${GAME_CONFIG.METABALL_SATURATION}:${GAME_CONFIG.METABALL_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_SATURATION}:${GAME_CONFIG.METABALL_BORDER_LIGHTNESS}`;
@@ -790,7 +792,9 @@ function renderMetaballImpl(
     const radius = sceneInput?.influenceRadiusPx ?? GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 120;
     const falloffType = GAME_CONFIG.METABALL_FALLOFF ?? 'inverse-square';
     const sharpness = GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3.0;
-    const alpha = GAME_CONFIG.METABALL_ALPHA ?? 0.5;
+    const fillEnabled = GAME_CONFIG.METABALL_FILL_ENABLED ?? true;
+    const bordersEnabled = GAME_CONFIG.METABALL_BORDER_ENABLED ?? true;
+    const alpha = fillEnabled ? (GAME_CONFIG.METABALL_ALPHA ?? 0.5) : 0;
     const cellSize = GAME_CONFIG.METABALL_CELL_SIZE ?? 8;
     const rawDominanceThresh = GAME_CONFIG.METABALL_THRESHOLD ?? 0.52;
     /** ≤0.5 disables filter; above 0.5 requires winner share of (w1+w2) at least this */
@@ -800,8 +804,12 @@ function renderMetaballImpl(
         : 0;
     const strengthMult = GAME_CONFIG.METABALL_STRENGTH_MULT ?? 1.0;
     const edgeFade = GAME_CONFIG.METABALL_EDGE_FADE ?? 3.0;
-    const borderWidth = GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5;
-    const borderAlpha = GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6;
+    const borderWidth = bordersEnabled
+        ? (GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5)
+        : 0;
+    const borderAlpha = bordersEnabled
+        ? (GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6)
+        : 0;
     const falloffFn = FALLOFF_MAP[falloffType] ?? falloffInverseSquare;
     const fillSatMult = GAME_CONFIG.METABALL_SATURATION ?? 1.0;
     const fillLightMult = GAME_CONFIG.METABALL_LIGHTNESS ?? 1.0;

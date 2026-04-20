@@ -23,7 +23,7 @@
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import MetaballGridTuning from "./MetaballGridTuning.svelte";
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
-  import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
+  import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -1077,51 +1077,6 @@
     </div>
     <div class="var-row">
       <div class="row-top">
-        <span class="var-name">GPU blur</span><span class="val"
-          >{Math.round(
-            panel.metaballBlur ?? GAME_CONFIG.METABALL_BLUR ?? 0,
-          )}</span>
-      </div>
-      <input
-        type="range"
-        min="0"
-        max="16"
-        step="1"
-        value={panel.metaballBlur ?? GAME_CONFIG.METABALL_BLUR ?? 0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate("METABALL_BLUR", "metaballBlur", v);
-        }} />
-    </div>
-    <div
-      class="var-row"
-      title="When GPU blur is above 0: off blurs fill only (sharp borders). On applies one blur pass to fill and border strokes together.">
-      <div class="row-top">
-        <span class="var-name">Blur affects borders</span>
-        <label class="lock-toggle">
-          <input
-            type="checkbox"
-            checked={panel.metaballBlurAffectsBorders ??
-              GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ??
-              false}
-            onchange={(e) => {
-              const v = (e.target as HTMLInputElement).checked;
-              debouncedConfigUpdate(
-                "METABALL_BLUR_AFFECTS_BORDERS",
-                "metaballBlurAffectsBorders",
-                v,
-              );
-            }} />
-          {(panel.metaballBlurAffectsBorders ??
-          GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ??
-          false)
-            ? "On"
-            : "Off"}
-        </label>
-      </div>
-    </div>
-    <div class="var-row">
-      <div class="row-top">
         <span class="var-name">Faction blend sharpness</span><span class="val"
           >{(
             panel.metaballSharpness ??
@@ -1147,67 +1102,13 @@
         }} />
     </div>
 
-    <TerritorySlaWidget
-      title="Territory fill (SLA)"
-      help="Hue is fixed per player from the palette; adjust saturation, lightness, and alpha."
+    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
-      configSat="METABALL_SATURATION"
-      panelSat="metaballSaturation"
-      defaultSat={1.05}
-      configLight="METABALL_LIGHTNESS"
-      panelLight="metaballLightness"
-      defaultLight={0.65}
-      configAlpha="METABALL_ALPHA"
-      panelAlpha="metaballAlpha"
-      defaultAlpha={0.5} />
-
-    <TerritorySlaWidget
-      title="Territory border (width + SLA)"
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      configWidth="METABALL_BORDER_WIDTH"
-      panelWidth="metaballBorderWidth"
-      defaultWidth={3}
-      widthMin={0.5}
-      widthMax={12}
-      widthStep={0.5}
-      configSat="METABALL_BORDER_SATURATION"
-      panelSat="metaballBorderSaturation"
-      defaultSat={1}
-      configLight="METABALL_BORDER_LIGHTNESS"
-      panelLight="metaballBorderLightness"
-      defaultLight={1}
-      configAlpha="METABALL_BORDER_ALPHA"
-      panelAlpha="metaballBorderAlpha"
-      defaultAlpha={1} />
-
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Border Chaikin passes</span><span class="val"
-          >{Math.round(
-            panel.metaballChaikinPasses ??
-              GAME_CONFIG.METABALL_CHAIKIN_PASSES ??
-              0,
-          )}</span>
-      </div>
-      <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        value={panel.metaballChaikinPasses ??
-          GAME_CONFIG.METABALL_CHAIKIN_PASSES ??
-          0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate(
-            "METABALL_CHAIKIN_PASSES",
-            "metaballChaikinPasses",
-            v,
-          );
-        }} />
-    </div>
+      sectionHeading="Style"
+      intro="Shared surface controls for metaball territory output. Fill and border visibility are explicit toggles now; alpha is just opacity."
+      fillHelp="Hue is fixed per player from the palette; adjust saturation, lightness, alpha, or disable fill entirely."
+      borderHelp="Adjust shared border width, saturation, lightness, alpha, or disable borders entirely." />
 
     <h5 class="territory-inline-heading">Combat &amp; Fleet Pressure</h5>
     <div
@@ -2119,41 +2020,13 @@
       is then driven only by derived perimeter samples.
     </div>
     <PerimeterFieldTuning {panel} {updatePanel} showDiagnosticsSection={false} />
-    <TerritorySlaWidget
-      title="Territory fill (SLA)"
-      help="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, and alpha here."
+    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
-      configSat="METABALL_SATURATION"
-      panelSat="metaballSaturation"
-      defaultSat={1.05}
-      configLight="METABALL_LIGHTNESS"
-      panelLight="metaballLightness"
-      defaultLight={0.65}
-      configAlpha="METABALL_ALPHA"
-      panelAlpha="metaballAlpha"
-      defaultAlpha={0.5} />
-
-    <TerritorySlaWidget
-      title="Territory border (width + SLA)"
-      help="Perimeter Field borders are rendered through the shared territory border surface. Use this for basic border width, saturation, lightness, and alpha."
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      configWidth="METABALL_BORDER_WIDTH"
-      panelWidth="metaballBorderWidth"
-      defaultWidth={3}
-      widthMin={0.5}
-      widthMax={12}
-      widthStep={0.5}
-      configSat="METABALL_BORDER_SATURATION"
-      panelSat="metaballBorderSaturation"
-      defaultSat={1}
-      configLight="METABALL_BORDER_LIGHTNESS"
-      panelLight="metaballBorderLightness"
-      defaultLight={1}
-      configAlpha="METABALL_BORDER_ALPHA"
-      panelAlpha="metaballBorderAlpha"
-      defaultAlpha={1} />
+      sectionHeading="Style"
+      intro="Shared surface styling for perimeter-field output. These controls affect the displayed fill and border only; they do not change the ownership geometry source."
+      fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
+      borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
   </div>
 {/if}
 
@@ -2175,41 +2048,13 @@
       flipTime.
     </div>
     <MetaballGridTuning {panel} {updatePanel} />
-    <TerritorySlaWidget
-      title="Territory fill (SLA)"
-      help="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, and alpha here."
+    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
-      configSat="METABALL_SATURATION"
-      panelSat="metaballSaturation"
-      defaultSat={1.05}
-      configLight="METABALL_LIGHTNESS"
-      panelLight="metaballLightness"
-      defaultLight={0.65}
-      configAlpha="METABALL_ALPHA"
-      panelAlpha="metaballAlpha"
-      defaultAlpha={0.5} />
-
-    <TerritorySlaWidget
-      title="Territory border (width + SLA)"
-      help="Metaball Grid borders are rendered through the shared territory border surface. Use this for basic border width, saturation, lightness, and alpha."
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      configWidth="METABALL_BORDER_WIDTH"
-      panelWidth="metaballBorderWidth"
-      defaultWidth={3}
-      widthMin={0.5}
-      widthMax={12}
-      widthStep={0.5}
-      configSat="METABALL_BORDER_SATURATION"
-      panelSat="metaballBorderSaturation"
-      defaultSat={1}
-      configLight="METABALL_BORDER_LIGHTNESS"
-      panelLight="metaballBorderLightness"
-      defaultLight={1}
-      configAlpha="METABALL_BORDER_ALPHA"
-      panelAlpha="metaballBorderAlpha"
-      defaultAlpha={1} />
+      sectionHeading="Style"
+      intro="Shared surface styling for metaball-grid output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
+      fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
+      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
   </div>
 {/if}
 

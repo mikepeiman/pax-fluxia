@@ -11,7 +11,16 @@
         /** Short note under title (not between slider label and track). */
         help?: string;
         panel: Record<string, unknown>;
-        onUpdate: (configKey: string, panelKey: string, value: number) => void;
+        onUpdate: (
+            configKey: string,
+            panelKey: string,
+            value: number | boolean,
+        ) => void;
+
+        configEnabled?: string;
+        panelEnabled?: string;
+        defaultEnabled?: boolean;
+        enabledLabel?: string;
 
         configSat: string;
         panelSat: string;
@@ -36,6 +45,10 @@
         help = "",
         panel,
         onUpdate,
+        configEnabled,
+        panelEnabled,
+        defaultEnabled = true,
+        enabledLabel = "Enabled",
         configSat,
         panelSat,
         defaultSat,
@@ -62,10 +75,40 @@
         if (typeof cv === "number" && !Number.isNaN(cv)) return cv;
         return def;
     }
+
+    function boolVal(panelKey: string, configKey: string, def: boolean): boolean {
+        const pv = panel[panelKey];
+        if (typeof pv === "boolean") return pv;
+        const cv = (GAME_CONFIG as unknown as Record<string, unknown>)[
+            configKey
+        ];
+        if (typeof cv === "boolean") return cv;
+        return def;
+    }
+
+    let enabled = $derived(
+        configEnabled && panelEnabled
+            ? boolVal(panelEnabled, configEnabled, defaultEnabled)
+            : true,
+    );
 </script>
 
-<div class="territory-sla-widget">
+<div class="territory-sla-widget" class:territory-sla-widget--disabled={!enabled}>
     <h4 class="sub-heading">{title}</h4>
+    {#if configEnabled && panelEnabled}
+        <label class="toggle-row territory-sla-widget__toggle">
+            <input
+                type="checkbox"
+                checked={enabled}
+                onchange={(event) => {
+                    const value = (event.target as HTMLInputElement).checked;
+                    onUpdate(configEnabled, panelEnabled, value);
+                }}
+            />
+            <span class="var-name">{enabledLabel}</span>
+            <span class="val">{enabled ? "On" : "Off"}</span>
+        </label>
+    {/if}
     {#if help}
         <div
             class="row-bottom"
@@ -78,9 +121,7 @@
     {#if configWidth && panelWidth && defaultWidth !== undefined}
         <div class="var-row">
             <div class="row-top">
-                <span class="var-name" data-setting-config-key={configWidth}
-                    >Width (px)</span
-                ><span class="val"
+                <span class="var-name">Width (px)</span><span class="val"
                     >{val(panelWidth, configWidth, defaultWidth).toFixed(
                         widthStep < 1 ? 1 : 0,
                     )}</span
@@ -102,9 +143,7 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name" data-setting-config-key={configSat}
-                >Saturation</span
-            ><span class="val"
+            <span class="var-name">Saturation</span><span class="val"
                 >{val(panelSat, configSat, defaultSat).toFixed(2)}</span
             >
         </div>
@@ -123,9 +162,7 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name" data-setting-config-key={configLight}
-                >Lightness</span
-            ><span class="val"
+            <span class="var-name">Lightness</span><span class="val"
                 >{val(panelLight, configLight, defaultLight).toFixed(2)}</span
             >
         </div>
@@ -144,15 +181,13 @@
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name" data-setting-config-key={configAlpha}
-                >Alpha</span
-            ><span class="val"
+            <span class="var-name">Alpha</span><span class="val"
                 >{val(panelAlpha, configAlpha, defaultAlpha).toFixed(2)}</span
             >
         </div>
         <input
             type="range"
-            min="0.05"
+            min="0"
             max="1"
             step="0.01"
             value={val(panelAlpha, configAlpha, defaultAlpha)}
@@ -169,5 +204,13 @@
 
     .territory-sla-widget {
         margin: 4px 0 10px;
+    }
+
+    .territory-sla-widget__toggle {
+        margin: 0 0 6px;
+    }
+
+    .territory-sla-widget--disabled {
+        opacity: 0.82;
     }
 </style>

@@ -1,0 +1,33 @@
+{
+  "name": "regular_ships",
+  "category": "ships",
+  "values": {
+    "SHIP_BASE_SIZE": 3,
+    "STAR_RENDER_RADIUS": 19,
+    "ORBIT_BASE_RADIUS": 5,
+    "DAMAGED_ORBIT_RADIUS": 15,
+    "DAMAGED_ORBIT_EVADE": false,
+    "ORBIT_RING_MULT": 1.6,
+    "SHIP_OUTLINE_ON": true,
+    "SHIP_OUTLINE_PX": 1,
+    "SHIP_GLOW_INTENSITY": 0.3,
+    "SHIP_GLOW_RADIUS": 15,
+    "MIN_COLOR_LIGHTNESS": 0.5,
+    "SHIP_SCALE_MULT": 0.4,
+    "MAX_VISUAL_SHIPS": 500,
+    "SHIP_VISUAL_RADIUS": 3,
+    "DENSITY_HUE_STEP": 4,
+    "DENSITY_SAT_STEP": 0.05,
+    "DENSITY_LIGHT_STEP": 0.05,
+    "DENSITY_TIERS": 3,
+    "DENSITY_DARKEN_ALT": true,
+    "STAR_GLOW_ON": true,
+    "STAR_GLOW_RADIUS_MULT": 1.3,
+    "STAR_GLOW_INTENSITY": 0.25,
+    "STAR_GLOW_LAYERS": 4,
+    "STAR_SHAPE_MODE": "polygon",
+    "STAR_ICON_SCALE": 0.55,
+    "STAR_CORNER_RADIUS": 0.3
+  },
+  "createdAt": "2026-02-28T00:26:25.932Z"
+}

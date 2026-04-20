@@ -8,7 +8,7 @@
  *     and replayed at each frame.
  *
  * Design authority:
- *   - .agent/docs/project/implementation-plans/2026-04-15/PERIMETER_FIELD_EXECUTION_PLAN_2026-04-15.md
+ *   - .agent/docs/project/implementation-plans/2026-04-15/PERIMETER_FIELD_IMPLEMENTATION_PLAN_2026-04-15.md
  *   - .agent/docs/game/territory/PERIMETER_FIELD_MODE_SPEC.md
  *
  * Invariants (enforced by construction and validated by T1..T8 invariants):
@@ -18,6 +18,7 @@
  */
 
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
 
 // ─── Ownership Role ─────────────────────────────────────────────────────────
 
@@ -67,6 +68,8 @@ export interface PerimeterV {
     loopId: string;
     /** The FrontierSection this V was sampled from. */
     sectionId: string;
+    /** Deterministic index of this sample within its section-local sampling pass. */
+    indexInSection: number;
     /** Which kind of section this V sits on. */
     sectionKind: PerimeterVSectionKind;
     /** Arclength position within the section polyline [0, section.length]. */
@@ -82,15 +85,59 @@ export interface PerimeterV {
 // ─── Changed-Section Sets ───────────────────────────────────────────────────
 
 /**
- * Output of the frontier-topology diff step. A section is a "changed section"
- * if its ID exists only in PREV (removed) or only in NEXT (added). Sections
- * whose IDs appear in both are structurally unchanged; V's on them are
- * guaranteed zero-displacement preserved V's.
+ * Output of the frontier diff + conquest-scoped changed-front selection step.
+ *
+ * Notes:
+ * - `removedSectionIds` / `addedSectionIds` represent true PREV-only / NEXT-only
+ *   topology changes.
+ * - `sharedChangedSectionIds` represent stable section IDs whose geometry still
+ *   changed enough to require correspondence work.
+ * - `selectedPrevSectionIds` / `selectedNextSectionIds` are the conquest-scoped
+ *   driver sets. They are the only sections allowed to move.
  */
 export interface ChangedSectionSets {
     readonly removedSectionIds: ReadonlySet<string>;
     readonly addedSectionIds: ReadonlySet<string>;
+    readonly sharedChangedSectionIds: ReadonlySet<string>;
     readonly unchangedSectionIds: ReadonlySet<string>;
+    readonly selectedPrevSectionIds: ReadonlySet<string>;
+    readonly selectedNextSectionIds: ReadonlySet<string>;
+}
+
+export interface ChangedFrontChainSectionRef {
+    loopId: string;
+    sectionId: string;
+    direction: 'forward' | 'reverse';
+}
+
+export interface ChangedFrontChain {
+    chainId: string;
+    seedStarId: string;
+    previousOwnerId: string;
+    newOwnerId: string;
+    ownerPairTransition: string;
+    prevSectionIds: readonly string[];
+    nextSectionIds: readonly string[];
+    prevLoopIds: readonly string[];
+    nextLoopIds: readonly string[];
+    prevSpanOrder: readonly ChangedFrontChainSectionRef[];
+    nextSpanOrder: readonly ChangedFrontChainSectionRef[];
+}
+
+export interface ChangedFrontSelectionResult {
+    chains: readonly ChangedFrontChain[];
+    changedSections: ChangedSectionSets;
+}
+
+export interface PerimeterFieldTransitionTruth {
+    conquestKey: string;
+    prevGeometry: CanonicalGeometrySnapshot;
+    nextGeometry: CanonicalGeometrySnapshot;
+    prevOwnership: OwnershipSnapshot;
+    nextOwnership: OwnershipSnapshot;
+    prevVSet: readonly PerimeterV[];
+    nextVSet: readonly PerimeterV[];
+    changedFronts: ChangedFrontSelectionResult;
 }
 
 // ─── Unmatched Span ─────────────────────────────────────────────────────────
@@ -149,10 +196,16 @@ export interface TransitionMover {
     prevPos: { x: number; y: number };
     /** Position at t=1. */
     nextPos: { x: number; y: number };
-    /** Owner (color/identity) attribution of the V being moved. */
+    /** Primary owner (used for diagnostics when prev/next owners are identical). */
     ownerId: string;
-    /** Player index for rendering color. */
+    /** Player index for the primary owner. */
     playerIdx: number;
+    /** Owner and player index at t=0. */
+    prevOwnerId: string;
+    prevPlayerIdx: number;
+    /** Owner and player index at t=1. */
+    nextOwnerId: string;
+    nextPlayerIdx: number;
     /** Whether this V represents the losing side, winning side, or an uninvolved neighbor. */
     ownerRole: PerimeterVOwnerRole;
     /** Influence strength for this mover. */
@@ -161,6 +214,12 @@ export interface TransitionMover {
     pathType: TransitionMoverPathType;
     /** Quadratic bezier control point for arc paths; absent for straight. */
     pathControlPoint?: { x: number; y: number };
+}
+
+export interface PreservedVPair {
+    preservedId: string;
+    prevV: PerimeterV;
+    nextV: PerimeterV;
 }
 
 // ─── Appearing / Disappearing V's ───────────────────────────────────────────
@@ -177,13 +236,23 @@ export type DisappearingVReason =
     | 'region_eliminated'
     | 'dx_midpoint_removed';
 
-/** A V that exists only in NEXT. Fades in over the transition at its NEXT position. */
+/**
+ * A V currently classified as NEXT-only.
+ *
+ * This is a provisional transition-plan category, not yet a guaranteed design truth.
+ * The final correspondence model may need to match 100% of changed PREV/NEXT V's.
+ */
 export interface AppearingV {
     v: PerimeterV;
     reason: AppearingVReason;
 }
 
-/** A V that exists only in PREV. Fades out over the transition at its PREV position. */
+/**
+ * A V currently classified as PREV-only.
+ *
+ * This is a provisional transition-plan category, not yet a guaranteed design truth.
+ * The final correspondence model may need to match 100% of changed PREV/NEXT V's.
+ */
 export interface DisappearingV {
     v: PerimeterV;
     reason: DisappearingVReason;
@@ -204,19 +273,25 @@ export interface DisappearingV {
  *   is re-used across every frame of the transition; only t varies.
  */
 export interface TransitionPlan {
-    /** Key from buildTransitionKey(input) — identifies the conquest batch. */
+    /** Key from buildTransitionKey(input) - identifies the conquest batch. */
     conquestKey: string;
     /** All PREV V's, arclength-ordered per loop, including preserved V's. */
     prevVSet: readonly PerimeterV[];
     /** All NEXT V's, arclength-ordered per loop, including preserved V's. */
     nextVSet: readonly PerimeterV[];
-    /** Set of V IDs that exist (and are ID-equal) in both PREV and NEXT. */
+    /** Conquest-scoped changed-front chains used to build the plan. */
+    changedFronts: ChangedFrontSelectionResult;
+    /** Preserved PREV/NEXT pairs identified by tolerance + tangent + order. */
+    preserved: readonly PreservedVPair[];
+    /** Set of PREV-side V IDs that are preserved across the transition. */
     preservedVIds: ReadonlySet<string>;
+    /** Canonical preserved pair keys for diagnostics/export only. */
+    preservedMatchKeys: ReadonlySet<string>;
     /** Paired movers within unmatched spans. Bijective within each SpanPair. */
     movers: readonly TransitionMover[];
-    /** NEXT-only V's (fade in). */
+    /** Provisional NEXT-only V classification. */
     appearing: readonly AppearingV[];
-    /** PREV-only V's (fade out). */
+    /** Provisional PREV-only V classification. */
     disappearing: readonly DisappearingV[];
     /** PREV geometry snapshot — carried for diagnostic/export only. */
     prevGeometry: CanonicalGeometrySnapshot;
@@ -234,8 +309,8 @@ export interface TransitionPlan {
  *   - 'preserved'   : V on an unchanged section inside (or adjacent to) an affected area.
  *                     Behaviourally identical to 'static' but labeled for inspection.
  *   - 'mover'       : V inside an unmatched span, driven by a TransitionMover.
- *   - 'appearing'   : V that exists only in NEXT.
- *   - 'disappearing': V that exists only in PREV.
+ *   - 'appearing'   : V currently classified as NEXT-only.
+ *   - 'disappearing': V currently classified as PREV-only.
  */
 export type TransitionRole =
     | 'static'

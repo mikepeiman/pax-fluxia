@@ -311,8 +311,10 @@
     <span class="var-name">Recompute connectivity</span><span
         class="val"
         style="font-size:9px;opacity:0.6"
-        >{gameStore.currentMapConnectivityMode === "generated"
-            ? "random maps already recompute"
+        >{(panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
+            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            false)
+            ? "authored maps: recompute on"
             : "authored maps: off reshapes only"}</span
     ></label
 >

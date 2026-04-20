@@ -30,6 +30,7 @@ function makeSnapshot(args?: {
                 ? makeGeometry(args.targetWidth, args.targetHeight)
                 : null,
         playerColors: [],
+        renderedSamples: [],
         staticSamples: [],
         targetStaticSamples: [],
         transitionSamples: [],

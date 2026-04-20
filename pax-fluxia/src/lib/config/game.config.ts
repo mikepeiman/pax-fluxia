@@ -338,6 +338,8 @@ interface GameConfigType {
      * then satisfies full **lane margin** on sampled paths. Does not relax lane margin itself.
      */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
+    /** Re-run authored-map connectivity reconciliation after lane-setting changes. */
+    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: boolean;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -384,10 +386,6 @@ interface GameConfigType {
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
     PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
-    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
-    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
-    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
-    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: boolean; // Show derived perimeter vstars and transition-local override points
     PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: boolean; // Capture perimeter-field conquests into live/replay slots for package export and scrub
@@ -398,6 +396,14 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: number; // 0 = off, otherwise ghost this many past/future frames on each side of the selected scrub frame
     PERIMETER_FIELD_DEBUG_STROBE_STRIDE: number; // 0 = off, otherwise render every Nth captured frame as a simultaneous stroboscopic trail
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: number; // Stroke width used by exported conquest diagnostic vectors
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE: 'off' | 'prev' | 'next' | 'transition' | 'compare'; // Paused overlay snapshot source rendered above the live map
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA: number; // Alpha for paused overlay snapshot compositing
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS: boolean; // Show stable V IDs / mover IDs on snapshot overlays
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS: boolean; // Show prev->next vectors on snapshot overlays
+    PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // @deprecated Legacy selector retained only for config migration
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // @deprecated Legacy synthetic bridge control retained only for config migration
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // @deprecated Legacy synthetic bridge control retained only for config migration
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // @deprecated Legacy synthetic bridge control retained only for config migration
     // ── Metaball Grid (additive new render family, additive to perimeter_field) ──
     METABALL_GRID_ENABLED: boolean; // Enable metaball-grid render family (default false)
     METABALL_GRID_SPACING_PX: number; // World-space spacing between grid vstars (px, perf-sensitive)
@@ -545,6 +551,7 @@ interface GameConfigType {
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
+    METABALL_FILL_ENABLED: boolean;     // Master fill toggle for metaball-family renderers (default true)
     METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
     METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
     /**
@@ -558,6 +565,7 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
+    METABALL_BORDER_ENABLED: boolean;    // Master border toggle for metaball-family renderers (default true)
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
@@ -1229,6 +1237,8 @@ const _rawConfig: GameConfigType = {
 
     /** 0 = prune-first topology; 1 = keep edges for curved geometry (Phase 4 chord test scaled) */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
+    /** Re-run authored-map connectivity reconciliation after lane-setting changes. */
+    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: false,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',
@@ -1312,10 +1322,6 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
     PERIMETER_FIELD_INFLUENCE_RADIUS: 52,
     PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.35,
-    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
-    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: true,
-    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
-    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: false,
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: false,
     PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: false,
@@ -1326,6 +1332,14 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: 0,
     PERIMETER_FIELD_DEBUG_STROBE_STRIDE: 0,
     PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: 2.5,
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE: 'off' as const,
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA: 0.65,
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS: true,
+    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS: true,
+    PERIMETER_FIELD_TRANSITION_ENGINE: 'plan' as const,
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
     // ── Metaball Grid (additive new render family, MG1) ──────────────────────────
     METABALL_GRID_ENABLED: false,
     // MG-PERF: 48 px keeps sample count ~4× smaller than 24 px and still stays
@@ -1493,6 +1507,8 @@ const _rawConfig: GameConfigType = {
     METABALL_FALLOFF: 'gaussian' as 'inverse-square' | 'gaussian' | 'smoothstep',
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
     METABALL_BLEND_SHARPNESS: 20,
+    /** Master fill toggle for metaball-family renderers */
+    METABALL_FILL_ENABLED: true,
     /** Overall metaball territory alpha (0-1) */
     METABALL_ALPHA: 0.5,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
@@ -1506,6 +1522,8 @@ const _rawConfig: GameConfigType = {
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
     METABALL_BLUR: 0,
     METABALL_BLUR_AFFECTS_BORDERS: false,
+    /** Master border toggle for metaball-family renderers */
+    METABALL_BORDER_ENABLED: true,
     /** Border line width between metaball territories */
     METABALL_BORDER_WIDTH: 3,
     /** Border line alpha */

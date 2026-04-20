@@ -10,7 +10,7 @@
     let { panel, updatePanel }: Props = $props();
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
-        (GAME_CONFIG as Record<string, unknown>)[configKey] = value;
+        ((GAME_CONFIG as unknown) as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
         bumpTerritoryVisualConfig();
     }
