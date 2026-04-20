@@ -179,6 +179,69 @@ function snapPoint(point: EditorPoint): EditorPoint {
     return snapPointToHexCenter(point, hexRadius);
 }
 
+function inferStarHexRadius(
+    star: MapDefinition["stars"][number],
+): number | null {
+    if (
+        !Number.isFinite(star.x)
+        || !Number.isFinite(star.y)
+        || !Number.isFinite(star.gridQ)
+        || !Number.isFinite(star.gridR)
+    ) {
+        return null;
+    }
+
+    const q = star.gridQ!;
+    const r = star.gridR!;
+    const xDenominator = 1 + q * 1.5;
+    const yDenominator = Math.sqrt(3) * (r + 0.5 + (q % 2 === 1 ? 0.5 : 0));
+    const candidates = [
+        xDenominator > 0 ? (star.x - MAP_EDITOR_HEX_PADDING) / xDenominator : NaN,
+        yDenominator > 0 ? (star.y - MAP_EDITOR_HEX_PADDING) / yDenominator : NaN,
+    ].filter((value) => Number.isFinite(value) && value > 0);
+
+    if (candidates.length === 0) {
+        return null;
+    }
+
+    candidates.sort((left, right) => left - right);
+    return normalizeHexRadius(candidates[Math.floor(candidates.length / 2)]!);
+}
+
+function inferMapHexRadius(map: MapDefinition): number | null {
+    const candidates = map.stars
+        .map((star) => inferStarHexRadius(star))
+        .filter((value): value is number => value !== null);
+
+    if (candidates.length === 0) {
+        return null;
+    }
+
+    candidates.sort((left, right) => left - right);
+    return normalizeHexRadius(candidates[Math.floor(candidates.length / 2)]!);
+}
+
+function resolveMapHexRadius(map: MapDefinition): number {
+    const metadataHexRadius = map.metadata.editorHexRadius;
+    if (Number.isFinite(metadataHexRadius) && metadataHexRadius! > 0) {
+        return normalizeHexRadius(metadataHexRadius!);
+    }
+
+    return inferMapHexRadius(map) ?? hexRadius;
+}
+
+function buildDocumentMap(
+    map: MapDefinition,
+    targetHexRadius = resolveMapHexRadius(map),
+): MapDefinition {
+    const normalized = normalizeDocument(map, targetHexRadius);
+    normalized.metadata = {
+        ...normalized.metadata,
+        editorHexRadius: targetHexRadius,
+    };
+    return normalized;
+}
+
 function normalizeStarToGrid(
     star: MapDefinition["stars"][number],
     targetHexRadius: number,
@@ -413,7 +476,7 @@ function mapHasMinimumStarSpacing(map: MapDefinition): boolean {
 }
 
 function syncRepositoryMaps(): void {
-    const maps = gameStore.savedMaps.map((map) => normalizeDocument(map));
+    const maps = gameStore.savedMaps.map((map) => buildDocumentMap(map));
     const runtimeBuiltins = maps.filter((map) => Boolean((map as { builtIn?: boolean }).builtIn));
     repositoryMaps = maps.filter((map) => !(map as { builtIn?: boolean }).builtIn);
     if (runtimeBuiltins.length > 0) {
@@ -466,7 +529,7 @@ function applyMap(
         redoStack = [];
     }
 
-    const normalizedMap = normalizeDocument(nextMap);
+    const normalizedMap = buildDocumentMap(nextMap, hexRadius);
     const normalized = autosave ? recordAutosave(normalizedMap) : normalizedMap;
     documentState = normalized;
     selection = preserveSelection
@@ -512,7 +575,9 @@ function syncBrushesFromSelection(): void {
 }
 
 function loadMap(map: MapDefinition, sourceLabel?: string): void {
-    documentState = normalizeDocument(map);
+    hexRadius = resolveMapHexRadius(map);
+    persistHexRadius(hexRadius);
+    documentState = buildDocumentMap(map, hexRadius);
     selection = createSelection();
     viewport = { panX: 0, panY: 0, zoom: 1 };
     tool = "auto";
@@ -525,7 +590,7 @@ function loadMap(map: MapDefinition, sourceLabel?: string): void {
 }
 
 async function refreshSources(): Promise<void> {
-    builtinMaps = (await loadBuiltinMaps().catch(() => [])).map((map) => normalizeDocument(map));
+    builtinMaps = (await loadBuiltinMaps().catch(() => [])).map((map) => buildDocumentMap(map));
     syncRepositoryMaps();
     fixtureManifest = getFixtureMapManifest();
 }
@@ -1458,13 +1523,14 @@ function buildPersistedMap(options?: {
     coerceUnownedStars?: boolean;
 }): MapDefinition {
     const now = new Date().toISOString();
-    const map = normalizeDocument(documentState);
+    const map = buildDocumentMap(documentState, hexRadius);
     if (options?.coerceUnownedStars) {
         coerceUnownedStarsForOutput(map);
     }
     map.metadata = {
         ...map.metadata,
         mapId: map.metadata.mapId || slugify(map.metadata.name),
+        editorHexRadius: hexRadius,
         updatedAt: now,
         importedFrom: { kind: "editor" },
         thumbnailDataUrl:

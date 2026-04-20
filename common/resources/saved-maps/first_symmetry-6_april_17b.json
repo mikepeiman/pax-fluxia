@@ -3,6 +3,7 @@
     "mapId": "first-symmetry-6-april-17b",
     "name": "First Symmetry-6_April 17b",
     "version": 1,
+    "editorHexRadius": 15,
     "createdAt": "2026-04-17T20:43:30.233Z",
     "updatedAt": "2026-04-18T15:11:24.120Z",
     "importedFrom": {

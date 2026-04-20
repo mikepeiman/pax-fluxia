@@ -20,6 +20,7 @@ export interface AuthoredMapMetadata {
     author?: string;
     description?: string;
     version: number;
+    editorHexRadius?: number;
     createdAt?: string;
     updatedAt?: string;
     tags?: string[];
@@ -105,6 +106,7 @@ export interface LegacyMapDefinition {
         author?: string;
         description?: string;
         version?: number;
+        editorHexRadius?: number;
         createdAt?: string;
     };
     stars: Array<{

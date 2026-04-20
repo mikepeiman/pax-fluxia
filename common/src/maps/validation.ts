@@ -87,6 +87,18 @@ export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapVa
         issues.push(issue('warning', 'metadata_version_mismatch', `Map schema version ${map.metadata?.version ?? 'unknown'} does not match expected ${AUTHORED_MAP_SCHEMA_VERSION}`, 'metadata.version'));
     }
 
+    if (
+        map.metadata?.editorHexRadius !== undefined
+        && (!isFiniteNumber(map.metadata.editorHexRadius) || map.metadata.editorHexRadius <= 0)
+    ) {
+        issues.push(issue(
+            'error',
+            'metadata_editor_hex_radius_invalid',
+            'Map metadata.editorHexRadius must be a positive finite number when present',
+            'metadata.editorHexRadius',
+        ));
+    }
+
     const factionIds = new Set<string>();
     for (const faction of map.factions ?? []) {
         if (!faction.id?.trim()) {
