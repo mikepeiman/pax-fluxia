@@ -1,0 +1,18 @@
+{
+  "name": "wider_lanes_shadow",
+  "category": "visuals",
+  "values": {
+    "CONNECTION_MAX_DISTANCE": 150,
+    "CONNECTION_COLOR": "0xffffff",
+    "CONNECTION_WIDTH": 5,
+    "CONNECTION_ALPHA": 0.1,
+    "CONNECTION_SHADOW_WIDTH": 3,
+    "CONNECTION_SHADOW_ALPHA": 0.25,
+    "SHOW_CONNECTIONS": true,
+    "SHOW_SELECTION_HEX": true,
+    "SHOW_HEX_GRID": false,
+    "HEX_RADIUS": 50,
+    "HEX_PADDING": 50
+  },
+  "createdAt": "2026-02-28T00:29:13.834Z"
+}

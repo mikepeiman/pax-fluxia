@@ -807,7 +807,7 @@ Across the prompt corpus, the user's intent is stable and internally consistent:
 #### 3. Ownership Primitive For This Mode
 - Perimeter vstars are not an overlay.
 - Perimeter vstars are not temporary conquest-only particles.
-- Perimeter vstars are the render/ownership substrate for this mode.
+- Perimeter vstars are the render substrate for this mode, while being anchored to, and a layer above, the actual ownership geometry from vector source.
 - Real stars should not continue acting as visible ownership-force contributors once base geometry has been derived.
 
 #### 4. Perimeter Sample Placement

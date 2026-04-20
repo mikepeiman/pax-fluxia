@@ -1,6 +1,12 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        auditThemeRouting,
+        groupThemesByRenderFamily,
+        type ThemeFamilyGroup,
+        type ThemeRoutingStatus,
+    } from "$lib/config/themeRouting";
     import { type GameTheme } from "$lib/config/themes";
     import {
         registerCategoryPresetApplyCallback,
@@ -713,6 +719,70 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
     let showThemeChips = $state(false);
+    let themeFamilyGroups = $derived(
+        groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
+    );
+
+    const THEME_STATUS_LABELS: Record<ThemeRoutingStatus, string> = {
+        wired: "wired",
+        "legacy-fallback": "legacy fallback",
+        agnostic: "agnostic",
+        "needs-editing": "needs edit",
+    };
+
+    function getThemeAudit(theme: GameTheme) {
+        return auditThemeRouting(theme.values as Record<string, unknown>);
+    }
+
+    function getThemeStatusClass(status: ThemeRoutingStatus): string {
+        switch (status) {
+            case "wired":
+                return "status-wired";
+            case "legacy-fallback":
+                return "status-legacy";
+            case "needs-editing":
+                return "status-needs-edit";
+            default:
+                return "status-agnostic";
+        }
+    }
+
+    function getThemeOptionLabel(theme: GameTheme): string {
+        const audit = getThemeAudit(theme);
+        switch (audit.status) {
+            case "needs-editing":
+                return `${theme.name} [needs edit]`;
+            case "legacy-fallback":
+                return `${theme.name} [legacy fallback]`;
+            default:
+                return theme.name;
+        }
+    }
+
+    function getThemeChipTitle(theme: GameTheme): string {
+        const audit = getThemeAudit(theme);
+        return `${audit.familyLabel}: ${audit.notes.join(" ")}`;
+    }
+
+    function getThemeGroupSummary(group: ThemeFamilyGroup<GameTheme>): string {
+        const counts: Partial<Record<ThemeRoutingStatus, number>> = {};
+        for (const theme of group.themes) {
+            const status = getThemeAudit(theme).status;
+            counts[status] = (counts[status] ?? 0) + 1;
+        }
+        return [
+            counts.wired ? `${counts.wired} wired` : "",
+            counts["legacy-fallback"]
+                ? `${counts["legacy-fallback"]} legacy fallback`
+                : "",
+            counts["needs-editing"]
+                ? `${counts["needs-editing"]} needs edit`
+                : "",
+            counts.agnostic ? `${counts.agnostic} agnostic` : "",
+        ]
+            .filter(Boolean)
+            .join(" | ");
+    }
 
     function handleApplyTheme(name: string) {
         themeStore.applyTheme(name);
@@ -1245,10 +1315,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     }}
                 >
                     <option value="">🎨 Select theme…</option>
-                    {#each themeStore.allThemes as theme}
-                        <option value={theme.name}>
-                            {theme.name}
-                        </option>
+                    {#each themeFamilyGroups as group}
+                        <optgroup label={`${group.label} (${group.themes.length})`}>
+                            {#each group.themes as theme}
+                                <option value={theme.name}>
+                                    {getThemeOptionLabel(theme)}
+                                </option>
+                            {/each}
+                        </optgroup>
                     {/each}
                 </select>
                 {#if themeStore.selectedThemeName && themeStore.isUserTheme(themeStore.selectedThemeName)}
@@ -1307,28 +1381,56 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 onclick={() => showThemeChips = !showThemeChips}
             >
                 <span class="text-[10px]">{showThemeChips ? '▾' : '▸'}</span>
-                <span>Themes</span>
-                <span class="ml-auto text-[10px] text-slate-500 font-normal">{themeStore.allThemes.length}</span>
+                <span>Theme Families</span>
+                <span class="ml-auto text-[10px] text-slate-500 font-normal">{themeFamilyGroups.length} groups / {themeStore.allThemes.length}</span>
             </button>
             {#if showThemeChips}
-                <div class="full-chips-row">
-                    {#each themeStore.allThemes as t}
-                        <button
-                            class="full-chip"
-                            class:active={themeStore.selectedThemeName === t.name}
-                            onclick={() => handleApplyTheme(t.name)}
-                        >
-                            {t.name}
-                            {#if themeStore.isUserTheme(t.name)}
-                                <span
-                                    class="full-chip-delete"
-                                    onclick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteFullTheme(t.name);
-                                    }}>×</span
-                                >
-                            {/if}
-                        </button>
+                <div class="theme-family-groups">
+                    {#each themeFamilyGroups as group}
+                        <section class="theme-family-section">
+                            <div class="theme-family-header">
+                                <div class="theme-family-title-row">
+                                    <span class="theme-family-name">{group.label}</span>
+                                    <span class="theme-family-count">{group.themes.length}</span>
+                                </div>
+                                <p class="theme-family-description">{group.description}</p>
+                                <p class="theme-family-summary">{getThemeGroupSummary(group)}</p>
+                            </div>
+                            <div class="full-chips-row">
+                                {#each group.themes as t}
+                                    {@const routing = getThemeAudit(t)}
+                                    <button
+                                        class="full-chip"
+                                        class:active={themeStore.selectedThemeName === t.name}
+                                        onclick={() => handleApplyTheme(t.name)}
+                                        title={getThemeChipTitle(t)}
+                                    >
+                                        <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
+                                            {THEME_STATUS_LABELS[routing.status]}
+                                        </span>
+                                        <span class="theme-chip-name">{t.name}</span>
+                                        {#if themeStore.isUserTheme(t.name)}
+                                            <span
+                                                role="button"
+                                                tabindex="0"
+                                                class="full-chip-delete"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteFullTheme(t.name);
+                                                }}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleDeleteFullTheme(t.name);
+                                                    }
+                                                }}>&times;</span
+                                            >
+                                        {/if}
+                                    </button>
+                                {/each}
+                            </div>
+                        </section>
                     {/each}
                 </div>
             {/if}
@@ -1488,15 +1590,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <ControlsSectionConquest
                         {panel}
                         {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {animValues}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "territory"}
@@ -2104,6 +2197,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: #151a25;
         color: #eee;
     }
+    .full-theme-select optgroup {
+        background: #111520;
+        color: #7dd3fc;
+        font-style: normal;
+        font-weight: 700;
+    }
     .full-action-btn {
         background: rgba(255, 255, 255, 0.04);
         color: #aaa;
@@ -2216,6 +2315,59 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 5px;
         width: 100%;
     }
+    .theme-family-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+    .theme-family-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid rgba(125, 211, 252, 0.12);
+        border-radius: 10px;
+        background:
+            linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(10, 15, 26, 0.92)),
+            rgba(255, 255, 255, 0.02);
+    }
+    .theme-family-header {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .theme-family-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .theme-family-name {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #e2e8f0;
+    }
+    .theme-family-count {
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(125, 211, 252, 0.12);
+        color: #7dd3fc;
+        font-size: 10px;
+    }
+    .theme-family-description,
+    .theme-family-summary {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    .theme-family-description {
+        color: rgba(203, 213, 225, 0.72);
+    }
+    .theme-family-summary {
+        color: rgba(148, 163, 184, 0.9);
+    }
     .full-chip {
         display: flex;
         align-items: center;
@@ -2239,12 +2391,47 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: rgba(74, 222, 128, 0.4);
         color: #4ade80;
     }
+    .theme-chip-status {
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+    }
+    .theme-chip-name {
+        white-space: nowrap;
+    }
+    .status-wired {
+        background: rgba(74, 222, 128, 0.12);
+        border-color: rgba(74, 222, 128, 0.28);
+        color: #86efac;
+    }
+    .status-legacy {
+        background: rgba(251, 191, 36, 0.12);
+        border-color: rgba(251, 191, 36, 0.28);
+        color: #fcd34d;
+    }
+    .status-needs-edit {
+        background: rgba(248, 113, 113, 0.12);
+        border-color: rgba(248, 113, 113, 0.28);
+        color: #fca5a5;
+    }
+    .status-agnostic {
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.24);
+        color: #cbd5e1;
+    }
     .full-chip-delete {
+        border: none;
+        background: transparent;
         font-size: 14px;
         line-height: 1;
         opacity: 0.3;
         cursor: pointer;
         padding-left: 2px;
+        color: inherit;
     }
     .full-chip-delete:hover {
         opacity: 1;

@@ -20,8 +20,10 @@
   import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
+  import { groupThemesByRenderFamily } from "$lib/config/themeRouting";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
+  import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
 
@@ -260,8 +262,24 @@
   let isResizing = $state(false);
   let settingsPanelWidth = $state(loadSettingsPanelWidth());
   let isSettingsResizing = $state(false);
+  let forceOpenSettingsSection = $state<"debug" | null>(null);
+  let forceOpenSettingsSectionNonce = $state(0);
+
+  function revealSettingsSection(section: "debug") {
+    forceOpenSettingsSection = section;
+    forceOpenSettingsSectionNonce += 1;
+  }
+
   function toggleRulerDiagnostics() {
-    rulerTool.toggle();
+    const nextEnabled = !rulerTool.getState().enabled;
+    rulerTool.setEnabled(nextEnabled);
+    if (nextEnabled) {
+      diagnosticsUi.requestControlsOpen();
+      setSettingsPanelOpen(true);
+      revealSettingsSection("debug");
+      return;
+    }
+    diagnosticsUi.setOpen(false);
   }
 
   function startResize(e: PointerEvent) {
@@ -334,6 +352,9 @@
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
   let showExitConfirm = $state(false);
+  const themeFamilyGroups = $derived.by(() =>
+    groupThemesByRenderFamily(themeStore.allThemes),
+  );
 
   // ── Back button navigation: close overlays instead of exiting ──
   // Push a history entry so Android back button fires popstate
@@ -558,7 +579,10 @@
             title="Close Settings">✕</button
           >
           <div class="panel-section section-tuning">
-            <GameSettingsPanel />
+            <GameSettingsPanel
+              forceOpenSection={forceOpenSettingsSection}
+              forceOpenSectionNonce={forceOpenSettingsSectionNonce}
+            />
           </div>
         </div>
       {/if}
@@ -622,8 +646,12 @@
             }}
           >
             <option value="">Select Theme…</option>
-            {#each themeStore.allThemes as theme}
-              <option value={theme.name}>{theme.name}</option>
+            {#each themeFamilyGroups as group}
+              <optgroup label={`${group.label} (${group.themes.length})`}>
+                {#each group.themes as theme}
+                  <option value={theme.name}>{theme.name}</option>
+                {/each}
+              </optgroup>
             {/each}
           </select>
         </div>
@@ -1011,8 +1039,12 @@
               }}
             >
               <option value="">Theme…</option>
-              {#each themeStore.allThemes as theme}
-                <option value={theme.name}>{theme.name}</option>
+              {#each themeFamilyGroups as group}
+                <optgroup label={`${group.label} (${group.themes.length})`}>
+                  {#each group.themes as theme}
+                    <option value={theme.name}>{theme.name}</option>
+                  {/each}
+                </optgroup>
               {/each}
             </select>
           </div>

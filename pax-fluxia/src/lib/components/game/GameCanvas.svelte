@@ -126,6 +126,7 @@
     } from "$lib/territory/families/perimeterField/perimeterFieldPlanEngine";
     import type { PerimeterFieldTransitionTruth } from "$lib/territory/families/perimeterField/perimeterFieldTransitionTypes";
     import {
+        resetPerimeterFieldDebugPlaybackState,
         setPerimeterFieldDebugPlaybackState,
     } from "$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
@@ -711,9 +712,6 @@
         return displayedFrames;
     }
 
-    function readSelectedPerimeterFieldReplaySelection():
-        | PerimeterFieldReplaySelection
-        | null {
     function buildPerimeterFieldSelectionFromReplay(
         replay: PerimeterFieldReplayBundle,
         selectedFrameIndex: number,
@@ -1490,7 +1488,7 @@
     async function exportPerimeterFieldGeometryArtifactFromLiveState(): Promise<void> {
         const activeMode = resolveActiveTerritoryMode();
         if (activeMode !== "perimeter_field") {
-            log.warn(
+            log.sys(
                 "PerimeterFieldArtifact",
                 `export skipped: active mode is ${activeMode}`,
             );
@@ -1499,7 +1497,7 @@
 
         const family = getRenderFamily("perimeter_field");
         if (!(family instanceof PerimeterFieldFamily)) {
-            log.warn(
+            log.sys(
                 "PerimeterFieldArtifact",
                 "export skipped: perimeter_field family is unavailable",
             );
@@ -1509,7 +1507,7 @@
         const snapshot =
             perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
         if (!snapshot) {
-            log.warn(
+            log.sys(
                 "PerimeterFieldArtifact",
                 "export skipped: no live perimeter-field debug snapshot is available",
             );
@@ -1543,7 +1541,7 @@
     async function exportPerimeterFieldConquestPackageFromLiveState(): Promise<void> {
         const activeMode = resolveActiveTerritoryMode();
         if (activeMode !== "perimeter_field") {
-            log.warn(
+            log.sys(
                 "PerimeterFieldPackage",
                 `export skipped: active mode is ${activeMode}`,
             );
@@ -1552,7 +1550,7 @@
 
         const capture = readSelectedPerimeterFieldConquestCapture();
         if (!capture || capture.transitionFrames.length === 0) {
-            log.warn(
+            log.sys(
                 "PerimeterFieldPackage",
                 "export skipped: no captured conquest frames are available for the selected live/replay source",
             );
@@ -1608,7 +1606,7 @@
     async function exportPerimeterFieldConquestContactSheetFromLiveState(): Promise<void> {
         const activeMode = resolveActiveTerritoryMode();
         if (activeMode !== "perimeter_field") {
-            log.warn(
+            log.sys(
                 "PerimeterFieldContactSheet",
                 `export skipped: active mode is ${activeMode}`,
             );
@@ -1617,7 +1615,7 @@
 
         const capture = readSelectedPerimeterFieldConquestCapture();
         if (!capture || capture.transitionFrames.length === 0) {
-            log.warn(
+            log.sys(
                 "PerimeterFieldContactSheet",
                 "export skipped: no captured conquest frames are available for the selected live/replay source",
             );
@@ -3151,7 +3149,14 @@
                     : 0xfff36b;
             const targetColor = 0xfff36b;
 
-            for (const attackerStarId of conquest.attackerStarIds) {
+            const attackerStarIds =
+                conquest.attackerStarIds?.length
+                    ? conquest.attackerStarIds
+                    : conquest.attackerStarId
+                      ? [conquest.attackerStarId]
+                      : [];
+
+            for (const attackerStarId of attackerStarIds) {
                 const attacker = starPositions.get(attackerStarId);
                 if (!attacker) continue;
 

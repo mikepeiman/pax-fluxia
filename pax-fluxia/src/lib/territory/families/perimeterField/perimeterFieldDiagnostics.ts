@@ -14,6 +14,46 @@ export type PerimeterFieldSnapshotMode =
     | 'transition'
     | 'compare';
 
+export function resolvePerimeterFieldDiagnosticCanvasSize(args: {
+    requestedWidth: number;
+    requestedHeight: number;
+    snapshot: PerimeterFieldDebugSnapshot;
+}): { width: number; height: number } {
+    const displayBounds = args.snapshot.displayGeometry.frontierTopology?.worldBounds;
+    if (
+        displayBounds &&
+        Number.isFinite(displayBounds.width) &&
+        Number.isFinite(displayBounds.height) &&
+        displayBounds.width > 0 &&
+        displayBounds.height > 0
+    ) {
+        return {
+            width: displayBounds.width,
+            height: displayBounds.height,
+        };
+    }
+
+    const targetBounds =
+        args.snapshot.transitionTargetGeometry?.frontierTopology?.worldBounds;
+    if (
+        targetBounds &&
+        Number.isFinite(targetBounds.width) &&
+        Number.isFinite(targetBounds.height) &&
+        targetBounds.width > 0 &&
+        targetBounds.height > 0
+    ) {
+        return {
+            width: targetBounds.width,
+            height: targetBounds.height,
+        };
+    }
+
+    return {
+        width: args.requestedWidth,
+        height: args.requestedHeight,
+    };
+}
+
 function hexToCss(hex: number, alpha = 1): string {
     const r = (hex >> 16) & 0xff;
     const g = (hex >> 8) & 0xff;

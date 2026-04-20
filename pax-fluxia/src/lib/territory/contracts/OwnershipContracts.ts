@@ -8,6 +8,8 @@ export interface TerritoryConquestEvent {
     previousOwner: string;
     newOwner: string;
     atMs: number;
+    attackerStarId?: string;
+    attackerStarIds?: readonly string[];
 }
 
 /**
