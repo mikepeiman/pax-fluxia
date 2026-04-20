@@ -594,10 +594,14 @@ function clearSelection(): void {
     selection = createSelection();
 }
 
-function setTool(nextTool: MapEditorTool): void {
-    tool = nextTool;
+function cancelDraftInteractions(): void {
     draftLaneSourceId = null;
     draftMeasurementStart = null;
+}
+
+function setTool(nextTool: MapEditorTool): void {
+    tool = nextTool;
+    cancelDraftInteractions();
 }
 
 function setViewport(nextViewport: MapEditorViewport): void {
@@ -1558,6 +1562,7 @@ export const mapEditorStore = {
     selectLane,
     selectMeasurement,
     clearSelection,
+    cancelDraftInteractions,
     setTool,
     setViewport,
     placeStar,

@@ -745,6 +745,14 @@
 
   function handleContextMenu(event: MouseEvent) {
     if (!canvasEl) return;
+    if (mapEditorStore.tool === "measure" || mapEditorStore.tool === "connect-lane") {
+      event.preventDefault();
+      contextMenu = null;
+      mapEditorStore.cancelDraftInteractions();
+      mapEditorStore.setTool("auto");
+      return;
+    }
+
     const world = screenToWorld(event.clientX, event.clientY);
     const star = findStarAt(world);
     const laneHit = star ? null : findLaneAt(world);
