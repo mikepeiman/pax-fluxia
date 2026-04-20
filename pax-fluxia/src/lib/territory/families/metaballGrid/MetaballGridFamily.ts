@@ -30,6 +30,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
+import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
@@ -51,7 +52,6 @@ import type {
 } from './metaballGridTypes';
 import {
     buildMetaballGridPlanKey,
-    computeGridInwardOffset,
 } from './metaballGridRuntime';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
@@ -281,6 +281,12 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    /**
+     * Reference to the NEXT geometry the plan was built against. When upstream
+     * caches invalidate (e.g. a territory source-shaping knob edit yields a
+     * new snapshot object), we detect the reference change and rebuild.
+     */
+    readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
 
 interface MetaballGridPlanSettings {
@@ -296,6 +302,20 @@ interface MetaballGridPlanSettings {
 }
 
 /**
+ * Quantize progress to a 1/2048 grid so visually-identical frames reuse the
+ * same paint signature. 2048 steps over one transition ≈ sub-pixel fidelity
+ * on any practical cell flipWindow and avoids perf-thrash when the host
+ * renderer calls update() with micro-changed progress values.
+ */
+const PROGRESS_QUANT_STEPS = 2048;
+function quantProgress(t: number): number {
+    if (!Number.isFinite(t)) return 0;
+    if (t <= 0) return 0;
+    if (t >= 1) return PROGRESS_QUANT_STEPS;
+    return Math.round(t * PROGRESS_QUANT_STEPS);
+}
+
+/**
  * RenderFamily implementation for metaball-grid.
  */
 export class MetaballGridFamily implements RenderFamily {
@@ -308,8 +328,25 @@ export class MetaballGridFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    /**
+     * Last paint-output signature. When the next update() computes the same
+     * signature, the scene build + paint is short-circuited — the existing
+     * PIXI.Graphics draw list remains visible at zero cost. This is the
+     * Phase A dirty-flag gate (2026-04-19).
+     */
+    private lastPaintSig: string | null = null;
+    /**
+     * Classification-affecting tunable fingerprint. When this changes we
+     * invalidate `cachedPlan` so spacing / origin / distribution / jitter /
+     * maxCells edits in the settings UI are picked up live (previously the
+     * plan only rebuilt on transitionKey change, which hid tunable edits
+     * until the next conquest).
+     */
+    private lastPlanParamsKey: string | null = null;
+    /** EMA of per-update wall-clock time (ms). Seeded lazily. */
     private emaUpdateMs = 0;
     private frameCount = 0;
+    private skippedFrameCount = 0;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -323,8 +360,11 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.lastPaintSig = null;
+        this.lastPlanParamsKey = null;
         this.emaUpdateMs = 0;
         this.frameCount = 0;
+        this.skippedFrameCount = 0;
         resetMetaballGridStats();
     }
 
@@ -336,16 +376,20 @@ export class MetaballGridFamily implements RenderFamily {
     }): CachedPlan {
         const { input, currentGeometry, planKey, settings } = params;
 
-        // PREV = rebuild from reverted stars using the same underlayer as NEXT.
+        // PREV comes from GameCanvas's shared cache (MG-PERF Phase C, 2026-04-19).
+        // Fallback to a local rebuild if the orchestrator didn't supply one —
+        // keeps this family usable outside the live render loop (tests, tools).
         const revertedStars = revertStarsForTransition(input);
-        const prevGeometry = buildPerimeterFieldRenderFamilyGeometry({
-            stars: revertedStars,
-            lanes: input.lanes,
-            worldWidth: input.world.width,
-            worldHeight: input.world.height,
-            nowMs: input.nowMs,
-            geometrySource: settings.geometrySource,
-        });
+        const prevGeometry =
+            input.prevGeometry ??
+            buildPerimeterFieldRenderFamilyGeometry({
+                stars: revertedStars,
+                lanes: input.lanes,
+                worldWidth: input.world.width,
+                worldHeight: input.world.height,
+                nowMs: input.nowMs,
+                geometrySource: settings.geometrySource,
+            });
 
         const conquestEvents = (input.activeTransition?.conquestEvents ?? []);
         const starById = new Map<string, StarState>();
@@ -381,7 +425,13 @@ export class MetaballGridFamily implements RenderFamily {
             resolveStarPosition,
         });
 
-        return { planKey, classification, wavePlan, prevGeometry };
+        return {
+            planKey,
+            classification,
+            wavePlan,
+            prevGeometry,
+            nextGeometryRef: currentGeometry,
+        };
     }
 
     /**
@@ -425,11 +475,19 @@ export class MetaballGridFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
+            nextGeometryRef: currentGeometry,
         };
     }
 
+    /**
+     * Steady-state plan (no active transition). PREV === NEXT, so classification
+     * yields `native` for every cell inside ownership regions and `outside`
+     * for the rest. The wave plan is empty. The resulting scene paints a flat
+     * grid of native cells — this is the primary visible fill between
+     * transitions.
+     */
     update(input: RenderFamilyInput): RenderFamilyOutput {
-        const startedAtMs = performance.now();
+        const startMs = performance.now();
         const nextSessionKey = buildSessionKey(input);
         if (this.sessionKey !== nextSessionKey) {
             this.sessionKey = nextSessionKey;
@@ -455,6 +513,46 @@ export class MetaballGridFamily implements RenderFamily {
             return { container: this.root };
         }
         this.root.visible = true;
+
+        // ── Classification-affecting tunables, hoisted so plan invalidation
+        //    picks up settings-UI edits live. Read values are the same that
+        //    the plan builders will re-read one level down; cheap map lookups.
+        const requestedSpacingPx = Math.max(
+            2,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_SPACING_PX',
+                GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24,
+            ),
+        );
+        const originModeHoisted = readTunableString<GridOriginMode>(
+            input,
+            'METABALL_GRID_ORIGIN_MODE',
+            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
+            ['centered', 'corner'],
+        );
+        const distributionHoisted = readTunableString<GridDistribution>(
+            input,
+            'METABALL_GRID_DISTRIBUTION',
+            (GAME_CONFIG.METABALL_GRID_DISTRIBUTION as GridDistribution | undefined) ?? 'square',
+            ['square', 'hex_offset', 'jittered'],
+        );
+        const positionJitterHoisted = readTunableNumber(
+            input,
+            'METABALL_GRID_POSITION_JITTER',
+            GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0,
+        );
+        const maxCellsHoisted = readTunableNumber(
+            input,
+            'METABALL_GRID_MAX_CELLS',
+            GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0,
+        );
+        const planParamsKey =
+            `${requestedSpacingPx}|${originModeHoisted}|${distributionHoisted}|${positionJitterHoisted}|${maxCellsHoisted}`;
+        if (this.cachedPlan && this.lastPlanParamsKey !== planParamsKey) {
+            this.cachedPlan = null;
+        }
+        this.lastPlanParamsKey = planParamsKey;
 
         const transitionKey = buildTransitionKey(input);
         const settings: MetaballGridPlanSettings = {
@@ -537,11 +635,18 @@ export class MetaballGridFamily implements RenderFamily {
             waveSeeding: transitionKey ? settings.waveSeeding : undefined,
         });
 
-        // Rebuild the expensive PREV/NEXT classification + wave plan only when
-        // the geometry truth or the plan-generation knobs change. Shape / draw
-        // knobs are read every frame below.
+        // Rebuild the plan when the plan key or input geometry reference changes.
+        // The extra geometry-reference checks preserve the Phase C behavior:
+        // if GameCanvas invalidates and recomputes PREV/NEXT geometry without a
+        // new conquest key, this family still rebuilds against the new truth.
+        const prevGeoRef = input.prevGeometry ?? null;
         if (transitionKey) {
-            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.planKey !== planKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+                || (prevGeoRef !== null && this.cachedPlan.prevGeometry !== prevGeoRef)
+            ) {
                 this.cachedPlan = this.buildPlanForTransition({
                     input,
                     currentGeometry,
@@ -550,7 +655,11 @@ export class MetaballGridFamily implements RenderFamily {
                 });
             }
         } else {
-            if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.planKey !== planKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+            ) {
                 this.cachedPlan = this.buildSteadyStatePlan({
                     input,
                     currentGeometry,
@@ -686,6 +795,77 @@ export class MetaballGridFamily implements RenderFamily {
             ensureOwner(entry.event.newOwner);
         }
 
+        // ── Dirty-flag paint gate (MG-PERF Phase A) ─────────────────────────
+        // Build a signature from every input that can change the painted
+        // output. When the signature matches the last frame's, the existing
+        // PIXI.Graphics draw list is still valid — skip scene build + paint.
+        // Progress is quantized to PROGRESS_QUANT_STEPS so sub-step progress
+        // changes don't thrash the gate.
+        const palFillSig = fillHexByColorIdx.join(',');
+        const palBorderSig = borderHexByColorIdx.join(',');
+        // Territory-source config epoch (CX/CP/DX/MSR edits bump this through
+        // `bumpTerritoryVisualConfig`). Including it in the paint-sig ensures
+        // the dirty-flag gate invalidates when the upstream snapshot is
+        // reshaped — previously the gate could short-circuit paint even after
+        // the plan rebuilt against a fresh snapshot, hiding visible changes.
+        const territoryEpoch = getTerritoryVisualEpoch();
+        const paintSig = [
+            this.sessionKey ?? '',
+            cached.planKey,
+            territoryEpoch,
+            quantProgress(rawProgress),
+            flipTransition,
+            flipWindow.toFixed(4),
+            strength.toFixed(4),
+            inwardOffsetPx.toFixed(2),
+            waveEase,
+            flipTimeJitter.toFixed(4),
+            cellShape,
+            cellInsetPx.toFixed(2),
+            cellCornerPx.toFixed(2),
+            borderMode,
+            borderBlend ? '1' : '0',
+            borderChaikinPasses,
+            fillSat.toFixed(4),
+            fillLight.toFixed(4),
+            fillAlphaMult.toFixed(4),
+            borderWidth.toFixed(4),
+            borderAlpha.toFixed(4),
+            borderSat.toFixed(4),
+            borderLight.toFixed(4),
+            // Classification-level knobs (also drive plan invalidation above,
+            // but included here so plan-rebuilds with same-looking output
+            // still get a fresh sig when the underlying grid moved).
+            requestedSpacingPx,
+            originModeHoisted,
+            distributionHoisted,
+            positionJitterHoisted.toFixed(4),
+            maxCellsHoisted,
+            palFillSig,
+            palBorderSig,
+        ].join('|');
+
+        if (this.lastPaintSig === paintSig) {
+            this.frameCount += 1;
+            this.skippedFrameCount += 1;
+            const elapsed = performance.now() - startMs;
+            this.emaUpdateMs = this.emaUpdateMs === 0
+                ? elapsed
+                : this.emaUpdateMs * 0.9 + elapsed * 0.1;
+            updateMetaballGridStats({
+                requestedSpacingPx: cached.classification.requestedSpacingPx,
+                effectiveSpacingPx: cached.classification.spacingPx,
+                totalCells: cached.classification.cols * cached.classification.rows,
+                emittableCells: cached.classification.emittableVstars.length,
+                lastUpdateMs: elapsed,
+                emaUpdateMs: this.emaUpdateMs,
+                lastFrameSkipped: true,
+                frameCount: this.frameCount,
+                skippedFrameCount: this.skippedFrameCount,
+            });
+            return { container: this.root };
+        }
+
         // ── Apply easing to progress (before flip math) ─────────────────────
         const progress = easeProgress(waveEase, rawProgress);
 
@@ -723,18 +903,35 @@ export class MetaballGridFamily implements RenderFamily {
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
-        // Clamp inset so a cell never collapses to 0.
-        const effInset = Math.min(cellInsetPx, spacingPx * 0.45);
-        const size = spacingPx - effInset * 2;
-        const half = size * 0.5;
-        const cornerR = cellShape === 'square' ? Math.min(cellCornerPx, half) : 0;
+        // Clamp inset so a cell never collapses to 0. Non-native cells get an
+        // extra `inwardOffsetPx` added to the inset, so ownership-boundary
+        // cells read visually smaller than interior-territory cells — this is
+        // the semantic the "Inward Offset" knob advertises.
+        const insetMax = spacingPx * 0.45;
+        const nativeInset = Math.min(cellInsetPx, insetMax);
+        const boundaryInset = Math.min(cellInsetPx + Math.max(0, inwardOffsetPx), insetMax);
+        // Defaults for square shape at native inset — reused inside the loop
+        // when a cell is native. Boundary cells recompute.
+        const nativeSize = spacingPx - nativeInset * 2;
+        const nativeHalf = nativeSize * 0.5;
+        const nativeCornerR = cellShape === 'square' ? Math.min(cellCornerPx, nativeHalf) : 0;
+        const nativeHexR = nativeSize / SQRT3;
+        const boundarySize = spacingPx - boundaryInset * 2;
+        const boundaryHalf = boundarySize * 0.5;
+        const boundaryCornerR = cellShape === 'square' ? Math.min(cellCornerPx, boundaryHalf) : 0;
+        const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        // Blended-edge polyline assumes a regular square vertex lattice
+        // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
+        // and jittered distributions break that assumption, so fall back to
+        // per-cell strokes in those modes — otherwise borders visibly detach
+        // from their fills.
         const drawBlendedEdges =
-            drawBorders
-            && drawTerritoryEdgeOnly
-            && borderBlend
-            && cached.classification.distribution === 'square';
+            drawBorders &&
+            drawTerritoryEdgeOnly &&
+            borderBlend &&
+            cached.classification.distribution === 'square';
 
         // Build an effective per-grid-index colorIdx so both "per-cell stroke
         // gating" and "centered blended edge drawing" read the same truth.
@@ -773,13 +970,6 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
-        // Pointy-top hex "radius" (vertex-to-center distance). Bound to `size`
-        // so METABALL_GRID_CELL_INSET_PX shrinks hexes uniformly. At inset=0
-        // the horizontal pitch (hexR * sqrt(3)) equals spacingPx, producing
-        // clean tessellation along rows; adjacent rows are offset by
-        // spacingPx/2 for honeycomb interlock.
-        const hexR = size / SQRT3;
-
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
         for (let i = 0; i < scene.cells.length; i++) {
             const c = scene.cells[i];
@@ -789,8 +979,8 @@ export class MetaballGridFamily implements RenderFamily {
             const alpha = c.alpha * fillAlphaMult;
             if (alpha <= 0) continue;
 
-            // Parse grid indices once — used by hex odd-row offset and by the
-            // territory_edge per-cell stroke gate.
+            // Parse grid indices once — used by the territory_edge per-cell
+            // stroke gate.
             const vIdParts = c.vId.split(':');
             let ix = -1;
             let iy = -1;
@@ -801,28 +991,23 @@ export class MetaballGridFamily implements RenderFamily {
                 if (Number.isFinite(piy)) iy = piy;
             }
 
-            let x = c.x;
-            let y = c.y;
-            if (inwardOffsetPx > 0 && effectiveColorIdxByGridIdx && ix >= 0 && iy >= 0) {
-                const inward = computeGridInwardOffset({
-                    ix,
-                    iy,
-                    cols,
-                    rows,
-                    selfColorIdx: c.colorIdx,
-                    colorIdxByGridIdx: effectiveColorIdxByGridIdx,
-                    distancePx: inwardOffsetPx,
-                });
-                x += inward.x;
-                y += inward.y;
-            }
-            const hexXOffset =
-                cellShape === 'hex'
-                && cached.classification.distribution === 'square'
-                && (iy & 1) === 1
-                    ? spacingPx * 0.5
-                    : 0;
-            const xHex = x + hexXOffset;
+            // Trust the scene cell's (x, y) — classification already applied
+            // any distribution-driven row shift (hex_offset) or jitter. A
+            // previous revision double-shifted odd rows here when cellShape
+            // was 'hex', which misaligned fill vs. border polylines.
+            const x = c.x;
+            const y = c.y;
+
+            // Boundary cells (anything but 'native') get the inward-offset
+            // inset so the visible territory edge recedes from its classified
+            // extent. Pointy-top hex "radius" is vertex-to-center distance;
+            // honeycomb interlock for hex cells is produced by the
+            // `hex_offset` distribution (row shift applied in classification).
+            const isBoundary = c.role !== 'native';
+            const half = isBoundary ? boundaryHalf : nativeHalf;
+            const size = isBoundary ? boundarySize : nativeSize;
+            const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
+            const hexR = isBoundary ? boundaryHexR : nativeHexR;
 
             // Fill primitive
             if (cellShape === 'circle') {
@@ -836,7 +1021,7 @@ export class MetaballGridFamily implements RenderFamily {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
                     pts.push(
-                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        x + HEX_VERTICES_POINTY[k][0] * hexR,
                         y + HEX_VERTICES_POINTY[k][1] * hexR,
                     );
                 }
@@ -887,7 +1072,7 @@ export class MetaballGridFamily implements RenderFamily {
                 const pts: number[] = [];
                 for (let k = 0; k < 6; k++) {
                     pts.push(
-                        xHex + HEX_VERTICES_POINTY[k][0] * hexR,
+                        x + HEX_VERTICES_POINTY[k][0] * hexR,
                         y + HEX_VERTICES_POINTY[k][1] * hexR,
                     );
                 }
@@ -1099,29 +1284,28 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
 
-        const elapsedMs = performance.now() - startedAtMs;
+        // ── Record paint-sig + stats (MG-PERF Phase A) ──────────────────────
+        this.lastPaintSig = paintSig;
         this.frameCount += 1;
-        this.emaUpdateMs =
-            this.frameCount === 1
-                ? elapsedMs
-                : this.emaUpdateMs * 0.9 + elapsedMs * 0.1;
         let paintedCells = 0;
         for (let i = 0; i < scene.cells.length; i++) {
-            if (scene.cells[i]!.alpha > 0) {
-                paintedCells += 1;
-            }
+            if (scene.cells[i].alpha > 0) paintedCells++;
         }
+        const elapsed = performance.now() - startMs;
+        this.emaUpdateMs = this.emaUpdateMs === 0
+            ? elapsed
+            : this.emaUpdateMs * 0.9 + elapsed * 0.1;
         updateMetaballGridStats({
             requestedSpacingPx: cached.classification.requestedSpacingPx,
             effectiveSpacingPx: cached.classification.spacingPx,
             totalCells: cached.classification.cols * cached.classification.rows,
             emittableCells: cached.classification.emittableVstars.length,
             paintedCells,
-            lastUpdateMs: elapsedMs,
+            lastUpdateMs: elapsed,
             emaUpdateMs: this.emaUpdateMs,
             lastFrameSkipped: false,
             frameCount: this.frameCount,
-            skippedFrameCount: 0,
+            skippedFrameCount: this.skippedFrameCount,
         });
 
         return { container: this.root };

@@ -5,8 +5,27 @@
 
 import { attachLaneWaypointsToConnections, type MapLaneMode } from '@pax/common/mapgen';
 import type { MapConnection } from '@pax/common/mapgen';
+import { log } from '$lib/utils/logger';
 
 const cache = new Map<string, [number, number][]>();
+
+// Fix-engagement diagnostic: proves at runtime whether the storage-canonicalization
+// fix is loaded AND actually reversing non-canonical input. Fires once per process.
+// If nothing logs, the fix never sees non-canonical input (map is too small or
+// dev server is stale). If "reversed" logs, fix is engaged and working.
+let __storageFixDiagFired = false;
+function logStorageFixEngagement(sourceId: string, targetId: string, reversed: boolean): void {
+    if (__storageFixDiagFired) return;
+    __storageFixDiagFired = true;
+    log.sys('LaneCache', 'first write diagnostic', {
+        firstEdgeWritten: { sourceId, targetId },
+        nonCanonicalInput: sourceId > targetId,
+        reversedAtStorage: reversed,
+        note: reversed
+            ? 'Fix ENGAGED: non-canonical input reversed to canonical storage.'
+            : 'First write was canonical; fix will engage if non-canonical input arrives.',
+    });
+}
 
 export function edgeKey(a: string, b: string): string {
     return a <= b ? `${a}|${b}` : `${b}|${a}`;
@@ -14,6 +33,7 @@ export function edgeKey(a: string, b: string): string {
 
 export function clearLanePolylineCache(): void {
     cache.clear();
+    __storageFixDiagFired = false;
 }
 
 export function canonicalUniConnections(
@@ -38,7 +58,15 @@ export function seedLanePolylineCacheFromMapGen(
     cache.clear();
     for (const c of conns) {
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
-            cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
+            // Storage contract: waypoints are always kept in canonical (sourceId <= targetId)
+            // direction so `getDirectedLanePolyline` can rely on storage-direction == key-direction.
+            // Mapgen (`buildLaneAwareConnections`) can emit non-canonical sourceId>targetId pairs
+            // because it iterates node pairs by array index, not id. Reverse here to normalize.
+            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            const reversed = c.sourceId > c.targetId;
+            if (reversed) waypoints.reverse();
+            logStorageFixEngagement(c.sourceId, c.targetId, reversed);
+            cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }
     }
 }
@@ -61,7 +89,13 @@ export function rebuildLanePolylineCache(
     attachLaneWaypointsToConnections(nodes, conns, mode, Math.max(0, laneObstacleClearancePx));
     for (const c of conns) {
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
-            cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
+            // See seedLanePolylineCacheFromMapGen: normalize waypoint direction to the canonical
+            // edge key so downstream directed readers behave correctly regardless of solver order.
+            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            const reversed = c.sourceId > c.targetId;
+            if (reversed) waypoints.reverse();
+            logStorageFixEngagement(c.sourceId, c.targetId, reversed);
+            cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }
     }
     return conns;

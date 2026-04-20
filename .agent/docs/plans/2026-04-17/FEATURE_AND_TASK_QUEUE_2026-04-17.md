@@ -1,5 +1,17 @@
 # Feature And Task Queue - 2026-04-17
 
+## Provenance
+
+### Primary Ledger
+
+- Source lineage: current `master` day ledger carried forward in the target repo.
+- Scope: diagnostics-surface unification and same-day map-editor integration work.
+
+### Imported Historical Thread
+
+- Source branch: `claude/goofy-raman`.
+- Imported as preserved branch-thread context during the `codex/goofy-raman-integration` merge review.
+
 ## Purpose
 
 Unify territory and transition diagnostics into one actual user-facing diagnostics surface, with a direct bottom-right entry point, and stop splitting recorder exports and perimeter-field diagnostics across unrelated panels.
@@ -112,3 +124,27 @@ Unify territory and transition diagnostics into one actual user-facing diagnosti
   - `Host MP` path with a custom authored map
   - authored measurement visibility from both HUD button and debug settings
 - Consider breaking up the large new editor route/store files if we continue expanding editor polish work.
+
+## Imported Historical Thread
+
+### Metaball-Grid Mode
+
+Plan: `./METABALL_GRID_MODE_PLAN_2026-04-17.md`. Source branch: `claude/goofy-raman`.
+
+Checkpoint progression:
+
+- [x] MG0 - plan doc plus queue entry
+- [ ] MG1 - config keys plus types
+- [ ] MG2 - classification plus tests
+- [ ] MG3 - wave planner plus tests
+- [ ] MG4 - scene builder plus tests
+- [ ] MG5 - family plus canvas truth capture
+- [ ] MG6 - registry plus settings panel
+- [ ] MG7 - acceptance tests
+- [ ] MG8 - perf bench plus default
+- [ ] MG9 - paused debug overlay
+
+Historical notes:
+
+- The topology builder `buildPowerVoronoiFrontierTopology.ts` committed on 2026-04-17 for `perimeter_field` was incidental to this thread, not a metaball-grid dependency.
+- Alternate worktree `C:\Users\mikep\.codex\worktrees\11a1` carried revised `perimeter_field` plan work and was not part of this branch thread.

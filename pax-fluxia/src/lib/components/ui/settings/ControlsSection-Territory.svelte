@@ -849,6 +849,20 @@
   </div>
   <div class="territory-module-grid">
 
+{#if activeRendererModule !== "none"}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Territory Geometry Source</h4>
+      <p class="territory-card__intro">
+        Shapes the underlying <code>territoryRegions</code> that every render
+        family (Metaball, Metaball Grid, Perimeter Field) consumes. CX/CP/DX/MSR
+        controls here apply globally — no per-renderer duplication.
+      </p>
+    </div>
+    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
+  </div>
+{/if}
+
 {#if showRendererModule("metaball") && resolveActiveStyleId() === "metaball"}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
@@ -899,12 +913,6 @@
       activeRenderMode="metaball"
       helperText="Conquest transition timing and influence tuning for the active Metaball mode."
     />
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.75;margin-top:2px;margin-bottom:2px;">
-      Metaball now reads the shared render-family geometry source. Use these controls to choose the underlying geometry path and tune its MSR, CX lane pairs, and DX behavior.
-    </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Cell size (px)</span><span class="val"
@@ -1102,7 +1110,6 @@
         }} />
     </div>
 
-    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
@@ -2048,6 +2055,12 @@
       flipTime.
     </div>
     <MetaballGridTuning {panel} {updatePanel} />
+    <div
+      class="row-bottom"
+      style="font-size:11px;opacity:0.75;margin:10px 0 2px;">
+      <strong>Source geometry constraints</strong> — CX corridor virtuals along lanes, CP contested-lane midpoint pairs, DX disconnect virtuals between same-owner components, and MSR (Minimum Star Range, power-diagram site weight). These shape the underlying territoryRegions that metaball-grid classifies cells against.
+    </div>
+    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}

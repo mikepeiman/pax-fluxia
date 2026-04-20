@@ -1679,6 +1679,16 @@
     let canonicalRenderer: TerritoryRenderer | null = null;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
+    /**
+     * PREV (pre-transition) geometry cache. Both PerimeterFieldFamily and
+     * MetaballGridFamily used to rebuild this independently inside their
+     * update() loops — duplicate power-Voronoi builds that dominated the
+     * trace. We now build once per (transition, geometry) key here and pass
+     * it downstream via `RenderFamilyInput.prevGeometry` (MG-PERF Phase C,
+     * 2026-04-19).
+     */
+    let renderFamilyPrevGeometryCacheKey: string | null = null;
+    let renderFamilyPrevGeometryCache: CanonicalGeometrySnapshot | null = null;
 
     function buildCanonicalBridgeInput(
         stars: StarState[],
@@ -1743,6 +1753,57 @@
             renderFamilyGeometryCacheKey = key;
         }
         return renderFamilyGeometryCache;
+    }
+
+    /**
+     * MG-PERF Phase C: cache PREV geometry per transition. Returns null when
+     * there is no active transition (steady state — families resolve with
+     * PREV === NEXT naturally). Keys on (transition fingerprint, NEXT-geometry
+     * cache key, stars identity) so config/stars edits invalidate correctly.
+     */
+    function getPrevRenderFamilyGeometryForTransition(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+        activeTransition: RenderFamilyActiveTransition | null | undefined,
+    ): CanonicalGeometrySnapshot | null {
+        if (!activeTransition || activeTransition.events.length === 0) {
+            return null;
+        }
+        // Build a stable fingerprint from the transition events + NEXT cache key.
+        let transitionSig = "";
+        for (const e of activeTransition.events) {
+            transitionSig +=
+                `${e.event.tick}:${e.event.starId}:` +
+                `${e.event.previousOwner}->${e.event.newOwner}|`;
+        }
+        const nextKey = buildRenderFamilyGeometryCacheKey(stars, lanes);
+        const key = `${transitionSig}::${nextKey}`;
+        if (
+            renderFamilyPrevGeometryCacheKey !== key ||
+            !renderFamilyPrevGeometryCache
+        ) {
+            // Revert ownership to pre-transition state.
+            const overrides = new Map<string, string>();
+            for (const entry of activeTransition.events) {
+                overrides.set(entry.event.starId, entry.event.previousOwner);
+            }
+            const revertedStars: StarState[] = stars.map((s) => {
+                const ownerId = overrides.get(s.id);
+                return ownerId === undefined ? { ...s } : { ...s, ownerId };
+            });
+            renderFamilyPrevGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
+                stars: revertedStars,
+                lanes,
+                worldWidth: GAME_WIDTH,
+                worldHeight: GAME_HEIGHT,
+                nowMs: fxOrchestrator.gameTime,
+                ownership: buildOwnershipSnapshotFromStars(revertedStars),
+                geometrySource:
+                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "power_voronoi_0319",
+            });
+            renderFamilyPrevGeometryCacheKey = key;
+        }
+        return renderFamilyPrevGeometryCache;
     }
 
     // React to animation speed changes from the UI slider
@@ -3768,6 +3829,12 @@
                             gameTick: activeGameStore.currentTick,
                             ownership: activeOwnership,
                             geometry: activeGeometry,
+                            prevGeometry:
+                                getPrevRenderFamilyGeometryForTransition(
+                                    stars,
+                                    lanes,
+                                    activeTransition,
+                                ),
                             renderer: app?.renderer ?? undefined,
                             activeTransition,
                             transitionTruth,
@@ -3833,6 +3900,12 @@
                                 stars,
                                 lanes,
                             ),
+                            prevGeometry:
+                                getPrevRenderFamilyGeometryForTransition(
+                                    stars,
+                                    lanes,
+                                    activeTransition,
+                                ),
                             renderer: app?.renderer ?? undefined,
                             activeTransition,
                             tunableKeys: mg.tunableKeys,

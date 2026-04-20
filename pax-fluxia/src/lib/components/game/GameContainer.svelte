@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { pushState, replaceState } from "$app/navigation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -369,18 +368,32 @@
     groupThemesByRenderFamily(themeStore.allThemes),
   );
 
-  // ── Back button navigation: close overlays instead of exiting ──
-  // Push a history entry so Android back button fires popstate
-  if (typeof window !== "undefined") {
-    // Ensure we have a base history entry to pop against
-    replaceState("", { pax: "base" });
-    pushState("", { pax: "game" });
+  onMount(() => {
+    if (typeof window === "undefined") return;
 
-    window.addEventListener("popstate", (e) => {
-      // Always re-push so we never actually leave the page
-      pushState("", { pax: "game" });
+    const pushGameHistoryState = () => {
+      window.history.pushState(
+        { ...(window.history.state ?? {}), pax: "game" },
+        "",
+        window.location.href,
+      );
+    };
 
-      // Close overlays in priority order
+    // Ensure there is a base entry to pop against before we trap back presses.
+    window.history.replaceState(
+      { ...(window.history.state ?? {}), pax: "base" },
+      "",
+      window.location.href,
+    );
+    pushGameHistoryState();
+
+    const handlePopState = () => {
+      // Only trap the browser back action while the in-game container is active.
+      if (gameStore.currentView !== "game") return;
+
+      // Re-push so the next back press stays inside the app until overlays are cleared.
+      pushGameHistoryState();
+
       if (showSettingsPanel) {
         setSettingsPanelOpen(false);
         return;
@@ -405,20 +418,18 @@
         showExitConfirm = false;
         return;
       }
-      // Nothing open — if game is active, show exit confirmation
-      if (
-        gameStore.currentView === "game" &&
-        activeGameStore.phase === "playing"
-      ) {
+      if (activeGameStore.phase === "playing") {
         showExitConfirm = true;
         return;
       }
-      // Not in active game — allow natural back (go to menu)
-      if (gameStore.currentView === "game") {
-        gameStore.setView("menu");
-      }
-    });
-  }
+      gameStore.setView("menu");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  });
 
   // ── Exit confirmation: warn before closing tab during active game ──
   if (typeof window !== "undefined") {

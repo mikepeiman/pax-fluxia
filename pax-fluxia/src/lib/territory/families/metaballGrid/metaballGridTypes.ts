@@ -26,11 +26,11 @@ import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContract
 export type GridOriginMode = 'centered' | 'corner';
 
 /**
- * Placement pattern for grid sample positions before ownership resolution.
- *
- * - `square`: classical row-major lattice
- * - `hex_offset`: odd rows shift by half-spacing for honeycomb packing
- * - `jittered`: square lattice with deterministic per-cell scatter
+ * Cell-position distribution mode. `square` is the classical row-major grid.
+ * `hex_offset` shifts odd rows by half-spacing to produce honeycomb packing
+ * (pairs naturally with `METABALL_GRID_CELL_SHAPE === 'hex'`). `jittered`
+ * applies a deterministic per-cell scatter whose amplitude is controlled by
+ * `METABALL_GRID_POSITION_JITTER` (fraction of spacing).
  */
 export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
 
@@ -109,15 +109,16 @@ export interface GridClassification {
     /** Row count: `ceil(height / spacing)`. */
     readonly rows: number;
     /**
-     * Effective spacing used to build this classification. This can be larger
-     * than `requestedSpacingPx` when `maxCells` forces coarsening.
+     * Spacing actually used to build this classification, in world px. Equal to
+     * the requested spacing unless the `METABALL_GRID_MAX_CELLS` cap coarsened
+     * it. See `requestedSpacingPx` for the uncoarsened input.
      */
     readonly spacingPx: number;
-    /** Spacing requested by the caller before any max-cells coarsening. */
+    /** Spacing as requested by the caller (before maxCells coarsening). */
     readonly requestedSpacingPx: number;
     /** Origin offset mode used. */
     readonly originMode: GridOriginMode;
-    /** Distribution mode used when placing grid sample positions. */
+    /** Distribution mode used when computing cell positions. */
     readonly distribution: GridDistribution;
     /** All grid vstars in row-major order (`iy * cols + ix`). */
     readonly vstars: readonly GridVStar[];
@@ -216,12 +217,27 @@ export interface GridRenderCell {
     readonly y: number;
     /** Owner color palette index this cell contributes. */
     readonly colorIdx: number;
-    /** Alpha 0..1. */
+    /**
+     * Alpha 0..1. `METABALL_GRID_STRENGTH` (the UI "Alpha Gain" knob) is
+     * already folded into this value by `renderMetaballGridScene` at emit
+     * time, so downstream painters can use it directly without a second
+     * multiply.
+     */
     readonly alpha: number;
-    /** Metaball influence strength for this cell. */
+    /**
+     * Reserved for any future additive-field compositor that wants a
+     * separate strength channel. Current direct-paint family uses only
+     * `alpha` (with strength already applied) and ignores this field.
+     */
     readonly strength: number;
     /** For `dual_pass_blend`: which side this cell represents. */
     readonly pass: 'single' | 'prev' | 'next';
+    /**
+     * Role of the source vstar. Painters that want to apply a different
+     * visual treatment to ownership-boundary cells (e.g.
+     * `METABALL_GRID_INWARD_OFFSET_PX`) key on `role !== 'native'`.
+     */
+    readonly role: GridVRole;
 }
 
 /** Complete scene emitted per frame. */
@@ -245,7 +261,7 @@ export interface GridMetaballScene {
 /**
  * Ownership snapshot of a star at one of the PREV/NEXT time points. Used for
  * nearest-owned-star fallback when polygon coverage has gaps created by
- * minimum-star-margin clearance in the underlying geometry.
+ * minimum-star-margin clearance, including MSR-style moats in the source geometry.
  */
 export interface GridOwnedStar {
     readonly id: string;
@@ -270,8 +286,8 @@ export interface BuildGridClassificationParams {
     /**
      * Owned stars under PREV snapshot. When provided, cells that fall outside
      * every PREV polygon but are within `coverageRadiusPx` of an owned star
-     * inherit that star's owner. This fills clearance gaps left around stars
-     * so the grid layer remains continuous.
+     * inherit that star's owner. This fills geometry gaps left around stars,
+     * including weighted-voronoi MSR holes, so the grid layer remains continuous.
      */
     readonly prevOwnedStars?: ReadonlyArray<GridOwnedStar>;
     /** Owned stars under NEXT snapshot — same behavior as `prevOwnedStars`. */
@@ -283,16 +299,23 @@ export interface BuildGridClassificationParams {
      */
     readonly coverageRadiusPx?: number;
     /**
-     * Hard cap on total cell count. When the requested spacing would exceed
-     * this many cells, the builder coarsens spacing upward to stay under it.
-     * `0` or undefined leaves spacing unchanged.
+     * Hard cap on total cell count (cols × rows). When the grid built from
+     * `spacingPx` would exceed this, the builder coarsens spacing upward to
+     * stay under the cap. The effective spacing is reported as
+     * `GridClassification.spacingPx`; the requested spacing is preserved as
+     * `requestedSpacingPx`. Default: no cap.
      */
     readonly maxCells?: number;
-    /** Distribution mode for grid sample positions. Default: `square`. */
+    /**
+     * Distribution mode for cell positions. See {@link GridDistribution}.
+     * Default: `'square'`.
+     */
     readonly distribution?: GridDistribution;
     /**
-     * Deterministic scatter amplitude as a fraction of spacing. Only applies
-     * when `distribution === 'jittered'`.
+     * Deterministic per-cell position scatter, expressed as a fraction of
+     * spacing. 0 = none; 0.5 ≈ neighbours can overlap. Seeded by `(ix, iy)`
+     * so positions are stable across frames and sessions. Only applied when
+     * `distribution === 'jittered'`. Default: 0.
      */
     readonly positionJitter?: number;
 }
