@@ -17,6 +17,7 @@
   };
 
   type SymmetryFold = 2 | 3 | 4 | 5 | 6;
+  type RailToolPanel = Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection" | "factions">;
 
   interface Props {
     ownerChoices: OwnerChoice[];
@@ -80,6 +81,7 @@
 
   const density = $derived(mapEditorUiStore.density);
   const activePanel = $derived(mapEditorUiStore.activeToolPanel);
+  const railExpanded = $derived(mapEditorUiStore.railExpanded);
   const utilitiesExpanded = $derived(mapEditorUiStore.isPanelExpanded("utilities"));
   const displayExpanded = $derived(mapEditorUiStore.isPanelExpanded("display"));
   const starTypeOptions = $derived(mapEditorStore.starTypePalette);
@@ -94,19 +96,33 @@
     return `--owner-color:${color}`;
   }
 
-  function activateTool(tool: MapEditorTool, panel?: MapEditorPanelId) {
+  function buttonStyle(accent: string, extra = "") {
+    return `--tool-accent:${accent};${extra}`;
+  }
+
+  function activateTool(
+    tool: MapEditorTool,
+    panel?: RailToolPanel,
+    options?: { showPanelWhenCollapsed?: boolean },
+  ) {
     mapEditorStore.setTool(tool);
     if (panel) {
-      mapEditorUiStore.toggleToolPanel(
-        panel as Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection">,
-      );
+      if (!railExpanded && options?.showPanelWhenCollapsed === false) {
+        mapEditorUiStore.closeToolPanel();
+        return;
+      }
+      mapEditorUiStore.toggleToolPanel(panel);
       return;
     }
     mapEditorUiStore.closeToolPanel();
   }
 
-  function togglePanel(panel: Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection">) {
+  function togglePanel(panel: RailToolPanel) {
     mapEditorUiStore.toggleToolPanel(panel);
+  }
+
+  function toggleDrawer() {
+    mapEditorUiStore.toggleRailExpanded();
   }
 
   function railButtonTitle(label: string, hotkey?: string) {
@@ -138,102 +154,199 @@
 
 </script>
 
-<div class="tool-rail-shell" data-density={density}>
+<div class="tool-rail-shell" data-density={density} data-expanded={railExpanded}>
   <div class="tool-rail">
     <button
       type="button"
+      class="drawer-toggle"
+      aria-label={railExpanded ? "Collapse tool drawer" : "Expand tool drawer"}
+      aria-pressed={railExpanded}
+      onclick={toggleDrawer}
+    >
+      <span class="drawer-toggle__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="16" rx="4" fill="currentColor" opacity="0.16"></rect>
+          <path d="M8 8h4M8 12h4M8 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+          <path d={railExpanded ? "m15 8-3 4 3 4" : "m12 8 3 4-3 4"} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Tool Drawer</strong>
+          <small>Expand options without covering the board</small>
+        </span>
+      {/if}
+    </button>
+
+    <button
+      type="button"
+      class="rail-button"
       class:is-active={mapEditorStore.tool === "auto" && !activePanel}
+      style={buttonStyle("#7dd3fc")}
       onclick={() => activateTool("auto")}
       title={railButtonTitle("Move / Select", "V")}
       aria-label="Move and select"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3 3-2 1v4h4l1-2 3 3-3 3-1-2h-4v4l2 1-3 3-3-3 2-1v-4H7l-1 2-3-3 3-3 1 2h4V6l-2-1 3-3Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m6 3 11 9h-5.1l2.2 7-2.8.9-2.2-7L5.7 16z" fill="currentColor" /><path d="M15 5h4v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.72" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Move / Select</strong>
+          <small>Pan, drag, and multi-select</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
-      class:is-active={iconClass("place-star", "place-star")}
       class="rail-button rail-button--star"
-      style={`--star-color:${activeStarType.color};`}
+      class:is-active={iconClass("place-star", "place-star")}
+      style={buttonStyle(activeStarType.color, `--star-color:${activeStarType.color};`)}
       onclick={() => activateTool("place-star", "place-star")}
       title={railButtonTitle("Place Star", "1-6")}
       aria-label="Place star"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        {#if activeStarType.sides > 0}
-          <polygon points={buildRegularPolygonPoints(7.5, activeStarType.sides)} fill={activeStarType.color} />
-        {:else}
-          <circle cx="12" cy="12" r="7.5" fill={activeStarType.color} />
-        {/if}
-      </svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><polygon points="12,3 14.8,8.3 20.7,9.2 16.4,13.4 17.4,19.3 12,16.4 6.6,19.3 7.6,13.4 3.3,9.2 9.2,8.3" fill="currentColor" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Place Star</strong>
+          <small>{activeStarType.label}</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
-      class:is-active={iconClass("paint-owner", "paint-owner")}
       class="rail-button rail-button--owner"
-      style={panelButtonStyle(activeOwnerChoice.color)}
+      class:is-active={iconClass("paint-owner", "paint-owner")}
+      style={`${buttonStyle(activeOwnerChoice.color)};${panelButtonStyle(activeOwnerChoice.color)}`}
       onclick={() => activateTool("paint-owner", "paint-owner")}
       title={railButtonTitle("Paint Ownership")}
       aria-label="Paint ownership"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="7" fill="var(--owner-color)" />
-        <path d="M12 3a6 6 0 1 0 6 6A6 6 0 0 0 12 3Zm-8 16c0-3.3 3.6-6 8-6s8 2.7 8 6v2H4Z" fill="currentColor" opacity="0.5" />
-      </svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M7 4v16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M8 5h9l-2.7 3.2L17 11H8z" fill="currentColor" /><circle cx="17" cy="17" r="2.5" fill="currentColor" opacity="0.7" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Paint Ownership</strong>
+          <small>{activeOwnerChoice.label}</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
+      class="rail-button"
       class:is-active={iconClass("paint-force", "paint-force")}
+      style={buttonStyle("#fb923c")}
       onclick={() => { onArmForceBrush(); togglePanel("paint-force"); }}
       title={railButtonTitle("Paint Fleets")}
       aria-label="Paint fleets"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18h12l-1.7-6H7.7L6 18Zm3.6-8h4.8L12 4 9.6 10Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="m6 14 4-6 4 6H6Zm5 4 3-4 3 4h-6Zm-6 0 3-4 3 4H5Z" fill="currentColor" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Paint Fleets</strong>
+          <small>{mapEditorStore.forceBrush} ships</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
+      class="rail-button"
+      class:rail-button--tooltip={!railExpanded}
       class:is-active={iconClass("connect-lane", "connect-lane")}
-      class="rail-button rail-button--tooltip"
+      style={buttonStyle("#38bdf8")}
       data-tooltip={tooltipText("connect-lane")}
-      onclick={() => activateTool("connect-lane")}
+      onclick={() => activateTool("connect-lane", "connect-lane", { showPanelWhenCollapsed: false })}
       title={railButtonTitle("Connect Lanes", "C")}
       aria-label="Connect lanes"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm12-4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0 10a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8.6 9.6l6-2.2.8 2.1-6 2.2-.8-2.1Zm0 4.8.8-2.1 6 2.2-.8 2.1-6-2.2Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M7 8h10M8.2 9.2l7.6 5.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="6" cy="8" r="2.6" fill="currentColor" /><circle cx="18" cy="8" r="2.6" fill="currentColor" opacity="0.92" /><circle cx="18" cy="16" r="2.6" fill="currentColor" opacity="0.72" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Connect Lanes</strong>
+          <small>Chain paths across stars</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
+      class="rail-button"
+      class:rail-button--tooltip={!railExpanded}
       class:is-active={iconClass("measure", "measure")}
-      class="rail-button rail-button--tooltip"
+      style={buttonStyle("#4ade80")}
       data-tooltip={tooltipText("measure")}
-      onclick={() => activateTool("measure")}
+      onclick={() => activateTool("measure", "measure", { showPanelWhenCollapsed: false })}
       title={railButtonTitle("Measurements", "M")}
       aria-label="Measurements"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.5 17.5 3 21 6.5 6.5 21H3v-3.5Zm3.8 1.2 9.9-9.9-1.4-1.4-9.9 9.9v1.4h1.4Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 17 17 5l2 2-12 12H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /><path d="M10 12 12 14M12.8 9.2l2 2M7.2 14.8l2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Measurements</strong>
+          <small>Author distance references</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
+      class="rail-button"
       class:is-active={iconClass("utilities")}
+      style={buttonStyle("#c084fc")}
       onclick={() => togglePanel("utilities")}
       title={railButtonTitle("Utilities")}
       aria-label="Utilities"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 2.9 3.3.7-.7 3.3L19 10.6 17.4 12 19 13.4l-2.7 1.7.7 3.3-3.3.7L12 22l-1.7-2.9-3.3-.7.7-3.3L5 13.4 6.6 12 5 10.6l2.7-1.7-.7-3.3 3.3-.7L12 2Zm0 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M6 7h10M6 12h6M6 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><circle cx="18" cy="7" r="2.2" fill="currentColor" /><circle cx="14" cy="12" r="2.2" fill="currentColor" opacity="0.84" /><circle cx="18" cy="17" r="2.2" fill="currentColor" opacity="0.68" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Utilities</strong>
+          <small>Symmetry, templates, cleanup</small>
+        </span>
+      {/if}
     </button>
+
     <button
       type="button"
+      class="rail-button"
       class:is-active={iconClass("display")}
+      style={buttonStyle("#60a5fa")}
       onclick={() => togglePanel("display")}
       title={railButtonTitle("Display")}
       aria-label="Display"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H4V5Zm6 12h4l1 2H9l1-2Z" fill="currentColor" /></svg>
+      <span class="rail-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M5 10h14M10 5v14" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.85" /></svg>
+      </span>
+      {#if railExpanded}
+        <span class="rail-copy">
+          <strong>Display</strong>
+          <small>Grid and ownership rendering</small>
+        </span>
+      {/if}
     </button>
   </div>
 
   {#if activePanel}
     <section
       class="tool-panel"
+      class:tool-panel--embedded={railExpanded}
       class:is-expanded={mapEditorUiStore.isPanelExpanded(activePanel)}
       in:fly={{ x: -10, duration: 140 }}
       out:fade={{ duration: 120 }}
@@ -305,6 +418,38 @@
         <div class="inline-field">
           <input type="number" min="0" value={mapEditorStore.forceBrush} oninput={(event) => (mapEditorStore.forceBrush = Number((event.currentTarget as HTMLInputElement).value))} />
           <strong>{mapEditorStore.forceBrush}</strong>
+        </div>
+      {:else if activePanel === "connect-lane"}
+        <header>
+          <div>
+            <strong>Connect Lanes</strong>
+            <span>Author lane topology directly from the tool rail.</span>
+          </div>
+        </header>
+        <div class="hint-card">
+          <strong>Controls</strong>
+          <ul>
+            <li>Click stars to chain lanes.</li>
+            <li>Drag through stars to lay down multiple lanes.</li>
+            <li>Hold <kbd>Ctrl</kbd> to clear lanes.</li>
+            <li>Right-click a star to peel back its newest attached lane.</li>
+            <li>Right-click empty space to cancel the draft.</li>
+          </ul>
+        </div>
+      {:else if activePanel === "measure"}
+        <header>
+          <div>
+            <strong>Measurements</strong>
+            <span>Create persistent references for lane clearance and authored-map diagnostics.</span>
+          </div>
+        </header>
+        <div class="hint-card">
+          <strong>Controls</strong>
+          <ul>
+            <li>Click a first anchor, then a second anchor.</li>
+            <li>Anchors can snap to stars or stay freeform.</li>
+            <li>Right-click to cancel the draft.</li>
+          </ul>
         </div>
       {:else if activePanel === "utilities"}
         <header>
@@ -405,72 +550,181 @@
 <style>
   .tool-rail-shell {
     position: relative;
-    width: 68px;
-    min-width: 68px;
+    width: 80px;
+    min-width: 80px;
     height: max-content;
+    transition:
+      width 180ms ease,
+      min-width 180ms ease;
+  }
+
+  .tool-rail-shell[data-expanded="true"] {
+    width: 332px;
+    min-width: 332px;
   }
 
   .tool-rail {
-    width: 68px;
-    padding: 10px 8px;
-    border-radius: 24px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: var(--editor-surface, rgba(4, 11, 26, 0.86));
-    backdrop-filter: blur(18px);
-    display: grid;
-    gap: 8px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  }
-
-  .tool-rail button {
     width: 100%;
-    min-height: 50px;
-    border-radius: 16px;
+    padding: 12px 10px;
+    border-radius: 28px;
+    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
+    background:
+      linear-gradient(180deg, rgba(20, 33, 57, 0.94), rgba(7, 14, 28, 0.96)),
+      var(--editor-surface, rgba(4, 11, 26, 0.86));
+    backdrop-filter: blur(22px);
+    display: grid;
+    gap: 10px;
+    box-shadow:
+      0 22px 64px rgba(0, 0, 0, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .drawer-toggle,
+  .rail-button {
+    width: 100%;
+    min-height: 60px;
+    border-radius: 18px;
     border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(10, 17, 33, 0.78);
-    color: rgba(203, 213, 225, 0.88);
-    display: inline-flex;
+    background:
+      linear-gradient(180deg, rgba(18, 29, 51, 0.94), rgba(8, 14, 28, 0.94));
+    color: rgba(226, 232, 240, 0.94);
+    display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 10px 12px;
+    text-align: left;
     cursor: pointer;
-    transition: 140ms ease;
-  }
-
-  .tool-rail button:hover,
-  .tool-rail button.is-active {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: linear-gradient(180deg, rgba(17, 39, 63, 0.95), rgba(11, 28, 49, 0.95));
-    color: #f8fafc;
-    box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.18);
-  }
-
-  .tool-rail button svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  .rail-button--star,
-  .rail-button--owner {
     position: relative;
     overflow: hidden;
+    transition:
+      border-color 140ms ease,
+      background 140ms ease,
+      box-shadow 140ms ease,
+      color 140ms ease,
+      transform 140ms ease;
   }
 
-  .rail-button--star::before,
-  .rail-button--owner::before {
+  .drawer-toggle::before,
+  .rail-button::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--star-color, var(--owner-color, #38bdf8)) 18%, transparent), transparent 70%);
-    opacity: 0.9;
+    background:
+      radial-gradient(circle at top left, color-mix(in srgb, var(--tool-accent, #94a3b8) 22%, transparent), transparent 58%);
+    opacity: 0.92;
     pointer-events: none;
   }
 
-  .rail-button--owner::before {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--owner-color) 24%, transparent), transparent 70%);
+  .drawer-toggle {
+    --tool-accent: #cbd5f5;
+    min-height: 72px;
+    border-color: rgba(148, 163, 184, 0.2);
+    background:
+      linear-gradient(180deg, rgba(29, 48, 82, 0.98), rgba(12, 21, 40, 0.96));
+    color: #f8fafc;
+  }
+
+  .drawer-toggle:hover,
+  .drawer-toggle[aria-pressed="true"],
+  .rail-button:hover,
+  .rail-button.is-active {
+    border-color: color-mix(in srgb, var(--tool-accent, #7dd3fc) 68%, white 10%);
+    background:
+      linear-gradient(180deg, rgba(25, 45, 75, 0.98), rgba(10, 18, 33, 0.97));
+    color: #f8fafc;
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--tool-accent, #7dd3fc) 26%, transparent),
+      0 12px 30px rgba(2, 8, 23, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .drawer-toggle__icon,
+  .rail-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--tool-accent, #94a3b8) 22%, rgba(255, 255, 255, 0.04)), rgba(8, 14, 28, 0.08));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--tool-accent, #94a3b8) 20%, transparent),
+      0 8px 18px rgba(2, 8, 23, 0.24);
+    color: color-mix(in srgb, var(--tool-accent, #94a3b8) 82%, white 18%);
+    position: relative;
+    z-index: 1;
+  }
+
+  .drawer-toggle__icon svg,
+  .rail-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .rail-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .rail-copy strong {
+    display: block;
+    font-family: "Rajdhani", sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f8fafc;
+  }
+
+  .rail-copy small {
+    display: block;
+    min-width: 0;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(191, 219, 254, 0.78);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tool-rail-shell[data-expanded="false"] .drawer-toggle,
+  .tool-rail-shell[data-expanded="false"] .rail-button {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .tool-rail-shell[data-expanded="false"] .rail-copy {
+    display: none;
+  }
+
+  .rail-button--star {
+    --tool-accent: var(--star-color, #facc15);
+  }
+
+  .rail-button--owner {
+    --tool-accent: var(--owner-color, #f472b6);
+  }
+
+  .rail-button--star::after,
+  .rail-button--owner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--tool-accent) 20%, transparent), transparent 72%);
+    pointer-events: none;
   }
 
   .rail-button--owner svg circle {
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--owner-color) 55%, transparent));
+    filter: drop-shadow(0 0 7px color-mix(in srgb, var(--owner-color) 56%, transparent));
   }
 
   .rail-button--tooltip {
@@ -501,6 +755,10 @@
     z-index: 30;
   }
 
+  .tool-rail-shell[data-expanded="true"] .rail-button--tooltip::after {
+    display: none;
+  }
+
   .rail-button--tooltip:hover::after,
   .rail-button--tooltip:focus-visible::after {
     opacity: 1;
@@ -510,7 +768,7 @@
   .tool-panel {
     position: absolute;
     top: 0;
-    left: calc(100% + 12px);
+    left: calc(100% + 14px);
     width: min(360px, calc(100vw - 180px));
     max-height: calc(100vh - 72px);
     overflow: auto;
@@ -525,6 +783,16 @@
     z-index: 25;
   }
 
+  .tool-panel--embedded {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    max-height: none;
+    margin-top: 12px;
+    border-radius: 22px;
+  }
+
   .tool-panel header,
   .subsection__header,
   .inline-field {
@@ -534,7 +802,8 @@
     gap: 10px;
   }
 
-  .tool-panel header div {
+  .tool-panel header div,
+  .hint-card {
     display: grid;
     gap: 4px;
   }
@@ -545,7 +814,8 @@
   }
 
   .tool-panel header strong,
-  .subsection__header strong {
+  .subsection__header strong,
+  .hint-card strong {
     font-family: "Rajdhani", sans-serif;
     font-size: 0.98rem;
     letter-spacing: 0.08em;
@@ -559,6 +829,38 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.88);
+  }
+
+  .hint-card {
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    background: linear-gradient(180deg, rgba(16, 27, 48, 0.92), rgba(7, 12, 24, 0.88));
+  }
+
+  .hint-card ul {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
+    color: rgba(203, 213, 225, 0.92);
+    font-size: 0.82rem;
+  }
+
+  .hint-card kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    min-height: 1.35rem;
+    padding: 0 0.3rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(15, 23, 42, 0.9);
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #f8fafc;
   }
 
   .stack {
@@ -717,6 +1019,11 @@
     .tool-rail-shell {
       width: auto;
       min-width: 0;
+    }
+
+    .tool-rail-shell[data-expanded="true"] {
+      width: min(100vw - 24px, 332px);
+      min-width: min(100vw - 24px, 332px);
     }
 
     .tool-panel {

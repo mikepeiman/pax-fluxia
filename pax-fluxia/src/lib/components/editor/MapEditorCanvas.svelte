@@ -745,11 +745,26 @@
 
   function handleContextMenu(event: MouseEvent) {
     if (!canvasEl) return;
-    if (mapEditorStore.tool === "measure" || mapEditorStore.tool === "connect-lane") {
+    if (mapEditorStore.tool === "measure") {
       event.preventDefault();
       contextMenu = null;
       mapEditorStore.cancelDraftInteractions();
-      mapEditorStore.setTool("auto");
+      return;
+    }
+
+    if (mapEditorStore.tool === "connect-lane") {
+      event.preventDefault();
+      contextMenu = null;
+      const world = screenToWorld(event.clientX, event.clientY);
+      const star = findStarAt(world);
+      if (star) {
+        mapEditorStore.cancelDraftInteractions();
+        mapEditorStore.removeLatestLaneForStar(star.id);
+        mapEditorStore.selectStar(star.id);
+        return;
+      }
+
+      mapEditorStore.cancelDraftInteractions();
       return;
     }
 

@@ -828,6 +828,19 @@ function sortLanePair(sourceId: string, targetId: string): {
         : { sourceId: targetId, targetId: sourceId };
 }
 
+function removeLaneById(
+    map: MapDefinition,
+    laneId: string,
+): boolean {
+    const lane = map.connections.find((entry) => entry.id === laneId);
+    if (!lane) return false;
+    map.connections = map.connections.filter((entry) => entry.id !== laneId);
+    map.measurements = (map.measurements ?? []).filter(
+        (measurement) => measurement.relatedLaneId !== laneId,
+    );
+    return true;
+}
+
 function setLaneConnection(
     sourceId: string,
     targetId: string,
@@ -853,12 +866,7 @@ function setLaneConnection(
     const nextMap = cloneMap(documentState);
 
     if (!connected && existingLane) {
-        nextMap.connections = nextMap.connections.filter(
-            (lane) => lane.id !== existingLane.id,
-        );
-        nextMap.measurements = (nextMap.measurements ?? []).filter(
-            (measurement) => measurement.relatedLaneId !== existingLane.id,
-        );
+        removeLaneById(nextMap, existingLane.id);
         applyMap(nextMap, { preserveSelection: false });
         return true;
     }
@@ -876,6 +884,24 @@ function setLaneConnection(
     });
     applyMap(nextMap, { preserveSelection: false });
     return true;
+}
+
+function removeLatestLaneForStar(starId: string): string | null {
+    const latestLane = [...documentState.connections]
+        .reverse()
+        .find((lane) => lane.sourceId === starId || lane.targetId === starId);
+
+    if (!latestLane) {
+        return null;
+    }
+
+    const nextMap = cloneMap(documentState);
+    if (!removeLaneById(nextMap, latestLane.id)) {
+        return null;
+    }
+
+    applyMap(nextMap, { preserveSelection: false });
+    return latestLane.id;
 }
 
 function toggleLane(sourceId: string, targetId: string): void {
@@ -1637,6 +1663,7 @@ export const mapEditorStore = {
     deleteSelection,
     toggleLane,
     setLaneConnection,
+    removeLatestLaneForStar,
     setLaneDraftSource,
     startOrAdvanceLaneDraft,
     startOrToggleLaneDraft,

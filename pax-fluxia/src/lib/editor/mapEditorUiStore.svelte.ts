@@ -16,6 +16,7 @@ export type MapEditorPanelId =
 
 export interface MapEditorUiPrefs {
     density: MapEditorDensityPreset;
+    railExpanded: boolean;
     expandedPanels: Partial<Record<MapEditorPanelId, boolean>>;
 }
 
@@ -23,12 +24,14 @@ const MAP_EDITOR_UI_PREFS_STORAGE_KEY = "pax-map-editor-ui-prefs-v1";
 
 const defaultPrefs: MapEditorUiPrefs = {
     density: "standard",
+    railExpanded: false,
     expandedPanels: {},
 };
 
 function clonePrefs(prefs: MapEditorUiPrefs): MapEditorUiPrefs {
     return {
         density: prefs.density,
+        railExpanded: prefs.railExpanded,
         expandedPanels: { ...prefs.expandedPanels },
     };
 }
@@ -47,6 +50,7 @@ function loadPrefs(): MapEditorUiPrefs {
                 parsed.density === "compact" || parsed.density === "expanded"
                     ? parsed.density
                     : "standard",
+            railExpanded: parsed.railExpanded === true,
             expandedPanels: { ...(parsed.expandedPanels ?? {}) },
         };
     } catch {
@@ -70,6 +74,14 @@ function updatePrefs(updater: (prefs: MapEditorUiPrefs) => MapEditorUiPrefs): vo
 
 function setDensity(density: MapEditorDensityPreset): void {
     updatePrefs((prefs) => ({ ...prefs, density }));
+}
+
+function setRailExpanded(railExpanded: boolean): void {
+    updatePrefs((prefs) => ({ ...prefs, railExpanded }));
+}
+
+function toggleRailExpanded(): void {
+    setRailExpanded(!prefsState.railExpanded);
 }
 
 function toggleToolPanel(panel: Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection">): void {
@@ -111,12 +123,15 @@ function setPanelExpanded(panel: MapEditorPanelId, expanded: boolean): void {
 export const mapEditorUiStore = {
     get prefs() { return prefsState; },
     get density() { return prefsState.density; },
+    get railExpanded() { return prefsState.railExpanded; },
     get activeToolPanel() { return activeToolPanel; },
     get activeSheet() { return activeSheet; },
     isPanelExpanded(panel: MapEditorPanelId) {
         return Boolean(prefsState.expandedPanels[panel]);
     },
     setDensity,
+    setRailExpanded,
+    toggleRailExpanded,
     toggleToolPanel,
     closeToolPanel,
     openSheet,
