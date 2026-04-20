@@ -1,5 +1,17 @@
 # Feature And Task Queue - 2026-04-20
 
+## Provenance
+
+### Primary Ledger
+
+- Source lineage: current `master` day ledger carried forward in the target repo.
+- Scope: diagnostics-overlay UX, map-loading entrypoints, and map-editor merge handoff.
+
+### Imported Historical Thread
+
+- Source branch: `claude/goofy-raman`.
+- Imported as preserved branch-thread context during the `codex/goofy-raman-integration` merge review.
+
 - Make the bottom-right diagnostics panel follow normal overlay dismissal UX: toggle closed from the same icon, close on outside click, and close on `Escape`.
 - Fix the in-game `End Game` action so surrender reliably surfaces the results overlay.
 - Add a direct `Load Map` action to the main menu command band with a saved-map picker.
@@ -14,7 +26,7 @@
 
 - `.agent/docs/plans/2026-04-20/MAP_EDITOR_MERGE_HANDOFF_2026-04-20.md`
 
-## Additional Historical Branch Thread
+## Imported Historical Thread
 
 ### Lane Diagnostics And Reactive Diagnostics-Panel Planning
 

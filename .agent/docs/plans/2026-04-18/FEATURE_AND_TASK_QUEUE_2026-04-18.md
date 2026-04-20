@@ -1,5 +1,17 @@
 # Feature And Task Queue - 2026-04-18
 
+## Provenance
+
+### Primary Ledger
+
+- Source lineage: current `master` day ledger carried forward in the target repo.
+- Scope: production/accounting fixes, settings metadata work, and map-editor shell follow-up.
+
+### Imported Historical Thread
+
+- Source branch: `claude/goofy-raman`.
+- Imported as preserved branch-thread context during the `codex/goofy-raman-integration` merge review.
+
 - Audit production accounting against the shared engine and the UI production readouts.
 - Correct production display math so per-player and per-star production match `BASE_PRODUCTION` and star-type multipliers.
 - Fix fractional production accumulation so `0.6` per tick yields exactly `6` ships in `10` ticks instead of drifting low.
@@ -48,7 +60,7 @@
   - selection panel, validation sheet, and library sheet interaction overlap
   - numeric star-type hotkeys and `Escape` sheet close behavior
 
-## Additional Historical Branch Thread
+## Imported Historical Thread
 
 ### Metaball-Grid Perf And Tuning Expansion
 

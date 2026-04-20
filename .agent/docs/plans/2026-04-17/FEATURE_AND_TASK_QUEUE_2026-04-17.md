@@ -1,5 +1,17 @@
 # Feature And Task Queue - 2026-04-17
 
+## Provenance
+
+### Primary Ledger
+
+- Source lineage: current `master` day ledger carried forward in the target repo.
+- Scope: diagnostics-surface unification and same-day map-editor integration work.
+
+### Imported Historical Thread
+
+- Source branch: `claude/goofy-raman`.
+- Imported as preserved branch-thread context during the `codex/goofy-raman-integration` merge review.
+
 ## Purpose
 
 Unify territory and transition diagnostics into one actual user-facing diagnostics surface, with a direct bottom-right entry point, and stop splitting recorder exports and perimeter-field diagnostics across unrelated panels.
@@ -113,7 +125,7 @@ Unify territory and transition diagnostics into one actual user-facing diagnosti
   - authored measurement visibility from both HUD button and debug settings
 - Consider breaking up the large new editor route/store files if we continue expanding editor polish work.
 
-## Additional Historical Branch Thread
+## Imported Historical Thread
 
 ### Metaball-Grid Mode
 

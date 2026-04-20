@@ -1,5 +1,17 @@
 # Feature And Task Queue - 2026-04-19
 
+## Provenance
+
+### Primary Ledger
+
+- Source lineage: current `master` day ledger carried forward in the target repo.
+- Scope: metaball-grid restoration, settings-metadata cleanup, and lane-margin/MSR semantics follow-up.
+
+### Imported Historical Thread
+
+- Source branch: `claude/goofy-raman`.
+- Imported as preserved branch-thread context during the `codex/goofy-raman-integration` merge review.
+
 - Audit metaball-grid renderer mode together with shared territory-geometry tunables (MSR, CX, CP, DX): explain actual code-path behavior, identify dead/partial wiring, and document improvements before grid mode becomes the default.
 - Restore missing worktree metaball-grid planner controls on master: `METABALL_GRID_DISTRIBUTION`, `METABALL_GRID_POSITION_JITTER`, and `METABALL_GRID_MAX_CELLS`.
 - Restore metaball-grid perf/observability surface on master so tuning exposes requested/effective spacing, total/emittable/painted cells, and frame/update cost.
@@ -9,7 +21,7 @@
 - Remove visible config-key chips from the settings UI and keep config key + description in hover tooltips only, per original spec.
 - Expand settings hover metadata so each tooltip shows both `panel:` and `config:` identifiers, not just the config key.
 
-## Additional Historical Branch Thread
+## Imported Historical Thread
 
 ### Goofy-Raman Metaball-Grid Phase A/C Record
 
