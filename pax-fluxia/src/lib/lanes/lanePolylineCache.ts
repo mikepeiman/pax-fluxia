@@ -5,6 +5,7 @@
 
 import { attachLaneWaypointsToConnections, type MapLaneMode } from '@pax/common/mapgen';
 import type { MapConnection } from '@pax/common/mapgen';
+import { log } from '$lib/utils/logger';
 
 const cache = new Map<string, [number, number][]>();
 
@@ -16,8 +17,7 @@ let __storageFixDiagFired = false;
 function logStorageFixEngagement(sourceId: string, targetId: string, reversed: boolean): void {
     if (__storageFixDiagFired) return;
     __storageFixDiagFired = true;
-    // eslint-disable-next-line no-console
-    console.info('[lane-cache-fix] first write diagnostic', {
+    log.sys('LaneCache', 'first write diagnostic', {
         firstEdgeWritten: { sourceId, targetId },
         nonCanonicalInput: sourceId > targetId,
         reversedAtStorage: reversed,

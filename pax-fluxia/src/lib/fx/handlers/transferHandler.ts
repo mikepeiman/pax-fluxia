@@ -18,6 +18,7 @@ import {
     assignShipLaneGeometry,
     computeLaneHeadingForNearside,
 } from '$lib/lanes/applyLaneTravelPath';
+import { log } from '$lib/utils/logger';
 
 // ── Diagnostic: detect backward polylines in the cache ─────────────────────
 // Fires at ship-transfer time. Measures whether the polyline the cache returns
@@ -50,8 +51,7 @@ function diagnoseLanePolylineDirection(
     __diagSeenBad.add(key);
     __diagLogCount++;
     const chord = Math.hypot(tgt.x - src.x, tgt.y - src.y);
-    // eslint-disable-next-line no-console
-    console.warn('[lane-dir-diag] BACKWARD polyline served by cache', {
+    log.error('LaneCache', 'BACKWARD polyline served by cache', {
         edgeKey: key,
         requested: { sourceId, targetId },
         idComparison: sourceId <= targetId ? 'canonical (src<=tgt)' : 'non-canonical (src>tgt)',
@@ -109,8 +109,7 @@ function diagnoseShipGeometry(
     if (!startBackward && !endBackward && !polyBackward) return;
     __geomDiagSeen.add(key);
     __geomDiagLogCount++;
-    // eslint-disable-next-line no-console
-    console.warn('[ship-geom-diag] BACKWARD ship-geometry assignment', {
+    log.error('ShipLane', 'BACKWARD ship-geometry assignment', {
         edgeKey: key,
         requested: { sourceId, targetId },
         idComparison: sourceId <= targetId ? 'canonical' : 'non-canonical',
