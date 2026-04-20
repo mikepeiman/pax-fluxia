@@ -198,10 +198,19 @@
     mapEditorStore.setTool("paint-owner");
   }
 
-  function selectStarTypeBrush(starType: StarType) {
+  function selectStarTypeBrush(
+    starType: StarType,
+    options?: {
+      openPanel?: boolean;
+    },
+  ) {
     mapEditorStore.starTypeBrush = starType;
     mapEditorStore.setTool("place-star");
-    ensureToolPanel("place-star");
+    if (options?.openPanel ?? true) {
+      ensureToolPanel("place-star");
+      return;
+    }
+    mapEditorUiStore.closeToolPanel();
   }
 
   function armForceBrush() {
@@ -532,7 +541,7 @@
         const starType = mapEditorStore.starTypePalette[digit - 1];
         if (starType) {
           event.preventDefault();
-          selectStarTypeBrush(starType.id);
+          selectStarTypeBrush(starType.id, { openPanel: false });
           setStatus(`Armed ${starType.label} placement.`);
         }
         return;
