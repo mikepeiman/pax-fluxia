@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
 
@@ -17,10 +18,56 @@
   }: Props = $props();
 
   const density = $derived(mapEditorUiStore.density);
+  let showFileFlyout = $state(false);
+  let showLaunchFlyout = $state(false);
+  let fileFlyoutEl: HTMLDivElement | null = null;
+  let launchFlyoutEl: HTMLDivElement | null = null;
 
   function toggleSheet(panel: "library" | "overflow") {
     mapEditorUiStore.openSheet(panel);
   }
+
+  function closeFlyouts() {
+    showFileFlyout = false;
+    showLaunchFlyout = false;
+  }
+
+  function toggleFileFlyout() {
+    showFileFlyout = !showFileFlyout;
+    if (showFileFlyout) {
+      showLaunchFlyout = false;
+    }
+  }
+
+  function toggleLaunchFlyout() {
+    showLaunchFlyout = !showLaunchFlyout;
+    if (showLaunchFlyout) {
+      showFileFlyout = false;
+    }
+  }
+
+  onMount(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (fileFlyoutEl?.contains(target) || launchFlyoutEl?.contains(target)) {
+        return;
+      }
+      closeFlyouts();
+    };
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeFlyouts();
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  });
 </script>
 
 <div class="command-dock" data-density={density}>
@@ -31,10 +78,24 @@
 
   <div class="command-dock__actions">
     <button type="button" class="primary" onclick={onSave}>Save</button>
-    <button type="button" class:is-active={mapEditorUiStore.activeSheet === "library"} onclick={() => toggleSheet("library")}>Load</button>
-    <button type="button" onclick={onExport}>Export</button>
-    <button type="button" class="accent" onclick={onTestSinglePlayer}>Test SP</button>
-    <button type="button" class="accent" onclick={onHostMultiplayer}>Host MP</button>
+    <div class="dock-menu" bind:this={fileFlyoutEl}>
+      <button type="button" class:is-active={showFileFlyout || mapEditorUiStore.activeSheet === "library"} onclick={toggleFileFlyout}>File</button>
+      {#if showFileFlyout}
+        <div class="dock-flyout">
+          <button type="button" onclick={() => { toggleSheet("library"); closeFlyouts(); }}>Load</button>
+          <button type="button" onclick={() => { onExport(); closeFlyouts(); }}>Export</button>
+        </div>
+      {/if}
+    </div>
+    <div class="dock-menu" bind:this={launchFlyoutEl}>
+      <button type="button" class="accent" class:is-active={showLaunchFlyout} onclick={toggleLaunchFlyout}>Launch</button>
+      {#if showLaunchFlyout}
+        <div class="dock-flyout">
+          <button type="button" onclick={() => { onTestSinglePlayer(); closeFlyouts(); }}>Test SP</button>
+          <button type="button" onclick={() => { onHostMultiplayer(); closeFlyouts(); }}>Host MP</button>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <div class="command-dock__actions command-dock__actions--secondary">
@@ -54,9 +115,9 @@
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 22px;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 18px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
     background: rgba(4, 11, 26, 0.86);
     backdrop-filter: blur(18px);
@@ -90,13 +151,32 @@
   .command-dock__actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .dock-menu {
+    position: relative;
+  }
+
+  .dock-flyout {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 10px);
+    min-width: 132px;
+    padding: 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(4, 11, 26, 0.96);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    display: grid;
+    gap: 6px;
   }
 
   button {
-    min-height: 40px;
-    padding: 0 14px;
-    border-radius: 14px;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 12px;
     border: 1px solid rgba(148, 163, 184, 0.16);
     background: rgba(9, 16, 31, 0.9);
     color: rgba(226, 232, 240, 0.92);
@@ -125,8 +205,8 @@
   }
 
   .command-dock__actions--secondary button {
-    min-width: 40px;
-    padding: 0 12px;
+    min-width: 36px;
+    padding: 0 10px;
   }
 
   .command-dock__actions--secondary svg {

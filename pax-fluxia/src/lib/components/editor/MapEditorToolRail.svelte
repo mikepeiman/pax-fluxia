@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fly, fade } from "svelte/transition";
   import type { StarType } from "@pax/common";
+  import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
   import { mapEditorStore, type MapEditorTool } from "$lib/editor/mapEditorStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";
   import {
@@ -450,14 +451,18 @@
             {#if density !== "compact"}<span>Apply to selection immediately, or drag to stamp fleet counts.</span>{/if}
           </div>
         </header>
-        <label class="stack">
-          <span>Fleet Count</span>
-          <input type="range" min="0" max="200" step="5" bind:value={mapEditorStore.forceBrush} />
-        </label>
-        <div class="inline-field">
-          <input type="number" min="0" value={mapEditorStore.forceBrush} oninput={(event) => (mapEditorStore.forceBrush = Number((event.currentTarget as HTMLInputElement).value))} />
-          <strong>{mapEditorStore.forceBrush}</strong>
-        </div>
+        <EditorSliderField
+          label="Fleet Count"
+          value={mapEditorStore.forceBrush}
+          min={0}
+          max={200}
+          step={5}
+          accent="#c084fc"
+          valueText={`${mapEditorStore.forceBrush} ships`}
+          onChange={(value) => {
+            mapEditorStore.forceBrush = value;
+          }}
+        />
       {:else if activePanel === "connect-lane"}
         <header>
           <div>
@@ -503,15 +508,15 @@
         <div class="stack">
           <label class="stack">
             <span>Symmetry</span>
-            <div class="inline-field">
-              <select value={String(symmetryFold)} oninput={selectSymmetryFold}>
+            <div class="inline-field inline-field--segmented">
+              <select class="editor-select" value={String(symmetryFold)} oninput={selectSymmetryFold}>
                 <option value="2">2-fold</option>
                 <option value="3">3-fold</option>
                 <option value="4">4-fold</option>
                 <option value="5">5-fold</option>
                 <option value="6">6-fold</option>
               </select>
-              <button type="button" onclick={onApplySymmetry}>Apply</button>
+              <button type="button" class="action-btn action-btn--primary" onclick={onApplySymmetry}>Apply</button>
             </div>
           </label>
           <div class="utility-grid">
@@ -566,19 +571,27 @@
             {displayExpanded ? "Less" : "More"}
           </button>
         </header>
-        <label class="stack">
-          <span>Hex Grid</span>
-          <input type="range" min="10" max="100" step="1" value={mapEditorStore.hexRadius} oninput={(event) => (mapEditorStore.hexRadius = Number((event.currentTarget as HTMLInputElement).value))} />
-          <strong>{mapEditorStore.hexRadius}px radius</strong>
-        </label>
+        <EditorSliderField
+          label="Hex Grid"
+          value={mapEditorStore.hexRadius}
+          min={10}
+          max={100}
+          step={1}
+          accent="#60a5fa"
+          valueText={`${mapEditorStore.hexRadius}px`}
+          unitLabel="px"
+          onChange={(value) => {
+            mapEditorStore.hexRadius = value;
+          }}
+        />
         {#if displayExpanded || density !== "compact"}
-          <div class="stack">
-            <label class="stack"><span>Ring Radius</span><input type="range" min="18" max="34" step="1" value={ownerRingRadius} oninput={(event) => onSetOwnerRingRadius(Number((event.currentTarget as HTMLInputElement).value))} /></label>
-            <label class="stack"><span>Ring Thickness</span><input type="range" min="2" max="12" step="1" value={ownerRingThickness} oninput={(event) => onSetOwnerRingThickness(Number((event.currentTarget as HTMLInputElement).value))} /></label>
-            <label class="stack"><span>Hue Shift</span><input type="range" min="-180" max="180" step="1" value={ownerColorHueShift} oninput={(event) => onSetOwnerColorHueShift(Number((event.currentTarget as HTMLInputElement).value))} /></label>
-            <label class="stack"><span>Saturation</span><input type="range" min="0" max="200" step="5" value={ownerColorSaturation} oninput={(event) => onSetOwnerColorSaturation(Number((event.currentTarget as HTMLInputElement).value))} /></label>
-            <label class="stack"><span>Lightness</span><input type="range" min="-35" max="35" step="1" value={ownerColorLightness} oninput={(event) => onSetOwnerColorLightness(Number((event.currentTarget as HTMLInputElement).value))} /></label>
-            <label class="stack"><span>Alpha</span><input type="range" min="10" max="100" step="1" value={ownerColorAlpha} oninput={(event) => onSetOwnerColorAlpha(Number((event.currentTarget as HTMLInputElement).value))} /></label>
+          <div class="slider-grid">
+            <EditorSliderField label="Ring Radius" value={ownerRingRadius} min={18} max={34} step={1} accent="#38bdf8" valueText={`${ownerRingRadius}px`} unitLabel="px" onChange={onSetOwnerRingRadius} />
+            <EditorSliderField label="Ring Thickness" value={ownerRingThickness} min={2} max={12} step={1} accent="#22d3ee" valueText={`${ownerRingThickness}px`} unitLabel="px" onChange={onSetOwnerRingThickness} />
+            <EditorSliderField label="Hue Shift" value={ownerColorHueShift} min={-180} max={180} step={1} accent="#f472b6" valueText={`${ownerColorHueShift}°`} unitLabel="deg" onChange={onSetOwnerColorHueShift} />
+            <EditorSliderField label="Saturation" value={ownerColorSaturation} min={0} max={200} step={5} accent="#f59e0b" valueText={`${ownerColorSaturation}%`} unitLabel="pct" onChange={onSetOwnerColorSaturation} />
+            <EditorSliderField label="Lightness" value={ownerColorLightness} min={-35} max={35} step={1} accent="#a78bfa" valueText={`${ownerColorLightness}`} onChange={onSetOwnerColorLightness} />
+            <EditorSliderField label="Alpha" value={ownerColorAlpha} min={10} max={100} step={1} accent="#34d399" valueText={`${ownerColorAlpha}%`} unitLabel="pct" onChange={onSetOwnerColorAlpha} />
           </div>
         {/if}
       {/if}
@@ -838,13 +851,13 @@
     width: min(360px, calc(100vw - 180px));
     max-height: calc(100vh - 72px);
     overflow: auto;
-    padding: 16px;
-    border-radius: 24px;
+    padding: 14px;
+    border-radius: 22px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
     background: rgba(3, 10, 24, 0.94);
     backdrop-filter: blur(20px);
     display: grid;
-    gap: 14px;
+    gap: 12px;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
     z-index: 25;
   }
@@ -872,6 +885,12 @@
   .hint-card {
     display: grid;
     gap: 4px;
+  }
+
+  .slider-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .tool-panel strong,
@@ -1030,7 +1049,7 @@
   input,
   select {
     width: 100%;
-    min-height: 40px;
+    min-height: 38px;
     padding: 0 10px;
     border-radius: 12px;
     border: 1px solid rgba(148, 163, 184, 0.16);
@@ -1038,6 +1057,15 @@
     color: #e2e8f0;
   }
 
+  .editor-select {
+    appearance: none;
+  }
+
+  .inline-field--segmented {
+    align-items: stretch;
+  }
+
+  .action-btn,
   .expand-btn,
   .ghost,
   .utility-grid button,
@@ -1049,6 +1077,11 @@
     background: rgba(9, 16, 31, 0.9);
     color: rgba(226, 232, 240, 0.92);
     cursor: pointer;
+  }
+
+  .action-btn--primary {
+    border-color: rgba(103, 232, 249, 0.32);
+    background: linear-gradient(135deg, rgba(16, 44, 70, 0.96), rgba(8, 19, 34, 0.96));
   }
 
   .danger {
@@ -1074,6 +1107,7 @@
       width: min(300px, calc(100vw - 120px));
     }
 
+    .slider-grid,
     .owner-grid,
     .utility-grid,
     .star-grid {

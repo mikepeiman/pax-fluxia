@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { StarType } from "@pax/common";
+  import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";
@@ -133,14 +134,16 @@
           </div>
         </label>
 
-        <label class="stack">
-          <span>Ships</span>
-          <input type="range" min="0" max="200" step="5" value={selectedStarShips ?? mapEditorStore.forceBrush} oninput={(event) => onUpdateShips(numberValue(event))} />
-          <div class="inline-field">
-            <input type="number" min="0" value={selectedStarShips ?? mapEditorStore.forceBrush} oninput={(event) => onUpdateShips(numberValue(event))} />
-            <strong>{selectedStarShips ?? "Mixed"} ships</strong>
-          </div>
-        </label>
+        <EditorSliderField
+          label="Ships"
+          value={selectedStarShips ?? mapEditorStore.forceBrush}
+          min={0}
+          max={200}
+          step={5}
+          accent="#c084fc"
+          valueText={selectedStarShips === null ? "Mixed" : `${selectedStarShips} ships`}
+          onChange={onUpdateShips}
+        />
 
         {#if selectedStar && (selectionExpanded || density !== "compact")}
           <section class="panel-block panel-block--subtle">
@@ -170,7 +173,7 @@
         </div>
         <label class="stack">
           <span>Path Mode</span>
-          <select value={selectedLane.pathMode ?? "auto"} oninput={onUpdateLaneMode}>
+          <select class="editor-select" value={selectedLane.pathMode ?? "auto"} oninput={onUpdateLaneMode}>
             <option value="auto">Auto</option>
             <option value="manual">Manual</option>
           </select>
@@ -196,22 +199,32 @@
     position: absolute;
     top: 76px;
     right: 16px;
-    width: min(340px, 34vw);
+    width: min(316px, 30vw);
     max-height: calc(100% - 180px);
     overflow: auto;
-    padding: 16px;
+    padding: 14px;
     border-radius: 24px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
     background: rgba(3, 10, 24, 0.94);
     backdrop-filter: blur(20px);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
     display: grid;
-    gap: 14px;
+    gap: 12px;
     z-index: 10;
+    isolation: isolate;
+  }
+
+  .selection-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: linear-gradient(180deg, rgba(125, 211, 252, 0.86), rgba(167, 139, 250, 0.72));
+    border-top-left-radius: 24px;
+    border-bottom-left-radius: 24px;
   }
 
   .selection-panel header,
-  .inline-field,
   .checkbox-row {
     display: flex;
     align-items: center;
@@ -272,7 +285,7 @@
   .owner-grid,
   .type-grid {
     display: grid;
-    gap: 10px;
+    gap: 8px;
   }
 
   .owner-grid {
@@ -285,8 +298,8 @@
 
   .owner-chip,
   .type-chip {
-    min-height: 54px;
-    padding: 10px 12px;
+    min-height: 48px;
+    padding: 9px 10px;
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.16);
     background: rgba(9, 16, 31, 0.9);
@@ -329,7 +342,7 @@
   input,
   select {
     width: 100%;
-    min-height: 40px;
+    min-height: 36px;
     padding: 0 10px;
     border-radius: 12px;
     border: 1px solid rgba(148, 163, 184, 0.16);
@@ -339,8 +352,8 @@
   }
 
   .expand-btn {
-    min-height: 38px;
-    padding: 0 12px;
+    min-height: 34px;
+    padding: 0 10px;
     border-radius: 12px;
     border: 1px solid rgba(148, 163, 184, 0.16);
     background: rgba(9, 16, 31, 0.9);
@@ -357,8 +370,14 @@
     justify-content: flex-start;
   }
 
+  .editor-select {
+    appearance: none;
+    background:
+      linear-gradient(180deg, rgba(10, 18, 36, 0.96), rgba(5, 11, 22, 0.96));
+  }
+
   [data-density="compact"]:not(.is-expanded) {
-    width: min(260px, 28vw);
+    width: min(248px, 24vw);
   }
 
   [data-density="compact"]:not(.is-expanded) header span,

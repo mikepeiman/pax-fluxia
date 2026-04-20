@@ -222,8 +222,8 @@
   .hud-readout,
   .density-picker,
   .status-chip {
-    min-height: 44px;
-    border-radius: 16px;
+    min-height: 40px;
+    border-radius: 14px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
     background: rgba(4, 11, 26, 0.82);
     backdrop-filter: blur(14px);
@@ -234,7 +234,7 @@
   .hud-pill,
   .hud-readout,
   .status-chip {
-    padding: 0 14px;
+    padding: 0 12px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -303,9 +303,9 @@
     position: absolute;
     top: calc(100% + 10px);
     left: 0;
-    min-width: 164px;
-    padding: 12px;
-    border-radius: 18px;
+    min-width: 156px;
+    padding: 10px;
+    border-radius: 16px;
     border: 1px solid rgba(125, 211, 252, 0.3);
     background: rgba(4, 11, 26, 0.94);
     backdrop-filter: blur(18px);
@@ -339,7 +339,7 @@
     display: flex;
     align-items: stretch;
     justify-content: center;
-    gap: 14px;
+    gap: 10px;
   }
 
   .grid-flyout__slider {
@@ -348,8 +348,9 @@
     writing-mode: vertical-lr;
     direction: rtl;
     width: 20px;
-    height: 160px;
+    height: 148px;
     margin: 0;
+    accent-color: #60a5fa;
   }
 
   .grid-flyout__number {
@@ -365,8 +366,8 @@
   }
 
   .grid-flyout__number input {
-    width: 68px;
-    min-height: 40px;
+    width: 62px;
+    min-height: 36px;
     padding: 0 10px;
     border-radius: 12px;
     border: 1px solid rgba(148, 163, 184, 0.2);
@@ -384,9 +385,9 @@
   }
 
   .density-picker button {
-    width: 34px;
-    height: 34px;
-    border-radius: 12px;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
     border: 1px solid transparent;
     background: transparent;
     color: rgba(226, 232, 240, 0.86);
