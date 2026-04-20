@@ -28,7 +28,9 @@ export function buildMetaballScene(
             context: baseContext,
             conquestCache,
         }),
-    ].sort((a, b) => {
+    ]
+        .filter((sample) => sample.strength > 1e-6)
+        .sort((a, b) => {
         const idA = a.id ?? '';
         const idB = b.id ?? '';
         if (idA !== idB) return idA.localeCompare(idB);

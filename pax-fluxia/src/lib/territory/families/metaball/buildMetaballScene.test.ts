@@ -32,10 +32,11 @@ function makeInput(params: {
     lanes?: StarConnection[];
     tunables?: Record<string, unknown>;
     activeTransition?: RenderFamilyActiveTransition | null;
+    nowMs?: number;
 }): RenderFamilyInput {
     return {
         ownership: null,
-        nowMs: 1000,
+        nowMs: params.nowMs ?? 1000,
         stars: params.stars,
         lanes: params.lanes ?? [],
         world: { width: 200, height: 200 },
@@ -63,8 +64,8 @@ const colorUtils = {
     },
 } as unknown as ColorUtils;
 
-function makeConquestTransition(): RenderFamilyActiveTransition {
-    const conquestEvent = {
+function makeConquestEvent() {
+    return {
         tick: 10,
         starId: 'target',
         attackerStarId: 'attacker',
@@ -78,23 +79,120 @@ function makeConquestTransition(): RenderFamilyActiveTransition {
         shipsTransferred: 5,
         conquestType: 'complete' as const,
     };
+}
+
+function makeConquestTransition(params?: {
+    progress?: number;
+    durationMs?: number;
+    startedAtMs?: number;
+}): RenderFamilyActiveTransition {
+    const conquestEvent = makeConquestEvent();
+    const progress = params?.progress ?? 0.5;
+    const durationMs = params?.durationMs ?? 1000;
+    const startedAtMs = params?.startedAtMs ?? 500;
 
     return {
         conquestEvents: [conquestEvent],
         events: [
             {
                 event: conquestEvent,
-                startedAtMs: 500,
-                durationMs: 1000,
-                rawProgress: 0.5,
-                progress: 0.5,
+                startedAtMs,
+                durationMs,
+                rawProgress: progress,
+                progress: Math.max(0, Math.min(1, progress)),
             },
         ],
-        startedAtMs: 500,
-        durationMs: 1000,
-        rawProgress: 0.5,
-        progress: 0.5,
+        startedAtMs,
+        durationMs,
+        rawProgress: progress,
+        progress: Math.max(0, Math.min(1, progress)),
     };
+}
+
+function makeTransitionInput(params: {
+    mode: string;
+    progress: number;
+    stars: StarState[];
+    lanes?: StarConnection[];
+    extraTunables?: Record<string, unknown>;
+    durationMs?: number;
+}) {
+    const activeTransition = makeConquestTransition({
+        progress: params.progress,
+        durationMs: params.durationMs,
+    });
+    const nowMs =
+        activeTransition.startedAtMs +
+        activeTransition.rawProgress * activeTransition.durationMs;
+    const input = makeInput({
+        stars: params.stars,
+        lanes: params.lanes,
+        nowMs,
+        activeTransition,
+        tunables: {
+            VS_TRANSITION_MODE: params.mode,
+            MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+            MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+            ...params.extraTunables,
+        },
+    });
+
+    return { input, activeTransition };
+}
+
+function buildSceneForModeAtProgress(params: {
+    mode: string;
+    progress: number;
+    stars: StarState[];
+    lanes?: StarConnection[];
+    extraTunables?: Record<string, unknown>;
+}) {
+    const { input } = makeTransitionInput(params);
+    const conquestCache = new Map();
+    reconcileMetaballConquestCache({
+        input,
+        colorUtils,
+        conquestCache,
+    });
+    return buildMetaballScene(input, colorUtils, conquestCache);
+}
+
+function buildSteadyStateScene(params: {
+    mode: string;
+    stars: StarState[];
+    lanes?: StarConnection[];
+    extraTunables?: Record<string, unknown>;
+}) {
+    return buildMetaballScene(
+        makeInput({
+            stars: params.stars,
+            lanes: params.lanes,
+            tunables: {
+                VS_TRANSITION_MODE: params.mode,
+                MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
+                MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
+                ...params.extraTunables,
+            },
+        }),
+        colorUtils,
+    );
+}
+
+function makeClassicMetaballStars(): StarState[] {
+    return [
+        makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),
+        makeStar({ id: 'target', x: 100, y: 0, ownerId: 'blue' }),
+        makeStar({ id: 'old-anchor', x: 100, y: 80, ownerId: 'red' }),
+    ];
+}
+
+function makeBurstStars(): StarState[] {
+    return [
+        makeStar({ id: 'attacker', x: 0, y: 0, ownerId: 'blue' }),
+        makeStar({ id: 'target', x: 100, y: 0, ownerId: 'blue' }),
+        makeStar({ id: 'old-north', x: 100, y: 110, ownerId: 'red' }),
+        makeStar({ id: 'old-south', x: 115, y: -60, ownerId: 'red' }),
+    ];
 }
 
 describe('buildMetaballScene', () => {
@@ -251,7 +349,7 @@ describe('buildMetaballScene', () => {
         expect(targetBase?.strength ?? 0).toBeLessThan(attackerBase?.strength ?? 0);
         expect(victorSample?.playerIdx).toBe(attackerBase?.playerIdx);
         expect(victorSample?.strength).toBeCloseTo(attackerBase?.strength ?? 0, 6);
-        expect(victorSample?.x).toBeCloseTo(50, 6);
+        expect(victorSample?.x).toBeCloseTo(100 * (5 / 9), 6);
         expect(victorSample?.y).toBeCloseTo(0, 6);
     });
 
@@ -292,7 +390,7 @@ describe('buildMetaballScene', () => {
         expect(victorSample?.playerIdx).toBe(attackerBase?.playerIdx);
         expect(victorSample?.strength ?? 0).toBeGreaterThan(0);
         expect(victorSample?.strength ?? 0).toBeLessThan(attackerBase?.strength ?? 0);
-        expect(victorSample?.x).toBeCloseTo(50, 6);
+        expect(victorSample?.x).toBeCloseTo(100 * (5 / 9), 6);
         expect(victorSample?.y).toBeCloseTo(0, 6);
     });
 
@@ -382,5 +480,58 @@ describe('buildMetaballScene', () => {
         expect(contourDistance).toBeGreaterThan(0);
         expect(approximateDistance).toBeGreaterThan(0);
         expect(approximateDistance).not.toBe(contourDistance);
+    });
+
+    it.each([
+        ['metaball_lane_push', makeClassicMetaballStars(), undefined],
+        ['metaball_hold_then_switch', makeClassicMetaballStars(), undefined],
+        ['metaball_instant_switch_grow_in', makeClassicMetaballStars(), undefined],
+        [
+            'metaball_six_slice_burst',
+            makeBurstStars(),
+            { METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' },
+        ],
+    ] as const)(
+        'matches steady-state fingerprint at progress=1 for %s',
+        (mode, stars, extraTunables) => {
+            const lanes = [{ sourceId: 'attacker', targetId: 'target', distance: 100 }];
+            const transitionScene = buildSceneForModeAtProgress({
+                mode,
+                progress: 1,
+                stars,
+                lanes,
+                extraTunables,
+            });
+            const steadyScene = buildSteadyStateScene({
+                mode,
+                stars,
+                lanes,
+                extraTunables,
+            });
+
+            expect(transitionScene.fingerprint).toBe(steadyScene.fingerprint);
+        },
+    );
+
+    it('reintroduces the target during the settle window for lane-push instead of leaving old-owner-only topology', () => {
+        const stars = makeClassicMetaballStars();
+        const lanes = [{ sourceId: 'attacker', targetId: 'target', distance: 100 }];
+        const scene = buildSceneForModeAtProgress({
+            mode: 'metaball_lane_push',
+            progress: 0.95,
+            stars,
+            lanes,
+            extraTunables: {
+                TERRITORY_TRANSITION_SETTLE_PCT: 10,
+            },
+        });
+
+        const attackerBase = scene.samples.find((sample) => sample.id === 'star:attacker');
+        const targetBase = scene.samples.find((sample) => sample.id === 'star:target');
+
+        expect(attackerBase).toBeDefined();
+        expect(targetBase).toBeDefined();
+        expect(targetBase?.playerIdx).toBe(attackerBase?.playerIdx);
+        expect(targetBase?.strength ?? 0).toBeGreaterThan(0);
     });
 });

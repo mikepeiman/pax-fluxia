@@ -44,6 +44,8 @@ export interface TerritoryTransitionEntry {
     durationMs: number;
     /** Whether this transition has been consumed by the renderer */
     consumed: boolean;
+    /** Whether a clamped terminal frame has already been rendered once */
+    terminalFrameRendered: boolean;
 }
 
 /**
@@ -79,6 +81,14 @@ export class TerritoryTransitionState {
         if (entry) entry.consumed = true;
     }
 
+    /** Mark that a transition has rendered its terminal clamped frame. */
+    markTerminalFrameRendered(starIds: Iterable<string>): void {
+        for (const starId of starIds) {
+            const entry = this._pending.get(starId);
+            if (entry) entry.terminalFrameRendered = true;
+        }
+    }
+
     /** Check if any transitions are active (including consumed but not expired) */
     get hasActiveTransitions(): boolean {
         return this._pending.size > 0;
@@ -92,7 +102,10 @@ export class TerritoryTransitionState {
     /** Remove expired transitions */
     cleanup(gameTimeMs: number): void {
         for (const [starId, entry] of this._pending) {
-            if (gameTimeMs > entry.startTimeMs + entry.durationMs) {
+            if (
+                gameTimeMs >= entry.startTimeMs + entry.durationMs &&
+                (entry.terminalFrameRendered || entry.consumed)
+            ) {
                 this._pending.delete(starId);
             }
         }
@@ -150,6 +163,7 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
             startTimeMs: ctx.gameTime,
             durationMs: transitionMs,
             consumed: false,
+            terminalFrameRendered: false,
         });
     },
 

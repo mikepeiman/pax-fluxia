@@ -31,7 +31,6 @@
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         territoryTransitions,
-        resolveTerritoryTransitionDurationMs,
     } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
@@ -137,8 +136,10 @@
     } from "$lib/territory/families/buildFamilyGeometry";
     import type {
         RenderFamilyActiveTransition,
-        RenderFamilyTransitionEvent,
     } from "$lib/territory/families/RenderFamilyTypes";
+    import {
+        buildRenderFamilyTransitionLifecycle,
+    } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import type {
@@ -228,87 +229,6 @@
 
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
-
-    function clampUnitInterval(value: number): number {
-        return Math.max(0, Math.min(1, value));
-    }
-
-    function transitionIdentityKey(
-        conquest: import("@pax/common").ConquestEvent,
-    ): string {
-        return [
-            conquest.tick,
-            conquest.starId,
-            conquest.previousOwner,
-            conquest.newOwner,
-        ].join(":");
-    }
-
-    function buildActiveRenderFamilyTransition(
-        nowMs: number,
-        effectiveTickMs: number,
-        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
-    ): RenderFamilyActiveTransition | null {
-        const eventsByKey = new Map<string, RenderFamilyTransitionEvent>();
-
-        for (const entry of territoryTransitions.getActiveEntries()) {
-            const durationMs = Math.max(1, entry.durationMs);
-            const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
-            if (rawProgress >= 1) continue;
-            eventsByKey.set(transitionIdentityKey(entry.event), {
-                event: entry.event,
-                startedAtMs: entry.startTimeMs,
-                durationMs,
-                rawProgress,
-                progress: clampUnitInterval(rawProgress),
-            });
-        }
-
-        const previewDurationMs = resolveTerritoryTransitionDurationMs(
-            effectiveTickMs,
-        );
-        if (previewDurationMs > 0) {
-            for (const conquest of pendingConquests) {
-                const key = transitionIdentityKey(conquest);
-                if (eventsByKey.has(key)) continue;
-                eventsByKey.set(key, {
-                    event: conquest,
-                    startedAtMs: nowMs,
-                    durationMs: previewDurationMs,
-                    rawProgress: 0,
-                    progress: 0,
-                });
-            }
-        }
-
-        const events = [...eventsByKey.values()]
-            .map((entry) => {
-                const durationMs = Math.max(1, entry.durationMs);
-                return {
-                    event: entry.event,
-                    startedAtMs: entry.startedAtMs,
-                    durationMs,
-                    rawProgress: entry.rawProgress,
-                    progress: clampUnitInterval(entry.rawProgress),
-                };
-            })
-            .sort((a, b) => a.startedAtMs - b.startedAtMs);
-
-        if (events.length === 0) return null;
-
-        const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
-        const durationMs = Math.max(...events.map((event) => event.durationMs));
-        const rawProgress = Math.max(...events.map((event) => event.rawProgress));
-
-        return {
-            conquestEvents: events.map((event) => event.event),
-            events,
-            startedAtMs,
-            durationMs,
-            rawProgress,
-            progress: clampUnitInterval(rawProgress),
-        };
-    }
 
     function buildRenderFamilyOwnershipSnapshot(
         stars: ReadonlyArray<StarState>,
@@ -3625,6 +3545,19 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
+                const renderFamilyTransitionLifecycle =
+                    activeMode === "metaball" ||
+                    activeMode === "perimeter_field" ||
+                    activeMode === "metaball_grid"
+                        ? buildRenderFamilyTransitionLifecycle({
+                              nowMs: fxOrchestrator.gameTime,
+                              effectiveTickMs: activeGameStore.effectiveTickMs,
+                              activeEntries: territoryTransitions.getActiveEntries(),
+                              pendingConquests:
+                                  pendingTickEvents?.conquests ?? [],
+                          })
+                        : null;
+
                 if (voronoiContainer) {
                     const metaballFamily = getRenderFamily("metaball");
                     if (
@@ -3757,11 +3690,8 @@
                         }
                         const mf = fam as MetaballFamily;
                         const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                            renderFamilyTransitionLifecycle?.activeTransition ??
+                            null;
                         mf.update(
                             buildRenderFamilyInput({
                                 stars,
@@ -3785,6 +3715,14 @@
                             voronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
+                        const terminalFrameStarIds =
+                            renderFamilyTransitionLifecycle?.terminalFrameStarIds ??
+                            [];
+                        if (terminalFrameStarIds.length > 0) {
+                            territoryTransitions.markTerminalFrameRendered(
+                                terminalFrameStarIds,
+                            );
+                        }
                         break;
                     }
                     case "perimeter_field": {
@@ -3797,11 +3735,8 @@
                         }
                         const pf = fam as PerimeterFieldFamily;
                         const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                            renderFamilyTransitionLifecycle?.activeTransition ??
+                            null;
                         const lanes = activeGameStore
                             .connections as StarConnection[];
                         const activeOwnership =
@@ -3865,6 +3800,14 @@
                             stars,
                             activeTransition,
                         });
+                        const terminalFrameStarIds =
+                            renderFamilyTransitionLifecycle?.terminalFrameStarIds ??
+                            [];
+                        if (terminalFrameStarIds.length > 0) {
+                            territoryTransitions.markTerminalFrameRendered(
+                                terminalFrameStarIds,
+                            );
+                        }
                         break;
                     }
                     case "metaball_grid": {
@@ -3877,11 +3820,8 @@
                         }
                         const mg = fam as MetaballGridFamily;
                         const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                            renderFamilyTransitionLifecycle?.activeTransition ??
+                            null;
                         const lanes = activeGameStore
                             .connections as StarConnection[];
                         const mgInput = buildRenderFamilyInput({
@@ -3915,6 +3855,14 @@
                             voronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        const terminalFrameStarIds =
+                            renderFamilyTransitionLifecycle?.terminalFrameStarIds ??
+                            [];
+                        if (terminalFrameStarIds.length > 0) {
+                            territoryTransitions.markTerminalFrameRendered(
+                                terminalFrameStarIds,
+                            );
+                        }
                         break;
                     }
                     case "pixel":

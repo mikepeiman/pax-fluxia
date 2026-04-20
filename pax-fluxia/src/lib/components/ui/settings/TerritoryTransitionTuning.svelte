@@ -248,6 +248,9 @@
         {modeSemantics.note ?? activeTransitionOption?.description}
     </div>
 {/if}
+<div class="row-hint">
+    Final handoff smoothing is shared in Timing → End Settle. The controls here still govern the renderer-specific travel and influence behavior before that settle window.
+</div>
 
 <label class="toggle-row">
     <input

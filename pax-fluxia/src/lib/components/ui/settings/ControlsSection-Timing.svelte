@@ -12,6 +12,10 @@
     const conquestTransitionSlider = ANIM_SLIDERS.find(
         (slider) => slider.key === TT_SLIDER_KEY,
     );
+    const TT_SETTLE_SLIDER_KEY = "TERRITORY_TRANSITION_SETTLE_PCT";
+    const conquestTransitionSettleSlider = ANIM_SLIDERS.find(
+        (slider) => slider.key === TT_SETTLE_SLIDER_KEY,
+    );
 
     interface Props {
         panel: Record<string, any>;
@@ -227,10 +231,35 @@
     </div>
 {/if}
 
+{#if conquestTransitionSettleSlider}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">End Settle</span>
+            <span class="val">
+                {formatAnimValue(
+                    getAnimValue(TT_SETTLE_SLIDER_KEY),
+                    conquestTransitionSettleSlider.unit ?? "",
+                )}
+            </span>
+        </div>
+        <input
+            type="range"
+            min={conquestTransitionSettleSlider.min}
+            max={conquestTransitionSettleSlider.max}
+            step={conquestTransitionSettleSlider.step}
+            value={getAnimValue(TT_SETTLE_SLIDER_KEY)}
+            oninput={(event) => {
+                const value = parseFloat((event.target as HTMLInputElement).value);
+                setAnimValue(TT_SETTLE_SLIDER_KEY, value);
+            }}
+        />
+    </div>
+{/if}
+
 <div class="var-row grayed">
     <div class="row-top">
         <span class="var-name">Ownership note</span>
-        <span class="val">Travel, surge, and conquest phase timings live in their own sections.</span>
+        <span class="val">Travel, surge, and conquest phase timings live in their own sections. End Settle only smooths the terminal handoff.</span>
     </div>
 </div>
 

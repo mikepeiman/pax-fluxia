@@ -371,6 +371,7 @@ interface GameConfigType {
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
+    TERRITORY_TRANSITION_SETTLE_PCT: number; // Final % of transition reserved for end-state settle (default 10)
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
@@ -1307,6 +1308,7 @@ const _rawConfig: GameConfigType = {
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 400,
     TERRITORY_TRANSITION_BIND_TO_TICK: false,
+    TERRITORY_TRANSITION_SETTLE_PCT: 10,
     // ── Virtual Star Transition (F-165) ──
     VS_VICTOR_TRAVEL_MS: 0,        // 0 = use TERRITORY_TRANSITION_MS
     VS_LOSER_TRAVEL_MS: 0,         // 0 = use TERRITORY_TRANSITION_MS
