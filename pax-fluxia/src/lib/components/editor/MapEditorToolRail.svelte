@@ -224,7 +224,7 @@
       class:is-active={iconClass("paint-owner", "paint-owner")}
       style={`${buttonStyle(activeOwnerChoice.color)};${panelButtonStyle(activeOwnerChoice.color)}`}
       onclick={() => activateTool("paint-owner", "paint-owner")}
-      title={railButtonTitle("Paint Ownership")}
+      title={railButtonTitle("Paint Ownership", "O")}
       aria-label="Paint ownership"
     >
       <span class="rail-icon" aria-hidden="true">
@@ -244,7 +244,7 @@
       class:is-active={iconClass("paint-force", "paint-force")}
       style={buttonStyle("#fb923c")}
       onclick={() => { onArmForceBrush(); togglePanel("paint-force"); }}
-      title={railButtonTitle("Paint Fleets")}
+      title={railButtonTitle("Paint Fleets", "F")}
       aria-label="Paint fleets"
     >
       <span class="rail-icon" aria-hidden="true">
@@ -288,7 +288,7 @@
       style={buttonStyle("#4ade80")}
       data-tooltip={tooltipText("measure")}
       onclick={() => activateTool("measure", "measure", { showPanelWhenCollapsed: false })}
-      title={railButtonTitle("Measurements", "M")}
+      title={railButtonTitle("Measurements", "R")}
       aria-label="Measurements"
     >
       <span class="rail-icon" aria-hidden="true">
@@ -308,7 +308,7 @@
       class:is-active={iconClass("utilities")}
       style={buttonStyle("#c084fc")}
       onclick={() => togglePanel("utilities")}
-      title={railButtonTitle("Utilities")}
+      title={railButtonTitle("Utilities", "U")}
       aria-label="Utilities"
     >
       <span class="rail-icon" aria-hidden="true">
@@ -328,7 +328,7 @@
       class:is-active={iconClass("display")}
       style={buttonStyle("#60a5fa")}
       onclick={() => togglePanel("display")}
-      title={railButtonTitle("Display")}
+      title={railButtonTitle("Display", "G")}
       aria-label="Display"
     >
       <span class="rail-icon" aria-hidden="true">

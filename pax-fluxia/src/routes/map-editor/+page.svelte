@@ -14,8 +14,11 @@
   import MapEditorValidationPanel from "$lib/components/editor/MapEditorValidationPanel.svelte";
   import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
   import { type MapEditorSymmetryFold } from "$lib/editor/mapEditorSymmetry";
-  import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
-  import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
+  import { mapEditorStore, type MapEditorTool } from "$lib/editor/mapEditorStore.svelte";
+  import {
+    mapEditorUiStore,
+    type MapEditorPanelId,
+  } from "$lib/editor/mapEditorUiStore.svelte";
   import { getOwnerPaletteColor } from "$lib/editor/mapEditorPresentation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -27,6 +30,11 @@
     source: "saved" | "builtin" | "fixture" | "autosave";
     savedAt?: string;
   };
+
+  type EditorToolPanel = Exclude<
+    MapEditorPanelId,
+    "library" | "validation" | "overflow" | "selection" | "factions"
+  >;
 
   const RECENT_MAPS_STORAGE_KEY = "pax-map-editor-recent-v1";
 
@@ -158,6 +166,30 @@
     mapEditorStore.updateMetadata(patch);
   }
 
+  function ensureToolPanel(panel: EditorToolPanel) {
+    if (mapEditorUiStore.activeToolPanel !== panel) {
+      mapEditorUiStore.toggleToolPanel(panel);
+    }
+  }
+
+  function activateEditorTool(
+    tool: MapEditorTool,
+    options?: {
+      panel?: EditorToolPanel;
+      status?: string;
+    },
+  ) {
+    mapEditorStore.setTool(tool);
+    if (options?.panel) {
+      ensureToolPanel(options.panel);
+    } else {
+      mapEditorUiStore.closeToolPanel();
+    }
+    if (options?.status) {
+      setStatus(options.status);
+    }
+  }
+
   function selectOwnerBrush(ownerId: string) {
     mapEditorStore.ownerBrush = ownerId;
     if (mapEditorStore.selection.starIds.length > 0) {
@@ -169,7 +201,7 @@
   function selectStarTypeBrush(starType: StarType) {
     mapEditorStore.starTypeBrush = starType;
     mapEditorStore.setTool("place-star");
-    mapEditorUiStore.toggleToolPanel("place-star");
+    ensureToolPanel("place-star");
   }
 
   function armForceBrush() {
@@ -430,26 +462,85 @@
       return;
     }
 
-    if (event.key !== "Delete" && event.key !== "Backspace" && event.key !== "Escape") {
+    const key = event.key.toLowerCase();
+    const textEntryTarget = isTextEntryTarget(event.target);
+    const plainKey = !event.ctrlKey && !event.metaKey && !event.altKey;
+
+    if (plainKey && !textEntryTarget) {
+      if (key === "v") {
+        event.preventDefault();
+        activateEditorTool("auto", { status: "Armed move/select tool." });
+        return;
+      }
+      if (key === "o") {
+        event.preventDefault();
+        activateEditorTool("paint-owner", {
+          panel: "paint-owner",
+          status: "Armed ownership brush.",
+        });
+        return;
+      }
+      if (key === "f") {
+        event.preventDefault();
+        activateEditorTool("paint-force", {
+          panel: "paint-force",
+          status: "Armed fleet brush.",
+        });
+        return;
+      }
+      if (key === "c") {
+        event.preventDefault();
+        activateEditorTool("connect-lane", {
+          panel: "connect-lane",
+          status: "Armed connect lanes tool.",
+        });
+        return;
+      }
+      if (key === "r") {
+        event.preventDefault();
+        activateEditorTool("measure", {
+          panel: "measure",
+          status: "Armed ruler tool.",
+        });
+        return;
+      }
+      if (key === "u") {
+        event.preventDefault();
+        ensureToolPanel("utilities");
+        setStatus("Opened utilities panel.");
+        return;
+      }
+      if (key === "g") {
+        event.preventDefault();
+        ensureToolPanel("display");
+        setStatus("Opened display panel.");
+        return;
+      }
+
       const digit = Number(event.key);
-      if (!isTextEntryTarget(event.target) && Number.isInteger(digit) && digit >= 1) {
+      if (Number.isInteger(digit) && digit >= 1) {
         const starType = mapEditorStore.starTypePalette[digit - 1];
         if (starType) {
           event.preventDefault();
           selectStarTypeBrush(starType.id);
           setStatus(`Armed ${starType.label} placement.`);
         }
+        return;
       }
+    }
+
+    if (event.key !== "Delete" && event.key !== "Backspace" && event.key !== "Escape") {
       return;
     }
 
     if (event.key === "Escape") {
       mapEditorUiStore.closeSheet();
       mapEditorUiStore.closeToolPanel();
+      mapEditorStore.cancelDraftInteractions();
       return;
     }
 
-    if (isTextEntryTarget(event.target)) return;
+    if (textEntryTarget) return;
     if (
       mapEditorStore.selection.starIds.length === 0 &&
       mapEditorStore.selection.laneIds.length === 0 &&
