@@ -449,6 +449,16 @@
   }
 
   function handleGlobalKeyDown(event: KeyboardEvent) {
+    if (
+      event.key === "Alt" &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !isTextEntryTarget(event.target)
+    ) {
+      event.preventDefault();
+      return;
+    }
+
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       if (isTextEntryTarget(event.target)) return;
       event.preventDefault();
@@ -552,6 +562,17 @@
     mapEditorStore.deleteSelection();
     setStatus("Deleted current selection.");
   }
+
+  function handleGlobalKeyUp(event: KeyboardEvent) {
+    if (
+      event.key === "Alt" &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !isTextEntryTarget(event.target)
+    ) {
+      event.preventDefault();
+    }
+  }
 </script>
 
 <svelte:head>
@@ -564,7 +585,7 @@
   />
 </svelte:head>
 
-<svelte:window onkeydown={handleGlobalKeyDown} />
+<svelte:window onkeydown={handleGlobalKeyDown} onkeyup={handleGlobalKeyUp} />
 
 <div class="editor-page" data-density={mapEditorUiStore.density}>
   <div class="editor-shell">
