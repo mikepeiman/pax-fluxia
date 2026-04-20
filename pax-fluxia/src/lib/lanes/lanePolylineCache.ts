@@ -38,7 +38,13 @@ export function seedLanePolylineCacheFromMapGen(
     cache.clear();
     for (const c of conns) {
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
-            cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
+            // Storage contract: waypoints are always kept in canonical (sourceId <= targetId)
+            // direction so `getDirectedLanePolyline` can rely on storage-direction == key-direction.
+            // Mapgen (`buildLaneAwareConnections`) can emit non-canonical sourceId>targetId pairs
+            // because it iterates node pairs by array index, not id. Reverse here to normalize.
+            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            if (c.sourceId > c.targetId) waypoints.reverse();
+            cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }
     }
 }
@@ -61,7 +67,11 @@ export function rebuildLanePolylineCache(
     attachLaneWaypointsToConnections(nodes, conns, mode, Math.max(0, laneObstacleClearancePx));
     for (const c of conns) {
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
-            cache.set(edgeKey(c.sourceId, c.targetId), c.laneWaypoints.map((p) => [p[0], p[1]]));
+            // See seedLanePolylineCacheFromMapGen: normalize waypoint direction to the canonical
+            // edge key so downstream directed readers behave correctly regardless of solver order.
+            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            if (c.sourceId > c.targetId) waypoints.reverse();
+            cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }
     }
     return conns;
