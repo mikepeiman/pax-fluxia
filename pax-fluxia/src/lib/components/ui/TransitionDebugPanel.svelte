@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { transitionSnapshotRecorder } from '$lib/territory/devtools/TransitionSnapshotRecorder';
     import type { TransitionDebugBundle } from '$lib/territory/devtools/TransitionSnapshotRecorder';
     import {
@@ -142,12 +143,28 @@
     function timeLabel(bundle: TransitionDebugBundle): string {
         return bundle.timestamp.slice(11, 19); // HH:MM:SS
     }
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        onClose();
+    }
+
+    onMount(() => {
+        window.addEventListener('keydown', handleWindowKeydown);
+        return () => window.removeEventListener('keydown', handleWindowKeydown);
+    });
 </script>
 
 <!-- Backdrop click-through trap -->
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
 <div class="panel-outer" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div class="panel">
+    <div
+        class="panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Diagnostics"
+    >
         <!-- Header bar -->
         <div class="panel-header">
             <span class="panel-title">Diagnostics</span>
@@ -370,7 +387,7 @@
         position: fixed;
         inset: 0;
         z-index: 500;
-        pointer-events: none;
+        pointer-events: auto;
     }
 
     .panel {

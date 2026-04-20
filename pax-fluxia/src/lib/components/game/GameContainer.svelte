@@ -114,8 +114,16 @@
     showAudioSettings = true;
   }
 
+  function setTransitionDebugPanelOpen(nextOpen: boolean) {
+    showTransitionDebugPanel = nextOpen;
+  }
+
   function openTransitionDebugPanel() {
-    showTransitionDebugPanel = true;
+    setTransitionDebugPanelOpen(true);
+  }
+
+  function toggleTransitionDebugPanel() {
+    setTransitionDebugPanelOpen(!showTransitionDebugPanel);
   }
 
   // ── In-game menu collapse ──
@@ -466,7 +474,7 @@
       ? openAudioSettings
       : undefined}
     onDiagnosticsClick={gameStore.currentView === "game"
-      ? openTransitionDebugPanel
+      ? toggleTransitionDebugPanel
       : undefined}
     diagnosticsActive={gameStore.currentView === "game"
       ? showTransitionDebugPanel
@@ -493,7 +501,7 @@
 
     {#if showTransitionDebugPanel}
       <TransitionDebugPanel
-        onClose={() => (showTransitionDebugPanel = false)}
+        onClose={() => setTransitionDebugPanelOpen(false)}
       />
     {/if}
 
