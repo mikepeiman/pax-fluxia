@@ -28,6 +28,16 @@ export interface MetaballGridStats {
     readonly frameCount: number;
     /** Frames skipped by the dirty-paint gate since session start. */
     readonly skippedFrameCount: number;
+    /** Classification build time for the last rebuilt plan (ms). */
+    readonly lastClassificationBuildMs: number;
+    /** Wave-plan build time for the last rebuilt plan (ms). */
+    readonly lastWavePlanBuildMs: number;
+    /** Combined plan-build time for the last rebuilt plan (ms). */
+    readonly lastPlanBuildMs: number;
+    /** Scene build time for the last update (ms). */
+    readonly lastSceneBuildMs: number;
+    /** Paint time for the last update (ms). */
+    readonly lastPaintMs: number;
 }
 
 const INITIAL: MetaballGridStats = {
@@ -41,6 +51,11 @@ const INITIAL: MetaballGridStats = {
     lastFrameSkipped: false,
     frameCount: 0,
     skippedFrameCount: 0,
+    lastClassificationBuildMs: 0,
+    lastWavePlanBuildMs: 0,
+    lastPlanBuildMs: 0,
+    lastSceneBuildMs: 0,
+    lastPaintMs: 0,
 };
 
 export const metaballGridStats = writable<MetaballGridStats>(INITIAL);

@@ -281,6 +281,9 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly classificationBuildMs: number;
+    readonly wavePlanBuildMs: number;
+    readonly planBuildMs: number;
     /**
      * Reference to the NEXT geometry the plan was built against. When upstream
      * caches invalidate (e.g. a territory source-shaping knob edit yields a
@@ -402,6 +405,7 @@ export class MetaballGridFamily implements RenderFamily {
         const revertedOwnedStars = toOwnedStars(revertedStars);
         const currentOwnedStars = toOwnedStars(input.stars);
 
+        const classificationStartMs = performance.now();
         const classification = buildGridClassification({
             world: { width: input.world.width, height: input.world.height },
             spacingPx: settings.spacingPx,
@@ -416,6 +420,8 @@ export class MetaballGridFamily implements RenderFamily {
             distribution: settings.distribution,
             positionJitter: settings.positionJitter,
         });
+        const classificationBuildMs = performance.now() - classificationStartMs;
+        const wavePlanStartMs = performance.now();
         const wavePlan = planGridWave({
             classification,
             seeding: settings.waveSeeding,
@@ -424,12 +430,16 @@ export class MetaballGridFamily implements RenderFamily {
             conquestEvents,
             resolveStarPosition,
         });
+        const wavePlanBuildMs = performance.now() - wavePlanStartMs;
 
         return {
             planKey,
             classification,
             wavePlan,
             prevGeometry,
+            classificationBuildMs,
+            wavePlanBuildMs,
+            planBuildMs: classificationBuildMs + wavePlanBuildMs,
             nextGeometryRef: currentGeometry,
         };
     }
@@ -450,6 +460,7 @@ export class MetaballGridFamily implements RenderFamily {
         const { input, currentGeometry, planKey, settings } = params;
         const ownedStars = toOwnedStars(input.stars);
 
+        const classificationStartMs = performance.now();
         const classification = buildGridClassification({
             world: { width: input.world.width, height: input.world.height },
             spacingPx: settings.spacingPx,
@@ -463,6 +474,8 @@ export class MetaballGridFamily implements RenderFamily {
             distribution: settings.distribution,
             positionJitter: settings.positionJitter,
         });
+        const classificationBuildMs = performance.now() - classificationStartMs;
+        const wavePlanStartMs = performance.now();
         const wavePlan = planGridWave({
             classification,
             seeding: 'winner_natives',
@@ -470,11 +483,15 @@ export class MetaballGridFamily implements RenderFamily {
             adjacency: '8',
             conquestEvents: [],
         });
+        const wavePlanBuildMs = performance.now() - wavePlanStartMs;
         return {
             planKey,
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
+            classificationBuildMs,
+            wavePlanBuildMs,
+            planBuildMs: classificationBuildMs + wavePlanBuildMs,
             nextGeometryRef: currentGeometry,
         };
     }
@@ -857,6 +874,11 @@ export class MetaballGridFamily implements RenderFamily {
                 effectiveSpacingPx: cached.classification.spacingPx,
                 totalCells: cached.classification.cols * cached.classification.rows,
                 emittableCells: cached.classification.emittableVstars.length,
+                lastClassificationBuildMs: cached.classificationBuildMs,
+                lastWavePlanBuildMs: cached.wavePlanBuildMs,
+                lastPlanBuildMs: cached.planBuildMs,
+                lastSceneBuildMs: 0,
+                lastPaintMs: 0,
                 lastUpdateMs: elapsed,
                 emaUpdateMs: this.emaUpdateMs,
                 lastFrameSkipped: true,
@@ -888,6 +910,7 @@ export class MetaballGridFamily implements RenderFamily {
             ? cached.wavePlan
             : { perEvent: cached.wavePlan.perEvent, flipTimeByVId: jitteredFlipTimeByVId };
 
+        const sceneStartMs = performance.now();
         const scene = renderMetaballGridScene({
             classification: cached.classification,
             wavePlan: wavePlanForScene,
@@ -898,8 +921,10 @@ export class MetaballGridFamily implements RenderFamily {
             inwardOffsetPx,
             ownerColorIdx,
         });
+        const sceneBuildMs = performance.now() - sceneStartMs;
 
         // ── Paint: one shape per scene cell. O(N). ──────────────────────────
+        const paintStartMs = performance.now();
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
@@ -1291,6 +1316,7 @@ export class MetaballGridFamily implements RenderFamily {
         for (let i = 0; i < scene.cells.length; i++) {
             if (scene.cells[i].alpha > 0) paintedCells++;
         }
+        const paintMs = performance.now() - paintStartMs;
         const elapsed = performance.now() - startMs;
         this.emaUpdateMs = this.emaUpdateMs === 0
             ? elapsed
@@ -1301,6 +1327,11 @@ export class MetaballGridFamily implements RenderFamily {
             totalCells: cached.classification.cols * cached.classification.rows,
             emittableCells: cached.classification.emittableVstars.length,
             paintedCells,
+            lastClassificationBuildMs: cached.classificationBuildMs,
+            lastWavePlanBuildMs: cached.wavePlanBuildMs,
+            lastPlanBuildMs: cached.planBuildMs,
+            lastSceneBuildMs: sceneBuildMs,
+            lastPaintMs: paintMs,
             lastUpdateMs: elapsed,
             emaUpdateMs: this.emaUpdateMs,
             lastFrameSkipped: false,

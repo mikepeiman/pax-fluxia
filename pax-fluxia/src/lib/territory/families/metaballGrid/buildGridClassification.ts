@@ -42,23 +42,125 @@ function resolveOffset(spacingPx: number, originMode: GridOriginMode): { offsetX
     return { offsetX: 0, offsetY: 0 };
 }
 
+interface IndexedRegion {
+    readonly ownerId: string;
+    readonly points: TerritoryRegionShape['points'];
+    readonly minX: number;
+    readonly minY: number;
+    readonly maxX: number;
+    readonly maxY: number;
+}
+
+interface RegionLookup {
+    readonly bucketSize: number;
+    readonly buckets: ReadonlyMap<string, readonly IndexedRegion[]>;
+}
+
+interface OwnedStarLookup {
+    readonly bucketSize: number;
+    readonly buckets: ReadonlyMap<string, readonly GridOwnedStar[]>;
+}
+
+function makeBucketKey(ix: number, iy: number): string {
+    return `${ix}:${iy}`;
+}
+
+function bucketIndex(value: number, bucketSize: number): number {
+    return Math.floor(value / bucketSize);
+}
+
+function indexRegion(region: TerritoryRegionShape): IndexedRegion {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < region.points.length; i++) {
+        const [x, y] = region.points[i];
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    }
+    return {
+        ownerId: region.ownerId,
+        points: region.points,
+        minX,
+        minY,
+        maxX,
+        maxY,
+    };
+}
+
+function buildRegionLookup(
+    regions: readonly TerritoryRegionShape[],
+    spacingPx: number,
+): RegionLookup {
+    const bucketSize = Math.max(32, spacingPx * 2);
+    const buckets = new Map<string, IndexedRegion[]>();
+    for (let i = 0; i < regions.length; i++) {
+        const indexed = indexRegion(regions[i]);
+        const minBx = bucketIndex(indexed.minX, bucketSize);
+        const maxBx = bucketIndex(indexed.maxX, bucketSize);
+        const minBy = bucketIndex(indexed.minY, bucketSize);
+        const maxBy = bucketIndex(indexed.maxY, bucketSize);
+        for (let by = minBy; by <= maxBy; by++) {
+            for (let bx = minBx; bx <= maxBx; bx++) {
+                const key = makeBucketKey(bx, by);
+                let list = buckets.get(key);
+                if (!list) {
+                    list = [];
+                    buckets.set(key, list);
+                }
+                list.push(indexed);
+            }
+        }
+    }
+    return { bucketSize, buckets };
+}
+
 /**
- * Test a world point against every region in array order and return the first
- * matching `ownerId`, or `null` if none contain it. Array iteration order is
- * the geometry generator's deterministic order.
+ * Test a world point against candidate regions whose bbox overlaps the point's
+ * spatial bucket, preserving deterministic array order within that bucket.
  */
 function resolveOwnerAt(
     x: number,
     y: number,
-    regions: readonly TerritoryRegionShape[],
+    lookup: RegionLookup,
 ): string | null {
-    for (let i = 0; i < regions.length; i++) {
-        const r = regions[i];
+    const bx = bucketIndex(x, lookup.bucketSize);
+    const by = bucketIndex(y, lookup.bucketSize);
+    const candidates = lookup.buckets.get(makeBucketKey(bx, by));
+    if (!candidates || candidates.length === 0) return null;
+    for (let i = 0; i < candidates.length; i++) {
+        const r = candidates[i];
+        if (x < r.minX || x > r.maxX || y < r.minY || y > r.maxY) continue;
         if (pointInPolygon(x, y, r.points)) {
             return r.ownerId;
         }
     }
     return null;
+}
+
+function buildOwnedStarLookup(
+    ownedStars: ReadonlyArray<GridOwnedStar> | undefined,
+    coverageRadiusPx: number,
+): OwnedStarLookup | null {
+    if (!ownedStars || ownedStars.length === 0) return null;
+    const bucketSize = Math.max(1, coverageRadiusPx);
+    const buckets = new Map<string, GridOwnedStar[]>();
+    for (let i = 0; i < ownedStars.length; i++) {
+        const star = ownedStars[i];
+        const bx = bucketIndex(star.x, bucketSize);
+        const by = bucketIndex(star.y, bucketSize);
+        const key = makeBucketKey(bx, by);
+        let list = buckets.get(key);
+        if (!list) {
+            list = [];
+            buckets.set(key, list);
+        }
+        list.push(star);
+    }
+    return { bucketSize, buckets };
 }
 
 /**
@@ -70,20 +172,28 @@ function resolveOwnerAt(
 function resolveOwnerByNearestStar(
     x: number,
     y: number,
-    ownedStars: ReadonlyArray<GridOwnedStar> | undefined,
+    lookup: OwnedStarLookup | null,
     coverageRadiusPxSq: number,
 ): string | null {
-    if (!ownedStars || ownedStars.length === 0) return null;
+    if (!lookup) return null;
+    const bx = bucketIndex(x, lookup.bucketSize);
+    const by = bucketIndex(y, lookup.bucketSize);
     let bestOwner: string | null = null;
     let bestDist = Infinity;
-    for (let i = 0; i < ownedStars.length; i++) {
-        const s = ownedStars[i];
-        const dx = s.x - x;
-        const dy = s.y - y;
-        const d = dx * dx + dy * dy;
-        if (d < bestDist) {
-            bestDist = d;
-            bestOwner = s.ownerId;
+    for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+            const bucket = lookup.buckets.get(makeBucketKey(bx + ox, by + oy));
+            if (!bucket) continue;
+            for (let i = 0; i < bucket.length; i++) {
+                const s = bucket[i];
+                const dx = s.x - x;
+                const dy = s.y - y;
+                const d = dx * dx + dy * dy;
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestOwner = s.ownerId;
+                }
+            }
         }
     }
     return bestDist <= coverageRadiusPxSq ? bestOwner : null;
@@ -223,11 +333,22 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         ? Math.max(0, Math.min(0.5, positionJitterArg ?? 0))
         : 0;
 
-    const prevRegions = prevGeometry.territoryRegions;
-    const nextRegions = nextGeometry.territoryRegions;
-
     const coverageRadius = coverageRadiusPx ?? spacingPx * 3;
     const coverageRadiusSq = coverageRadius * coverageRadius;
+    const prevRegionLookup = buildRegionLookup(prevGeometry.territoryRegions, spacingPx);
+    const nextRegionLookup =
+        prevGeometry === nextGeometry
+            ? prevRegionLookup
+            : buildRegionLookup(nextGeometry.territoryRegions, spacingPx);
+    const prevOwnedStarLookup = buildOwnedStarLookup(prevOwnedStars, coverageRadius);
+    const nextOwnedStarLookup =
+        prevGeometry === nextGeometry && prevOwnedStars === nextOwnedStars
+            ? prevOwnedStarLookup
+            : buildOwnedStarLookup(nextOwnedStars, coverageRadius);
+    const sameSnapshot =
+        prevGeometry === nextGeometry &&
+        prevRegionLookup === nextRegionLookup &&
+        prevOwnedStarLookup === nextOwnedStarLookup;
 
     // Role bins (string arrays so downstream can skip vstar[] realloc).
     const roleBins: Record<GridVRole, string[]> = {
@@ -262,13 +383,16 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
 
             // Polygon-first; nearest-owned-star fallback fills gaps left by
             // explicit margin shaping, including MSR-style moats in the source geometry.
-            let prevOwnerId = resolveOwnerAt(x, y, prevRegions);
+            let prevOwnerId = resolveOwnerAt(x, y, prevRegionLookup);
             if (prevOwnerId === null) {
-                prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStars, coverageRadiusSq);
+                prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStarLookup, coverageRadiusSq);
             }
-            let nextOwnerId = resolveOwnerAt(x, y, nextRegions);
-            if (nextOwnerId === null) {
-                nextOwnerId = resolveOwnerByNearestStar(x, y, nextOwnedStars, coverageRadiusSq);
+            let nextOwnerId = prevOwnerId;
+            if (!sameSnapshot) {
+                nextOwnerId = resolveOwnerAt(x, y, nextRegionLookup);
+                if (nextOwnerId === null) {
+                    nextOwnerId = resolveOwnerByNearestStar(x, y, nextOwnedStarLookup, coverageRadiusSq);
+                }
             }
             const role = classifyRole(prevOwnerId, nextOwnerId);
 
