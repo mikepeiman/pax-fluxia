@@ -93,4 +93,37 @@ describe('laneConnectionSync', () => {
             [0, 0],
         ]);
     });
+
+    it('normalizes non-canonical seed input so directed reads match source->target', () => {
+        // Mapgen's buildLaneAwareConnections can emit sourceId > targetId because it
+        // iterates node pairs by array index, not id. Waypoints arrive in sourceId->targetId
+        // (non-canonical) order. The cache must normalize to canonical storage so that
+        // getDirectedLanePolyline returns waypoints in the caller's requested direction.
+        seedLaneCacheFromConnections([
+            {
+                sourceId: 'star-b', // non-canonical: b > a
+                targetId: 'star-a',
+                distance: 100,
+                lanePathKind: 'curved',
+                laneWaypoints: [
+                    { x: 100, y: 0 },   // at star-b
+                    { x: 50, y: 25 },
+                    { x: 0, y: 0 },     // at star-a
+                ],
+            },
+        ]);
+
+        // Ship traveling star-a -> star-b must get a polyline starting at star-a.
+        expect(getDirectedLanePolyline('star-a', 'star-b')).toEqual([
+            [0, 0],
+            [50, 25],
+            [100, 0],
+        ]);
+        // Ship traveling star-b -> star-a must get a polyline starting at star-b.
+        expect(getDirectedLanePolyline('star-b', 'star-a')).toEqual([
+            [100, 0],
+            [50, 25],
+            [0, 0],
+        ]);
+    });
 });
