@@ -71,6 +71,66 @@ function diagnoseLanePolylineDirection(
     });
 }
 
+// ── Diagnostic #2: detect backward ship-geometry assignment ────────────────
+// Fires AFTER assignShipLaneGeometry. If ship.laneStart is closer to target
+// than source (or laneEnd closer to source than target, or ship.lanePolyline
+// runs backwards), we caught the bug at the geometry-assignment stage rather
+// than the cache stage.
+let __geomDiagLogCount = 0;
+const __GEOM_DIAG_CAP = 5;
+const __geomDiagSeen = new Set<string>();
+function diagnoseShipGeometry(
+    sourceId: string,
+    targetId: string,
+    src: { x: number; y: number; radius: number },
+    tgt: { x: number; y: number; radius: number },
+    ship: { laneStartX: number; laneStartY: number; laneEndX: number; laneEndY: number; lanePolyline?: ReadonlyArray<readonly [number, number]> },
+): void {
+    if (__geomDiagLogCount >= __GEOM_DIAG_CAP) return;
+    const key = sourceId < targetId ? `${sourceId}|${targetId}` : `${targetId}|${sourceId}`;
+    if (__geomDiagSeen.has(key)) return;
+    const startToSrc = Math.hypot(ship.laneStartX - src.x, ship.laneStartY - src.y);
+    const startToTgt = Math.hypot(ship.laneStartX - tgt.x, ship.laneStartY - tgt.y);
+    const endToSrc = Math.hypot(ship.laneEndX - src.x, ship.laneEndY - src.y);
+    const endToTgt = Math.hypot(ship.laneEndX - tgt.x, ship.laneEndY - tgt.y);
+    const startBackward = startToTgt < startToSrc;
+    const endBackward = endToSrc < endToTgt;
+    let polyBackward = false;
+    let polyFirstToSrc = NaN, polyLastToTgt = NaN;
+    if (ship.lanePolyline && ship.lanePolyline.length >= 2) {
+        const f = ship.lanePolyline[0];
+        const l = ship.lanePolyline[ship.lanePolyline.length - 1];
+        polyFirstToSrc = Math.hypot(f[0] - src.x, f[1] - src.y);
+        const polyFirstToTgt = Math.hypot(f[0] - tgt.x, f[1] - tgt.y);
+        polyLastToTgt = Math.hypot(l[0] - tgt.x, l[1] - tgt.y);
+        const polyLastToSrc = Math.hypot(l[0] - src.x, l[1] - src.y);
+        polyBackward = polyFirstToTgt < polyFirstToSrc || polyLastToSrc < polyLastToTgt;
+    }
+    if (!startBackward && !endBackward && !polyBackward) return;
+    __geomDiagSeen.add(key);
+    __geomDiagLogCount++;
+    // eslint-disable-next-line no-console
+    console.warn('[ship-geom-diag] BACKWARD ship-geometry assignment', {
+        edgeKey: key,
+        requested: { sourceId, targetId },
+        idComparison: sourceId <= targetId ? 'canonical' : 'non-canonical',
+        sourceAt: { x: src.x.toFixed(1), y: src.y.toFixed(1) },
+        targetAt: { x: tgt.x.toFixed(1), y: tgt.y.toFixed(1) },
+        laneStart: { x: ship.laneStartX.toFixed(1), y: ship.laneStartY.toFixed(1) },
+        laneEnd: { x: ship.laneEndX.toFixed(1), y: ship.laneEndY.toFixed(1) },
+        startToSrc: startToSrc.toFixed(1),
+        startToTgt: startToTgt.toFixed(1),
+        endToSrc: endToSrc.toFixed(1),
+        endToTgt: endToTgt.toFixed(1),
+        polyLen: ship.lanePolyline?.length ?? 0,
+        polyFirstToSrc: polyFirstToSrc.toFixed(1),
+        polyLastToTgt: polyLastToTgt.toFixed(1),
+        startBackward,
+        endBackward,
+        polyBackward,
+    });
+}
+
 /**
  * Core transfer handler — selects ships from source orbit, configures departure,
  * and sends them to the travel pipeline via VSM.
@@ -194,6 +254,13 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
             ship.departDuration = departDuration;
 
             assignShipLaneGeometry(ship, sourceRef, targetRef, pretrimmed);
+
+            // DIAGNOSTIC: verify the assigned ship geometry places laneStart near source
+            // and laneEnd near target, and ship.lanePolyline runs source->target. Catches
+            // cases where the cache is fine but trim/assignment flips direction.
+            if (idx === 0) {
+                diagnoseShipGeometry(event.sourceId, event.targetId, sourceRef, targetRef, ship);
+            }
 
             ship.laneOffset = (Math.random() - 0.5) * laneOffsetPx * 2;
             ship.staggerDelay = 0;
