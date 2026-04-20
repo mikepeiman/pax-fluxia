@@ -8,6 +8,7 @@
         type ThemeRoutingStatus,
     } from "$lib/config/themeRouting";
     import { type GameTheme } from "$lib/config/themes";
+    import type { MapDefinition } from "$lib/types/map.types";
     import {
         registerCategoryPresetApplyCallback,
         type CategoryPreset,
@@ -719,6 +720,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let fullSaveName = $state("");
     let fullSaveFlash = $state(false);
     let showThemeChips = $state(false);
+    let showLoadMapDrawer = $state(false);
     let themeFamilyGroups = $derived(
         groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
     );
@@ -819,6 +821,25 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     function handleDeleteFullTheme(name: string) {
         themeStore.deleteTheme(name);
+    }
+
+    function getLoadableMaps(): MapDefinition[] {
+        return [...gameStore.savedMaps].sort((left, right) => {
+            const leftBuiltIn = Boolean((left as any).builtIn);
+            const rightBuiltIn = Boolean((right as any).builtIn);
+            if (leftBuiltIn !== rightBuiltIn) {
+                return leftBuiltIn ? -1 : 1;
+            }
+            return left.metadata.name.localeCompare(right.metadata.name);
+        });
+    }
+
+    async function handleLoadMapFromSettings(savedMap: MapDefinition) {
+        showLoadMapDrawer = false;
+        gameStore.loadSavedMap(savedMap);
+        await gameStore.startGame();
+        configStatus = `✅ Map "${savedMap.metadata.name}" loaded`;
+        configStatusColor = "#4ade80";
     }
 
     function handleImportTheme() {
@@ -1457,6 +1478,39 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             >
                 🗑️ Clear All
             </button>
+        </div>
+        <div class="full-session-row">
+            <button
+                class="full-io-btn full-load-map-btn"
+                onclick={() => {
+                    showLoadMapDrawer = !showLoadMapDrawer;
+                }}
+                title="Load a saved map and restart the current game"
+            >
+                🗺 Load Map
+            </button>
+            {#if showLoadMapDrawer}
+                <div class="full-load-map-drawer">
+                    {#if gameStore.savedMaps.length === 0}
+                        <div class="full-load-map-empty">No saved maps available.</div>
+                    {:else}
+                        <div class="full-load-map-list">
+                            {#each getLoadableMaps() as map}
+                                <button
+                                    class="full-load-map-item"
+                                    onclick={() => void handleLoadMapFromSettings(map)}
+                                    title={`Load ${map.metadata.name}`}
+                                >
+                                    <span class="full-load-map-item__name">{map.metadata.name}</span>
+                                    <span class="full-load-map-item__meta">
+                                        {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
+                                    </span>
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         </div>
     </div>
 
@@ -2468,6 +2522,76 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: #ff4444;
         color: #ff4444;
         box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
+    }
+    .full-session-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+    }
+    .full-load-map-btn {
+        border-color: rgba(125, 211, 252, 0.28);
+        color: #c7e7ff;
+    }
+    .full-load-map-btn:hover {
+        border-color: rgba(125, 211, 252, 0.45);
+        box-shadow: 0 0 8px rgba(125, 211, 252, 0.18);
+    }
+    .full-load-map-drawer {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(125, 211, 252, 0.15);
+        background: rgba(9, 14, 24, 0.78);
+    }
+    .full-load-map-empty {
+        padding: 10px 12px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        color: #8993a4;
+        font-size: 11px;
+    }
+    .full-load-map-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .full-load-map-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #d7e2f0;
+        cursor: pointer;
+        text-align: left;
+        transition:
+            border-color 0.15s,
+            background 0.15s,
+            transform 0.15s;
+    }
+    .full-load-map-item:hover {
+        border-color: rgba(125, 211, 252, 0.32);
+        background: rgba(125, 211, 252, 0.08);
+        transform: translateY(-1px);
+    }
+    .full-load-map-item__name {
+        font-size: 12px;
+        font-weight: 700;
+        color: #eef6ff;
+    }
+    .full-load-map-item__meta {
+        font-size: 10px;
+        letter-spacing: 0.03em;
+        color: #8ea3bc;
     }
 
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */

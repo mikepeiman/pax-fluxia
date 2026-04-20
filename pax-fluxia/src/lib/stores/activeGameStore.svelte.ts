@@ -163,6 +163,8 @@ function getPhase(): 'menu' | 'lobby' | 'playing' | 'results' {
     } else {
         // Single-player: check gameStore
         if (gameStore.currentView === 'game') {
+            const singlePlayerPhase = (gameStore.snapshot as { phase?: string } | null)?.phase;
+            if (singlePlayerPhase === 'ended') return 'results';
             return gameStore.hasStarted ? 'playing' : 'lobby';
         }
         if (gameStore.currentView === 'results') return 'results';

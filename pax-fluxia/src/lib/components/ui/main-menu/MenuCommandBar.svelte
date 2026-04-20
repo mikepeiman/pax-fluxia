@@ -3,9 +3,11 @@
         summary: string;
         selectedRoomLabel: string | null;
         startDisabled: boolean;
+        loadMapDisabled: boolean;
         createDisabled: boolean;
         joinDisabled: boolean;
         onStart: () => void;
+        onLoadMap: () => void;
         onCreateLobby: () => void;
         onJoinSelected: () => void;
     }
@@ -14,9 +16,11 @@
         summary,
         selectedRoomLabel,
         startDisabled,
+        loadMapDisabled,
         createDisabled,
         joinDisabled,
         onStart,
+        onLoadMap,
         onCreateLobby,
         onJoinSelected,
     }: Props = $props();
@@ -39,6 +43,14 @@
             onclick={onStart}
         >
             Start Game
+        </button>
+        <button
+            type="button"
+            class="command-bar__button"
+            disabled={loadMapDisabled}
+            onclick={onLoadMap}
+        >
+            Load Map
         </button>
         <button
             type="button"
