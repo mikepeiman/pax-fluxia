@@ -384,7 +384,7 @@
         </header>
         <label class="stack">
           <span>Hex Grid</span>
-          <input type="range" min="10" max="96" step="1" value={mapEditorStore.hexRadius} oninput={(event) => (mapEditorStore.hexRadius = Number((event.currentTarget as HTMLInputElement).value))} />
+          <input type="range" min="10" max="100" step="1" value={mapEditorStore.hexRadius} oninput={(event) => (mapEditorStore.hexRadius = Number((event.currentTarget as HTMLInputElement).value))} />
           <strong>{mapEditorStore.hexRadius}px radius</strong>
         </label>
         {#if displayExpanded || density !== "compact"}
