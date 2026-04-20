@@ -19,6 +19,58 @@ import {
     computeLaneHeadingForNearside,
 } from '$lib/lanes/applyLaneTravelPath';
 
+// ── Diagnostic: detect backward polylines in the cache ─────────────────────
+// Fires at ship-transfer time. Measures whether the polyline the cache returns
+// for (source -> target) actually starts near source and ends near target.
+// If not, logs exactly what went wrong (including which endpoint is mismatched
+// and by how much), so backward-travel bugs are self-diagnosing instead of
+// requiring a visual hunt.
+let __diagLogCount = 0;
+const __DIAG_LOG_CAP = 5;
+const __diagSeenBad = new Set<string>();
+function diagnoseLanePolylineDirection(
+    sourceId: string,
+    targetId: string,
+    src: { x: number; y: number; radius: number },
+    tgt: { x: number; y: number; radius: number },
+    poly: ReadonlyArray<readonly [number, number]>,
+): void {
+    if (__diagLogCount >= __DIAG_LOG_CAP) return;
+    const key = sourceId < targetId ? `${sourceId}|${targetId}` : `${targetId}|${sourceId}`;
+    const first = poly[0];
+    const last = poly[poly.length - 1];
+    const firstToSrc = Math.hypot(first[0] - src.x, first[1] - src.y);
+    const firstToTgt = Math.hypot(first[0] - tgt.x, first[1] - tgt.y);
+    const lastToSrc = Math.hypot(last[0] - src.x, last[1] - src.y);
+    const lastToTgt = Math.hypot(last[0] - tgt.x, last[1] - tgt.y);
+    const backwardFirst = firstToTgt < firstToSrc;
+    const backwardLast = lastToSrc < lastToTgt;
+    if (!backwardFirst && !backwardLast) return;
+    if (__diagSeenBad.has(key)) return; // one warning per edge is enough
+    __diagSeenBad.add(key);
+    __diagLogCount++;
+    const chord = Math.hypot(tgt.x - src.x, tgt.y - src.y);
+    // eslint-disable-next-line no-console
+    console.warn('[lane-dir-diag] BACKWARD polyline served by cache', {
+        edgeKey: key,
+        requested: { sourceId, targetId },
+        idComparison: sourceId <= targetId ? 'canonical (src<=tgt)' : 'non-canonical (src>tgt)',
+        sourceAt: { x: src.x.toFixed(1), y: src.y.toFixed(1) },
+        targetAt: { x: tgt.x.toFixed(1), y: tgt.y.toFixed(1) },
+        chordLen: chord.toFixed(1),
+        polyFirst: { x: first[0].toFixed(1), y: first[1].toFixed(1) },
+        polyLast: { x: last[0].toFixed(1), y: last[1].toFixed(1) },
+        firstToSrc: firstToSrc.toFixed(1),
+        firstToTgt: firstToTgt.toFixed(1),
+        lastToSrc: lastToSrc.toFixed(1),
+        lastToTgt: lastToTgt.toFixed(1),
+        backwardFirst,
+        backwardLast,
+        polyLen: poly.length,
+        note: 'Ship will arc toward target then travel backward along reversed polyline.',
+    });
+}
+
 /**
  * Core transfer handler — selects ships from source orbit, configures departure,
  * and sends them to the travel pipeline via VSM.
@@ -50,6 +102,11 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         const rawPoly = getDirectedLanePolyline(event.sourceId, event.targetId);
         let pretrimmed: [number, number][] | undefined;
         if (rawPoly && rawPoly.length >= 2) {
+            // DIAGNOSTIC: verify polyline direction matches source->target. If the first
+            // point is closer to target than source, or last point is closer to source
+            // than target, the cache is serving a backward polyline for this edge.
+            // Logs at most 5 times per session to avoid spam.
+            diagnoseLanePolylineDirection(event.sourceId, event.targetId, sourceRef, targetRef, rawPoly);
             const t = trimLanePolylineToStarRims(rawPoly, sourceRef, targetRef, 5);
             if (t.length >= 2) pretrimmed = t;
         }
