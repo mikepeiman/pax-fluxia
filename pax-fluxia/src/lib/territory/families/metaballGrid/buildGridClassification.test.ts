@@ -433,57 +433,6 @@ describe('buildGridClassification', () => {
         }
     });
 
-    it('matches full classification when patching from a steady baseline for a localized conquest', () => {
-        const world = { width: 220, height: 100 };
-        const prev = makeSnapshot([
-            rect('A', 'rA', 0, 0, 80, 100),
-            rect('B', 'rB', 80, 0, 140, 100),
-            rect('C', 'rC', 140, 0, 220, 100),
-        ]);
-        const next = makeSnapshot([
-            rect('A', 'rA', 0, 0, 60, 100),
-            rect('B', 'rB', 60, 0, 140, 100),
-            rect('C', 'rC', 140, 0, 220, 100),
-        ]);
-        const conquestEvents = [makeEvent({ starId: 's:AB', prev: 'A', next: 'B' })];
-        const baseline = buildGridClassification({
-            world,
-            spacingPx: SPACING,
-            originMode: ORIGIN,
-            prevGeometry: prev,
-            nextGeometry: prev,
-            conquestEvents: [],
-        });
-        const full = buildGridClassification({
-            world,
-            spacingPx: SPACING,
-            originMode: ORIGIN,
-            prevGeometry: prev,
-            nextGeometry: next,
-            conquestEvents,
-        });
-        const patched = buildGridClassification({
-            world,
-            spacingPx: SPACING,
-            originMode: ORIGIN,
-            prevGeometry: prev,
-            nextGeometry: next,
-            conquestEvents,
-            baseClassification: baseline,
-            patchBounds: {
-                minX: 0,
-                minY: 0,
-                maxX: 160,
-                maxY: 100,
-            },
-        });
-
-        expect(patched.vstars).toEqual(full.vstars);
-        expect(patched.byRole).toEqual(full.byRole);
-        expect(patched.dispossessedByEventId).toEqual(full.dispossessedByEventId);
-        expect(patched.emittableVstars).toEqual(full.emittableVstars);
-    });
-
     it('rejects non-positive spacing and world dimensions', () => {
         const prev = makeSnapshot([]);
         const next = makeSnapshot([]);

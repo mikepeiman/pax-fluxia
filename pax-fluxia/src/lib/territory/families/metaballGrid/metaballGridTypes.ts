@@ -138,13 +138,6 @@ export interface GridClassification {
     readonly defaultEventId: string;
 }
 
-export interface GridClassificationPatchBounds {
-    readonly minX: number;
-    readonly minY: number;
-    readonly maxX: number;
-    readonly maxY: number;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Wave plan.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -325,18 +318,6 @@ export interface BuildGridClassificationParams {
      * `distribution === 'jittered'`. Default: 0.
      */
     readonly positionJitter?: number;
-    /**
-     * Optional steady-state baseline classification for `prevGeometry`.
-     * When paired with `patchBounds`, cells outside the patch reuse the
-     * baseline ownership exactly and only the patch resolves NEXT ownership.
-     */
-    readonly baseClassification?: GridClassification;
-    /**
-     * World-space patch bounds for transition-local classification. When
-     * provided with `baseClassification`, cells outside the patch reuse the
-     * baseline instead of re-running full ownership resolution.
-     */
-    readonly patchBounds?: GridClassificationPatchBounds | null;
 }
 
 export interface PlanGridWaveParams {

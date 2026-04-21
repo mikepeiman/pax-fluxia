@@ -21,7 +21,6 @@ import { pointInPolygon } from '../../geometry/geometryUtils';
 import type {
     BuildGridClassificationParams,
     GridClassification,
-    GridClassificationPatchBounds,
     GridDistribution,
     GridOriginMode,
     GridOwnedStar,
@@ -60,13 +59,6 @@ interface RegionLookup {
 interface OwnedStarLookup {
     readonly bucketSize: number;
     readonly buckets: ReadonlyMap<string, readonly GridOwnedStar[]>;
-}
-
-interface NormalizedPatchBounds {
-    readonly minX: number;
-    readonly minY: number;
-    readonly maxX: number;
-    readonly maxY: number;
 }
 
 function makeBucketKey(ix: number, iy: number): string {
@@ -207,27 +199,6 @@ function resolveOwnerByNearestStar(
     return bestDist <= coverageRadiusPxSq ? bestOwner : null;
 }
 
-function normalizePatchBounds(
-    bounds: GridClassificationPatchBounds | null | undefined,
-    world: { width: number; height: number },
-): NormalizedPatchBounds | null {
-    if (!bounds) return null;
-    const minX = Math.max(0, Math.min(world.width, bounds.minX));
-    const minY = Math.max(0, Math.min(world.height, bounds.minY));
-    const maxX = Math.max(0, Math.min(world.width, bounds.maxX));
-    const maxY = Math.max(0, Math.min(world.height, bounds.maxY));
-    if (maxX < minX || maxY < minY) return null;
-    return { minX, minY, maxX, maxY };
-}
-
-function isWithinPatch(x: number, y: number, bounds: NormalizedPatchBounds): boolean {
-    return x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY;
-}
-
-function resolveBaseOwner(vstar: GridVStar): string | null {
-    return vstar.nextOwnerId ?? vstar.prevOwnerId;
-}
-
 /**
  * Classify a `(prev, next)` pair into a role. Rules match the plan doc.
  */
@@ -327,8 +298,6 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         maxCells,
         distribution: distributionArg,
         positionJitter: positionJitterArg,
-        baseClassification,
-        patchBounds: patchBoundsArg,
     } = params;
 
     if (requestedSpacingPx <= 0) throw new Error('spacingPx must be > 0');
@@ -366,15 +335,6 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
 
     const coverageRadius = coverageRadiusPx ?? spacingPx * 3;
     const coverageRadiusSq = coverageRadius * coverageRadius;
-    const patchBounds = normalizePatchBounds(patchBoundsArg, world);
-    const canReuseBaseClassification =
-        patchBounds !== null &&
-        baseClassification !== undefined &&
-        baseClassification.cols === cols &&
-        baseClassification.rows === rows &&
-        baseClassification.spacingPx === spacingPx &&
-        baseClassification.originMode === originMode &&
-        baseClassification.distribution === distribution;
     const prevRegionLookup = buildRegionLookup(prevGeometry.territoryRegions, spacingPx);
     const nextRegionLookup =
         prevGeometry === nextGeometry
@@ -404,17 +364,14 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     const emittableVstars: GridVStar[] = [];
     const halfSpacing = spacingPx * 0.5;
     const jitterAmp = positionJitter * spacingPx;
-    const baseVstars = canReuseBaseClassification ? baseClassification.vstars : null;
 
     for (let iy = 0; iy < rows; iy++) {
         // `hex_offset`: shift odd rows by half-spacing for honeycomb packing.
         const rowXShift = distribution === 'hex_offset' && (iy & 1) === 1 ? halfSpacing : 0;
         for (let ix = 0; ix < cols; ix++) {
-            const index = iy * cols + ix;
-            const baseV = baseVstars?.[index];
-            let x = baseV?.x ?? (ix * spacingPx + offsetX + rowXShift);
-            let y = baseV?.y ?? (iy * spacingPx + offsetY);
-            if (!baseV && jitterAmp > 0) {
+            let x = ix * spacingPx + offsetX + rowXShift;
+            let y = iy * spacingPx + offsetY;
+            if (jitterAmp > 0) {
                 // Deterministic per-cell scatter. Use two independent hashes
                 // so x/y offsets do not correlate diagonally.
                 const hx = hash2Int(ix, iy) / 0x1_0000_0000; // [0, 1)
@@ -422,40 +379,12 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
                 x += (hx * 2 - 1) * jitterAmp;
                 y += (hy * 2 - 1) * jitterAmp;
             }
-            const id = baseV?.id ?? `g:${ix}:${iy}`;
-
-            if (baseV && patchBounds && !isWithinPatch(x, y, patchBounds)) {
-                const baseOwnerId = resolveBaseOwner(baseV);
-                const unchangedRole = classifyRole(baseOwnerId, baseOwnerId);
-                const reused =
-                    baseV.role === unchangedRole &&
-                    baseV.eventId === null &&
-                    baseV.prevOwnerId === baseOwnerId &&
-                    baseV.nextOwnerId === baseOwnerId
-                        ? baseV
-                        : {
-                              id,
-                              ix,
-                              iy,
-                              x,
-                              y,
-                              prevOwnerId: baseOwnerId,
-                              nextOwnerId: baseOwnerId,
-                              role: unchangedRole,
-                              eventId: null,
-                          };
-                vstars[index] = reused;
-                roleBins[reused.role].push(reused.id);
-                if (reused.role !== 'outside') {
-                    emittableVstars.push(reused);
-                }
-                continue;
-            }
+            const id = `g:${ix}:${iy}`;
 
             // Polygon-first; nearest-owned-star fallback fills gaps left by
             // explicit margin shaping, including MSR-style moats in the source geometry.
-            let prevOwnerId = baseV ? resolveBaseOwner(baseV) : resolveOwnerAt(x, y, prevRegionLookup);
-            if (!baseV && prevOwnerId === null) {
+            let prevOwnerId = resolveOwnerAt(x, y, prevRegionLookup);
+            if (prevOwnerId === null) {
                 prevOwnerId = resolveOwnerByNearestStar(x, y, prevOwnedStarLookup, coverageRadiusSq);
             }
             let nextOwnerId = prevOwnerId;
@@ -484,7 +413,7 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
                 role,
                 eventId,
             };
-            vstars[index] = vstar;
+            vstars[iy * cols + ix] = vstar;
             roleBins[role].push(id);
             if (role !== 'outside') {
                 emittableVstars.push(vstar);
