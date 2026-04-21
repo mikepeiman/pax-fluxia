@@ -42,6 +42,7 @@ import { buildGridClassification } from './buildGridClassification';
 import type {
     GridAdjacency,
     GridClassification,
+    GridClassificationPatchBounds,
     GridDistribution,
     GridFlipTransition,
     GridOriginMode,
@@ -252,6 +253,64 @@ function toOwnedStars(stars: ReadonlyArray<StarState>): GridOwnedStar[] {
     return out;
 }
 
+function includePointInBounds(
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+    x: number,
+    y: number,
+): void {
+    if (x < bounds.minX) bounds.minX = x;
+    if (y < bounds.minY) bounds.minY = y;
+    if (x > bounds.maxX) bounds.maxX = x;
+    if (y > bounds.maxY) bounds.maxY = y;
+}
+
+function buildTransitionPatchBounds(params: {
+    prevGeometry: CanonicalGeometrySnapshot;
+    nextGeometry: CanonicalGeometrySnapshot;
+    conquestEvents: ReadonlyArray<{ previousOwner: string; newOwner: string; starId: string }>;
+    resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
+    paddingPx: number;
+    worldWidth: number;
+    worldHeight: number;
+}): GridClassificationPatchBounds | null {
+    const impactedOwners = new Set<string>();
+    for (const event of params.conquestEvents) {
+        if (event.previousOwner) impactedOwners.add(event.previousOwner);
+        if (event.newOwner) impactedOwners.add(event.newOwner);
+    }
+    if (impactedOwners.size === 0) return null;
+
+    const bounds = {
+        minX: Infinity,
+        minY: Infinity,
+        maxX: -Infinity,
+        maxY: -Infinity,
+    };
+    const includeRegionBounds = (geometry: CanonicalGeometrySnapshot): void => {
+        for (const region of geometry.territoryRegions) {
+            if (!impactedOwners.has(region.ownerId)) continue;
+            for (const [x, y] of region.points) {
+                includePointInBounds(bounds, x, y);
+            }
+        }
+    };
+
+    includeRegionBounds(params.prevGeometry);
+    includeRegionBounds(params.nextGeometry);
+    for (const event of params.conquestEvents) {
+        const point = params.resolveStarPosition?.(event.starId);
+        if (point) includePointInBounds(bounds, point.x, point.y);
+    }
+    if (!Number.isFinite(bounds.minX)) return null;
+
+    return {
+        minX: Math.max(0, bounds.minX - params.paddingPx),
+        minY: Math.max(0, bounds.minY - params.paddingPx),
+        maxX: Math.min(params.worldWidth, bounds.maxX + params.paddingPx),
+        maxY: Math.min(params.worldHeight, bounds.maxY + params.paddingPx),
+    };
+}
+
 function buildTransitionKey(input: RenderFamilyInput): string | null {
     const events = input.activeTransition?.events;
     if (!events?.length) return null;
@@ -278,6 +337,7 @@ function buildSessionKey(input: RenderFamilyInput): string {
 
 interface CachedPlan {
     readonly planKey: string;
+    readonly classificationParamsKey: string;
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
@@ -331,6 +391,7 @@ export class MetaballGridFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    private steadyPlanCache: CachedPlan | null = null;
     /**
      * Last paint-output signature. When the next update() computes the same
      * signature, the scene build + paint is short-circuited — the existing
@@ -363,6 +424,7 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.steadyPlanCache = null;
         this.lastPaintSig = null;
         this.lastPlanParamsKey = null;
         this.emaUpdateMs = 0;
@@ -375,9 +437,22 @@ export class MetaballGridFamily implements RenderFamily {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
         planKey: string;
+        classificationParamsKey: string;
         settings: MetaballGridPlanSettings;
+        baselineClassification?: GridClassification;
+        patchBounds?: GridClassificationPatchBounds | null;
+        resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
     }): CachedPlan {
-        const { input, currentGeometry, planKey, settings } = params;
+        const {
+            input,
+            currentGeometry,
+            planKey,
+            classificationParamsKey,
+            settings,
+            baselineClassification,
+            patchBounds,
+            resolveStarPosition,
+        } = params;
 
         // PREV comes from GameCanvas's shared cache (MG-PERF Phase C, 2026-04-19).
         // Fallback to a local rebuild if the orchestrator didn't supply one —
@@ -395,13 +470,6 @@ export class MetaballGridFamily implements RenderFamily {
             });
 
         const conquestEvents = (input.activeTransition?.conquestEvents ?? []);
-        const starById = new Map<string, StarState>();
-        for (const s of input.stars) starById.set(s.id, s);
-        const resolveStarPosition = (starId: string) => {
-            const s = starById.get(starId);
-            return s ? { x: s.x, y: s.y } : null;
-        };
-
         const revertedOwnedStars = toOwnedStars(revertedStars);
         const currentOwnedStars = toOwnedStars(input.stars);
 
@@ -419,6 +487,8 @@ export class MetaballGridFamily implements RenderFamily {
             maxCells: settings.maxCells,
             distribution: settings.distribution,
             positionJitter: settings.positionJitter,
+            baseClassification: baselineClassification,
+            patchBounds,
         });
         const classificationBuildMs = performance.now() - classificationStartMs;
         const wavePlanStartMs = performance.now();
@@ -434,6 +504,7 @@ export class MetaballGridFamily implements RenderFamily {
 
         return {
             planKey,
+            classificationParamsKey,
             classification,
             wavePlan,
             prevGeometry,
@@ -455,9 +526,10 @@ export class MetaballGridFamily implements RenderFamily {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
         planKey: string;
+        classificationParamsKey: string;
         settings: MetaballGridPlanSettings;
     }): CachedPlan {
-        const { input, currentGeometry, planKey, settings } = params;
+        const { input, currentGeometry, planKey, classificationParamsKey, settings } = params;
         const ownedStars = toOwnedStars(input.stars);
 
         const classificationStartMs = performance.now();
@@ -486,6 +558,7 @@ export class MetaballGridFamily implements RenderFamily {
         const wavePlanBuildMs = performance.now() - wavePlanStartMs;
         return {
             planKey,
+            classificationParamsKey,
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
@@ -568,6 +641,7 @@ export class MetaballGridFamily implements RenderFamily {
             `${requestedSpacingPx}|${originModeHoisted}|${distributionHoisted}|${positionJitterHoisted}|${maxCellsHoisted}`;
         if (this.cachedPlan && this.lastPlanParamsKey !== planParamsKey) {
             this.cachedPlan = null;
+            this.steadyPlanCache = null;
         }
         this.lastPlanParamsKey = planParamsKey;
 
@@ -651,6 +725,12 @@ export class MetaballGridFamily implements RenderFamily {
             waveGeometry: transitionKey ? settings.waveGeometry : undefined,
             waveSeeding: transitionKey ? settings.waveSeeding : undefined,
         });
+        const starById = new Map<string, StarState>();
+        for (const star of input.stars) starById.set(star.id, star);
+        const resolveStarPosition = (starId: string) => {
+            const star = starById.get(starId);
+            return star ? { x: star.x, y: star.y } : null;
+        };
 
         // Rebuild the plan when the plan key or input geometry reference changes.
         // The extra geometry-reference checks preserve the Phase C behavior:
@@ -658,6 +738,34 @@ export class MetaballGridFamily implements RenderFamily {
         // new conquest key, this family still rebuilds against the new truth.
         const prevGeoRef = input.prevGeometry ?? null;
         if (transitionKey) {
+            const steadyBaseline =
+                prevGeoRef !== null &&
+                this.steadyPlanCache !== null &&
+                this.steadyPlanCache.nextGeometryRef === prevGeoRef &&
+                this.steadyPlanCache.classificationParamsKey === planParamsKey
+                    ? this.steadyPlanCache
+                    : null;
+            const transitionPatchBounds = steadyBaseline
+                ? buildTransitionPatchBounds({
+                      prevGeometry: steadyBaseline.nextGeometryRef,
+                      nextGeometry: currentGeometry,
+                      conquestEvents: input.activeTransition?.conquestEvents ?? [],
+                      resolveStarPosition,
+                      paddingPx: settings.spacingPx * 5,
+                      worldWidth: input.world.width,
+                      worldHeight: input.world.height,
+                  })
+                : null;
+            const patchArea =
+                transitionPatchBounds === null
+                    ? Infinity
+                    : Math.max(0, transitionPatchBounds.maxX - transitionPatchBounds.minX) *
+                      Math.max(0, transitionPatchBounds.maxY - transitionPatchBounds.minY);
+            const worldArea = input.world.width * input.world.height;
+            const safePatchBounds =
+                transitionPatchBounds !== null && patchArea / Math.max(worldArea, 1) < 0.85
+                    ? transitionPatchBounds
+                    : null;
             if (
                 !this.cachedPlan
                 || this.cachedPlan.planKey !== planKey
@@ -668,7 +776,11 @@ export class MetaballGridFamily implements RenderFamily {
                     input,
                     currentGeometry,
                     planKey,
+                    classificationParamsKey: planParamsKey,
                     settings,
+                    baselineClassification: safePatchBounds ? steadyBaseline?.classification : undefined,
+                    patchBounds: safePatchBounds,
+                    resolveStarPosition,
                 });
             }
         } else {
@@ -681,9 +793,11 @@ export class MetaballGridFamily implements RenderFamily {
                     input,
                     currentGeometry,
                     planKey,
+                    classificationParamsKey: planParamsKey,
                     settings,
                 });
             }
+            this.steadyPlanCache = this.cachedPlan;
         }
 
         const cached = this.cachedPlan;
