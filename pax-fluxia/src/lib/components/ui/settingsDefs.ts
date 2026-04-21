@@ -600,7 +600,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_WAVE_SEEDING' },
     { configKey: 'METABALL_GRID_FLIP_TRANSITION' },
     { configKey: 'METABALL_GRID_FLIP_WINDOW' },
-    { configKey: 'METABALL_GRID_STRENGTH' },
     { configKey: 'METABALL_GRID_INWARD_OFFSET_PX' },
     { configKey: 'METABALL_GRID_CELL_SHAPE' },
     { configKey: 'METABALL_GRID_CELL_INSET_PX' },

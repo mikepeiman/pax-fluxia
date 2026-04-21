@@ -414,7 +414,7 @@ interface GameConfigType {
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Wave seed set
     METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell flip style at flipTime
     METABALL_GRID_FLIP_WINDOW: number; // Lerp window half-width around flipTime (0-1)
-    METABALL_GRID_STRENGTH: number; // Fill-alpha multiplier applied to every cell (0 = invisible, 1 = full)
+    METABALL_GRID_STRENGTH: number; // Deprecated compatibility key. Runtime ignores it and uses fixed cell alpha gain 1.0.
     METABALL_GRID_INWARD_OFFSET_PX: number; // Optional inward offset applied to edge cells (0 = none)
     METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Per-cell quad primitive (visual only)
     METABALL_GRID_CELL_INSET_PX: number; // Shrink each cell by this amount on all sides (creates grid-lines when > 0)

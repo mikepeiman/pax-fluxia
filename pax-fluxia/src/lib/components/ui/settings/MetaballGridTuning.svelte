@@ -343,28 +343,6 @@
     />
 </div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Fill-alpha multiplier applied to every cell. 0 = invisible, 1 = use only METABALL_ALPHA + per-cell alpha, >1 = saturate (but cells are clamped to alpha 1 at the PIXI layer so the effect caps out).">
-            Cell Alpha Gain
-        </span>
-        <span class="val">{(panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Global per-cell alpha multiplier stacked on top of the Territory fill alpha. Leave at 1.0 for pure HSLA control; lower it to fade the entire grid, or raise to force-saturate during transitions.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.05"
-        value={panel.metaballGridStrength ?? GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_STRENGTH', 'metaballGridStrength', value);
-        }}
-    />
-</div>
 </div>
 {/if}
 

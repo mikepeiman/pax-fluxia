@@ -374,7 +374,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },
         'Max Cells': { key: 'METABALL_GRID_MAX_CELLS' },
         'Inward Offset': { key: 'METABALL_GRID_INWARD_OFFSET_PX' },
-        'Cell Alpha Gain': { key: 'METABALL_GRID_STRENGTH' },
         'Cell Shape': { key: 'METABALL_GRID_CELL_SHAPE' },
         'Cell Inset (px)': { key: 'METABALL_GRID_CELL_INSET_PX' },
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },

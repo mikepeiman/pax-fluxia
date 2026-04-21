@@ -182,7 +182,6 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_WAVE_SEEDING',
     'METABALL_GRID_FLIP_TRANSITION',
     'METABALL_GRID_FLIP_WINDOW',
-    'METABALL_GRID_STRENGTH',
     'METABALL_GRID_INWARD_OFFSET_PX',
     'METABALL_GRID_CELL_SHAPE',
     'METABALL_GRID_CELL_INSET_PX',
@@ -700,10 +699,7 @@ export class MetaballGridFamily implements RenderFamily {
             0,
             readTunableNumber(input, 'METABALL_GRID_FLIP_WINDOW', GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06),
         );
-        const strength = Math.max(
-            0,
-            readTunableNumber(input, 'METABALL_GRID_STRENGTH', GAME_CONFIG.METABALL_GRID_STRENGTH ?? 1.0),
-        );
+        const strength = 1.0;
         const inwardOffsetPx = readTunableNumber(
             input,
             'METABALL_GRID_INWARD_OFFSET_PX',

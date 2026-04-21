@@ -217,17 +217,12 @@ export interface GridRenderCell {
     readonly y: number;
     /** Owner color palette index this cell contributes. */
     readonly colorIdx: number;
-    /**
-     * Alpha 0..1. `METABALL_GRID_STRENGTH` (the UI "Alpha Gain" knob) is
-     * already folded into this value by `renderMetaballGridScene` at emit
-     * time, so downstream painters can use it directly without a second
-     * multiply.
-     */
+    /** Alpha 0..1, ready for direct downstream painting. */
     readonly alpha: number;
     /**
      * Reserved for any future additive-field compositor that wants a
-     * separate strength channel. Current direct-paint family uses only
-     * `alpha` (with strength already applied) and ignores this field.
+     * separate strength channel. Current direct-paint family keeps this
+     * fixed at runtime and uses only `alpha`.
      */
     readonly strength: number;
     /** For `dual_pass_blend`: which side this cell represents. */
