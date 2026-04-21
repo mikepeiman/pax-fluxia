@@ -1630,6 +1630,41 @@
 <h4 class="sub-heading">Damaged Ships</h4>
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Orbit Radius</span><span class="val"
+            >{((panel.damagedOrbitRadius ?? GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15) as number).toFixed(0)}px</span
+        >
+    </div>
+    <input
+        type="range"
+        min="4"
+        max="40"
+        step="1"
+        value={panel.damagedOrbitRadius ?? GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15}
+        oninput={(e) => {
+            const v = +(e.target as HTMLInputElement).value;
+            GAME_CONFIG.DAMAGED_ORBIT_RADIUS = v;
+            updatePanel("damagedOrbitRadius", v);
+        }}
+    />
+</div>
+<div class="var-row">
+    <div class="row-top">
+        <label class="toggle-label">
+            <input
+                type="checkbox"
+                checked={panel.damagedOrbitEvade ?? GAME_CONFIG.DAMAGED_ORBIT_EVADE ?? false}
+                onchange={() => {
+                    const v = !(panel.damagedOrbitEvade ?? GAME_CONFIG.DAMAGED_ORBIT_EVADE ?? false);
+                    GAME_CONFIG.DAMAGED_ORBIT_EVADE = v;
+                    updatePanel("damagedOrbitEvade", v);
+                }}
+            />
+            <span class="var-name">Evade Incoming Fire</span>
+        </label>
+    </div>
+</div>
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name">Damaged Scale</span><span class="val"
             >{((panel.damagedShipScale ?? 0.7) as number).toFixed(2)}×</span
         >
