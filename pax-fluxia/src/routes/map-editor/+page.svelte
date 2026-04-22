@@ -731,13 +731,11 @@
         {#if mapEditorUiStore.activeSheet === "library"}
           <MapEditorLibrarySheet
             {recentMaps}
-            {previewUrl}
             onOpenRecent={openRecentMap}
             onLoadRepositoryMap={loadRepositoryMap}
             onLoadBuiltinMap={loadBuiltinMap}
             onLoadFixtureMap={loadFixtureMap}
             onLoadAutosave={loadAutosave}
-            onClose={() => mapEditorUiStore.closeSheet()}
           />
         {:else if mapEditorUiStore.activeSheet === "validation"}
           <MapEditorValidationPanel

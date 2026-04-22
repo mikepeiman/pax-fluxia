@@ -1,6 +1,10 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { loadFixtureMapDefinition } from "@pax/common/maps";
+  import type { MapDefinition } from "$lib/types/map.types";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
+  import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
 
   type RecentMapEntry = {
     key: string;
@@ -9,32 +13,40 @@
     savedAt?: string;
   };
 
+  type MapFilter = "all" | "classic" | "custom" | "test";
+
+  type LibraryCard = {
+    key: string;
+    title: string;
+    subtitle: string;
+    filter: Exclude<MapFilter, "all">;
+    thumbUrl: string;
+    open: () => void;
+  };
+
   interface Props {
     recentMaps: RecentMapEntry[];
-    previewUrl: string;
     onOpenRecent: (entry: RecentMapEntry) => void;
     onLoadRepositoryMap: (name: string) => void;
     onLoadBuiltinMap: (name: string) => void;
     onLoadFixtureMap: (id: string) => void;
     onLoadAutosave: (id: string) => void;
-    onClose: () => void;
   }
 
   let {
     recentMaps,
-    previewUrl,
     onOpenRecent,
     onLoadRepositoryMap,
     onLoadBuiltinMap,
     onLoadFixtureMap,
     onLoadAutosave,
-    onClose,
   }: Props = $props();
 
   let searchQuery = $state("");
+  let mapFilter = $state<MapFilter>("all");
+  let fixturePreviewMaps = $state<Record<string, MapDefinition>>({});
 
   const density = $derived(mapEditorUiStore.density);
-  const expanded = $derived(mapEditorUiStore.isPanelExpanded("library"));
 
   function includesQuery(...parts: Array<string | number | undefined>) {
     if (!searchQuery.trim()) return true;
@@ -42,131 +54,271 @@
     return haystack.includes(searchQuery.trim().toLowerCase());
   }
 
-  const filteredRecent = $derived(recentMaps.filter((entry) =>
-    includesQuery(entry.label, entry.source, entry.savedAt),
-  ));
-  const filteredSaved = $derived(mapEditorStore.repositoryManifest.filter((entry) =>
-    includesQuery(entry.name, entry.starCount, entry.laneCount),
-  ));
-  const filteredBuiltin = $derived(mapEditorStore.builtinMaps.filter((entry) =>
-    includesQuery(entry.metadata.name, entry.stars.length, entry.connections.length),
-  ));
-  const filteredFixtures = $derived(mapEditorStore.fixtureManifest.filter((fixture) =>
-    includesQuery(fixture.name, fixture.purpose),
-  ));
-  const filteredAutosaves = $derived(mapEditorStore.autosaveRevisions.filter((revision) =>
-    includesQuery(revision.name, revision.savedAt),
-  ));
+  function buildThumbUrl(map: MapDefinition): string {
+    if (typeof document === "undefined") return "";
+    return generateMapThumbnail(
+      map.stars.map((star) => ({
+        id: star.id,
+        x: star.x,
+        y: star.y,
+        ownerId: star.ownerId ?? "neutral",
+        starType: star.starType,
+      })),
+      map.connections.map((connection) => ({
+        sourceId: connection.sourceId,
+        targetId: connection.targetId,
+        laneWaypoints: connection.laneWaypoints,
+      })),
+      { width: 360, height: 220 },
+    );
+  }
+
+  function formatRecentSource(source: RecentMapEntry["source"]): string {
+    switch (source) {
+      case "builtin":
+        return "Classic";
+      case "saved":
+        return "Custom";
+      case "fixture":
+        return "Test";
+      case "autosave":
+        return "Autosave";
+      default:
+        return source;
+    }
+  }
+
+  function formatMapFilterLabel(filter: Exclude<MapFilter, "all">): string {
+    switch (filter) {
+      case "classic":
+        return "Classic";
+      case "custom":
+        return "Custom";
+      case "test":
+        return "Test";
+    }
+  }
+
+  const mapCards = $derived.by(() => {
+    const cards: LibraryCard[] = [];
+
+    for (const map of mapEditorStore.builtinMaps) {
+      cards.push({
+        key: `classic:${map.metadata.name}`,
+        title: map.metadata.name,
+        subtitle: `${map.stars.length} stars - ${map.connections.length} lanes`,
+        filter: "classic",
+        thumbUrl: buildThumbUrl(map),
+        open: () => onLoadBuiltinMap(map.metadata.name),
+      });
+    }
+
+    for (const map of mapEditorStore.repositoryMaps) {
+      cards.push({
+        key: `custom:${map.metadata.name}`,
+        title: map.metadata.name,
+        subtitle: `${map.stars.length} stars - ${map.connections.length} lanes`,
+        filter: "custom",
+        thumbUrl: buildThumbUrl(map),
+        open: () => onLoadRepositoryMap(map.metadata.name),
+      });
+    }
+
+    for (const fixture of mapEditorStore.fixtureManifest) {
+      const previewMap = fixturePreviewMaps[fixture.id];
+      cards.push({
+        key: `test:${fixture.id}`,
+        title: fixture.name,
+        subtitle: previewMap
+          ? `${previewMap.stars.length} stars - ${previewMap.connections.length} lanes`
+          : fixture.purpose,
+        filter: "test",
+        thumbUrl: previewMap ? buildThumbUrl(previewMap) : "",
+        open: () => onLoadFixtureMap(fixture.id),
+      });
+    }
+
+    return cards.filter((card) => {
+      if (mapFilter !== "all" && card.filter !== mapFilter) return false;
+      return includesQuery(card.title, card.subtitle, card.filter);
+    });
+  });
+
+  const recentCards = $derived.by(() =>
+    recentMaps
+      .filter((entry) => includesQuery(entry.label, formatRecentSource(entry.source), entry.savedAt))
+      .map((entry) => {
+        const builtinMap =
+          entry.source === "builtin"
+            ? mapEditorStore.builtinMaps.find((map) => map.metadata.name === entry.key)
+            : null;
+        const repositoryMap =
+          entry.source === "saved"
+            ? mapEditorStore.repositoryMaps.find((map) => map.metadata.name === entry.key)
+            : null;
+        const autosaveMap =
+          entry.source === "autosave"
+            ? mapEditorStore.autosaveRevisions.find((revision) => revision.id === entry.key)?.map
+            : null;
+        const fixtureMap = entry.source === "fixture" ? fixturePreviewMaps[entry.key] : null;
+        const map = builtinMap ?? repositoryMap ?? autosaveMap ?? fixtureMap ?? null;
+
+        return {
+          entry,
+          thumbUrl: map ? buildThumbUrl(map) : "",
+          subtitle: entry.savedAt
+            ? `${formatRecentSource(entry.source)} - ${new Date(entry.savedAt).toLocaleString()}`
+            : formatRecentSource(entry.source),
+        };
+      }),
+  );
+
+  onMount(() => {
+    let cancelled = false;
+
+    async function hydrateFixturePreviews() {
+      const entries = await Promise.all(
+        mapEditorStore.fixtureManifest.map(async (fixture) => {
+          try {
+            const map = await loadFixtureMapDefinition(fixture.id, async (resourcePath) => {
+              const response = await fetch(`/__fixture-maps?path=${encodeURIComponent(resourcePath)}`);
+              if (!response.ok) {
+                throw new Error(`Failed to load fixture map "${fixture.id}"`);
+              }
+              return response.text();
+            });
+            return [fixture.id, map] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      fixturePreviewMaps = Object.fromEntries(
+        entries.filter((entry): entry is readonly [string, MapDefinition] => entry !== null),
+      );
+    }
+
+    void hydrateFixturePreviews();
+
+    return () => {
+      cancelled = true;
+    };
+  });
 </script>
 
-<section class="sheet" data-density={density} class:is-expanded={expanded || density === "expanded"}>
+<section class="sheet" data-density={density}>
   <header class="sheet__header">
     <div>
-      <strong>Load Maps</strong>
-      <span>Recent maps first, with searchable saved, built-in, fixture, and autosave sources.</span>
-    </div>
-    <div class="sheet__actions">
-      <button type="button" class="ghost" onclick={() => mapEditorUiStore.togglePanelExpanded("library")}>
-        {expanded ? "Less" : "More"}
-      </button>
-      <button type="button" class="ghost" onclick={onClose}>Close</button>
+      <strong>Load Map</strong>
+      <span>Open a recent map fast, or browse all maps by type.</span>
     </div>
   </header>
 
-  <label class="stack">
-    <span>Search</span>
-    <input type="search" bind:value={searchQuery} placeholder="Search maps..." />
-  </label>
+  <div class="sheet__toolbar">
+    <label class="stack stack--search">
+      <span>Search</span>
+      <input type="search" bind:value={searchQuery} placeholder="Search maps..." />
+    </label>
 
-  {#if (expanded || density !== "compact") && previewUrl}
-    <section class="preview-card">
-      <img src={previewUrl} alt="Current map preview" />
+    <div class="stack">
+      <span>Map Type</span>
+      <div class="filter-row" role="tablist" aria-label="Map type filter">
+        <button type="button" class:is-active={mapFilter === "all"} onclick={() => (mapFilter = "all")}>All</button>
+        <button type="button" class:is-active={mapFilter === "classic"} onclick={() => (mapFilter = "classic")}>Classic</button>
+        <button type="button" class:is-active={mapFilter === "custom"} onclick={() => (mapFilter = "custom")}>Custom</button>
+        <button type="button" class:is-active={mapFilter === "test"} onclick={() => (mapFilter = "test")}>Test</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="sheet-section sheet-section--recent">
+    <header class="section-header">
+      <strong>Recent</strong>
+      <span>Fast return to maps you touched recently.</span>
+    </header>
+
+    <div class="card-grid card-grid--recent">
+      {#if recentCards.length === 0}
+        <div class="empty-state empty-state--recent">No recent maps match.</div>
+      {:else}
+        {#each recentCards as recent}
+          <button type="button" class="map-card map-card--recent" onclick={() => onOpenRecent(recent.entry)}>
+            <div class="map-card__thumb-shell">
+              {#if recent.thumbUrl}
+                <img src={recent.thumbUrl} alt={recent.entry.label} class="map-card__thumb" />
+              {:else}
+                <div class="map-card__thumb-empty">No preview</div>
+              {/if}
+            </div>
+            <div class="map-card__meta">
+              <strong>{recent.entry.label}</strong>
+              <span>{recent.subtitle}</span>
+            </div>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </section>
+
+  <section class="sheet-section">
+    <header class="section-header">
+      <strong>Maps</strong>
+      <span>
+        {#if mapFilter === "all"}
+          Classic, custom, and test maps.
+        {:else if mapFilter === "classic"}
+          Classic maps only.
+        {:else if mapFilter === "custom"}
+          Custom maps only.
+        {:else}
+          Test maps only.
+        {/if}
+      </span>
+    </header>
+
+    <div class="card-grid">
+      {#if mapCards.length === 0}
+        <div class="empty-state">No maps match the current filter.</div>
+      {:else}
+        {#each mapCards as card}
+          <button type="button" class="map-card" onclick={card.open}>
+            <div class="map-card__thumb-shell">
+              {#if card.thumbUrl}
+                <img src={card.thumbUrl} alt={card.title} class="map-card__thumb" />
+              {:else}
+                <div class="map-card__thumb-empty">Loading preview...</div>
+              {/if}
+            </div>
+            <div class="map-card__meta">
+              <strong>{card.title}</strong>
+              <span>{formatMapFilterLabel(card.filter)} - {card.subtitle}</span>
+            </div>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </section>
+
+  {#if mapEditorStore.autosaveRevisions.length > 0}
+    <section class="sheet-section">
+      <header class="section-header">
+        <strong>Autosaves</strong>
+        <span>Recovery points from the local editor session history.</span>
+      </header>
+
+      <div class="autosave-list">
+        {#each mapEditorStore.autosaveRevisions as revision}
+          <button type="button" class="autosave-item" onclick={() => onLoadAutosave(revision.id)}>
+            <strong>{revision.name}</strong>
+            <span>{new Date(revision.savedAt).toLocaleString()}</span>
+          </button>
+        {/each}
+      </div>
     </section>
   {/if}
-
-  <div class="sheet__sections">
-    <section class="sheet-section">
-      <header><strong>Recent</strong></header>
-      <div class="manifest-list">
-        {#if filteredRecent.length === 0}
-          <div class="empty-state">No recent maps match.</div>
-        {:else}
-          {#each filteredRecent as entry}
-            <button type="button" onclick={() => onOpenRecent(entry)}>
-              <strong>{entry.label}</strong>
-              <span>{entry.source}{entry.savedAt ? ` · ${new Date(entry.savedAt).toLocaleString()}` : ""}</span>
-            </button>
-          {/each}
-        {/if}
-      </div>
-    </section>
-
-    <section class="sheet-section">
-      <header><strong>Saved</strong></header>
-      <div class="manifest-list">
-        {#if filteredSaved.length === 0}
-          <div class="empty-state">No saved maps match.</div>
-        {:else}
-          {#each filteredSaved as entry}
-            <button type="button" onclick={() => onLoadRepositoryMap(entry.name)}>
-              <strong>{entry.name}</strong>
-              <span>{entry.starCount} stars · {entry.laneCount} lanes</span>
-            </button>
-          {/each}
-        {/if}
-      </div>
-    </section>
-
-    <section class="sheet-section">
-      <header><strong>Built-In</strong></header>
-      <div class="manifest-list">
-        {#if filteredBuiltin.length === 0}
-          <div class="empty-state">No built-in maps match.</div>
-        {:else}
-          {#each filteredBuiltin as entry}
-            <button type="button" onclick={() => onLoadBuiltinMap(entry.metadata.name)}>
-              <strong>{entry.metadata.name}</strong>
-              <span>{entry.stars.length} stars · {entry.connections.length} lanes</span>
-            </button>
-          {/each}
-        {/if}
-      </div>
-    </section>
-
-    {#if expanded || density !== "compact"}
-      <section class="sheet-section">
-        <header><strong>Fixtures</strong></header>
-        <div class="manifest-list">
-          {#if filteredFixtures.length === 0}
-            <div class="empty-state">No fixtures match.</div>
-          {:else}
-            {#each filteredFixtures as fixture}
-              <button type="button" onclick={() => onLoadFixtureMap(fixture.id)}>
-                <strong>{fixture.name}</strong>
-                <span>{fixture.purpose}</span>
-              </button>
-            {/each}
-          {/if}
-        </div>
-      </section>
-
-      <section class="sheet-section">
-        <header><strong>Autosave</strong></header>
-        <div class="manifest-list">
-          {#if filteredAutosaves.length === 0}
-            <div class="empty-state">No autosaves match.</div>
-          {:else}
-            {#each filteredAutosaves as revision}
-              <button type="button" onclick={() => onLoadAutosave(revision.id)}>
-                <strong>{revision.name}</strong>
-                <span>{new Date(revision.savedAt).toLocaleString()}</span>
-              </button>
-            {/each}
-          {/if}
-        </div>
-      </section>
-    {/if}
-  </div>
 </section>
 
 <style>
@@ -175,36 +327,29 @@
     top: 76px;
     right: 16px;
     bottom: 92px;
-    width: min(460px, 40vw);
-    padding: 16px;
+    width: min(560px, 48vw);
+    padding: 18px;
     border-radius: 24px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
     background: rgba(3, 10, 24, 0.96);
     backdrop-filter: blur(20px);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
     display: grid;
-    gap: 14px;
+    align-content: start;
+    gap: 16px;
     overflow: auto;
     z-index: 12;
   }
 
   .sheet__header,
-  .sheet__actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .sheet__header div:first-child,
-  .stack,
-  .sheet__sections {
+  .sheet__toolbar,
+  .stack {
     display: grid;
     gap: 10px;
   }
 
   .sheet__header strong,
-  .sheet-section header strong {
+  .section-header strong {
     font-family: "Rajdhani", sans-serif;
     font-size: 1rem;
     letter-spacing: 0.08em;
@@ -213,6 +358,7 @@
   }
 
   .sheet__header span,
+  .section-header span,
   .stack span {
     font-size: 0.76rem;
     letter-spacing: 0.08em;
@@ -220,18 +366,24 @@
     color: rgba(148, 163, 184, 0.88);
   }
 
-  .sheet__sections {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+  .sheet__toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
   }
 
-  .sheet-section {
-    display: grid;
+  .stack--search {
+    min-width: 0;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
   input,
-  .ghost {
+  .filter-row button,
+  .autosave-item {
     min-height: 40px;
     padding: 0 12px;
     border-radius: 12px;
@@ -241,65 +393,146 @@
     font: inherit;
   }
 
-  .ghost {
+  .filter-row button,
+  .autosave-item,
+  .map-card {
     cursor: pointer;
+    transition:
+      border-color 140ms ease,
+      background 140ms ease,
+      color 140ms ease,
+      transform 140ms ease,
+      box-shadow 140ms ease;
   }
 
-  .preview-card {
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    background: rgba(9, 16, 31, 0.72);
+  .filter-row button.is-active,
+  .filter-row button:hover {
+    border-color: rgba(125, 211, 252, 0.58);
+    background: rgba(17, 39, 63, 0.88);
+    color: #f8fafc;
   }
 
-  .preview-card img {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
-  .manifest-list {
+  .sheet-section {
     display: grid;
     gap: 10px;
-    max-height: 260px;
-    overflow: auto;
   }
 
-  .manifest-list button,
-  .empty-state {
-    min-height: 58px;
-    padding: 12px;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    background: rgba(9, 16, 31, 0.88);
-    text-align: left;
-    color: rgba(226, 232, 240, 0.92);
+  .sheet-section--recent {
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(251, 191, 36, 0.26);
+    background:
+      linear-gradient(135deg, rgba(76, 45, 7, 0.28), rgba(30, 41, 59, 0.06)),
+      rgba(9, 16, 31, 0.9);
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.08);
+  }
+
+  .section-header {
     display: grid;
     gap: 4px;
   }
 
-  .manifest-list button {
-    cursor: pointer;
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
-  .manifest-list strong {
+  .card-grid--recent {
+    grid-template-columns: 1fr;
+  }
+
+  .map-card {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(9, 16, 31, 0.88);
+    text-align: left;
+    color: rgba(226, 232, 240, 0.92);
+  }
+
+  .map-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(125, 211, 252, 0.42);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
+  }
+
+  .map-card--recent {
+    background: rgba(16, 23, 40, 0.94);
+    border-color: rgba(251, 191, 36, 0.2);
+  }
+
+  .map-card__thumb-shell {
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(3, 10, 24, 0.92);
+    aspect-ratio: 1.5;
+  }
+
+  .map-card__thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .map-card__thumb-empty,
+  .empty-state {
+    display: grid;
+    place-items: center;
+    min-height: 128px;
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px dashed rgba(148, 163, 184, 0.18);
+    background: rgba(9, 16, 31, 0.72);
+    color: rgba(148, 163, 184, 0.9);
+    text-align: center;
+  }
+
+  .empty-state--recent {
+    min-height: 160px;
+  }
+
+  .map-card__meta {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .map-card__meta strong,
+  .autosave-item strong {
     font-family: "Rajdhani", sans-serif;
     font-size: 0.98rem;
     color: #f8fafc;
   }
 
-  .manifest-list span,
-  .empty-state {
+  .map-card__meta span,
+  .autosave-item span {
     font-size: 0.82rem;
     color: rgba(148, 163, 184, 0.9);
   }
 
-  [data-density="compact"]:not(.is-expanded) {
-    width: min(360px, calc(100vw - 24px));
+  .autosave-list {
+    display: grid;
+    gap: 10px;
   }
 
-  [data-density="compact"]:not(.is-expanded) .sheet__sections {
-    grid-template-columns: 1fr;
+  .autosave-item {
+    display: grid;
+    gap: 4px;
+    justify-items: start;
+    text-align: left;
+    padding: 12px;
+  }
+
+  .autosave-item:hover {
+    border-color: rgba(125, 211, 252, 0.42);
+    background: rgba(17, 39, 63, 0.88);
+    color: #f8fafc;
   }
 
   @media (max-width: 980px) {
@@ -311,7 +544,9 @@
       width: auto;
     }
 
-    .sheet__sections {
+    .sheet__toolbar,
+    .card-grid,
+    .card-grid--recent {
       grid-template-columns: 1fr;
     }
   }
