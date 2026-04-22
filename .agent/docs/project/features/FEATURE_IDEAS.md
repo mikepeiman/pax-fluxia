@@ -122,6 +122,7 @@
 | F-106 | Infotips on all settings: config key (click→clipboard) + description | High | 2026-03-01 |
 | F-107 | Portrait map rotation: longest side → longest side | Critical | 2026-03-01 |
 | F-108 | Mobile main menu redesign: compact, Start visible above fold | Critical | 2026-03-01 |
+| F-139 | Custom map setup remix: preserve an existing layout/connectivity graph while customizing SP/MP player stars, ownership distribution, and starting ships | High | 2026-04-22 |
 | B-21 | Landscape game speed widget buttons overflowing container | High | 2026-03-01 |
 
 ---
