@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { loadFixtureMapDefinition, resolveAuthoredMapCategory, type AuthoredMapCategory } from "@pax/common/maps";
   import type { MapDefinition } from "$lib/types/map.types";
+  import MapEditorMapPreviewDialog from "$lib/components/editor/MapEditorMapPreviewDialog.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
   import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
@@ -31,7 +32,7 @@
     subtitle: string;
     thumbUrl: string;
     savedAt?: string;
-    open: () => void;
+    load: () => void;
   };
 
   interface Props {
@@ -70,6 +71,7 @@
   let mapFilter = $state<MapFilter>("all");
   let fixturePreviewMaps = $state<Record<string, MapDefinition>>({});
   let contextMenu = $state<{ x: number; y: number; card: LibraryCard } | null>(null);
+  let previewCard = $state<LibraryCard | null>(null);
 
   const density = $derived(mapEditorUiStore.density);
   const favoriteKeySet = $derived(new Set(favoriteMapKeys));
@@ -136,7 +138,7 @@
     title: string,
     subtitle: string,
     map: MapDefinition | null,
-    open: () => void,
+    load: () => void,
     options?: { canDelete?: boolean; savedAt?: string },
   ): LibraryCard {
     const category = map
@@ -159,7 +161,7 @@
       thumbUrl: map ? buildThumbUrl(map) : "",
       savedAt: options?.savedAt,
       map,
-      open,
+      load,
     };
   }
 
@@ -185,6 +187,15 @@
 
   function closeContextMenu() {
     contextMenu = null;
+  }
+
+  function closePreview() {
+    previewCard = null;
+  }
+
+  function openPreview(card: LibraryCard) {
+    previewCard = card;
+    closeContextMenu();
   }
 
   function openContextMenu(event: MouseEvent, card: LibraryCard) {
@@ -363,6 +374,10 @@
 
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (previewCard) {
+          closePreview();
+          return;
+        }
         closeContextMenu();
       }
     }
@@ -426,7 +441,7 @@
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 17.3-5.56 3.28 1.48-6.3L3 10.1l6.46-.55L12 3.6l2.54 5.95 6.46.55-4.92 4.18 1.48 6.3z" fill="currentColor" /></svg>
             </button>
-            <button type="button" class="map-card__open" onclick={card.open}>
+            <button type="button" class="map-card__open" onclick={() => openPreview(card)}>
               <div class="map-card__thumb-shell">
                 {#if card.thumbUrl}
                   <img src={card.thumbUrl} alt={card.title} class="map-card__thumb" />
@@ -467,7 +482,7 @@
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 17.3-5.56 3.28 1.48-6.3L3 10.1l6.46-.55L12 3.6l2.54 5.95 6.46.55-4.92 4.18 1.48 6.3z" fill="currentColor" /></svg>
             </button>
-            <button type="button" class="map-card__open" onclick={card.open}>
+            <button type="button" class="map-card__open" onclick={() => openPreview(card)}>
               <div class="map-card__thumb-shell">
                 {#if card.thumbUrl}
                   <img src={card.thumbUrl} alt={card.title} class="map-card__thumb" />
@@ -503,6 +518,30 @@
     </section>
   {/if}
 </div>
+
+{#if previewCard}
+  <MapEditorMapPreviewDialog
+    title={previewCard.title}
+    description={previewCard.map?.metadata.description}
+    author={previewCard.map?.metadata.author}
+    mapId={previewCard.map?.metadata.mapId}
+    categoryLabel={categoryLabel(previewCard.category)}
+    sourceLabel={sourceLabel(previewCard.source, previewCard.category)}
+    starsCount={previewCard.map?.stars.length ?? 0}
+    lanesCount={previewCard.map?.connections.length ?? 0}
+    createdAt={previewCard.map?.metadata.createdAt}
+    updatedAt={previewCard.savedAt ?? previewCard.map?.metadata.updatedAt}
+    thumbUrl={previewCard.thumbUrl}
+    tags={previewCard.map?.metadata.tags ?? []}
+    canLoad={previewCard.map !== null || previewCard.source === "fixture"}
+    onClose={closePreview}
+    onLoad={() => {
+      const target = previewCard;
+      closePreview();
+      target?.load();
+    }}
+  />
+{/if}
 
 {#if contextMenu}
   <div class="context-menu" style={`left:${contextMenu!.x}px;top:${contextMenu!.y}px;`}>
@@ -543,6 +582,7 @@
     gap: 16px;
     overflow: auto;
     transform: translate(-50%, -50%);
+    isolation: isolate;
   }
 
   .modal__header,
