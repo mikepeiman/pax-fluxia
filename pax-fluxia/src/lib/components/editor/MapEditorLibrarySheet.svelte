@@ -37,6 +37,7 @@
     subtitle: string;
     thumbUrl: string;
     savedAt?: string;
+    editorHexRadius?: number;
     familyId?: string;
     familyName?: string;
     tags: string[];
@@ -187,6 +188,7 @@
       canDelete: options?.canDelete ?? false,
       thumbUrl: map ? buildThumbUrl(map) : "",
       savedAt: options?.savedAt,
+      editorHexRadius: map ? mapEditorStore.resolveMapHexRadius(map) : undefined,
       familyId: family?.id,
       familyName: family?.name,
       tags: map?.metadata.tags ?? [],
@@ -649,6 +651,7 @@
     author={previewCard.map?.metadata.author}
     mapId={previewCard.map?.metadata.mapId}
     familyName={previewCard.familyName}
+    editorHexRadius={previewCard.editorHexRadius}
     categoryLabel={categoryLabel(previewCard.category)}
     sourceLabel={sourceLabel(previewCard.source, previewCard.category)}
     starsCount={previewCard.map?.stars.length ?? 0}

@@ -5,6 +5,7 @@
     author?: string;
     mapId?: string;
     familyName?: string;
+    editorHexRadius?: number;
     categoryLabel: string;
     sourceLabel: string;
     starsCount: number;
@@ -24,6 +25,7 @@
     author,
     mapId,
     familyName,
+    editorHexRadius,
     categoryLabel,
     sourceLabel,
     starsCount,
@@ -42,6 +44,10 @@
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "Unknown";
     return date.toLocaleString();
+  }
+
+  function formatDensity(value?: number): string {
+    return Number.isFinite(value) ? `${Math.round(value!)} px` : "Unknown";
   }
 </script>
 
@@ -95,6 +101,10 @@
           <div class="meta-item">
             <dt>Family</dt>
             <dd>{familyName?.trim() || "None"}</dd>
+          </div>
+          <div class="meta-item">
+            <dt>Default Density</dt>
+            <dd>{formatDensity(editorHexRadius)}</dd>
           </div>
           <div class="meta-item">
             <dt>Author</dt>

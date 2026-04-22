@@ -57,6 +57,7 @@
     initialDescription: string;
     initialCategory: AuthoredMapCategory;
     initialFamilyName: string;
+    initialHexRadius: number;
     initialTags: string[];
   };
 
@@ -65,6 +66,7 @@
     description?: string;
     category: AuthoredMapCategory;
     familyName?: string;
+    editorHexRadius: number;
     tags?: string[];
   };
 
@@ -267,7 +269,9 @@
     const nextName = patch.name.trim();
     const nextDescription = patch.description?.trim() || undefined;
     const nextTags = patch.tags?.length ? patch.tags : undefined;
-    const nextMap = cloneMapDefinition(sourceMap);
+    const nextMap = cloneMapDefinition(
+      mapEditorStore.retargetMapHexRadius(sourceMap, patch.editorHexRadius),
+    );
     const nextFamily = resolveOrCreateAuthoredMapFamily(
       {
         familyId: patch.familyName ? undefined : nextMap.metadata.familyId,
@@ -286,6 +290,7 @@
       category: patch.category,
       familyId: nextFamily.familyId,
       familyName: nextFamily.familyName,
+      editorHexRadius: nextMap.metadata.editorHexRadius,
       createdAt: options?.preserveCreatedAt
         ? nextMap.metadata.createdAt ?? now
         : now,
@@ -559,6 +564,7 @@
       initialDescription: target.map.metadata.description ?? "",
       initialCategory: target.map.metadata.category ?? target.category,
       initialFamilyName: target.map.metadata.familyName ?? target.map.metadata.name,
+      initialHexRadius: mapEditorStore.resolveMapHexRadius(target.map),
       initialTags: target.map.metadata.tags ?? [],
     };
   }
@@ -578,6 +584,7 @@
       initialDescription: target.map.metadata.description ?? "",
       initialCategory: target.map.metadata.category ?? target.category,
       initialFamilyName: target.map.metadata.familyName ?? target.map.metadata.name,
+      initialHexRadius: mapEditorStore.resolveMapHexRadius(target.map),
       initialTags: target.map.metadata.tags ?? [],
     };
   }
@@ -1096,10 +1103,12 @@
             initialDescription={mapEditorStore.document.metadata.description ?? ""}
             initialCategory={mapEditorStore.document.metadata.category ?? "custom"}
             initialFamilyName={mapEditorStore.document.metadata.familyName ?? mapEditorStore.document.metadata.name}
+            initialHexRadius={mapEditorStore.hexRadius}
             initialTags={mapEditorStore.document.metadata.tags ?? []}
             currentName={mapEditorStore.document.metadata.name}
             currentDescription={mapEditorStore.document.metadata.description ?? ""}
             currentDate={mapEditorStore.document.metadata.updatedAt ?? new Date().toISOString()}
+            currentHexRadius={mapEditorStore.hexRadius}
             onSubmit={confirmDuplicateMap}
             onClose={() => mapEditorUiStore.closeSheet()}
           />
@@ -1113,10 +1122,12 @@
             initialDescription={metadataDialog.initialDescription}
             initialCategory={metadataDialog.initialCategory}
             initialFamilyName={metadataDialog.initialFamilyName}
+            initialHexRadius={metadataDialog.initialHexRadius}
             initialTags={metadataDialog.initialTags}
             currentName={metadataDialog.target.label}
             currentDescription={metadataDialog.target.map?.metadata.description ?? ""}
             currentDate={metadataDialog.target.map?.metadata.updatedAt ?? new Date().toISOString()}
+            currentHexRadius={metadataDialog.target.map ? mapEditorStore.resolveMapHexRadius(metadataDialog.target.map) : undefined}
             onSubmit={metadataDialog.mode === "rename" ? confirmRenameMap : confirmDuplicateMap}
             onClose={() => {
               metadataDialog = null;

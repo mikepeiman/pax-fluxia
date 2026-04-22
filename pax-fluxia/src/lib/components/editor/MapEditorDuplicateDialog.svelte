@@ -1,11 +1,18 @@
 <script lang="ts">
   import type { AuthoredMapCategory } from "@pax/common/maps";
+  import {
+    MAP_EDITOR_DEFAULT_HEX_RADIUS,
+    MAP_EDITOR_MAX_HEX_RADIUS,
+    MAP_EDITOR_MIN_HEX_RADIUS,
+    normalizeHexRadius,
+  } from "$lib/editor/mapEditorPresentation";
 
   type MetadataDialogSubmitPayload = {
     name: string;
     description?: string;
     category: AuthoredMapCategory;
     familyName?: string;
+    editorHexRadius: number;
     tags?: string[];
   };
 
@@ -16,10 +23,12 @@
     initialDescription?: string;
     initialCategory?: AuthoredMapCategory;
     initialFamilyName?: string;
+    initialHexRadius?: number;
     initialTags?: string[];
     currentName: string;
     currentDescription: string;
     currentDate: string;
+    currentHexRadius?: number;
     onSubmit: (payload: MetadataDialogSubmitPayload) => void;
     onClose: () => void;
   }
@@ -31,10 +40,12 @@
     initialDescription,
     initialCategory = "custom",
     initialFamilyName = "",
+    initialHexRadius,
     initialTags = [],
     currentName,
     currentDescription,
     currentDate,
+    currentHexRadius,
     onSubmit,
     onClose,
   }: Props = $props();
@@ -43,6 +54,7 @@
   let description = $state("");
   let category = $state<AuthoredMapCategory>("custom");
   let familyName = $state("");
+  let editorHexRadius = $state(MAP_EDITOR_DEFAULT_HEX_RADIUS);
   let customCategories = $state("");
   let didInit = $state(false);
 
@@ -52,6 +64,9 @@
     description = initialDescription ?? currentDescription;
     category = initialCategory;
     familyName = initialFamilyName;
+    editorHexRadius = normalizeHexRadius(
+      initialHexRadius ?? currentHexRadius ?? MAP_EDITOR_DEFAULT_HEX_RADIUS,
+    );
     customCategories = initialTags.join(", ");
     didInit = true;
   });
@@ -82,6 +97,7 @@
       description: description.trim() || undefined,
       category,
       familyName: familyName.trim() || undefined,
+      editorHexRadius: normalizeHexRadius(editorHexRadius),
       tags: parseTags(customCategories),
     });
   }
@@ -125,6 +141,20 @@
     <label class="stack">
       <span>Family</span>
       <input type="text" bind:value={familyName} placeholder="Original Family or New Family" />
+    </label>
+
+    <label class="stack">
+      <span>Default Density</span>
+      <div class="density-input">
+        <input
+          type="number"
+          min={MAP_EDITOR_MIN_HEX_RADIUS}
+          max={MAP_EDITOR_MAX_HEX_RADIUS}
+          step="1"
+          bind:value={editorHexRadius}
+        />
+        <span>px</span>
+      </div>
     </label>
 
     <label class="stack">
@@ -177,6 +207,24 @@
   .stack {
     display: grid;
     gap: 10px;
+  }
+
+  .density-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .density-input span {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(9, 16, 31, 0.9);
+    display: inline-flex;
+    align-items: center;
+    color: rgba(226, 232, 240, 0.92);
   }
 
   .dialog__header strong,

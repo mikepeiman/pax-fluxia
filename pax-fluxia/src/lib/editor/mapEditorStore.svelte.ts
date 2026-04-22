@@ -396,6 +396,23 @@ function scaleMapGeometryForHexRadius(
     return scaled;
 }
 
+function retargetMapHexRadius(
+    map: MapDefinition,
+    nextHexRadius: number,
+): MapDefinition {
+    const normalizedRadius = normalizeHexRadius(nextHexRadius);
+    const currentRadius = resolveMapHexRadius(map);
+
+    if (currentRadius === normalizedRadius) {
+        return buildDocumentMap(map, normalizedRadius);
+    }
+
+    return buildDocumentMap(
+        scaleMapGeometryForHexRadius(map, currentRadius, normalizedRadius),
+        normalizedRadius,
+    );
+}
+
 function normalizeDocument(
     map: MapDefinition,
     targetHexRadius = hexRadius,
@@ -1561,10 +1578,13 @@ function duplicateMap(options?: {
     description?: string;
     category?: AuthoredMapCategory;
     familyName?: string;
+    editorHexRadius?: number;
     tags?: string[];
 }): void {
     const baseName = documentState.metadata.name || "Untitled Map";
-    const duplicate = cloneMap(documentState);
+    const duplicate = options?.editorHexRadius !== undefined
+        ? retargetMapHexRadius(documentState, options.editorHexRadius)
+        : cloneMap(documentState);
     const nextName = options?.name?.trim() || `${baseName} Copy`;
     const nextFamily = resolveOrCreateAuthoredMapFamily(
         {
@@ -1583,6 +1603,7 @@ function duplicateMap(options?: {
         category: options?.category ?? duplicate.metadata.category ?? "custom",
         familyId: nextFamily.familyId,
         familyName: nextFamily.familyName,
+        editorHexRadius: duplicate.metadata.editorHexRadius,
         tags: options?.tags ?? duplicate.metadata.tags,
         updatedAt: new Date().toISOString(),
     };
@@ -1721,6 +1742,8 @@ export const mapEditorStore = {
     duplicateMap,
     saveDocument,
     exportDocument,
+    retargetMapHexRadius,
+    resolveMapHexRadius,
     setSelection,
     selectStar,
     selectLane,

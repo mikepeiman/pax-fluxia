@@ -115,17 +115,17 @@
         type="button"
         class="hud-readout hud-readout--interactive"
         class:is-open={showGridFlyout}
-        title="Grid resolution"
+        title="Map density"
         onclick={toggleGridFlyout}
         onwheel={handleGridWheel}
       >
-        <strong>{Math.round(mapEditorStore.viewport.zoom * 100)}%</strong>
-        <span>{mapEditorStore.hexRadius}px grid</span>
+        <strong>{mapEditorStore.hexRadius}px</strong>
+        <span>Map density · {Math.round(mapEditorStore.viewport.zoom * 100)}% view</span>
       </button>
       {#if showGridFlyout}
         <div class="grid-flyout" onwheel={handleGridWheel}>
           <div class="grid-flyout__header">
-            <strong>Grid Resolution</strong>
+            <strong>Map Density</strong>
             <span>{MAP_EDITOR_MIN_HEX_RADIUS}px to {MAP_EDITOR_MAX_HEX_RADIUS}px</span>
           </div>
           <div class="grid-flyout__body">
@@ -162,7 +162,7 @@
             </label>
           </div>
           <div class="grid-flyout__footer">
-            <span>Scroll</span>
+            <span>Saved with map</span>
             <span>{mapEditorStore.hexRadius}px</span>
           </div>
         </div>
