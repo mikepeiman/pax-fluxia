@@ -917,8 +917,8 @@ function coerceRepositoryMap(map: MapDefinition): MapDefinition {
             ...normalized.metadata,
             category: isBuiltin
                 ? 'classic'
-                : explicitCategory === 'test'
-                    ? 'test'
+                : explicitCategory === 'classic' || explicitCategory === 'test'
+                    ? explicitCategory
                     : 'custom',
         }),
     };

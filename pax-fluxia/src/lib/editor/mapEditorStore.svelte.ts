@@ -7,9 +7,9 @@ import {
     getFixtureMapManifest,
     loadFixtureMapDefinition,
     normalizeAuthoredMapMetadata,
-    resolveAuthoredMapCategory,
     serializeAuthoredMap,
     validateAuthoredMapDefinition,
+    type AuthoredMapCategory,
     type AuthoredMeasurementAnchor,
     type FixtureMapManifestEntry,
     type MapValidationIssue,
@@ -479,12 +479,8 @@ function mapHasMinimumStarSpacing(map: MapDefinition): boolean {
 
 function syncRepositoryMaps(): void {
     const maps = gameStore.savedMaps.map((map) => buildDocumentMap(map));
-    const runtimeBuiltins = maps.filter((map) =>
-        resolveAuthoredMapCategory(map, { isBuiltin: Boolean((map as { builtIn?: boolean }).builtIn) }) === "classic",
-    );
-    repositoryMaps = maps.filter((map) =>
-        resolveAuthoredMapCategory(map, { isBuiltin: Boolean((map as { builtIn?: boolean }).builtIn) }) !== "classic",
-    );
+    const runtimeBuiltins = maps.filter((map) => Boolean((map as { builtIn?: boolean }).builtIn));
+    repositoryMaps = maps.filter((map) => !Boolean((map as { builtIn?: boolean }).builtIn));
     if (runtimeBuiltins.length > 0) {
         builtinMaps = runtimeBuiltins;
     }
@@ -1508,6 +1504,8 @@ function newMap(): void {
 function duplicateMap(options?: {
     name?: string;
     description?: string;
+    category?: AuthoredMapCategory;
+    tags?: string[];
 }): void {
     const baseName = documentState.metadata.name || "Untitled Map";
     const duplicate = cloneMap(documentState);
@@ -1517,6 +1515,8 @@ function duplicateMap(options?: {
         mapId: slugify(nextName),
         name: nextName,
         description: options?.description ?? duplicate.metadata.description,
+        category: options?.category ?? duplicate.metadata.category ?? "custom",
+        tags: options?.tags ?? duplicate.metadata.tags,
         updatedAt: new Date().toISOString(),
     };
     loadMap(duplicate, "duplicate");

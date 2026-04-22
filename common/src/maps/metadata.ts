@@ -8,6 +8,25 @@ export function isAuthoredMapCategory(value: unknown): value is AuthoredMapCateg
     return typeof value === 'string' && VALID_MAP_CATEGORIES.has(value as AuthoredMapCategory);
 }
 
+export function normalizeAuthoredMapTags(tags: unknown): string[] | undefined {
+    if (!Array.isArray(tags)) return undefined;
+
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+
+    for (const tag of tags) {
+        if (typeof tag !== 'string') continue;
+        const trimmed = tag.trim();
+        if (!trimmed) continue;
+        const key = trimmed.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        normalized.push(trimmed);
+    }
+
+    return normalized.length > 0 ? normalized : undefined;
+}
+
 export function categoryFromImportedKind(
     kind: ImportedKind | undefined,
 ): AuthoredMapCategory {
@@ -30,10 +49,12 @@ export function normalizeAuthoredMapMetadata(
     const category = isAuthoredMapCategory(metadata.category)
         ? metadata.category
         : categoryFromImportedKind(metadata.importedFrom?.kind);
+    const tags = normalizeAuthoredMapTags(metadata.tags);
 
     return {
         ...metadata,
         category,
+        tags,
     };
 }
 

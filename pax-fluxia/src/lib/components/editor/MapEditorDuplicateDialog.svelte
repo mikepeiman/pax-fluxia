@@ -1,13 +1,24 @@
 <script lang="ts">
+  import type { AuthoredMapCategory } from "@pax/common/maps";
+
+  type MetadataDialogSubmitPayload = {
+    name: string;
+    description?: string;
+    category: AuthoredMapCategory;
+    tags?: string[];
+  };
+
   interface Props {
     title?: string;
     confirmLabel?: string;
     initialName?: string;
     initialDescription?: string;
+    initialCategory?: AuthoredMapCategory;
+    initialTags?: string[];
     currentName: string;
     currentDescription: string;
     currentDate: string;
-    onSubmit: (payload: { name: string; description?: string }) => void;
+    onSubmit: (payload: MetadataDialogSubmitPayload) => void;
     onClose: () => void;
   }
 
@@ -16,6 +27,8 @@
     confirmLabel = "Duplicate",
     initialName,
     initialDescription,
+    initialCategory = "custom",
+    initialTags = [],
     currentName,
     currentDescription,
     currentDate,
@@ -25,14 +38,34 @@
 
   let name = $state("");
   let description = $state("");
+  let category = $state<AuthoredMapCategory>("custom");
+  let customCategories = $state("");
   let didInit = $state(false);
 
   $effect(() => {
     if (didInit) return;
     name = initialName ?? `${currentName || "Untitled Map"} Copy`;
     description = initialDescription ?? currentDescription;
+    category = initialCategory;
+    customCategories = initialTags.join(", ");
     didInit = true;
   });
+
+  function parseTags(value: string): string[] | undefined {
+    const seen = new Set<string>();
+    const tags: string[] = [];
+
+    for (const chunk of value.split(",")) {
+      const trimmed = chunk.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tags.push(trimmed);
+    }
+
+    return tags.length > 0 ? tags : undefined;
+  }
 
   function submit() {
     const trimmedName = name.trim();
@@ -42,6 +75,8 @@
     onSubmit({
       name: trimmedName,
       description: description.trim() || undefined,
+      category,
+      tags: parseTags(customCategories),
     });
   }
 
@@ -70,6 +105,20 @@
     <label class="stack">
       <span>Description</span>
       <textarea rows="5" bind:value={description}></textarea>
+    </label>
+
+    <label class="stack">
+      <span>Map Type</span>
+      <select bind:value={category}>
+        <option value="classic">Classic</option>
+        <option value="custom">Custom</option>
+        <option value="test">Test</option>
+      </select>
+    </label>
+
+    <label class="stack">
+      <span>Custom Categories</span>
+      <input type="text" bind:value={customCategories} placeholder="favorites, campaign, prototype" />
     </label>
 
     <div class="meta-row">
@@ -139,6 +188,7 @@
   .dialog__close,
   .dialog__action,
   input,
+  select,
   textarea {
     min-height: 40px;
     padding: 0 12px;
@@ -171,6 +221,10 @@
     min-height: 120px;
     padding: 12px;
     resize: vertical;
+  }
+
+  select {
+    padding-right: 36px;
   }
 
   .dialog__action--primary {

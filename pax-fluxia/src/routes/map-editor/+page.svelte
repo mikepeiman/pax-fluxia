@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { AUTHORED_NEUTRAL_OWNER_ID, serializeAuthoredMap } from "@pax/common/maps";
+  import {
+    AUTHORED_NEUTRAL_OWNER_ID,
+    serializeAuthoredMap,
+    type AuthoredMapCategory,
+  } from "@pax/common/maps";
   import type { StarType } from "@pax/common";
   import "../../app.css";
   import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
@@ -50,6 +54,15 @@
     confirmLabel: string;
     initialName: string;
     initialDescription: string;
+    initialCategory: AuthoredMapCategory;
+    initialTags: string[];
+  };
+
+  type MapMetadataPatch = {
+    name: string;
+    description?: string;
+    category: AuthoredMapCategory;
+    tags?: string[];
   };
 
   type EditorToolPanel = Exclude<
@@ -234,12 +247,13 @@
 
   function buildSavedCustomMap(
     sourceMap: MapDefinition,
-    patch: { name: string; description?: string },
+    patch: MapMetadataPatch,
     options?: { preserveCreatedAt?: boolean },
   ): MapDefinition {
     const now = new Date().toISOString();
     const nextName = patch.name.trim();
     const nextDescription = patch.description?.trim() || undefined;
+    const nextTags = patch.tags?.length ? patch.tags : undefined;
     const nextMap = cloneMapDefinition(sourceMap);
 
     nextMap.metadata = {
@@ -247,11 +261,12 @@
       mapId: slugifyMapId(nextName),
       name: nextName,
       description: nextDescription,
-      category: "custom",
+      category: patch.category,
       createdAt: options?.preserveCreatedAt
         ? nextMap.metadata.createdAt ?? now
         : now,
       updatedAt: now,
+      tags: nextTags,
       importedFrom: {
         kind: "editor",
         sourceId: sourceMap.metadata.mapId || sourceMap.metadata.name,
@@ -418,7 +433,7 @@
 
   function requestDeleteMap(target: LibraryMapTarget) {
     if (!target.canDelete) {
-      setStatus(`Delete is only available for saved custom maps.`);
+      setStatus(`Delete is only available for saved maps.`);
       return;
     }
     deleteTarget = { name: target.key, favoriteKey: target.favoriteKey };
@@ -444,10 +459,7 @@
     setStatus("Started a new map.");
   }
 
-  function confirmDuplicateMap(patch: {
-    name: string;
-    description?: string;
-  }) {
+  function confirmDuplicateMap(patch: MapMetadataPatch) {
     if (metadataDialog) {
       const sourceTarget = metadataDialog.target;
       const sourceMap = metadataDialog.target.map;
@@ -505,10 +517,12 @@
     metadataDialog = {
       mode: "rename",
       target,
-      title: "Rename Map",
-      confirmLabel: target.source === "saved" && target.category === "custom" ? "Rename" : "Save Custom Copy",
+      title: "Edit Map Metadata",
+      confirmLabel: target.source === "saved" ? "Save Changes" : "Save Custom Copy",
       initialName: target.label,
       initialDescription: target.map.metadata.description ?? "",
+      initialCategory: target.map.metadata.category ?? target.category,
+      initialTags: target.map.metadata.tags ?? [],
     };
   }
 
@@ -525,10 +539,12 @@
       confirmLabel: "Duplicate",
       initialName: `${target.label} Copy`,
       initialDescription: target.map.metadata.description ?? "",
+      initialCategory: target.map.metadata.category ?? target.category,
+      initialTags: target.map.metadata.tags ?? [],
     };
   }
 
-  async function confirmRenameMap(patch: { name: string; description?: string }) {
+  async function confirmRenameMap(patch: MapMetadataPatch) {
     const sourceMap = metadataDialog?.target.map;
     if (!metadataDialog || !sourceMap) {
       metadataDialog = null;
@@ -537,11 +553,11 @@
 
     const sourceTarget = metadataDialog.target;
     const renamed = buildSavedCustomMap(sourceMap, patch, {
-      preserveCreatedAt: sourceTarget.source === "saved" && sourceTarget.category === "custom",
+      preserveCreatedAt: sourceTarget.source === "saved",
     });
     const saved = gameStore.upsertSavedMapDefinition(renamed);
 
-    if (sourceTarget.source === "saved" && sourceTarget.category === "custom" && sourceTarget.key !== saved.metadata.name) {
+    if (sourceTarget.source === "saved" && sourceTarget.key !== saved.metadata.name) {
       gameStore.deleteSavedMap(sourceTarget.key);
       removeRecentMapEntry("saved", sourceTarget.key);
       transferFavoriteKey(sourceTarget.favoriteKey, `saved:${saved.metadata.name}`);
@@ -562,9 +578,9 @@
     await mapEditorStore.refreshSources();
     metadataDialog = null;
     setStatus(
-      sourceTarget.source === "saved" && sourceTarget.category === "custom"
+      sourceTarget.source === "saved"
         ? `Renamed "${sourceTarget.label}" to "${saved.metadata.name}".`
-        : `Saved "${saved.metadata.name}" as a custom map.`,
+        : `Saved "${saved.metadata.name}" as a ${saved.metadata.category ?? "custom"} map.`,
     );
   }
 
@@ -1034,6 +1050,8 @@
             confirmLabel="Duplicate"
             initialName={`${mapEditorStore.document.metadata.name || "Untitled Map"} Copy`}
             initialDescription={mapEditorStore.document.metadata.description ?? ""}
+            initialCategory={mapEditorStore.document.metadata.category ?? "custom"}
+            initialTags={mapEditorStore.document.metadata.tags ?? []}
             currentName={mapEditorStore.document.metadata.name}
             currentDescription={mapEditorStore.document.metadata.description ?? ""}
             currentDate={mapEditorStore.document.metadata.updatedAt ?? new Date().toISOString()}
@@ -1048,6 +1066,8 @@
             confirmLabel={metadataDialog.confirmLabel}
             initialName={metadataDialog.initialName}
             initialDescription={metadataDialog.initialDescription}
+            initialCategory={metadataDialog.initialCategory}
+            initialTags={metadataDialog.initialTags}
             currentName={metadataDialog.target.label}
             currentDescription={metadataDialog.target.map?.metadata.description ?? ""}
             currentDate={metadataDialog.target.map?.metadata.updatedAt ?? new Date().toISOString()}
@@ -1061,7 +1081,7 @@
         {#if deleteTarget}
           <MapEditorConfirmDialog
             title="Delete Map"
-            message={`Delete "${deleteTarget.name}" from saved custom maps? This cannot be undone.`}
+            message={`Delete "${deleteTarget.name}" from saved maps? This cannot be undone.`}
             confirmLabel="Delete Map"
             onConfirm={confirmDeleteMap}
             onClose={() => {

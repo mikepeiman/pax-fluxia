@@ -14,7 +14,7 @@
     savedAt?: string;
   };
 
-  type MapFilter = "all" | "classic" | "custom" | "test";
+  type MapFilter = "all" | "favorites" | "classic" | "custom" | "test" | `tag:${string}`;
   type LibraryCardSource = "saved" | "builtin" | "fixture" | "autosave";
 
   type LibraryActionTarget = {
@@ -75,6 +75,10 @@
 
   const density = $derived(mapEditorUiStore.density);
   const favoriteKeySet = $derived(new Set(favoriteMapKeys));
+
+  function normalizeTagKey(tag: string): string {
+    return tag.trim().toLowerCase();
+  }
 
   function includesQuery(...parts: Array<string | number | undefined>) {
     if (!searchQuery.trim()) return true;
@@ -166,7 +170,20 @@
   }
 
   function cardMatches(card: LibraryCard): boolean {
-    if (mapFilter !== "all" && card.category !== mapFilter) return false;
+    if (mapFilter === "favorites" && !favoriteKeySet.has(card.favoriteKey)) return false;
+    if (
+      mapFilter !== "all"
+      && mapFilter !== "favorites"
+      && !mapFilter.startsWith("tag:")
+      && card.category !== mapFilter
+    ) {
+      return false;
+    }
+    if (mapFilter.startsWith("tag:")) {
+      const tagKey = mapFilter.slice(4);
+      const mapTags = card.map?.metadata.tags ?? [];
+      if (!mapTags.some((tag) => normalizeTagKey(tag) === tagKey)) return false;
+    }
     return includesQuery(card.title, card.subtitle, card.category, card.source);
   }
 
@@ -267,7 +284,7 @@
           `${map.stars.length} stars · ${map.connections.length} lanes`,
           map,
           () => onLoadRepositoryMap(map.metadata.name),
-          { canDelete: categoryForMap(map, "saved") === "custom" },
+          { canDelete: true },
         ),
       );
     }
@@ -326,16 +343,37 @@
           map,
           () => onOpenRecent(entry),
           {
-            canDelete: entry.source === "saved" && category === "custom",
+            canDelete: entry.source === "saved",
             savedAt: entry.savedAt,
           },
         );
       })
-      .filter((card) =>
-        includesQuery(card.title, card.subtitle, card.category, card.source),
-      );
+      .filter(cardMatches);
 
     return cards;
+  });
+
+  const metadataCategoryFilters = $derived.by(() => {
+    const categories = new Map<string, string>();
+    const addTags = (map: MapDefinition | null) => {
+      for (const tag of map?.metadata.tags ?? []) {
+        const trimmed = tag.trim();
+        if (!trimmed) continue;
+        const key = normalizeTagKey(trimmed);
+        if (!categories.has(key)) {
+          categories.set(key, trimmed);
+        }
+      }
+    };
+
+    for (const map of mapEditorStore.builtinMaps) addTags(map);
+    for (const map of mapEditorStore.repositoryMaps) addTags(map);
+    for (const map of Object.values(fixturePreviewMaps)) addTags(map);
+    for (const revision of mapEditorStore.autosaveRevisions) addTags(revision.map);
+
+    return [...categories.entries()]
+      .sort((left, right) => left[1].localeCompare(right[1]))
+      .map(([key, label]) => ({ key: `tag:${key}` as const, label }));
   });
 
   onMount(() => {
@@ -412,9 +450,15 @@
       <span>Map Type</span>
       <div class="filter-row" role="tablist" aria-label="Map type filter">
         <button type="button" class:is-active={mapFilter === "all"} onclick={() => (mapFilter = "all")}>All</button>
+        <button type="button" class:is-active={mapFilter === "favorites"} onclick={() => (mapFilter = "favorites")}>Favorites</button>
         <button type="button" class:is-active={mapFilter === "classic"} onclick={() => (mapFilter = "classic")}>Classic</button>
         <button type="button" class:is-active={mapFilter === "custom"} onclick={() => (mapFilter = "custom")}>Custom</button>
         <button type="button" class:is-active={mapFilter === "test"} onclick={() => (mapFilter = "test")}>Test</button>
+        {#each metadataCategoryFilters as filter}
+          <button type="button" class:is-active={mapFilter === filter.key} onclick={() => (mapFilter = filter.key)}>
+            {filter.label}
+          </button>
+        {/each}
       </div>
     </div>
   </div>
@@ -549,7 +593,7 @@
       {isFavorite(contextMenu!.card.source, contextMenu!.card.key) ? "Unfavorite" : "Favorite"}
     </button>
     <button type="button" onclick={requestRename} disabled={!contextMenu.card.map}>
-      Rename
+      Edit Metadata
     </button>
     <button type="button" onclick={requestExport} disabled={!contextMenu.card.map}>
       Export
@@ -696,8 +740,13 @@
   .sheet-section--recent {
     padding: 14px;
     border-radius: 20px;
-    border: 1px solid rgba(251, 191, 36, 0.18);
-    background: linear-gradient(180deg, rgba(59, 39, 7, 0.18), rgba(19, 23, 38, 0.08));
+    border: 1px solid rgba(251, 191, 36, 0.34);
+    background:
+      linear-gradient(180deg, rgba(82, 48, 10, 0.26), rgba(24, 16, 8, 0.18)),
+      rgba(19, 23, 38, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(251, 191, 36, 0.12),
+      0 18px 36px rgba(0, 0, 0, 0.18);
   }
 
   .section-header {
@@ -732,8 +781,8 @@
   }
 
   .map-card--recent .map-card__open {
-    background: rgba(16, 23, 40, 0.94);
-    border-color: rgba(251, 191, 36, 0.2);
+    background: linear-gradient(180deg, rgba(40, 26, 9, 0.86), rgba(16, 23, 40, 0.96));
+    border-color: rgba(251, 191, 36, 0.3);
   }
 
   .map-card__open:hover {

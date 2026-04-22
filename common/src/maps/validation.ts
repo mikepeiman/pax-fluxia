@@ -100,6 +100,28 @@ export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapVa
         ));
     }
 
+    if (map.metadata?.tags !== undefined) {
+        if (!Array.isArray(map.metadata.tags)) {
+            issues.push(issue(
+                'error',
+                'metadata_tags_invalid',
+                'Map metadata.tags must be an array of non-empty strings when present',
+                'metadata.tags',
+            ));
+        } else {
+            for (const [index, tag] of map.metadata.tags.entries()) {
+                if (typeof tag !== 'string' || !tag.trim()) {
+                    issues.push(issue(
+                        'error',
+                        'metadata_tag_invalid',
+                        'Each metadata.tags entry must be a non-empty string',
+                        `metadata.tags[${index}]`,
+                    ));
+                }
+            }
+        }
+    }
+
     if (
         map.metadata?.editorHexRadius !== undefined
         && (!isFiniteNumber(map.metadata.editorHexRadius) || map.metadata.editorHexRadius <= 0)
