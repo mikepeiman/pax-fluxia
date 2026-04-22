@@ -299,6 +299,10 @@ export class GameEngine {
                 scatterShipCounts: result.conquest.scatterShipCounts,
             });
 
+            if (defender.portalGroup) {
+                this.syncPortalGroupOwnership(state, defender.id, defender.portalGroup, victor?.ownerId ?? '');
+            }
+
             // Void other players' orders to the conquered star
             state.stars.forEach(star => {
                 if (star.targetId === defender.id && star.ownerId !== (victor?.ownerId ?? '')) {
@@ -306,6 +310,24 @@ export class GameEngine {
                 }
             });
         }
+    }
+
+    private static syncPortalGroupOwnership(
+        state: GameRoomState,
+        capturedStarId: string,
+        portalGroup: string,
+        newOwnerId: string,
+    ): void {
+        if (!portalGroup || !newOwnerId) return;
+
+        state.stars.forEach((star) => {
+            if (star.id === capturedStarId) return;
+            if (star.portalGroup !== portalGroup) return;
+
+            star.ownerId = newOwnerId;
+            star.targetId = '';
+            star.queuedOrderTargetId = '';
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════════

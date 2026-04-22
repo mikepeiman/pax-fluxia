@@ -1,5 +1,6 @@
 <script lang="ts">
     import { STAR_TYPE_STATS, type StarType } from "@pax/common";
+    import { getPortalGroupCssColor, getPortalGroupLabel } from "$lib/utils/portalStyling";
     import RangeDual from "../RangeDual.svelte";
 
     type MapMode = "random" | "classic" | "custom";
@@ -12,6 +13,7 @@
             y: number;
             ownerId?: string;
             starType?: string;
+            portalGroup?: string;
         }>;
         connections: Array<{
             sourceId: string;
@@ -127,6 +129,14 @@
             return `#${STAR_TYPE_STATS[starType as StarType].color.toString(16).padStart(6, "0")}`;
         }
         return "#8899aa";
+    }
+
+    function getSavedMapPortalColor(portalGroup: string | undefined): string {
+        return getPortalGroupCssColor(portalGroup);
+    }
+
+    function getSavedMapPortalLabel(portalGroup: string | undefined): string {
+        return getPortalGroupLabel(portalGroup);
     }
 </script>
 
@@ -483,30 +493,91 @@
                             {#each map.stars as star, starIndex}
                                 {@const ownerColor = getSavedMapOwnerColor(star.ownerId, starIndex)}
                                 {@const typeColor = getSavedMapStarTypeColor(star.starType)}
+                                {@const portalColor = getSavedMapPortalColor(star.portalGroup)}
+                                {@const portalLabel = getSavedMapPortalLabel(star.portalGroup)}
+                                {@const isPortal = star.starType === "portal"}
                                 {@const starRadius = Math.max(2.4, vw * 0.015)}
-                                <circle
-                                    cx={star.x}
-                                    cy={star.y}
-                                    r={starRadius + Math.max(1.6, vw * 0.008)}
-                                    fill={ownerColor}
-                                    opacity={isSelected ? 0.22 : 0.14}
-                                />
-                                <circle
-                                    cx={star.x}
-                                    cy={star.y}
-                                    r={starRadius}
-                                    fill={typeColor}
-                                    opacity={isSelected ? 1 : 0.9}
-                                />
-                                <circle
-                                    cx={star.x}
-                                    cy={star.y}
-                                    r={starRadius}
-                                    fill="none"
-                                    stroke={ownerColor}
-                                    stroke-width={Math.max(1.1, vw * 0.005)}
-                                    opacity={isSelected ? 1 : 0.82}
-                                />
+                                {#if isPortal}
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius + Math.max(1.8, vw * 0.008)}
+                                        fill={ownerColor}
+                                        opacity={isSelected ? 0.22 : 0.14}
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius + Math.max(0.5, vw * 0.002)}
+                                        fill="#050816"
+                                        opacity="0.98"
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius + Math.max(0.5, vw * 0.002)}
+                                        fill="none"
+                                        stroke={portalColor}
+                                        stroke-width={Math.max(1.3, vw * 0.005)}
+                                        opacity={isSelected ? 1 : 0.92}
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius * 0.66}
+                                        fill="#0b1120"
+                                        opacity="0.96"
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius * 0.22}
+                                        fill={portalColor}
+                                        opacity="0.28"
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius * 0.12}
+                                        fill="#010308"
+                                        opacity="0.94"
+                                    />
+                                    <text
+                                        x={star.x}
+                                        y={star.y}
+                                        fill={portalColor}
+                                        text-anchor="middle"
+                                        dominant-baseline="middle"
+                                        font-size={Math.max(4.5, vw * 0.013)}
+                                        font-weight="700"
+                                    >
+                                        {portalLabel}
+                                    </text>
+                                {:else}
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius + Math.max(1.6, vw * 0.008)}
+                                        fill={ownerColor}
+                                        opacity={isSelected ? 0.22 : 0.14}
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius}
+                                        fill={typeColor}
+                                        opacity={isSelected ? 1 : 0.9}
+                                    />
+                                    <circle
+                                        cx={star.x}
+                                        cy={star.y}
+                                        r={starRadius}
+                                        fill="none"
+                                        stroke={ownerColor}
+                                        stroke-width={Math.max(1.1, vw * 0.005)}
+                                        opacity={isSelected ? 1 : 0.82}
+                                    />
+                                {/if}
                             {/each}
                         </svg>
 

@@ -1,4 +1,9 @@
-import { STAR_TYPE_STATS, generateConnections, type StarType } from "@pax/common";
+import {
+    STAR_TYPE_STATS,
+    generateConnections,
+    normalizePortalGroupId,
+    type StarType,
+} from "@pax/common";
 import {
     AUTHORED_NEUTRAL_OWNER_ID,
     buildRepositoryMapManifest,
@@ -136,6 +141,28 @@ function createSelection(): MapEditorSelection {
     };
 }
 
+function normalizePortalBrush(value: unknown): string {
+    return normalizePortalGroupId(value) ?? "1";
+}
+
+function normalizePortalStar(
+    star: MapDefinition["stars"][number],
+    fallbackPortalGroup: unknown,
+): MapDefinition["stars"][number] {
+    if (star.starType !== "portal") {
+        return {
+            ...star,
+            portalGroup: undefined,
+        };
+    }
+
+    return {
+        ...star,
+        portalGroup: normalizePortalGroupId(star.portalGroup)
+            ?? normalizePortalBrush(fallbackPortalGroup),
+    };
+}
+
 function nextNumericId(
     existingIds: readonly string[],
     prefix: string,
@@ -155,6 +182,7 @@ let viewport = $state<MapEditorViewport>({ panX: 0, panY: 0, zoom: 1 });
 let hexRadius = $state(loadStoredHexRadius());
 let ownerBrush = $state(AUTHORED_NEUTRAL_OWNER_ID);
 let starTypeBrush = $state<StarType>("grey");
+let portalGroupBrush = $state("1");
 let forceBrush = $state(40);
 let draftLaneSourceId = $state<string | null>(null);
 let draftMeasurementStart = $state<AuthoredMeasurementAnchor | null>(null);
@@ -574,6 +602,9 @@ function syncBrushesFromSelection(): void {
     if (!star) return;
     ownerBrush = star.ownerId ?? AUTHORED_NEUTRAL_OWNER_ID;
     starTypeBrush = star.starType;
+    if (star.starType === "portal") {
+        portalGroupBrush = normalizePortalBrush(star.portalGroup);
+    }
     forceBrush = star.activeShips ?? forceBrush;
 }
 
@@ -702,6 +733,7 @@ function placeStar(x: number, y: number): boolean {
         gridR: snappedCell.r,
         ownerId: ownerBrush,
         starType: starTypeBrush,
+        portalGroup: starTypeBrush === "portal" ? normalizePortalBrush(portalGroupBrush) : undefined,
         activeShips: forceBrush,
         damagedShips: 0,
     });
@@ -1049,7 +1081,19 @@ function applyStarTypeBrush(starIds = selection.starIds): void {
     const nextMap = cloneMap(documentState);
     nextMap.stars.forEach((star) => {
         if (starIds.includes(star.id)) {
-            star.starType = starTypeBrush;
+            Object.assign(
+                star,
+                normalizePortalStar(
+                    {
+                        ...star,
+                        starType: starTypeBrush,
+                        portalGroup: starTypeBrush === "portal"
+                            ? normalizePortalBrush(star.portalGroup ?? portalGroupBrush)
+                            : undefined,
+                    },
+                    portalGroupBrush,
+                ),
+            );
         }
     });
     applyMap(nextMap);
@@ -1078,10 +1122,13 @@ function updateSelectedStars(
         }
 
         changed = true;
-        return {
-            ...star,
-            ...patch,
-        };
+        return normalizePortalStar(
+            {
+                ...star,
+                ...patch,
+            },
+            patch.portalGroup ?? portalGroupBrush,
+        );
     });
 
     if (!changed) return;
@@ -1344,6 +1391,7 @@ function insertTemplate(template: "triangle" | "line" | "ring"): void {
             y: snapped.y,
             ownerId: ownerBrush,
             starType: starTypeBrush,
+            portalGroup: starTypeBrush === "portal" ? normalizePortalBrush(portalGroupBrush) : undefined,
             activeShips: forceBrush,
         });
     }
@@ -1427,7 +1475,13 @@ function updateStar(
     const nextMap = cloneMap(documentState);
     nextMap.stars = nextMap.stars.map((star) => {
         if (star.id !== id) return star;
-        const merged = { ...star, ...patch };
+        const merged = normalizePortalStar(
+            {
+                ...star,
+                ...patch,
+            },
+            patch.portalGroup ?? portalGroupBrush,
+        );
         if (
             patch.x !== undefined
             || patch.y !== undefined
@@ -1584,6 +1638,7 @@ function buildPersistedMap(options?: {
                         y: star.y,
                         ownerId: star.ownerId ?? AUTHORED_NEUTRAL_OWNER_ID,
                         starType: star.starType,
+                        portalGroup: star.portalGroup,
                     })),
                     map.connections.map((lane) => ({
                         sourceId: lane.sourceId,
@@ -1630,6 +1685,8 @@ export const mapEditorStore = {
     set ownerBrush(value: string) { ownerBrush = value; },
     get starTypeBrush() { return starTypeBrush; },
     set starTypeBrush(value: StarType) { starTypeBrush = value; },
+    get portalGroupBrush() { return portalGroupBrush; },
+    set portalGroupBrush(value: string) { portalGroupBrush = normalizePortalBrush(value); },
     get forceBrush() { return forceBrush; },
     set forceBrush(value: number) { forceBrush = Math.max(0, Math.round(value)); },
     get isDirty() { return isDirty; },

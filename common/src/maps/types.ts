@@ -54,6 +54,7 @@ export interface AuthoredStar {
     gridR?: number;
     ownerId?: AuthoredOwnerId;
     starType: StarType;
+    portalGroup?: string;
     activeShips?: number;
     damagedShips?: number;
     targetId?: StarId;
@@ -121,6 +122,7 @@ export interface LegacyMapDefinition {
         gridR?: number;
         ownerId?: string;
         starType: StarType;
+        portalGroup?: string;
         activeShips?: number;
         damagedShips?: number;
         targetId?: StarId;

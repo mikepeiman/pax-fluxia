@@ -7,6 +7,7 @@ import {
     type MapValidationIssue,
 } from './types';
 import { isAuthoredMapCategory } from './metadata';
+import { MAX_PORTAL_GROUPS, normalizePortalGroupId } from '../portal';
 
 function issue(
     severity: 'error' | 'warning',
@@ -75,6 +76,7 @@ function validateAnchor(
 export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapValidationIssue[] {
     const issues: MapValidationIssue[] = [];
     const starsWithGrid: Array<{ id: string; gridQ: number; gridR: number }> = [];
+    const portalGroups = new Set<string>();
 
     if (!map.metadata?.name?.trim()) {
         issues.push(issue('error', 'metadata_name_required', 'Map metadata.name is required', 'metadata.name'));
@@ -191,6 +193,26 @@ export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapVa
         if (star.ownerId && star.ownerId !== AUTHORED_NEUTRAL_OWNER_ID && !factionIds.has(star.ownerId)) {
             issues.push(issue('error', 'star_owner_missing_faction', `Star "${star.id}" references missing faction slot "${star.ownerId}"`, `stars.${star.id}.ownerId`, [star.id, star.ownerId]));
         }
+        const normalizedPortalGroup = normalizePortalGroupId(star.portalGroup);
+        if (star.starType === 'portal') {
+            if (!normalizedPortalGroup) {
+                issues.push(issue('error', 'star_portal_group_required', `Portal star "${star.id}" must provide a portalGroup between 1 and ${MAX_PORTAL_GROUPS}`, `stars.${star.id}.portalGroup`, [star.id]));
+            } else {
+                portalGroups.add(normalizedPortalGroup);
+            }
+        } else if (star.portalGroup !== undefined && normalizedPortalGroup) {
+            issues.push(issue('warning', 'star_portal_group_ignored', `Non-portal star "${star.id}" has portalGroup metadata that will be ignored`, `stars.${star.id}.portalGroup`, [star.id]));
+        }
+    }
+
+    if (portalGroups.size > MAX_PORTAL_GROUPS) {
+        issues.push(issue(
+            'error',
+            'portal_group_limit_exceeded',
+            `Map defines ${portalGroups.size} portal groups; the maximum supported count is ${MAX_PORTAL_GROUPS}`,
+            'stars',
+            [...portalGroups],
+        ));
     }
 
     for (let index = 0; index < starsWithGrid.length; index += 1) {

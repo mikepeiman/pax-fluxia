@@ -20,6 +20,17 @@ const STAR_TYPE_SIDES: Record<StarType, number> = {
     purple: 6,
     blue: 7,
     grey: 0,
+    portal: 0,
+};
+
+const STAR_TYPE_LABELS: Record<StarType, string> = {
+    green: "Green",
+    red: "Red",
+    yellow: "Yellow",
+    purple: "Purple",
+    blue: "Blue",
+    grey: "Grey",
+    portal: "Portal",
 };
 
 export interface EditorPoint {
@@ -55,7 +66,7 @@ export const MAP_EDITOR_STAR_TYPE_OPTIONS: MapEditorStarTypeOption[] = (
     Object.keys(STAR_TYPE_STATS) as StarType[]
 ).map((starType) => ({
     id: starType,
-    label: starType,
+    label: STAR_TYPE_LABELS[starType],
     color: toCssHex(STAR_TYPE_STATS[starType].color),
     sides: STAR_TYPE_SIDES[starType],
 }));

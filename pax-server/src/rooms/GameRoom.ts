@@ -794,6 +794,7 @@ export class GameRoom extends Room {
                 star.y,
                 star.ownerId,
                 star.starType,
+                star.portalGroup,
                 star.activeShips,
                 star.damagedShips,
                 star.targetId,
@@ -944,6 +945,7 @@ export class GameRoom extends Room {
         y: number,
         ownerId: string,
         starType: string,
+        portalGroup?: string,
         activeShips?: number,
         damagedShips?: number,
         targetId?: string,
@@ -956,6 +958,7 @@ export class GameRoom extends Room {
         star.y = y;
         star.ownerId = normalizeInitialOwnerId(ownerId);
         star.starType = starType;
+        star.portalGroup = portalGroup ?? "";
         star.activeShips = activeShips ?? this.roomOptions.shipsPerStar ?? 40;
         star.damagedShips = damagedShips ?? 0;
         star.targetId = targetId ?? "";

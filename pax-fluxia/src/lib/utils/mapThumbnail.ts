@@ -9,6 +9,7 @@
  */
 import { STAR_TYPE_STATS, type StarType } from '@pax/common';
 import { defaultPlayerPaletteHex, fallbackPlayerColor } from '$lib/utils/playerPalette';
+import { getPortalGroupCssColor, getPortalGroupLabel } from '$lib/utils/portalStyling';
 
 export interface ThumbnailStar {
     id: string;
@@ -16,6 +17,7 @@ export interface ThumbnailStar {
     y: number;
     ownerId: string;
     starType?: string;
+    portalGroup?: string;
 }
 
 export interface ThumbnailConnection {
@@ -50,6 +52,64 @@ function getOwnerColor(ownerId: string, getPlayerColor?: (id: string) => string)
     if (ownerId === 'neutral' || !ownerId) return '#556';
     if (getPlayerColor) return getPlayerColor(ownerId);
     return fallbackPlayerColor(ownerId) || DEFAULT_PALETTE[0];
+}
+
+function drawPortalThumbnailStar(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    radius: number,
+    ownerColor: string,
+    portalGroup?: string,
+): void {
+    const portalColor = getPortalGroupCssColor(portalGroup);
+    const label = getPortalGroupLabel(portalGroup);
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 2.4, 0, Math.PI * 2);
+    ctx.strokeStyle = `${ownerColor}66`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#050816';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = portalColor;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.68, 0, Math.PI * 2);
+    ctx.fillStyle = '#0b1120';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.23, 0, Math.PI * 2);
+    ctx.fillStyle = `${portalColor}66`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.13, 0, Math.PI * 2);
+    ctx.fillStyle = '#010308';
+    ctx.fill();
+
+    ctx.strokeStyle = portalColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.56, Math.PI * 0.15, Math.PI * 1.35);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.38, Math.PI * 1.15, Math.PI * 2.15);
+    ctx.stroke();
+
+    ctx.fillStyle = portalColor;
+    ctx.font = `bold ${Math.max(6, radius * 1.05)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y + 0.5);
 }
 
 /**
@@ -159,6 +219,11 @@ export function generateMapThumbnail(
         let typeHex = '#8899aa';
         if (s.starType && STAR_TYPE_STATS[s.starType as StarType]) {
             typeHex = '#' + STAR_TYPE_STATS[s.starType as StarType].color.toString(16).padStart(6, '0');
+        }
+
+        if (s.starType === 'portal') {
+            drawPortalThumbnailStar(ctx, sx, sy, starRadius, ownerColor, s.portalGroup);
+            continue;
         }
 
         // Star Core (Type Color)

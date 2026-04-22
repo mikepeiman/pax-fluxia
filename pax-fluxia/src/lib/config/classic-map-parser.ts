@@ -9,12 +9,13 @@
 //   Star lines: TYPE-OWNER-sSHIPS-xX-yY-nCONN_COUNT-sup0-blo0 conn1 conn2 ...
 //
 //   TYPE letters: V=grey(void), Y=yellow, G=green, B=blue, R=red, O=orange, T=teal
-//                 Numeric types (2, 3, etc.) are treated as grey/neutral
+//                 Numeric types (2, 3, etc.) are portal groups
 //   OWNER: 0=neutral, A-F=player factions
 //   sSHIPS: starting ship count (e.g., s0, s2, s20, s100)
 //   Connections: space-separated 0-based indices of connected stars
 // ============================================================================
 
+import { normalizePortalGroupId } from '@pax/common';
 import { createLegacyClassicMap, importLegacyMapDefinition } from '@pax/common/maps';
 import type { MapDefinition } from '$lib/types/map.types';
 import type { StarType } from '$lib/types/game.types';
@@ -77,7 +78,7 @@ export function parseClassicMap(name: string, text: string): MapDefinition {
     const connectionIndices: number[][] = []; // per-star connection indices
 
     // Regex: TYPE-OWNER-sSHIPS-xX-yY-nCONNS-sup0-blo0
-    const starRegex = /^([A-Z0-9])-([A-Z0-9])-s(\d+)-x(\d+)-y(\d+)-n(\d+)-sup\d+-blo\d+(?:\s+(.*))?$/;
+    const starRegex = /^([A-Z0-9]+)-([A-Z0-9])-s(\d+)-x(\d+)-y(\d+)-n(\d+)-sup\d+-blo\d+(?:\s+(.*))?$/;
 
     for (let i = 0; i < starLines.length; i++) {
         const match = starLines[i].match(starRegex);
@@ -87,7 +88,8 @@ export function parseClassicMap(name: string, text: string): MapDefinition {
         }
 
         const [, typeChar, ownerChar, shipsStr, xStr, yStr, , connStr] = match;
-        const starType = TYPE_MAP[typeChar] || 'grey';
+        const portalGroup = normalizePortalGroupId(typeChar);
+        const starType = portalGroup ? 'portal' : (TYPE_MAP[typeChar] || 'grey');
         const ownerId = FACTION_MAP[ownerChar] || 'neutral';
         const activeShips = parseInt(shipsStr, 10);
         const x = parseInt(xStr, 10);
@@ -99,6 +101,7 @@ export function parseClassicMap(name: string, text: string): MapDefinition {
             y,
             ownerId,
             starType,
+            portalGroup,
             activeShips,
         });
 

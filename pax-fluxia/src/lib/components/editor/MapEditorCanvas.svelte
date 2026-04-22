@@ -10,6 +10,10 @@
     snapPointToHexCenter,
   } from "$lib/editor/mapEditorPresentation";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
+  import {
+    getPortalGroupCssColor,
+    getPortalGroupLabel,
+  } from "$lib/utils/portalStyling";
 
   const BOARD_WIDTH = MAP_EDITOR_BOARD_WIDTH;
   const BOARD_HEIGHT = MAP_EDITOR_BOARD_HEIGHT;
@@ -998,6 +1002,9 @@
       {#each mapEditorStore.document.stars as star}
         {@const point = getRenderedPoint(star.id)}
         {@const starTypeMeta = getStarTypeMeta(star.starType)}
+        {@const isPortalStar = star.starType === "portal"}
+        {@const portalColor = getPortalGroupCssColor(star.portalGroup)}
+        {@const portalLabel = getPortalGroupLabel(star.portalGroup)}
         {@const ownerColor = getAdjustedOwnerColor(star.ownerId)}
         {@const ownerHaloColor = getAdjustedOwnerColor(star.ownerId, Math.max(0.16, ownerColorAlpha * 0.28))}
         {@const ownerBadge = getOwnerBadgeLabel(star.ownerId)}
@@ -1022,7 +1029,13 @@
               stroke={ownerColor}
               stroke-width={ownerRingThickness}
             />
-            {#if starTypeMeta.sides > 0}
+            {#if isPortalStar}
+              <circle class="portal-shell" r="12.5" fill="rgba(2, 6, 23, 0.98)" stroke={portalColor} stroke-width="3.2" />
+              <circle class="portal-core" r="7" fill="rgba(1, 4, 12, 0.98)" />
+              <path class="portal-swirl" d="M -10 -1.4 C -6.5 -8.8 5.8 -9.5 10 -1.2" stroke={portalColor} />
+              <path class="portal-swirl portal-swirl--inner" d="M -8.5 5 C -2.5 10 6.6 8.6 9.2 1.2" stroke={portalColor} />
+              <text y="4.4" class="portal-group-label" fill={portalColor}>{portalLabel}</text>
+            {:else if starTypeMeta.sides > 0}
               <polygon
                 class="star-shape"
                 points={buildPolygonPointsAt(0, 0, 11, starTypeMeta.sides)}
@@ -1191,6 +1204,34 @@
   .star-owner {
     fill: none;
     opacity: 0.9;
+  }
+
+  .portal-shell {
+    filter: drop-shadow(0 0 10px rgba(15, 23, 42, 0.7));
+  }
+
+  .portal-core {
+    opacity: 0.98;
+  }
+
+  .portal-swirl {
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    opacity: 0.92;
+  }
+
+  .portal-swirl--inner {
+    stroke-width: 1.5;
+    opacity: 0.72;
+  }
+
+  .portal-group-label {
+    font-family: "Rajdhani", sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
   .owner-badge__text {

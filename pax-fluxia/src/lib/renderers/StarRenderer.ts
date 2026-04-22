@@ -21,6 +21,7 @@ import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { getPortalGroupHexColor } from '$lib/utils/portalStyling';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
 // green=3 (attack), red=4 (defense), yellow=5 (prod),
@@ -33,6 +34,7 @@ const TYPE_SIDES: Record<string, number> = {
     purple: 6,
     blue: 7,
     grey: 0,
+    portal: 0,
 };
 
 // ── Polygon Geometry Helpers ────────────────────────────────────────────────
@@ -113,6 +115,64 @@ function drawShapePath(
     if (stroke) g.stroke(stroke);
 }
 
+function drawPortalArc(
+    g: PIXI.Graphics,
+    cx: number,
+    cy: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    stroke: { color: number; width: number; alpha: number },
+): void {
+    g.beginPath();
+    g.arc(cx, cy, radius, startAngle, endAngle);
+    g.stroke(stroke);
+}
+
+function drawPortalStar(
+    g: PIXI.Graphics,
+    cx: number,
+    cy: number,
+    radius: number,
+    portalColor: number,
+    timeSeconds: number,
+): void {
+    const shellColor = 0x050816;
+    const innerShellColor = 0x0b1120;
+    const coreColor = 0x010308;
+    const phaseOuter = timeSeconds * 1.6;
+    const phaseInner = -timeSeconds * 1.2 + Math.PI / 2;
+
+    g.beginPath();
+    g.circle(cx, cy, radius);
+    g.fill({ color: shellColor, alpha: 0.98 });
+    g.stroke({ color: portalColor, width: 3, alpha: 0.95 });
+
+    g.beginPath();
+    g.circle(cx, cy, radius * 0.74);
+    g.fill({ color: innerShellColor, alpha: 0.95 });
+    g.stroke({ color: portalColor, width: 1.4, alpha: 0.45 });
+
+    g.beginPath();
+    g.circle(cx, cy, radius * 0.26);
+    g.fill({ color: portalColor, alpha: 0.28 });
+
+    g.beginPath();
+    g.circle(cx, cy, radius * 0.14);
+    g.fill({ color: coreColor, alpha: 0.95 });
+
+    drawPortalArc(g, cx, cy, radius * 0.56, phaseOuter, phaseOuter + Math.PI * 1.18, {
+        color: portalColor,
+        width: Math.max(1.6, radius * 0.15),
+        alpha: 0.82,
+    });
+    drawPortalArc(g, cx, cy, radius * 0.37, phaseInner, phaseInner + Math.PI * 1.12, {
+        color: 0xffffff,
+        width: Math.max(1.1, radius * 0.1),
+        alpha: 0.42,
+    });
+}
+
 // ── State Caches (managed by StarRenderer) ──────────────────────────────────
 
 export interface StarRenderCaches {
@@ -190,6 +250,8 @@ export function renderStars(
         const color = colorUtils.getPlayerColor(effectiveOwner);
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
+        const isPortalStar = star.starType === 'portal';
+        const portalColor = isPortalStar ? getPortalGroupHexColor(star.portalGroup) : 0;
 
 
 
@@ -225,17 +287,21 @@ export function renderStars(
         const glowRadius = ringRadius * glowPulse;
         graphics.beginPath();
         graphics.circle(star.x, star.y, glowRadius);
-        graphics.fill({ color, alpha: glowAlpha });
+        graphics.fill({ color: isPortalStar ? portalColor : color, alpha: glowAlpha });
 
         // Main star body — 3D Shaded 
         const typeStats = STAR_TYPE_STATS[star.starType as StarType];
-        const typeColor = typeStats ? typeStats.color : 0xffffff;
+        const typeColor = isPortalStar
+            ? portalColor
+            : (typeStats ? typeStats.color : 0xffffff);
 
         const typeHsl = colorUtils.hexToHSL(typeColor);
         const shadow = colorUtils.hslToHex(typeHsl.h, typeHsl.s, Math.max(0.0, typeHsl.l - 0.25));
         const highlight = colorUtils.hslToHex(typeHsl.h, typeHsl.s, Math.min(1.0, typeHsl.l + 0.2));
 
-        if (usePolygon) {
+        if (isPortalStar) {
+            drawPortalStar(graphics, star.x, star.y, radius, portalColor, starFxTime);
+        } else if (usePolygon) {
             // Base layer with dark fill and normal stroke
             drawShapePath(graphics, star.x, star.y, radius, sides, cornerRadius,
                 { color: shadow, alpha: 0.8 },
@@ -295,14 +361,16 @@ export function renderStars(
         const coronaRadius = radius * 0.65;
         graphics.beginPath();
         graphics.circle(star.x, star.y, coronaRadius);
-        graphics.fill({ color: typeColor, alpha: 0.15 });
+        graphics.fill({ color: typeColor, alpha: isPortalStar ? 0.1 : 0.15 });
 
-        // Inner type icon (geometric shape) — larger and more visible
-        const iconTime = state.gameNowMs / 1000;
-        const iconAlpha = 0.6 + Math.sin(iconTime * 3) * 0.1;
-        const iconScale = GAME_CONFIG.STAR_ICON_SCALE ?? 0.55;
-        const iconSize = radius * iconScale;
-        drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
+        if (!isPortalStar) {
+            // Inner type icon (geometric shape) — larger and more visible
+            const iconTime = state.gameNowMs / 1000;
+            const iconAlpha = 0.6 + Math.sin(iconTime * 3) * 0.1;
+            const iconScale = GAME_CONFIG.STAR_ICON_SCALE ?? 0.55;
+            const iconSize = radius * iconScale;
+            drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
+        }
 
         // Get label elements (pill layout)
         const pillBg = label.getChildByLabel('pillBg') as PIXI.Graphics;

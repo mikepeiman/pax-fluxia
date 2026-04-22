@@ -44,6 +44,15 @@ Current `master` day ledger for gameplay performance follow-up and map-editor st
   - load modal now supports:
     - composable `Favorites`, `Map Type`, `Categories`, and `Family` filters
     - family visibility in map preview metadata
+- Implemented the first portal-star slice for classic maps:
+  - numeric classic map types now parse as `portal` stars with `portalGroup`
+  - shared engine conquest now synchronizes ownership across all stars in the same portal group
+  - portal groups are preserved through runtime map loading, server state, exports, and editor state
+  - custom map editor now supports portal placement and portal-group assignment
+  - gameplay stars, shared thumbnails, and main-menu map cards now render portals distinctly
+  - targeted tests now cover:
+    - `Boxed.txt` / `DSpokes.txt` numeric portal parsing
+    - synchronized portal-group conquest behavior
 
 ## Next Technical Steps
 
@@ -52,6 +61,14 @@ Current `master` day ledger for gameplay performance follow-up and map-editor st
 - Persist steady classification caches by geometry identity.
 - Workerize reduced transition plan build only after spatial scope is correct.
 - Split static/native `metaball_grid` paint from dynamic transition paint.
+- Portal follow-up:
+  - verify classic portal maps live in gameplay (`Boxed`, `DSpokes`, `CrissCross`, `Frontline`, `Arena`, `Crazy`)
+  - add stronger main-game portal identity for up to 12 groups:
+    - consistent group labels
+    - higher-contrast family styling
+    - animated blackhole / nebula VFX
+  - decide whether gameplay needs any portal behavior beyond synchronized occupancy
+  - add portal-group editing affordances to metadata/previews where helpful
 
 ## Logged Feature
 

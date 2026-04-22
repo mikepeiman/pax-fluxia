@@ -47,6 +47,7 @@ export const StarSchema = schema({
     queuedOrderTargetId: "string",
     icon: "string",
     starType: "string",
+    portalGroup: "string",
     activationRate: "number",
     defensivePosture: "number",
     defenseStrength: "number",

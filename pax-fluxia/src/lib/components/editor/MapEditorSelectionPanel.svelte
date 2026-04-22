@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StarType } from "@pax/common";
+  import { PORTAL_GROUP_IDS, type StarType } from "@pax/common";
   import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
@@ -16,8 +16,10 @@
     ownerChoices: OwnerChoice[];
     selectedStarOwnerId: string | null;
     selectedStarShips: number | null;
+    selectedPortalGroup: string | null;
     onUpdateOwner: (ownerId: string) => void;
     onUpdateShips: (value: number) => void;
+    onUpdatePortalGroup: (portalGroup: string) => void;
     onUpdateLaneMode: (event: Event) => void;
   }
 
@@ -25,8 +27,10 @@
     ownerChoices,
     selectedStarOwnerId,
     selectedStarShips,
+    selectedPortalGroup,
     onUpdateOwner,
     onUpdateShips,
+    onUpdatePortalGroup,
     onUpdateLaneMode,
   }: Props = $props();
 
@@ -47,6 +51,9 @@
     (mapEditorStore.document.measurements ?? []).find((measurement) =>
       measurement.id === mapEditorStore.selection.measurementIds[0]
     ) ?? null,
+  );
+  const selectedPortalEligible = $derived.by(() =>
+    selectedStars.length > 0 && selectedStars.every((star) => star.starType === "portal"),
   );
   const hasSelection = $derived(
     mapEditorStore.selection.starIds.length > 0
@@ -144,6 +151,24 @@
           valueText={selectedStarShips === null ? "Mixed" : `${selectedStarShips} ships`}
           onChange={onUpdateShips}
         />
+
+        {#if selectedPortalEligible && (selectionExpanded || density !== "compact")}
+          <section class="panel-block panel-block--subtle">
+            <strong class="subheading">Portal Group</strong>
+            <div class="portal-group-grid">
+              {#each PORTAL_GROUP_IDS as portalGroup}
+                <button
+                  type="button"
+                  class="portal-group-chip"
+                  class:is-active={selectedPortalGroup === portalGroup}
+                  onclick={() => onUpdatePortalGroup(portalGroup)}
+                >
+                  {portalGroup}
+                </button>
+              {/each}
+            </div>
+          </section>
+        {/if}
 
         {#if selectedStar && (selectionExpanded || density !== "compact")}
           <section class="panel-block panel-block--subtle">
@@ -283,7 +308,8 @@
   }
 
   .owner-grid,
-  .type-grid {
+  .type-grid,
+  .portal-group-grid {
     display: grid;
     gap: 8px;
   }
@@ -296,8 +322,13 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .portal-group-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .owner-chip,
-  .type-chip {
+  .type-chip,
+  .portal-group-chip {
     min-height: 48px;
     padding: 9px 10px;
     border-radius: 14px;
@@ -317,8 +348,14 @@
     gap: 6px;
   }
 
+  .portal-group-chip {
+    justify-content: center;
+    font-weight: 700;
+  }
+
   .owner-chip.is-active,
-  .type-chip.is-active {
+  .type-chip.is-active,
+  .portal-group-chip.is-active {
     border-color: rgba(125, 211, 252, 0.58);
     background: rgba(17, 39, 63, 0.88);
   }
@@ -396,6 +433,7 @@
 
     .owner-grid,
     .type-grid,
+    .portal-group-grid,
     .readout-grid {
       grid-template-columns: 1fr;
     }

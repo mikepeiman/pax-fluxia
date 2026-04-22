@@ -33,6 +33,7 @@ export const STAR_TYPE_STATS: Record<StarType, {
     'purple': { defense: 1, prod: 1, speed: 1, repair: 2, attack: 1, color: 0xa855f7, activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 40, transferRate: 0.1 },
     'red': { defense: 2, prod: 1, speed: 1, repair: 1, attack: 1, color: 0xef4444, activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 2.0, repairRate: 20, transferRate: 0.1 },
     'green': { defense: 1, prod: 1, speed: 1, repair: 1, attack: 2, color: 0x22c55e, activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 20, transferRate: 0.1 },
+    'portal': { defense: 1, prod: 1, speed: 1, repair: 1, attack: 1, color: 0x6366f1, activationRate: 0.5, defensivePosture: 1.0, defenseStrength: 1.0, repairRate: 20, transferRate: 0.1 },
 };
 
 // ============================================================================

@@ -107,6 +107,16 @@
     const ships = selectedStars[0]?.activeShips ?? 0;
     return selectedStars.every((star) => (star.activeShips ?? 0) === ships) ? ships : null;
   });
+  const selectedPortalGroup = $derived.by(() => {
+    if (selectedStars.length === 0 || !selectedStars.every((star) => star.starType === "portal")) {
+      return null;
+    }
+
+    const portalGroup = selectedStars[0]?.portalGroup ?? null;
+    return selectedStars.every((star) => (star.portalGroup ?? null) === portalGroup)
+      ? portalGroup
+      : null;
+  });
   const selectedLane = $derived(
     mapEditorStore.document.connections.find(
       (lane) => lane.id === mapEditorStore.selection.laneIds[0],
@@ -354,6 +364,13 @@
     mapEditorUiStore.closeToolPanel();
   }
 
+  function selectPortalGroupBrush(portalGroup: string) {
+    mapEditorStore.portalGroupBrush = portalGroup;
+    if (mapEditorStore.starTypeBrush === "portal") {
+      mapEditorStore.setTool("place-star");
+    }
+  }
+
   function armForceBrush() {
     mapEditorStore.setTool("paint-force");
   }
@@ -395,6 +412,11 @@
     const ships = Math.max(0, Math.round(value));
     mapEditorStore.forceBrush = ships;
     mapEditorStore.updateSelectedStars({ activeShips: ships });
+  }
+
+  function updateSelectedPortalGroup(portalGroup: string) {
+    mapEditorStore.portalGroupBrush = portalGroup;
+    mapEditorStore.updateSelectedStars({ portalGroup });
   }
 
   function updateSelectedLaneMode(event: Event) {
@@ -979,6 +1001,7 @@
       <MapEditorToolRail
         {ownerChoices}
         selectedStarCount={selectedStars.length}
+        portalGroupBrush={mapEditorStore.portalGroupBrush}
         {symmetryFold}
         {ownerRingRadius}
         {ownerRingThickness}
@@ -988,6 +1011,7 @@
         {ownerColorAlpha}
         onSelectOwner={selectOwnerBrush}
         onSelectStarType={selectStarTypeBrush}
+        onSelectPortalGroup={selectPortalGroupBrush}
         onArmForceBrush={armForceBrush}
         onApplyOwnerToSelection={applyOwnerBrushToSelection}
         onApplyForceToSelection={applyForceBrushToSelection}
@@ -1035,8 +1059,10 @@
             {ownerChoices}
             {selectedStarOwnerId}
             {selectedStarShips}
+            {selectedPortalGroup}
             onUpdateOwner={updateSelectedStarOwner}
             onUpdateShips={updateSelectedStarShips}
+            onUpdatePortalGroup={updateSelectedPortalGroup}
             onUpdateLaneMode={updateSelectedLaneMode}
           />
         {/if}

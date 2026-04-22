@@ -231,6 +231,7 @@ function toGameState(s: GameRoomState): GameState {
         activeShips: star.activeShips,
         damagedShips: star.damagedShips,
         starType: star.starType as StarType,
+        portalGroup: star.portalGroup || undefined,
         productionRate: star.productionRate,
         repairRate: star.repairRate,
         transferRate: star.transferRate,
@@ -400,6 +401,7 @@ function runAI(engineCfg: EngineConfig): void {
         activeShips: s.activeShips,
         damagedShips: s.damagedShips,
         starType: s.starType as StarType,
+        portalGroup: s.portalGroup || undefined,
         productionRate: s.productionRate,
         repairRate: s.repairRate,
         transferRate: s.transferRate,
@@ -471,6 +473,7 @@ function createDebugStar(id: string, x: number, y: number, ownerId: string): voi
     star.y = y;
     star.ownerId = normalizeInitialOwnerId(ownerId);
     star.starType = 'grey';
+    star.portalGroup = '';
     star.activeShips = GAME_CONFIG.STARTING_SHIPS;
     star.damagedShips = 0;
     star.productionRate = 1;
@@ -587,6 +590,7 @@ function applyRuntimeMapToState(runtimeMap: RuntimeAuthoredMap): void {
         star.y = starData.y;
         star.ownerId = normalizeInitialOwnerId(starData.ownerId);
         star.starType = starData.starType;
+        star.portalGroup = starData.portalGroup ?? '';
         star.activeShips = starData.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
         star.damagedShips = starData.damagedShips ?? 0;
         star.targetId = starData.targetId ?? '';
@@ -840,6 +844,7 @@ function initStandardMap(playerIds: string[]): void {
         star.y = pos.y;
         star.ownerId = ownerId;
         star.starType = starType;
+        star.portalGroup = '';
         star.activeShips = ownerId === 'neutral' ? (settings.neutralShipsPerStar ?? 10) : GAME_CONFIG.STARTING_SHIPS;
         star.damagedShips = 0;
         star.productionRate = 1;
@@ -1170,6 +1175,7 @@ function buildExportedMap(includeLiveState: boolean): MapDefinition | null {
             y: starState.y,
             ownerId: authoredStar?.ownerId ?? starState.ownerId,
             starType: starState.starType as StarType,
+            portalGroup: authoredStar?.portalGroup ?? (starState.portalGroup || undefined),
             activeShips: includeLiveState
                 ? starState.activeShips
                 : (authoredStar?.activeShips ?? GAME_CONFIG.STARTING_SHIPS),

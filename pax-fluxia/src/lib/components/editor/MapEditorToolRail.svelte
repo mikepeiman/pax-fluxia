@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fly, fade } from "svelte/transition";
-  import type { StarType } from "@pax/common";
+  import { PORTAL_GROUP_IDS, type StarType } from "@pax/common";
   import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
   import { mapEditorStore, type MapEditorTool } from "$lib/editor/mapEditorStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";
@@ -23,6 +23,7 @@
   interface Props {
     ownerChoices: OwnerChoice[];
     selectedStarCount: number;
+    portalGroupBrush: string;
     symmetryFold: SymmetryFold;
     ownerRingRadius: number;
     ownerRingThickness: number;
@@ -32,6 +33,7 @@
     ownerColorAlpha: number;
     onSelectOwner: (ownerId: string) => void;
     onSelectStarType: (starType: StarType) => void;
+    onSelectPortalGroup: (portalGroup: string) => void;
     onArmForceBrush: () => void;
     onApplyOwnerToSelection: () => void;
     onApplyForceToSelection: () => void;
@@ -56,6 +58,7 @@
   let {
     ownerChoices,
     selectedStarCount,
+    portalGroupBrush,
     symmetryFold,
     ownerRingRadius,
     ownerRingThickness,
@@ -65,6 +68,7 @@
     ownerColorAlpha,
     onSelectOwner,
     onSelectStarType,
+    onSelectPortalGroup,
     onArmForceBrush,
     onApplyOwnerToSelection,
     onApplyForceToSelection,
@@ -98,6 +102,7 @@
   const activeStarType = $derived(
     starTypeOptions.find((option) => option.id === mapEditorStore.starTypeBrush) ?? starTypeOptions[0],
   );
+  const placeStarHotkeyLabel = $derived(`1-${Math.min(9, starTypeOptions.length)}`);
   let showHotkeyChips = $state(false);
 
   function panelButtonStyle(color: string) {
@@ -163,6 +168,10 @@
 
   function numericBadge(index: number) {
     return `${index + 1}`;
+  }
+
+  function isPortalOption(starType: StarType) {
+    return starType === "portal";
   }
 
   function applySelectionLabel() {
@@ -254,19 +263,22 @@
       class:is-active={iconClass("place-star", "place-star")}
       style={buttonStyle(activeStarType.color, `--star-color:${activeStarType.color};`)}
       onclick={() => activateTool("place-star", "place-star")}
-      title={railButtonTitle("Place Star", "1-6")}
+      title={railButtonTitle("Place Star", placeStarHotkeyLabel)}
       aria-label="Place star"
     >
       <span class="rail-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><polygon points="12,3 14.8,8.3 20.7,9.2 16.4,13.4 17.4,19.3 12,16.4 6.6,19.3 7.6,13.4 3.3,9.2 9.2,8.3" fill="currentColor" /></svg>
         {#if showHotkeyChips}
-          <span class="hotkey-chip">1-6</span>
+          <span class="hotkey-chip">{placeStarHotkeyLabel}</span>
         {/if}
       </span>
       {#if railExpanded}
         <span class="rail-copy">
           <strong>Place Star</strong>
-          <small>{activeStarType.label}</small>
+          <small>
+            {activeStarType.label}
+            {#if mapEditorStore.starTypeBrush === "portal"} · Group {portalGroupBrush}{/if}
+          </small>
         </span>
       {/if}
     </button>
@@ -438,7 +450,12 @@
               onclick={() => onSelectStarType(option.id)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                {#if option.sides > 0}
+                {#if isPortalOption(option.id)}
+                  <circle cx="12" cy="12" r="8.8" fill="rgba(2, 6, 23, 0.96)" stroke={option.color} stroke-width="2.2" />
+                  <circle cx="12" cy="12" r="4.6" fill="rgba(2, 6, 23, 0.98)" />
+                  <path d="M6 11c1.8-3.5 6.6-4.8 11.2-.8" fill="none" stroke={option.color} stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M7.4 14.8c2.8 2.8 7.5 2.2 10-.9" fill="none" stroke={option.color} stroke-width="1.5" stroke-linecap="round" opacity="0.84" />
+                {:else if option.sides > 0}
                   <polygon points={buildRegularPolygonPoints(7.5, option.sides)} fill={option.color} />
                 {:else}
                   <circle cx="12" cy="12" r="7.5" fill={option.color} />
@@ -451,6 +468,26 @@
             </button>
           {/each}
         </div>
+        {#if mapEditorStore.starTypeBrush === "portal"}
+          <div class="portal-group-card">
+            <div class="portal-group-card__header">
+              <strong>Portal Group</strong>
+              <span>Shared capture set for linked portals.</span>
+            </div>
+            <div class="portal-group-grid">
+              {#each PORTAL_GROUP_IDS as portalGroup}
+                <button
+                  type="button"
+                  class="portal-group-chip"
+                  class:is-active={portalGroupBrush === portalGroup}
+                  onclick={() => onSelectPortalGroup(portalGroup)}
+                >
+                  {portalGroup}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
       {:else if activePanel === "paint-owner"}
         <header>
           <div>
@@ -1019,6 +1056,7 @@
 
   .star-grid,
   .owner-grid,
+  .portal-group-grid,
   .utility-grid,
   .faction-list {
     display: grid;
@@ -1032,6 +1070,54 @@
   .owner-grid,
   .utility-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portal-group-card {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    background: rgba(11, 16, 34, 0.9);
+  }
+
+  .portal-group-card__header {
+    display: grid;
+    gap: 4px;
+  }
+
+  .portal-group-card__header strong {
+    font-family: "Rajdhani", sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #eef2ff;
+  }
+
+  .portal-group-card__header span {
+    font-size: 0.74rem;
+    color: rgba(165, 180, 252, 0.84);
+  }
+
+  .portal-group-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .portal-group-chip {
+    min-height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(129, 140, 248, 0.22);
+    background: rgba(15, 23, 42, 0.88);
+    color: #e0e7ff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .portal-group-chip.is-active {
+    border-color: rgba(129, 140, 248, 0.72);
+    background: rgba(55, 48, 163, 0.34);
+    color: #ffffff;
   }
 
   .swatch,
@@ -1174,7 +1260,8 @@
     .slider-grid,
     .owner-grid,
     .utility-grid,
-    .star-grid {
+    .star-grid,
+    .portal-group-grid {
       grid-template-columns: 1fr;
     }
   }

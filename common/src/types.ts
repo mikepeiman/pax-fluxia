@@ -9,7 +9,7 @@ export type StarId = string;
 export type PlayerId = string;
 
 // === Star Types ===
-export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green';
+export type StarType = 'grey' | 'yellow' | 'blue' | 'purple' | 'red' | 'green' | 'portal';
 
 // === Game Speed ===
 export type GameSpeed = 0 | 1 | 2 | 4 | 10;
@@ -43,6 +43,7 @@ export interface Star {
     radius: number;
     ownerId: PlayerId;
     starType: string;  // StarType union, but string in Schema for Colyseus compat
+    portalGroup?: string;
     // Ships
     activeShips: number;
     damagedShips: number;
@@ -157,6 +158,7 @@ export interface StarConfig {
     productionRate?: number;
     ownerId?: PlayerId;
     starType?: StarType;
+    portalGroup?: string;
     activeShips?: number;
     damagedShips?: number;
     // Combat V2 optional properties
