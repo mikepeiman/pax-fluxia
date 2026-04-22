@@ -32,9 +32,9 @@ export interface ThumbnailOptions {
     height?: number;
     /** Background color (default '#0a0a1a') */
     bg?: string;
-    /** Lane color (default '#ffffff22') */
+    /** Lane color (default brighter slate-blue) */
     laneColor?: string;
-    /** Lane width (default 1) */
+    /** Lane width (default 1.65) */
     laneWidth?: number;
     /** Star radius in thumbnail px (default 5) */
     starRadius?: number;
@@ -65,8 +65,8 @@ export function generateMapThumbnail(
         width = 240,
         height = 135,
         bg = '#0a0a1a',
-        laneColor = 'rgba(255,255,255,0.15)',
-        laneWidth = 1,
+        laneColor = 'rgba(191, 219, 254, 0.42)',
+        laneWidth = 1.65,
         starRadius = 5,
         getPlayerColor,
         padding = 0.08,
@@ -112,31 +112,42 @@ export function generateMapThumbnail(
 
     // Draw deduped connections (lanes)
     const drawn = new Set<string>();
+    function traceConnections(): void {
+        for (const conn of connections) {
+            const key = [conn.sourceId, conn.targetId].sort().join('|');
+            if (drawn.has(key)) continue;
+            drawn.add(key);
+            const src = starById.get(conn.sourceId);
+            const tgt = starById.get(conn.targetId);
+            if (!src || !tgt) continue;
+            const wp = conn.laneWaypoints;
+            if (wp && wp.length > 2) {
+                const [fx, fy] = toScreen(wp[0][0], wp[0][1]);
+                ctx.moveTo(fx, fy);
+                for (let i = 1; i < wp.length; i++) {
+                    const [px, py] = toScreen(wp[i][0], wp[i][1]);
+                    ctx.lineTo(px, py);
+                }
+                continue;
+            }
+            const [sx, sy] = toScreen(src.x, src.y);
+            const [tx, ty] = toScreen(tgt.x, tgt.y);
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(tx, ty);
+        }
+    }
+
+    ctx.beginPath();
+    traceConnections();
+    ctx.strokeStyle = 'rgba(96, 165, 250, 0.18)';
+    ctx.lineWidth = laneWidth * 2.35;
+    ctx.stroke();
+
+    drawn.clear();
+    ctx.beginPath();
+    traceConnections();
     ctx.strokeStyle = laneColor;
     ctx.lineWidth = laneWidth;
-    ctx.beginPath();
-    for (const conn of connections) {
-        const key = [conn.sourceId, conn.targetId].sort().join('|');
-        if (drawn.has(key)) continue;
-        drawn.add(key);
-        const src = starById.get(conn.sourceId);
-        const tgt = starById.get(conn.targetId);
-        if (!src || !tgt) continue;
-        const wp = conn.laneWaypoints;
-        if (wp && wp.length > 2) {
-            const [fx, fy] = toScreen(wp[0][0], wp[0][1]);
-            ctx.moveTo(fx, fy);
-            for (let i = 1; i < wp.length; i++) {
-                const [px, py] = toScreen(wp[i][0], wp[i][1]);
-                ctx.lineTo(px, py);
-            }
-            continue;
-        }
-        const [sx, sy] = toScreen(src.x, src.y);
-        const [tx, ty] = toScreen(tgt.x, tgt.y);
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-    }
     ctx.stroke();
 
     // Draw stars

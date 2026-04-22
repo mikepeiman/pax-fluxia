@@ -7,6 +7,7 @@
   import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
   import MapEditorBoardHud from "$lib/components/editor/MapEditorBoardHud.svelte";
   import MapEditorCommandDock from "$lib/components/editor/MapEditorCommandDock.svelte";
+  import MapEditorConfirmDialog from "$lib/components/editor/MapEditorConfirmDialog.svelte";
   import MapEditorDuplicateDialog from "$lib/components/editor/MapEditorDuplicateDialog.svelte";
   import MapEditorLibrarySheet from "$lib/components/editor/MapEditorLibrarySheet.svelte";
   import MapEditorSelectionPanel from "$lib/components/editor/MapEditorSelectionPanel.svelte";
@@ -47,6 +48,7 @@
   let ownerColorSaturation = $state(100);
   let ownerColorLightness = $state(0);
   let ownerColorAlpha = $state(94);
+  let deleteTarget = $state<{ name: string } | null>(null);
 
   const selectedStars = $derived.by(() =>
     mapEditorStore.document.stars.filter((star) =>
@@ -137,6 +139,17 @@
       ...recentMaps.filter((item) => !(item.source === entry.source && item.key === entry.key)),
     ].slice(0, 10);
     persistRecentMaps();
+  }
+
+  function removeRecentMapEntry(source: RecentMapEntry["source"], key: string) {
+    recentMaps = recentMaps.filter((item) => !(item.source === source && item.key === key));
+    persistRecentMaps();
+  }
+
+  function closeActiveOverlays() {
+    deleteTarget = null;
+    mapEditorUiStore.closeSheet();
+    mapEditorUiStore.closeToolPanel();
   }
 
   function ensureToolPanel(panel: EditorToolPanel) {
@@ -272,6 +285,20 @@
   function openDuplicateSheet() {
     mapEditorUiStore.closeToolPanel();
     mapEditorUiStore.openSheet("duplicate");
+  }
+
+  function requestDeleteMap(name: string) {
+    deleteTarget = { name };
+  }
+
+  async function confirmDeleteMap() {
+    if (!deleteTarget) return;
+    const deletedName = deleteTarget.name;
+    gameStore.deleteSavedMap(deletedName);
+    removeRecentMapEntry("saved", deletedName);
+    await mapEditorStore.refreshSources();
+    deleteTarget = null;
+    setStatus(`Deleted saved map "${deletedName}".`);
   }
 
   function createNewMap() {
@@ -599,8 +626,7 @@
     }
 
     if (event.key === "Escape") {
-      mapEditorUiStore.closeSheet();
-      mapEditorUiStore.closeToolPanel();
+      closeActiveOverlays();
       mapEditorStore.cancelDraftInteractions();
       return;
     }
@@ -656,6 +682,12 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h1.59l-2.3 2.29 1.42 1.42L17.41 4l-4.7-4.71-1.42 1.42L13.59 3H12a7 7 0 1 0 6.93 8h-2.08A5 5 0 1 1 12 5Z" fill="currentColor" /></svg>
       </button>
     </div>
+    <div class="editor-topbar__cluster editor-topbar__cluster--right">
+      <MapEditorBoardHud
+        {statusMessage}
+        onFitViewport={fitMapToViewport}
+      />
+    </div>
   </div>
 
   <div class="editor-shell">
@@ -696,22 +728,14 @@
 
     <main class="stage-area">
       <div class="board-stage">
-        {#if mapEditorUiStore.activeSheet !== null}
+        {#if mapEditorUiStore.activeSheet !== null || deleteTarget !== null}
           <button
             type="button"
             class="board-dismiss-layer"
             aria-label="Close editor panels"
-            onclick={() => {
-              mapEditorUiStore.closeSheet();
-              mapEditorUiStore.closeToolPanel();
-            }}
+            onclick={closeActiveOverlays}
           ></button>
         {/if}
-
-        <MapEditorBoardHud
-          {statusMessage}
-          onFitViewport={fitMapToViewport}
-        />
 
         <MapEditorCanvas
           ownerRingRadius={ownerRingRadius}
@@ -736,8 +760,10 @@
         {#if mapEditorUiStore.activeSheet === "library"}
           <MapEditorLibrarySheet
             {recentMaps}
+            onClose={() => mapEditorUiStore.closeSheet()}
             onOpenRecent={openRecentMap}
             onLoadRepositoryMap={loadRepositoryMap}
+            onDeleteRepositoryMap={requestDeleteMap}
             onLoadBuiltinMap={loadBuiltinMap}
             onLoadFixtureMap={loadFixtureMap}
             onLoadAutosave={loadAutosave}
@@ -754,6 +780,18 @@
             currentDate={mapEditorStore.document.metadata.updatedAt ?? new Date().toISOString()}
             onSubmit={confirmDuplicateMap}
             onClose={() => mapEditorUiStore.closeSheet()}
+          />
+        {/if}
+
+        {#if deleteTarget}
+          <MapEditorConfirmDialog
+            title="Delete Map"
+            message={`Delete "${deleteTarget.name}" from saved custom maps? This cannot be undone.`}
+            confirmLabel="Delete Map"
+            onConfirm={confirmDeleteMap}
+            onClose={() => {
+              deleteTarget = null;
+            }}
           />
         {/if}
 
@@ -804,6 +842,13 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+
+  .editor-topbar__cluster--right {
+    margin-left: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
   }
 
   .topbar-btn {
@@ -909,6 +954,16 @@
   @media (max-width: 980px) {
     .editor-page {
       padding: 12px;
+    }
+
+    .editor-topbar {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .editor-topbar__cluster--right {
+      width: 100%;
+      justify-content: flex-start;
     }
 
     .editor-shell {

@@ -133,6 +133,20 @@
     mapEditorUiStore.toggleRailExpanded();
   }
 
+  function handleShellPointerDown(event: PointerEvent) {
+    if (railExpanded) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (
+      target.closest(".drawer-toggle") ||
+      target.closest(".rail-button") ||
+      target.closest(".tool-panel")
+    ) {
+      return;
+    }
+    mapEditorUiStore.setRailExpanded(true);
+  }
+
   function railButtonTitle(label: string, hotkey?: string) {
     return hotkey ? `${label} (${hotkey})` : label;
   }
@@ -180,7 +194,14 @@
   onblur={clearHotkeyChips}
 />
 
-<div class="tool-rail-shell" data-density={density} data-expanded={railExpanded}>
+<div
+  class="tool-rail-shell"
+  data-density={density}
+  data-expanded={railExpanded}
+  role="group"
+  aria-label="Map editor tool rail"
+  onpointerdown={handleShellPointerDown}
+>
   <div class="tool-rail">
     <button
       type="button"
@@ -628,7 +649,8 @@
     position: relative;
     width: 80px;
     min-width: 80px;
-    height: max-content;
+    height: 100%;
+    min-height: 0;
     transition:
       width 180ms ease,
       min-width 180ms ease;
@@ -641,6 +663,7 @@
 
   .tool-rail {
     width: 100%;
+    height: 100%;
     padding: 12px 10px;
     border-radius: 28px;
     border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
@@ -649,6 +672,7 @@
       var(--editor-surface, rgba(4, 11, 26, 0.86));
     backdrop-filter: blur(22px);
     display: grid;
+    align-content: start;
     gap: 10px;
     box-shadow:
       0 22px 64px rgba(0, 0, 0, 0.34),
@@ -659,10 +683,6 @@
   .rail-button {
     width: 100%;
     min-height: 60px;
-    border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background:
-      linear-gradient(180deg, rgba(18, 29, 51, 0.94), rgba(8, 14, 28, 0.94));
     color: rgba(226, 232, 240, 0.94);
     display: flex;
     align-items: center;
@@ -695,10 +715,21 @@
   .drawer-toggle {
     --tool-accent: #cbd5f5;
     min-height: 72px;
-    border-color: rgba(148, 163, 184, 0.2);
+    border-radius: 20px;
+    border: 1px solid rgba(191, 219, 254, 0.22);
     background:
-      linear-gradient(180deg, rgba(29, 48, 82, 0.98), rgba(12, 21, 40, 0.96));
+      linear-gradient(180deg, rgba(33, 56, 94, 0.98), rgba(14, 26, 46, 0.97));
     color: #f8fafc;
+    box-shadow:
+      inset 0 0 0 1px rgba(191, 219, 254, 0.08),
+      0 16px 34px rgba(2, 8, 23, 0.28);
+  }
+
+  .rail-button {
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background:
+      linear-gradient(180deg, rgba(18, 29, 51, 0.94), rgba(8, 14, 28, 0.94));
   }
 
   .drawer-toggle:hover,
@@ -802,6 +833,10 @@
   .tool-rail-shell[data-expanded="false"] .rail-button {
     justify-content: center;
     padding-inline: 0;
+  }
+
+  .tool-rail-shell[data-expanded="false"] .drawer-toggle {
+    min-height: 76px;
   }
 
   .tool-rail-shell[data-expanded="false"] .rail-copy {

@@ -184,27 +184,25 @@
 
 <style>
   .board-hud {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    right: 16px;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 12px;
-    pointer-events: none;
-    z-index: 8;
+    width: 100%;
+    min-width: 0;
   }
 
   .board-hud__cluster {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
-    pointer-events: auto;
   }
 
   .board-hud__cluster--right {
     justify-content: flex-end;
+    margin-left: auto;
   }
 
   .hud-pill,
@@ -396,14 +394,11 @@
 
   @media (max-width: 980px) {
     .board-hud {
-      top: 12px;
-      left: 12px;
-      right: 12px;
-      flex-wrap: wrap;
+      justify-content: flex-start;
     }
 
     .status-chip {
-      max-width: 100%;
+      max-width: min(100%, 420px);
     }
   }
 </style>
