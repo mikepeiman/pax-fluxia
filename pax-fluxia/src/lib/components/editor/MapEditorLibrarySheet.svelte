@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { loadFixtureMapDefinition, resolveAuthoredMapCategory, type AuthoredMapCategory } from "@pax/common/maps";
+  import {
+    loadFixtureMapDefinition,
+    resolveAuthoredMapCategory,
+    resolveOrCreateAuthoredMapFamily,
+    type AuthoredMapCategory,
+  } from "@pax/common/maps";
   import type { MapDefinition } from "$lib/types/map.types";
   import MapEditorMapPreviewDialog from "$lib/components/editor/MapEditorMapPreviewDialog.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
@@ -14,7 +19,7 @@
     savedAt?: string;
   };
 
-  type MapFilter = "all" | "favorites" | "classic" | "custom" | "test" | `tag:${string}`;
+  type MapTypeFilter = "all" | "classic" | "custom" | "test";
   type LibraryCardSource = "saved" | "builtin" | "fixture" | "autosave";
 
   type LibraryActionTarget = {
@@ -32,6 +37,9 @@
     subtitle: string;
     thumbUrl: string;
     savedAt?: string;
+    familyId?: string;
+    familyName?: string;
+    tags: string[];
     load: () => void;
   };
 
@@ -68,7 +76,10 @@
   }: Props = $props();
 
   let searchQuery = $state("");
-  let mapFilter = $state<MapFilter>("all");
+  let mapTypeFilter = $state<MapTypeFilter>("all");
+  let favoritesOnly = $state(false);
+  let categoryFilterKey = $state<string | null>(null);
+  let familyFilterId = $state<string | null>(null);
   let fixturePreviewMaps = $state<Record<string, MapDefinition>>({});
   let contextMenu = $state<{ x: number; y: number; card: LibraryCard } | null>(null);
   let previewCard = $state<LibraryCard | null>(null);
@@ -136,6 +147,16 @@
     return categoryLabel(category);
   }
 
+  function familyForMap(map: MapDefinition | null): { id: string; name: string } | null {
+    if (!map) return null;
+    if (!map.metadata.familyId && !map.metadata.familyName) return null;
+    const family = resolveOrCreateAuthoredMapFamily(map.metadata);
+    return {
+      id: family.familyId,
+      name: family.familyName,
+    };
+  }
+
   function buildCard(
     source: LibraryCardSource,
     key: string,
@@ -153,6 +174,8 @@
           ? "test"
           : "custom";
 
+    const family = familyForMap(map);
+
     return {
       source,
       key,
@@ -164,27 +187,27 @@
       canDelete: options?.canDelete ?? false,
       thumbUrl: map ? buildThumbUrl(map) : "",
       savedAt: options?.savedAt,
+      familyId: family?.id,
+      familyName: family?.name,
+      tags: map?.metadata.tags ?? [],
       map,
       load,
     };
   }
 
   function cardMatches(card: LibraryCard): boolean {
-    if (mapFilter === "favorites" && !favoriteKeySet.has(card.favoriteKey)) return false;
-    if (
-      mapFilter !== "all"
-      && mapFilter !== "favorites"
-      && !mapFilter.startsWith("tag:")
-      && card.category !== mapFilter
-    ) {
-      return false;
-    }
-    if (mapFilter.startsWith("tag:")) {
-      const tagKey = mapFilter.slice(4);
-      const mapTags = card.map?.metadata.tags ?? [];
-      if (!mapTags.some((tag) => normalizeTagKey(tag) === tagKey)) return false;
-    }
-    return includesQuery(card.title, card.subtitle, card.category, card.source);
+    if (favoritesOnly && !favoriteKeySet.has(card.favoriteKey)) return false;
+    if (mapTypeFilter !== "all" && card.category !== mapTypeFilter) return false;
+    if (categoryFilterKey && !card.tags.some((tag) => normalizeTagKey(tag) === categoryFilterKey)) return false;
+    if (familyFilterId && card.familyId !== familyFilterId) return false;
+    return includesQuery(
+      card.title,
+      card.subtitle,
+      card.category,
+      card.source,
+      card.familyName,
+      ...card.tags,
+    );
   }
 
   function sortCards(cards: LibraryCard[]): LibraryCard[] {
@@ -373,7 +396,33 @@
 
     return [...categories.entries()]
       .sort((left, right) => left[1].localeCompare(right[1]))
-      .map(([key, label]) => ({ key: `tag:${key}` as const, label }));
+      .map(([key, label]) => ({ key, label }));
+  });
+
+  const familyFilters = $derived.by(() => {
+    const families = new Map<string, { id: string; label: string; count: number }>();
+    const addFamily = (map: MapDefinition | null) => {
+      const family = familyForMap(map);
+      if (!family) return;
+      const existing = families.get(family.id);
+      if (existing) {
+        existing.count += 1;
+        return;
+      }
+      families.set(family.id, {
+        id: family.id,
+        label: family.name,
+        count: 1,
+      });
+    };
+
+    for (const map of mapEditorStore.builtinMaps) addFamily(map);
+    for (const map of mapEditorStore.repositoryMaps) addFamily(map);
+    for (const map of Object.values(fixturePreviewMaps)) addFamily(map);
+    for (const revision of mapEditorStore.autosaveRevisions) addFamily(revision.map);
+
+    return [...families.values()]
+      .sort((left, right) => left.label.localeCompare(right.label));
   });
 
   onMount(() => {
@@ -449,18 +498,48 @@
     <div class="stack">
       <span>Map Type</span>
       <div class="filter-row" role="tablist" aria-label="Map type filter">
-        <button type="button" class:is-active={mapFilter === "all"} onclick={() => (mapFilter = "all")}>All</button>
-        <button type="button" class:is-active={mapFilter === "favorites"} onclick={() => (mapFilter = "favorites")}>Favorites</button>
-        <button type="button" class:is-active={mapFilter === "classic"} onclick={() => (mapFilter = "classic")}>Classic</button>
-        <button type="button" class:is-active={mapFilter === "custom"} onclick={() => (mapFilter = "custom")}>Custom</button>
-        <button type="button" class:is-active={mapFilter === "test"} onclick={() => (mapFilter = "test")}>Test</button>
-        {#each metadataCategoryFilters as filter}
-          <button type="button" class:is-active={mapFilter === filter.key} onclick={() => (mapFilter = filter.key)}>
-            {filter.label}
-          </button>
-        {/each}
+        <button type="button" class:is-active={mapTypeFilter === "all"} onclick={() => (mapTypeFilter = "all")}>All</button>
+        <button type="button" class:is-active={mapTypeFilter === "classic"} onclick={() => (mapTypeFilter = "classic")}>Classic</button>
+        <button type="button" class:is-active={mapTypeFilter === "custom"} onclick={() => (mapTypeFilter = "custom")}>Custom</button>
+        <button type="button" class:is-active={mapTypeFilter === "test"} onclick={() => (mapTypeFilter = "test")}>Test</button>
       </div>
     </div>
+
+    <div class="stack">
+      <span>Favorites</span>
+      <div class="filter-row" role="group" aria-label="Favorite filter">
+        <button type="button" class:is-active={!favoritesOnly} onclick={() => (favoritesOnly = false)}>All Maps</button>
+        <button type="button" class:is-active={favoritesOnly} onclick={() => (favoritesOnly = true)}>Starred Only</button>
+      </div>
+    </div>
+
+    {#if metadataCategoryFilters.length > 0}
+      <div class="stack stack--full">
+        <span>Categories</span>
+        <div class="filter-row" role="group" aria-label="Category filter">
+          <button type="button" class:is-active={categoryFilterKey === null} onclick={() => (categoryFilterKey = null)}>All Categories</button>
+          {#each metadataCategoryFilters as filter}
+            <button type="button" class:is-active={categoryFilterKey === filter.key} onclick={() => (categoryFilterKey = filter.key)}>
+              {filter.label}
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if familyFilters.length > 0}
+      <div class="stack stack--full">
+        <span>Family</span>
+        <div class="filter-row" role="group" aria-label="Family filter">
+          <button type="button" class:is-active={familyFilterId === null} onclick={() => (familyFilterId = null)}>All Families</button>
+          {#each familyFilters as filter}
+            <button type="button" class:is-active={familyFilterId === filter.id} onclick={() => (familyFilterId = filter.id)}>
+              {filter.label}
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 
   <section class="sheet-section sheet-section--recent">
@@ -569,6 +648,7 @@
     description={previewCard.map?.metadata.description}
     author={previewCard.map?.metadata.author}
     mapId={previewCard.map?.metadata.mapId}
+    familyName={previewCard.familyName}
     categoryLabel={categoryLabel(previewCard.category)}
     sourceLabel={sourceLabel(previewCard.source, previewCard.category)}
     starsCount={previewCard.map?.stars.length ?? 0}
@@ -661,18 +741,29 @@
   }
 
   .modal__toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
   }
 
   .stack--search {
+    grid-column: 1 / -1;
     min-width: 0;
+  }
+
+  .stack--full {
+    grid-column: 1 / -1;
   }
 
   .filter-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  @media (min-width: 1200px) {
+    .modal__toolbar {
+      grid-template-columns: minmax(320px, 1.3fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+    }
   }
 
   .icon-btn,

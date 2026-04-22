@@ -44,6 +44,7 @@ import {
     AUTHORED_NEUTRAL_OWNER_ID,
     coerceAuthoredMapDefinition,
     normalizeAuthoredMapMetadata,
+    resolveOrCreateAuthoredMapFamily,
     resolveRuntimeMap,
     validateAuthoredMapDefinition,
     type RuntimeAuthoredMap,
@@ -1285,11 +1286,22 @@ function upsertSavedMapDefinition(map: MapDefinition): MapDefinition {
 function saveCurrentMap(name: string): void {
     const map = exportMapTopology();
     if (!map) return;
+    const family = resolveOrCreateAuthoredMapFamily(
+        {
+            familyId: map.metadata.familyId,
+            familyName: map.metadata.familyName,
+            mapId: currentLoadedMap?.metadata.mapId ?? map.metadata.mapId,
+            name: currentLoadedMap?.metadata.name ?? map.metadata.name,
+        },
+        currentLoadedMap?.metadata.familyName ?? currentLoadedMap?.metadata.name,
+    );
     map.metadata = {
         ...map.metadata,
         mapId: map.metadata.mapId || slugifyMapId(name),
         name,
         category: 'custom',
+        familyId: family.familyId,
+        familyName: family.familyName,
         importedFrom: { kind: 'editor', sourceId: currentLoadedMap?.metadata.mapId },
         updatedAt: new Date().toISOString(),
     };

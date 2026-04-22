@@ -100,6 +100,24 @@ export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapVa
         ));
     }
 
+    if (map.metadata?.familyId !== undefined && (typeof map.metadata.familyId !== 'string' || !map.metadata.familyId.trim())) {
+        issues.push(issue(
+            'error',
+            'metadata_family_id_invalid',
+            'Map metadata.familyId must be a non-empty string when present',
+            'metadata.familyId',
+        ));
+    }
+
+    if (map.metadata?.familyName !== undefined && (typeof map.metadata.familyName !== 'string' || !map.metadata.familyName.trim())) {
+        issues.push(issue(
+            'error',
+            'metadata_family_name_invalid',
+            'Map metadata.familyName must be a non-empty string when present',
+            'metadata.familyName',
+        ));
+    }
+
     if (map.metadata?.tags !== undefined) {
         if (!Array.isArray(map.metadata.tags)) {
             issues.push(issue(

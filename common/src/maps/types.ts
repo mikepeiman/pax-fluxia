@@ -22,6 +22,8 @@ export interface AuthoredMapMetadata {
     description?: string;
     version: number;
     category?: AuthoredMapCategory;
+    familyId?: string;
+    familyName?: string;
     editorHexRadius?: number;
     createdAt?: string;
     updatedAt?: string;

@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import {
     AUTHORED_NEUTRAL_OWNER_ID,
+    resolveOrCreateAuthoredMapFamily,
     serializeAuthoredMap,
     type AuthoredMapCategory,
   } from "@pax/common/maps";
@@ -55,6 +56,7 @@
     initialName: string;
     initialDescription: string;
     initialCategory: AuthoredMapCategory;
+    initialFamilyName: string;
     initialTags: string[];
   };
 
@@ -62,6 +64,7 @@
     name: string;
     description?: string;
     category: AuthoredMapCategory;
+    familyName?: string;
     tags?: string[];
   };
 
@@ -255,6 +258,15 @@
     const nextDescription = patch.description?.trim() || undefined;
     const nextTags = patch.tags?.length ? patch.tags : undefined;
     const nextMap = cloneMapDefinition(sourceMap);
+    const nextFamily = resolveOrCreateAuthoredMapFamily(
+      {
+        familyId: patch.familyName ? undefined : nextMap.metadata.familyId,
+        familyName: patch.familyName ?? nextMap.metadata.familyName,
+        mapId: nextMap.metadata.mapId,
+        name: nextMap.metadata.name,
+      },
+      patch.familyName,
+    );
 
     nextMap.metadata = {
       ...nextMap.metadata,
@@ -262,6 +274,8 @@
       name: nextName,
       description: nextDescription,
       category: patch.category,
+      familyId: nextFamily.familyId,
+      familyName: nextFamily.familyName,
       createdAt: options?.preserveCreatedAt
         ? nextMap.metadata.createdAt ?? now
         : now,
@@ -510,7 +524,7 @@
 
   function openRenameDialog(target: LibraryMapTarget) {
     if (!target.map) {
-      setStatus(`That map is not available for rename right now.`);
+      setStatus(`That map is not available for metadata editing right now.`);
       return;
     }
 
@@ -522,6 +536,7 @@
       initialName: target.label,
       initialDescription: target.map.metadata.description ?? "",
       initialCategory: target.map.metadata.category ?? target.category,
+      initialFamilyName: target.map.metadata.familyName ?? target.map.metadata.name,
       initialTags: target.map.metadata.tags ?? [],
     };
   }
@@ -540,6 +555,7 @@
       initialName: `${target.label} Copy`,
       initialDescription: target.map.metadata.description ?? "",
       initialCategory: target.map.metadata.category ?? target.category,
+      initialFamilyName: target.map.metadata.familyName ?? target.map.metadata.name,
       initialTags: target.map.metadata.tags ?? [],
     };
   }
@@ -579,7 +595,9 @@
     metadataDialog = null;
     setStatus(
       sourceTarget.source === "saved"
-        ? `Renamed "${sourceTarget.label}" to "${saved.metadata.name}".`
+        ? sourceTarget.label === saved.metadata.name
+          ? `Updated metadata for "${saved.metadata.name}".`
+          : `Renamed "${sourceTarget.label}" to "${saved.metadata.name}".`
         : `Saved "${saved.metadata.name}" as a ${saved.metadata.category ?? "custom"} map.`,
     );
   }
@@ -1051,6 +1069,7 @@
             initialName={`${mapEditorStore.document.metadata.name || "Untitled Map"} Copy`}
             initialDescription={mapEditorStore.document.metadata.description ?? ""}
             initialCategory={mapEditorStore.document.metadata.category ?? "custom"}
+            initialFamilyName={mapEditorStore.document.metadata.familyName ?? mapEditorStore.document.metadata.name}
             initialTags={mapEditorStore.document.metadata.tags ?? []}
             currentName={mapEditorStore.document.metadata.name}
             currentDescription={mapEditorStore.document.metadata.description ?? ""}
@@ -1067,6 +1086,7 @@
             initialName={metadataDialog.initialName}
             initialDescription={metadataDialog.initialDescription}
             initialCategory={metadataDialog.initialCategory}
+            initialFamilyName={metadataDialog.initialFamilyName}
             initialTags={metadataDialog.initialTags}
             currentName={metadataDialog.target.label}
             currentDescription={metadataDialog.target.map?.metadata.description ?? ""}

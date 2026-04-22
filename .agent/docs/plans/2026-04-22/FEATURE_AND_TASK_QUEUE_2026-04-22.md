@@ -34,6 +34,16 @@ Current `master` day ledger for gameplay performance follow-up and map-editor st
     - duplicate
     - delete
   - rename/duplicate from `Classic` or `Test` now saves a `Custom` copy instead of mutating source maps
+- Added map-family metadata and editing:
+  - saved maps now carry `familyId` / `familyName`
+  - first saved copies of loaded maps inherit the original map as their family root
+  - map metadata editing now exposes:
+    - map type
+    - family
+    - categories
+  - load modal now supports:
+    - composable `Favorites`, `Map Type`, `Categories`, and `Family` filters
+    - family visibility in map preview metadata
 
 ## Next Technical Steps
 

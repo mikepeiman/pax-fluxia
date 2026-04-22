@@ -7,6 +7,7 @@ import {
     getFixtureMapManifest,
     loadFixtureMapDefinition,
     normalizeAuthoredMapMetadata,
+    resolveOrCreateAuthoredMapFamily,
     serializeAuthoredMap,
     validateAuthoredMapDefinition,
     type AuthoredMapCategory,
@@ -1505,17 +1506,29 @@ function duplicateMap(options?: {
     name?: string;
     description?: string;
     category?: AuthoredMapCategory;
+    familyName?: string;
     tags?: string[];
 }): void {
     const baseName = documentState.metadata.name || "Untitled Map";
     const duplicate = cloneMap(documentState);
     const nextName = options?.name?.trim() || `${baseName} Copy`;
+    const nextFamily = resolveOrCreateAuthoredMapFamily(
+        {
+            familyId: options?.familyName ? undefined : duplicate.metadata.familyId,
+            familyName: options?.familyName ?? duplicate.metadata.familyName,
+            mapId: duplicate.metadata.mapId,
+            name: duplicate.metadata.name,
+        },
+        options?.familyName,
+    );
     duplicate.metadata = {
         ...duplicate.metadata,
         mapId: slugify(nextName),
         name: nextName,
         description: options?.description ?? duplicate.metadata.description,
         category: options?.category ?? duplicate.metadata.category ?? "custom",
+        familyId: nextFamily.familyId,
+        familyName: nextFamily.familyName,
         tags: options?.tags ?? duplicate.metadata.tags,
         updatedAt: new Date().toISOString(),
     };
@@ -1552,10 +1565,13 @@ function buildPersistedMap(options?: {
     if (options?.coerceUnownedStars) {
         coerceUnownedStarsForOutput(map);
     }
+    const family = resolveOrCreateAuthoredMapFamily(map.metadata);
     map.metadata = {
         ...normalizeAuthoredMapMetadata(map.metadata),
         mapId: map.metadata.mapId || slugify(map.metadata.name),
         category: "custom",
+        familyId: family.familyId,
+        familyName: family.familyName,
         editorHexRadius: hexRadius,
         updatedAt: now,
         importedFrom: { kind: "editor" },

@@ -5,6 +5,7 @@
     name: string;
     description?: string;
     category: AuthoredMapCategory;
+    familyName?: string;
     tags?: string[];
   };
 
@@ -14,6 +15,7 @@
     initialName?: string;
     initialDescription?: string;
     initialCategory?: AuthoredMapCategory;
+    initialFamilyName?: string;
     initialTags?: string[];
     currentName: string;
     currentDescription: string;
@@ -28,6 +30,7 @@
     initialName,
     initialDescription,
     initialCategory = "custom",
+    initialFamilyName = "",
     initialTags = [],
     currentName,
     currentDescription,
@@ -39,6 +42,7 @@
   let name = $state("");
   let description = $state("");
   let category = $state<AuthoredMapCategory>("custom");
+  let familyName = $state("");
   let customCategories = $state("");
   let didInit = $state(false);
 
@@ -47,6 +51,7 @@
     name = initialName ?? `${currentName || "Untitled Map"} Copy`;
     description = initialDescription ?? currentDescription;
     category = initialCategory;
+    familyName = initialFamilyName;
     customCategories = initialTags.join(", ");
     didInit = true;
   });
@@ -76,6 +81,7 @@
       name: trimmedName,
       description: description.trim() || undefined,
       category,
+      familyName: familyName.trim() || undefined,
       tags: parseTags(customCategories),
     });
   }
@@ -117,7 +123,12 @@
     </label>
 
     <label class="stack">
-      <span>Custom Categories</span>
+      <span>Family</span>
+      <input type="text" bind:value={familyName} placeholder="Original Family or New Family" />
+    </label>
+
+    <label class="stack">
+      <span>Categories</span>
       <input type="text" bind:value={customCategories} placeholder="favorites, campaign, prototype" />
     </label>
 

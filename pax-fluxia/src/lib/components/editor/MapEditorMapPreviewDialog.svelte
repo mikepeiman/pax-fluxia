@@ -4,6 +4,7 @@
     description?: string;
     author?: string;
     mapId?: string;
+    familyName?: string;
     categoryLabel: string;
     sourceLabel: string;
     starsCount: number;
@@ -22,6 +23,7 @@
     description,
     author,
     mapId,
+    familyName,
     categoryLabel,
     sourceLabel,
     starsCount,
@@ -89,6 +91,10 @@
           <div class="meta-item">
             <dt>Last Edited</dt>
             <dd>{formatDateTime(updatedAt)}</dd>
+          </div>
+          <div class="meta-item">
+            <dt>Family</dt>
+            <dd>{familyName?.trim() || "None"}</dd>
           </div>
           <div class="meta-item">
             <dt>Author</dt>
