@@ -5,6 +5,8 @@
 
   interface Props {
     onSave: () => void;
+    onSaveAndExit: () => void;
+    onOpenLoad: () => void;
     onExport: () => void;
     onTestSinglePlayer: () => void;
     onHostMultiplayer: () => void;
@@ -12,15 +14,15 @@
 
   let {
     onSave,
+    onSaveAndExit,
+    onOpenLoad,
     onExport,
     onTestSinglePlayer,
     onHostMultiplayer,
   }: Props = $props();
 
   const density = $derived(mapEditorUiStore.density);
-  let showFileFlyout = $state(false);
   let showLaunchFlyout = $state(false);
-  let fileFlyoutEl: HTMLDivElement | null = null;
   let launchFlyoutEl: HTMLDivElement | null = null;
 
   function toggleSheet(panel: "library" | "overflow") {
@@ -28,28 +30,17 @@
   }
 
   function closeFlyouts() {
-    showFileFlyout = false;
     showLaunchFlyout = false;
-  }
-
-  function toggleFileFlyout() {
-    showFileFlyout = !showFileFlyout;
-    if (showFileFlyout) {
-      showLaunchFlyout = false;
-    }
   }
 
   function toggleLaunchFlyout() {
     showLaunchFlyout = !showLaunchFlyout;
-    if (showLaunchFlyout) {
-      showFileFlyout = false;
-    }
   }
 
   onMount(() => {
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (fileFlyoutEl?.contains(target) || launchFlyoutEl?.contains(target)) {
+      if (launchFlyoutEl?.contains(target)) {
         return;
       }
       closeFlyouts();
@@ -77,18 +68,26 @@
   </div>
 
   <div class="command-dock__actions">
-    <button type="button" class="primary" onclick={onSave}>Save</button>
-    <div class="dock-menu" bind:this={fileFlyoutEl}>
-      <button type="button" class:is-active={showFileFlyout || mapEditorUiStore.activeSheet === "library"} onclick={toggleFileFlyout}>File</button>
-      {#if showFileFlyout}
-        <div class="dock-flyout">
-          <button type="button" onclick={() => { toggleSheet("library"); closeFlyouts(); }}>Load</button>
-          <button type="button" onclick={() => { onExport(); closeFlyouts(); }}>Export</button>
-        </div>
-      {/if}
-    </div>
+    <button type="button" class="command-btn command-btn--primary" onclick={onSave}>Save</button>
+    <button type="button" class="command-btn command-btn--primary-soft" onclick={onSaveAndExit}>
+      Save &amp; Exit
+    </button>
+    <button
+      type="button"
+      class="command-btn command-btn--secondary"
+      class:is-active={mapEditorUiStore.activeSheet === "library"}
+      onclick={() => {
+        onOpenLoad();
+        closeFlyouts();
+      }}
+    >
+      Load
+    </button>
+    <button type="button" class="command-btn command-btn--secondary" onclick={onExport}>Export</button>
     <div class="dock-menu" bind:this={launchFlyoutEl}>
-      <button type="button" class="accent" class:is-active={showLaunchFlyout} onclick={toggleLaunchFlyout}>Launch</button>
+      <button type="button" class="command-btn command-btn--secondary" class:is-active={showLaunchFlyout} onclick={toggleLaunchFlyout}>
+        Launch
+      </button>
       {#if showLaunchFlyout}
         <div class="dock-flyout">
           <button type="button" onclick={() => { onTestSinglePlayer(); closeFlyouts(); }}>Test SP</button>
@@ -152,6 +151,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
   }
 
   .dock-menu {
@@ -182,21 +182,41 @@
     color: rgba(226, 232, 240, 0.92);
     font: inherit;
     cursor: pointer;
+    transition:
+      background 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      box-shadow 140ms ease;
   }
 
-  button.primary {
+  .command-btn {
+    font-weight: 600;
+  }
+
+  .command-btn--primary {
     background: linear-gradient(135deg, rgba(18, 48, 78, 0.96), rgba(11, 29, 50, 0.95));
     border-color: rgba(125, 211, 252, 0.42);
+    color: #f8fafc;
   }
 
-  button.accent {
-    background: rgba(14, 64, 87, 0.88);
-    border-color: rgba(103, 232, 249, 0.34);
+  .command-btn--primary-soft {
+    background: rgba(15, 28, 49, 0.96);
+    border-color: rgba(125, 211, 252, 0.28);
+    color: rgba(226, 232, 240, 0.96);
   }
 
-  button.is-active {
+  .command-btn--secondary {
+    background: rgba(9, 16, 31, 0.9);
+    border-color: rgba(148, 163, 184, 0.18);
+    color: rgba(226, 232, 240, 0.92);
+  }
+
+  .command-btn:hover,
+  .command-btn.is-active {
     border-color: rgba(125, 211, 252, 0.58);
     background: rgba(17, 39, 63, 0.88);
+    color: #f8fafc;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   }
 
   button:disabled {

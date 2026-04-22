@@ -37,6 +37,7 @@
   >;
 
   const RECENT_MAPS_STORAGE_KEY = "pax-map-editor-recent-v1";
+  const MENU_SETTING_PREFIX = "pax-fluxia-";
 
   let statusMessage = $state("Editor ready.");
   let recentMaps = $state<RecentMapEntry[]>([]);
@@ -269,6 +270,30 @@
       savedAt: new Date().toISOString(),
     });
     setStatus(`Saved "${saved.metadata.name}" to shared map storage.`);
+    return saved;
+  }
+
+  function persistMainMenuCustomMapSelection(mapName: string) {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(`${MENU_SETTING_PREFIX}mapMode`, JSON.stringify("custom"));
+    localStorage.setItem(`${MENU_SETTING_PREFIX}selectedClassicMap`, JSON.stringify(null));
+    localStorage.setItem(`${MENU_SETTING_PREFIX}selectedCustomMap`, JSON.stringify(mapName));
+  }
+
+  async function saveAndExitDocument() {
+    const saved = saveDocument();
+    persistMainMenuCustomMapSelection(saved.metadata.name);
+    gameStore.setView("menu");
+    await goto("/");
+  }
+
+  async function returnToMainMenu() {
+    gameStore.setView("menu");
+    await goto("/");
+  }
+
+  function openLoadSheet() {
+    mapEditorUiStore.openSheet("library");
   }
 
   function exportDocument() {
@@ -678,6 +703,7 @@
 
         <MapEditorBoardHud
           {statusMessage}
+          onReturnToMenu={returnToMainMenu}
           onFitViewport={fitMapToViewport}
           onToggleValidation={() => mapEditorUiStore.openSheet("validation")}
         />
@@ -738,6 +764,8 @@
 
         <MapEditorCommandDock
           onSave={saveDocument}
+          onSaveAndExit={saveAndExitDocument}
+          onOpenLoad={openLoadSheet}
           onExport={exportDocument}
           onTestSinglePlayer={testSinglePlayer}
           onHostMultiplayer={hostMultiplayer}
