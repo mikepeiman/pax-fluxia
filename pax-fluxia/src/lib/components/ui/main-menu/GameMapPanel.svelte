@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { STAR_TYPE_STATS, type StarType } from "@pax/common";
     import RangeDual from "../RangeDual.svelte";
 
     type MapMode = "random" | "classic" | "custom";
@@ -10,10 +11,12 @@
             x: number;
             y: number;
             ownerId?: string;
+            starType?: string;
         }>;
         connections: Array<{
             sourceId: string;
             targetId: string;
+            laneWaypoints?: [number, number][];
         }>;
     };
 
@@ -111,6 +114,19 @@
         if (value >= 0.95) return "Symmetrical";
         if (value >= 0.7) return "Balanced";
         return "Asymmetric";
+    }
+
+    function getSavedMapOwnerColor(ownerId: string | undefined, starIndex: number): string {
+        return ownerId === "neutral" || !ownerId
+            ? "var(--pf-muted)"
+            : `hsl(${(starIndex * 60) % 360}, 70%, 60%)`;
+    }
+
+    function getSavedMapStarTypeColor(starType: string | undefined): string {
+        if (starType && STAR_TYPE_STATS[starType as StarType]) {
+            return `#${STAR_TYPE_STATS[starType as StarType].color.toString(16).padStart(6, "0")}`;
+        }
+        return "#8899aa";
     }
 </script>
 
@@ -443,25 +459,53 @@
                                 {@const src = starMap[connection.sourceId]}
                                 {@const tgt = starMap[connection.targetId]}
                                 {#if src && tgt}
-                                    <line
-                                        x1={src.x}
-                                        y1={src.y}
-                                        x2={tgt.x}
-                                        y2={tgt.y}
-                                        stroke={isSelected ? "var(--pf-accent-soft)" : "var(--pf-divider)"}
-                                        stroke-width={Math.max(1, vw * 0.006)}
-                                    />
+                                    {#if connection.laneWaypoints && connection.laneWaypoints.length > 2}
+                                        <polyline
+                                            points={connection.laneWaypoints.map(([x, y]) => `${x},${y}`).join(" ")}
+                                            fill="none"
+                                            stroke={isSelected ? "var(--pf-accent-soft)" : "var(--pf-divider)"}
+                                            stroke-width={Math.max(1, vw * 0.006)}
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    {:else}
+                                        <line
+                                            x1={src.x}
+                                            y1={src.y}
+                                            x2={tgt.x}
+                                            y2={tgt.y}
+                                            stroke={isSelected ? "var(--pf-accent-soft)" : "var(--pf-divider)"}
+                                            stroke-width={Math.max(1, vw * 0.006)}
+                                        />
+                                    {/if}
                                 {/if}
                             {/each}
                             {#each map.stars as star, starIndex}
+                                {@const ownerColor = getSavedMapOwnerColor(star.ownerId, starIndex)}
+                                {@const typeColor = getSavedMapStarTypeColor(star.starType)}
+                                {@const starRadius = Math.max(2.4, vw * 0.015)}
                                 <circle
                                     cx={star.x}
                                     cy={star.y}
-                                    r={Math.max(2, vw * 0.015)}
-                                    fill={star.ownerId === "neutral"
-                                        ? "var(--pf-muted)"
-                                        : `hsl(${(starIndex * 60) % 360}, 70%, 60%)`}
-                                    opacity={isSelected ? 1 : 0.72}
+                                    r={starRadius + Math.max(1.6, vw * 0.008)}
+                                    fill={ownerColor}
+                                    opacity={isSelected ? 0.22 : 0.14}
+                                />
+                                <circle
+                                    cx={star.x}
+                                    cy={star.y}
+                                    r={starRadius}
+                                    fill={typeColor}
+                                    opacity={isSelected ? 1 : 0.9}
+                                />
+                                <circle
+                                    cx={star.x}
+                                    cy={star.y}
+                                    r={starRadius}
+                                    fill="none"
+                                    stroke={ownerColor}
+                                    stroke-width={Math.max(1.1, vw * 0.005)}
+                                    opacity={isSelected ? 1 : 0.82}
                                 />
                             {/each}
                         </svg>
