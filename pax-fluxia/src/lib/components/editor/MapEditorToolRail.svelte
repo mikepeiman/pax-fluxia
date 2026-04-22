@@ -22,6 +22,7 @@
 
   interface Props {
     ownerChoices: OwnerChoice[];
+    selectedStarCount: number;
     symmetryFold: SymmetryFold;
     ownerRingRadius: number;
     ownerRingThickness: number;
@@ -32,6 +33,8 @@
     onSelectOwner: (ownerId: string) => void;
     onSelectStarType: (starType: StarType) => void;
     onArmForceBrush: () => void;
+    onApplyOwnerToSelection: () => void;
+    onApplyForceToSelection: () => void;
     onSetSymmetryFold: (fold: SymmetryFold) => void;
     onApplySymmetry: () => void;
     onAutoConnect: () => void;
@@ -52,6 +55,7 @@
 
   let {
     ownerChoices,
+    selectedStarCount,
     symmetryFold,
     ownerRingRadius,
     ownerRingThickness,
@@ -62,6 +66,8 @@
     onSelectOwner,
     onSelectStarType,
     onArmForceBrush,
+    onApplyOwnerToSelection,
+    onApplyForceToSelection,
     onSetSymmetryFold,
     onApplySymmetry,
     onAutoConnect,
@@ -143,6 +149,10 @@
 
   function numericBadge(index: number) {
     return `${index + 1}`;
+  }
+
+  function applySelectionLabel() {
+    return `Apply To ${selectedStarCount} Selected Star${selectedStarCount === 1 ? "" : "s"}`;
   }
 
   function selectSymmetryFold(event: Event) {
@@ -424,7 +434,7 @@
         <header>
           <div>
             <strong>Paint Ownership</strong>
-            {#if density !== "compact"}<span>Select stars first to apply immediately, or drag-paint on the board.</span>{/if}
+            {#if density !== "compact"}<span>Pick an owner, then drag-paint on the board or apply it to the current selection.</span>{/if}
           </div>
         </header>
         <div class="owner-grid">
@@ -444,11 +454,18 @@
             </button>
           {/each}
         </div>
+        {#if selectedStarCount > 0}
+          <div class="panel-actions">
+            <button type="button" class="action-btn action-btn--primary" onclick={onApplyOwnerToSelection}>
+              {applySelectionLabel()}
+            </button>
+          </div>
+        {/if}
       {:else if activePanel === "paint-force"}
         <header>
           <div>
             <strong>Paint Fleets</strong>
-            {#if density !== "compact"}<span>Apply to selection immediately, or drag to stamp fleet counts.</span>{/if}
+            {#if density !== "compact"}<span>Set the ship count, then click or drag through stars, or apply it to the current selection.</span>{/if}
           </div>
         </header>
         <EditorSliderField
@@ -463,6 +480,13 @@
             mapEditorStore.forceBrush = value;
           }}
         />
+        {#if selectedStarCount > 0}
+          <div class="panel-actions">
+            <button type="button" class="action-btn action-btn--primary" onclick={onApplyForceToSelection}>
+              {applySelectionLabel()}
+            </button>
+          </div>
+        {/if}
       {:else if activePanel === "connect-lane"}
         <header>
           <div>
@@ -891,6 +915,11 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .panel-actions {
+    display: grid;
+    gap: 8px;
   }
 
   .tool-panel strong,

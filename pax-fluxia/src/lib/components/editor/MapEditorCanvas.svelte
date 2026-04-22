@@ -57,6 +57,15 @@
         pointerId: number;
         brush: StarBrushKind;
         paintedStarIds: string[];
+      }
+    | {
+        mode: "box-select";
+        pointerId: number;
+        origin: Point;
+        current: Point;
+        screenOrigin: Point;
+        screenCurrent: Point;
+        append: boolean;
       };
 
   let {
@@ -79,6 +88,7 @@
   let hoverPoint = $state<Point | null>(null);
   let interaction = $state<InteractionState | null>(null);
   let previewPositions = $state<Record<string, Point>>({});
+  let selectionBox = $state<{ x: number; y: number; width: number; height: number } | null>(null);
   let contextMenu = $state<ContextMenuState | null>(null);
   let isSpacePanning = $state(false);
 
@@ -316,6 +326,31 @@
     };
   }
 
+  function normalizeRect(start: Point, end: Point) {
+    return {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.abs(end.x - start.x),
+      height: Math.abs(end.y - start.y),
+    };
+  }
+
+  function starIdsInRect(start: Point, end: Point): string[] {
+    const rect = normalizeRect(start, end);
+    return mapEditorStore.document.stars
+      .filter((star) => {
+        const point = getRenderedPoint(star.id);
+        if (!point) return false;
+        return (
+          point.x >= rect.x &&
+          point.x <= rect.x + rect.width &&
+          point.y >= rect.y &&
+          point.y <= rect.y + rect.height
+        );
+      })
+      .map((star) => star.id);
+  }
+
   function handleWheel(event: WheelEvent) {
     event.preventDefault();
     const rect = canvasEl?.getBoundingClientRect();
@@ -438,7 +473,11 @@
       return;
     }
 
-    const wantsMove = Boolean(star && (event.altKey || mapEditorStore.tool === "auto"));
+    const wantsMove = Boolean(
+      star &&
+      !event.shiftKey &&
+      (event.altKey || mapEditorStore.tool === "auto")
+    );
 
     if (star && wantsMove) {
       const preserveSelection =
@@ -574,6 +613,21 @@
       return;
     }
 
+    if (mapEditorStore.tool === "auto") {
+      const screenPoint = getScreenPoint(event.clientX, event.clientY);
+      selectionBox = normalizeRect(world, world);
+      interaction = {
+        mode: "box-select",
+        pointerId: event.pointerId,
+        origin: world,
+        current: world,
+        screenOrigin: screenPoint,
+        screenCurrent: screenPoint,
+        append: event.shiftKey,
+      };
+      return;
+    }
+
     if (mapEditorStore.tool === "place-star") {
       mapEditorStore.placeStar(world.x, world.y);
       return;
@@ -664,6 +718,18 @@
       return;
     }
 
+    if (interaction.mode === "box-select") {
+      const current = screenToWorld(event.clientX, event.clientY);
+      const screenCurrent = getScreenPoint(event.clientX, event.clientY);
+      selectionBox = normalizeRect(interaction.origin, current);
+      interaction = {
+        ...interaction,
+        current,
+        screenCurrent,
+      };
+      return;
+    }
+
     const moveInteraction = interaction;
     if (moveInteraction.mode !== "move-stars") {
       return;
@@ -726,9 +792,29 @@
       );
     } else if (interaction.mode === "paint-stars" && interaction.paintedStarIds.length > 0) {
       mapEditorStore.finalizeTransientEdit();
+    } else if (interaction.mode === "box-select") {
+      const dragPx = Math.max(
+        Math.abs(interaction.screenCurrent.x - interaction.screenOrigin.x),
+        Math.abs(interaction.screenCurrent.y - interaction.screenOrigin.y),
+      );
+      if (dragPx < 6) {
+        if (!interaction.append) {
+          mapEditorStore.clearSelection();
+        }
+      } else {
+        const boxStarIds = starIdsInRect(interaction.origin, interaction.current);
+        mapEditorStore.setSelection({
+          starIds: interaction.append
+            ? Array.from(new Set([...mapEditorStore.selection.starIds, ...boxStarIds]))
+            : boxStarIds,
+          laneIds: [],
+          measurementIds: [],
+        });
+      }
     }
 
     previewPositions = {};
+    selectionBox = null;
     interaction = null;
     hoverPoint = null;
   }
@@ -961,6 +1047,17 @@
           <circle class="draft-source" cx={draftStar.x} cy={draftStar.y} r="28" />
         {/if}
       {/if}
+
+      {#if selectionBox}
+        <rect
+          class="selection-box"
+          x={selectionBox.x}
+          y={selectionBox.y}
+          width={selectionBox.width}
+          height={selectionBox.height}
+          rx="10"
+        />
+      {/if}
     </g>
   </svg>
 
@@ -1147,6 +1244,13 @@
     stroke: rgba(96, 165, 250, 0.9);
     stroke-width: 3;
     stroke-dasharray: 12 10;
+  }
+
+  .selection-box {
+    fill: rgba(56, 189, 248, 0.12);
+    stroke: rgba(125, 211, 252, 0.94);
+    stroke-width: 2;
+    stroke-dasharray: 10 8;
   }
 
   :global(.canvas-shell) {

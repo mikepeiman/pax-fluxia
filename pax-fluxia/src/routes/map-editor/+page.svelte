@@ -192,9 +192,6 @@
 
   function selectOwnerBrush(ownerId: string) {
     mapEditorStore.ownerBrush = ownerId;
-    if (mapEditorStore.selection.starIds.length > 0) {
-      mapEditorStore.updateSelectedStars({ ownerId });
-    }
     mapEditorStore.setTool("paint-owner");
   }
 
@@ -215,6 +212,34 @@
 
   function armForceBrush() {
     mapEditorStore.setTool("paint-force");
+  }
+
+  function applyOwnerBrushToSelection() {
+    const count = mapEditorStore.selection.starIds.length;
+    if (count === 0) {
+      setStatus("Select one or more stars first.");
+      return;
+    }
+    const applied = mapEditorStore.applyOwnerBrush();
+    if (!applied) {
+      setStatus("Selection already matches the current owner brush.");
+      return;
+    }
+    setStatus(`Applied owner brush to ${count} selected star${count === 1 ? "" : "s"}.`);
+  }
+
+  function applyForceBrushToSelection() {
+    const count = mapEditorStore.selection.starIds.length;
+    if (count === 0) {
+      setStatus("Select one or more stars first.");
+      return;
+    }
+    const applied = mapEditorStore.applyForceBrush();
+    if (!applied) {
+      setStatus("Selection already matches the current fleet brush.");
+      return;
+    }
+    setStatus(`Applied ${mapEditorStore.forceBrush} ships to ${count} selected star${count === 1 ? "" : "s"}.`);
   }
 
   function updateSelectedStarOwner(ownerId: string) {
@@ -605,6 +630,7 @@
       </div>
       <MapEditorToolRail
         {ownerChoices}
+        selectedStarCount={selectedStars.length}
         {symmetryFold}
         {ownerRingRadius}
         {ownerRingThickness}
@@ -615,6 +641,8 @@
         onSelectOwner={selectOwnerBrush}
         onSelectStarType={selectStarTypeBrush}
         onArmForceBrush={armForceBrush}
+        onApplyOwnerToSelection={applyOwnerBrushToSelection}
+        onApplyForceToSelection={applyForceBrushToSelection}
         onSetSymmetryFold={(fold) => (symmetryFold = fold)}
         onApplySymmetry={applySymmetry}
         onAutoConnect={autoConnect}
@@ -636,7 +664,7 @@
 
     <main class="stage-area">
       <div class="board-stage">
-        {#if mapEditorUiStore.activeSheet !== null || mapEditorUiStore.activeToolPanel !== null}
+        {#if mapEditorUiStore.activeSheet !== null}
           <button
             type="button"
             class="board-dismiss-layer"
