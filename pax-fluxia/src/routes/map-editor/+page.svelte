@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { AUTHORED_NEUTRAL_OWNER_ID } from "@pax/common/maps";
+  import { AUTHORED_NEUTRAL_OWNER_ID, serializeAuthoredMap } from "@pax/common/maps";
   import type { StarType } from "@pax/common";
   import "../../app.css";
   import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
@@ -23,6 +23,7 @@
   import { getOwnerPaletteColor } from "$lib/editor/mapEditorPresentation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
+  import type { MapDefinition } from "$lib/types/map.types";
 
   type RecentMapEntry = {
     key: string;
@@ -31,16 +32,38 @@
     savedAt?: string;
   };
 
+  type LibraryMapSource = RecentMapEntry["source"];
+  type LibraryMapTarget = {
+    source: LibraryMapSource;
+    key: string;
+    label: string;
+    category: "classic" | "custom" | "test";
+    favoriteKey: string;
+    canDelete: boolean;
+    map: MapDefinition | null;
+  };
+
+  type MetadataDialogState = {
+    mode: "rename" | "duplicate";
+    target: LibraryMapTarget;
+    title: string;
+    confirmLabel: string;
+    initialName: string;
+    initialDescription: string;
+  };
+
   type EditorToolPanel = Exclude<
     MapEditorPanelId,
     "library" | "validation" | "duplicate" | "selection" | "factions"
   >;
 
   const RECENT_MAPS_STORAGE_KEY = "pax-map-editor-recent-v1";
+  const FAVORITE_MAPS_STORAGE_KEY = "pax-map-editor-favorites-v1";
   const MENU_SETTING_PREFIX = "pax-fluxia-";
 
   let statusMessage = $state("Editor ready.");
   let recentMaps = $state<RecentMapEntry[]>([]);
+  let favoriteMapKeys = $state<string[]>([]);
   let symmetryFold = $state<MapEditorSymmetryFold>(2);
   let ownerRingRadius = $state(24);
   let ownerRingThickness = $state(5);
@@ -48,7 +71,8 @@
   let ownerColorSaturation = $state(100);
   let ownerColorLightness = $state(0);
   let ownerColorAlpha = $state(94);
-  let deleteTarget = $state<{ name: string } | null>(null);
+  let deleteTarget = $state<{ name: string; favoriteKey?: string } | null>(null);
+  let metadataDialog = $state<MetadataDialogState | null>(null);
 
   const selectedStars = $derived.by(() =>
     mapEditorStore.document.stars.filter((star) =>
@@ -105,6 +129,18 @@
       } catch {
         recentMaps = [];
       }
+
+      try {
+        const rawFavorites = localStorage.getItem(FAVORITE_MAPS_STORAGE_KEY);
+        if (rawFavorites) {
+          const parsed = JSON.parse(rawFavorites) as string[];
+          if (Array.isArray(parsed)) {
+            favoriteMapKeys = parsed.filter((entry): entry is string => typeof entry === "string");
+          }
+        }
+      } catch {
+        favoriteMapKeys = [];
+      }
     }
     void mapEditorStore.refreshSources();
   });
@@ -133,6 +169,93 @@
     localStorage.setItem(RECENT_MAPS_STORAGE_KEY, JSON.stringify(recentMaps));
   }
 
+  function persistFavoriteMapKeys() {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(FAVORITE_MAPS_STORAGE_KEY, JSON.stringify(favoriteMapKeys));
+  }
+
+  function slugifyMapId(value: string): string {
+    const slug = value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return slug || `map-${Date.now()}`;
+  }
+
+  function cloneMapDefinition(map: MapDefinition): MapDefinition {
+    return structuredClone(map);
+  }
+
+  function setFavoriteMapKeys(nextKeys: string[]) {
+    favoriteMapKeys = nextKeys;
+    persistFavoriteMapKeys();
+  }
+
+  function removeFavoriteKey(favoriteKey: string) {
+    if (!favoriteMapKeys.includes(favoriteKey)) return;
+    setFavoriteMapKeys(favoriteMapKeys.filter((entry) => entry !== favoriteKey));
+  }
+
+  function toggleFavoriteTarget(target: LibraryMapTarget) {
+    if (favoriteMapKeys.includes(target.favoriteKey)) {
+      setFavoriteMapKeys(favoriteMapKeys.filter((entry) => entry !== target.favoriteKey));
+      setStatus(`Removed "${target.label}" from favorites.`);
+      return;
+    }
+
+    setFavoriteMapKeys([target.favoriteKey, ...favoriteMapKeys]);
+    setStatus(`Marked "${target.label}" as a favorite.`);
+  }
+
+  function transferFavoriteKey(previousKey: string, nextKey: string) {
+    if (previousKey === nextKey || !favoriteMapKeys.includes(previousKey)) return;
+    setFavoriteMapKeys([
+      nextKey,
+      ...favoriteMapKeys.filter((entry) => entry !== previousKey && entry !== nextKey),
+    ]);
+  }
+
+  function downloadMapJson(map: MapDefinition, fallbackName: string) {
+    const payload = serializeAuthoredMap(map);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${map.metadata.mapId || slugifyMapId(fallbackName)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function buildSavedCustomMap(
+    sourceMap: MapDefinition,
+    patch: { name: string; description?: string },
+    options?: { preserveCreatedAt?: boolean },
+  ): MapDefinition {
+    const now = new Date().toISOString();
+    const nextName = patch.name.trim();
+    const nextDescription = patch.description?.trim() || undefined;
+    const nextMap = cloneMapDefinition(sourceMap);
+
+    nextMap.metadata = {
+      ...nextMap.metadata,
+      mapId: slugifyMapId(nextName),
+      name: nextName,
+      description: nextDescription,
+      category: "custom",
+      createdAt: options?.preserveCreatedAt
+        ? nextMap.metadata.createdAt ?? now
+        : now,
+      updatedAt: now,
+      importedFrom: {
+        kind: "editor",
+        sourceId: sourceMap.metadata.mapId || sourceMap.metadata.name,
+      },
+    };
+
+    return nextMap;
+  }
+
   function recordRecentMap(entry: RecentMapEntry) {
     recentMaps = [
       entry,
@@ -148,6 +271,7 @@
 
   function closeActiveOverlays() {
     deleteTarget = null;
+    metadataDialog = null;
     mapEditorUiStore.closeSheet();
     mapEditorUiStore.closeToolPanel();
   }
@@ -287,8 +411,12 @@
     mapEditorUiStore.openSheet("duplicate");
   }
 
-  function requestDeleteMap(name: string) {
-    deleteTarget = { name };
+  function requestDeleteMap(target: LibraryMapTarget) {
+    if (!target.canDelete) {
+      setStatus(`Delete is only available for saved custom maps.`);
+      return;
+    }
+    deleteTarget = { name: target.key, favoriteKey: target.favoriteKey };
   }
 
   async function confirmDeleteMap() {
@@ -296,6 +424,9 @@
     const deletedName = deleteTarget.name;
     gameStore.deleteSavedMap(deletedName);
     removeRecentMapEntry("saved", deletedName);
+    if (deleteTarget.favoriteKey) {
+      removeFavoriteKey(deleteTarget.favoriteKey);
+    }
     await mapEditorStore.refreshSources();
     deleteTarget = null;
     setStatus(`Deleted saved map "${deletedName}".`);
@@ -312,6 +443,35 @@
     name: string;
     description?: string;
   }) {
+    if (metadataDialog) {
+      const sourceTarget = metadataDialog.target;
+      const sourceMap = metadataDialog.target.map;
+      if (!sourceMap) {
+        metadataDialog = null;
+        setStatus(`That map is not available for duplication right now.`);
+        return;
+      }
+
+      const duplicated = buildSavedCustomMap(sourceMap, patch);
+      const saved = gameStore.upsertSavedMapDefinition(duplicated);
+      recordRecentMap({
+        key: saved.metadata.name,
+        label: saved.metadata.name,
+        source: "saved",
+        savedAt: saved.metadata.updatedAt,
+      });
+      if (favoriteMapKeys.includes(metadataDialog.target.favoriteKey)) {
+        setFavoriteMapKeys([
+          `saved:${saved.metadata.name}`,
+          ...favoriteMapKeys.filter((entry) => entry !== `saved:${saved.metadata.name}`),
+        ]);
+      }
+      void mapEditorStore.refreshSources();
+      metadataDialog = null;
+      setStatus(`Duplicated "${sourceTarget.label}" as "${saved.metadata.name}".`);
+      return;
+    }
+
     mapEditorStore.duplicateMap(patch);
     mapEditorUiStore.closeSheet();
     setStatus(`Duplicated map as "${patch.name}".`);
@@ -329,6 +489,88 @@
     setStatus(
       `Exported "${mapEditorStore.document.metadata.name}". Unowned stars were emitted as neutral with 0 ships.`,
     );
+  }
+
+  function openRenameDialog(target: LibraryMapTarget) {
+    if (!target.map) {
+      setStatus(`That map is not available for rename right now.`);
+      return;
+    }
+
+    metadataDialog = {
+      mode: "rename",
+      target,
+      title: "Rename Map",
+      confirmLabel: target.source === "saved" && target.category === "custom" ? "Rename" : "Save Custom Copy",
+      initialName: target.label,
+      initialDescription: target.map.metadata.description ?? "",
+    };
+  }
+
+  function openDuplicateTargetDialog(target: LibraryMapTarget) {
+    if (!target.map) {
+      setStatus(`That map is not available for duplication right now.`);
+      return;
+    }
+
+    metadataDialog = {
+      mode: "duplicate",
+      target,
+      title: "Duplicate Map",
+      confirmLabel: "Duplicate",
+      initialName: `${target.label} Copy`,
+      initialDescription: target.map.metadata.description ?? "",
+    };
+  }
+
+  async function confirmRenameMap(patch: { name: string; description?: string }) {
+    const sourceMap = metadataDialog?.target.map;
+    if (!metadataDialog || !sourceMap) {
+      metadataDialog = null;
+      return;
+    }
+
+    const sourceTarget = metadataDialog.target;
+    const renamed = buildSavedCustomMap(sourceMap, patch, {
+      preserveCreatedAt: sourceTarget.source === "saved" && sourceTarget.category === "custom",
+    });
+    const saved = gameStore.upsertSavedMapDefinition(renamed);
+
+    if (sourceTarget.source === "saved" && sourceTarget.category === "custom" && sourceTarget.key !== saved.metadata.name) {
+      gameStore.deleteSavedMap(sourceTarget.key);
+      removeRecentMapEntry("saved", sourceTarget.key);
+      transferFavoriteKey(sourceTarget.favoriteKey, `saved:${saved.metadata.name}`);
+    } else if (favoriteMapKeys.includes(sourceTarget.favoriteKey)) {
+      setFavoriteMapKeys([
+        `saved:${saved.metadata.name}`,
+        ...favoriteMapKeys.filter((entry) => entry !== `saved:${saved.metadata.name}`),
+      ]);
+    }
+
+    recordRecentMap({
+      key: saved.metadata.name,
+      label: saved.metadata.name,
+      source: "saved",
+      savedAt: saved.metadata.updatedAt,
+    });
+
+    await mapEditorStore.refreshSources();
+    metadataDialog = null;
+    setStatus(
+      sourceTarget.source === "saved" && sourceTarget.category === "custom"
+        ? `Renamed "${sourceTarget.label}" to "${saved.metadata.name}".`
+        : `Saved "${saved.metadata.name}" as a custom map.`,
+    );
+  }
+
+  function exportMapTarget(target: LibraryMapTarget) {
+    if (!target.map) {
+      setStatus(`That map is not available for export right now.`);
+      return;
+    }
+
+    downloadMapJson(target.map, target.label);
+    setStatus(`Exported "${target.label}".`);
   }
 
   async function testSinglePlayer() {
@@ -728,7 +970,7 @@
 
     <main class="stage-area">
       <div class="board-stage">
-        {#if mapEditorUiStore.activeSheet !== null || deleteTarget !== null}
+        {#if mapEditorUiStore.activeSheet !== null || deleteTarget !== null || metadataDialog !== null}
           <button
             type="button"
             class="board-dismiss-layer"
@@ -760,13 +1002,18 @@
         {#if mapEditorUiStore.activeSheet === "library"}
           <MapEditorLibrarySheet
             {recentMaps}
+            {favoriteMapKeys}
             onClose={() => mapEditorUiStore.closeSheet()}
             onOpenRecent={openRecentMap}
             onLoadRepositoryMap={loadRepositoryMap}
-            onDeleteRepositoryMap={requestDeleteMap}
             onLoadBuiltinMap={loadBuiltinMap}
             onLoadFixtureMap={loadFixtureMap}
             onLoadAutosave={loadAutosave}
+            onToggleFavorite={toggleFavoriteTarget}
+            onRequestRename={openRenameDialog}
+            onRequestExport={exportMapTarget}
+            onRequestDuplicate={openDuplicateTargetDialog}
+            onRequestDelete={requestDeleteMap}
           />
         {:else if mapEditorUiStore.activeSheet === "validation"}
           <MapEditorValidationPanel
@@ -775,11 +1022,31 @@
           />
         {:else if mapEditorUiStore.activeSheet === "duplicate"}
           <MapEditorDuplicateDialog
+            title="Duplicate Map"
+            confirmLabel="Duplicate"
+            initialName={`${mapEditorStore.document.metadata.name || "Untitled Map"} Copy`}
+            initialDescription={mapEditorStore.document.metadata.description ?? ""}
             currentName={mapEditorStore.document.metadata.name}
             currentDescription={mapEditorStore.document.metadata.description ?? ""}
             currentDate={mapEditorStore.document.metadata.updatedAt ?? new Date().toISOString()}
             onSubmit={confirmDuplicateMap}
             onClose={() => mapEditorUiStore.closeSheet()}
+          />
+        {/if}
+
+        {#if metadataDialog}
+          <MapEditorDuplicateDialog
+            title={metadataDialog.title}
+            confirmLabel={metadataDialog.confirmLabel}
+            initialName={metadataDialog.initialName}
+            initialDescription={metadataDialog.initialDescription}
+            currentName={metadataDialog.target.label}
+            currentDescription={metadataDialog.target.map?.metadata.description ?? ""}
+            currentDate={metadataDialog.target.map?.metadata.updatedAt ?? new Date().toISOString()}
+            onSubmit={metadataDialog.mode === "rename" ? confirmRenameMap : confirmDuplicateMap}
+            onClose={() => {
+              metadataDialog = null;
+            }}
           />
         {/if}
 

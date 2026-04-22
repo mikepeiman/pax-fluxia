@@ -6,6 +6,8 @@ import {
     generateLaneMeasurements,
     getFixtureMapManifest,
     loadFixtureMapDefinition,
+    normalizeAuthoredMapMetadata,
+    resolveAuthoredMapCategory,
     serializeAuthoredMap,
     validateAuthoredMapDefinition,
     type AuthoredMeasurementAnchor,
@@ -477,8 +479,12 @@ function mapHasMinimumStarSpacing(map: MapDefinition): boolean {
 
 function syncRepositoryMaps(): void {
     const maps = gameStore.savedMaps.map((map) => buildDocumentMap(map));
-    const runtimeBuiltins = maps.filter((map) => Boolean((map as { builtIn?: boolean }).builtIn));
-    repositoryMaps = maps.filter((map) => !(map as { builtIn?: boolean }).builtIn);
+    const runtimeBuiltins = maps.filter((map) =>
+        resolveAuthoredMapCategory(map, { isBuiltin: Boolean((map as { builtIn?: boolean }).builtIn) }) === "classic",
+    );
+    repositoryMaps = maps.filter((map) =>
+        resolveAuthoredMapCategory(map, { isBuiltin: Boolean((map as { builtIn?: boolean }).builtIn) }) !== "classic",
+    );
     if (runtimeBuiltins.length > 0) {
         builtinMaps = runtimeBuiltins;
     }
@@ -1547,8 +1553,9 @@ function buildPersistedMap(options?: {
         coerceUnownedStarsForOutput(map);
     }
     map.metadata = {
-        ...map.metadata,
+        ...normalizeAuthoredMapMetadata(map.metadata),
         mapId: map.metadata.mapId || slugify(map.metadata.name),
+        category: "custom",
         editorHexRadius: hexRadius,
         updatedAt: now,
         importedFrom: { kind: "editor" },

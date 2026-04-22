@@ -43,6 +43,7 @@ import {
 import {
     AUTHORED_NEUTRAL_OWNER_ID,
     coerceAuthoredMapDefinition,
+    normalizeAuthoredMapMetadata,
     resolveRuntimeMap,
     validateAuthoredMapDefinition,
     type RuntimeAuthoredMap,
@@ -903,9 +904,24 @@ function persistSavedMaps(): void {
 }
 
 function coerceRepositoryMap(map: MapDefinition): MapDefinition {
-    return coerceAuthoredMapDefinition(map as MapDefinition, {
+    const normalized = coerceAuthoredMapDefinition(map as MapDefinition, {
         kind: 'legacy-json',
     });
+
+    const isBuiltin = Boolean((map as { builtIn?: boolean }).builtIn);
+    const explicitCategory = normalized.metadata.category;
+
+    return {
+        ...normalized,
+        metadata: normalizeAuthoredMapMetadata({
+            ...normalized.metadata,
+            category: isBuiltin
+                ? 'classic'
+                : explicitCategory === 'test'
+                    ? 'test'
+                    : 'custom',
+        }),
+    };
 }
 
 /** Save a single map to filesystem (fire-and-forget) */
@@ -1207,10 +1223,11 @@ function buildExportedMap(includeLiveState: boolean): MapDefinition | null {
         author: currentLoadedMap?.metadata.author,
         description: currentLoadedMap?.metadata.description,
         version: currentLoadedMap?.metadata.version ?? 1,
+        category: 'custom',
         createdAt: currentLoadedMap?.metadata.createdAt ?? now,
         updatedAt: now,
         tags: currentLoadedMap?.metadata.tags ? [...currentLoadedMap.metadata.tags] : undefined,
-        importedFrom: currentLoadedMap?.metadata.importedFrom ?? { kind: 'editor' },
+        importedFrom: { kind: 'editor', sourceId: currentLoadedMap?.metadata.mapId },
         autosaveRevisionId: currentLoadedMap?.metadata.autosaveRevisionId,
         autosaveSequence: currentLoadedMap?.metadata.autosaveSequence,
         thumbnailDataUrl: currentLoadedMap?.metadata.thumbnailDataUrl,
@@ -1272,6 +1289,8 @@ function saveCurrentMap(name: string): void {
         ...map.metadata,
         mapId: map.metadata.mapId || slugifyMapId(name),
         name,
+        category: 'custom',
+        importedFrom: { kind: 'editor', sourceId: currentLoadedMap?.metadata.mapId },
         updatedAt: new Date().toISOString(),
     };
     upsertSavedMapDefinition(map);

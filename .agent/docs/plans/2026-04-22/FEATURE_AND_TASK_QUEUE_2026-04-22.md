@@ -23,6 +23,17 @@ Current `master` day ledger for gameplay performance follow-up and map-editor st
   - `Paint Fleets` and `Paint Ownership` now support explicit apply-to-selection actions
   - `Shift` additive star selection works again
   - bounding-box multi-select exists
+- Reworked map-editor map categorization and load-modal actions:
+  - introduced explicit map `category` metadata with `Classic | Custom | Test`
+  - repository map coercion now keeps runtime built-ins as `Classic`, fixture maps as `Test`, and saved/editor maps as `Custom`
+  - load modal filters now use map category instead of stale built-in/source buckets
+  - added per-map favorites
+  - added right-click context menu actions for map cards:
+    - rename
+    - export
+    - duplicate
+    - delete
+  - rename/duplicate from `Classic` or `Test` now saves a `Custom` copy instead of mutating source maps
 
 ## Next Technical Steps
 

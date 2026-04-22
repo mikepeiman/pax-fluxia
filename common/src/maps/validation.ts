@@ -6,6 +6,7 @@ import {
     type AuthoredMeasurementSnapKind,
     type MapValidationIssue,
 } from './types';
+import { isAuthoredMapCategory } from './metadata';
 
 function issue(
     severity: 'error' | 'warning',
@@ -85,6 +86,18 @@ export function validateAuthoredMapDefinition(map: AuthoredMapDefinition): MapVa
 
     if (map.metadata?.version !== AUTHORED_MAP_SCHEMA_VERSION) {
         issues.push(issue('warning', 'metadata_version_mismatch', `Map schema version ${map.metadata?.version ?? 'unknown'} does not match expected ${AUTHORED_MAP_SCHEMA_VERSION}`, 'metadata.version'));
+    }
+
+    if (
+        map.metadata?.category !== undefined
+        && !isAuthoredMapCategory(map.metadata.category)
+    ) {
+        issues.push(issue(
+            'error',
+            'metadata_category_invalid',
+            'Map metadata.category must be one of classic, custom, or test when present',
+            'metadata.category',
+        ));
     }
 
     if (

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { loadFixtureMapDefinition } from "@pax/common/maps";
+  import { loadFixtureMapDefinition, resolveAuthoredMapCategory, type AuthoredMapCategory } from "@pax/common/maps";
   import type { MapDefinition } from "$lib/types/map.types";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
@@ -14,45 +14,65 @@
   };
 
   type MapFilter = "all" | "classic" | "custom" | "test";
+  type LibraryCardSource = "saved" | "builtin" | "fixture" | "autosave";
 
-  type LibraryCard = {
+  type LibraryActionTarget = {
+    source: LibraryCardSource;
     key: string;
+    label: string;
+    category: AuthoredMapCategory;
+    favoriteKey: string;
+    canDelete: boolean;
+    map: MapDefinition | null;
+  };
+
+  type LibraryCard = LibraryActionTarget & {
     title: string;
     subtitle: string;
-    filter: Exclude<MapFilter, "all">;
     thumbUrl: string;
-    canDelete?: boolean;
-    deleteName?: string;
+    savedAt?: string;
     open: () => void;
   };
 
   interface Props {
     recentMaps: RecentMapEntry[];
+    favoriteMapKeys: string[];
     onClose: () => void;
     onOpenRecent: (entry: RecentMapEntry) => void;
     onLoadRepositoryMap: (name: string) => void;
-    onDeleteRepositoryMap: (name: string) => void;
     onLoadBuiltinMap: (name: string) => void;
     onLoadFixtureMap: (id: string) => void;
     onLoadAutosave: (id: string) => void;
+    onToggleFavorite: (target: LibraryActionTarget) => void;
+    onRequestRename: (target: LibraryActionTarget) => void;
+    onRequestExport: (target: LibraryActionTarget) => void;
+    onRequestDuplicate: (target: LibraryActionTarget) => void;
+    onRequestDelete: (target: LibraryActionTarget) => void;
   }
 
   let {
     recentMaps,
+    favoriteMapKeys,
     onClose,
     onOpenRecent,
     onLoadRepositoryMap,
-    onDeleteRepositoryMap,
     onLoadBuiltinMap,
     onLoadFixtureMap,
     onLoadAutosave,
+    onToggleFavorite,
+    onRequestRename,
+    onRequestExport,
+    onRequestDuplicate,
+    onRequestDelete,
   }: Props = $props();
 
   let searchQuery = $state("");
   let mapFilter = $state<MapFilter>("all");
   let fixturePreviewMaps = $state<Record<string, MapDefinition>>({});
+  let contextMenu = $state<{ x: number; y: number; card: LibraryCard } | null>(null);
 
   const density = $derived(mapEditorUiStore.density);
+  const favoriteKeySet = $derived(new Set(favoriteMapKeys));
 
   function includesQuery(...parts: Array<string | number | undefined>) {
     if (!searchQuery.trim()) return true;
@@ -79,23 +99,23 @@
     );
   }
 
-  function formatRecentSource(source: RecentMapEntry["source"]): string {
-    switch (source) {
-      case "builtin":
-        return "Classic";
-      case "saved":
-        return "Custom";
-      case "fixture":
-        return "Test";
-      case "autosave":
-        return "Autosave";
-      default:
-        return source;
-    }
+  function favoriteKeyFor(source: LibraryCardSource, key: string): string {
+    return `${source}:${key}`;
   }
 
-  function formatMapFilterLabel(filter: Exclude<MapFilter, "all">): string {
-    switch (filter) {
+  function isFavorite(source: LibraryCardSource, key: string): boolean {
+    return favoriteKeySet.has(favoriteKeyFor(source, key));
+  }
+
+  function categoryForMap(
+    map: MapDefinition,
+    source: LibraryCardSource,
+  ): AuthoredMapCategory {
+    return resolveAuthoredMapCategory(map, { isBuiltin: source === "builtin" });
+  }
+
+  function categoryLabel(category: AuthoredMapCategory): string {
+    switch (category) {
       case "classic":
         return "Classic";
       case "custom":
@@ -105,89 +125,207 @@
     }
   }
 
-  function deleteMap(event: MouseEvent, name: string) {
-    event.stopPropagation();
+  function sourceLabel(source: LibraryCardSource, category: AuthoredMapCategory): string {
+    if (source === "autosave") return "Autosave";
+    return categoryLabel(category);
+  }
+
+  function buildCard(
+    source: LibraryCardSource,
+    key: string,
+    title: string,
+    subtitle: string,
+    map: MapDefinition | null,
+    open: () => void,
+    options?: { canDelete?: boolean; savedAt?: string },
+  ): LibraryCard {
+    const category = map
+      ? categoryForMap(map, source)
+      : source === "builtin"
+        ? "classic"
+        : source === "fixture"
+          ? "test"
+          : "custom";
+
+    return {
+      source,
+      key,
+      title,
+      label: title,
+      subtitle,
+      category,
+      favoriteKey: favoriteKeyFor(source, key),
+      canDelete: options?.canDelete ?? false,
+      thumbUrl: map ? buildThumbUrl(map) : "",
+      savedAt: options?.savedAt,
+      map,
+      open,
+    };
+  }
+
+  function cardMatches(card: LibraryCard): boolean {
+    if (mapFilter !== "all" && card.category !== mapFilter) return false;
+    return includesQuery(card.title, card.subtitle, card.category, card.source);
+  }
+
+  function sortCards(cards: LibraryCard[]): LibraryCard[] {
+    return [...cards].sort((left, right) => {
+      const leftFavorite = favoriteKeySet.has(left.favoriteKey);
+      const rightFavorite = favoriteKeySet.has(right.favoriteKey);
+      if (leftFavorite !== rightFavorite) {
+        return leftFavorite ? -1 : 1;
+      }
+      return left.title.localeCompare(right.title);
+    });
+  }
+
+  function clampContextCoordinate(value: number, max: number): number {
+    return Math.max(12, Math.min(value, max));
+  }
+
+  function closeContextMenu() {
+    contextMenu = null;
+  }
+
+  function openContextMenu(event: MouseEvent, card: LibraryCard) {
     event.preventDefault();
-    onDeleteRepositoryMap(name);
+    event.stopPropagation();
+
+    const menuWidth = 220;
+    const menuHeight = 260;
+    contextMenu = {
+      x: clampContextCoordinate(event.clientX + 6, window.innerWidth - menuWidth - 12),
+      y: clampContextCoordinate(event.clientY + 6, window.innerHeight - menuHeight - 12),
+      card,
+    };
+  }
+
+  function toggleFavorite(event: MouseEvent, card: LibraryCard) {
+    event.preventDefault();
+    event.stopPropagation();
+    onToggleFavorite(card);
+    closeContextMenu();
+  }
+
+  function requestRename() {
+    if (!contextMenu) return;
+    onRequestRename(contextMenu.card);
+    closeContextMenu();
+  }
+
+  function requestExport() {
+    if (!contextMenu) return;
+    onRequestExport(contextMenu.card);
+    closeContextMenu();
+  }
+
+  function requestDuplicate() {
+    if (!contextMenu) return;
+    onRequestDuplicate(contextMenu.card);
+    closeContextMenu();
+  }
+
+  function requestDelete() {
+    if (!contextMenu) return;
+    onRequestDelete(contextMenu.card);
+    closeContextMenu();
   }
 
   const mapCards = $derived.by(() => {
     const cards: LibraryCard[] = [];
 
     for (const map of mapEditorStore.builtinMaps) {
-      cards.push({
-        key: `classic:${map.metadata.name}`,
-        title: map.metadata.name,
-        subtitle: `${map.stars.length} stars - ${map.connections.length} lanes`,
-        filter: "classic",
-        thumbUrl: buildThumbUrl(map),
-        open: () => onLoadBuiltinMap(map.metadata.name),
-      });
+      cards.push(
+        buildCard(
+          "builtin",
+          map.metadata.name,
+          map.metadata.name,
+          `${map.stars.length} stars · ${map.connections.length} lanes`,
+          map,
+          () => onLoadBuiltinMap(map.metadata.name),
+        ),
+      );
     }
 
     for (const map of mapEditorStore.repositoryMaps) {
-      cards.push({
-        key: `custom:${map.metadata.name}`,
-        title: map.metadata.name,
-        subtitle: `${map.stars.length} stars - ${map.connections.length} lanes`,
-        filter: "custom",
-        thumbUrl: buildThumbUrl(map),
-        canDelete: true,
-        deleteName: map.metadata.name,
-        open: () => onLoadRepositoryMap(map.metadata.name),
-      });
+      cards.push(
+        buildCard(
+          "saved",
+          map.metadata.name,
+          map.metadata.name,
+          `${map.stars.length} stars · ${map.connections.length} lanes`,
+          map,
+          () => onLoadRepositoryMap(map.metadata.name),
+          { canDelete: categoryForMap(map, "saved") === "custom" },
+        ),
+      );
     }
 
     for (const fixture of mapEditorStore.fixtureManifest) {
-      const previewMap = fixturePreviewMaps[fixture.id];
-      cards.push({
-        key: `test:${fixture.id}`,
-        title: fixture.name,
-        subtitle: previewMap
-          ? `${previewMap.stars.length} stars - ${previewMap.connections.length} lanes`
-          : fixture.purpose,
-        filter: "test",
-        thumbUrl: previewMap ? buildThumbUrl(previewMap) : "",
-        open: () => onLoadFixtureMap(fixture.id),
-      });
+      const previewMap = fixturePreviewMaps[fixture.id] ?? null;
+      cards.push(
+        buildCard(
+          "fixture",
+          fixture.id,
+          fixture.name,
+          previewMap
+            ? `${previewMap.stars.length} stars · ${previewMap.connections.length} lanes`
+            : fixture.purpose,
+          previewMap,
+          () => onLoadFixtureMap(fixture.id),
+        ),
+      );
     }
 
-    return cards.filter((card) => {
-      if (mapFilter !== "all" && card.filter !== mapFilter) return false;
-      return includesQuery(card.title, card.subtitle, card.filter);
-    });
+    return sortCards(cards.filter(cardMatches));
   });
 
-  const recentCards = $derived.by(() =>
-    recentMaps
-      .filter((entry) => includesQuery(entry.label, formatRecentSource(entry.source), entry.savedAt))
+  const recentCards = $derived.by(() => {
+    const cards = recentMaps
       .map((entry) => {
         const builtinMap =
           entry.source === "builtin"
-            ? mapEditorStore.builtinMaps.find((map) => map.metadata.name === entry.key)
+            ? mapEditorStore.builtinMaps.find((map) => map.metadata.name === entry.key) ?? null
             : null;
         const repositoryMap =
           entry.source === "saved"
-            ? mapEditorStore.repositoryMaps.find((map) => map.metadata.name === entry.key)
+            ? mapEditorStore.repositoryMaps.find((map) => map.metadata.name === entry.key) ?? null
             : null;
         const autosaveMap =
           entry.source === "autosave"
-            ? mapEditorStore.autosaveRevisions.find((revision) => revision.id === entry.key)?.map
+            ? mapEditorStore.autosaveRevisions.find((revision) => revision.id === entry.key)?.map ?? null
             : null;
-        const fixtureMap = entry.source === "fixture" ? fixturePreviewMaps[entry.key] : null;
-        const map = builtinMap ?? repositoryMap ?? autosaveMap ?? fixtureMap ?? null;
+        const fixtureMap = entry.source === "fixture" ? fixturePreviewMaps[entry.key] ?? null : null;
+        const map = builtinMap ?? repositoryMap ?? autosaveMap ?? fixtureMap;
+        const category = map
+          ? categoryForMap(map, entry.source)
+          : entry.source === "builtin"
+            ? "classic"
+            : entry.source === "fixture"
+              ? "test"
+              : "custom";
 
-        return {
-          entry,
-          canDelete: entry.source === "saved",
-          deleteName: entry.source === "saved" ? entry.key : null,
-          thumbUrl: map ? buildThumbUrl(map) : "",
-          subtitle: entry.savedAt
-            ? `${formatRecentSource(entry.source)} - ${new Date(entry.savedAt).toLocaleString()}`
-            : formatRecentSource(entry.source),
-        };
-      }),
-  );
+        return buildCard(
+          entry.source,
+          entry.key,
+          entry.label,
+          entry.savedAt
+            ? `${sourceLabel(entry.source, category)} · ${new Date(entry.savedAt).toLocaleString()}`
+            : sourceLabel(entry.source, category),
+          map,
+          () => onOpenRecent(entry),
+          {
+            canDelete: entry.source === "saved" && category === "custom",
+            savedAt: entry.savedAt,
+          },
+        );
+      })
+      .filter((card) =>
+        includesQuery(card.title, card.subtitle, card.category, card.source),
+      );
+
+    return cards;
+  });
 
   onMount(() => {
     let cancelled = false;
@@ -217,10 +355,26 @@
       );
     }
 
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".context-menu")) return;
+      closeContextMenu();
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeContextMenu();
+      }
+    }
+
     void hydrateFixturePreviews();
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeydown);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeydown);
     };
   });
 </script>
@@ -260,30 +414,29 @@
       {#if recentCards.length === 0}
         <div class="empty-state empty-state--recent">No recent maps match.</div>
       {:else}
-        {#each recentCards as recent}
-          <article class="map-card map-card--recent">
-            {#if recent.canDelete && recent.deleteName}
-              <button
-                type="button"
-                class="map-card__delete"
-                aria-label={`Delete ${recent.entry.label}`}
-                title="Delete map"
-                onclick={(event) => deleteMap(event, recent.deleteName!)}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h4v2H4V6h4l1-2Zm1 6h2v7h-2v-7Zm4 0h2v7h-2v-7ZM7 10h2v7H7v-7Z" fill="currentColor" /></svg>
-              </button>
-            {/if}
-            <button type="button" class="map-card__open" onclick={() => onOpenRecent(recent.entry)}>
+        {#each recentCards as card}
+          <article class="map-card map-card--recent" oncontextmenu={(event) => openContextMenu(event, card)}>
+            <button
+              type="button"
+              class="map-card__favorite"
+              class:is-active={isFavorite(card.source, card.key)}
+              aria-label={isFavorite(card.source, card.key) ? `Unfavorite ${card.title}` : `Favorite ${card.title}`}
+              title={isFavorite(card.source, card.key) ? "Unfavorite" : "Favorite"}
+              onclick={(event) => toggleFavorite(event, card)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 17.3-5.56 3.28 1.48-6.3L3 10.1l6.46-.55L12 3.6l2.54 5.95 6.46.55-4.92 4.18 1.48 6.3z" fill="currentColor" /></svg>
+            </button>
+            <button type="button" class="map-card__open" onclick={card.open}>
               <div class="map-card__thumb-shell">
-                {#if recent.thumbUrl}
-                  <img src={recent.thumbUrl} alt={recent.entry.label} class="map-card__thumb" />
+                {#if card.thumbUrl}
+                  <img src={card.thumbUrl} alt={card.title} class="map-card__thumb" />
                 {:else}
                   <div class="map-card__thumb-empty">No preview</div>
                 {/if}
               </div>
               <div class="map-card__meta">
-                <strong>{recent.entry.label}</strong>
-                <span>{recent.subtitle}</span>
+                <strong>{card.title}</strong>
+                <span>{card.subtitle}</span>
               </div>
             </button>
           </article>
@@ -303,18 +456,17 @@
         <div class="empty-state">No maps match the current filter.</div>
       {:else}
         {#each mapCards as card}
-          <article class="map-card">
-            {#if card.canDelete && card.deleteName}
-              <button
-                type="button"
-                class="map-card__delete"
-                aria-label={`Delete ${card.title}`}
-                title="Delete map"
-                onclick={(event) => deleteMap(event, card.deleteName!)}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h4v2H4V6h4l1-2Zm1 6h2v7h-2v-7Zm4 0h2v7h-2v-7ZM7 10h2v7H7v-7Z" fill="currentColor" /></svg>
-              </button>
-            {/if}
+          <article class="map-card" oncontextmenu={(event) => openContextMenu(event, card)}>
+            <button
+              type="button"
+              class="map-card__favorite"
+              class:is-active={isFavorite(card.source, card.key)}
+              aria-label={isFavorite(card.source, card.key) ? `Unfavorite ${card.title}` : `Favorite ${card.title}`}
+              title={isFavorite(card.source, card.key) ? "Unfavorite" : "Favorite"}
+              onclick={(event) => toggleFavorite(event, card)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 17.3-5.56 3.28 1.48-6.3L3 10.1l6.46-.55L12 3.6l2.54 5.95 6.46.55-4.92 4.18 1.48 6.3z" fill="currentColor" /></svg>
+            </button>
             <button type="button" class="map-card__open" onclick={card.open}>
               <div class="map-card__thumb-shell">
                 {#if card.thumbUrl}
@@ -325,7 +477,7 @@
               </div>
               <div class="map-card__meta">
                 <strong>{card.title}</strong>
-                <span>{formatMapFilterLabel(card.filter)} - {card.subtitle}</span>
+                <span>{categoryLabel(card.category)} · {card.subtitle}</span>
               </div>
             </button>
           </article>
@@ -352,13 +504,33 @@
   {/if}
 </div>
 
+{#if contextMenu}
+  <div class="context-menu" style={`left:${contextMenu!.x}px;top:${contextMenu!.y}px;`}>
+    <button type="button" onclick={() => { onToggleFavorite(contextMenu!.card); closeContextMenu(); }}>
+      {isFavorite(contextMenu!.card.source, contextMenu!.card.key) ? "Unfavorite" : "Favorite"}
+    </button>
+    <button type="button" onclick={requestRename} disabled={!contextMenu.card.map}>
+      Rename
+    </button>
+    <button type="button" onclick={requestExport} disabled={!contextMenu.card.map}>
+      Export
+    </button>
+    <button type="button" onclick={requestDuplicate} disabled={!contextMenu.card.map}>
+      Duplicate
+    </button>
+    <button type="button" class="danger" onclick={requestDelete} disabled={!contextMenu.card.canDelete}>
+      Delete
+    </button>
+  </div>
+{/if}
+
 <style>
   .modal {
     position: absolute;
     top: 50%;
     left: 50%;
     z-index: 13;
-    width: min(1520px, calc(100% - 36px));
+    width: min(1580px, calc(100% - 36px));
     max-height: calc(100% - 36px);
     padding: 18px;
     border-radius: 24px;
@@ -424,7 +596,8 @@
   .filter-row button,
   .autosave-item,
   .map-card__open,
-  .map-card__delete {
+  .map-card__favorite,
+  .context-menu button {
     min-height: 40px;
     padding: 0 12px;
     border-radius: 12px;
@@ -438,7 +611,8 @@
   .filter-row button,
   .autosave-item,
   .map-card__open,
-  .map-card__delete {
+  .map-card__favorite,
+  .context-menu button {
     cursor: pointer;
     transition:
       border-color 140ms ease,
@@ -457,7 +631,7 @@
   }
 
   .icon-btn svg,
-  .map-card__delete svg {
+  .map-card__favorite svg {
     width: 18px;
     height: 18px;
   }
@@ -467,7 +641,8 @@
   .icon-btn:hover,
   .autosave-item:hover,
   .map-card__open:hover,
-  .map-card__delete:hover {
+  .map-card__favorite:hover,
+  .context-menu button:hover {
     border-color: rgba(125, 211, 252, 0.58);
     background: rgba(17, 39, 63, 0.88);
     color: #f8fafc;
@@ -526,10 +701,10 @@
     box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
   }
 
-  .map-card__delete {
+  .map-card__favorite {
     position: absolute;
     top: 10px;
-    right: 10px;
+    left: 10px;
     z-index: 2;
     display: inline-grid;
     place-items: center;
@@ -537,13 +712,13 @@
     min-width: 36px;
     min-height: 36px;
     padding: 0;
-    border-color: rgba(248, 113, 113, 0.28);
-    background: rgba(28, 10, 10, 0.9);
+    color: rgba(226, 232, 240, 0.72);
   }
 
-  .map-card__delete:hover {
-    border-color: rgba(248, 113, 113, 0.62);
-    background: rgba(127, 29, 29, 0.82);
+  .map-card__favorite.is-active {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.44);
+    background: rgba(61, 43, 8, 0.92);
   }
 
   .map-card__thumb-shell {
@@ -610,6 +785,39 @@
     justify-content: space-between;
     gap: 12px;
     text-align: left;
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 30;
+    min-width: 220px;
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(3, 10, 24, 0.98);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(18px);
+  }
+
+  .context-menu button {
+    width: 100%;
+    text-align: left;
+  }
+
+  .context-menu button.danger {
+    border-color: rgba(248, 113, 113, 0.24);
+  }
+
+  .context-menu button.danger:hover {
+    border-color: rgba(248, 113, 113, 0.58);
+    background: rgba(127, 29, 29, 0.82);
+  }
+
+  .context-menu button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   @media (max-width: 1180px) {

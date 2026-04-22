@@ -1,5 +1,9 @@
 <script lang="ts">
   interface Props {
+    title?: string;
+    confirmLabel?: string;
+    initialName?: string;
+    initialDescription?: string;
     currentName: string;
     currentDescription: string;
     currentDate: string;
@@ -8,6 +12,10 @@
   }
 
   let {
+    title = "Duplicate Map",
+    confirmLabel = "Duplicate",
+    initialName,
+    initialDescription,
     currentName,
     currentDescription,
     currentDate,
@@ -21,8 +29,8 @@
 
   $effect(() => {
     if (didInit) return;
-    name = `${currentName || "Untitled Map"} Copy`;
-    description = currentDescription;
+    name = initialName ?? `${currentName || "Untitled Map"} Copy`;
+    description = initialDescription ?? currentDescription;
     didInit = true;
   });
 
@@ -45,9 +53,9 @@
   }
 </script>
 
-<div class="dialog" role="dialog" aria-modal="true" aria-label="Duplicate map" tabindex="-1" onkeydown={handleKeydown}>
+<div class="dialog" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onkeydown={handleKeydown}>
   <header class="dialog__header">
-    <strong>Duplicate Map</strong>
+    <strong>{title}</strong>
     <button type="button" class="dialog__close" aria-label="Close duplicate dialog" onclick={onClose}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5Z" fill="currentColor" /></svg>
     </button>
@@ -73,7 +81,7 @@
   <footer class="dialog__footer">
     <button type="button" class="dialog__action" onclick={onClose}>Cancel</button>
     <button type="button" class="dialog__action dialog__action--primary" onclick={submit} disabled={!name.trim()}>
-      Duplicate
+      {confirmLabel}
     </button>
   </footer>
 </div>

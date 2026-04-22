@@ -9,6 +9,7 @@ export const AUTHORED_MAP_SCHEMA_VERSION = 1;
 export const AUTHORED_NEUTRAL_OWNER_ID = 'neutral';
 
 export type AuthoredOwnerId = string;
+export type AuthoredMapCategory = 'classic' | 'custom' | 'test';
 export type AuthoredMeasurementMode = 'manual' | 'generated';
 export type AuthoredMeasurementPreset = 'lane_length';
 export type AuthoredMeasurementSnapKind = 'star' | 'lane' | 'free';
@@ -20,6 +21,7 @@ export interface AuthoredMapMetadata {
     author?: string;
     description?: string;
     version: number;
+    category?: AuthoredMapCategory;
     editorHexRadius?: number;
     createdAt?: string;
     updatedAt?: string;

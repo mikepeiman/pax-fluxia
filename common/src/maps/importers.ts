@@ -7,6 +7,7 @@ import {
     type AuthoredLane,
     type LegacyMapDefinition,
 } from './types';
+import { normalizeAuthoredMapDefinition } from './metadata';
 
 function slugify(value: string): string {
     const slug = value
@@ -52,6 +53,7 @@ export function importLegacyMapDefinition(
             author: legacyMap.metadata.author,
             description: legacyMap.metadata.description,
             version: AUTHORED_MAP_SCHEMA_VERSION,
+            category: undefined,
             editorHexRadius: legacyMap.metadata.editorHexRadius,
             createdAt,
             updatedAt: createdAt,
@@ -96,9 +98,11 @@ export function coerceAuthoredMapDefinition(
         kind: 'legacy-json',
     },
 ): AuthoredMapDefinition {
-    return isAuthoredMapDefinition(value)
-        ? value
-        : importLegacyMapDefinition(value, source);
+    return normalizeAuthoredMapDefinition(
+        isAuthoredMapDefinition(value)
+            ? value
+            : importLegacyMapDefinition(value, source),
+    );
 }
 
 export function createEmptyAuthoredMap(name = 'Untitled Map'): AuthoredMapDefinition {
@@ -109,6 +113,7 @@ export function createEmptyAuthoredMap(name = 'Untitled Map'): AuthoredMapDefini
             mapId,
             name,
             version: AUTHORED_MAP_SCHEMA_VERSION,
+            category: 'custom',
             editorHexRadius: undefined,
             createdAt: now,
             updatedAt: now,
