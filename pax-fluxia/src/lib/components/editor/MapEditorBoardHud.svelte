@@ -13,16 +13,12 @@
 
   interface Props {
     statusMessage: string;
-    onReturnToMenu: () => void;
     onFitViewport: () => void;
-    onToggleValidation: () => void;
   }
 
   let {
     statusMessage,
-    onReturnToMenu,
     onFitViewport,
-    onToggleValidation,
   }: Props = $props();
 
   const density = $derived(mapEditorUiStore.density);
@@ -110,10 +106,6 @@
 
 <div class="board-hud" data-density={density}>
   <div class="board-hud__cluster">
-    <button type="button" class="hud-pill hud-pill--nav" onclick={onReturnToMenu}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 5.2 4 12l6.8 6.8 1.4-1.4L7.8 13H20v-2H7.8l4.4-4.4-1.4-1.4Z" fill="currentColor" /></svg>
-      <span>Main Menu</span>
-    </button>
     <button type="button" class="hud-pill hud-pill--strong" onclick={onFitViewport}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3v2H7v4H5V3h6Zm8 0v6h-2V5h-4V3h6Zm-8 18v-2H7v-4H5v6h6Zm8-6v4h-4v2h6v-6h-2ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" fill="currentColor" /></svg>
       {#if density !== "compact"}<span>Center</span>{/if}
@@ -176,15 +168,6 @@
         </div>
       {/if}
     </div>
-    <button
-      type="button"
-      class="hud-pill"
-      class:is-alert={mapEditorStore.validationErrors.length > 0}
-      onclick={onToggleValidation}
-    >
-      <strong>{mapEditorStore.validationErrors.length}E</strong>
-      <span>{mapEditorStore.validationWarnings.length}W</span>
-    </button>
   </div>
 
   <div class="board-hud__cluster board-hud__cluster--right">
@@ -210,7 +193,7 @@
     justify-content: space-between;
     gap: 12px;
     pointer-events: none;
-    z-index: 10;
+    z-index: 8;
   }
 
   .board-hud__cluster {
@@ -276,7 +259,6 @@
     height: 18px;
   }
 
-  .hud-pill strong,
   .hud-readout strong,
   .status-chip {
     font-family: "Rajdhani", sans-serif;
@@ -292,16 +274,6 @@
 
   .hud-pill--strong {
     background: linear-gradient(135deg, rgba(18, 48, 78, 0.96), rgba(11, 29, 50, 0.95));
-  }
-
-  .hud-pill--nav {
-    background: linear-gradient(135deg, rgba(58, 36, 16, 0.94), rgba(33, 19, 8, 0.94));
-    border-color: rgba(251, 191, 36, 0.3);
-  }
-
-  .hud-pill.is-alert {
-    border-color: rgba(248, 113, 113, 0.38);
-    color: rgba(254, 226, 226, 0.96);
   }
 
   .density-picker {
@@ -413,6 +385,7 @@
     background: rgba(17, 39, 63, 0.88);
     color: #f8fafc;
   }
+
 
   .status-chip {
     max-width: min(420px, 34vw);

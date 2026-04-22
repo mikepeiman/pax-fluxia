@@ -1076,8 +1076,10 @@
 
 <style>
   .canvas-shell {
-    position: relative;
-    min-height: 620px;
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    height: 100%;
     border-radius: 28px;
     overflow: hidden;
     user-select: none;
@@ -1091,7 +1093,7 @@
   .editor-canvas {
     width: 100%;
     height: 100%;
-    min-height: 620px;
+    min-height: 0;
     display: block;
     user-select: none;
     -webkit-user-select: none;

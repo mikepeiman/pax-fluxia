@@ -18,7 +18,7 @@
   };
 
   type SymmetryFold = 2 | 3 | 4 | 5 | 6;
-  type RailToolPanel = Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection" | "factions">;
+  type RailToolPanel = Exclude<MapEditorPanelId, "library" | "validation" | "duplicate" | "selection" | "factions">;
 
   interface Props {
     ownerChoices: OwnerChoice[];

@@ -11,7 +11,7 @@ export type MapEditorPanelId =
     | "factions"
     | "library"
     | "validation"
-    | "overflow"
+    | "duplicate"
     | "selection";
 
 export interface MapEditorUiPrefs {
@@ -84,7 +84,7 @@ function toggleRailExpanded(): void {
     setRailExpanded(!prefsState.railExpanded);
 }
 
-function toggleToolPanel(panel: Exclude<MapEditorPanelId, "library" | "validation" | "overflow" | "selection">): void {
+function toggleToolPanel(panel: Exclude<MapEditorPanelId, "library" | "validation" | "duplicate" | "selection">): void {
     activeToolPanel = activeToolPanel === panel ? null : panel;
 }
 
@@ -92,8 +92,8 @@ function closeToolPanel(): void {
     activeToolPanel = null;
 }
 
-function openSheet(panel: Extract<MapEditorPanelId, "library" | "validation" | "overflow">): void {
-    activeSheet = activeSheet === panel ? null : panel;
+function openSheet(panel: Extract<MapEditorPanelId, "library" | "validation" | "duplicate">): void {
+    activeSheet = panel;
 }
 
 function closeSheet(): void {

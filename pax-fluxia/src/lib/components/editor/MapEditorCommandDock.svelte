@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
 
   interface Props {
+    onNewMap: () => void;
+    onOpenDuplicate: () => void;
     onSave: () => void;
     onSaveAndExit: () => void;
     onOpenLoad: () => void;
@@ -13,6 +14,8 @@
   }
 
   let {
+    onNewMap,
+    onOpenDuplicate,
     onSave,
     onSaveAndExit,
     onOpenLoad,
@@ -24,10 +27,6 @@
   const density = $derived(mapEditorUiStore.density);
   let showLaunchFlyout = $state(false);
   let launchFlyoutEl: HTMLDivElement | null = null;
-
-  function toggleSheet(panel: "library" | "overflow") {
-    mapEditorUiStore.openSheet(panel);
-  }
 
   function closeFlyouts() {
     showLaunchFlyout = false;
@@ -62,19 +61,12 @@
 </script>
 
 <div class="command-dock" data-density={density}>
-  <div class="command-dock__summary">
-    <span class="eyebrow">Map</span>
-    <strong>{mapEditorStore.document.metadata.name}</strong>
-  </div>
-
   <div class="command-dock__actions">
-    <button type="button" class="command-btn command-btn--primary" onclick={onSave}>Save</button>
-    <button type="button" class="command-btn command-btn--primary-soft" onclick={onSaveAndExit}>
-      Save &amp; Exit
-    </button>
+    <button type="button" class="command-btn" onclick={onNewMap}>New</button>
+    <button type="button" class="command-btn" onclick={onOpenDuplicate}>Duplicate Map</button>
     <button
       type="button"
-      class="command-btn command-btn--secondary"
+      class="command-btn"
       class:is-active={mapEditorUiStore.activeSheet === "library"}
       onclick={() => {
         onOpenLoad();
@@ -83,9 +75,13 @@
     >
       Load
     </button>
-    <button type="button" class="command-btn command-btn--secondary" onclick={onExport}>Export</button>
+    <button type="button" class="command-btn" onclick={onSave}>Save</button>
+    <button type="button" class="command-btn" onclick={onSaveAndExit}>
+      Save &amp; Exit
+    </button>
+    <button type="button" class="command-btn" onclick={onExport}>Export</button>
     <div class="dock-menu" bind:this={launchFlyoutEl}>
-      <button type="button" class="command-btn command-btn--secondary" class:is-active={showLaunchFlyout} onclick={toggleLaunchFlyout}>
+      <button type="button" class="command-btn" class:is-active={showLaunchFlyout} onclick={toggleLaunchFlyout}>
         Launch
       </button>
       {#if showLaunchFlyout}
@@ -95,14 +91,6 @@
         </div>
       {/if}
     </div>
-  </div>
-
-  <div class="command-dock__actions command-dock__actions--secondary">
-    <button type="button" onclick={() => mapEditorStore.undo()} disabled={!mapEditorStore.canUndo}>Undo</button>
-    <button type="button" onclick={() => mapEditorStore.redo()} disabled={!mapEditorStore.canRedo}>Redo</button>
-    <button type="button" class:is-active={mapEditorUiStore.activeSheet === "overflow"} onclick={() => toggleSheet("overflow")} aria-label="More actions">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" fill="currentColor" /></svg>
-    </button>
   </div>
 </div>
 
@@ -121,30 +109,7 @@
     background: rgba(4, 11, 26, 0.86);
     backdrop-filter: blur(18px);
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
-    z-index: 11;
-  }
-
-  .command-dock__summary {
-    display: grid;
-    gap: 2px;
-    padding: 0 8px 0 2px;
-    min-width: 0;
-  }
-
-  .eyebrow {
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.88);
-  }
-
-  .command-dock__summary strong {
-    font-family: "Rajdhani", sans-serif;
-    font-size: 1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #f8fafc;
-    white-space: nowrap;
+    z-index: 8;
   }
 
   .command-dock__actions {
@@ -191,21 +156,6 @@
 
   .command-btn {
     font-weight: 600;
-  }
-
-  .command-btn--primary {
-    background: linear-gradient(135deg, rgba(18, 48, 78, 0.96), rgba(11, 29, 50, 0.95));
-    border-color: rgba(125, 211, 252, 0.42);
-    color: #f8fafc;
-  }
-
-  .command-btn--primary-soft {
-    background: rgba(15, 28, 49, 0.96);
-    border-color: rgba(125, 211, 252, 0.28);
-    color: rgba(226, 232, 240, 0.96);
-  }
-
-  .command-btn--secondary {
     background: rgba(9, 16, 31, 0.9);
     border-color: rgba(148, 163, 184, 0.18);
     color: rgba(226, 232, 240, 0.92);
@@ -222,20 +172,6 @@
   button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
-  }
-
-  .command-dock__actions--secondary button {
-    min-width: 36px;
-    padding: 0 10px;
-  }
-
-  .command-dock__actions--secondary svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  [data-density="compact"] .command-dock__summary {
-    display: none;
   }
 
   @media (max-width: 980px) {

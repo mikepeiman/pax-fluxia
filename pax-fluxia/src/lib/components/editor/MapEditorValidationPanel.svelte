@@ -24,15 +24,14 @@
 
 <section class="sheet" data-density={density} class:is-expanded={expanded || density === "expanded"}>
   <header class="sheet__header">
-    <div>
-      <strong>Validation</strong>
-      <span>Compact summary stays in the HUD. Open this sheet to inspect and jump to issues.</span>
-    </div>
+    <strong>Validation</strong>
     <div class="sheet__actions">
       <button type="button" class="ghost" onclick={() => mapEditorUiStore.togglePanelExpanded("validation")}>
         {expanded ? "Less" : "More"}
       </button>
-      <button type="button" class="ghost" onclick={onClose}>Close</button>
+      <button type="button" class="icon-btn" onclick={onClose} aria-label="Close validation panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5Z" fill="currentColor" /></svg>
+      </button>
     </div>
   </header>
 
@@ -94,7 +93,6 @@
     gap: 10px;
   }
 
-  .sheet__header div:first-child,
   .issue-list {
     display: grid;
     gap: 10px;
@@ -109,7 +107,6 @@
     color: #f8fafc;
   }
 
-  .sheet__header span,
   .summary-strip span,
   .issue span {
     font-size: 0.76rem;
@@ -119,6 +116,7 @@
   }
 
   .ghost,
+  .icon-btn,
   .filter-row button,
   .issue {
     border-radius: 14px;
@@ -129,10 +127,23 @@
   }
 
   .ghost,
+  .icon-btn,
   .filter-row button {
     min-height: 40px;
     padding: 0 12px;
     cursor: pointer;
+  }
+
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    min-width: 40px;
+    padding: 0;
+  }
+
+  .icon-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .filter-row button.is-active {

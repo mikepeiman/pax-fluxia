@@ -608,18 +608,6 @@ async function loadFixture(fixtureId: string): Promise<void> {
     loadMap(map, `fixture:${fixtureId}`);
 }
 
-function updateMetadata(
-    patch: Partial<MapDefinition["metadata"]>,
-): void {
-    applyMap({
-        ...cloneMap(documentState),
-        metadata: {
-            ...documentState.metadata,
-            ...patch,
-        },
-    });
-}
-
 function setSelection(nextSelection: MapEditorSelection): void {
     selection = sanitizeSelection(documentState, nextSelection);
     syncBrushesFromSelection();
@@ -1511,13 +1499,18 @@ function newMap(): void {
     loadMap(createEmptyAuthoredMap("Untitled Map"), "new");
 }
 
-function duplicateMap(): void {
+function duplicateMap(options?: {
+    name?: string;
+    description?: string;
+}): void {
     const baseName = documentState.metadata.name || "Untitled Map";
     const duplicate = cloneMap(documentState);
+    const nextName = options?.name?.trim() || `${baseName} Copy`;
     duplicate.metadata = {
         ...duplicate.metadata,
-        mapId: slugify(`${baseName}-copy-${Date.now()}`),
-        name: `${baseName} Copy`,
+        mapId: slugify(nextName),
+        name: nextName,
+        description: options?.description ?? duplicate.metadata.description,
         updatedAt: new Date().toISOString(),
     };
     loadMap(duplicate, "duplicate");
@@ -1648,7 +1641,6 @@ export const mapEditorStore = {
     duplicateMap,
     saveDocument,
     exportDocument,
-    updateMetadata,
     setSelection,
     selectStar,
     selectLane,

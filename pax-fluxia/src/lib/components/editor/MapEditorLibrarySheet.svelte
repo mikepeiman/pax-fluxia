@@ -211,10 +211,7 @@
 
 <section class="sheet" data-density={density}>
   <header class="sheet__header">
-    <div>
-      <strong>Load Map</strong>
-      <span>Open a recent map fast, or browse all maps by type.</span>
-    </div>
+    <strong>Load Map</strong>
   </header>
 
   <div class="sheet__toolbar">
@@ -237,7 +234,6 @@
   <section class="sheet-section sheet-section--recent">
     <header class="section-header">
       <strong>Recent</strong>
-      <span>Fast return to maps you touched recently.</span>
     </header>
 
     <div class="card-grid card-grid--recent">
@@ -266,17 +262,6 @@
   <section class="sheet-section">
     <header class="section-header">
       <strong>Maps</strong>
-      <span>
-        {#if mapFilter === "all"}
-          Classic, custom, and test maps.
-        {:else if mapFilter === "classic"}
-          Classic maps only.
-        {:else if mapFilter === "custom"}
-          Custom maps only.
-        {:else}
-          Test maps only.
-        {/if}
-      </span>
     </header>
 
     <div class="card-grid">
@@ -306,7 +291,6 @@
     <section class="sheet-section">
       <header class="section-header">
         <strong>Autosaves</strong>
-        <span>Recovery points from the local editor session history.</span>
       </header>
 
       <div class="autosave-list">
@@ -348,6 +332,7 @@
     gap: 10px;
   }
 
+  .sheet__header,
   .sheet__header strong,
   .section-header strong {
     font-family: "Rajdhani", sans-serif;
@@ -357,8 +342,6 @@
     color: #f8fafc;
   }
 
-  .sheet__header span,
-  .section-header span,
   .stack span {
     font-size: 0.76rem;
     letter-spacing: 0.08em;

@@ -7,8 +7,8 @@
   import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
   import MapEditorBoardHud from "$lib/components/editor/MapEditorBoardHud.svelte";
   import MapEditorCommandDock from "$lib/components/editor/MapEditorCommandDock.svelte";
+  import MapEditorDuplicateDialog from "$lib/components/editor/MapEditorDuplicateDialog.svelte";
   import MapEditorLibrarySheet from "$lib/components/editor/MapEditorLibrarySheet.svelte";
-  import MapEditorOverflowSheet from "$lib/components/editor/MapEditorOverflowSheet.svelte";
   import MapEditorSelectionPanel from "$lib/components/editor/MapEditorSelectionPanel.svelte";
   import MapEditorToolRail from "$lib/components/editor/MapEditorToolRail.svelte";
   import MapEditorValidationPanel from "$lib/components/editor/MapEditorValidationPanel.svelte";
@@ -22,7 +22,6 @@
   import { getOwnerPaletteColor } from "$lib/editor/mapEditorPresentation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
-  import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
 
   type RecentMapEntry = {
     key: string;
@@ -33,7 +32,7 @@
 
   type EditorToolPanel = Exclude<
     MapEditorPanelId,
-    "library" | "validation" | "overflow" | "selection" | "factions"
+    "library" | "validation" | "duplicate" | "selection" | "factions"
   >;
 
   const RECENT_MAPS_STORAGE_KEY = "pax-map-editor-recent-v1";
@@ -71,24 +70,6 @@
       (lane) => lane.id === mapEditorStore.selection.laneIds[0],
     ) ?? null,
   );
-  const previewUrl = $derived.by(() => {
-    if (typeof document === "undefined") return "";
-    return generateMapThumbnail(
-      mapEditorStore.document.stars.map((star) => ({
-        id: star.id,
-        x: star.x,
-        y: star.y,
-        ownerId: star.ownerId ?? AUTHORED_NEUTRAL_OWNER_ID,
-        starType: star.starType,
-      })),
-      mapEditorStore.document.connections.map((lane) => ({
-        sourceId: lane.sourceId,
-        targetId: lane.targetId,
-        laneWaypoints: lane.laneWaypoints,
-      })),
-      { width: 360, height: 220 },
-    );
-  });
   const ownerChoices = $derived.by(() => {
     const factions = [...mapEditorStore.document.factions].sort(
       (left, right) => left.order - right.order,
@@ -156,15 +137,6 @@
       ...recentMaps.filter((item) => !(item.source === entry.source && item.key === entry.key)),
     ].slice(0, 10);
     persistRecentMaps();
-  }
-
-  function updateMetadata(patch: {
-    name?: string;
-    author?: string;
-    description?: string;
-    mapId?: string;
-  }) {
-    mapEditorStore.updateMetadata(patch);
   }
 
   function ensureToolPanel(panel: EditorToolPanel) {
@@ -293,7 +265,29 @@
   }
 
   function openLoadSheet() {
+    mapEditorUiStore.closeToolPanel();
     mapEditorUiStore.openSheet("library");
+  }
+
+  function openDuplicateSheet() {
+    mapEditorUiStore.closeToolPanel();
+    mapEditorUiStore.openSheet("duplicate");
+  }
+
+  function createNewMap() {
+    mapEditorStore.newMap();
+    mapEditorUiStore.closeSheet();
+    mapEditorUiStore.closeToolPanel();
+    setStatus("Started a new map.");
+  }
+
+  function confirmDuplicateMap(patch: {
+    name: string;
+    description?: string;
+  }) {
+    mapEditorStore.duplicateMap(patch);
+    mapEditorUiStore.closeSheet();
+    setStatus(`Duplicated map as "${patch.name}".`);
   }
 
   function exportDocument() {
@@ -313,6 +307,7 @@
   async function testSinglePlayer() {
     if (!mapEditorStore.canLaunch) {
       setStatus("Fix validation errors before launching single-player.");
+      mapEditorUiStore.openSheet("validation");
       return;
     }
 
@@ -332,6 +327,7 @@
   async function hostMultiplayer() {
     if (!mapEditorStore.canLaunch) {
       setStatus("Fix validation errors before hosting multiplayer.");
+      mapEditorUiStore.openSheet("validation");
       return;
     }
 
@@ -647,12 +643,23 @@
 <svelte:window onkeydown={handleGlobalKeyDown} onkeyup={handleGlobalKeyUp} />
 
 <div class="editor-page" data-density={mapEditorUiStore.density}>
+  <div class="editor-topbar">
+    <div class="editor-topbar__cluster">
+      <button type="button" class="topbar-btn" onclick={returnToMainMenu}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.8 5.2 4 12l6.8 6.8 1.4-1.4L7.8 13H20v-2H7.8l4.4-4.4-1.4-1.4Z" fill="currentColor" /></svg>
+        <span>Main Menu</span>
+      </button>
+      <button type="button" class="topbar-btn topbar-btn--icon" onclick={() => mapEditorStore.undo()} disabled={!mapEditorStore.canUndo} aria-label="Undo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.93 8h2.08A5 5 0 1 0 12 7h-1.59l2.3 2.29-1.42 1.42L6.59 6l4.7-4.71 1.42 1.42L10.41 5H12Z" fill="currentColor" /></svg>
+      </button>
+      <button type="button" class="topbar-btn topbar-btn--icon" onclick={() => mapEditorStore.redo()} disabled={!mapEditorStore.canRedo} aria-label="Redo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h1.59l-2.3 2.29 1.42 1.42L17.41 4l-4.7-4.71-1.42 1.42L13.59 3H12a7 7 0 1 0 6.93 8h-2.08A5 5 0 1 1 12 5Z" fill="currentColor" /></svg>
+      </button>
+    </div>
+  </div>
+
   <div class="editor-shell">
     <aside class="rail-area">
-      <div class="rail-title">
-        <span class="eyebrow">Developer Editor</span>
-        <strong>{mapEditorStore.document.metadata.name}</strong>
-      </div>
       <MapEditorToolRail
         {ownerChoices}
         selectedStarCount={selectedStars.length}
@@ -703,9 +710,7 @@
 
         <MapEditorBoardHud
           {statusMessage}
-          onReturnToMenu={returnToMainMenu}
           onFitViewport={fitMapToViewport}
-          onToggleValidation={() => mapEditorUiStore.openSheet("validation")}
         />
 
         <MapEditorCanvas
@@ -742,25 +747,19 @@
             onJumpToIssue={jumpToValidationIssue}
             onClose={() => mapEditorUiStore.closeSheet()}
           />
-        {:else if mapEditorUiStore.activeSheet === "overflow"}
-          <MapEditorOverflowSheet
-            {previewUrl}
-            onNewMap={() => {
-              mapEditorStore.newMap();
-              mapEditorUiStore.closeSheet();
-              setStatus("Started a new authored map.");
-            }}
-            onDuplicateMap={() => {
-              mapEditorStore.duplicateMap();
-              mapEditorUiStore.closeSheet();
-              setStatus("Duplicated current map.");
-            }}
-            onUpdateMetadata={updateMetadata}
+        {:else if mapEditorUiStore.activeSheet === "duplicate"}
+          <MapEditorDuplicateDialog
+            currentName={mapEditorStore.document.metadata.name}
+            currentDescription={mapEditorStore.document.metadata.description ?? ""}
+            currentDate={mapEditorStore.document.metadata.updatedAt ?? new Date().toISOString()}
+            onSubmit={confirmDuplicateMap}
             onClose={() => mapEditorUiStore.closeSheet()}
           />
         {/if}
 
         <MapEditorCommandDock
+          onNewMap={createNewMap}
+          onOpenDuplicate={openDuplicateSheet}
           onSave={saveDocument}
           onSaveAndExit={saveAndExitDocument}
           onOpenLoad={openLoadSheet}
@@ -775,9 +774,14 @@
 
 <style>
   .editor-page {
-    height: 100vh;
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
     overflow: hidden;
     padding: 16px;
+    overscroll-behavior: none;
     background:
       radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 32%),
       radial-gradient(circle at bottom right, rgba(234, 179, 8, 0.1), transparent 28%),
@@ -788,8 +792,71 @@
     --editor-surface: rgba(4, 11, 26, 0.84);
   }
 
+  .editor-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .editor-topbar__cluster {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .topbar-btn {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 14px;
+    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
+    background: rgba(4, 11, 26, 0.82);
+    backdrop-filter: blur(14px);
+    color: #e2e8f0;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition:
+      border-color 140ms ease,
+      background 140ms ease,
+      color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  .topbar-btn:hover {
+    border-color: rgba(125, 211, 252, 0.58);
+    background: rgba(17, 39, 63, 0.88);
+    color: #f8fafc;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  .topbar-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .topbar-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .topbar-btn span {
+    font-family: "Rajdhani", sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .topbar-btn--icon {
+    justify-content: center;
+    min-width: 40px;
+    padding: 0;
+  }
+
   .editor-shell {
-    height: calc(100vh - 32px);
+    min-height: 0;
     display: grid;
     grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
     grid-template-areas: "rail stage";
@@ -802,30 +869,8 @@
     z-index: 20;
     min-width: 0;
     display: grid;
-    gap: 12px;
     align-content: start;
     overflow: visible;
-  }
-
-  .rail-title {
-    padding: 8px 4px;
-    display: grid;
-    gap: 4px;
-  }
-
-  .eyebrow {
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.86);
-  }
-
-  .rail-title strong {
-    font-family: "Rajdhani", sans-serif;
-    font-size: 1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #f8fafc;
   }
 
   .stage-area {
@@ -856,8 +901,9 @@
     cursor: default;
   }
 
-  [data-density="compact"] .rail-title strong {
-    display: none;
+  :global(html),
+  :global(body) {
+    overflow: hidden;
   }
 
   @media (max-width: 980px) {
@@ -866,14 +912,10 @@
     }
 
     .editor-shell {
-      height: calc(100vh - 24px);
       gap: 12px;
       grid-template-columns: 72px minmax(0, 1fr);
     }
 
-    .rail-title {
-      display: none;
-    }
   }
 
   @media (max-width: 780px) {
