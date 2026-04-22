@@ -164,6 +164,11 @@
     );
   }
 
+  function hasTopLevelModalOverlay(): boolean {
+    if (typeof document === "undefined") return false;
+    return document.querySelector(".preview-dialog") !== null;
+  }
+
   function persistRecentMaps() {
     if (typeof localStorage === "undefined") return;
     localStorage.setItem(RECENT_MAPS_STORAGE_KEY, JSON.stringify(recentMaps));
@@ -868,6 +873,9 @@
     }
 
     if (event.key === "Escape") {
+      if (hasTopLevelModalOverlay()) {
+        return;
+      }
       closeActiveOverlays();
       mapEditorStore.cancelDraftInteractions();
       return;
