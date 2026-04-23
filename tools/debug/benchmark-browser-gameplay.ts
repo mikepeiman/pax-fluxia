@@ -596,6 +596,39 @@ async function waitForOrderState(
     };
 }
 
+async function waitForPerfEvent(
+    client: CdpClient,
+    sinceIndex: number,
+    name: string,
+    detailMatchers: Record<string, JsonValue> = {},
+    timeoutMs = 3000,
+): Promise<Record<string, JsonValue>> {
+    const nameLiteral = JSON.stringify(name);
+    const detailLiteral = JSON.stringify(detailMatchers);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const result = await client.evaluate<Record<string, JsonValue>>(`
+            (() => {
+                return {
+                    event: window.__PAX_BENCH__.findPerfEventSince(
+                        ${sinceIndex},
+                        ${nameLiteral},
+                        ${detailLiteral},
+                    ),
+                };
+            })()
+        `);
+        if (result.event) {
+            return {
+                matched: true,
+                event: result.event,
+            };
+        }
+        await sleep(12);
+    }
+    return { matched: false, event: null };
+}
+
 async function executePointerOrderLoop(
     client: CdpClient,
     iterations: number,
@@ -611,6 +644,9 @@ async function executePointerOrderLoop(
             continue;
         }
         const issueStartedAt = await client.evaluate<number>("performance.now()");
+        const issueEventStartIndex = await client.evaluate<number>(
+            "window.__PAX_BENCH__.getPerfEventCursor()",
+        );
         await dispatchMouseClick(
             client,
             Number(path.sourceClientX),
@@ -627,7 +663,24 @@ async function executePointerOrderLoop(
             String(path.sourceId),
             `(status) => status.targetId === ${JSON.stringify(path.targetId)} || status.queuedOrderTargetId === ${JSON.stringify(path.targetId)}`,
         );
+        const issueQueueFlush = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "input.orderQueue.flushed",
+        );
+        const issuePerfEvent = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "game.order.issued",
+            {
+                from: `Star ${String(path.sourceId)}`,
+                to: `Star ${String(path.targetId)}`,
+            },
+        );
         const cancelStartedAt = await client.evaluate<number>("performance.now()");
+        const cancelEventStartIndex = await client.evaluate<number>(
+            "window.__PAX_BENCH__.getPerfEventCursor()",
+        );
         await dispatchMouseClick(
             client,
             Number(path.sourceClientX),
@@ -638,6 +691,19 @@ async function executePointerOrderLoop(
             client,
             String(path.sourceId),
             `(status) => !status.targetId && !status.queuedOrderTargetId`,
+        );
+        const cancelQueueFlush = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.orderQueue.flushed",
+        );
+        const cancelPerfEvent = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "game.order.cancelled",
+            {
+                from: `Star ${String(path.sourceId)}`,
+            },
         );
         samples.push({
             ok: true,
@@ -651,8 +717,20 @@ async function executePointerOrderLoop(
                 Number(cancelApplied.observedAtMs ?? cancelStartedAt) -
                     cancelStartedAt,
             ),
+            issueQueueFlushMs: issueQueueFlush.event
+                ? round(Number((issueQueueFlush.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
+                : null,
+            issuePerfEventMs: issuePerfEvent.event
+                ? round(Number((issuePerfEvent.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
+                : null,
             issueMatched: issueApplied.matched ?? false,
             cancelMatched: cancelApplied.matched ?? false,
+            cancelQueueFlushMs: cancelQueueFlush.event
+                ? round(Number((cancelQueueFlush.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
+                : null,
+            cancelPerfEventMs: cancelPerfEvent.event
+                ? round(Number((cancelPerfEvent.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
+                : null,
             issueStatus: issueApplied.status ?? null,
             cancelStatus: cancelApplied.status ?? null,
         });

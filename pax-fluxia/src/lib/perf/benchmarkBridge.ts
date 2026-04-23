@@ -40,6 +40,12 @@ interface BenchmarkBridgeApi {
     disablePerfCapture: () => void;
     resetPerfCapture: () => void;
     snapshotPerfCapture: () => ReturnType<typeof snapshotPerfCapture>;
+    getPerfEventCursor: () => number;
+    findPerfEventSince: (
+        sinceIndex: number,
+        name: string,
+        detailMatchers?: Record<string, unknown>,
+    ) => Record<string, unknown> | null;
     setLogFlags: (flags: Partial<typeof logFlags>) => void;
     restartSinglePlayerGame: () => Promise<void>;
     beginGameplay: () => Promise<void>;
@@ -237,6 +243,30 @@ export function installBenchmarkBridge(params: {
         disablePerfCapture,
         resetPerfCapture,
         snapshotPerfCapture,
+        getPerfEventCursor: () =>
+            globalThis.__PAX_PERF_STATE__?.events.length ?? 0,
+        findPerfEventSince: (sinceIndex, name, detailMatchers = {}) => {
+            const events = globalThis.__PAX_PERF_STATE__?.events ?? [];
+            outer: for (
+                let index = Math.max(0, sinceIndex);
+                index < events.length;
+                index += 1
+            ) {
+                const event = events[index];
+                if (event.name !== name) continue;
+                for (const [key, expected] of Object.entries(detailMatchers)) {
+                    const actual = (event.detail as Record<string, unknown> | undefined)?.[key];
+                    if (actual !== expected) {
+                        continue outer;
+                    }
+                }
+                return {
+                    index,
+                    ...event,
+                };
+            }
+            return null;
+        },
         setLogFlags: (flags) => {
             for (const [key, value] of Object.entries(flags)) {
                 if (key in logFlags && typeof value === "boolean") {

@@ -28,16 +28,19 @@
   - `.agent-harness/metrics/browser-gameplay-benchmark-latest.json`
 - Latest measured browser state:
   - `metaballGameplay`
-    - `game.renderFrame.territory.metaball = 0.812ms avg`
-    - `territory.metaballFamily.update = 0.63ms avg`
-    - `territory.metaballFamily.render = 0.33ms avg`
+    - `game.renderFrame.territory.metaball = 0.822ms avg`
+    - `territory.metaballFamily.update = 0.651ms avg`
+    - `territory.metaballFamily.render = 0.364ms avg`
   - `perimeterGameplay`
-    - `game.renderFrame.territory.perimeter_field = 2.296ms avg`
-    - `territory.perimeterFieldFamily.update = 1.696ms avg`
-    - `territory.perimeterFieldFamily.buildScene = 1.332ms avg`
+    - `game.renderFrame.territory.perimeter_field = 2.113ms avg`
+    - `territory.perimeterFieldFamily.update = 1.576ms avg`
+    - `territory.perimeterFieldFamily.buildScene = 1.282ms avg`
   - order state-commit latency:
-    - Metaball issue avg `108.5ms`, cancel avg `55.03ms`
-    - Perimeter issue avg `113.27ms`, cancel avg `50.1ms`
+    - Metaball issue avg `111.77ms`, cancel avg `50.73ms`
+    - Perimeter issue avg `112.57ms`, cancel avg `54.73ms`
+  - order queue flush / engine-event latency:
+    - Metaball issue avg `84.4ms`, cancel avg `33.37ms`
+    - Perimeter issue avg `84.67ms`, cancel avg `32ms`
 - Latest measured CLI territory state:
   - `metaball-transition frameTotalMsAvg = 2.1478ms`
   - `perimeter-transition frameTotalMsAvg = 1.7322ms`
