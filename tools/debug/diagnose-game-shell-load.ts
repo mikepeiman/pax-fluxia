@@ -25,6 +25,7 @@ const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
 const HOST = "127.0.0.1";
 const DIAG_ROUTE = process.env.PAX_DIAG_ROUTE?.trim() || "/";
 const DIAG_ACTION = process.env.PAX_DIAG_ACTION?.trim() || "openGameShell";
+const DIAG_APP_URL = process.env.PAX_DIAG_APP_URL?.trim() || null;
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -388,6 +389,99 @@ async function clickElement(
     );
 }
 
+async function clickButtonByText(
+    client: CdpClient,
+    buttonTextPattern: string,
+): Promise<Record<string, JsonValue>> {
+    const encodedPattern = JSON.stringify(buttonTextPattern);
+    return await client.evaluate<Record<string, JsonValue>>(
+        `(() => {
+            const matcher = new RegExp(${encodedPattern}, "i");
+            const element = Array.from(document.querySelectorAll("button")).find(
+                (candidate) =>
+                    candidate instanceof HTMLElement &&
+                    matcher.test(candidate.innerText ?? candidate.textContent ?? ""),
+            );
+            if (!(element instanceof HTMLElement)) {
+                return { ok: false, reason: "missing", buttonTextPattern: ${encodedPattern} };
+            }
+            const rect = element.getBoundingClientRect();
+            element.click();
+            return {
+                ok: true,
+                buttonTextPattern: ${encodedPattern},
+                tagName: element.tagName,
+                text: element.innerText ?? "",
+                className: element.className ?? "",
+                rect: {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                },
+            };
+        })()`,
+    );
+}
+
+async function waitForButtonByText(
+    client: CdpClient,
+    buttonTextPattern: string,
+    timeoutMs: number,
+): Promise<void> {
+    const encodedPattern = JSON.stringify(buttonTextPattern);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            const present = await client.evaluate<boolean>(
+                `(() => {
+                    const matcher = new RegExp(${encodedPattern}, "i");
+                    return Array.from(document.querySelectorAll("button")).some(
+                        (candidate) =>
+                            candidate instanceof HTMLElement &&
+                            matcher.test(candidate.innerText ?? candidate.textContent ?? ""),
+                    );
+                })()`,
+            );
+            if (present) return;
+        } catch {}
+        await sleep(150);
+    }
+    throw new Error(`Timed out waiting for button text ${buttonTextPattern}`);
+}
+
+async function waitForSinglePlayerMenuReady(
+    client: CdpClient,
+    timeoutMs: number,
+): Promise<void> {
+    await waitForButtonByText(client, "^Start Game$", timeoutMs);
+}
+
+async function waitForGameplayViewReady(
+    client: CdpClient,
+    timeoutMs: number,
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            const state = await client.evaluate<{
+                hasGameCanvas: boolean;
+                hasPixiCanvas: boolean;
+                hasCanvasArea: boolean;
+            }>(`(() => ({
+                hasGameCanvas: Boolean(document.querySelector(".game-canvas")),
+                hasPixiCanvas: Boolean(document.querySelector(".game-canvas canvas")),
+                hasCanvasArea: Boolean(document.querySelector(".area-canvas")),
+            }))()`);
+            if (state.hasGameCanvas && state.hasCanvasArea) {
+                return;
+            }
+        } catch {}
+        await sleep(150);
+    }
+    throw new Error("Timed out waiting for gameplay view to mount.");
+}
+
 async function runNormalRouteAction(
     client: CdpClient,
     action: string,
@@ -418,29 +512,68 @@ async function runNormalRouteAction(
         };
     }
 
+    if (
+        action === "clickLandingPlayAndStartGame" ||
+        action === "clickLandingPlayAndStartSinglePlayer"
+    ) {
+        await waitForHomeRouteStable(client, 45_000);
+        const landingClick = await clickElement(
+            client,
+            "button.btn--primary.btn--lg.btn--pulse",
+        );
+        await waitForGameShellInteractionSettle(client, 45_000);
+        await waitForSinglePlayerMenuReady(client, 45_000);
+        const startClick = await clickButtonByText(client, "^Start Game$");
+        await waitForGameplayViewReady(client, 45_000);
+        await sleep(1_800);
+        const dom = await captureDomSummary(client);
+        const screenshotBase64 = await captureScreenshotBase64(client);
+        return {
+            ok: true,
+            action,
+            landingClick,
+            startClick,
+            ...dom,
+            screenshotBase64,
+        };
+    }
+
     throw new Error(`Unknown normal-route DIAG_ACTION: ${action}`);
 }
 
 async function main(): Promise<void> {
     await cleanupStaleHarnessBrowsers("pax-shell-diagnose-");
-    const appPort = await findAvailablePort(4300);
     const cdpPort = await findAvailablePort(9400);
-    const appUrl = `http://${HOST}:${appPort}${DIAG_ROUTE}`;
+    const appPort = DIAG_APP_URL ? null : await findAvailablePort(4300);
+    const appUrl = DIAG_APP_URL ?? `http://${HOST}:${appPort}${DIAG_ROUTE}`;
     const browserPath = resolveBrowserPath();
     const profileDir = mkdtempSync(path.join(tmpdir(), "pax-shell-diagnose-"));
-    const devServer = Bun.spawn(
-        ["cmd.exe", "/c", "bunx", "vite", "dev", "--host", HOST, "--port", String(appPort)],
-        {
-            cwd: CLIENT_DIR,
-            stdout: "ignore",
-            stderr: "ignore",
-            env: {
-                ...process.env,
-                PAX_BENCH_NO_HMR: "1",
-                PAX_BENCH_STANDALONE: "1",
-            },
-        },
-    );
+    const devServer =
+        appPort == null
+            ? null
+            : Bun.spawn(
+                  [
+                      "cmd.exe",
+                      "/c",
+                      "bunx",
+                      "vite",
+                      "dev",
+                      "--host",
+                      HOST,
+                      "--port",
+                      String(appPort),
+                  ],
+                  {
+                      cwd: CLIENT_DIR,
+                      stdout: "ignore",
+                      stderr: "ignore",
+                      env: {
+                          ...process.env,
+                          PAX_BENCH_NO_HMR: "1",
+                          PAX_BENCH_STANDALONE: "1",
+                      },
+                  },
+              );
     const browser = Bun.spawn(
         [
             browserPath,
@@ -556,7 +689,7 @@ async function main(): Promise<void> {
         client.close();
     } finally {
         browser.kill();
-        devServer.kill();
+        devServer?.kill();
         await sleep(500);
         try {
             rmSync(profileDir, { recursive: true, force: true });
