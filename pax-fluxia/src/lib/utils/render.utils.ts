@@ -105,54 +105,78 @@ interface OrbitCapacityMetrics {
     totalCapacity: number;
 }
 
-let orbitCapacityCacheFingerprint = "";
+interface OrbitCapacityConfigState {
+    baseSize: number;
+    orbitBaseRadius: number;
+    orbitRingMult: number;
+    orbitDensity: number;
+    padding: number;
+    ringSpacing: number;
+}
+
+let orbitCapacityConfigState: OrbitCapacityConfigState | null = null;
 const orbitCapacityCache = new Map<number, OrbitCapacityMetrics>();
 
-function getOrbitCapacityFingerprint(): string {
-    return [
-        GAME_CONFIG.SHIP_BASE_SIZE || 4,
-        GAME_CONFIG.ORBIT_BASE_RADIUS || 0,
-        GAME_CONFIG.ORBIT_RING_MULT || 1.4,
-        GAME_CONFIG.ORBIT_DENSITY || 1.5,
-    ].join("|");
+function getOrbitCapacityConfigState(): OrbitCapacityConfigState {
+    const baseSize = GAME_CONFIG.SHIP_BASE_SIZE || 4;
+    const orbitBaseRadius = GAME_CONFIG.ORBIT_BASE_RADIUS || 0;
+    const orbitRingMult = GAME_CONFIG.ORBIT_RING_MULT || 1.4;
+    const orbitDensity = GAME_CONFIG.ORBIT_DENSITY || 1.5;
+    const currentState = orbitCapacityConfigState;
+    if (
+        currentState &&
+        currentState.baseSize === baseSize &&
+        currentState.orbitBaseRadius === orbitBaseRadius &&
+        currentState.orbitRingMult === orbitRingMult &&
+        currentState.orbitDensity === orbitDensity
+    ) {
+        return currentState;
+    }
+
+    const nextState: OrbitCapacityConfigState = {
+        baseSize,
+        orbitBaseRadius,
+        orbitRingMult,
+        orbitDensity,
+        padding: 2 + orbitBaseRadius,
+        ringSpacing: baseSize * orbitRingMult,
+    };
+    orbitCapacityConfigState = nextState;
+    orbitCapacityCache.clear();
+    return nextState;
 }
 
 /**
  * Calculate the total capacity of layers 0 through maxLayer
  */
 function calculateTotalCapacity(starRadius: number): OrbitCapacityMetrics {
-    const fingerprint = getOrbitCapacityFingerprint();
-    if (fingerprint !== orbitCapacityCacheFingerprint) {
-        orbitCapacityCacheFingerprint = fingerprint;
-        orbitCapacityCache.clear();
-    }
+    const config = getOrbitCapacityConfigState();
 
     const cached = orbitCapacityCache.get(starRadius);
     if (cached) {
         return cached;
     }
 
-    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
-    const PADDING = 2 + (GAME_CONFIG.ORBIT_BASE_RADIUS || 0);
-    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
-
     const layerCapacities: number[] = [];
     let totalCapacity = 0;
-    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let currentRadius = starRadius + config.padding + config.baseSize;
     const firstLayerRadius = currentRadius;
 
     for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         const circumference = 2 * Math.PI * currentRadius;
-        const capacity = Math.max(1, Math.floor(circumference / (BASE_SIZE * (GAME_CONFIG.ORBIT_DENSITY || 1.5))));
+        const capacity = Math.max(
+            1,
+            Math.floor(circumference / (config.baseSize * config.orbitDensity)),
+        );
         layerCapacities.push(capacity);
         totalCapacity += capacity;
-        currentRadius += RING_SPACING;
+        currentRadius += config.ringSpacing;
     }
 
     const metrics: OrbitCapacityMetrics = {
-        baseSize: BASE_SIZE,
-        padding: PADDING,
-        ringSpacing: RING_SPACING,
+        baseSize: config.baseSize,
+        padding: config.padding,
+        ringSpacing: config.ringSpacing,
         firstLayerRadius,
         layerCapacities,
         totalCapacity,

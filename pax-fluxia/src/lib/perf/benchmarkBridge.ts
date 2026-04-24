@@ -23,8 +23,17 @@ interface BenchmarkOrderPointerPath {
     targetClientY: number;
 }
 
+interface BenchmarkStarClientPoint {
+    starId: string;
+    clientX: number;
+    clientY: number;
+}
+
 interface BenchmarkCanvasApi {
     getBenchmarkOrderPointerPath?: () => BenchmarkOrderPointerPath | null;
+    getBenchmarkStarClientPoint?: (
+        starId: string,
+    ) => BenchmarkStarClientPoint | null;
     getBenchmarkTerritorySchedulerSnapshot?: () => Record<string, unknown> | null;
 }
 
@@ -75,6 +84,9 @@ interface BenchmarkBridgeApi {
         mode: string,
     ) => Promise<Record<string, unknown>>;
     getOrderPointerPath: () => Promise<BenchmarkOrderPointerPath | null>;
+    getStarClientPoint: (
+        starId: string,
+    ) => Promise<BenchmarkStarClientPoint | null>;
     getOrderStatus: (sourceId: string) => Promise<Record<string, unknown> | null>;
     getTerritorySchedulerSnapshot: () => Promise<Record<string, unknown> | null>;
 }
@@ -320,6 +332,9 @@ export function installBenchmarkBridge(params: {
             const { activeGameStore } = await loadRuntimeDeps();
             const order = await findSampleOrder();
             if (!order) return null;
+            if (!activeGameStore.canIssueOrder(order.sourceId, order.targetId)) {
+                return null;
+            }
             activeGameStore.issueOrder(order.sourceId, order.targetId, false);
             return order;
         },
@@ -336,13 +351,15 @@ export function installBenchmarkBridge(params: {
             persistAfterConquest = false,
         ) => {
             const { activeGameStore } = await loadRuntimeDeps();
-            return Boolean(
-                activeGameStore.issueOrder(
-                    sourceId,
-                    targetId,
-                    persistAfterConquest,
-                ),
+            if (!activeGameStore.canIssueOrder(sourceId, targetId)) {
+                return false;
+            }
+            activeGameStore.issueOrder(
+                sourceId,
+                targetId,
+                persistAfterConquest,
             );
+            return true;
         },
         cancelOrderDirect: async (starId) => {
             const { activeGameStore } = await loadRuntimeDeps();
@@ -374,6 +391,13 @@ export function installBenchmarkBridge(params: {
             const canvasApi =
                 params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
             return canvasApi?.getBenchmarkOrderPointerPath?.() ?? null;
+        },
+        getStarClientPoint: async (starId) => {
+            await openGameShell();
+            await settleFrames();
+            const canvasApi =
+                params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
+            return canvasApi?.getBenchmarkStarClientPoint?.(starId) ?? null;
         },
         getOrderStatus: async (sourceId) => {
             const { activeGameStore } = await loadRuntimeDeps();

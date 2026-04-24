@@ -4,14 +4,44 @@
 
 const EPS = 1e-9;
 
-export function polylineTotalLength(pts: ReadonlyArray<readonly [number, number]>): number {
-    let L = 0;
+interface PolylineArcCacheEntry {
+    cumulativeLengths: number[];
+    segmentLengths: number[];
+    totalLength: number;
+}
+
+const polylineArcCache = new WeakMap<
+    ReadonlyArray<readonly [number, number]>,
+    PolylineArcCacheEntry
+>();
+
+function getPolylineArcCache(
+    pts: ReadonlyArray<readonly [number, number]>,
+): PolylineArcCacheEntry {
+    const cached = polylineArcCache.get(pts);
+    if (cached) return cached;
+    const cumulativeLengths = new Array<number>(pts.length).fill(0);
+    const segmentLengths = new Array<number>(Math.max(0, pts.length - 1)).fill(0);
+    let totalLength = 0;
     for (let i = 1; i < pts.length; i++) {
         const dx = pts[i][0] - pts[i - 1][0];
         const dy = pts[i][1] - pts[i - 1][1];
-        L += Math.hypot(dx, dy);
+        const segLen = Math.hypot(dx, dy);
+        segmentLengths[i - 1] = segLen;
+        totalLength += segLen;
+        cumulativeLengths[i] = totalLength;
     }
-    return L;
+    const computed = {
+        cumulativeLengths,
+        segmentLengths,
+        totalLength,
+    };
+    polylineArcCache.set(pts, computed);
+    return computed;
+}
+
+export function polylineTotalLength(pts: ReadonlyArray<readonly [number, number]>): number {
+    return getPolylineArcCache(pts).totalLength;
 }
 
 /** Arc-length position `dist` from the start of the polyline (clamped). */
@@ -21,22 +51,50 @@ export function pointAtArcLength(
 ): { x: number; y: number } {
     if (pts.length === 0) return { x: 0, y: 0 };
     if (pts.length === 1) return { x: pts[0][0], y: pts[0][1] };
-    let remaining = Math.max(0, dist);
-    for (let i = 1; i < pts.length; i++) {
-        const ax = pts[i - 1][0];
-        const ay = pts[i - 1][1];
-        const bx = pts[i][0];
-        const by = pts[i][1];
-        const segLen = Math.hypot(bx - ax, by - ay);
-        if (segLen < EPS) continue;
-        if (remaining <= segLen) {
-            const t = remaining / segLen;
-            return { x: ax + (bx - ax) * t, y: ay + (by - ay) * t };
-        }
-        remaining -= segLen;
+    const cache = getPolylineArcCache(pts);
+    if (cache.totalLength < EPS) {
+        return { x: pts[0][0], y: pts[0][1] };
     }
-    const last = pts[pts.length - 1];
-    return { x: last[0], y: last[1] };
+    const clampedDist = Math.max(0, Math.min(cache.totalLength, dist));
+    if (clampedDist <= 0) {
+        return { x: pts[0][0], y: pts[0][1] };
+    }
+    if (clampedDist >= cache.totalLength) {
+        const last = pts[pts.length - 1];
+        return { x: last[0], y: last[1] };
+    }
+    let lo = 1;
+    let hi = cache.cumulativeLengths.length - 1;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if ((cache.cumulativeLengths[mid] ?? 0) < clampedDist) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    let segmentEndIndex = lo;
+    while (
+        segmentEndIndex < cache.cumulativeLengths.length - 1 &&
+        (cache.cumulativeLengths[segmentEndIndex] ?? 0)
+            - (cache.cumulativeLengths[segmentEndIndex - 1] ?? 0)
+            < EPS
+    ) {
+        segmentEndIndex += 1;
+    }
+    const segmentStartIndex = Math.max(0, segmentEndIndex - 1);
+    const segmentStart = cache.cumulativeLengths[segmentStartIndex] ?? 0;
+    const segmentLength = cache.segmentLengths[segmentStartIndex] ?? 0;
+    if (segmentLength < EPS) {
+        const point = pts[segmentEndIndex] ?? pts[pts.length - 1];
+        return { x: point[0], y: point[1] };
+    }
+    const ax = pts[segmentStartIndex][0];
+    const ay = pts[segmentStartIndex][1];
+    const bx = pts[segmentEndIndex][0];
+    const by = pts[segmentEndIndex][1];
+    const t = (clampedDist - segmentStart) / segmentLength;
+    return { x: ax + (bx - ax) * t, y: ay + (by - ay) * t };
 }
 
 /** 0 = first point, 1 = last point (by arc length). */
@@ -105,29 +163,31 @@ export function tangentAtArcFraction(
     pts: ReadonlyArray<readonly [number, number]>,
     u: number,
 ): { tx: number; ty: number } {
-    const total = polylineTotalLength(pts);
-    if (total < EPS) return { tx: 1, ty: 0 };
-    const d = Math.max(0, Math.min(1, u)) * total;
-    let remaining = d;
-    for (let i = 1; i < pts.length; i++) {
-        const ax = pts[i - 1][0];
-        const ay = pts[i - 1][1];
-        const bx = pts[i][0];
-        const by = pts[i][1];
-        const dx = bx - ax;
-        const dy = by - ay;
-        const segLen = Math.hypot(dx, dy);
-        if (segLen < EPS) continue;
-        if (remaining <= segLen || i === pts.length - 1) {
-            const len = segLen || 1;
-            return { tx: dx / len, ty: dy / len };
+    const cache = getPolylineArcCache(pts);
+    if (cache.totalLength < EPS || pts.length < 2) return { tx: 1, ty: 0 };
+    const d = Math.max(0, Math.min(1, u)) * cache.totalLength;
+    let lo = 1;
+    let hi = cache.cumulativeLengths.length - 1;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if ((cache.cumulativeLengths[mid] ?? 0) < d) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
         }
-        remaining -= segLen;
     }
-    const ax = pts[pts.length - 2][0];
-    const ay = pts[pts.length - 2][1];
-    const bx = pts[pts.length - 1][0];
-    const by = pts[pts.length - 1][1];
+    let segmentEndIndex = lo;
+    while (
+        segmentEndIndex < cache.cumulativeLengths.length - 1 &&
+        (cache.segmentLengths[segmentEndIndex - 1] ?? 0) < EPS
+    ) {
+        segmentEndIndex += 1;
+    }
+    const startIndex = Math.max(0, segmentEndIndex - 1);
+    const ax = pts[startIndex][0];
+    const ay = pts[startIndex][1];
+    const bx = pts[segmentEndIndex][0];
+    const by = pts[segmentEndIndex][1];
     const dx = bx - ax;
     const dy = by - ay;
     const len = Math.hypot(dx, dy) || 1;

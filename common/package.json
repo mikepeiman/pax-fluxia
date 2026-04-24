@@ -18,6 +18,8 @@
         "./combatResolution": "./src/combatResolution.ts",
         "./schema": "./src/schema/GameState.ts",
         "./mapgen": "./src/mapgen/index.ts",
+        "./maps": "./src/maps/index.ts",
+        "./portal": "./src/portal.ts",
         "./ownership": "./src/ownership.ts",
         "./fixtureMaps": "./src/fixtureMaps.ts"
     },

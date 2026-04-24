@@ -153,6 +153,13 @@ const extraFsAllow = [
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
+  optimizeDeps: {
+    include: [
+      "txtgen",
+      "@colyseus/sdk",
+      "@colyseus/schema",
+    ],
+  },
   resolve: {
     dedupe: ["pixi.js", "svelte"],
     alias: benchmarkStandalone

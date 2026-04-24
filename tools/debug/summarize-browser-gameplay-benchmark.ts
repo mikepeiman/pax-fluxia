@@ -18,6 +18,15 @@ function formatMeasure(measure: any): string {
     return `${String(measure?.name ?? "unknown")} avg=${round(Number(measure?.avgMs ?? 0))}ms max=${round(Number(measure?.maxMs ?? 0))}ms count=${Number(measure?.count ?? 0)}`;
 }
 
+function findMeasure(measures: any, name: string): any | null {
+    if (!Array.isArray(measures)) return null;
+    return measures.find((measure) => String(measure?.name ?? "") === name) ?? null;
+}
+
+function formatInvalidReason(reason: any): string {
+    return `${String(reason?.reason ?? "unknown")}=${Number(reason?.count ?? 0)}`;
+}
+
 function printScenario(name: string, scenario: any): void {
     console.log(`\n[${name}]`);
     console.log(
@@ -49,6 +58,23 @@ function printScenario(name: string, scenario: any): void {
             console.log(`  - ${formatMeasure(measure)}`);
         }
     }
+    const clientRectRefresh = findMeasure(
+        scenario?.perf?.focusMeasures,
+        "game.input.clientRect.refresh",
+    );
+    const dragPreviewPresent = findMeasure(
+        scenario?.perf?.focusMeasures,
+        "game.input.dragPreview.present",
+    );
+    if (clientRectRefresh || dragPreviewPresent) {
+        console.log("interaction infra:");
+        if (clientRectRefresh) {
+            console.log(`  - ${formatMeasure(clientRectRefresh)}`);
+        }
+        if (dragPreviewPresent) {
+            console.log(`  - ${formatMeasure(dragPreviewPresent)}`);
+        }
+    }
     const renderLineItems = (scenario?.perf?.renderLineItems ?? []).slice(0, 12);
     if (renderLineItems.length > 0) {
         console.log("render line items:");
@@ -68,8 +94,38 @@ function printScenario(name: string, scenario: any): void {
     const orderLatency = scenario?.analysis?.orderLatency ?? scenario?.orderLatency;
     if (orderLatency) {
         console.log("order path:");
+        const pointerIntegrity = orderLatency?.pointerSampleIntegrity;
+        const directIntegrity = orderLatency?.directSampleIntegrity;
+        if (pointerIntegrity || directIntegrity) {
+            console.log("  - sample integrity:");
+            if (pointerIntegrity) {
+                console.log(
+                    `    pointer valid=${Number(pointerIntegrity?.validCount ?? 0)}/${Number(pointerIntegrity?.totalCount ?? 0)} invalid=${Number(pointerIntegrity?.invalidCount ?? 0)} reasons=${((pointerIntegrity?.invalidReasons ?? []) as any[]).map(formatInvalidReason).join(", ") || "none"}`,
+                );
+            }
+            if (directIntegrity) {
+                console.log(
+                    `    direct valid=${Number(directIntegrity?.validCount ?? 0)}/${Number(directIntegrity?.totalCount ?? 0)} invalid=${Number(directIntegrity?.invalidCount ?? 0)} reasons=${((directIntegrity?.invalidReasons ?? []) as any[]).map(formatInvalidReason).join(", ") || "none"}`,
+                );
+            }
+        }
         console.log(
             `  - source-select=${round(Number(orderLatency?.pointerSourceSelect?.avgMs ?? 0))}ms order-path-event=${round(Number(orderLatency?.pointerIssueOrderPathEvent?.avgMs ?? 0))}ms after-target=${round(Number(orderLatency?.pointerIssueOrderPathEventAfterTargetClick?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - source handled down=${round(Number(orderLatency?.pointerSourcePointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerSourcePointerUpHandled?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - source synthetic dispatch=${round(Number(orderLatency?.pointerSourcePointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerSourcePointerDownQueueDelay?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - target handled down=${round(Number(orderLatency?.pointerTargetPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerTargetPointerUpHandled?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - target synthetic dispatch=${round(Number(orderLatency?.pointerTargetPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerTargetPointerDownQueueDelay?.avgMs ?? 0))}ms handled->localAck=${round(Number(orderLatency?.pointerIssueHandledToLocalAckAfterTargetClick?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - target handled->visualAck=${round(Number(orderLatency?.pointerIssueHandledToVisualAckAfterTargetClick?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerIssueHandledToCommitAfterTargetClick?.avgMs ?? 0))}ms`,
         );
         console.log(
             `  - issue local-ack=${round(Number(orderLatency?.pointerIssueLocalAckAfterTargetClick?.avgMs ?? 0))}ms visual-ack=${round(Number(orderLatency?.pointerIssueVisualAckAfterTargetClick?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerIssueLocalToVisualGapMs ?? 0))}ms`,
@@ -82,6 +138,15 @@ function printScenario(name: string, scenario: any): void {
         );
         console.log(
             `  - cancel local-ack=${round(Number(orderLatency?.pointerCancelLocalAck?.avgMs ?? 0))}ms visual-ack=${round(Number(orderLatency?.pointerCancelVisualAck?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerCancelLocalToVisualGapMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - cancel handled down=${round(Number(orderLatency?.pointerCancelPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerCancelPointerUpHandled?.avgMs ?? 0))}ms rightclick=${round(Number(orderLatency?.pointerCancelContextMenuHandled?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - cancel synthetic dispatch=${round(Number(orderLatency?.pointerCancelPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerCancelPointerDownQueueDelay?.avgMs ?? 0))}ms rightclick-dispatch=${round(Number(orderLatency?.pointerCancelContextMenuDispatchLead?.avgMs ?? 0))}ms rightclick-queue=${round(Number(orderLatency?.pointerCancelContextMenuQueueDelay?.avgMs ?? 0))}ms handled->localAck=${round(Number(orderLatency?.pointerCancelHandledToLocalAck?.avgMs ?? 0))}ms`,
+        );
+        console.log(
+            `  - cancel handled->visualAck=${round(Number(orderLatency?.pointerCancelHandledToVisualAck?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerCancelHandledToCommit?.avgMs ?? 0))}ms`,
         );
         console.log(
             `  - pointer cancel=${round(Number(orderLatency?.pointerCancelCommit?.avgMs ?? 0))}ms cancel-event=${round(Number(orderLatency?.pointerCancelOrderPathEvent?.avgMs ?? 0))}ms direct cancel=${round(Number(orderLatency?.directCancelCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerVsDirectCancelGapMs ?? 0))}ms`,

@@ -63,6 +63,32 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function cleanupStaleHarnessBrowsers(
+    profilePrefix: string,
+): Promise<void> {
+    const escapedPrefix = profilePrefix.replace(/'/g, "''");
+    const command = `
+        Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.CommandLine -like '*${escapedPrefix}*' -and
+            ($_.Name -ieq 'chrome.exe' -or $_.Name -ieq 'msedge.exe')
+        } |
+        ForEach-Object {
+            try {
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
+            } catch {}
+        }
+    `;
+    const cleanup = Bun.spawn(
+        ["powershell.exe", "-NoProfile", "-Command", command],
+        {
+            stdout: "ignore",
+            stderr: "ignore",
+        },
+    );
+    await cleanup.exited;
+}
+
 function round(value: number, digits = 3): number {
     const factor = 10 ** digits;
     return Math.round(value * factor) / factor;
@@ -107,7 +133,7 @@ async function waitForHttp(url: string, timeoutMs: number): Promise<void> {
 }
 
 async function findAvailablePort(startPort: number): Promise<number> {
-    for (let port = startPort; port < startPort + 50; port++) {
+    for (let port = startPort; port < startPort + 200; port++) {
         const isFree = await new Promise<boolean>((resolve) => {
             const server = net.createServer();
             server.once("error", () => resolve(false));
@@ -117,7 +143,26 @@ async function findAvailablePort(startPort: number): Promise<number> {
         });
         if (isFree) return port;
     }
-    throw new Error(`Could not find an available port starting at ${startPort}.`);
+    return await new Promise<number>((resolve, reject) => {
+        const server = net.createServer();
+        server.once("error", reject);
+        server.listen(0, HOST, () => {
+            const address = server.address();
+            const port =
+                typeof address === "object" && address ? address.port : null;
+            server.close(() => {
+                if (port == null) {
+                    reject(
+                        new Error(
+                            `Could not allocate an ephemeral port after exhausting the range starting at ${startPort}.`,
+                        ),
+                    );
+                    return;
+                }
+                resolve(port);
+            });
+        });
+    });
 }
 
 async function waitForJson<T>(url: string, timeoutMs: number): Promise<T> {
@@ -342,6 +387,8 @@ const FOCUS_MEASURE_PATTERNS = [
     "game.renderFrame.stars",
     "game.renderFrame.ships",
     "game.renderFrame.selectionOverlay",
+    "game.input.clientRect.refresh",
+    "game.input.dragPreview.present",
     "game.input.visualAck.present",
     "game.input.orderQueue.flush",
     "game.input.orderImmediate",
@@ -916,11 +963,55 @@ function summarizeNumericSamples(
 function summarizeSampleMetric(
     sampleSet: any,
     metricKey: string,
+    options?: {
+        includeInvalid?: boolean;
+    },
 ): Record<string, JsonValue> | null {
     const values = (sampleSet?.samples ?? [])
+        .filter(
+            (sample: any) =>
+                options?.includeInvalid === true
+                || sample?.benchmarkValid !== false,
+        )
         .map((sample: any) => Number(sample?.[metricKey]))
         .filter((value: number) => Number.isFinite(value) && value >= 0);
     return summarizeNumericSamples(values);
+}
+
+function summarizeSampleIntegrity(
+    sampleSet: any,
+): Record<string, JsonValue> | null {
+    const samples = Array.isArray(sampleSet?.samples) ? sampleSet.samples : [];
+    if (samples.length === 0) return null;
+    const invalidReasonCounts = new Map<string, number>();
+    let validCount = 0;
+    for (const sample of samples) {
+        if (sample?.benchmarkValid === false) {
+            const reasons = Array.isArray(sample?.benchmarkInvalidReasons)
+                ? sample.benchmarkInvalidReasons
+                : ["unknown_invalid_sample"];
+            for (const reason of reasons) {
+                const key =
+                    typeof reason === "string" && reason.length > 0
+                        ? reason
+                        : "unknown_invalid_sample";
+                invalidReasonCounts.set(
+                    key,
+                    (invalidReasonCounts.get(key) ?? 0) + 1,
+                );
+            }
+            continue;
+        }
+        validCount += 1;
+    }
+    return {
+        totalCount: samples.length,
+        validCount,
+        invalidCount: samples.length - validCount,
+        invalidReasons: [...invalidReasonCounts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([reason, count]) => ({ reason, count })),
+    };
 }
 
 function getEventRecord(
@@ -951,6 +1042,45 @@ function getEventDetailValue(
             ? (event.detail as Record<string, JsonValue>)
             : null;
     return detail?.[key] ?? event[key] ?? null;
+}
+
+function getEventDetailNumber(
+    eventResult: Record<string, JsonValue> | null | undefined,
+    key: string,
+): number | null {
+    const value = Number(getEventDetailValue(eventResult, key));
+    return Number.isFinite(value) ? value : null;
+}
+
+function getEventDispatchLeadMs(
+    eventResult: Record<string, JsonValue> | null | undefined,
+    startedAt: number,
+): number | null {
+    const eventTimeStampMs = getEventDetailNumber(
+        eventResult,
+        "eventTimeStampMs",
+    );
+    if (eventTimeStampMs != null) {
+        return round(eventTimeStampMs - startedAt);
+    }
+    const event = getEventRecord(eventResult);
+    const queueDelayMs = getEventDetailNumber(eventResult, "queueDelayMs");
+    if (!event || queueDelayMs == null) return null;
+    return round(Number(event.atMs ?? startedAt) - queueDelayMs - startedAt);
+}
+
+function getEventQueueDelayMetricMs(
+    eventResult: Record<string, JsonValue> | null | undefined,
+): number | null {
+    return getEventDetailNumber(eventResult, "queueDelayMs");
+}
+
+function subtractMetricMs(
+    laterMs: number | null,
+    earlierMs: number | null,
+): number | null {
+    if (!Number.isFinite(laterMs) || !Number.isFinite(earlierMs)) return null;
+    return round(Number(laterMs) - Number(earlierMs));
 }
 
 function summarizeOrderPathGap(
@@ -987,9 +1117,31 @@ function summarizeOrderPathGap(
         return null;
     }
     return {
+        pointerSampleIntegrity: summarizeSampleIntegrity(
+            actionResult?.pointerSamples,
+        ),
+        directSampleIntegrity: summarizeSampleIntegrity(
+            actionResult?.directSamples,
+        ),
         pointerIssueCommit: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "issueCommitMs",
+        ),
+        pointerSourcePointerDownHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "sourcePointerDownHandledMs",
+        ),
+        pointerSourcePointerDownDispatchLead: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "sourcePointerDownDispatchLeadMs",
+        ),
+        pointerSourcePointerDownQueueDelay: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "sourcePointerDownQueueDelayMs",
+        ),
+        pointerSourcePointerUpHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "sourcePointerUpHandledMs",
         ),
         pointerIssueLocalAck: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1014,6 +1166,34 @@ function summarizeOrderPathGap(
         pointerIssueAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "issueAfterTargetClickMs",
+        ),
+        pointerTargetPointerDownHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "targetPointerDownHandledMs",
+        ),
+        pointerTargetPointerDownDispatchLead: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "targetPointerDownDispatchLeadMs",
+        ),
+        pointerTargetPointerDownQueueDelay: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "targetPointerDownQueueDelayMs",
+        ),
+        pointerTargetPointerUpHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "targetPointerUpHandledMs",
+        ),
+        pointerIssueHandledToLocalAckAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueHandledToLocalAckAfterTargetClickMs",
+        ),
+        pointerIssueHandledToVisualAckAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueHandledToVisualAckAfterTargetClickMs",
+        ),
+        pointerIssueHandledToCommitAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueHandledToCommitAfterTargetClickMs",
         ),
         pointerIssueQueueFlush: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1043,9 +1223,49 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "cancelCommitMs",
         ),
+        pointerCancelPointerDownHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelPointerDownHandledMs",
+        ),
+        pointerCancelPointerDownDispatchLead: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelPointerDownDispatchLeadMs",
+        ),
+        pointerCancelPointerDownQueueDelay: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelPointerDownQueueDelayMs",
+        ),
+        pointerCancelPointerUpHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelPointerUpHandledMs",
+        ),
+        pointerCancelContextMenuHandled: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelRightclickHandledMs",
+        ),
+        pointerCancelContextMenuDispatchLead: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelRightclickDispatchLeadMs",
+        ),
+        pointerCancelContextMenuQueueDelay: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelRightclickQueueDelayMs",
+        ),
         pointerCancelLocalAck: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "cancelLocalAckMs",
+        ),
+        pointerCancelHandledToLocalAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelHandledToLocalAckMs",
+        ),
+        pointerCancelHandledToVisualAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelHandledToVisualAckMs",
+        ),
+        pointerCancelHandledToCommit: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelHandledToCommitMs",
         ),
         pointerCancelVisualAck: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1572,6 +1792,23 @@ async function dispatchMouseMove(
     });
 }
 
+async function resolveLiveStarClientPoint(
+    client: CdpClient,
+    starId: string,
+    fallbackX: number,
+    fallbackY: number,
+): Promise<{ clientX: number; clientY: number }> {
+    const point = await client.evaluate<Record<string, JsonValue> | null>(
+        `window.__PAX_BENCH__.getStarClientPoint(${JSON.stringify(starId)})`,
+    );
+    const clientX = Number(point?.clientX ?? fallbackX);
+    const clientY = Number(point?.clientY ?? fallbackY);
+    return {
+        clientX: Number.isFinite(clientX) ? clientX : fallbackX,
+        clientY: Number.isFinite(clientY) ? clientY : fallbackY,
+    };
+}
+
 async function waitForOrderState(
     client: CdpClient,
     sourceId: string,
@@ -1681,11 +1918,40 @@ async function runHoverSweepStressLoop(
     const targetY = Number(path.targetClientY ?? 0);
     const midX = (sourceX + targetX) * 0.5;
     const midY = (sourceY + targetY) * 0.5;
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / length;
+    const uy = dy / length;
+    const nx = -uy;
+    const ny = ux;
+    const inset = Math.min(90, Math.max(28, length * 0.18));
+    const offset = Math.min(120, Math.max(56, length * 0.22));
     const points = [
-        { x: sourceX, y: sourceY },
-        { x: midX, y: midY },
-        { x: targetX, y: targetY },
-        { x: midX, y: sourceY },
+        {
+            x: sourceX + ux * inset + nx * offset,
+            y: sourceY + uy * inset + ny * offset,
+        },
+        {
+            x: midX + nx * (offset * 0.75),
+            y: midY + ny * (offset * 0.75),
+        },
+        {
+            x: targetX - ux * inset + nx * offset,
+            y: targetY - uy * inset + ny * offset,
+        },
+        {
+            x: targetX - ux * inset - nx * offset,
+            y: targetY - uy * inset - ny * offset,
+        },
+        {
+            x: midX - nx * (offset * 0.75),
+            y: midY - ny * (offset * 0.75),
+        },
+        {
+            x: sourceX + ux * inset - nx * offset,
+            y: sourceY + uy * inset - ny * offset,
+        },
     ];
     let index = 0;
     while (!stopSignal.stopped) {
@@ -1713,19 +1979,36 @@ async function executePointerOrderLoop(
             await sleep(80);
             continue;
         }
+        const sourcePoint = await resolveLiveStarClientPoint(
+            client,
+            String(path.sourceId),
+            Number(path.sourceClientX ?? 0),
+            Number(path.sourceClientY ?? 0),
+        );
         const issueStartedAt = await client.evaluate<number>("performance.now()");
         const issueEventStartIndex = await client.evaluate<number>(
             "window.__PAX_BENCH__.getPerfEventCursor()",
         );
         const stressSignal = { stopped: false };
-        const stressLoop =
-            options?.hoverStress === true
-                ? runHoverSweepStressLoop(client, path, stressSignal)
-                : null;
+        let stressLoop: Promise<void> | null = null;
         await dispatchMouseClick(
             client,
-            Number(path.sourceClientX),
-            Number(path.sourceClientY),
+            sourcePoint.clientX,
+            sourcePoint.clientY,
+        );
+        const sourcePointerDownHandled = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "input.pointerdown.handled",
+            { button: 0 },
+            800,
+        );
+        const sourcePointerUpHandled = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "input.pointerup.handled",
+            { button: 0 },
+            800,
         );
         const sourceSelectLocalAck = await waitForPerfEvent(
             client,
@@ -1747,13 +2030,59 @@ async function executePointerOrderLoop(
             1500,
         );
         await sleep(24);
+        if (options?.hoverStress === true) {
+            const stressTargetPoint = await resolveLiveStarClientPoint(
+                client,
+                String(path.targetId),
+                Number(path.targetClientX ?? 0),
+                Number(path.targetClientY ?? 0),
+            );
+            stressLoop = runHoverSweepStressLoop(
+                client,
+                {
+                    ...path,
+                    sourceClientX: sourcePoint.clientX,
+                    sourceClientY: sourcePoint.clientY,
+                    targetClientX: stressTargetPoint.clientX,
+                    targetClientY: stressTargetPoint.clientY,
+                },
+                stressSignal,
+            );
+            await sleep(48);
+            stressSignal.stopped = true;
+            await stressLoop;
+            stressLoop = null;
+        }
+        const targetPoint = await resolveLiveStarClientPoint(
+            client,
+            String(path.targetId),
+            Number(path.targetClientX ?? 0),
+            Number(path.targetClientY ?? 0),
+        );
         const targetClickStartedAt = await client.evaluate<number>(
             "performance.now()",
         );
+        const targetClickEventStartIndex = await client.evaluate<number>(
+            "window.__PAX_BENCH__.getPerfEventCursor()",
+        );
         await dispatchMouseClick(
             client,
-            Number(path.targetClientX),
-            Number(path.targetClientY),
+            targetPoint.clientX,
+            targetPoint.clientY,
+        );
+        const targetPointerDownHandled = await waitForPerfEvent(
+            client,
+            targetClickEventStartIndex,
+            "input.pointerdown.handled",
+            { button: 0 },
+            800,
+        );
+        const targetPointerUpHandled = await waitForPerfEvent(
+            client,
+            targetClickEventStartIndex,
+            "input.pointerup.handled",
+            { button: 0 },
+            800,
         );
         const issueLocalAck = await waitForAnyPerfEvent(
             client,
@@ -1848,11 +2177,38 @@ async function executePointerOrderLoop(
         const cancelEventStartIndex = await client.evaluate<number>(
             "window.__PAX_BENCH__.getPerfEventCursor()",
         );
+        const cancelPoint = await resolveLiveStarClientPoint(
+            client,
+            String(path.sourceId),
+            Number(path.sourceClientX ?? 0),
+            Number(path.sourceClientY ?? 0),
+        );
         await dispatchMouseClick(
             client,
-            Number(path.sourceClientX),
-            Number(path.sourceClientY),
+            cancelPoint.clientX,
+            cancelPoint.clientY,
             "right",
+        );
+        const cancelPointerDownHandled = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.pointerdown.handled",
+            { button: 2 },
+            800,
+        );
+        const cancelPointerUpHandled = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.pointerup.handled",
+            { button: 2 },
+            800,
+        );
+        const cancelRightclickHandled = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.rightclick.handled",
+            { button: 2 },
+            800,
         );
         const cancelLocalAck = await waitForPerfEvent(
             client,
@@ -1915,135 +2271,337 @@ async function executePointerOrderLoop(
             1200,
         );
         stressSignal.stopped = true;
-        await stressLoop;
+        if (stressLoop) {
+            await stressLoop;
+        }
+        const sourceSelectLocalAckMs = getEventDeltaMs(
+            sourceSelectLocalAck,
+            issueStartedAt,
+        );
+        const sourcePointerDownHandledMs = getEventDeltaMs(
+            sourcePointerDownHandled,
+            issueStartedAt,
+        );
+        const sourcePointerDownDispatchLeadMs = getEventDispatchLeadMs(
+            sourcePointerDownHandled,
+            issueStartedAt,
+        );
+        const sourcePointerDownQueueDelayMs = getEventQueueDelayMetricMs(
+            sourcePointerDownHandled,
+        );
+        const sourcePointerUpHandledMs = getEventDeltaMs(
+            sourcePointerUpHandled,
+            issueStartedAt,
+        );
+        const sourceSelectMs = sourceSelectEvent.event
+            ? round(
+                  Number(
+                      (sourceSelectEvent.event as Record<string, JsonValue>)
+                          .atMs ?? issueStartedAt,
+                  ) - issueStartedAt,
+              )
+            : null;
+        const targetPointerDownHandledMs = getEventDeltaMs(
+            targetPointerDownHandled,
+            targetClickStartedAt,
+        );
+        const targetPointerDownDispatchLeadMs = getEventDispatchLeadMs(
+            targetPointerDownHandled,
+            targetClickStartedAt,
+        );
+        const targetPointerDownQueueDelayMs = getEventQueueDelayMetricMs(
+            targetPointerDownHandled,
+        );
+        const targetPointerUpHandledMs = getEventDeltaMs(
+            targetPointerUpHandled,
+            targetClickStartedAt,
+        );
+        const issueLocalAckMs = getEventDeltaMs(issueLocalAck, issueStartedAt);
+        const issueLocalAckAfterTargetClickMs = getEventDeltaMs(
+            issueLocalAck,
+            targetClickStartedAt,
+        );
+        const issueVisualAckMs = getEventDeltaMs(issueVisualAck, issueStartedAt);
+        const issueVisualAckAfterTargetClickMs = getEventDeltaMs(
+            issueVisualAck,
+            targetClickStartedAt,
+        );
+        const issueHandledToLocalAckAfterTargetClickMs = subtractMetricMs(
+            issueLocalAckAfterTargetClickMs,
+            targetPointerUpHandledMs,
+        );
+        const issueHandledToVisualAckAfterTargetClickMs = subtractMetricMs(
+            issueVisualAckAfterTargetClickMs,
+            targetPointerUpHandledMs,
+        );
+        const issueCommitMs = round(
+            Number(issueApplied.observedAtMs ?? issueStartedAt) -
+                issueStartedAt,
+        );
+        const issueAfterTargetClickMs = round(
+            Number(issueApplied.observedAtMs ?? targetClickStartedAt) -
+                targetClickStartedAt,
+        );
+        const issueHandledToCommitAfterTargetClickMs = subtractMetricMs(
+            issueAfterTargetClickMs,
+            targetPointerUpHandledMs,
+        );
+        const cancelCommitMs = round(
+            Number(cancelApplied.observedAtMs ?? cancelStartedAt) -
+                cancelStartedAt,
+        );
+        const cancelPointerDownHandledMs = getEventDeltaMs(
+            cancelPointerDownHandled,
+            cancelStartedAt,
+        );
+        const cancelPointerDownDispatchLeadMs = getEventDispatchLeadMs(
+            cancelPointerDownHandled,
+            cancelStartedAt,
+        );
+        const cancelPointerDownQueueDelayMs = getEventQueueDelayMetricMs(
+            cancelPointerDownHandled,
+        );
+        const cancelPointerUpHandledMs = getEventDeltaMs(
+            cancelPointerUpHandled,
+            cancelStartedAt,
+        );
+        const cancelRightclickHandledMs = getEventDeltaMs(
+            cancelRightclickHandled,
+            cancelStartedAt,
+        );
+        const cancelRightclickDispatchLeadMs = getEventDispatchLeadMs(
+            cancelRightclickHandled,
+            cancelStartedAt,
+        );
+        const cancelRightclickQueueDelayMs = getEventQueueDelayMetricMs(
+            cancelRightclickHandled,
+        );
+        const issueQueueFlushMs = issueQueueFlush.event
+            ? round(
+                  Number(
+                      (issueQueueFlush.event as Record<string, JsonValue>).atMs
+                      ?? issueStartedAt,
+                  ) - issueStartedAt,
+              )
+            : null;
+        const issueQueueFlushAfterTargetClickMs = issueQueueFlush.event
+            ? round(
+                  Number(
+                      (issueQueueFlush.event as Record<string, JsonValue>).atMs
+                      ?? targetClickStartedAt,
+                  ) - targetClickStartedAt,
+              )
+            : null;
+        const issuePerfEventMs = issuePerfEvent.event
+            ? round(
+                  Number(
+                      (issuePerfEvent.event as Record<string, JsonValue>).atMs
+                      ?? issueStartedAt,
+                  ) - issueStartedAt,
+              )
+            : null;
+        const issuePerfEventAfterTargetClickMs = issuePerfEvent.event
+            ? round(
+                  Number(
+                      (issuePerfEvent.event as Record<string, JsonValue>).atMs
+                      ?? targetClickStartedAt,
+                  ) - targetClickStartedAt,
+              )
+            : null;
+        const issueOrderPathEventMs = issueOrderPathEvent.event
+            ? round(
+                  Number(
+                      (
+                          issueOrderPathEvent.event as Record<
+                              string,
+                              JsonValue
+                          >
+                      ).atMs ?? issueStartedAt,
+                  ) - issueStartedAt,
+              )
+            : null;
+        const issueOrderPathEventAfterTargetClickMs = issueOrderPathEvent.event
+            ? round(
+                  Number(
+                      (
+                          issueOrderPathEvent.event as Record<
+                              string,
+                              JsonValue
+                          >
+                      ).atMs ?? targetClickStartedAt,
+                  ) - targetClickStartedAt,
+              )
+            : null;
+        const issueAckKind = getEventDetailValue(issueLocalAck, "kind");
+        const issueAckPath = getEventDetailValue(issueLocalAck, "path");
+        const issueRequestId = getEventDetailValue(issueLocalAck, "requestId");
+        const issueVisualAckReason = getEventDetailValue(
+            issueVisualAck,
+            "reason",
+        );
+        const cancelLocalAckMs = getEventDeltaMs(cancelLocalAck, cancelStartedAt);
+        const cancelHandledToLocalAckMs = subtractMetricMs(
+            cancelLocalAckMs,
+            cancelPointerDownHandledMs,
+        );
+        const cancelVisualAckMs = getEventDeltaMs(
+            cancelVisualAck,
+            cancelStartedAt,
+        );
+        const cancelHandledToVisualAckMs = subtractMetricMs(
+            cancelVisualAckMs,
+            cancelPointerDownHandledMs,
+        );
+        const cancelQueueFlushMs = cancelQueueFlush.event
+            ? round(
+                  Number(
+                      (cancelQueueFlush.event as Record<string, JsonValue>)
+                          .atMs ?? cancelStartedAt,
+                  ) - cancelStartedAt,
+              )
+            : null;
+        const cancelPerfEventMs = cancelPerfEvent.event
+            ? round(
+                  Number(
+                      (cancelPerfEvent.event as Record<string, JsonValue>).atMs
+                      ?? cancelStartedAt,
+                  ) - cancelStartedAt,
+              )
+            : null;
+        const cancelHandledToCommitMs = subtractMetricMs(
+            cancelCommitMs,
+            cancelPointerDownHandledMs,
+        );
+        const cancelOrderPathEventMs = cancelOrderPathEvent.event
+            ? round(
+                  Number(
+                      (
+                          cancelOrderPathEvent.event as Record<
+                              string,
+                              JsonValue
+                          >
+                      ).atMs ?? cancelStartedAt,
+                  ) - cancelStartedAt,
+              )
+            : null;
+        const cancelOrderPathEventName =
+            cancelOrderPathEvent.matchedName ?? null;
+        const cancelAckPath = getEventDetailValue(cancelLocalAck, "path");
+        const cancelRequestId = getEventDetailValue(
+            cancelLocalAck,
+            "requestId",
+        );
+        const cancelVisualAckReason = getEventDetailValue(
+            cancelVisualAck,
+            "reason",
+        );
+        const benchmarkInvalidReasons: string[] = [];
+        if (!sourceSelectLocalAck.event) {
+            benchmarkInvalidReasons.push("missing_source_select_local_ack");
+        }
+        if (!sourceSelectEvent.event) {
+            benchmarkInvalidReasons.push("missing_source_select");
+        }
+        if (!(issueApplied.matched ?? false)) {
+            benchmarkInvalidReasons.push("missing_issue_commit");
+        }
+        if (!(cancelApplied.matched ?? false)) {
+            benchmarkInvalidReasons.push("missing_cancel_commit");
+        }
+        if (
+            issueOrderPathEvent.matchedName !== "input.orderPath.issue"
+            && issueOrderPathEvent.matchedName !== "input.orderPath.defer"
+        ) {
+            benchmarkInvalidReasons.push("unexpected_issue_order_path_event");
+        }
+        if (
+            cancelOrderPathEvent.matchedName != null
+            && cancelOrderPathEvent.matchedName !== "input.orderPath.cancel"
+            && cancelOrderPathEvent.matchedName !== "input.orderPath.defer_cancel"
+        ) {
+            benchmarkInvalidReasons.push("unexpected_cancel_order_path_event");
+        }
+        for (const [metricName, metricValue] of Object.entries({
+            issueLocalAckAfterTargetClickMs,
+            issueVisualAckAfterTargetClickMs,
+            issueAfterTargetClickMs,
+            issueQueueFlushAfterTargetClickMs,
+            issuePerfEventAfterTargetClickMs,
+            issueOrderPathEventAfterTargetClickMs,
+        })) {
+            if (typeof metricValue === "number" && metricValue < 0) {
+                benchmarkInvalidReasons.push(`negative_${metricName}`);
+            }
+        }
+        if (
+            options?.hoverStress === true
+            && benchmarkInvalidReasons.some((reason) =>
+                reason.startsWith("negative_"),
+            )
+        ) {
+            benchmarkInvalidReasons.unshift("stress_pretriggered_issue");
+        }
         samples.push({
             ok: true,
             sourceId: path.sourceId ?? null,
             targetId: path.targetId ?? null,
-            sourceSelectLocalAckMs: getEventDeltaMs(
-                sourceSelectLocalAck,
-                issueStartedAt,
-            ),
-            sourceSelectMs: sourceSelectEvent.event
-                ? round(
-                      Number(
-                          (sourceSelectEvent.event as Record<string, JsonValue>)
-                              .atMs ?? issueStartedAt,
-                      ) - issueStartedAt,
-                  )
-                : null,
-            issueLocalAckMs: getEventDeltaMs(issueLocalAck, issueStartedAt),
-            issueLocalAckAfterTargetClickMs: getEventDeltaMs(
-                issueLocalAck,
-                targetClickStartedAt,
-            ),
-            issueVisualAckMs: getEventDeltaMs(issueVisualAck, issueStartedAt),
-            issueVisualAckAfterTargetClickMs: getEventDeltaMs(
-                issueVisualAck,
-                targetClickStartedAt,
-            ),
-            issueCommitMs: round(
-                Number(issueApplied.observedAtMs ?? issueStartedAt) -
-                    issueStartedAt,
-            ),
-            issueAfterTargetClickMs: round(
-                Number(issueApplied.observedAtMs ?? targetClickStartedAt) -
-                    targetClickStartedAt,
-            ),
-            cancelCommitMs: round(
-                Number(cancelApplied.observedAtMs ?? cancelStartedAt) -
-                    cancelStartedAt,
-            ),
-            issueQueueFlushMs: issueQueueFlush.event
-                ? round(Number((issueQueueFlush.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
-                : null,
-            issueQueueFlushAfterTargetClickMs: issueQueueFlush.event
-                ? round(
-                      Number(
-                          (issueQueueFlush.event as Record<string, JsonValue>)
-                              .atMs ?? targetClickStartedAt,
-                      ) - targetClickStartedAt,
-                  )
-                : null,
-            issuePerfEventMs: issuePerfEvent.event
-                ? round(Number((issuePerfEvent.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
-                : null,
-            issuePerfEventAfterTargetClickMs: issuePerfEvent.event
-                ? round(
-                      Number(
-                          (issuePerfEvent.event as Record<string, JsonValue>)
-                              .atMs ?? targetClickStartedAt,
-                      ) - targetClickStartedAt,
-                  )
-                : null,
-            issueOrderPathEventMs: issueOrderPathEvent.event
-                ? round(
-                      Number(
-                          (
-                              issueOrderPathEvent.event as Record<
-                                  string,
-                                  JsonValue
-                              >
-                          ).atMs ?? issueStartedAt,
-                      ) - issueStartedAt,
-                  )
-                : null,
-            issueOrderPathEventAfterTargetClickMs: issueOrderPathEvent.event
-                ? round(
-                      Number(
-                          (
-                              issueOrderPathEvent.event as Record<
-                                  string,
-                                  JsonValue
-                              >
-                          ).atMs ?? targetClickStartedAt,
-                      ) - targetClickStartedAt,
-                  )
-                : null,
+            sourcePointerDownHandledMs,
+            sourcePointerDownDispatchLeadMs,
+            sourcePointerDownQueueDelayMs,
+            sourcePointerUpHandledMs,
+            sourceSelectLocalAckMs,
+            sourceSelectMs,
+            targetPointerDownHandledMs,
+            targetPointerDownDispatchLeadMs,
+            targetPointerDownQueueDelayMs,
+            targetPointerUpHandledMs,
+            issueLocalAckMs,
+            issueLocalAckAfterTargetClickMs,
+            issueVisualAckMs,
+            issueVisualAckAfterTargetClickMs,
+            issueHandledToLocalAckAfterTargetClickMs,
+            issueHandledToVisualAckAfterTargetClickMs,
+            issueCommitMs,
+            issueAfterTargetClickMs,
+            issueHandledToCommitAfterTargetClickMs,
+            cancelPointerDownHandledMs,
+            cancelPointerDownDispatchLeadMs,
+            cancelPointerDownQueueDelayMs,
+            cancelPointerUpHandledMs,
+            cancelRightclickHandledMs,
+            cancelRightclickDispatchLeadMs,
+            cancelRightclickQueueDelayMs,
+            cancelCommitMs,
+            issueQueueFlushMs,
+            issueQueueFlushAfterTargetClickMs,
+            issuePerfEventMs,
+            issuePerfEventAfterTargetClickMs,
+            issueOrderPathEventMs,
+            issueOrderPathEventAfterTargetClickMs,
             issueOrderPathEventName:
                 issueOrderPathEvent.matchedName ?? null,
-            issueAckKind: getEventDetailValue(issueLocalAck, "kind"),
-            issueAckPath: getEventDetailValue(issueLocalAck, "path"),
-            issueRequestId: getEventDetailValue(issueLocalAck, "requestId"),
-            issueVisualAckReason: getEventDetailValue(
-                issueVisualAck,
-                "reason",
-            ),
+            issueAckKind,
+            issueAckPath,
+            issueRequestId,
+            issueVisualAckReason,
             issueMatched: issueApplied.matched ?? false,
             cancelMatched: cancelApplied.matched ?? false,
-            cancelLocalAckMs: getEventDeltaMs(cancelLocalAck, cancelStartedAt),
-            cancelVisualAckMs: getEventDeltaMs(
-                cancelVisualAck,
-                cancelStartedAt,
-            ),
-            cancelQueueFlushMs: cancelQueueFlush.event
-                ? round(Number((cancelQueueFlush.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
-                : null,
-            cancelPerfEventMs: cancelPerfEvent.event
-                ? round(Number((cancelPerfEvent.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
-                : null,
-            cancelOrderPathEventMs: cancelOrderPathEvent.event
-                ? round(
-                      Number(
-                          (
-                              cancelOrderPathEvent.event as Record<
-                                  string,
-                                  JsonValue
-                              >
-                          ).atMs ?? cancelStartedAt,
-                      ) - cancelStartedAt,
-                  )
-                : null,
-            cancelOrderPathEventName:
-                cancelOrderPathEvent.matchedName ?? null,
-            cancelAckPath: getEventDetailValue(cancelLocalAck, "path"),
-            cancelRequestId: getEventDetailValue(cancelLocalAck, "requestId"),
-            cancelVisualAckReason: getEventDetailValue(
-                cancelVisualAck,
-                "reason",
-            ),
+            cancelLocalAckMs,
+            cancelHandledToLocalAckMs,
+            cancelVisualAckMs,
+            cancelHandledToVisualAckMs,
+            cancelQueueFlushMs,
+            cancelPerfEventMs,
+            cancelHandledToCommitMs,
+            cancelOrderPathEventMs,
+            cancelOrderPathEventName,
+            cancelAckPath,
+            cancelRequestId,
+            cancelVisualAckReason,
             issueStatus: issueApplied.status ?? null,
             cancelStatus: cancelApplied.status ?? null,
+            benchmarkValid: benchmarkInvalidReasons.length === 0,
+            benchmarkInvalidReasons,
             perfEventTail: await client.evaluate<Array<Record<string, JsonValue>>>(
                 `window.__PAX_BENCH__.getPerfEventsSince(${issueEventStartIndex}, 80)`,
             ),
@@ -2115,6 +2673,16 @@ async function executeDirectOrderLoop(
             },
             1500,
         );
+        const benchmarkInvalidReasons: string[] = [];
+        if (!issueAccepted) {
+            benchmarkInvalidReasons.push("issue_not_accepted");
+        }
+        if (!(issueApplied.matched ?? false)) {
+            benchmarkInvalidReasons.push("missing_issue_commit");
+        }
+        if (!(cancelApplied.matched ?? false)) {
+            benchmarkInvalidReasons.push("missing_cancel_commit");
+        }
 
         samples.push({
             ok: true,
@@ -2149,6 +2717,8 @@ async function executeDirectOrderLoop(
             cancelMatched: cancelApplied.matched ?? false,
             issueStatus: issueApplied.status ?? null,
             cancelStatus: cancelApplied.status ?? null,
+            benchmarkValid: benchmarkInvalidReasons.length === 0,
+            benchmarkInvalidReasons,
         });
         await sleep(80);
     }
@@ -2282,6 +2852,7 @@ async function profileScenario(
 }
 
 async function main(): Promise<void> {
+    await cleanupStaleHarnessBrowsers("pax-bench-browser-");
     const appPort = await findAvailablePort(4173);
     const cdpPort = await findAvailablePort(9223);
     const appRootUrl = `http://${HOST}:${appPort}/`;

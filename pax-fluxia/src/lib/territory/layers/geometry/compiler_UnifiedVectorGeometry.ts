@@ -59,6 +59,12 @@ interface CompileResult {
     _rawGeometry?: TerritoryGeometryData;
 }
 
+function serializeTunables(
+    tunables: GeometryLayerInput['tunables'],
+): Record<string, unknown> {
+    return { ...tunables };
+}
+
 function serializeSharedFrontierMap(
     sharedFrontierMap: SharedFrontierMap,
 ): Record<string, unknown> {
@@ -114,7 +120,7 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         logDetail: {
             world: input.world,
             styleMode: input.styleMode,
-            tunables: Object.fromEntries(input.tunables.entries()),
+            tunables: serializeTunables(input.tunables),
             stars: input.stars,
             lanes: input.lanes,
             ownership: {

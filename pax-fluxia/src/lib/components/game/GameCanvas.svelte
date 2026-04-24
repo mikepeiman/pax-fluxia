@@ -158,6 +158,7 @@
     let interactionOverlayCanvas: HTMLCanvasElement | null = null;
     let app: PIXI.Application | null = null;
     let interactionOverlayCtx: CanvasRenderingContext2D | null = null;
+    let interactionOverlayAnimationFrameId: number | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -203,17 +204,32 @@
 
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
-    const TERRITORY_INPUT_PRIORITY_WINDOW_MS = 120;
+    const TERRITORY_INPUT_PRIORITY_WINDOW_MS = 180;
+    const ORDER_MUTATION_PRIORITY_WINDOW_MS = 320;
     const TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS = 48;
     const TERRITORY_HEAVY_UPDATE_MS = 8;
     const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 96;
     const TERRITORY_IDLE_MIN_CADENCE_MS = 48;
     const TERRITORY_MAX_STALE_MS = 220;
+    const TERRITORY_INPUT_HOLD_MAX_STALE_MS = 480;
     const TERRITORY_ASYNC_REQUEUE_DELAY_MS = 16;
     const SHIP_RENDER_HEAVY_UPDATE_MS = 3;
     const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
     const SHIP_RENDER_IDLE_MIN_CADENCE_MS = 16;
     const SHIP_RENDER_MAX_STALE_MS = 144;
+    const SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS = 360;
+    const CONNECTIONS_PRESENT_HEAVY_UPDATE_MS = 2;
+    const CONNECTIONS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 96;
+    const CONNECTIONS_PRESENT_IDLE_MIN_CADENCE_MS = 16;
+    const CONNECTIONS_PRESENT_MAX_STALE_MS = 160;
+    const CONNECTIONS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 360;
+    const STARS_PRESENT_HEAVY_UPDATE_MS = 2;
+    const STARS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 80;
+    const STARS_PRESENT_IDLE_MIN_CADENCE_MS = 16;
+    const STARS_PRESENT_MAX_STALE_MS = 128;
+    const STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 320;
+    const RENDER_INPUT_PENDING_MIN_BUDGET_MS = 4;
+    const RENDER_INPUT_PENDING_SOFT_BUDGET_MS = 8;
     let territoryInputPriorityUntilMs = 0;
     let lastTerritoryUpdateStartedAtMs = 0;
     let lastTerritoryUpdateCostMs = 0;
@@ -230,6 +246,10 @@
     let deferredShipRenderFrameCount = 0;
     let deferredShipRenderReason = "";
     let shipRenderCadenceSkipCount = 0;
+    let lastConnectionsPresentCostMs = 0;
+    let lastConnectionsPresentedAtMs = 0;
+    let lastStarsPresentCostMs = 0;
+    let lastStarsPresentedAtMs = 0;
     type QueuedOrderMutation =
         | {
               kind: "issue";
@@ -351,6 +371,7 @@
         if (queueDelayMs < thresholdMs) return queueDelayMs;
         recordPerfEvent(`input.${kind}.handled`, {
             queueDelayMs,
+            eventTimeStampMs: event.timeStamp,
             button: "button" in event ? event.button : undefined,
             pointerType:
                 "pointerType" in event ? event.pointerType : "mouse",
@@ -393,7 +414,33 @@
         return false;
     }
 
+    function getQueuedVisibleOrderTargetId(
+        sourceId: string,
+    ): string | null | undefined {
+        for (let index = queuedOrderMutations.length - 1; index >= 0; index -= 1) {
+            const mutation = queuedOrderMutations[index]!;
+            switch (mutation.kind) {
+                case "cancel":
+                    if (mutation.starId === sourceId) {
+                        return null;
+                    }
+                    break;
+                case "issue":
+                case "defer":
+                    if (mutation.sourceId === sourceId) {
+                        return mutation.targetId;
+                    }
+                    break;
+            }
+        }
+        return undefined;
+    }
+
     function getVisibleOrderTargetId(sourceId: string): string | null {
+        const queuedTargetId = getQueuedVisibleOrderTargetId(sourceId);
+        if (queuedTargetId !== undefined) {
+            return queuedTargetId;
+        }
         const sourceStar = getInteractionStarById(sourceId) as
             | (StarState & {
                   targetId?: string | null;
@@ -555,6 +602,10 @@
             atMs: performance.now(),
             ...detail,
         };
+        noteInteractivePressure(
+            "interactionLocalAck",
+            ORDER_MUTATION_PRIORITY_WINDOW_MS,
+        );
         recordPerfEvent("input.interaction.localAck", detail);
         logPipelineStage({
             channel: "input",
@@ -623,6 +674,10 @@
             (mutation) => mutation.requestId,
         );
         lastOrderQueueFlushKinds = mutations.map((mutation) => mutation.kind);
+        noteInteractivePressure(
+            "orderQueueFlush",
+            ORDER_MUTATION_PRIORITY_WINDOW_MS,
+        );
         measurePerf(
             "game.input.orderQueue.flush",
             () => {
@@ -705,6 +760,10 @@
             requestId,
             enqueuedAtMs,
         } as QueuedOrderMutation;
+        noteInteractivePressure(
+            "orderMutationQueued",
+            ORDER_MUTATION_PRIORITY_WINDOW_MS,
+        );
         if (dispatchMode === "immediate") {
             measurePerf(
                 "game.input.orderImmediate",
@@ -742,14 +801,40 @@
         };
     }
 
-    function noteInteractivePressure(kind?: string): void {
+    function noteInteractivePressure(
+        kind?: string,
+        durationMs = TERRITORY_INPUT_PRIORITY_WINDOW_MS,
+    ): void {
         territoryInputPriorityUntilMs = Math.max(
             territoryInputPriorityUntilMs,
-            performance.now() + TERRITORY_INPUT_PRIORITY_WINDOW_MS,
+            performance.now() + durationMs,
         );
         if (kind) {
-            recordPerfEvent(`input.${kind}`);
+            recordPerfEvent(`input.${kind}`, { durationMs });
         }
+    }
+
+    function isInputPriorityActive(nowMs: number): boolean {
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
+        return (
+            activeInteraction ||
+            recentInteraction ||
+            hasBrowserInputPending() ||
+            queuedOrderMutations.length > 0 ||
+            pendingInteractionVisualAcks.length > 0
+        );
+    }
+
+    function shouldHoldPresentationForInput(nowMs: number): boolean {
+        return (
+            isInputPriorityActive(nowMs) &&
+            (nowMs < territoryInputPriorityUntilMs ||
+                hasBrowserInputPending() ||
+                queuedOrderMutations.length > 0 ||
+                pendingInteractionVisualAcks.length > 0)
+        );
     }
 
     function hasBrowserInputPending(): boolean {
@@ -762,6 +847,60 @@
         } catch {
             return false;
         }
+    }
+
+    function getRenderFrameInputYieldState(frameStartedAtMs: number): {
+        shouldYield: boolean;
+        reason: string;
+        elapsedMs: number;
+    } {
+        const elapsedMs = performance.now() - frameStartedAtMs;
+        if (!hasBrowserInputPending()) {
+            return {
+                shouldYield: false,
+                reason: "no_pending_input",
+                elapsedMs,
+            };
+        }
+        if (elapsedMs < RENDER_INPUT_PENDING_MIN_BUDGET_MS) {
+            return {
+                shouldYield: false,
+                reason: "pending_input_below_budget",
+                elapsedMs,
+            };
+        }
+        return {
+            shouldYield: true,
+            reason:
+                elapsedMs >= RENDER_INPUT_PENDING_SOFT_BUDGET_MS
+                    ? "pending_input_budget_exceeded"
+                    : "pending_input_ready",
+            elapsedMs,
+        };
+    }
+
+    function shouldYieldRenderFrameForInput(
+        frameStartedAtMs: number,
+        stage: string,
+    ): boolean {
+        const yieldState = getRenderFrameInputYieldState(frameStartedAtMs);
+        if (!yieldState.shouldYield) return false;
+        noteInteractivePressure(
+            "renderInputYield",
+            ORDER_MUTATION_PRIORITY_WINDOW_MS,
+        );
+        recordPerfEvent("game.renderFrame.inputYield", {
+            stage,
+            reason: yieldState.reason,
+            elapsedMs: yieldState.elapsedMs,
+            queuedOrderMutations: queuedOrderMutations.length,
+            pendingInteractionVisualAcks: pendingInteractionVisualAcks.length,
+            activePointers: activePointers.size,
+            isDragging,
+            isPanning,
+            isPinching,
+        });
+        return true;
     }
 
     function shouldDeferTerritoryUpdate(nowMs: number): boolean {
@@ -797,17 +936,98 @@
         return result;
     }
 
+    function runConnectionsPresentation<T>(name: string, fn: () => T): T {
+        const startedAt = performance.now();
+        const result = measurePerf(name, fn);
+        lastConnectionsPresentCostMs = performance.now() - startedAt;
+        lastConnectionsPresentedAtMs = performance.now();
+        return result;
+    }
+
+    function runStarsPresentation<T>(name: string, fn: () => T): T {
+        const startedAt = performance.now();
+        const result = measurePerf(name, fn);
+        lastStarsPresentCostMs = performance.now() - startedAt;
+        lastStarsPresentedAtMs = performance.now();
+        return result;
+    }
+
+    function shouldThrottlePresentationLayer(params: {
+        nowMs: number;
+        isPaused: boolean;
+        lastPresentedAtMs: number;
+        lastCostMs: number;
+        heavyUpdateMs: number;
+        interactiveMinCadenceMs: number;
+        idleMinCadenceMs: number;
+        maxStaleMs: number;
+        inputHoldMaxStaleMs: number;
+    }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
+        const staleMs =
+            params.lastPresentedAtMs > 0
+                ? params.nowMs - params.lastPresentedAtMs
+                : Number.POSITIVE_INFINITY;
+        if (params.isPaused || params.lastPresentedAtMs === 0) {
+            return {
+                defer: false,
+                reason: "fresh_required",
+                cadenceMs: params.interactiveMinCadenceMs,
+                staleMs,
+            };
+        }
+        if (shouldHoldPresentationForInput(params.nowMs)) {
+            if (staleMs >= params.inputHoldMaxStaleMs) {
+                return {
+                    defer: false,
+                    reason: "input_hold_stale_limit",
+                    cadenceMs: params.inputHoldMaxStaleMs,
+                    staleMs,
+                };
+            }
+            return {
+                defer: true,
+                reason: "input_priority_hold",
+                cadenceMs: params.inputHoldMaxStaleMs,
+                staleMs,
+            };
+        }
+        if (staleMs >= params.maxStaleMs) {
+            return {
+                defer: false,
+                reason: "stale_limit",
+                cadenceMs: params.maxStaleMs,
+                staleMs,
+            };
+        }
+        const pressureActive = isInputPriorityActive(params.nowMs);
+        const baseCadenceMs = pressureActive
+            ? params.interactiveMinCadenceMs
+            : params.idleMinCadenceMs;
+        const cadenceMs =
+            params.lastCostMs < params.heavyUpdateMs
+                ? baseCadenceMs
+                : Math.min(
+                      params.maxStaleMs,
+                      Math.max(baseCadenceMs, Math.round(params.lastCostMs * 3)),
+                  );
+        if (!pressureActive && params.lastCostMs < params.heavyUpdateMs) {
+            return {
+                defer: false,
+                reason: "idle",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        return {
+            defer: staleMs < cadenceMs,
+            reason: pressureActive ? "interactive_pressure" : "cadence_budget",
+            cadenceMs,
+            staleMs,
+        };
+    }
+
     function computeTerritoryCadenceMs(nowMs: number): number {
-        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        const browserInputPending = hasBrowserInputPending();
-        const hasQueuedOrders = queuedOrderMutations.length > 0;
-        const baseCadenceMs =
-            recentInteraction ||
-            activeInteraction ||
-            browserInputPending ||
-            hasQueuedOrders
+        const baseCadenceMs = isInputPriorityActive(nowMs)
                 ? TERRITORY_INTERACTIVE_MIN_CADENCE_MS
                 : TERRITORY_IDLE_MIN_CADENCE_MS;
         if (lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS) {
@@ -820,16 +1040,7 @@
     }
 
     function computeShipRenderCadenceMs(nowMs: number): number {
-        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        const browserInputPending = hasBrowserInputPending();
-        const hasQueuedOrders = queuedOrderMutations.length > 0;
-        const baseCadenceMs =
-            recentInteraction ||
-            activeInteraction ||
-            browserInputPending ||
-            hasQueuedOrders
+        const baseCadenceMs = isInputPriorityActive(nowMs)
                 ? SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS
                 : SHIP_RENDER_IDLE_MIN_CADENCE_MS;
         if (lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
@@ -869,12 +1080,23 @@
         }
         if (
             shouldDeferTerritoryUpdate(params.nowMs) &&
-            staleMs < TERRITORY_MAX_STALE_MS
+            staleMs < TERRITORY_INPUT_HOLD_MAX_STALE_MS
         ) {
             return {
                 defer: true,
                 reason: "input_priority",
-                cadenceMs,
+                cadenceMs: TERRITORY_INPUT_HOLD_MAX_STALE_MS,
+                staleMs,
+            };
+        }
+        if (
+            shouldHoldPresentationForInput(params.nowMs) &&
+            staleMs < TERRITORY_INPUT_HOLD_MAX_STALE_MS
+        ) {
+            return {
+                defer: true,
+                reason: "input_priority_hold",
+                cadenceMs: TERRITORY_INPUT_HOLD_MAX_STALE_MS,
                 staleMs,
             };
         }
@@ -911,6 +1133,22 @@
                 staleMs,
             };
         }
+        if (shouldHoldPresentationForInput(params.nowMs)) {
+            if (staleMs >= SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS) {
+                return {
+                    defer: false,
+                    reason: "input_hold_stale_limit",
+                    cadenceMs: SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
+                    staleMs,
+                };
+            }
+            return {
+                defer: true,
+                reason: "input_priority_hold",
+                cadenceMs: SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
+                staleMs,
+            };
+        }
         if (staleMs >= SHIP_RENDER_MAX_STALE_MS) {
             return {
                 defer: false,
@@ -919,16 +1157,7 @@
                 staleMs,
             };
         }
-        const recentInteraction = params.nowMs < territoryInputPriorityUntilMs;
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        const browserInputPending = hasBrowserInputPending();
-        const hasQueuedOrders = queuedOrderMutations.length > 0;
-        const pressureActive =
-            recentInteraction ||
-            activeInteraction ||
-            browserInputPending ||
-            hasQueuedOrders;
+        const pressureActive = isInputPriorityActive(params.nowMs);
         if (!pressureActive && lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
             return {
                 defer: false,
@@ -1058,12 +1287,66 @@
         };
     }
 
+    function invalidateCanvasClientRectCache(): void {
+        canvasClientRectCacheDirty = true;
+    }
+
+    function readCanvasClientRectSnapshot(): CanvasClientRectSnapshot {
+        if (!canvasContainer) {
+            return {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 0,
+                height: 0,
+            };
+        }
+        const rect = canvasContainer.getBoundingClientRect();
+        return {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+        };
+    }
+
+    function getCanvasClientRect(reason: string): CanvasClientRectSnapshot {
+        if (!canvasClientRectCache || canvasClientRectCacheDirty) {
+            canvasClientRectCache = measurePerf(
+                "game.input.clientRect.refresh",
+                () => readCanvasClientRectSnapshot(),
+                {
+                    reason,
+                    dirty: canvasClientRectCacheDirty,
+                },
+            );
+            canvasClientRectCacheDirty = false;
+        }
+        return canvasClientRectCache;
+    }
+
+    function getCanvasLocalPointFromClient(
+        clientX: number,
+        clientY: number,
+        reason: string,
+    ): { x: number; y: number; rect: CanvasClientRectSnapshot } {
+        const rect = getCanvasClientRect(reason);
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top,
+            rect,
+        };
+    }
+
     function syncInteractionOverlaySurface(): {
         width: number;
         height: number;
     } | null {
         if (!interactionOverlayCanvas || !canvasContainer) return null;
-        const rect = canvasContainer.getBoundingClientRect();
+        const rect = getCanvasClientRect("interactionOverlay.surface");
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
         const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1084,6 +1367,10 @@
     }
 
     function renderInteractionOverlayNow(): boolean {
+        if (interactionOverlayAnimationFrameId !== null) {
+            cancelAnimationFrame(interactionOverlayAnimationFrameId);
+            interactionOverlayAnimationFrameId = null;
+        }
         if (!app) return false;
         const surface = syncInteractionOverlaySurface();
         if (!surface || !interactionOverlayCtx) return false;
@@ -1119,6 +1406,25 @@
             colorUtils,
         });
         return true;
+    }
+
+    function scheduleInteractionOverlayRender(reason: string): void {
+        if (interactionOverlayAnimationFrameId !== null) return;
+        interactionOverlayAnimationFrameId = requestAnimationFrame(() => {
+            interactionOverlayAnimationFrameId = null;
+            measurePerf(
+                "game.input.dragPreview.present",
+                () => {
+                    renderInteractionOverlayNow();
+                },
+                {
+                    reason,
+                    isDragging,
+                    dragSourceId,
+                    dragHoverTargetId,
+                },
+            );
+        });
     }
 
     function transitionIdentityKey(
@@ -1897,6 +2203,16 @@
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
+    type CanvasClientRectSnapshot = {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    };
+    let canvasClientRectCache: CanvasClientRectSnapshot | null = null;
+    let canvasClientRectCacheDirty = true;
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -2295,6 +2611,19 @@
 
         // Handle window resize
         window.addEventListener("resize", handleResize);
+        window.addEventListener(
+            "scroll",
+            handleCanvasViewportGeometryChange,
+            true,
+        );
+        visualViewportTarget?.addEventListener(
+            "resize",
+            handleCanvasViewportGeometryChange,
+        );
+        visualViewportTarget?.addEventListener(
+            "scroll",
+            handleCanvasViewportGeometryChange,
+        );
 
         // Use ResizeObserver for more accurate container resize detection
         resizeObserver = new ResizeObserver(() => {
@@ -2307,6 +2636,19 @@
         log.sys("GameCanvas", "Destroying PixiJS application");
 
         window.removeEventListener("resize", handleResize);
+        window.removeEventListener(
+            "scroll",
+            handleCanvasViewportGeometryChange,
+            true,
+        );
+        visualViewportTarget?.removeEventListener(
+            "resize",
+            handleCanvasViewportGeometryChange,
+        );
+        visualViewportTarget?.removeEventListener(
+            "scroll",
+            handleCanvasViewportGeometryChange,
+        );
 
         // F-107: Remove orientation listener and reset transpose flag
         if (orientationQuery) {
@@ -2322,6 +2664,10 @@
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
+        }
+        if (interactionOverlayAnimationFrameId !== null) {
+            cancelAnimationFrame(interactionOverlayAnimationFrameId);
+            interactionOverlayAnimationFrameId = null;
         }
         interactionOverlayCtx = null;
         interactionOverlayCanvas = null;
@@ -2555,6 +2901,8 @@
         typeof window !== "undefined"
             ? window.matchMedia("(orientation: portrait)")
             : null;
+    const visualViewportTarget =
+        typeof window !== "undefined" ? window.visualViewport : null;
 
     function onOrientationChange(e: MediaQueryListEvent) {
         viewportIsPortrait = e.matches;
@@ -2566,6 +2914,10 @@
         handleResize();
     }
 
+    function handleCanvasViewportGeometryChange() {
+        invalidateCanvasClientRectCache();
+    }
+
     if (orientationQuery) {
         orientationQuery.addEventListener("change", onOrientationChange);
     }
@@ -2573,6 +2925,7 @@
     function handleResize() {
         if (!app || !app.renderer) return;
 
+        invalidateCanvasClientRectCache();
         app.resize();
 
         // F-107: Orientation is handled by matchMedia listener (onOrientationChange)
@@ -2609,6 +2962,7 @@
 
         // Apply combined scale + zoom
         applyZoomTransform();
+        getCanvasClientRect("resize");
 
         const canvasEl = canvasContainer;
         log.canvas(
@@ -2690,9 +3044,11 @@
         if (!app) return;
         cameraAnimating = false; // Cancel any in-progress animation
 
-        const rect = canvasContainer.getBoundingClientRect();
-        const screenX = event.clientX - rect.left;
-        const screenY = event.clientY - rect.top;
+        const { x: screenX, y: screenY } = getCanvasLocalPointFromClient(
+            event.clientX,
+            event.clientY,
+            "wheel",
+        );
 
         // World point under cursor BEFORE zoom
         const worldBefore = screenToWorld(screenX, screenY);
@@ -3434,6 +3790,57 @@
         }
     }
 
+    function presentInteractionOverlayFrame(stars: StarState[]): void {
+        measurePerf(
+            "game.renderFrame.interactionOverlay",
+            () => {
+                renderInteractionOverlayNow();
+            },
+            {
+                pendingOrders: pendingOrders.size,
+                deferredOrders: deferredOrders.size,
+                activeStarId,
+                dragSourceId,
+            },
+        );
+        logPipelineStage({
+            channel: "renderer",
+            context: "GameCanvas",
+            stage: "interaction_overlay_present",
+            from: "Confirmed + optimistic order state",
+            to: "2D interaction overlay canvas",
+            purpose:
+                "Project active orders, selection, and drag intent into a lightweight overlay that can update independently of the Pixi scene",
+            summary:
+                `pending=${pendingOrders.size} deferred=${deferredOrders.size} ` +
+                summarizeStars(stars),
+            perfEventName: "game.renderFrame.interactionOverlayPresent",
+            perfDetail: {
+                pendingOrders: pendingOrders.size,
+                deferredOrders: deferredOrders.size,
+                activeStarId,
+                dragSourceId,
+            },
+        });
+    }
+
+    function finalizeRenderFrame(params: {
+        stars: StarState[];
+        interactionOverlayPresented?: boolean;
+    }): void {
+        if (!params.interactionOverlayPresented) {
+            presentInteractionOverlayFrame(params.stars);
+        }
+        flushInteractionVisualAcks();
+        fpsFrameCount++;
+        const now = performance.now();
+        if (now - fpsLastTime >= 1000) {
+            currentFps = Math.round((fpsFrameCount * 1000) / (now - fpsLastTime));
+            fpsFrameCount = 0;
+            fpsLastTime = now;
+        }
+    }
+
     // Main render loop
     function renderFrame(stars: StarState[], tickProgress: number) {
         if (
@@ -3443,6 +3850,7 @@
             !shipParticleContainer
         )
             return;
+        const frameStartedAtMs = performance.now();
 
         // Reset state on new game session
         const currentSessionId = activeGameStore.sessionId;
@@ -3511,6 +3919,10 @@
             deferredShipRenderFrameCount = 0;
             deferredShipRenderReason = "";
             shipRenderCadenceSkipCount = 0;
+            lastConnectionsPresentCostMs = 0;
+            lastConnectionsPresentedAtMs = 0;
+            lastStarsPresentCostMs = 0;
+            lastStarsPresentedAtMs = 0;
             // B-57: Clear territory fills from previous game immediately so
             // old conquest state doesn't persist while paused after restart.
             if (voronoiContainer) {
@@ -4152,109 +4564,142 @@
             }
         } // end territory pause guard
 
+        if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_territory")) {
+            finalizeRenderFrame({ stars });
+            return;
+        }
+
         measurePerf("game.renderFrame.perimeterDebugOverlay", () => {
             renderPerimeterFieldDebugOverlay(activeTerritoryMode);
         });
 
         // Render stars (static elements)
-        measurePerf("game.renderFrame.stars", () => {
-            renderStarsModule(
-                stars,
-                starsContainer!,
-                labelsContainer!,
-                { starGraphics, starLabels },
-                {
-                    activeStarId,
-                    dragSourceId,
-                    pendingConquests,
-                    conquestFlashes,
-                    gameNowMs: fxOrchestrator.gameTime,
-                },
-                colorUtils,
-            );
+        const starsScheduler = shouldThrottlePresentationLayer({
+            nowMs: performance.now(),
+            isPaused: activeGameStore.isPaused,
+            lastPresentedAtMs: lastStarsPresentedAtMs,
+            lastCostMs: lastStarsPresentCostMs,
+            heavyUpdateMs: STARS_PRESENT_HEAVY_UPDATE_MS,
+            interactiveMinCadenceMs: STARS_PRESENT_INTERACTIVE_MIN_CADENCE_MS,
+            idleMinCadenceMs: STARS_PRESENT_IDLE_MIN_CADENCE_MS,
+            maxStaleMs: STARS_PRESENT_MAX_STALE_MS,
+            inputHoldMaxStaleMs: STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS,
         });
-        logPipelineStage({
-            channel: "renderer",
-            context: "GameCanvas",
-            stage: "stars_present",
-            from: "Star state snapshot",
-            to: "Pixi star + label layers",
-            purpose:
-                "Project star ownership, ship counts, and conquest effects into visible star sprites",
-            summary: summarizeStars(stars),
-            perfEventName: "game.renderFrame.starsPresent",
-            perfDetail: {
-                activeStarId,
-                dragSourceId,
-                pendingConquests: pendingConquests.size,
-            },
-        });
-
-        // Render connections (star network) - unified source
-        const connections = activeGameStore.connections as StarConnection[];
-        if (connections) {
-            measurePerf(
-                "game.renderFrame.connections",
-                () => {
-                    renderConnectionsModule(
-                        connectionGraphics!,
-                        stars,
-                        connections,
-                        starsById,
-                        colorUtils,
-                    );
-                },
-                { connectionCount: connections.length },
-            );
+        if (!starsScheduler.defer) {
+            runStarsPresentation("game.renderFrame.stars", () => {
+                renderStarsModule(
+                    stars,
+                    starsContainer!,
+                    labelsContainer!,
+                    { starGraphics, starLabels },
+                    {
+                        activeStarId,
+                        dragSourceId,
+                        pendingConquests,
+                        conquestFlashes,
+                        gameNowMs: fxOrchestrator.gameTime,
+                    },
+                    colorUtils,
+                );
+            });
             logPipelineStage({
                 channel: "renderer",
                 context: "GameCanvas",
-                stage: "connections_present",
-                from: "Lane topology snapshot",
-                to: "Pixi connection graphics",
+                stage: "stars_present",
+                from: "Star state snapshot",
+                to: "Pixi star + label layers",
                 purpose:
-                    "Project stable connection truth into the visible lane network layer",
-                summary: summarizeConnections(connections),
-                perfEventName: "game.renderFrame.connectionsPresent",
+                    "Project star ownership, ship counts, and conquest effects into visible star sprites",
+                summary: summarizeStars(stars),
+                perfEventName: "game.renderFrame.starsPresent",
                 perfDetail: {
-                    connectionCount: connections.length,
+                    activeStarId,
+                    dragSourceId,
+                    pendingConquests: pendingConquests.size,
+                    cadenceMs: starsScheduler.cadenceMs,
+                    staleMs: starsScheduler.staleMs,
+                    reason: starsScheduler.reason,
                 },
             });
         }
 
+        if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_stars")) {
+            finalizeRenderFrame({ stars });
+            return;
+        }
+
+        // Render connections (star network) - unified source
+        const connections = activeGameStore.connections as StarConnection[];
+        if (connections) {
+            const connectionsScheduler = shouldThrottlePresentationLayer({
+                nowMs: performance.now(),
+                isPaused: activeGameStore.isPaused,
+                lastPresentedAtMs: lastConnectionsPresentedAtMs,
+                lastCostMs: lastConnectionsPresentCostMs,
+                heavyUpdateMs: CONNECTIONS_PRESENT_HEAVY_UPDATE_MS,
+                interactiveMinCadenceMs:
+                    CONNECTIONS_PRESENT_INTERACTIVE_MIN_CADENCE_MS,
+                idleMinCadenceMs: CONNECTIONS_PRESENT_IDLE_MIN_CADENCE_MS,
+                maxStaleMs: CONNECTIONS_PRESENT_MAX_STALE_MS,
+                inputHoldMaxStaleMs:
+                    CONNECTIONS_PRESENT_INPUT_HOLD_MAX_STALE_MS,
+            });
+            if (!connectionsScheduler.defer) {
+                runConnectionsPresentation(
+                    "game.renderFrame.connections",
+                    () => {
+                        renderConnectionsModule(
+                            connectionGraphics!,
+                            stars,
+                            connections,
+                            starsById,
+                            colorUtils,
+                        );
+                    },
+                );
+                logPipelineStage({
+                    channel: "renderer",
+                    context: "GameCanvas",
+                    stage: "connections_present",
+                    from: "Lane topology snapshot",
+                    to: "Pixi connection graphics",
+                    purpose:
+                        "Project stable connection truth into the visible lane network layer",
+                    summary: summarizeConnections(connections),
+                    perfEventName: "game.renderFrame.connectionsPresent",
+                    perfDetail: {
+                        connectionCount: connections.length,
+                        cadenceMs: connectionsScheduler.cadenceMs,
+                        staleMs: connectionsScheduler.staleMs,
+                        reason: connectionsScheduler.reason,
+                    },
+                });
+            }
+        }
+
+        if (
+            shouldYieldRenderFrameForInput(
+                frameStartedAtMs,
+                "after_connections",
+            )
+        ) {
+            finalizeRenderFrame({ stars });
+            return;
+        }
+
         // Render interaction overlay on a dedicated 2D canvas so command
         // feedback stays outside the heavier Pixi batch rebuild path.
-        measurePerf(
-            "game.renderFrame.interactionOverlay",
-            () => {
-                renderInteractionOverlayNow();
-            },
-            {
-                pendingOrders: pendingOrders.size,
-                deferredOrders: deferredOrders.size,
-                activeStarId,
-                dragSourceId,
-            },
-        );
-        logPipelineStage({
-            channel: "renderer",
-            context: "GameCanvas",
-            stage: "interaction_overlay_present",
-            from: "Confirmed + optimistic order state",
-            to: "2D interaction overlay canvas",
-            purpose:
-                "Project active orders, selection, and drag intent into a lightweight overlay that can update independently of the Pixi scene",
-            summary:
-                `pending=${pendingOrders.size} deferred=${deferredOrders.size} ` +
-                summarizeStars(stars),
-            perfEventName: "game.renderFrame.interactionOverlayPresent",
-            perfDetail: {
-                pendingOrders: pendingOrders.size,
-                deferredOrders: deferredOrders.size,
-                activeStarId,
-                dragSourceId,
-            },
-        });
+        presentInteractionOverlayFrame(stars);
+
+        if (
+            shouldYieldRenderFrameForInput(
+                frameStartedAtMs,
+                "after_interaction_overlay",
+            )
+        ) {
+            finalizeRenderFrame({ stars, interactionOverlayPresented: true });
+            return;
+        }
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = measurePerf(
@@ -4406,6 +4851,13 @@
             });
         }
 
+        if (
+            shouldYieldRenderFrameForInput(frameStartedAtMs, "after_tick_events")
+        ) {
+            finalizeRenderFrame({ stars, interactionOverlayPresented: true });
+            return;
+        }
+
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         // IMPORTANT: Always read from VSM to stay in sync — ShipRenderer replaces the array
         // with a filtered `stillTraveling` copy, which would disconnect from VSM's internal array.
@@ -4542,8 +4994,6 @@
             });
         }
 
-        flushInteractionVisualAcks();
-
         // Count total visual ships for HUD
         let shipCount = 0;
         visualShips.forEach((ships) => (shipCount += ships.length));
@@ -4551,16 +5001,7 @@
         visualDamagedShips.forEach((ships) => (shipCount += ships.length));
         totalVisualShips = shipCount;
 
-        // FPS tracking (update every second)
-        fpsFrameCount++;
-        const now = performance.now();
-        if (now - fpsLastTime >= 1000) {
-            currentFps = Math.round(
-                (fpsFrameCount * 1000) / (now - fpsLastTime),
-            );
-            fpsFrameCount = 0;
-            fpsLastTime = now;
-        }
+        finalizeRenderFrame({ stars, interactionOverlayPresented: true });
     }
 
     // ============================================================================
@@ -4645,6 +5086,31 @@
         return null;
     }
 
+    export function getBenchmarkStarClientPoint(
+        starId: string,
+    ):
+        | {
+              starId: string;
+              clientX: number;
+              clientY: number;
+          }
+        | null {
+        if (!app || !canvasContainer) return null;
+        ensureInteractionCaches();
+        const star = interactionStarsById.get(starId);
+        if (!star) return null;
+        const rect = getCanvasClientRect("benchmark.starClientPoint");
+        const point = worldToScreen(
+            mapTranspose.x(star),
+            mapTranspose.y(star),
+        );
+        return {
+            starId: star.id,
+            clientX: rect.left + point.x,
+            clientY: rect.top + point.y,
+        };
+    }
+
     export function getBenchmarkOrderPointerPath():
         | {
               sourceId: string;
@@ -4658,22 +5124,16 @@
         if (!app || !canvasContainer) return null;
         const sampleOrder = findBenchmarkSampleOrder();
         if (!sampleOrder) return null;
-        const rect = canvasContainer.getBoundingClientRect();
-        const sourcePoint = worldToScreen(
-            mapTranspose.x(sampleOrder.source),
-            mapTranspose.y(sampleOrder.source),
-        );
-        const targetPoint = worldToScreen(
-            mapTranspose.x(sampleOrder.target),
-            mapTranspose.y(sampleOrder.target),
-        );
+        const sourcePoint = getBenchmarkStarClientPoint(sampleOrder.source.id);
+        const targetPoint = getBenchmarkStarClientPoint(sampleOrder.target.id);
+        if (!sourcePoint || !targetPoint) return null;
         return {
             sourceId: sampleOrder.source.id,
             targetId: sampleOrder.target.id,
-            sourceClientX: rect.left + sourcePoint.x,
-            sourceClientY: rect.top + sourcePoint.y,
-            targetClientX: rect.left + targetPoint.x,
-            targetClientY: rect.top + targetPoint.y,
+            sourceClientX: sourcePoint.clientX,
+            sourceClientY: sourcePoint.clientY,
+            targetClientX: targetPoint.clientX,
+            targetClientY: targetPoint.clientY,
         };
     }
 
@@ -5152,10 +5612,14 @@
         );
 
         if (get(rulerTool).enabled && event.button === 0 && !isSpaceHeld) {
-            const rect = canvasContainer.getBoundingClientRect();
+            const { x, y } = getCanvasLocalPointFromClient(
+                event.clientX,
+                event.clientY,
+                "pointerdown.ruler",
+            );
             const point = resolveRulerPoint(
-                event.clientX - rect.left,
-                event.clientY - rect.top,
+                x,
+                y,
             );
             const placement = rulerTool.placePoint(point);
             if (placement.completed) {
@@ -5184,9 +5648,13 @@
             pinchStartDist = getPinchDist();
             pinchStartZoom = zoomLevel;
             const center = getPinchCenter();
-            const rect = canvasContainer.getBoundingClientRect();
-            pinchCenterX = center.x - rect.left;
-            pinchCenterY = center.y - rect.top;
+            const localCenter = getCanvasLocalPointFromClient(
+                center.x,
+                center.y,
+                "pointerdown.pinch",
+            );
+            pinchCenterX = localCenter.x;
+            pinchCenterY = localCenter.y;
             panStartScreenX = center.x;
             panStartScreenY = center.y;
             panStartOffsetX = panOffsetX;
@@ -5194,9 +5662,11 @@
             return;
         }
 
-        const rect = canvasContainer.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const { x, y } = getCanvasLocalPointFromClient(
+            event.clientX,
+            event.clientY,
+            "pointerdown",
+        );
 
         // Single-touch: check if we're touching empty space (no star nearby)
         // If so, enter pan mode for single-finger panning
@@ -5222,8 +5692,12 @@
             longPressTimer = setTimeout(() => {
                 longPressTimer = null;
                 // Long-press: show star info
-                const rect = canvasContainer.getBoundingClientRect();
-                const star = hitTestStar(startX - rect.left, startY - rect.top);
+                const localPoint = getCanvasLocalPointFromClient(
+                    startX,
+                    startY,
+                    "pointerdown.longPress",
+                );
+                const star = hitTestStar(localPoint.x, localPoint.y);
                 if (star) {
                     selectedStarStore.select(star.id);
                     // Dispatch star-info-toggle event for the info panel
@@ -5249,19 +5723,15 @@
 
         const star = hitTestStar(x, y);
 
-        // Always select star for info panel (any button, any owner)
-        if (star) {
-            selectedStarStore.select(star.id);
-            audioManager.play("click");
-        }
-
         // FIX: Right Click to Cancel
         if (event.button === 2) {
             event.preventDefault();
             if (star && isLocalPlayerStar(star)) {
+                // Queue the gameplay mutation so the optimistic cancel ack is not
+                // blocked behind synchronous store/reactivity work on the input task.
                 const requestId = doCancelOrder(
                     star.id,
-                    "immediate",
+                    "queued",
                     "pointerdown.rightclick",
                 );
                 // OPTIMISTIC UI: Remove from pending immediately
@@ -5272,7 +5742,7 @@
                     sourceId: star.id,
                     activeStarId: null,
                     requestId,
-                    dispatchMode: "immediate",
+                    dispatchMode: "queued",
                 });
                 log.success("GameCanvas", `Cancelled order on ${star.id}`);
             }
@@ -5286,6 +5756,12 @@
                 dispatchMode: "immediate",
             });
             return;
+        }
+
+        // Always select star for info panel (any button, any owner)
+        if (star) {
+            selectedStarStore.select(star.id);
+            audioManager.play("click");
         }
 
         if (star && isLocalPlayerStar(star)) {
@@ -5395,9 +5871,13 @@
 
         if (!isDragging || !dragSourceId) return;
 
-        const rect = canvasContainer.getBoundingClientRect();
-        dragCurrentX = event.clientX - rect.left;
-        dragCurrentY = event.clientY - rect.top;
+        const dragPoint = getCanvasLocalPointFromClient(
+            event.clientX,
+            event.clientY,
+            "pointermove.drag",
+        );
+        dragCurrentX = dragPoint.x;
+        dragCurrentY = dragPoint.y;
 
         // DRAG-THROUGH LOGIC:
         // If we hover a DIFFERENT star while dragging, issue order and continue drag from THERE
@@ -5530,9 +6010,11 @@
 
         // Double-tap detection (cancel orders on star OR pause on empty space)
         if (event.pointerType === "touch") {
-            const rect = canvasContainer.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
+            const { x, y } = getCanvasLocalPointFromClient(
+                event.clientX,
+                event.clientY,
+                "pointerup.touch",
+            );
             const star = hitTestStar(x, y);
             const now = performance.now();
 
@@ -5545,7 +6027,7 @@
                 if (isLocalPlayerStar(star)) {
                     const requestId = doCancelOrder(
                         star.id,
-                        "immediate",
+                        "queued",
                         "pointerup.doubletap",
                     );
                     removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
@@ -5555,7 +6037,7 @@
                         sourceId: star.id,
                         activeStarId: null,
                         requestId,
-                        dispatchMode: "immediate",
+                        dispatchMode: "queued",
                     });
                     log.success(
                         "GameCanvas",
@@ -5598,9 +6080,11 @@
             return;
         }
 
-        const rect = canvasContainer.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const { x, y } = getCanvasLocalPointFromClient(
+            event.clientX,
+            event.clientY,
+            "pointerup",
+        );
 
         const targetStar = measurePerf(
             "game.input.pointerup.hitTest",
@@ -5722,7 +6206,7 @@
                             activeStarId,
                             targetStar.id,
                             !event.ctrlKey,
-                            "immediate",
+                            "queued",
                             "pointerup.click",
                         );
                         if (success) {
@@ -5734,11 +6218,11 @@
                                 targetId: targetStar.id,
                                 activeStarId,
                                 requestId: success,
-                                dispatchMode: "immediate",
+                                dispatchMode: "queued",
                             });
                             recordOrderPathEvent("issue", {
                                 path: "click",
-                                dispatchMode: "immediate",
+                                dispatchMode: "queued",
                                 sourceId: activeStarId,
                                 targetId: targetStar.id,
                                 persistAfterConquest: !event.ctrlKey,
@@ -5758,7 +6242,7 @@
                             activeStarId,
                             targetStar.id,
                             !event.ctrlKey,
-                            "immediate",
+                            "queued",
                             "pointerup.click",
                         );
                         if (success) {
@@ -5770,11 +6254,11 @@
                                 targetId: targetStar.id,
                                 activeStarId,
                                 requestId: success,
-                                dispatchMode: "immediate",
+                                dispatchMode: "queued",
                             });
                             recordOrderPathEvent("defer", {
                                 path: "click",
-                                dispatchMode: "immediate",
+                                dispatchMode: "queued",
                                 sourceId: activeStarId,
                                 targetId: targetStar.id,
                                 persistAfterConquest: !event.ctrlKey,
@@ -5870,9 +6354,11 @@
         recordInputHandlingLatency("rightclick", event);
         event.preventDefault();
 
-        const rect = canvasContainer.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const { x, y } = getCanvasLocalPointFromClient(
+            event.clientX,
+            event.clientY,
+            "rightclick",
+        );
 
         const star = measurePerf(
             "game.input.rightclick.hitTest",
@@ -5884,7 +6370,7 @@
             // Cancel order for this star
             const requestId = doCancelOrder(
                 star.id,
-                "immediate",
+                "queued",
                 "contextmenu.rightclick",
             );
             removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
@@ -5895,11 +6381,11 @@
                 targetId: star.targetId,
                 activeStarId: null,
                 requestId,
-                dispatchMode: "immediate",
+                dispatchMode: "queued",
             });
             recordOrderPathEvent("cancel", {
                 path: "rightclick",
-                dispatchMode: "immediate",
+                dispatchMode: "queued",
                 sourceId: star.id,
                 targetId: star.targetId,
                 sourceOwnerId: star.ownerId,
@@ -5968,7 +6454,7 @@
     }
 
     function renderDragPreview() {
-        renderInteractionOverlayNow();
+        scheduleInteractionOverlayRender("pointermove.dragPreview");
     }
 
     // ============================================================================
