@@ -1,12 +1,27 @@
 import * as PIXI from 'pixi.js';
-import { renderMetaball, resetMetaballCache } from '$lib/renderers/MetaballRenderer';
+import {
+    createMetaballRuntime,
+    renderMetaball,
+    type MetaballRenderMetrics,
+    type MetaballRendererRuntime,
+} from '$lib/renderers/MetaballRenderer';
+import {
+    logPipelineStage,
+    summarizeRendererMetrics,
+    summarizeScene,
+} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { RenderFamily, RenderFamilyInput, RenderFamilyOutput } from '../RenderFamilyTypes';
-import { buildMetaballScene } from './buildMetaballScene';
+import {
+    buildMetaballScene,
+    buildMetaballStaticScene,
+    type MetaballStaticScene,
+} from './buildMetaballScene';
 import {
     reconcileMetaballConquestCache,
     type MetaballConquestCacheEntry,
 } from './metaballConquestTransitions';
+import { measurePerf } from '$lib/perf/perfProbe';
 
 const METABALL_TUNABLE_KEYS = [
     'MODIFIED_VORONOI_STAR_MARGIN',
@@ -59,6 +74,35 @@ const METABALL_TUNABLE_KEYS = [
     'METABALL_BORDER_FORCE_RATIO',
 ] as const;
 
+function buildStaticSceneKey(input: RenderFamilyInput): string {
+    let key = `${input.world.width}x${input.world.height}`;
+    for (const tunableKey of METABALL_TUNABLE_KEYS) {
+        key += `|${tunableKey}:${String(input.tunables.get(tunableKey))}`;
+    }
+    key += '|stars:';
+    for (const star of input.stars) {
+        key += `${star.id}:${star.ownerId ?? ''}:${star.x}:${star.y}:${star.activeShips ?? 0}:${star.damagedShips ?? 0}|`;
+    }
+    key += 'lanes:';
+    for (const lane of input.lanes) {
+        key += `${lane.sourceId}->${lane.targetId}|`;
+    }
+    key += 'transitions:';
+    for (const transition of input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        key += [
+            conquest.tick,
+            conquest.starId,
+            conquest.previousOwner ?? '',
+            conquest.newOwner ?? '',
+            transition.startedAtMs,
+            transition.durationMs,
+        ].join(':');
+        key += '|';
+    }
+    return key;
+}
+
 /**
  * RenderFamily adapter that assembles the metaball influence scene, then hands
  * the explicit sample field to the low-level CPU grid renderer.
@@ -70,7 +114,10 @@ export class MetaballFamily implements RenderFamily {
 
     private readonly root = new PIXI.Container();
     private readonly colorUtils: ColorUtils;
+    private readonly runtime: MetaballRendererRuntime = createMetaballRuntime();
     private readonly conquestCache = new Map<string, MetaballConquestCacheEntry>();
+    private staticSceneKey: string | null = null;
+    private staticScene: MetaballStaticScene | null = null;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -82,34 +129,82 @@ export class MetaballFamily implements RenderFamily {
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
-        reconcileMetaballConquestCache({
-            input,
-            colorUtils: this.colorUtils,
-            conquestCache: this.conquestCache,
+        return measurePerf('territory.metaballFamily.update', () => {
+            reconcileMetaballConquestCache({
+                input,
+                colorUtils: this.colorUtils,
+                conquestCache: this.conquestCache,
+            });
+            const staticSceneKey = buildStaticSceneKey(input);
+            if (this.staticSceneKey !== staticSceneKey || !this.staticScene) {
+                this.staticScene = measurePerf(
+                    'territory.metaballFamily.buildStaticScene',
+                    () => buildMetaballStaticScene(input, this.colorUtils),
+                );
+                this.staticSceneKey = staticSceneKey;
+            }
+            const sceneInput = measurePerf(
+                'territory.metaballFamily.buildScene',
+                () =>
+                    buildMetaballScene(
+                        input,
+                        this.colorUtils,
+                        this.conquestCache,
+                        this.staticScene ?? undefined,
+                    ),
+            );
+            logPipelineStage({
+                channel: 'renderer',
+                context: 'MetaballFamily',
+                stage: 'family_scene',
+                from: 'RenderFamilyInput',
+                to: 'MetaballSceneInput',
+                purpose: 'Hand off stable and dynamic sample fields to the grid renderer',
+                summary: summarizeScene(sceneInput),
+                perfEventName: 'territory.metaball.familySceneReady',
+            });
+            const renderMetrics: MetaballRenderMetrics = {
+                solveMs: 0,
+                textureUploadMs: 0,
+                borderMs: 0,
+                totalMs: 0,
+                reusedFingerprint: false,
+            };
+            measurePerf('territory.metaballFamily.render', () => {
+                renderMetaball(
+                    input.stars,
+                    this.root,
+                    this.colorUtils,
+                    input.world.width,
+                    input.world.height,
+                    input.lanes,
+                    {
+                        gameTick: input.gameTick,
+                        sceneInput,
+                        runtime: this.runtime,
+                        metrics: renderMetrics,
+                    },
+                );
+            });
+            logPipelineStage({
+                channel: 'renderer',
+                context: 'MetaballFamily',
+                stage: 'family_render',
+                from: 'MetaballSceneInput',
+                to: 'PIXI display root',
+                purpose: 'Upload metaball texture and borders for presentation',
+                summary: summarizeRendererMetrics(renderMetrics),
+                perfEventName: 'territory.metaball.familyRendered',
+            });
+            return { container: this.root };
         });
-        const sceneInput = buildMetaballScene(
-            input,
-            this.colorUtils,
-            this.conquestCache,
-        );
-        renderMetaball(
-            [...input.stars],
-            this.root,
-            this.colorUtils,
-            input.world.width,
-            input.world.height,
-            [...input.lanes],
-            {
-                gameTick: input.gameTick,
-                sceneInput,
-            },
-        );
-        return { container: this.root };
     }
 
     dispose(): void {
-        resetMetaballCache();
+        this.runtime.dispose();
         this.conquestCache.clear();
+        this.staticSceneKey = null;
+        this.staticScene = null;
         this.root.removeChildren();
     }
 }

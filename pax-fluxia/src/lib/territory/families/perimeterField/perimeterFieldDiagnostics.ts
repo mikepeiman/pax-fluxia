@@ -3,56 +3,7 @@ import type {
     PerimeterFieldDebugSample,
     PerimeterFieldDebugSnapshot,
 } from './buildPerimeterFieldScene';
-import type {
-    PerimeterV,
-    TransitionPlan,
-} from './perimeterFieldTransitionTypes';
-
-export type PerimeterFieldSnapshotMode =
-    | 'prev'
-    | 'next'
-    | 'transition'
-    | 'compare';
-
-export function resolvePerimeterFieldDiagnosticCanvasSize(args: {
-    requestedWidth: number;
-    requestedHeight: number;
-    snapshot: PerimeterFieldDebugSnapshot;
-}): { width: number; height: number } {
-    const displayBounds = args.snapshot.displayGeometry.frontierTopology?.worldBounds;
-    if (
-        displayBounds &&
-        Number.isFinite(displayBounds.width) &&
-        Number.isFinite(displayBounds.height) &&
-        displayBounds.width > 0 &&
-        displayBounds.height > 0
-    ) {
-        return {
-            width: displayBounds.width,
-            height: displayBounds.height,
-        };
-    }
-
-    const targetBounds =
-        args.snapshot.transitionTargetGeometry?.frontierTopology?.worldBounds;
-    if (
-        targetBounds &&
-        Number.isFinite(targetBounds.width) &&
-        Number.isFinite(targetBounds.height) &&
-        targetBounds.width > 0 &&
-        targetBounds.height > 0
-    ) {
-        return {
-            width: targetBounds.width,
-            height: targetBounds.height,
-        };
-    }
-
-    return {
-        width: args.requestedWidth,
-        height: args.requestedHeight,
-    };
-}
+import type { TransitionPlan } from './perimeterFieldTransitionTypes';
 
 function hexToCss(hex: number, alpha = 1): string {
     const r = (hex >> 16) & 0xff;
@@ -124,218 +75,6 @@ function buildSampleLabel(sample: PerimeterFieldDebugSample): string | null {
                         ? 'D'
                         : 'S';
     return `${labelPrefix}${sample.sampleIndex}`;
-}
-
-function tupleToHex(
-    tuple: readonly [number, number, number] | undefined,
-): number {
-    const [r, g, b] = tuple ?? [255, 255, 255];
-    return (r << 16) | (g << 8) | b;
-}
-
-function buildDebugSampleFromV(params: {
-    snapshot: PerimeterFieldDebugSnapshot;
-    v: PerimeterV;
-    debugState: PerimeterFieldDebugSample['debugState'];
-    label?: string | null;
-}): PerimeterFieldDebugSample {
-    return {
-        id: params.v.id,
-        x: params.v.x,
-        y: params.v.y,
-        playerIdx: params.v.playerIdx,
-        strength: params.v.strength,
-        ownerId: params.v.ownerId,
-        ownerColor: tupleToHex(
-            params.snapshot.playerColors[params.v.playerIdx],
-        ),
-        sourceId: params.v.loopId,
-        vId: params.v.id,
-        label: params.label ?? undefined,
-        debugState: params.debugState,
-    };
-}
-
-function buildPlanVectorSamples(
-    snapshot: PerimeterFieldDebugSnapshot,
-): PerimeterFieldDebugSample[] {
-    const plan = snapshot.transitionPlan;
-    if (!plan) return [...snapshot.transitionSamples];
-
-    const vectors: PerimeterFieldDebugSample[] = [];
-    for (const pair of plan.preserved) {
-        vectors.push({
-            ...buildDebugSampleFromV({
-                snapshot,
-                v: pair.nextV,
-                debugState: 'preserved',
-                label: pair.nextV.id,
-            }),
-            moverId: pair.preservedId,
-            transitionRole: 'preserved',
-            pathStartX: pair.prevV.x,
-            pathStartY: pair.prevV.y,
-            pathEndX: pair.nextV.x,
-            pathEndY: pair.nextV.y,
-        });
-    }
-
-    for (const mover of plan.movers) {
-        vectors.push({
-            id: `mover:${mover.moverId}`,
-            x: mover.nextPos.x,
-            y: mover.nextPos.y,
-            playerIdx: mover.nextPlayerIdx,
-            strength: mover.strength,
-            ownerId: mover.nextOwnerId,
-            ownerColor: tupleToHex(
-                snapshot.playerColors[mover.nextPlayerIdx],
-            ),
-            moverId: mover.moverId,
-            label: mover.moverId,
-            debugState: 'mover',
-            transitionRole: 'mover',
-            pathStartX: mover.prevPos.x,
-            pathStartY: mover.prevPos.y,
-            pathEndX: mover.nextPos.x,
-            pathEndY: mover.nextPos.y,
-        });
-    }
-
-    for (const entry of plan.appearing) {
-        vectors.push({
-            ...buildDebugSampleFromV({
-                snapshot,
-                v: entry.v,
-                debugState: 'appearing',
-                label: entry.v.id,
-            }),
-            transitionRole: 'appearing',
-            pathStartX: entry.v.x,
-            pathStartY: entry.v.y,
-            pathEndX: entry.v.x,
-            pathEndY: entry.v.y,
-        });
-    }
-
-    for (const entry of plan.disappearing) {
-        vectors.push({
-            ...buildDebugSampleFromV({
-                snapshot,
-                v: entry.v,
-                debugState: 'disappearing',
-                label: entry.v.id,
-            }),
-            transitionRole: 'disappearing',
-            pathStartX: entry.v.x,
-            pathStartY: entry.v.y,
-            pathEndX: entry.v.x,
-            pathEndY: entry.v.y,
-        });
-    }
-
-    return vectors;
-}
-
-function resolveSnapshotRenderState(
-    snapshot: PerimeterFieldDebugSnapshot,
-    mode: PerimeterFieldSnapshotMode,
-): {
-    primaryGeometry: CanonicalGeometrySnapshot;
-    secondaryGeometry: CanonicalGeometrySnapshot | null;
-    currentSamples: ReadonlyArray<PerimeterFieldDebugSample>;
-    referenceSamples: ReadonlyArray<PerimeterFieldDebugSample>;
-    vectorSamples: ReadonlyArray<PerimeterFieldDebugSample>;
-    showChangedSections: boolean;
-} {
-    const plan = snapshot.transitionPlan ?? null;
-    switch (mode) {
-        case 'prev':
-            return {
-                primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
-                secondaryGeometry: null,
-                currentSamples: plan
-                    ? plan.prevVSet.map((v) =>
-                          buildDebugSampleFromV({
-                              snapshot,
-                              v,
-                              debugState: 'static',
-                              label: v.id,
-                          }),
-                      )
-                    : snapshot.renderedSamples,
-                referenceSamples: [],
-                vectorSamples: [],
-                showChangedSections: false,
-            };
-        case 'next':
-            return {
-                primaryGeometry:
-                    plan?.nextGeometry ??
-                    snapshot.transitionTargetGeometry ??
-                    snapshot.displayGeometry,
-                secondaryGeometry: null,
-                currentSamples: plan
-                    ? plan.nextVSet.map((v) =>
-                          buildDebugSampleFromV({
-                              snapshot,
-                              v,
-                              debugState: 'target',
-                              label: v.id,
-                          }),
-                      )
-                    : snapshot.renderedSamples,
-                referenceSamples: [],
-                vectorSamples: [],
-                showChangedSections: false,
-            };
-        case 'compare':
-            return {
-                primaryGeometry: plan?.prevGeometry ?? snapshot.displayGeometry,
-                secondaryGeometry:
-                    plan?.nextGeometry ?? snapshot.transitionTargetGeometry,
-                currentSamples: plan
-                    ? plan.prevVSet.map((v) =>
-                          buildDebugSampleFromV({
-                              snapshot,
-                              v,
-                              debugState: 'static',
-                              label: v.id,
-                          }),
-                      )
-                    : snapshot.renderedSamples,
-                referenceSamples: plan
-                    ? plan.nextVSet.map((v) =>
-                          buildDebugSampleFromV({
-                              snapshot,
-                              v,
-                              debugState: 'target',
-                              label: v.id,
-                          }),
-                      )
-                    : snapshot.targetStaticSamples,
-                vectorSamples:
-                    snapshot.transitionSamples.length > 0 ||
-                    snapshot.transitionPlan == null
-                        ? snapshot.transitionSamples
-                        : buildPlanVectorSamples(snapshot),
-                showChangedSections: true,
-            };
-        case 'transition':
-        default:
-            return {
-                primaryGeometry: snapshot.displayGeometry,
-                secondaryGeometry: snapshot.transitionTargetGeometry,
-                currentSamples: snapshot.renderedSamples,
-                referenceSamples: [],
-                vectorSamples:
-                    snapshot.transitionSamples.length > 0 ||
-                    snapshot.transitionPlan == null
-                        ? snapshot.transitionSamples
-                        : buildPlanVectorSamples(snapshot),
-                showChangedSections: true,
-            };
-    }
 }
 
 function getLabelOffset(sample: PerimeterFieldDebugSample): { x: number; y: number } {
@@ -560,24 +299,13 @@ function drawChangedSections(
     const plan = snapshot.transitionPlan;
     if (!plan) return;
 
-    const prevChanged = new Set([
-        ...plan.changedSections.removedSectionIds,
-        ...plan.changedSections.sharedChangedSectionIds,
-        ...plan.changedSections.selectedPrevSectionIds,
-    ]);
-    const nextChanged = new Set([
-        ...plan.changedSections.addedSectionIds,
-        ...plan.changedSections.sharedChangedSectionIds,
-        ...plan.changedSections.selectedNextSectionIds,
-    ]);
-
     const displayVersion = snapshot.displayGeometry.version;
     const targetVersion = snapshot.transitionTargetGeometry?.version ?? null;
     if (displayVersion === plan.prevGeometry.version) {
         drawTopologySections(
             ctx,
             snapshot.displayGeometry,
-            prevChanged,
+            plan.changedSections.removedSectionIds,
             0xff8c82,
             3.6,
             0.85,
@@ -587,7 +315,7 @@ function drawChangedSections(
         drawTopologySections(
             ctx,
             snapshot.displayGeometry,
-            nextChanged,
+            plan.changedSections.addedSectionIds,
             0x6ee7a7,
             3.6,
             0.85,
@@ -597,7 +325,7 @@ function drawChangedSections(
         drawTopologySections(
             ctx,
             snapshot.transitionTargetGeometry,
-            nextChanged,
+            plan.changedSections.addedSectionIds,
             0x6ee7a7,
             3.2,
             0.75,
@@ -650,9 +378,7 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
                 drawClosedPolyline(ctx, points, 0xff5bd1, 0.65, 2);
             }
         }
-        if (renderState.showChangedSections) {
-            drawChangedSections(ctx, args.snapshot);
-        }
+        drawChangedSections(ctx, args.snapshot);
     }
 
     if (args.showVstars ?? true) {
@@ -677,15 +403,6 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
 function compactTransitionPlan(plan: TransitionPlan): Record<string, unknown> {
     const removedSectionIds = [...plan.changedSections.removedSectionIds].sort();
     const addedSectionIds = [...plan.changedSections.addedSectionIds].sort();
-    const sharedChangedSectionIds = [
-        ...plan.changedSections.sharedChangedSectionIds,
-    ].sort();
-    const selectedPrevSectionIds = [
-        ...plan.changedSections.selectedPrevSectionIds,
-    ].sort();
-    const selectedNextSectionIds = [
-        ...plan.changedSections.selectedNextSectionIds,
-    ].sort();
     const straightMovers = plan.movers.filter((mover) => mover.pathType === 'straight').length;
     const arcMovers = plan.movers.length - straightMovers;
     return {
@@ -694,68 +411,16 @@ function compactTransitionPlan(plan: TransitionPlan): Record<string, unknown> {
         nextGeometryVersion: plan.nextGeometry.version,
         prevVCount: plan.prevVSet.length,
         nextVCount: plan.nextVSet.length,
-        changedFrontChainCount: plan.changedFronts.chains.length,
-        changedFrontChainIds: plan.changedFronts.chains.map((chain) => chain.chainId),
-        changedFronts: plan.changedFronts.chains.map((chain) => ({
-            chainId: chain.chainId,
-            seedStarId: chain.seedStarId,
-            previousOwnerId: chain.previousOwnerId,
-            newOwnerId: chain.newOwnerId,
-            ownerPairTransition: chain.ownerPairTransition,
-            prevSectionIds: [...chain.prevSectionIds],
-            nextSectionIds: [...chain.nextSectionIds],
-            prevLoopIds: [...chain.prevLoopIds],
-            nextLoopIds: [...chain.nextLoopIds],
-        })),
-        preservedCount: plan.preserved.length,
         preservedVCount: plan.preservedVIds.size,
         preservedMatchKeyCount: plan.preservedMatchKeys.size,
-        preservedPairs: plan.preserved.map((pair) => ({
-            preservedId: pair.preservedId,
-            prevVId: pair.prevV.id,
-            nextVId: pair.nextV.id,
-            prev: {
-                x: pair.prevV.x,
-                y: pair.prevV.y,
-            },
-            next: {
-                x: pair.nextV.x,
-                y: pair.nextV.y,
-            },
-        })),
         moverCount: plan.movers.length,
         straightMoverCount: straightMovers,
         arcMoverCount: arcMovers,
-        movers: plan.movers.map((mover) => ({
-            moverId: mover.moverId,
-            ownerRole: mover.ownerRole,
-            pathType: mover.pathType,
-            prevOwnerId: mover.prevOwnerId,
-            nextOwnerId: mover.nextOwnerId,
-            prev: mover.prevPos,
-            next: mover.nextPos,
-            controlPoint: mover.pathControlPoint ?? null,
-        })),
         appearingCount: plan.appearing.length,
         disappearingCount: plan.disappearing.length,
         removedSectionIds,
         addedSectionIds,
-        sharedChangedSectionIds,
-        selectedPrevSectionIds,
-        selectedNextSectionIds,
         unchangedSectionCount: plan.changedSections.unchangedSectionIds.size,
-        appearing: plan.appearing.map((entry) => ({
-            vId: entry.v.id,
-            ownerId: entry.v.ownerId,
-            reason: entry.reason,
-            next: { x: entry.v.x, y: entry.v.y },
-        })),
-        disappearing: plan.disappearing.map((entry) => ({
-            vId: entry.v.id,
-            ownerId: entry.v.ownerId,
-            reason: entry.reason,
-            prev: { x: entry.v.x, y: entry.v.y },
-        })),
     };
 }
 

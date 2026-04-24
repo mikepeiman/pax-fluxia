@@ -102,13 +102,18 @@
         return source;
     }
 
-    function resolveReplaySlot(slot: number): number {
-        const normalized = Math.max(0, Math.min(3, Math.round(slot)));
-        if (normalized === 0) return 0;
-        const replayCounts = $perimeterFieldDebugPlaybackStore.replayFrameCounts;
-        if ((replayCounts[normalized - 1] ?? 0) > 0) return normalized;
-        const firstAvailable = replayCounts.findIndex((count) => count > 0);
-        return firstAvailable >= 0 ? firstAvailable + 1 : 0;
+    function currentTransitionEngine(): 'legacy' | 'plan' {
+        const value =
+            panel.perimeterFieldTransitionEngine ??
+            GAME_CONFIG.PERIMETER_FIELD_TRANSITION_ENGINE ??
+            'plan';
+        return value === 'legacy' ? 'legacy' : 'plan';
+    }
+
+    function transitionEngineLabel(): string {
+        return currentTransitionEngine() === 'legacy'
+            ? 'Legacy Synthetic'
+            : 'Topology Plan';
     }
 
     let activeReplaySlot = $derived(
@@ -785,7 +790,37 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="Perimeter Field transitions are plan-driven from exact PREV and NEXT truth snapshots."
+            title="Choose between the legacy synthetic conquest samples and the new topology-driven transition plan."
+        >
+            Transition Engine
+        </span>
+        <span class="val">{transitionEngineLabel()}</span>
+    </div>
+    <div class="var-desc">
+        Topology Plan is the new deterministic section-aware path. Legacy Synthetic keeps the previous transition implementation available for A/B comparison.
+    </div>
+    <select
+        class="mode-select"
+        value={currentTransitionEngine()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig(
+                'PERIMETER_FIELD_TRANSITION_ENGINE',
+                'perimeterFieldTransitionEngine',
+                value === 'legacy' ? 'legacy' : 'plan',
+            );
+        }}
+    >
+        <option value="plan">Topology Plan</option>
+        <option value="legacy">Legacy Synthetic</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span
+            class="var-name"
+            title="Number of radial slices cast from the conquered star to build the conquest-local boundary override."
         >
             Transition Model
         </span>

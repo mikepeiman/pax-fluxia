@@ -97,6 +97,19 @@ export function buildRenderFamilyInput(params: {
             gameTick: input.gameTick ?? null,
             activeTransitionEvents: input.activeTransition?.events.length ?? 0,
         },
+        logDetail: {
+            nowMs: input.nowMs,
+            paused: input.paused,
+            gameTick: input.gameTick ?? null,
+            world: input.world,
+            stars: input.stars,
+            lanes: input.lanes,
+            ownership: input.ownership,
+            geometry: input.geometry,
+            tunables: Object.fromEntries(tunables.entries()),
+            renderer: input.renderer,
+            activeTransition: input.activeTransition,
+        },
     });
     return input;
 }

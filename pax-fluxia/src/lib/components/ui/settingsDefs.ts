@@ -569,6 +569,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'VS_BIND_TO_TICK' },
     { configKey: 'VS_TRANSITION_MODE' },
     { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
+    { configKey: 'PERIMETER_FIELD_TRANSITION_ENGINE' },
     { configKey: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
     { configKey: 'PERIMETER_FIELD_SAMPLE_SPACING' },
     { configKey: 'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP' },

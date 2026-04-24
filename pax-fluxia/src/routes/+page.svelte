@@ -1,12 +1,51 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
+  import type { Component } from "svelte";
   import "../app.css";
   import LandingPage from "$lib/components/landing/LandingPage.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
 
+  let showGame = $state(false);
+  let gameContainerComponent = $state<Component | null>(null);
+  let benchmarkDisposer: (() => void) | null = null;
+  let gameContainerLoadPromise: Promise<void> | null = null;
+
+  async function ensureGameShellLoaded(): Promise<void> {
+    if (gameContainerComponent) return;
+    if (!gameContainerLoadPromise) {
+      gameContainerLoadPromise = import(
+        "$lib/components/game/GameContainer.svelte"
+      ).then((module) => {
+        gameContainerComponent = module.default;
+      });
+    }
+    await gameContainerLoadPromise;
+  }
+
   onMount(() => {
     audioManager.init();
+    const url = typeof window !== "undefined" ? new URL(window.location.href) : null;
+    const benchmarkEnabled = url?.searchParams.get("bench") === "1";
+    const openShell = async () => {
+      showGame = true;
+      await ensureGameShellLoaded();
+    };
+    if (url?.searchParams.get("showGame") === "1") {
+      void openShell();
+    }
+    if (benchmarkEnabled) {
+      void import("$lib/perf/benchmarkBridge").then(({ installBenchmarkBridge }) => {
+        benchmarkDisposer?.();
+        benchmarkDisposer = installBenchmarkBridge({
+          openGameShell: openShell,
+          ensureGameShellLoaded,
+        });
+      });
+    }
+    return () => {
+      benchmarkDisposer?.();
+      benchmarkDisposer = null;
+    };
   });
 
   function handlePlay() {
@@ -16,7 +55,9 @@
       window.location.hostname === "paxfluxia.com";
     if (isProd) {
       window.location.href = "https://play.paxfluxia.com";
-      return;
+    } else {
+      showGame = true;
+      void ensureGameShellLoaded();
     }
     void goto("/play");
   }
@@ -36,7 +77,13 @@
 </svelte:head>
 
 <main>
-  <LandingPage onPlay={handlePlay} />
+  {#if showGame}
+    {#if gameContainerComponent}
+      <gameContainerComponent />
+    {/if}
+  {:else}
+    <LandingPage onPlay={handlePlay} />
+  {/if}
   <script
     type="text/javascript"
     async

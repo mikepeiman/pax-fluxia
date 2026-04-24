@@ -1,5 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import {
+    pushStateCompat as pushState,
+    replaceStateCompat as replaceState,
+  } from "$lib/utils/navigationCompat";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -462,6 +466,12 @@
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
     }
+  });
+
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    (window as typeof window & { __PAX_GAME_CANVAS__?: unknown }).__PAX_GAME_CANVAS__ =
+      gameCanvasRef ?? null;
   });
 
   // Lock body scroll when in game view (landing page needs scroll)

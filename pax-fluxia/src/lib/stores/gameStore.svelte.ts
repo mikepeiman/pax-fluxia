@@ -72,6 +72,19 @@ import {
     buildPlayerPaletteHex,
 } from '$lib/utils/playerPalette';
 import { buildMainMenuPreview } from '$lib/utils/mainMenuPreview';
+import {
+    measurePerf,
+    measurePerfAsync,
+    recordPerfEvent,
+} from '$lib/perf/perfProbe';
+import {
+    logPipelineStage,
+    summarizeMapDefinition,
+    summarizeConnections,
+    summarizeSavedMapRemap,
+    summarizeStars,
+} from '$lib/perf/pipelineTelemetry';
+import { log } from '$lib/utils/logger';
 
 // ============================================================================
 // Constants
@@ -277,7 +290,7 @@ function toGameState(s: GameRoomState): GameState {
         }
     }
 
-    return {
+    const nextState = {
         tick: s.tick,
         tickProgress: 0, // Will be set by progress loop
         isPaused: s.isPaused,
@@ -289,6 +302,141 @@ function toGameState(s: GameRoomState): GameState {
         mapDiagnostics: { measurements },
         winner: winnerPlayer,
     };
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'schema_snapshot',
+        from: 'GameRoomState',
+        to: 'GameState',
+        purpose: 'Publish UI-readable simulation state',
+        summary:
+            `${summarizeStars(stars)} ${summarizeConnections(connections)} ` +
+            `players=${players.length} phase=${String(s.phase)}`,
+        perfEventName: 'game.snapshot.publish',
+        detail: {
+            tick: s.tick,
+            phase: s.phase,
+            paused: s.isPaused,
+            players: players.length,
+        },
+    });
+    return nextState;
+}
+
+interface SnapshotOrderPatch {
+    starId: string;
+    targetId: string | null;
+    queuedOrderTargetId: string | null;
+}
+
+function buildSnapshotOrderPatch(starId: string): SnapshotOrderPatch | null {
+    if (!state) return null;
+    const star = state.stars.get(starId);
+    if (!star) return null;
+    return {
+        starId,
+        targetId: star.targetId || null,
+        queuedOrderTargetId: star.queuedOrderTargetId || null,
+    };
+}
+
+function patchSnapshotOrderFields(
+    currentSnapshot: GameState | null,
+    patches: ReadonlyArray<SnapshotOrderPatch>,
+): GameState | null {
+    if (!currentSnapshot || patches.length === 0) return currentSnapshot;
+    const patchMap = new Map(patches.map((patch) => [patch.starId, patch] as const));
+    let changed = false;
+    const nextStars = currentSnapshot.stars.map((star) => {
+        const patch = patchMap.get(star.id);
+        if (!patch) return star;
+        if (
+            star.targetId === patch.targetId &&
+            star.queuedOrderTargetId === patch.queuedOrderTargetId
+        ) {
+            return star;
+        }
+        changed = true;
+        return {
+            ...star,
+            targetId: patch.targetId,
+            queuedOrderTargetId: patch.queuedOrderTargetId,
+        };
+    });
+    if (!changed) return currentSnapshot;
+    return {
+        ...currentSnapshot,
+        stars: nextStars,
+    };
+}
+
+function publishOrderMutationSnapshot(params: {
+    perfPrefix: string;
+    stage: string;
+    from: string;
+    to: string;
+    purpose: string;
+    starIds: ReadonlyArray<string>;
+    detail: Record<string, unknown>;
+}): { mode: 'patched' | 'full' | 'unchanged'; changed: boolean } {
+    if (!state) return { mode: 'unchanged', changed: false };
+    const uniqueStarIds = [...new Set(params.starIds.filter(Boolean))];
+    const patches = uniqueStarIds
+        .map((starId) => buildSnapshotOrderPatch(starId))
+        .filter((patch): patch is SnapshotOrderPatch => patch !== null);
+    const nextSnapshot = measurePerf(
+        `${params.perfPrefix}.patchSnapshot`,
+        () => patchSnapshotOrderFields(snapshot, patches),
+        {
+            stage: params.stage,
+            starIds: uniqueStarIds,
+            patchCount: patches.length,
+        },
+    );
+    if (nextSnapshot && nextSnapshot !== snapshot) {
+        snapshot = nextSnapshot;
+        logPipelineStage({
+            channel: 'input',
+            context: 'GameStore',
+            stage: params.stage,
+            from: params.from,
+            to: params.to,
+            purpose: params.purpose,
+            detail: {
+                ...params.detail,
+                publishMode: 'patched',
+                patchedStars: uniqueStarIds,
+            },
+        });
+        return { mode: 'patched', changed: true };
+    }
+
+    const rebuiltSnapshot = measurePerf(
+        `${params.perfPrefix}.fullSnapshot`,
+        () => toGameState(state!),
+        {
+            stage: params.stage,
+            starIds: uniqueStarIds,
+            patchCount: patches.length,
+        },
+    );
+    const changed =
+        rebuiltSnapshot !== snapshot ||
+        (rebuiltSnapshot?.tick ?? null) !== (snapshot?.tick ?? null);
+    snapshot = rebuiltSnapshot;
+    logPipelineStage({
+        channel: 'input',
+        context: 'GameStore',
+        stage: params.stage,
+        from: params.from,
+        to: params.to,
+        purpose: params.purpose,
+        detail: {
+            ...params.detail,
+            publishMode: 'full',
+            patchedStars: uniqueStarIds,
+        },
+    });
+    return { mode: 'full', changed };
 }
 
 // ============================================================================
@@ -629,21 +777,43 @@ function laneDClearancePx(): number {
 }
 
 function refreshLanePolylinesFromConfig(): void {
-    if (!state || state.stars.size < 2) return;
-    const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const uni = canonicalUniConnections(state.connections);
-    rebuildLanePolylineCache(
-        nodes,
-        uni,
-        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        laneDClearancePx(),
-    );
-    bumpTerritoryVisualConfig();
-    snapshot = toGameState(state);
+    measurePerf('game.refreshLanePolylinesFromConfig', () => {
+        if (!state || state.stars.size < 2) return;
+        const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+        const uni = canonicalUniConnections(state.connections);
+        measurePerf('game.refreshLanePolylinesFromConfig.rebuildLanePolylineCache', () => {
+            rebuildLanePolylineCache(
+                nodes,
+                uni,
+                (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+                laneDClearancePx(),
+            );
+        });
+        logPipelineStage({
+            context: 'GameStore',
+            stage: 'lane_cache_refresh',
+            from: 'Live lane settings + current runtime map',
+            to: 'Lane polyline cache',
+            purpose: 'Rebuild authored lane paths after configuration changes',
+            summary:
+                `nodes=${nodes.length} connections=${uni.length} ` +
+                `mode=${String(GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved')}`,
+            perfEventName: 'game.laneCache.refreshed',
+            detail: {
+                nodes,
+                connections: uni,
+                laneMode: GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved',
+                laneMarginPx: laneDClearancePx(),
+            },
+        });
+        bumpTerritoryVisualConfig();
+        snapshot = toGameState(state);
+    });
 }
 
 /** Recompute Delaunay-based links from current star positions (same algorithm as mapgen). */
 function rebuildConnectionsFromLaneClearance(): void {
+    measurePerf('game.rebuildConnectionsFromLaneClearance', () => {
     if (!state || state.stars.size < 2) return;
 
     const nodes = [...state.stars.values()]
@@ -664,18 +834,41 @@ function rebuildConnectionsFromLaneClearance(): void {
     for (const c of uni) {
         addDebugConnection(c.sourceId, c.targetId);
     }
-    rebuildLanePolylineCache(
-        nodes,
-        uni,
-        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        laneDClearancePx(),
-    );
+    measurePerf('game.rebuildConnectionsFromLaneClearance.rebuildLanePolylineCache', () => {
+        rebuildLanePolylineCache(
+            nodes,
+            uni,
+            (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+            laneDClearancePx(),
+        );
+    });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'connection_rebuild',
+        from: 'Runtime star positions',
+        to: 'Runtime connections + lane cache',
+        purpose: 'Recompute connectivity and lane paths from current map layout',
+        summary:
+            `nodes=${nodes.length} connections=${uni.length} ` +
+            `mode=${String(GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved')}`,
+        perfEventName: 'game.connections.rebuilt',
+        detail: {
+            nodes,
+            connections: uni,
+            laneMode: GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved',
+            laneMarginPx: laneDClearancePx(),
+            minLinksPerStar: minL,
+            maxLinksPerStar: maxL,
+        },
+    });
     bumpTerritoryVisualConfig();
     snapshot = toGameState(state);
+    });
 }
 
 /** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
 function initDebugMap(playerIds: string[], variant: string): void {
+    measurePerf('game.initDebugMap', () => {
     const cx = 800, cy = 450, spread = 250;
     const humanId = playerIds[0] || 'human-player';
     const aiId = playerIds[1] || 'ai-1';
@@ -713,12 +906,15 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
-    rebuildLanePolylineCache(
-        nodesDbg,
-        uniDbg,
-        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        laneDClearancePx(),
-    );
+   measurePerf('game.initDebugMap.rebuildLanePolylineCache', () => {
+       rebuildLanePolylineCache(
+           nodesDbg,
+           uniDbg,
+           (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+           laneDClearancePx(),
+       );
+   });
+    });
 }
 
 /**
@@ -747,7 +943,7 @@ function generateMapPreview(opts: {
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
-    return buildMainMenuPreview({
+    const preview = buildMainMenuPreview({
         width: mapW,
         height: mapH,
         playerCount: opts.playerCount,
@@ -766,17 +962,35 @@ function generateMapPreview(opts: {
         ),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
     });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_preview',
+        from: 'MainMenu settings',
+        to: 'MainMenu preview canvas',
+        purpose: 'Generate representative map preview payload',
+        summary:
+            `${summarizeStars(preview.stars)} ${summarizeConnections(preview.connections)}`,
+        perfEventName: 'game.mapPreview.generated',
+        detail: {
+            width: mapW,
+            height: mapH,
+            playerCount: opts.playerCount,
+            starsPerPlayer: opts.starsPerPlayer,
+        },
+    });
+    return preview;
 }
 
 /** Standard random map via generateMap() */
 function initStandardMap(playerIds: string[]): void {
+    measurePerf('game.initStandardMap', () => {
     // Match map aspect ratio to viewport — portrait screens get portrait maps
     const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
     const mapW = isPortrait ? 900 : 1600;
     const mapH = isPortrait ? 1600 : 900;
 
     const neutralCount = settings.neutralStarCount ?? 0;
-    const result = generateMap({
+    const result = measurePerf('game.initStandardMap.generateMap', () => generateMap({
         width: mapW,
         height: mapH,
         playerCount: playerIds.length,
@@ -794,6 +1008,35 @@ function initStandardMap(playerIds: string[]): void {
             Math.max(0, GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ?? 0.55),
         ),
         mapLaneMode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+    }));
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_generation',
+        from: '@pax/common.generateMap',
+        to: 'GameStore.initStandardMap',
+        purpose: 'Materialize new procedural match topology',
+        summary:
+            `positions=${result.positions.length} connections=${result.connections.length} ` +
+            `world=${result.width}x${result.height}`,
+        perfEventName: 'game.map.generated',
+        detail: {
+            width: result.width,
+            height: result.height,
+            hexRadius: result.hexRadius,
+            paddingX: result.paddingX,
+            paddingY: result.paddingY,
+            playerCount: playerIds.length,
+        },
+        logDetail: {
+            width: result.width,
+            height: result.height,
+            hexRadius: result.hexRadius,
+            paddingX: result.paddingX,
+            paddingY: result.paddingY,
+            playerCount: playerIds.length,
+            positions: result.positions,
+            connections: result.connections,
+        },
     });
 
     // Store map gen metadata for debug grid overlay
@@ -860,12 +1103,81 @@ function initStandardMap(playerIds: string[]): void {
         star.lastCombatTick = -1;
         state!.stars.set(star.id, star);
     });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_ownership_assignment',
+        from: 'Generated positions + shuffled owner pool',
+        to: 'Runtime star ownership/state',
+        purpose: 'Assign owners, ship counts, and star types before topology enters the live match',
+        summary:
+            `${summarizeStars(Array.from(state!.stars.values()))} ` +
+            `ownerPool=${ownerIds.length} capitals=${hasCapital.size}`,
+        perfEventName: 'game.map.ownershipAssigned',
+        detail: {
+            ownerIds,
+            stars: Array.from(state!.stars.values()).map((star) => ({
+                id: star.id,
+                x: star.x,
+                y: star.y,
+                ownerId: star.ownerId,
+                starType: star.starType,
+                activeShips: star.activeShips,
+                damagedShips: star.damagedShips,
+            })),
+        },
+    });
 
     // Create connections (bidirectional)
     for (const conn of result.connections) {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
-    seedLanePolylineCacheFromMapGen(result.connections);
+    measurePerf('game.initStandardMap.seedLanePolylineCache', () => {
+        seedLanePolylineCacheFromMapGen(result.connections);
+    });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'lane_cache_seed',
+        from: 'Map generation lane-aware connections',
+        to: 'Lane polyline cache',
+        purpose: 'Seed authored lane geometry before territory and ship renderers consume the map',
+        summary:
+            `${summarizeConnections(result.connections)} ` +
+            `mode=${String(GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved')}`,
+        perfEventName: 'game.laneCache.seeded',
+        detail: {
+            laneConnections: result.connections,
+            laneMode: GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved',
+            laneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+        },
+    });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_init',
+        from: 'Map generation output',
+        to: 'GameRoomState + lane cache',
+        purpose: 'Seed runtime stars, connections, and authored lane geometry',
+        summary:
+            `${summarizeStars(Array.from(state!.stars.values()))} ` +
+            `${summarizeConnections(result.connections)}`,
+        perfEventName: 'game.map.runtimeInitialized',
+        detail: {
+            stars: Array.from(state!.stars.values()).map((star) => ({
+                id: star.id,
+                x: star.x,
+                y: star.y,
+                ownerId: star.ownerId,
+                starType: star.starType,
+                activeShips: star.activeShips,
+                damagedShips: star.damagedShips,
+            })),
+            laneConnections: result.connections,
+        },
+        perfDetail: {
+            starCount: state!.stars.size,
+            laneConnectionCount: result.connections.length,
+        },
+    });
+    });
 }
 
 // ============================================================================
@@ -972,7 +1284,21 @@ async function loadFilesystemMaps(): Promise<void> {
         }
         if (added > 0) {
             persistSavedMaps(); // sync localStorage with filesystem discoveries
-            console.log(`[MAP] Loaded ${added} map(s) from filesystem`);
+            logPipelineStage({
+                context: 'GameStore',
+                stage: 'filesystem_map_merge',
+                from: '/__maps response',
+                to: 'savedMaps cache',
+                purpose: 'Merge discovered filesystem maps into the local saved-map catalog',
+                summary: `added=${added} total=${savedMaps.length}`,
+                perfEventName: 'game.maps.filesystemMerged',
+                detail: {
+                    discovered: fsMaps.map((map) => ({
+                        name: map.metadata.name,
+                        version: map.metadata.version,
+                    })),
+                },
+            });
         }
     } catch { /* dev server may not be running */ }
 }
@@ -995,10 +1321,24 @@ async function loadBuiltinMapsAsync(): Promise<void> {
             }
         }
         if (added > 0) {
-            console.log(`[MAP] Merged ${added} built-in map(s) from /maps/`);
+            logPipelineStage({
+                context: 'GameStore',
+                stage: 'builtin_map_merge',
+                from: '/maps catalog',
+                to: 'savedMaps cache',
+                purpose: 'Merge built-in authored maps into the local saved-map catalog',
+                summary: `added=${added} total=${savedMaps.length}`,
+                perfEventName: 'game.maps.builtinMerged',
+                detail: {
+                    discovered: builtins.map((map) => ({
+                        name: map.metadata.name,
+                        version: map.metadata.version,
+                    })),
+                },
+            });
         }
     } catch (e) {
-        console.warn('[MAP] Failed to load built-in maps:', e);
+        log.error('GameStore', 'Failed to load built-in maps', e);
     }
 }
 loadBuiltinMapsAsync();
@@ -1284,8 +1624,26 @@ function upsertSavedMapDefinition(map: MapDefinition): MapDefinition {
     ) {
         currentLoadedMap = normalizedMap;
     }
-
-    return normalizedMap;
+    const mapDefinition = {
+        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
+        stars, connections,
+        customRules: { tick: state.tick },
+    };
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_export',
+        from: 'GameRoomState',
+        to: 'MapDefinition',
+        purpose: 'Serialize current match topology and ownership snapshot',
+        summary:
+            `${summarizeStars(stars)} ${summarizeConnections(connections)}`,
+        perfEventName: 'game.map.exported',
+        detail: {
+            tick: state.tick,
+            version: mapDefinition.metadata.version,
+        },
+    });
+    return mapDefinition;
 }
 
 /** Save current map TOPOLOGY with a name (B-58: topology only, no game state) */
@@ -1327,28 +1685,148 @@ function deleteSavedMap(name: string): void {
 
 /** Set a saved map to be loaded on next startGame() */
 function loadSavedMap(map: MapDefinition): void {
-    pendingSavedMap = coerceRepositoryMap(map);
+    pendingSavedMap = map;
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'map_queue',
+        from: 'Saved map library',
+        to: 'Pending saved map slot',
+        purpose: 'Select next topology to load on start',
+        summary:
+            `${summarizeStars(map.stars)} ${summarizeConnections(map.connections)}`,
+        perfEventName: 'game.savedMap.queued',
+        detail: {
+            name: map.metadata.name,
+            version: map.metadata.version,
+        },
+    });
 }
 
 /** Initialize from a saved MapDefinition */
 function initSavedMap(playerIds: string[], map: MapDefinition): void {
-    const normalizedMap = coerceRepositoryMap(map);
-    validateAuthoredMapDefinition(normalizedMap);
-    const runtimeMap = resolveRuntimeMap(normalizedMap, buildRuntimeMapOptions(playerIds));
+    measurePerf('game.initSavedMap', () => {
+    const starTypes: StarType[] = ['grey', 'yellow', 'blue', 'purple', 'red', 'green'];
 
     applyRuntimeMapToState(runtimeMap);
     currentLoadedMap = normalizedMap;
 
-    const nodes = runtimeMap.stars.map((star) => ({ id: star.id, x: star.x, y: star.y }));
-    const uniConnections = canonicalUniConnections(state!.connections);
-    rebuildLanePolylineCache(
-        nodes,
-        uniConnections,
-        (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-        laneDClearancePx(),
-    );
+    // Detect mid-game saves: if ANY saved ownerId matches a runtime playerID, use identity
+    const playerIdSet = new Set(playerIds);
+    const isMidGameSave = Array.from(mapFactions).some(f => playerIdSet.has(f));
+
+    if (isMidGameSave) {
+        // Identity map — ownerIds already correct, don't remap
+        for (const faction of mapFactions) {
+            factionRemap.set(faction, faction);
+        }
+    } else {
+        // Classic map format — remap alphabetically to runtime playerIds
+        const sortedFactions = Array.from(mapFactions).sort();
+        sortedFactions.forEach((faction, i) => {
+            if (i < playerIds.length) {
+                factionRemap.set(faction, playerIds[i]);
+            } else {
+                factionRemap.set(faction, 'neutral');
+            }
+        });
+    }
+    // Calculate coordinate scale — classic maps use ~800×500 coordinate space;
+    // scale to match current viewport if coordinates are in that range
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'saved_map_remap',
+        from: 'MapDefinition factions',
+        to: 'Runtime player identities',
+        purpose: 'Resolve saved ownership IDs into current player slots',
+        summary: summarizeSavedMapRemap({
+            factions: Array.from(mapFactions),
+            playerIds,
+            remap: factionRemap,
+            isMidGameSave,
+        }),
+        perfEventName: 'game.savedMap.remapped',
+        detail: {
+            factions: Array.from(mapFactions),
+            playerIds,
+            remap: Object.fromEntries(factionRemap.entries()),
+        },
+    });
+
+    const maxX = Math.max(...map.stars.map(s => s.x));
+    const maxY = Math.max(...map.stars.map(s => s.y));
+    const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    const targetW = isPortrait ? 900 : 1600;
+    const targetH = isPortrait ? 1600 : 900;
+    // Only scale if the map is small (legacy), leave modern maps as-is
+    const needsScale = maxX < 1000 && maxY < 600;
+    const spacingMult = GAME_CONFIG.CLASSIC_MAP_SPACING ?? 1.0;
+    const scaleX = needsScale ? (targetW * 0.85) / (maxX || 1) * spacingMult : 1;
+    const scaleY = needsScale ? (targetH * 0.85) / (maxY || 1) * spacingMult : 1;
+    const offsetX = needsScale ? targetW * 0.075 : 0;
+    const offsetY = needsScale ? targetH * 0.075 : 0;
+
+    map.stars.forEach((s: MapDefinition['stars'][0]) => {
+        const normalizedOwnerId = normalizeInitialOwnerId(s.ownerId);
+        const ownerId =
+            normalizedOwnerId === NEUTRAL_OWNER_ID
+                ? NEUTRAL_OWNER_ID
+                : (factionRemap.get(normalizedOwnerId) ?? normalizedOwnerId);
+        const starType = s.starType || starTypes[Math.floor(Math.random() * starTypes.length)];
+        const stats = STAR_TYPE_STATS[starType] || STAR_TYPE_STATS['grey'];
+        const star = new StarSchema();
+        star.id = s.id;
+        star.x = s.x * scaleX + offsetX;
+        star.y = s.y * scaleY + offsetY;
+        star.ownerId = ownerId;
+        star.starType = starType;
+        star.activeShips = s.activeShips ?? GAME_CONFIG.STARTING_SHIPS;
+        star.damagedShips = s.damagedShips ?? 0;
+        star.targetId = s.targetId ?? '';
+        star.productionRate = 1;
+        star.repairRate = stats.repairRate;
+        star.transferRate = stats.transferRate;
+        star.activationRate = stats.activationRate;
+        star.defensivePosture = stats.defensivePosture;
+        star.defenseStrength = stats.defenseStrength;
+        star.radius = 25;
+        star.icon = '🌟';
+        star.productionOverflow = 0;
+        star.repairOverflow = 0;
+        star.lastCombatTick = -1;
+        state!.stars.set(star.id, star);
+    });
+    for (const conn of map.connections) {
+        addDebugConnection(conn.sourceId, conn.targetId);
+    }
+    const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+    const uniSaved = canonicalUniConnections(state!.connections);
+    measurePerf('game.initSavedMap.rebuildLanePolylineCache', () => {
+        rebuildLanePolylineCache(
+            nodesSaved,
+            uniSaved,
+            (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+            laneDClearancePx(),
+        );
+    });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'saved_map_init',
+        from: 'MapDefinition',
+        to: 'GameRoomState + lane cache',
+        purpose: 'Restore authored map topology into runtime state',
+        summary:
+            `${summarizeStars(Array.from(state!.stars.values()))} ` +
+            `${summarizeConnections(map.connections)}`,
+        perfEventName: 'game.savedMap.runtimeInitialized',
+        detail: {
+            name: map.metadata.name,
+            version: map.metadata.version,
+        },
+    });
+    });
 }
 function initializeState(): void {
+    measurePerf('game.initializeState', () => {
     state = new GameRoomState();
     state.phase = 'playing'; // Will be set to paused via isPaused
     state.isPaused = true;
@@ -1378,36 +1856,72 @@ function initializeState(): void {
         player.damagedShips = 0;
         state!.players.set(id, player);
     });
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'player_init',
+        from: 'Menu settings',
+        to: 'GameRoomState.players',
+        purpose: 'Instantiate runtime player roster and palette',
+        summary: `players=${playerIds.length} ai=${Math.max(0, playerIds.length - 1)}`,
+        perfEventName: 'game.players.initialized',
+        detail: {
+            playerIds,
+        },
+    });
 
     // Generate map based on mapType
     const mapType = settings.mapType || 'standard';
 
-    if (mapType === 'debug' || mapType === 'debug-b') {
-        // Fixed debug maps — deterministic positions for testing
-        initDebugMap(playerIds, mapType);
-    } else if (pendingSavedMap) {
-        // Load saved map definition (explicit user action)
-        initSavedMap(playerIds, pendingSavedMap);
-        pendingSavedMap = null;
-    } else if (defaultMapName) {
-        // F-148: Auto-load default map if preference is set
-        const defaultMap = savedMaps.find(m => m.metadata.name === defaultMapName);
-        if (defaultMap) {
-            console.log(`[MAP] Auto-loading default map: "${defaultMapName}"`);
-            initSavedMap(playerIds, defaultMap);
+    measurePerf('game.initializeState.mapInit', () => {
+        if (mapType === 'debug' || mapType === 'debug-b') {
+            initDebugMap(playerIds, mapType);
+        } else if (pendingSavedMap) {
+            initSavedMap(playerIds, pendingSavedMap);
+            pendingSavedMap = null;
+        } else if (defaultMapName) {
+            const defaultMap = savedMaps.find(m => m.metadata.name === defaultMapName);
+            if (defaultMap) {
+                logPipelineStage({
+                    context: 'GameStore',
+                    stage: 'default_map_autoload',
+                    from: 'Default map preference',
+                    to: 'Saved map initialization',
+                    purpose: 'Start the match from the preferred authored map',
+                    summary: summarizeMapDefinition(defaultMap),
+                    perfEventName: 'game.maps.defaultAutoloaded',
+                });
+                initSavedMap(playerIds, defaultMap);
+            } else {
+                log.error(
+                    'GameStore',
+                    `Default map "${defaultMapName}" not found; falling back to random generation`,
+                    {
+                        defaultMapName,
+                        savedMapCount: savedMaps.length,
+                    },
+                );
+                initStandardMap(playerIds);
+            }
         } else {
-            console.warn(`[MAP] Default map "${defaultMapName}" not found, generating random`);
             initStandardMap(playerIds);
         }
-    } else {
-        initStandardMap(playerIds);
-    }
+    });
 
     const normalizedUnownedCount = normalizeUnownedStarsToNeutral(state!.stars.values());
     if (normalizedUnownedCount > 0) {
-        console.warn(
-            `[INIT] Normalized ${normalizedUnownedCount} unowned star(s) to neutral ownership at game init`,
-        );
+        logPipelineStage({
+            channel: 'state',
+            context: 'GameStore',
+            stage: 'normalize_unowned',
+            from: 'Imported star ownership',
+            to: 'Neutral-owned runtime stars',
+            purpose: 'Repair unowned stars so ownership, geometry, and rendering remain valid',
+            summary: `normalized=${normalizedUnownedCount}`,
+            perfEventName: 'game.state.unownedNormalized',
+            detail: {
+                normalizedUnownedCount,
+            },
+        });
     }
 
     // Snapshot map for restart (F-71)
@@ -1424,8 +1938,26 @@ function initializeState(): void {
 
     // Tally initial player stats (starCount, activeShips, etc.) for leaderboard
     // Cannot use SharedEngine.tick() — it returns early when isPaused=true
-    SharedEngine.updatePlayerStats(state!);
+    measurePerf('game.initializeState.updatePlayerStats', () => {
+        SharedEngine.updatePlayerStats(state!);
+    });
     state!.isPaused = true;
+    logPipelineStage({
+        context: 'GameStore',
+        stage: 'state_init',
+        from: 'GameRoomState setup',
+        to: 'Paused lobby-ready match state',
+        purpose: 'Finalize runtime state before first lobby frame',
+        summary:
+            `${summarizeStars(Array.from(state!.stars.values()))} ` +
+            `${summarizeConnections(Array.from(state!.connections))}`,
+        perfEventName: 'game.state.initialized',
+        detail: {
+            players: state!.players.size,
+            tick: state!.tick,
+        },
+    });
+    });
 }
 
 // ============================================================================
@@ -1477,25 +2009,48 @@ function applyPlayerColors(colors: string[]): void {
 }
 
 async function startGame(): Promise<void> {
-    // Destroy existing game if any
-    destroyGame();
-
-    // Reset territory render flag so territory draws immediately on load (B-50)
-    (globalThis as any).__territoryRenderedWhilePaused = false;
-
-    // Clear combat log
-    combatLog.clear();
-
-    // Create new game state
-    sessionId++;
-    initializeState();
-
-    // Initial snapshot
-    snapshot = toGameState(state!);
-
-    // Navigate to game
-    currentView = 'game';
-    startTime = Date.now();
+    recordPerfEvent('game.startGame.requested');
+    await measurePerfAsync('game.startGame', async () => {
+        logPipelineStage({
+            context: 'GameStore',
+            stage: 'start_request',
+            from: 'Menu or benchmark command',
+            to: 'Game initialization pipeline',
+            purpose: 'Transition into a fresh playable match state',
+            perfEventName: 'game.startGame.pipelineStarted',
+            detail: {
+                currentView,
+                hasStarted,
+            },
+        });
+        destroyGame();
+        (globalThis as any).__territoryRenderedWhilePaused = false;
+        measurePerf('game.startGame.clearCombatLog', () => {
+            combatLog.clear();
+        });
+        sessionId++;
+        initializeState();
+        measurePerf('game.startGame.initialSnapshot', () => {
+            snapshot = toGameState(state!);
+        });
+        currentView = 'game';
+        startTime = Date.now();
+        logPipelineStage({
+            context: 'GameStore',
+            stage: 'start_complete',
+            from: 'Game initialization pipeline',
+            to: 'GameContainer lobby view',
+            purpose: 'Expose initialized match to the UI',
+            summary:
+                `${summarizeStars(snapshot?.stars ?? [])} ` +
+                `${summarizeConnections(snapshot?.connections ?? [])}`,
+            perfEventName: 'game.startGame.completed',
+            detail: {
+                currentView,
+                hasStarted,
+            },
+        });
+    });
 }
 
 function pauseGame(): void {
@@ -1523,9 +2078,9 @@ function resumeGame(): void {
     }
 }
 
-function restart(): void {
+async function restart(): Promise<void> {
     hasStarted = false;
-    startGame();
+    await startGame();
 }
 
 function beginGame(): void {
@@ -1575,6 +2130,9 @@ function setSpeed(newSpeed: GameSpeed): void {
 
 function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: boolean): boolean {
     if (!state) return false;
+    const targetBefore = state.stars.get(targetId);
+    const targetBeforeTargetId = targetBefore?.targetId || null;
+    const targetBeforeQueuedTargetId = targetBefore?.queuedOrderTargetId || null;
 
     const input: IssueOrderInput = {
         type: 'ISSUE_ORDER',
@@ -1583,11 +2141,58 @@ function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: b
         playerId: HUMAN_PLAYER_ID,
         persist: persistAfterConquest,
     };
-    SharedEngine.processInput(state, input, { ALLOW_OPPOSING_ORDERS: GAME_CONFIG.ALLOW_OPPOSING_ORDERS });
-
-    // Instant UI update
-    snapshot = toGameState(state);
-    return true;
+    measurePerf('game.order.issue.engine', () => {
+        SharedEngine.processInput(state!, input, {
+            ALLOW_OPPOSING_ORDERS: GAME_CONFIG.ALLOW_OPPOSING_ORDERS,
+        });
+    }, {
+        sourceId,
+        targetId,
+        persistAfterConquest: Boolean(persistAfterConquest),
+    });
+    const sourceAfter = state.stars.get(sourceId);
+    const targetAfter = state.stars.get(targetId);
+    const accepted = sourceAfter?.targetId === targetId;
+    const affectedStarIds = [sourceId];
+    if (
+        targetAfter &&
+        (
+            targetBeforeTargetId !== (targetAfter.targetId || null) ||
+            targetBeforeQueuedTargetId !== (targetAfter.queuedOrderTargetId || null)
+        )
+    ) {
+        affectedStarIds.push(targetId);
+    }
+    const publishResult = publishOrderMutationSnapshot({
+        perfPrefix: 'game.order.issue',
+        stage: 'issue_order_publish',
+        from: `Engine order mutation ${sourceId}`,
+        to: 'GameState snapshot',
+        purpose: 'Publish only the order-facing star fields needed for instant local command feedback',
+        starIds: affectedStarIds,
+        detail: {
+            sourceId,
+            targetId,
+            persistAfterConquest: Boolean(persistAfterConquest),
+            accepted,
+        },
+    });
+    logPipelineStage({
+        channel: 'input',
+        context: 'GameStore',
+        stage: 'issue_order',
+        from: `Star ${sourceId}`,
+        to: `Star ${targetId}`,
+        purpose: 'Push a live player order into the engine and refresh UI immediately',
+        perfEventName: 'game.order.issued',
+        detail: {
+            persistAfterConquest: Boolean(persistAfterConquest),
+            localPlayerId: HUMAN_PLAYER_ID,
+            accepted,
+            publishMode: publishResult.mode,
+        },
+    });
+    return accepted;
 }
 
 function cancelOrder(starId: StarId): void {
@@ -1598,10 +2203,43 @@ function cancelOrder(starId: StarId): void {
         starId,
         playerId: HUMAN_PLAYER_ID,
     };
-    SharedEngine.processInput(state, input);
-
-    // Instant UI update
-    snapshot = toGameState(state);
+    measurePerf('game.order.cancel.engine', () => {
+        SharedEngine.processInput(state!, input);
+    }, {
+        starId,
+    });
+    const starAfter = state.stars.get(starId);
+    const accepted = Boolean(
+        starAfter &&
+        !starAfter.targetId &&
+        !starAfter.queuedOrderTargetId,
+    );
+    const publishResult = publishOrderMutationSnapshot({
+        perfPrefix: 'game.order.cancel',
+        stage: 'cancel_order_publish',
+        from: `Engine order mutation ${starId}`,
+        to: 'GameState snapshot',
+        purpose: 'Publish only the cancelled order state required for immediate local UI response',
+        starIds: [starId],
+        detail: {
+            starId,
+            accepted,
+        },
+    });
+    logPipelineStage({
+        channel: 'input',
+        context: 'GameStore',
+        stage: 'cancel_order',
+        from: `Star ${starId}`,
+        to: 'Engine order queue',
+        purpose: 'Remove a live player order and refresh UI immediately',
+        perfEventName: 'game.order.cancelled',
+        detail: {
+            localPlayerId: HUMAN_PLAYER_ID,
+            accepted,
+            publishMode: publishResult.mode,
+        },
+    });
 }
 
 function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest?: boolean): boolean {
@@ -1614,8 +2252,44 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
         playerId: HUMAN_PLAYER_ID,
         persist: persistAfterConquest,
     };
-    SharedEngine.processInput(state, input);
-    return true;
+    measurePerf('game.order.defer.engine', () => {
+        SharedEngine.processInput(state!, input);
+    }, {
+        enemyStarId,
+        nextTargetId,
+        persistAfterConquest: Boolean(persistAfterConquest),
+    });
+    const enemyStarAfter = state.stars.get(enemyStarId);
+    const accepted = enemyStarAfter?.queuedOrderTargetId === nextTargetId;
+    const publishResult = publishOrderMutationSnapshot({
+        perfPrefix: 'game.order.defer',
+        stage: 'deferred_order_publish',
+        from: `Engine deferred order mutation ${enemyStarId}`,
+        to: 'GameState snapshot',
+        purpose: 'Publish only the queued conquest order fields required for immediate deferred-order feedback',
+        starIds: [enemyStarId],
+        detail: {
+            enemyStarId,
+            nextTargetId,
+            persistAfterConquest: Boolean(persistAfterConquest),
+            accepted,
+        },
+    });
+    logPipelineStage({
+        channel: 'input',
+        context: 'GameStore',
+        stage: 'deferred_order',
+        from: `Star ${enemyStarId}`,
+        to: `Star ${nextTargetId}`,
+        purpose: 'Queue a conquest-follow-up order and refresh the local deferred-order preview immediately',
+        perfEventName: 'game.order.deferred',
+        detail: {
+            localPlayerId: HUMAN_PLAYER_ID,
+            accepted,
+            publishMode: publishResult.mode,
+        },
+    });
+    return accepted;
 }
 
 function surrender(): void {

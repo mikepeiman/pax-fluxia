@@ -1,4 +1,11 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
+import {
+    logPipelineStage,
+    summarizeGeometry,
+    summarizeOwnership,
+    summarizeStars,
+    summarizeConnections,
+} from '$lib/perf/pipelineTelemetry';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type {
@@ -68,13 +75,35 @@ export function buildOwnershipSnapshotFromStars(
         }
     }
 
-    return {
+    const snapshot = {
         version: 'render-family-live',
         starOwners,
         contestedLaneIds: [],
         conquestEvents: [],
         virtualStars: [],
     };
+    logPipelineStage({
+        channel: 'state',
+        context: 'RenderFamilyGeometry',
+        stage: 'ownership_snapshot',
+        from: 'Live stars',
+        to: 'OwnershipSnapshot',
+        purpose: 'Normalize owner assignments for geometry and scene builders',
+        summary: `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
+        perfEventName: 'territory.ownership.snapshotBuilt',
+        perfDetail: {
+            starCount: stars.length,
+            ownedStarCount: snapshot.starOwners.size,
+        },
+        logDetail: {
+            stars,
+            starOwners: Object.fromEntries(snapshot.starOwners.entries()),
+            contestedLaneIds: snapshot.contestedLaneIds,
+            conquestEvents: snapshot.conquestEvents,
+            virtualStars: snapshot.virtualStars,
+        },
+    });
+    return snapshot;
 }
 
 export function buildCanonicalRenderFamilyGeometry(params: {
@@ -89,7 +118,7 @@ export function buildCanonicalRenderFamilyGeometry(params: {
         GAME_CONFIG as unknown as Record<string, unknown>,
     );
 
-    return compileVectorGeometry({
+    const geometry = compileVectorGeometry({
         nowMs: params.nowMs,
         stars: [...params.stars],
         lanes: [...params.lanes],
@@ -102,6 +131,43 @@ export function buildCanonicalRenderFamilyGeometry(params: {
             params.ownership ?? buildOwnershipSnapshotFromStars(params.stars),
         styleMode: runtimeSettings.selection.styleMode,
     });
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'RenderFamilyGeometry',
+        stage: 'canonical_geometry',
+        from: 'Ownership snapshot + live topology',
+        to: 'CanonicalGeometrySnapshot',
+        purpose: 'Build render-family geometry for vector-driven territory families',
+        summary:
+            `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
+            summarizeGeometry(geometry),
+        perfEventName: 'territory.geometry.canonicalBuilt',
+        perfDetail: {
+            starCount: params.stars.length,
+            laneCount: params.lanes.length,
+            regionCount: geometry.territoryRegions.length,
+            frontierCount: geometry.frontierPolylines.length,
+            shellLoopCount: geometry.shellLoops.length,
+        },
+        logDetail: {
+            stars: params.stars,
+            lanes: params.lanes,
+            ownership:
+                params.ownership == null
+                    ? null
+                    : {
+                          version: params.ownership.version,
+                          starOwners: Object.fromEntries(
+                              params.ownership.starOwners.entries(),
+                          ),
+                          contestedLaneIds: params.ownership.contestedLaneIds,
+                          conquestEvents: params.ownership.conquestEvents,
+                          virtualStars: params.ownership.virtualStars,
+                      },
+            geometry,
+        },
+    });
+    return geometry;
 }
 
 function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
@@ -348,10 +414,27 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
             ownershipVersion: ownership.version,
             sourceStyle: runtimeSettings.selection.styleMode,
         });
-        if (adapted) return adapted;
+        if (adapted) {
+            logPipelineStage({
+                channel: 'renderer',
+                context: 'RenderFamilyGeometry',
+                stage: 'perimeter_geometry',
+                from: 'Geometry_0319 output',
+                to: 'CanonicalGeometrySnapshot',
+                purpose: 'Adapt power-voronoi territory geometry for perimeter-field sampling',
+                summary:
+                    `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
+                    summarizeGeometry(adapted),
+                perfEventName: 'territory.geometry.perimeterBuilt',
+                detail: {
+                    geometrySource,
+                },
+            });
+            return adapted;
+        }
     }
 
-    return compileVectorGeometry({
+    const geometry = compileVectorGeometry({
         nowMs: params.nowMs,
         stars: [...params.stars],
         lanes: [...params.lanes],
@@ -363,4 +446,20 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         ownership,
         styleMode: runtimeSettings.selection.styleMode,
     });
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'RenderFamilyGeometry',
+        stage: 'perimeter_geometry_fallback',
+        from: 'Live topology',
+        to: 'CanonicalGeometrySnapshot',
+        purpose: 'Fallback perimeter-field geometry compilation path',
+        summary:
+            `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
+            summarizeGeometry(geometry),
+        perfEventName: 'territory.geometry.perimeterFallbackBuilt',
+        detail: {
+            geometrySource,
+        },
+    });
+    return geometry;
 }

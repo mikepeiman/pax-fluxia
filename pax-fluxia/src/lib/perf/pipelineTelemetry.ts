@@ -12,6 +12,8 @@ interface PipelineStageLogParams {
     purpose: string;
     summary?: string;
     detail?: Record<string, unknown>;
+    logDetail?: Record<string, unknown>;
+    perfDetail?: Record<string, unknown>;
     perfEventName?: string;
 }
 
@@ -60,12 +62,20 @@ interface RendererMetricsLike {
     borderMs?: number;
     totalMs?: number;
     reusedFingerprint?: boolean;
+    workerRequestMs?: number;
+    workerPostMs?: number;
+    workerCommitMs?: number;
+    workerStaticCacheHit?: boolean;
+    workerStaticBuildMs?: number;
+    workerDynamicBuildMs?: number;
+    workerClassificationMs?: number;
+    workerStrokeBuildMs?: number;
 }
 
 interface MapDefinitionLike {
     metadata?: {
         name?: string;
-        version?: string;
+        version?: string | number;
     };
     stars?: readonly unknown[];
     connections?: readonly unknown[];
@@ -142,7 +152,12 @@ export function logPipelineStage(params: PipelineStageLogParams): void {
     const message =
         `${params.stage}: ${params.from} -> ${params.to}` +
         ` | ${params.purpose}${summarySuffix}`;
-    logByChannel(channel, params.context, message, params.detail);
+    logByChannel(
+        channel,
+        params.context,
+        message,
+        params.logDetail ?? params.detail,
+    );
     if (params.perfEventName) {
         recordPerfEvent(params.perfEventName, {
             stage: params.stage,
@@ -150,7 +165,7 @@ export function logPipelineStage(params: PipelineStageLogParams): void {
             to: params.to,
             purpose: params.purpose,
             summary: params.summary,
-            ...(params.detail ?? {}),
+            ...(params.perfDetail ?? params.detail ?? {}),
         });
     }
 }
@@ -307,12 +322,27 @@ export function summarizeTransitionPlan(plan: TransitionPlanLike): string {
 export function summarizeRendererMetrics(
     metrics: RendererMetricsLike,
 ): string {
-    return [
+    const parts = [
         `solveMs=${(metrics.solveMs ?? 0).toFixed(3)}`,
         `uploadMs=${(metrics.textureUploadMs ?? 0).toFixed(3)}`,
         `borderMs=${(metrics.borderMs ?? 0).toFixed(3)}`,
         `totalMs=${(metrics.totalMs ?? 0).toFixed(3)}`,
         `reused=${metrics.reusedFingerprint ? 1 : 0}`,
-    ].join(" ");
+    ];
+    if (
+        metrics.workerRequestMs !== undefined ||
+        metrics.workerPostMs !== undefined ||
+        metrics.workerCommitMs !== undefined
+    ) {
+        parts.push(`workerReqMs=${(metrics.workerRequestMs ?? 0).toFixed(3)}`);
+        parts.push(`workerPostMs=${(metrics.workerPostMs ?? 0).toFixed(3)}`);
+        parts.push(`workerCommitMs=${(metrics.workerCommitMs ?? 0).toFixed(3)}`);
+        parts.push(`workerStaticHit=${metrics.workerStaticCacheHit ? 1 : 0}`);
+        parts.push(`workerStaticBuildMs=${(metrics.workerStaticBuildMs ?? 0).toFixed(3)}`);
+        parts.push(`workerDynamicBuildMs=${(metrics.workerDynamicBuildMs ?? 0).toFixed(3)}`);
+        parts.push(`workerClassifyMs=${(metrics.workerClassificationMs ?? 0).toFixed(3)}`);
+        parts.push(`workerStrokeMs=${(metrics.workerStrokeBuildMs ?? 0).toFixed(3)}`);
+    }
+    return parts.join(" ");
 }
 

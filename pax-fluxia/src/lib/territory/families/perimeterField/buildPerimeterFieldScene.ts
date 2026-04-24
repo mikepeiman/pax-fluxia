@@ -1,4 +1,11 @@
 import { GAME_CONFIG } from '../../../config/game.config';
+import {
+    logPipelineStage,
+    summarizePerimeterSourceData,
+    summarizePerimeterVSet,
+    summarizeScene,
+    summarizeTransitionPlan,
+} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '../../../renderers/RenderContext';
 import type {
     MetaballInfluenceSample,
@@ -13,10 +20,6 @@ import {
     sampleVSetFromGeometry,
     evaluateTransitionMoverPosition,
 } from './perimeterFieldPlanEngine';
-import {
-    listPerimeterGeometryLoops,
-    type PerimeterGeometryLoop,
-} from './perimeterFieldGeometryLoops';
 import type {
     PerimeterV,
     TransitionPlan,
@@ -81,6 +84,32 @@ interface PerimeterSourceSampleSet {
     samples: PerimeterFieldDebugSample[];
 }
 
+interface CachedPerimeterSourceData {
+    sources: readonly PerimeterSource[];
+    sampleSets: readonly PerimeterSourceSampleSet[];
+    flattenedSamples: readonly PerimeterFieldDebugSample[];
+}
+
+const perimeterSourceCache = new Map<string, CachedPerimeterSourceData>();
+
+function finalizeBuiltScene(
+    builtScene: PerimeterFieldBuiltScene,
+    detail?: Record<string, unknown>,
+): PerimeterFieldBuiltScene {
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'PerimeterFieldScene',
+        stage: 'scene_build',
+        from: 'Perimeter samples + transition state',
+        to: 'MetaballSceneInput',
+        purpose: 'Assemble shared renderer scene for perimeter-field mode',
+        summary: summarizeScene(builtScene.sceneInput),
+        perfEventName: 'territory.perimeterField.sceneBuilt',
+        detail,
+    });
+    return builtScene;
+}
+
 function readNumber(input: RenderFamilyInput, key: string, fallback: number): number {
     const value = input.tunables.get(key);
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -93,6 +122,44 @@ function readString(input: RenderFamilyInput, key: string, fallback: string): st
 
 function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
+}
+
+function sortSamplesByStableKey<T extends MetaballInfluenceSample>(samples: readonly T[]): T[] {
+    return [...samples].sort((a, b) => {
+        const idA = a.id ?? '';
+        const idB = b.id ?? '';
+        if (idA !== idB) return idA.localeCompare(idB);
+        if (a.playerIdx !== b.playerIdx) return a.playerIdx - b.playerIdx;
+        if (a.x !== b.x) return a.x - b.x;
+        return a.y - b.y;
+    });
+}
+
+function buildOwnerClusterKey(ownerToCluster: ReadonlyMap<string, number>): string {
+    return [...ownerToCluster.entries()]
+        .sort(([ownerA], [ownerB]) => ownerA.localeCompare(ownerB))
+        .map(([ownerId, clusterIdx]) => `${ownerId}:${clusterIdx}`)
+        .join('|');
+}
+
+function buildGeometryCacheKey(geometry: CanonicalGeometrySnapshot): string {
+    const shellLoopKey = geometry.shellLoops
+        .map(
+            (loop) =>
+                `${loop.shellLoopId}:${loop.ownerId}:${loop.points
+                    .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
+                    .join(';')}`,
+        )
+        .join('|');
+    const regionKey = geometry.territoryRegions
+        .map(
+            (region) =>
+                `${region.regionId}:${region.ownerId}:${region.points
+                    .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
+                    .join(';')}`,
+        )
+        .join('|');
+    return `${geometry.version}::${shellLoopKey}::${regionKey}`;
 }
 
 function polygonArea(points: ReadonlyArray<[number, number]>): number {
@@ -312,28 +379,117 @@ function flattenPerimeterSampleSets(
     return sampleSets.flatMap((sampleSet) => sampleSet.samples);
 }
 
-function buildPerimeterDebugSampleFromV(params: {
-    v: PerimeterV;
+function buildPerimeterSourceCacheKey(params: {
+    geometry: CanonicalGeometrySnapshot;
+    ownerToCluster: ReadonlyMap<string, number>;
+    spacing: number;
+    offsetPx: number;
+    strength: number;
+    debugState: 'static' | 'target';
+}): string {
+    return [
+        buildGeometryCacheKey(params.geometry),
+        params.spacing.toFixed(3),
+        params.offsetPx.toFixed(3),
+        params.strength.toFixed(3),
+        params.debugState,
+        buildOwnerClusterKey(params.ownerToCluster),
+    ].join('::');
+}
+
+function getCachedPerimeterSourceData(params: {
+    geometry: CanonicalGeometrySnapshot;
+    ownerToCluster: ReadonlyMap<string, number>;
+    spacing: number;
+    offsetPx: number;
+    strength: number;
+    debugState: 'static' | 'target';
     colorUtils: ColorUtils;
-    debugState: PerimeterFieldDebugSample['debugState'];
-    transitionRole?: TransitionRole;
-    label?: string;
-    strength?: number;
-}): PerimeterFieldDebugSample {
-    return {
-        id: params.v.id,
-        x: params.v.x,
-        y: params.v.y,
-        playerIdx: params.v.playerIdx,
-        strength: params.strength ?? params.v.strength,
-        ownerId: params.v.ownerId,
-        ownerColor: params.colorUtils.getPlayerColor(params.v.ownerId),
-        sourceId: params.v.loopId,
-        vId: params.v.id,
-        transitionRole: params.transitionRole,
-        label: params.label,
+}): CachedPerimeterSourceData {
+    const cacheKey = buildPerimeterSourceCacheKey(params);
+    const cached = perimeterSourceCache.get(cacheKey);
+    if (cached) {
+        logPipelineStage({
+            channel: 'renderer',
+            context: 'PerimeterFieldScene',
+            stage: 'source_cache_hit',
+            from: 'Geometry + perimeter sampling tunables',
+            to: 'Cached perimeter source samples',
+            purpose: 'Reuse stable perimeter sampling output when geometry and tunables are unchanged',
+            summary: summarizePerimeterSourceData(cached),
+            perfEventName: 'territory.perimeterField.sourceCacheHit',
+            detail: {
+                cacheKey,
+                geometryVersion: params.geometry.version,
+                debugState: params.debugState,
+            },
+            logDetail: {
+                cacheKey,
+                geometry: params.geometry,
+                ownerToCluster: Object.fromEntries(params.ownerToCluster.entries()),
+                spacing: params.spacing,
+                offsetPx: params.offsetPx,
+                strength: params.strength,
+                debugState: params.debugState,
+                cachedSources: cached.sources,
+                cachedSampleSets: cached.sampleSets,
+                cachedFlattenedSamples: cached.flattenedSamples,
+            },
+        });
+        return cached;
+    }
+
+    const sources = listPerimeterSources(params.geometry);
+    const sampleSets = buildPerimeterSourceSampleSets({
+        sources,
+        ownerToCluster: params.ownerToCluster,
+        spacing: params.spacing,
+        offsetPx: params.offsetPx,
+        strength: params.strength,
         debugState: params.debugState,
+        colorUtils: params.colorUtils,
+    });
+    const built: CachedPerimeterSourceData = {
+        sources,
+        sampleSets,
+        flattenedSamples: flattenPerimeterSampleSets(sampleSets),
     };
+    perimeterSourceCache.set(cacheKey, built);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'PerimeterFieldScene',
+        stage: 'source_cache_miss',
+        from: 'Geometry + perimeter sampling tunables',
+        to: 'New perimeter source samples',
+        purpose: 'Sample perimeter-field region loops into reusable source sets for scene construction',
+        summary: summarizePerimeterSourceData(built),
+        perfEventName: 'territory.perimeterField.sourceCacheMiss',
+        detail: {
+            cacheKey,
+            geometryVersion: params.geometry.version,
+            debugState: params.debugState,
+        },
+        logDetail: {
+            cacheKey,
+            geometry: params.geometry,
+            ownerToCluster: Object.fromEntries(params.ownerToCluster.entries()),
+            spacing: params.spacing,
+            offsetPx: params.offsetPx,
+            strength: params.strength,
+            debugState: params.debugState,
+            sources,
+            sampleSets,
+            flattenedSamples: built.flattenedSamples,
+        },
+    });
+    return built;
+}
+
+function normalizeAngle(value: number): number {
+    const twoPi = Math.PI * 2;
+    let angle = value % twoPi;
+    if (angle < 0) angle += twoPi;
+    return angle;
 }
 
 function collectGeometryOwners(geometry: CanonicalGeometrySnapshot): string[] {
@@ -637,6 +793,355 @@ function buildPlanScene(params: {
     };
 }
 
+function buildPerimeterDebugSampleFromV(params: {
+    v: PerimeterV;
+    colorUtils: ColorUtils;
+    debugState: PerimeterFieldDebugSample['debugState'];
+    transitionRole?: TransitionRole;
+    label?: string;
+    strength?: number;
+}): PerimeterFieldDebugSample {
+    return {
+        id: params.v.id,
+        x: params.v.x,
+        y: params.v.y,
+        playerIdx: params.v.playerIdx,
+        strength: params.strength ?? params.v.strength,
+        ownerId: params.v.ownerId,
+        ownerColor: params.colorUtils.getPlayerColor(params.v.ownerId),
+        sourceId: params.v.loopId,
+        vId: params.v.id,
+        transitionRole: params.transitionRole,
+        label: params.label,
+        debugState: params.debugState,
+    };
+}
+
+function collectGeometryOwners(geometry: CanonicalGeometrySnapshot): string[] {
+    return [...new Set([
+        ...geometry.territoryRegions.map((region) => region.ownerId),
+        ...geometry.shellLoops.map((loop) => loop.ownerId),
+    ])].filter(Boolean);
+}
+
+function collectPlanOwners(plan: TransitionPlan | null | undefined): string[] {
+    if (!plan) return [];
+    return [...new Set([
+        ...plan.prevVSet.map((v) => v.ownerId),
+        ...plan.nextVSet.map((v) => v.ownerId),
+        ...plan.movers.flatMap((mover) => [mover.prevOwnerId, mover.nextOwnerId]),
+    ])].filter(Boolean);
+}
+
+function buildPlanScene(params: {
+    input: RenderFamilyInput;
+    starsForDisplay: ReadonlyArray<StarState>;
+    geometry: CanonicalGeometrySnapshot;
+    transitionPlan: TransitionPlan | null;
+    colorUtils: ColorUtils;
+    spacing: number;
+    offsetPx: number;
+    strength: number;
+    geometrySource: string;
+    freezeBase: boolean;
+}): PerimeterFieldBuiltScene {
+    const extraOwners = [
+        ...collectGeometryOwners(params.geometry),
+        ...collectPlanOwners(params.transitionPlan),
+    ];
+    const clusterScene = buildOwnerClusterScene(
+        params.starsForDisplay,
+        params.colorUtils,
+        extraOwners,
+    );
+
+    const currentVs = sampleVSetFromGeometry({
+        geometry: params.geometry,
+        options: {
+            spacing: params.spacing,
+            offsetPx: params.offsetPx,
+            strength: params.strength,
+            ownerToCluster: clusterScene.ownerToCluster,
+        },
+    });
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'PerimeterFieldScene',
+        stage: 'plan_scene_input',
+        from: 'Geometry + transition plan',
+        to: 'Perimeter plan-scene sampling',
+        purpose: 'Assemble plan-engine V-set inputs before shared renderer scene construction',
+        summary:
+            `${summarizePerimeterVSet(currentVs)} ` +
+            summarizeTransitionPlan(params.transitionPlan ?? {}),
+        perfEventName: 'territory.perimeterField.planSceneInputBuilt',
+        detail: {
+            geometryVersion: params.geometry.version,
+            hasTransitionPlan: Boolean(params.transitionPlan),
+            freezeBase: params.freezeBase,
+            geometrySource: params.geometrySource,
+        },
+        logDetail: {
+            geometry: params.geometry,
+            geometrySource: params.geometrySource,
+            freezeBase: params.freezeBase,
+            transitionPlan: params.transitionPlan,
+            currentVs,
+            clusterScene: {
+                ownedStars: clusterScene.ownedStars,
+                clusterMap: Object.fromEntries(clusterScene.clusterMap.entries()),
+                ownerToCluster: Object.fromEntries(clusterScene.ownerToCluster.entries()),
+                playerColors: clusterScene.playerColors,
+                clusterShips: clusterScene.clusterShips,
+            },
+        },
+    });
+
+    if (!params.transitionPlan) {
+        const staticSamples = currentVs.map((v, index) =>
+            buildPerimeterDebugSampleFromV({
+                v,
+                colorUtils: params.colorUtils,
+                debugState: 'static',
+                transitionRole: 'static',
+                label: `S${String(index).padStart(2, '0')}`,
+            }),
+        );
+        const visibleStaticSamples = sortSamplesByStableKey(
+            staticSamples.filter((sample) => sample.strength > 1e-6),
+        );
+        return {
+            sceneInput: {
+                ownedStars: clusterScene.ownedStars,
+                clusterMap: clusterScene.clusterMap,
+                playerColors: clusterScene.playerColors,
+                clusterShips: clusterScene.clusterShips,
+                staticSamples: visibleStaticSamples,
+                dynamicSamples: [],
+                samples: visibleStaticSamples,
+                staticFingerprint: buildSceneFingerprint(
+                    visibleStaticSamples,
+                    clusterScene.playerColors,
+                    clusterScene.clusterShips,
+                ),
+                dynamicFingerprint: '',
+                sceneFingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${buildSceneFingerprint(
+                    visibleStaticSamples,
+                    clusterScene.playerColors,
+                    clusterScene.clusterShips,
+                )}`,
+                fingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${buildSceneFingerprint(
+                    visibleStaticSamples,
+                    clusterScene.playerColors,
+                    clusterScene.clusterShips,
+                )}`,
+                influenceRadiusPx: readNumber(
+                    params.input,
+                    'PERIMETER_FIELD_INFLUENCE_RADIUS',
+                    GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
+                ),
+                ownershipMarginPx: 0,
+            },
+            debug: {
+                displayGeometry: params.geometry,
+                transitionTargetGeometry: null,
+                playerColors: clusterScene.playerColors,
+                staticSamples,
+                targetStaticSamples: [],
+                transitionSamples: [],
+                effectiveProgress: null,
+                transitionPlan: null,
+            },
+        };
+    }
+
+    const plan = params.transitionPlan;
+    const progress = clamp01(params.input.activeTransition?.progress ?? 0);
+    const changedLoopIds = new Set<string>([
+        ...plan.prevVSet
+            .filter((v) => plan.changedSections.removedSectionIds.has(v.sectionId))
+            .map((v) => v.loopId),
+        ...plan.nextVSet
+            .filter((v) => plan.changedSections.addedSectionIds.has(v.sectionId))
+            .map((v) => v.loopId),
+    ]);
+
+    const staticSamples = plan.nextVSet
+        .filter((v) => plan.changedSections.unchangedSectionIds.has(v.sectionId))
+        .map((v, index) => {
+            const role: TransitionRole = changedLoopIds.has(v.loopId) ? 'preserved' : 'static';
+            return buildPerimeterDebugSampleFromV({
+                v,
+                colorUtils: params.colorUtils,
+                debugState: role === 'preserved' ? 'preserved' : 'static',
+                transitionRole: role,
+                label: `${role === 'preserved' ? 'K' : 'S'}${String(index).padStart(2, '0')}`,
+            });
+        });
+
+    const targetStaticSamples = plan.nextVSet.map((v, index) =>
+        buildPerimeterDebugSampleFromV({
+            v,
+            colorUtils: params.colorUtils,
+            debugState: 'target',
+            transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                ? changedLoopIds.has(v.loopId)
+                    ? 'preserved'
+                    : 'static'
+                : 'appearing',
+            label: `T${String(index).padStart(2, '0')}`,
+        }),
+    );
+
+    const transitionSamples: PerimeterFieldDebugSample[] = [];
+    for (const mover of plan.movers) {
+        const position = evaluateTransitionMoverPosition(mover, progress);
+        const useNextOwner =
+            mover.prevOwnerId === mover.nextOwnerId ? true : progress >= 0.5;
+        const ownerId = useNextOwner ? mover.nextOwnerId : mover.prevOwnerId;
+        const playerIdx = useNextOwner ? mover.nextPlayerIdx : mover.prevPlayerIdx;
+        transitionSamples.push({
+            id: `transition:${mover.moverId}`,
+            x: position.x,
+            y: position.y,
+            playerIdx,
+            strength: mover.strength,
+            ownerId,
+            ownerColor: params.colorUtils.getPlayerColor(ownerId),
+            moverId: mover.moverId,
+            transitionRole: 'mover',
+            label: mover.moverId,
+            pathStartX: mover.prevPos.x,
+            pathStartY: mover.prevPos.y,
+            pathEndX: mover.nextPos.x,
+            pathEndY: mover.nextPos.y,
+            debugState: 'mover',
+        });
+    }
+    for (const [index, appearing] of plan.appearing.entries()) {
+        transitionSamples.push({
+            ...buildPerimeterDebugSampleFromV({
+                v: appearing.v,
+                colorUtils: params.colorUtils,
+                debugState: 'appearing',
+                transitionRole: 'appearing',
+                label: `A${String(index).padStart(2, '0')}`,
+                strength: appearing.v.strength * progress,
+            }),
+            id: `appearing:${appearing.v.id}`,
+        });
+    }
+    for (const [index, disappearing] of plan.disappearing.entries()) {
+        transitionSamples.push({
+            ...buildPerimeterDebugSampleFromV({
+                v: disappearing.v,
+                colorUtils: params.colorUtils,
+                debugState: 'disappearing',
+                transitionRole: 'disappearing',
+                label: `D${String(index).padStart(2, '0')}`,
+                strength: disappearing.v.strength * (1 - progress),
+            }),
+            id: `disappearing:${disappearing.v.id}`,
+        });
+    }
+
+    const endpointSamples =
+        progress <= 1e-6
+            ? plan.prevVSet.map((v, index) =>
+                  buildPerimeterDebugSampleFromV({
+                      v,
+                      colorUtils: params.colorUtils,
+                      debugState: 'transition-old',
+                      transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                          ? changedLoopIds.has(v.loopId)
+                              ? 'preserved'
+                              : 'static'
+                          : 'disappearing',
+                      label: `O${String(index).padStart(2, '0')}`,
+                  }),
+              )
+            : progress >= 1 - 1e-6
+              ? plan.nextVSet.map((v, index) =>
+                    buildPerimeterDebugSampleFromV({
+                        v,
+                        colorUtils: params.colorUtils,
+                        debugState: 'transition-new',
+                        transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                            ? changedLoopIds.has(v.loopId)
+                                ? 'preserved'
+                                : 'static'
+                            : 'appearing',
+                        label: `N${String(index).padStart(2, '0')}`,
+                    }),
+                )
+              : null;
+
+    const visibleStaticSamples = sortSamplesByStableKey(
+        staticSamples.filter((sample) => sample.strength > 1e-6),
+    );
+    const visibleTransitionSamples = sortSamplesByStableKey(
+        transitionSamples.filter((sample) => sample.strength > 1e-6),
+    );
+    const endpointVisibleSamples = endpointSamples
+        ? sortSamplesByStableKey(
+              endpointSamples.filter((sample) => sample.strength > 1e-6),
+          )
+        : null;
+    const samples =
+        endpointVisibleSamples ??
+        sortSamplesByStableKey([
+            ...visibleStaticSamples,
+            ...visibleTransitionSamples,
+        ]);
+    const staticSceneSamples = endpointVisibleSamples ?? visibleStaticSamples;
+    const dynamicSceneSamples = endpointVisibleSamples ? [] : visibleTransitionSamples;
+    const staticFingerprint = buildSceneFingerprint(
+        staticSceneSamples,
+        clusterScene.playerColors,
+        clusterScene.clusterShips,
+    );
+    const dynamicFingerprint =
+        dynamicSceneSamples.length > 0
+            ? buildSceneFingerprint(
+                  dynamicSceneSamples,
+                  clusterScene.playerColors,
+                  clusterScene.clusterShips,
+              )
+            : '';
+
+    return {
+        sceneInput: {
+            ownedStars: clusterScene.ownedStars,
+            clusterMap: clusterScene.clusterMap,
+            playerColors: clusterScene.playerColors,
+            clusterShips: clusterScene.clusterShips,
+            staticSamples: staticSceneSamples,
+            dynamicSamples: dynamicSceneSamples,
+            samples,
+            staticFingerprint,
+            dynamicFingerprint,
+            sceneFingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
+            fingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
+            influenceRadiusPx: readNumber(
+                params.input,
+                'PERIMETER_FIELD_INFLUENCE_RADIUS',
+                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
+            ),
+            ownershipMarginPx: 0,
+        },
+        debug: {
+            displayGeometry: params.geometry,
+            transitionTargetGeometry: plan.nextGeometry,
+            playerColors: clusterScene.playerColors,
+            staticSamples,
+            targetStaticSamples,
+            transitionSamples,
+            effectiveProgress: progress,
+            transitionPlan: plan,
+        },
+    };
+}
+
 export function buildPerimeterFieldScene(params: {
     input: RenderFamilyInput;
     starsForDisplay: ReadonlyArray<StarState>;
@@ -670,15 +1175,135 @@ export function buildPerimeterFieldScene(params: {
         'PERIMETER_FIELD_GEOMETRY_SOURCE',
         GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319',
     );
-    return buildPlanScene({
-        input: params.input,
-        starsForDisplay: params.starsForDisplay,
+    const transitionEngine = readString(
+        params.input,
+        'PERIMETER_FIELD_TRANSITION_ENGINE',
+        GAME_CONFIG.PERIMETER_FIELD_TRANSITION_ENGINE,
+    );
+
+    const canUsePlanEngine =
+        transitionEngine === 'plan' &&
+        (params.transitionPlan != null ||
+            (!params.input.activeTransition && hasUsableFrontierTopology(params.geometry)));
+    if (canUsePlanEngine) {
+        return finalizeBuiltScene(buildPlanScene({
+            input: params.input,
+            starsForDisplay: params.starsForDisplay,
+            geometry: params.geometry,
+            transitionPlan: params.transitionPlan ?? null,
+            colorUtils: params.colorUtils,
+            spacing,
+            offsetPx,
+            strength,
+            geometrySource,
+            freezeBase,
+        }), {
+            transitionEngine,
+            geometrySource,
+            freezeBase,
+        });
+    }
+
+    const clusterScene = buildOwnerClusterScene(params.starsForDisplay, params.colorUtils);
+    const displaySourceData = getCachedPerimeterSourceData({
         geometry: params.geometry,
-        transitionPlan: params.transitionPlan ?? null,
-        colorUtils: params.colorUtils,
+        ownerToCluster: clusterScene.ownerToCluster,
         spacing,
         offsetPx,
         strength,
         geometrySource,
+    });
+    const targetSourceData = params.transitionTargetGeometry
+        ? getCachedPerimeterSourceData({
+              geometry: params.transitionTargetGeometry,
+              ownerToCluster: clusterScene.ownerToCluster,
+              spacing,
+              offsetPx,
+              strength,
+              debugState: 'target',
+              colorUtils: params.colorUtils,
+          })
+        : null;
+    const {
+        transitionSamples,
+        excludedStaticSampleIds,
+    } =
+        params.input.activeTransition && params.transitionTargetGeometry
+            ? buildTransitionSamples({
+                  input: params.input,
+                  oldSources: displaySourceData.sources,
+                  newSources: targetSourceData?.sources ?? [],
+                  oldSourceSampleSets: displaySourceData.sampleSets,
+                  newSourceSampleSets: targetSourceData?.sampleSets ?? [],
+                  oldFade,
+                  newGrow,
+              })
+            : {
+                  transitionSamples: [],
+                  excludedStaticSampleIds: new Set<string>(),
+              };
+
+    const staticSamples = displaySourceData.flattenedSamples.filter(
+        (sample) => !sample.id || !excludedStaticSampleIds.has(sample.id),
+    );
+    const targetStaticSamples = targetSourceData?.flattenedSamples ?? [];
+    const visibleStaticSamples = sortSamplesByStableKey(
+        staticSamples.filter((sample) => sample.strength > 1e-6),
+    );
+    const visibleTransitionSamples = sortSamplesByStableKey(
+        transitionSamples.filter((sample) => sample.strength > 1e-6),
+    );
+    const samples = sortSamplesByStableKey([
+        ...visibleStaticSamples,
+        ...visibleTransitionSamples,
+    ]);
+    const staticFingerprint = buildSceneFingerprint(
+        visibleStaticSamples,
+        clusterScene.playerColors,
+        clusterScene.clusterShips,
+    );
+    const dynamicFingerprint =
+        visibleTransitionSamples.length > 0
+            ? buildSceneFingerprint(
+                  visibleTransitionSamples,
+                  clusterScene.playerColors,
+                  clusterScene.clusterShips,
+              )
+            : '';
+
+    return finalizeBuiltScene({
+        sceneInput: {
+            ownedStars: clusterScene.ownedStars,
+            clusterMap: clusterScene.clusterMap,
+            playerColors: clusterScene.playerColors,
+            clusterShips: clusterScene.clusterShips,
+            staticSamples: visibleStaticSamples,
+            dynamicSamples: visibleTransitionSamples,
+            samples,
+            staticFingerprint,
+            dynamicFingerprint,
+            sceneFingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
+            fingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
+            influenceRadiusPx: readNumber(
+                params.input,
+                'PERIMETER_FIELD_INFLUENCE_RADIUS',
+                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
+            ),
+            ownershipMarginPx: 0,
+        },
+        debug: {
+            displayGeometry: params.geometry,
+            transitionTargetGeometry: params.transitionTargetGeometry ?? null,
+            playerColors: clusterScene.playerColors,
+            staticSamples,
+            targetStaticSamples,
+            transitionSamples,
+            effectiveProgress: params.input.activeTransition?.progress ?? null,
+            transitionPlan: null,
+        },
+    }, {
+        transitionEngine,
+        geometrySource,
+        freezeBase,
     });
 }

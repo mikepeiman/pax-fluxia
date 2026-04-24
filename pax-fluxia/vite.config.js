@@ -109,74 +109,61 @@ function mapPersistPlugin() {
   };
 }
 
-// Dev-only plugin: expose fixture maps from common/resources via /__fixture-maps
-function fixtureMapPlugin() {
+function browserBenchPlugin() {
   return {
-    name: "fixture-maps",
+    name: "browser-bench",
     /** @param {import('vite').ViteDevServer} server */
     configureServer(server) {
-      const resourceRoot = path.resolve(server.config.root, "..", "common", "resources");
-      const fixtureDir = path.join(resourceRoot, "fixture-maps");
-
-      server.middlewares.use("/__fixture-maps", (/** @type {import('http').IncomingMessage} */ req, /** @type {import('http').ServerResponse} */ res) => {
-        res.setHeader("Content-Type", "application/json");
-
-        if (req.method !== "GET") {
-          res.statusCode = 405;
-          res.end(JSON.stringify({ error: "Method not allowed" }));
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith("/__bench")) {
+          next();
           return;
         }
-
-        try {
-          const url = new URL(req.url || "", "http://localhost");
-          const requestedPath = url.searchParams.get("path");
-          const requestedId = url.searchParams.get("id");
-
-          if (!requestedPath && !requestedId) {
-            const manifest = fs.existsSync(fixtureDir)
-              ? fs
-                  .readdirSync(fixtureDir)
-                  .filter((file) => file.endsWith(".json"))
-                  .map((file) => ({
-                    id: path.basename(file, ".json"),
-                    resourcePath: `common/resources/fixture-maps/${file}`,
-                  }))
-              : [];
-            res.statusCode = 200;
-            res.end(JSON.stringify(manifest));
-            return;
-          }
-
-          const relativePath = requestedPath || `common/resources/fixture-maps/${requestedId}.json`;
-          const absolutePath = path.resolve(server.config.root, "..", relativePath);
-          if (!absolutePath.startsWith(resourceRoot)) {
-            res.statusCode = 400;
-            res.end(JSON.stringify({ error: "Invalid fixture path" }));
-            return;
-          }
-          if (!fs.existsSync(absolutePath)) {
-            res.statusCode = 404;
-            res.end(JSON.stringify({ error: "Fixture map not found" }));
-            return;
-          }
-
-          const content = fs.readFileSync(absolutePath, "utf-8");
-          res.statusCode = 200;
-          res.end(content);
-        } catch (e) {
-          res.statusCode = 500;
-          res.end(JSON.stringify({ error: String(e) }));
-        }
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.end(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pax Fluxia Browser Bench</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/@vite/client"></script>
+    <script type="module" src="/src/lib/bench/browserBenchEntry.ts"></script>
+  </body>
+</html>`);
       });
     },
   };
 }
 
 const host = process.env.TAURI_DEV_HOST;
+const benchmarkNoHmr = process.env.PAX_BENCH_NO_HMR === "1";
+const benchmarkStandalone = process.env.PAX_BENCH_STANDALONE === "1";
+const extraFsAllow = [
+  path.resolve(process.cwd(), ".."),
+  path.resolve(process.cwd(), "..", ".."),
+  path.resolve(process.env.USERPROFILE || "", "Desktop", "WebDev", "pax-fluxia"),
+  ...(process.env.PAX_VITE_EXTRA_FS_ALLOW
+    ? process.env.PAX_VITE_EXTRA_FS_ALLOW.split(";").filter(Boolean)
+    : []),
+].filter((entry) => entry && fs.existsSync(entry));
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit(), settingsDumpPlugin(), mapPersistPlugin(), fixtureMapPlugin()],
+  plugins: [browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
+  resolve: {
+    dedupe: ["pixi.js", "svelte"],
+    alias: benchmarkStandalone
+      ? {
+        "$app/navigation": path.resolve(
+          process.cwd(),
+          "src/lib/bench/navigationStub.ts",
+        ),
+      }
+      : undefined,
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -187,13 +174,18 @@ export default defineConfig(async () => ({
     port: 1420,
     strictPort: true,
     host: host || false,
-    hmr: host
-      ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
-      : undefined,
+    fs: {
+      allow: extraFsAllow,
+    },
+    hmr: benchmarkNoHmr
+      ? false
+      : host
+        ? {
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
+        : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],

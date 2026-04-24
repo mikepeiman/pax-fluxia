@@ -381,6 +381,7 @@ interface GameConfigType {
     VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
+    PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
     PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: number; // 0 = auto by spacing, otherwise explicit derived sample count per perimeter loop
@@ -1318,6 +1319,7 @@ const _rawConfig: GameConfigType = {
     VS_BIND_TO_TICK: true,
     VS_TRANSITION_MODE: 'no_loser' as const,  // Default: no loser ghost, just victor + C ramp
     METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' as const,
+    PERIMETER_FIELD_TRANSITION_ENGINE: 'plan' as const,
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319' as const,
     PERIMETER_FIELD_SAMPLE_SPACING: 28,
     PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: 0,

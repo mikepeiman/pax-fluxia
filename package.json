@@ -19,7 +19,10 @@
         "debug:lane-margin": "bun tools/debug/diagnose-lane-margin.ts",
         "debug:lane-geometry": "bun tools/debug/inspect-lane-geometry.ts",
         "debug:lane-audit": "bun tools/debug/audit-lane-constraints.ts",
-        "debug:menu-preview-perf": "bun tools/debug/benchmark-main-menu-preview.ts"
+        "debug:browser-gameplay-perf": "bun tools/debug/benchmark-browser-gameplay.ts",
+        "debug:browser-gameplay-summary": "bun tools/debug/summarize-browser-gameplay-benchmark.ts",
+        "debug:menu-preview-perf": "bun tools/debug/benchmark-main-menu-preview.ts",
+        "debug:territory-metaball-perf": "bun tools/debug/benchmark-territory-metaball.ts"
     },
     "dependencies": {
         "txtgen": "^3.0.7"

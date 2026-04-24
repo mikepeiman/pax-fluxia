@@ -51,8 +51,15 @@ interface BenchmarkBridgeApi {
     beginGameplay: () => Promise<void>;
     pauseGameplay: () => Promise<void>;
     getStateSummary: () => Promise<Record<string, unknown>>;
+    resolveSampleOrder: () => Promise<Record<string, unknown> | null>;
     issueSampleOrder: () => Promise<Record<string, unknown> | null>;
     cancelSampleOrder: () => Promise<Record<string, unknown> | null>;
+    issueOrderDirect: (
+        sourceId: string,
+        targetId: string,
+        persistAfterConquest?: boolean,
+    ) => Promise<boolean>;
+    cancelOrderDirect: (starId: string) => Promise<void>;
     collectFrameStats: (durationMs?: number) => Promise<FrameStats>;
     setTerritoryMode: (mode: string) => Promise<string>;
     waitForRenderMode: (
@@ -292,6 +299,9 @@ export function installBenchmarkBridge(params: {
             await settleAfterShellOpen();
         },
         getStateSummary,
+        resolveSampleOrder: async () => {
+            return await findSampleOrder();
+        },
         issueSampleOrder: async () => {
             const { activeGameStore } = await loadRuntimeDeps();
             const order = await findSampleOrder();
@@ -305,6 +315,24 @@ export function installBenchmarkBridge(params: {
             if (!order) return null;
             activeGameStore.cancelOrder(order.sourceId);
             return { starId: order.sourceId };
+        },
+        issueOrderDirect: async (
+            sourceId,
+            targetId,
+            persistAfterConquest = false,
+        ) => {
+            const { activeGameStore } = await loadRuntimeDeps();
+            return Boolean(
+                activeGameStore.issueOrder(
+                    sourceId,
+                    targetId,
+                    persistAfterConquest,
+                ),
+            );
+        },
+        cancelOrderDirect: async (starId) => {
+            const { activeGameStore } = await loadRuntimeDeps();
+            activeGameStore.cancelOrder(starId);
         },
         collectFrameStats,
         setTerritoryMode: async (mode) => {

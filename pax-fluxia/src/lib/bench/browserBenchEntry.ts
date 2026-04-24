@@ -2,10 +2,11 @@ import { mount } from "svelte";
 import "../../app.css";
 import { installBenchmarkBridge } from "$lib/perf/benchmarkBridge";
 
-const target = document.getElementById("app");
-if (!target) {
+const rootTarget = document.getElementById("app");
+if (!rootTarget) {
     throw new Error("Missing #app container for browser benchmark entry.");
 }
+const target: HTMLElement = rootTarget;
 
 let mountedGameShell = false;
 let mountPromise: Promise<void> | null = null;

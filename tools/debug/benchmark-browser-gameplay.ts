@@ -25,6 +25,14 @@ interface CpuHotspot {
     sampleCount: number;
 }
 
+interface TraceDurationBucket {
+    name: string;
+    cat: string;
+    totalMs: number;
+    maxMs: number;
+    count: number;
+}
+
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
@@ -179,6 +187,10 @@ class CdpClient {
         }
     >();
     private readonly notifications: CdpMessage[] = [];
+    private readonly notificationListeners = new Map<
+        string,
+        Set<(message: CdpMessage) => void>
+    >();
 
     private constructor(socket: WebSocket) {
         this.socket = socket;
@@ -188,6 +200,14 @@ class CdpClient {
                 this.notifications.push(message);
                 if (this.notifications.length > 200) {
                     this.notifications.splice(0, this.notifications.length - 200);
+                }
+                const listeners = this.notificationListeners.get(
+                    String(message.method ?? ""),
+                );
+                if (listeners) {
+                    for (const listener of listeners) {
+                        listener(message);
+                    }
                 }
                 return;
             }
@@ -246,6 +266,23 @@ class CdpClient {
 
     getRecentNotifications(): CdpMessage[] {
         return [...this.notifications];
+    }
+
+    onNotification(
+        method: string,
+        listener: (message: CdpMessage) => void,
+    ): () => void {
+        const listeners =
+            this.notificationListeners.get(method) ?? new Set();
+        listeners.add(listener);
+        this.notificationListeners.set(method, listeners);
+        return () => {
+            const current = this.notificationListeners.get(method);
+            current?.delete(listener);
+            if (current && current.size === 0) {
+                this.notificationListeners.delete(method);
+            }
+        };
     }
 }
 
@@ -378,6 +415,64 @@ function summarizeInputLatency(snapshot: any): Record<string, JsonValue> {
     };
 }
 
+function summarizeTerritorySchedulerSnapshot(
+    scheduler: Record<string, JsonValue> | null,
+): Record<string, JsonValue> | null {
+    if (!scheduler) return null;
+    return {
+        territory: {
+            lastUpdateMs: round(Number(scheduler.lastTerritoryUpdateCostMs ?? 0)),
+            lastPresentedAtMs: round(
+                Number(scheduler.lastTerritoryPresentedAtMs ?? 0),
+            ),
+            deferralActive: Boolean(scheduler.territoryDeferralActive),
+            deferredFrames: Number(scheduler.deferredTerritoryFrameCount ?? 0),
+            deferReason: scheduler.deferredTerritoryReason ?? null,
+            cadenceSkips: Number(scheduler.territoryCadenceSkipCount ?? 0),
+            lastMode: scheduler.territoryLastMode ?? null,
+        },
+        territoryAsync: {
+            scheduled: Boolean(scheduler.territoryPresentationScheduled),
+            running: Boolean(scheduler.territoryPresentationRunning),
+            postedCount: Number(scheduler.territoryPresentationPostedCount ?? 0),
+            completedCount: Number(
+                scheduler.territoryPresentationCompletedCount ?? 0,
+            ),
+            supersededCount: Number(
+                scheduler.territoryPresentationSupersededCount ?? 0,
+            ),
+            queueWaitMs: round(
+                Number(scheduler.territoryPresentationLastQueueWaitMs ?? 0),
+            ),
+            commitLagMs: round(
+                Number(scheduler.territoryPresentationLastCommitLagMs ?? 0),
+            ),
+            pendingRequestId:
+                scheduler.territoryPresentationPendingRequestId ?? null,
+            pendingMode: scheduler.territoryPresentationPendingMode ?? null,
+            pendingAgeMs: round(
+                Number(scheduler.territoryPresentationPendingAgeMs ?? 0),
+            ),
+        },
+        ships: {
+            lastRenderMs: round(Number(scheduler.lastShipRenderCostMs ?? 0)),
+            lastPresentedAtMs: round(
+                Number(scheduler.lastShipRenderPresentedAtMs ?? 0),
+            ),
+            deferralActive: Boolean(scheduler.shipRenderDeferralActive),
+            deferredFrames: Number(scheduler.deferredShipRenderFrameCount ?? 0),
+            deferReason: scheduler.deferredShipRenderReason ?? null,
+            cadenceSkips: Number(scheduler.shipRenderCadenceSkipCount ?? 0),
+        },
+        orders: {
+            queuedMutations: Number(scheduler.queuedOrderMutations ?? 0),
+            inputPriorityUntilMs: round(
+                Number(scheduler.territoryInputPriorityUntilMs ?? 0),
+            ),
+        },
+    };
+}
+
 function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
     const measures = Object.entries(snapshot?.measures ?? {})
         .map(([name, aggregate]: [string, any]) => ({
@@ -395,6 +490,10 @@ function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
         .sort((a, b) => (b.totalMs as number) - (a.totalMs as number))
         .slice(0, 40);
 
+    const frameMeasures = measures.filter((entry) =>
+        entry.name.startsWith("game.renderFrame."),
+    );
+
     const eventCounts = new Map<string, number>();
     for (const event of snapshot?.events ?? []) {
         const name = String(event.name ?? "unknown");
@@ -409,11 +508,36 @@ function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
                 "game.renderFrame.renderFamilyInput.",
                 "game.renderFrame.geometry.",
                 "game.renderFrame.ownership.",
+                "game.renderFrame.connections",
+                "game.renderFrame.orderArrows",
+                "game.renderFrame.tickEvents.",
+                "game.renderFrame.ships",
+                "game.renderFrame.shipParticleUpdate",
+                "game.renderFrame.selectionOverlay",
                 "territory.metaballFamily.",
                 "territory.perimeterFieldFamily.",
                 "territory.metaballRenderer.",
+                "game.renderFrame.ownership.",
+                "game.renderFrame.geometry.",
+                "game.renderFrame.renderFamilyInput.",
+                "game.renderFrame.territory.",
             ].some((prefix) => entry.name.startsWith(prefix)),
         ),
+        renderLineItems: measures.filter((entry) =>
+            [
+                "game.renderFrame.ownership.",
+                "game.renderFrame.geometry.",
+                "game.renderFrame.renderFamilyInput.",
+                "game.renderFrame.territory.",
+                "game.renderFrame.connections",
+                "game.renderFrame.orderArrows",
+                "game.renderFrame.stars",
+                "game.renderFrame.ships",
+                "game.renderFrame.shipParticleUpdate",
+                "game.renderFrame.selectionOverlay",
+            ].some((prefix) => entry.name.startsWith(prefix)),
+        ),
+        frameMeasures: frameMeasures.slice(0, 25),
         measureGroups: summarizeMeasureGroups(snapshot),
         eventCounts: [...eventCounts.entries()]
             .map(([name, count]) => ({ name, count }))
@@ -460,6 +584,344 @@ function summarizeCpuProfile(profile: any): CpuHotspot[] {
         }))
         .sort((a, b) => b.selfMs - a.selfMs)
         .slice(0, 20);
+}
+
+function isTraceDurationEvent(event: any): boolean {
+    return Boolean(
+        event &&
+            typeof event.name === "string" &&
+            typeof event.cat === "string" &&
+            event.ph === "X" &&
+            typeof event.dur === "number",
+    );
+}
+
+function collectMainThreadIds(traceEvents: readonly any[]): Set<string> {
+    const mainThreadIds = new Set<string>();
+    for (const event of traceEvents) {
+        if (event?.name !== "thread_name") continue;
+        const threadName = String(event.args?.name ?? "");
+        if (
+            threadName === "CrRendererMain" ||
+            threadName === "MainThread"
+        ) {
+            mainThreadIds.add(`${String(event.pid)}:${String(event.tid)}`);
+        }
+    }
+    return mainThreadIds;
+}
+
+function summarizeTraceBuckets(traceEvents: readonly any[]): {
+    all: TraceDurationBucket[];
+    mainThread: TraceDurationBucket[];
+    largestSlices: Array<Record<string, JsonValue>>;
+} {
+    const mainThreadIds = collectMainThreadIds(traceEvents);
+    const allBuckets = new Map<string, TraceDurationBucket>();
+    const mainThreadBuckets = new Map<string, TraceDurationBucket>();
+    const largestSlices: Array<Record<string, JsonValue>> = [];
+
+    const append = (
+        bucketMap: Map<string, TraceDurationBucket>,
+        event: any,
+        durationMs: number,
+    ) => {
+        const key = `${String(event.cat)}::${String(event.name)}`;
+        const bucket = bucketMap.get(key) ?? {
+            name: String(event.name),
+            cat: String(event.cat),
+            totalMs: 0,
+            maxMs: 0,
+            count: 0,
+        };
+        bucket.totalMs += durationMs;
+        bucket.maxMs = Math.max(bucket.maxMs, durationMs);
+        bucket.count += 1;
+        bucketMap.set(key, bucket);
+    };
+
+    for (const event of traceEvents) {
+        if (!isTraceDurationEvent(event)) continue;
+        const durationMs = Number(event.dur) / 1000;
+        append(allBuckets, event, durationMs);
+        const threadKey = `${String(event.pid)}:${String(event.tid)}`;
+        if (mainThreadIds.has(threadKey)) {
+            append(mainThreadBuckets, event, durationMs);
+        }
+        largestSlices.push({
+            name: String(event.name),
+            cat: String(event.cat),
+            durMs: round(durationMs),
+            tsMs: round(Number(event.ts ?? 0) / 1000),
+            pid: Number(event.pid ?? 0),
+            tid: Number(event.tid ?? 0),
+        });
+    }
+
+    const sortBuckets = (buckets: Map<string, TraceDurationBucket>) =>
+        [...buckets.values()]
+            .map((bucket) => ({
+                ...bucket,
+                totalMs: round(bucket.totalMs),
+                maxMs: round(bucket.maxMs),
+            }))
+            .sort((a, b) => b.totalMs - a.totalMs)
+            .slice(0, 25);
+
+    return {
+        all: sortBuckets(allBuckets),
+        mainThread: sortBuckets(mainThreadBuckets),
+        largestSlices: largestSlices
+            .sort((a, b) => Number(b.durMs ?? 0) - Number(a.durMs ?? 0))
+            .slice(0, 25),
+    };
+}
+
+function summarizeNumericSamples(
+    values: number[],
+): Record<string, JsonValue> | null {
+    if (values.length === 0) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const p95Index = Math.min(
+        sorted.length - 1,
+        Math.max(0, Math.ceil(sorted.length * 0.95) - 1),
+    );
+    const total = values.reduce((sum, value) => sum + value, 0);
+    return {
+        count: values.length,
+        avgMs: round(total / values.length),
+        minMs: round(sorted[0]),
+        p95Ms: round(sorted[p95Index]),
+        maxMs: round(sorted[sorted.length - 1]),
+    };
+}
+
+function summarizeSampleMetric(
+    sampleSet: any,
+    metricKey: string,
+): Record<string, JsonValue> | null {
+    const values = (sampleSet?.samples ?? [])
+        .map((sample: any) => Number(sample?.[metricKey]))
+        .filter((value: number) => Number.isFinite(value) && value >= 0);
+    return summarizeNumericSamples(values);
+}
+
+function summarizeOrderPathGap(
+    actionResult: any,
+): Record<string, JsonValue> | null {
+    const pointerIssueAvg = Number(
+        summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueCommitMs",
+        )?.avgMs ?? Number.NaN,
+    );
+    const directIssueAvg = Number(
+        summarizeSampleMetric(
+            actionResult?.directSamples,
+            "issueCommitMs",
+        )?.avgMs ?? Number.NaN,
+    );
+    const pointerCancelAvg = Number(
+        summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelCommitMs",
+        )?.avgMs ?? Number.NaN,
+    );
+    const directCancelAvg = Number(
+        summarizeSampleMetric(
+            actionResult?.directSamples,
+            "cancelCommitMs",
+        )?.avgMs ?? Number.NaN,
+    );
+    if (
+        !Number.isFinite(pointerIssueAvg) &&
+        !Number.isFinite(pointerCancelAvg)
+    ) {
+        return null;
+    }
+    return {
+        pointerIssueCommit: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueCommitMs",
+        ),
+        pointerIssueAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueAfterTargetClickMs",
+        ),
+        pointerIssueQueueFlush: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueQueueFlushMs",
+        ),
+        pointerIssueQueueFlushAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueQueueFlushAfterTargetClickMs",
+        ),
+        pointerIssuePerfEvent: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issuePerfEventMs",
+        ),
+        pointerIssuePerfEventAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issuePerfEventAfterTargetClickMs",
+        ),
+        pointerCancelCommit: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelCommitMs",
+        ),
+        pointerCancelQueueFlush: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelQueueFlushMs",
+        ),
+        pointerCancelPerfEvent: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelPerfEventMs",
+        ),
+        directIssueCommit: summarizeSampleMetric(
+            actionResult?.directSamples,
+            "issueCommitMs",
+        ),
+        directIssuePerfEvent: summarizeSampleMetric(
+            actionResult?.directSamples,
+            "issuePerfEventMs",
+        ),
+        directCancelCommit: summarizeSampleMetric(
+            actionResult?.directSamples,
+            "cancelCommitMs",
+        ),
+        directCancelPerfEvent: summarizeSampleMetric(
+            actionResult?.directSamples,
+            "cancelPerfEventMs",
+        ),
+        pointerVsDirectIssueGapMs:
+            Number.isFinite(pointerIssueAvg) && Number.isFinite(directIssueAvg)
+                ? round(pointerIssueAvg - directIssueAvg)
+                : null,
+        pointerTargetClickVsDirectIssueGapMs:
+            Number.isFinite(
+                Number(
+                    summarizeSampleMetric(
+                        actionResult?.pointerSamples,
+                        "issueAfterTargetClickMs",
+                    )?.avgMs ?? Number.NaN,
+                ),
+            ) && Number.isFinite(directIssueAvg)
+                ? round(
+                      Number(
+                          summarizeSampleMetric(
+                              actionResult?.pointerSamples,
+                              "issueAfterTargetClickMs",
+                          )?.avgMs ?? 0,
+                      ) - directIssueAvg,
+                  )
+                : null,
+        pointerVsDirectCancelGapMs:
+            Number.isFinite(pointerCancelAvg) &&
+            Number.isFinite(directCancelAvg)
+                ? round(pointerCancelAvg - directCancelAvg)
+                : null,
+    };
+}
+
+function summarizeScenarioCollection(
+    scenarios: Record<string, any>,
+): Record<string, JsonValue> {
+    const summaryEntries = Object.entries(scenarios).map(([name, scenario]) => ({
+        name,
+        requestedMode: scenario?.requestedMode ?? null,
+        elapsedMs: round(Number(scenario?.elapsedMs ?? 0)),
+        longTasks: scenario?.perf?.longTasks ?? null,
+        frameMeasures: scenario?.perf?.frameMeasures ?? [],
+        highlightMeasures: scenario?.perf?.highlightMeasures ?? [],
+        inputLatency: scenario?.perf?.inputLatency ?? null,
+        renderLineItems: scenario?.perf?.renderLineItems ?? [],
+        orderLatency: summarizeOrderPathGap(scenario?.actionResult),
+        cpuHotspots: scenario?.cpuHotspots ?? [],
+        territoryScheduler: scenario?.territoryScheduler ?? null,
+        traceMainThread: scenario?.trace?.mainThreadTopByTotalMs ?? [],
+    }));
+    return {
+        scenarios: summaryEntries,
+        largestPointerVsDirectIssueGapMs: summaryEntries
+            .map((entry) =>
+                Number(entry.orderLatency?.pointerVsDirectIssueGapMs ?? Number.NaN),
+            )
+            .filter((value) => Number.isFinite(value))
+            .sort((a, b) => b - a)
+            .slice(0, 5)
+            .map((value) => round(value)),
+    };
+}
+
+function summarizeTrace(traceEvents: readonly any[]): Record<string, JsonValue> {
+    const summary = summarizeTraceBuckets(traceEvents);
+    return {
+        eventCount: traceEvents.length,
+        mainThreadCount: summary.mainThread.length,
+        topByTotalMs: summary.all,
+        mainThreadTopByTotalMs: summary.mainThread,
+        largestSlices: summary.largestSlices,
+    };
+}
+
+async function collectTraceDuring<T>(
+    client: CdpClient,
+    action: () => Promise<T>,
+): Promise<{ actionResult: T; traceSummary: Record<string, JsonValue> }> {
+    const traceEvents: any[] = [];
+    let resolveComplete!: () => void;
+    let rejectComplete!: (reason?: unknown) => void;
+    const tracingComplete = new Promise<void>((resolve, reject) => {
+        resolveComplete = resolve;
+        rejectComplete = reject;
+    });
+    const timeoutId = setTimeout(() => {
+        rejectComplete(new Error("Timed out waiting for CDP tracing to complete."));
+    }, 120_000);
+    const detachData = client.onNotification("Tracing.dataCollected", (message) => {
+        const values = message.params?.value;
+        if (Array.isArray(values)) {
+            traceEvents.push(...values);
+        }
+    });
+    const detachComplete = client.onNotification("Tracing.tracingComplete", () => {
+        clearTimeout(timeoutId);
+        resolveComplete();
+    });
+
+    await client.send("Tracing.start", {
+        categories: [
+            "-*",
+            "devtools.timeline",
+            "blink.user_timing",
+            "loading",
+            "v8.execute",
+            "disabled-by-default-devtools.timeline",
+            "disabled-by-default-devtools.timeline.frame",
+            "disabled-by-default-v8.cpu_profiler",
+        ].join(","),
+        transferMode: "ReportEvents",
+    });
+
+    let tracingEnded = false;
+    try {
+        const actionResult = await action();
+        await client.send("Tracing.end");
+        tracingEnded = true;
+        await tracingComplete;
+        return {
+            actionResult,
+            traceSummary: summarizeTrace(traceEvents),
+        };
+    } finally {
+        if (!tracingEnded) {
+            try {
+                await client.send("Tracing.end");
+            } catch {}
+        }
+        detachData();
+        detachComplete();
+        clearTimeout(timeoutId);
+    }
 }
 
 function summarizeDevtoolsMetrics(metricsPayload: any): Record<string, JsonValue> {
@@ -653,6 +1115,9 @@ async function executePointerOrderLoop(
             Number(path.sourceClientY),
         );
         await sleep(24);
+        const targetClickStartedAt = await client.evaluate<number>(
+            "performance.now()",
+        );
         await dispatchMouseClick(
             client,
             Number(path.targetClientX),
@@ -713,6 +1178,10 @@ async function executePointerOrderLoop(
                 Number(issueApplied.observedAtMs ?? issueStartedAt) -
                     issueStartedAt,
             ),
+            issueAfterTargetClickMs: round(
+                Number(issueApplied.observedAtMs ?? targetClickStartedAt) -
+                    targetClickStartedAt,
+            ),
             cancelCommitMs: round(
                 Number(cancelApplied.observedAtMs ?? cancelStartedAt) -
                     cancelStartedAt,
@@ -720,8 +1189,24 @@ async function executePointerOrderLoop(
             issueQueueFlushMs: issueQueueFlush.event
                 ? round(Number((issueQueueFlush.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
                 : null,
+            issueQueueFlushAfterTargetClickMs: issueQueueFlush.event
+                ? round(
+                      Number(
+                          (issueQueueFlush.event as Record<string, JsonValue>)
+                              .atMs ?? targetClickStartedAt,
+                      ) - targetClickStartedAt,
+                  )
+                : null,
             issuePerfEventMs: issuePerfEvent.event
                 ? round(Number((issuePerfEvent.event as Record<string, JsonValue>).atMs ?? issueStartedAt) - issueStartedAt)
+                : null,
+            issuePerfEventAfterTargetClickMs: issuePerfEvent.event
+                ? round(
+                      Number(
+                          (issuePerfEvent.event as Record<string, JsonValue>)
+                              .atMs ?? targetClickStartedAt,
+                      ) - targetClickStartedAt,
+                  )
                 : null,
             issueMatched: issueApplied.matched ?? false,
             cancelMatched: cancelApplied.matched ?? false,
@@ -735,6 +1220,105 @@ async function executePointerOrderLoop(
             cancelStatus: cancelApplied.status ?? null,
         });
         await sleep(120);
+    }
+    return { samples };
+}
+
+async function executeDirectOrderLoop(
+    client: CdpClient,
+    iterations: number,
+): Promise<JsonValue> {
+    const samples: Array<Record<string, JsonValue>> = [];
+    for (let i = 0; i < iterations; i += 1) {
+        const order = await client.evaluate<Record<string, JsonValue> | null>(
+            "window.__PAX_BENCH__.resolveSampleOrder()",
+        );
+        if (!order?.sourceId || !order?.targetId) {
+            samples.push({ ok: false, reason: "missing-direct-order" });
+            await sleep(80);
+            continue;
+        }
+        const sourceId = String(order.sourceId);
+        const targetId = String(order.targetId);
+
+        const issueStartedAt = await client.evaluate<number>("performance.now()");
+        const issueEventStartIndex = await client.evaluate<number>(
+            "window.__PAX_BENCH__.getPerfEventCursor()",
+        );
+        const issueAccepted = await client.evaluate<boolean>(
+            `window.__PAX_BENCH__.issueOrderDirect(${JSON.stringify(sourceId)}, ${JSON.stringify(targetId)}, false)`,
+        );
+        const issueApplied = await waitForOrderState(
+            client,
+            sourceId,
+            `(status) => status.targetId === ${JSON.stringify(targetId)} || status.queuedOrderTargetId === ${JSON.stringify(targetId)}`,
+        );
+        const issuePerfEvent = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "game.order.issued",
+            {
+                from: `Star ${sourceId}`,
+                to: `Star ${targetId}`,
+            },
+        );
+
+        const cancelStartedAt = await client.evaluate<number>("performance.now()");
+        const cancelEventStartIndex = await client.evaluate<number>(
+            "window.__PAX_BENCH__.getPerfEventCursor()",
+        );
+        await client.evaluate<void>(
+            `window.__PAX_BENCH__.cancelOrderDirect(${JSON.stringify(sourceId)})`,
+        );
+        const cancelApplied = await waitForOrderState(
+            client,
+            sourceId,
+            `(status) => !status.targetId && !status.queuedOrderTargetId`,
+        );
+        const cancelPerfEvent = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "game.order.cancelled",
+            {
+                from: `Star ${sourceId}`,
+            },
+        );
+
+        samples.push({
+            ok: true,
+            sourceId,
+            targetId,
+            issueAccepted,
+            issueCommitMs: round(
+                Number(issueApplied.observedAtMs ?? issueStartedAt) -
+                    issueStartedAt,
+            ),
+            issuePerfEventMs: issuePerfEvent.event
+                ? round(
+                      Number(
+                          (issuePerfEvent.event as Record<string, JsonValue>)
+                              .atMs ?? issueStartedAt,
+                      ) - issueStartedAt,
+                  )
+                : null,
+            issueMatched: issueApplied.matched ?? false,
+            cancelCommitMs: round(
+                Number(cancelApplied.observedAtMs ?? cancelStartedAt) -
+                    cancelStartedAt,
+            ),
+            cancelPerfEventMs: cancelPerfEvent.event
+                ? round(
+                      Number(
+                          (cancelPerfEvent.event as Record<string, JsonValue>)
+                              .atMs ?? cancelStartedAt,
+                      ) - cancelStartedAt,
+                  )
+                : null,
+            cancelMatched: cancelApplied.matched ?? false,
+            issueStatus: issueApplied.status ?? null,
+            cancelStatus: cancelApplied.status ?? null,
+        });
+        await sleep(80);
     }
     return { samples };
 }
@@ -755,14 +1339,17 @@ async function profileScenario(
     await client.send("Profiler.enable");
     await client.send("Profiler.setSamplingInterval", { interval: 1000 });
     await client.send("Profiler.start");
-    const actionResult = await Promise.race([
-        (typeof action === "string"
-            ? client.evaluate<JsonValue>(action)
-            : action(client)),
-        sleep(timeoutMs).then(() => {
-            throw new Error(`Scenario timed out after ${timeoutMs}ms: ${label}`);
-        }),
-    ]);
+    const scenarioStartedAt = Date.now();
+    const traced = await collectTraceDuring(client, async () => {
+        return await Promise.race([
+            (typeof action === "string"
+                ? client.evaluate<JsonValue>(action)
+                : action(client)),
+            sleep(timeoutMs).then(() => {
+                throw new Error(`Scenario timed out after ${timeoutMs}ms: ${label}`);
+            }),
+        ]);
+    });
     const modeWait =
         options?.expectedMode == null
             ? null
@@ -793,12 +1380,17 @@ async function profileScenario(
 
     const result = {
         label,
-        actionResult,
+        startedAt: new Date(scenarioStartedAt).toISOString(),
+        elapsedMs: Date.now() - scenarioStartedAt,
+        actionResult: traced.actionResult,
         stateSummary,
         modeWait,
         requestedMode: options?.expectedMode ?? null,
         perf: summarizePerfSnapshot(snapshot),
-        territoryScheduler,
+        trace: traced.traceSummary,
+        territoryScheduler: summarizeTerritorySchedulerSnapshot(
+            territoryScheduler,
+        ),
         browserRuntime,
         devtoolsMetrics: summarizeDevtoolsMetrics(devtoolsMetrics),
         cpuHotspots: summarizeCpuProfile(profileResult.profile),
@@ -964,10 +1556,14 @@ async function main(): Promise<void> {
                         scenarioClient,
                         3,
                     );
+                    const directSamples = await executeDirectOrderLoop(
+                        scenarioClient,
+                        4,
+                    );
                     const frames = await scenarioClient.evaluate<JsonValue>(
                         "window.__PAX_BENCH__.collectFrameStats(1800)",
                     );
-                    return { pointerSamples, frames };
+                    return { pointerSamples, directSamples, frames };
                 },
                 { expectedMode: "metaball" },
             );
@@ -1030,10 +1626,14 @@ async function main(): Promise<void> {
                         scenarioClient,
                         3,
                     );
+                    const directSamples = await executeDirectOrderLoop(
+                        scenarioClient,
+                        4,
+                    );
                     const frames = await scenarioClient.evaluate<JsonValue>(
                         "window.__PAX_BENCH__.collectFrameStats(1800)",
                     );
-                    return { pointerSamples, frames };
+                    return { pointerSamples, directSamples, frames };
                 },
                 { expectedMode: "perimeter_field" },
             );
@@ -1048,6 +1648,7 @@ async function main(): Promise<void> {
                 cdpPort,
             },
             scenarios,
+            analysis: summarizeScenarioCollection(scenarios),
         };
 
         mkdirSync(METRICS_DIR, { recursive: true });

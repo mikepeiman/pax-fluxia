@@ -48,11 +48,13 @@ export interface MetaballWorkerConfig {
 export interface MetaballWorkerRequest {
     requestId: number;
     fingerprint: string;
+    staticFieldFingerprint: string;
+    dynamicFieldFingerprint: string;
     config: MetaballWorkerConfig;
     playerColors: [number, number, number][];
     clusterShips: number[];
     ownedStars: MetaballWorkerStar[];
-    staticSamples: MetaballWorkerSample[];
+    staticSamples: MetaballWorkerSample[] | null;
     dynamicSamples: MetaballWorkerSample[];
 }
 
@@ -75,6 +77,11 @@ export interface MetaballWorkerResponse {
     strokes: MetaballWorkerStroke[];
     solveMs: number;
     borderMs: number;
+    staticCacheHit: boolean;
+    staticBuildMs: number;
+    dynamicBuildMs: number;
+    classificationMs: number;
+    strokeBuildMs: number;
     cellCount: number;
     numPlayers: number;
     staticSampleCount: number;

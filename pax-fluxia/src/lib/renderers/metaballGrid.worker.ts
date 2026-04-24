@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 import { chaikinSmoothPolyline } from './geometry/chaikin';
 import type {
     MetaballWorkerRequest,
@@ -17,6 +19,21 @@ type MetaballCellWinner = {
 type MergedSeg = { ax: number; ay: number; bx: number; by: number };
 
 const EPS = 1e-4;
+const workerScope = self as DedicatedWorkerGlobalScope;
+
+let cachedGridKey = '';
+let cachedGridCols = -1;
+let cachedGridRows = -1;
+let cachedGridOriginX = 0;
+let cachedGridOriginY = 0;
+let cachedGridCellSize = -1;
+let cachedColCenters: Float32Array | null = null;
+let cachedRowCenters: Float32Array | null = null;
+let cachedRowStart: Int32Array | null = null;
+let cachedStaticFieldFingerprint = '';
+let cachedStaticFieldGridKey = '';
+let cachedStaticGeomField: Float32Array | null = null;
+let cachedStaticRealField: Float32Array | null = null;
 
 function rgbToHex(r: number, g: number, b: number): number {
     return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
@@ -90,6 +107,59 @@ function ensureRowStart(rows: number, cols: number): Int32Array {
     const rowStart = new Int32Array(rows);
     for (let row = 0; row < rows; row++) rowStart[row] = row * cols;
     return rowStart;
+}
+
+function buildGridKey(
+    cols: number,
+    rows: number,
+    gridOriginX: number,
+    gridOriginY: number,
+    cellSize: number,
+): string {
+    return [
+        cols,
+        rows,
+        Math.round(gridOriginX * 100),
+        Math.round(gridOriginY * 100),
+        Math.round(cellSize * 100),
+    ].join(':');
+}
+
+function ensureGridRuntime(
+    cols: number,
+    rows: number,
+    gridOriginX: number,
+    gridOriginY: number,
+    cellSize: number,
+): {
+    gridKey: string;
+    colCenters: Float32Array;
+    rowCenters: Float32Array;
+    rowStart: Int32Array;
+} {
+    const gridKey = buildGridKey(cols, rows, gridOriginX, gridOriginY, cellSize);
+    if (
+        cachedGridKey !== gridKey ||
+        !cachedColCenters ||
+        !cachedRowCenters ||
+        !cachedRowStart
+    ) {
+        cachedGridKey = gridKey;
+        cachedGridCols = cols;
+        cachedGridRows = rows;
+        cachedGridOriginX = gridOriginX;
+        cachedGridOriginY = gridOriginY;
+        cachedGridCellSize = cellSize;
+        cachedColCenters = ensureCenters(cols, gridOriginX, cellSize);
+        cachedRowCenters = ensureCenters(rows, gridOriginY, cellSize);
+        cachedRowStart = ensureRowStart(rows, cols);
+    }
+    return {
+        gridKey,
+        colCenters: cachedColCenters,
+        rowCenters: cachedRowCenters,
+        rowStart: cachedRowStart,
+    };
 }
 
 function accumulateSamplesIntoFields(params: {
@@ -399,29 +469,54 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
     const rows = Math.ceil(gridH / config.cellSize);
     const cellCount = cols * rows;
     const gridFieldSize = cellCount * Math.max(1, numPlayers);
-    const colCenters = ensureCenters(cols, gridOriginX, config.cellSize);
-    const rowCenters = ensureCenters(rows, gridOriginY, config.cellSize);
-    const rowStart = ensureRowStart(rows, cols);
-    const geomField = new Float32Array(gridFieldSize);
-    const realField = new Float32Array(gridFieldSize);
-
-    accumulateSamplesIntoFields({
-        samples: input.staticSamples,
-        geomField,
-        realField,
-        numPlayers,
+    const { gridKey, colCenters, rowCenters, rowStart } = ensureGridRuntime(
         cols,
         rows,
         gridOriginX,
         gridOriginY,
-        cellSize: config.cellSize,
-        radius: config.radius,
-        colCenters,
-        rowCenters,
-        rowStart,
-        falloffType: config.falloffType,
-    });
+        config.cellSize,
+    );
+
+    const staticBuildStart = performance.now();
+    let staticCacheHit =
+        cachedStaticFieldFingerprint === input.staticFieldFingerprint &&
+        cachedStaticFieldGridKey === gridKey &&
+        !!cachedStaticGeomField &&
+        !!cachedStaticRealField &&
+        cachedStaticGeomField.length === gridFieldSize &&
+        cachedStaticRealField.length === gridFieldSize;
+    if (!staticCacheHit) {
+        const nextStaticGeomField = new Float32Array(gridFieldSize);
+        const nextStaticRealField = new Float32Array(gridFieldSize);
+        accumulateSamplesIntoFields({
+            samples: input.staticSamples ?? [],
+            geomField: nextStaticGeomField,
+            realField: nextStaticRealField,
+            numPlayers,
+            cols,
+            rows,
+            gridOriginX,
+            gridOriginY,
+            cellSize: config.cellSize,
+            radius: config.radius,
+            colCenters,
+            rowCenters,
+            rowStart,
+            falloffType: config.falloffType,
+        });
+        cachedStaticFieldFingerprint = input.staticFieldFingerprint;
+        cachedStaticFieldGridKey = gridKey;
+        cachedStaticGeomField = nextStaticGeomField;
+        cachedStaticRealField = nextStaticRealField;
+    }
+    const staticBuildMs = performance.now() - staticBuildStart;
+
+    const dynamicBuildStart = performance.now();
+    let geomField = cachedStaticGeomField!;
+    let realField = cachedStaticRealField!;
     if (input.dynamicSamples.length > 0) {
+        geomField = new Float32Array(cachedStaticGeomField!);
+        realField = new Float32Array(cachedStaticRealField!);
         accumulateSamplesIntoFields({
             samples: input.dynamicSamples,
             geomField,
@@ -439,11 +534,13 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
             falloffType: config.falloffType,
         });
     }
+    const dynamicBuildMs = performance.now() - dynamicBuildStart;
 
     const territoryPixels = new Uint8Array(cellCount * 4);
     const ownerGridGeom = new Int16Array(cellCount);
     ownerGridGeom.fill(-1);
     const msrOwnerGrid = config.msrPx > 0 ? new Int16Array(cellCount) : null;
+    const classificationStart = performance.now();
     if (msrOwnerGrid) {
         msrOwnerGrid.fill(-1);
         const msr2 = config.msrPx * config.msrPx;
@@ -530,6 +627,7 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
         }
     }
 
+    const classificationMs = performance.now() - classificationStart;
     const solveMs = performance.now() - totalStart;
     const borderStart = performance.now();
     const strokes: MetaballWorkerStroke[] = [];
@@ -706,6 +804,7 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
         }
     }
 
+    const strokeBuildMs = performance.now() - borderStart;
     return {
         cols,
         rows,
@@ -715,15 +814,20 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
         pixels: territoryPixels.buffer,
         strokes,
         solveMs,
-        borderMs: performance.now() - borderStart,
+        borderMs: strokeBuildMs,
+        staticCacheHit,
+        staticBuildMs,
+        dynamicBuildMs,
+        classificationMs,
+        strokeBuildMs,
         cellCount,
         numPlayers,
-        staticSampleCount: input.staticSamples.length,
+        staticSampleCount: input.staticSamples?.length ?? 0,
         dynamicSampleCount: input.dynamicSamples.length,
     };
 }
 
-self.onmessage = (event: MessageEvent<MetaballWorkerRequest>) => {
+workerScope.onmessage = (event: MessageEvent<MetaballWorkerRequest>) => {
     const input = event.data;
     const solved = solveMetaballFrame(input);
     const response: MetaballWorkerResponse = {
@@ -731,5 +835,5 @@ self.onmessage = (event: MessageEvent<MetaballWorkerRequest>) => {
         fingerprint: input.fingerprint,
         ...solved,
     };
-    (self as unknown as Worker).postMessage(response, [response.pixels]);
+    workerScope.postMessage(response, [response.pixels]);
 };

@@ -65,34 +65,51 @@ Keep speculation separate from verified facts.
 
 ## Active Entries
 
-### 2026-04-17 A7. Workspace/file tools still unreliable in active Pax Fluxia worktree, forcing shell fallback
+### 2026-04-23 A7. Thread cwd pointed at a non-repository local path while the populated checkout lived in a different worktree
 
 - Status: open
-- Category: tool initialization failure
-- Surface: atlas-harness workspace and file tools in Codex session
+- Category: ergonomics or observability shortcoming
+- Surface: Codex thread workspace / cwd reporting versus actual live checkout binding
 
 #### Verified observation
 
-During the authored-map editor implementation session in the active worktree:
+In this performance session, the environment context reported the working directory as:
 
-- atlas workspace/file usage remained unreliable enough that local inspection had to fall back to PowerShell reads
-- the practical symptom matched prior sessions: atlas file/workspace calls could not be trusted as the primary read/edit surface for ordinary repo inspection
+```text
+C:\Users\mikep\.codex\worktrees\6694\pax-fluxia
+```
+
+That path was not a git repository in the live thread:
+
+```text
+fatal: not a git repository (or any of the parent directories): .git
+```
+
+The populated local checkout actually used for the task was:
+
+```text
+C:\Users\mikep\.codex\worktrees\perimeter-field-metaball\pax-fluxia
+```
+
+Atlas-harness and shell work only made progress after explicitly verifying and switching to the populated path.
 
 #### Impact
 
-- forced repeated fallback to raw shell reads and `apply_patch`
-- reduced atlas-harness value during a large cross-package refactor where fast, reliable workspace reads matter most
-- prevented normal use of atlas-harness as the default repo inspection path in this thread
+- creates immediate ambiguity about where edits and benchmark artifacts are landing
+- makes cwd-sensitive tool use unsafe until the repo root is re-proven manually
+- wastes time at the start of the session and risks documentation drift if the mismatch is not recorded
 
 #### Workaround
 
-- use PowerShell `Get-Content` / `Select-String` and direct repo-relative workdir commands for the affected session
+- verify the reported cwd with `git status` before trusting it
+- re-run tooling in the populated checkout once the mismatch is observed
+- document the mismatch in session notes and queue files for recoverability
 
 #### Desired fix or success condition
 
-- atlas-harness should consistently bind to the active Pax Fluxia worktree in Codex sessions
-- file/workspace tools should fail with a specific readiness error instead of degrading into trial-and-error fallback decisions
-- an agent should be able to trust atlas-harness for routine local reads before reaching for shell fallback
+- Codex thread environment context should point at the actual active local checkout for the task
+- if the reported cwd is not a git repo, the thread should surface that clearly before tool use begins
+- atlas-harness should expose the bound workspace root prominently enough that this mismatch is obvious without extra shell probing
 
 ### 2026-04-13 A6. Workspace file tools still initialize from `C:\WINDOWS\system32` in some Codex calls
 

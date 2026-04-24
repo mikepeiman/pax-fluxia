@@ -605,6 +605,118 @@ export function buildMetaballTransitionStarOverrides(
     return overrides;
 }
 
+export function buildMetaballTransitionStaticStarOverrides(
+    input: RenderFamilyInput,
+): ReadonlyMap<string, MetaballStarOverride> {
+    const mode = getMetaballTransitionMode(input);
+    const overrides = new Map<string, MetaballStarOverride>();
+    for (const transition of input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        if (!conquest.previousOwner) continue;
+
+        if (mode === 'metaball_six_slice_burst') {
+            overrides.set(conquest.starId, {
+                ownerId: null,
+                omitFromTopology: true,
+                omitFromSamples: true,
+            });
+            continue;
+        }
+
+        if (
+            mode === 'metaball_hold_then_switch' ||
+            mode === 'metaball_lane_push'
+        ) {
+            overrides.set(conquest.starId, {
+                ownerId: conquest.previousOwner,
+            });
+        }
+    }
+    return overrides;
+}
+
+function buildTargetStrengthDeltaSamples(params: {
+    input: RenderFamilyInput;
+    context: MetaballBaseContext;
+}): MetaballInfluenceSample[] {
+    const mode = getMetaballTransitionMode(params.input);
+    const out: MetaballInfluenceSample[] = [];
+
+    for (const transition of params.input.activeTransition?.events ?? []) {
+        const conquest = transition.event;
+        const targetStar = params.context.actualStarsById.get(conquest.starId);
+        if (!targetStar) continue;
+
+        const targetStrength =
+            params.context.starStrengthById.get(targetStar.id) ?? 0;
+        if (targetStrength <= 1e-6) continue;
+
+        let playerIdx: number | undefined;
+        let deltaStrength = 0;
+
+        if (mode === 'metaball_hold_then_switch' && conquest.previousOwner) {
+            const timing = readTransitionTiming(params.input, transition);
+            const rawStart = readTunableNumber(
+                params.input,
+                'VS_POWER_LERP_START',
+                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+            );
+            const rawEnd = readTunableNumber(
+                params.input,
+                'VS_POWER_LERP_END',
+                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+            );
+            playerIdx = params.context.clusterMap.get(targetStar.id)?.clusterIdx;
+            deltaStrength =
+                targetStrength *
+                (lerp(
+                    readWeightMultiplier(rawStart, 1),
+                    readWeightMultiplier(rawEnd, 0),
+                    timing.powerT,
+                ) - 1);
+        } else if (mode === 'metaball_instant_switch_grow_in') {
+            const timing = readTransitionTiming(params.input, transition);
+            const rawStart = readTunableNumber(
+                params.input,
+                'VS_POWER_LERP_START',
+                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+            );
+            const rawEnd = readTunableNumber(
+                params.input,
+                'VS_POWER_LERP_END',
+                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+            );
+            playerIdx = params.context.clusterMap.get(targetStar.id)?.clusterIdx;
+            deltaStrength =
+                targetStrength *
+                (lerp(
+                    readWeightMultiplier(rawStart, 0),
+                    readWeightMultiplier(rawEnd, 1),
+                    timing.powerT,
+                ) - 1);
+        } else if (
+            conquest.previousOwner &&
+            mode !== 'metaball_six_slice_burst'
+        ) {
+            playerIdx = params.context.clusterMap.get(targetStar.id)?.clusterIdx;
+            deltaStrength =
+                targetStrength *
+                (Math.max(0, 1 - clamp01(transition.progress)) - 1);
+        }
+
+        if (playerIdx == null || Math.abs(deltaStrength) <= 1e-6) continue;
+        out.push({
+            id: `transition:${targetStar.id}:${transition.startedAtMs}:target-delta`,
+            x: targetStar.x,
+            y: targetStar.y,
+            playerIdx,
+            strength: deltaStrength,
+        });
+    }
+
+    return out;
+}
+
 function buildLanePushTransitionSamples(params: {
     input: RenderFamilyInput;
     context: MetaballBaseContext;
@@ -891,16 +1003,30 @@ export function buildMetaballTransitionSamples(params: {
     input: RenderFamilyInput;
     context: MetaballBaseContext;
     conquestCache: ReadonlyMap<string, MetaballConquestCacheEntry>;
+    includeTargetStrengthDeltas?: boolean;
 }): MetaballInfluenceSample[] {
     const mode = getMetaballTransitionMode(params.input);
+    const targetStrengthDeltas =
+        params.includeTargetStrengthDeltas === false
+            ? []
+            : buildTargetStrengthDeltaSamples(params);
     if (mode === 'metaball_hold_then_switch') {
-        return buildHoldThenSwitchSamples(params);
+        return [
+            ...targetStrengthDeltas,
+            ...buildHoldThenSwitchSamples(params),
+        ];
     }
     if (mode === 'metaball_instant_switch_grow_in') {
-        return buildInstantSwitchGrowInSamples(params);
+        return [
+            ...targetStrengthDeltas,
+            ...buildInstantSwitchGrowInSamples(params),
+        ];
     }
     if (mode === 'metaball_six_slice_burst') {
         return buildSixSliceBurstSamples(params);
     }
-    return buildLanePushTransitionSamples(params);
+    return [
+        ...targetStrengthDeltas,
+        ...buildLanePushTransitionSamples(params),
+    ];
 }

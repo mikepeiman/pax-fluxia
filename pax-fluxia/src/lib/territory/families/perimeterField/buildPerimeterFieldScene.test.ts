@@ -14,12 +14,8 @@ import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
 } from '../RenderFamilyTypes';
+import { buildPerimeterFieldScene } from './buildPerimeterFieldScene';
 import {
-    buildPerimeterFieldScene,
-    listPerimeterGeometryLoops,
-} from './buildPerimeterFieldScene';
-import {
-    buildChangedFrontSelection,
     buildTransitionPlan,
     sampleVSetFromGeometry,
 } from './perimeterFieldPlanEngine';
@@ -320,7 +316,6 @@ function makeTopologyGeometry(params: {
     loopId: string;
     bounds: [number, number, number, number];
     starIds?: string[];
-    sourceMethod?: CanonicalGeometrySnapshot['sourceMethod'];
 }): CanonicalGeometrySnapshot {
     const [left, top, right, bottom] = params.bounds;
     const points: [number, number][] = [
@@ -340,7 +335,7 @@ function makeTopologyGeometry(params: {
         sourceStyle: 'canonical',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
-        sourceMethod: params.sourceMethod ?? 'power_voronoi',
+        sourceMethod: 'power_voronoi',
         territoryRegions: [
             {
                 regionId: `region:${params.loopId}`,
@@ -383,60 +378,6 @@ function makeTopologyGeometry(params: {
             identityReliable: true,
             closureReliable: true,
             notes: [],
-        },
-    };
-}
-
-function combineTopologyGeometries(
-    geometries: CanonicalGeometrySnapshot[],
-): CanonicalGeometrySnapshot {
-    const first = geometries[0]!;
-    const vertices = new Map<string, FrontierVertex>();
-    const sections = new Map<string, FrontierSection>();
-    const loops: RegionLoop[] = [];
-    const sectionsByOwnerPair = new Map<string, string[]>();
-    const sectionsByVertex = new Map<string, string[]>();
-    const sectionsByOwner = new Map<string, string[]>();
-
-    for (const geometry of geometries) {
-        for (const [id, vertex] of geometry.frontierTopology.vertices) {
-            vertices.set(id, vertex);
-        }
-        for (const [id, section] of geometry.frontierTopology.sections) {
-            sections.set(id, section);
-        }
-        loops.push(...geometry.frontierTopology.loops);
-        for (const [key, ids] of geometry.frontierTopology.sectionsByOwnerPair) {
-            const bucket = sectionsByOwnerPair.get(key) ?? [];
-            bucket.push(...ids);
-            sectionsByOwnerPair.set(key, bucket);
-        }
-        for (const [key, ids] of geometry.frontierTopology.sectionsByVertex) {
-            const bucket = sectionsByVertex.get(key) ?? [];
-            bucket.push(...ids);
-            sectionsByVertex.set(key, bucket);
-        }
-        for (const [key, ids] of geometry.frontierTopology.sectionsByOwner) {
-            const bucket = sectionsByOwner.get(key) ?? [];
-            bucket.push(...ids);
-            sectionsByOwner.set(key, bucket);
-        }
-    }
-
-    return {
-        ...first,
-        version: geometries.map((geometry) => geometry.version).join('|'),
-        territoryRegions: geometries.flatMap((geometry) => geometry.territoryRegions),
-        shells: geometries.flatMap((geometry) => geometry.shells),
-        shellLoops: geometries.flatMap((geometry) => geometry.shellLoops),
-        frontierTopology: {
-            ...first.frontierTopology,
-            vertices,
-            sections,
-            loops,
-            sectionsByOwnerPair,
-            sectionsByVertex,
-            sectionsByOwner,
         },
     };
 }
@@ -1296,6 +1237,116 @@ describe('buildPerimeterFieldScene', () => {
         );
         expect(sampleSignature(frame1Scene.debug.renderedSamples)).toEqual(
             sampleSignature(frame1Scene.sceneInput.samples),
+        );
+    });
+
+    it('makes topology-plan frame 0 equal PREV and frame 1 equal NEXT', () => {
+        const prevStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const nextStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
+        ];
+        const prevGeometry = makeTopologyGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop-topology',
+            bounds: [25, 25, 75, 75],
+            starIds: ['target'],
+        });
+        const nextGeometry = makeTopologyGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop-topology',
+            bounds: [15, 15, 85, 85],
+            starIds: ['target'],
+        });
+        const tunables = {
+            PERIMETER_FIELD_TRANSITION_ENGINE: 'plan',
+            PERIMETER_FIELD_SAMPLE_SPACING: 20,
+            PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+            PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
+            PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
+        } satisfies Record<string, RenderFamilyTunableValue>;
+        const ownerToCluster = new Map<string, number>([
+            ['blue', 0],
+            ['red', 1],
+        ]);
+        const prevVSet = sampleVSetFromGeometry({
+            geometry: prevGeometry,
+            options: {
+                spacing: 20,
+                offsetPx: 0,
+                strength: 1.5,
+                ownerToCluster,
+            },
+        });
+        const nextVSet = sampleVSetFromGeometry({
+            geometry: nextGeometry,
+            options: {
+                spacing: 20,
+                offsetPx: 0,
+                strength: 1.5,
+                ownerToCluster,
+            },
+        });
+        const plan = buildTransitionPlan({
+            conquestKey: 'test:plan-frame-invariants',
+            prevVSet,
+            nextVSet,
+            conquestEvents: makeTransition().events,
+            prevGeometry,
+            nextGeometry,
+        });
+
+        const prevScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: prevStars,
+                tunables,
+            }),
+            starsForDisplay: prevStars,
+            geometry: prevGeometry,
+            colorUtils,
+        });
+        const nextScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: nextStars,
+                tunables,
+            }),
+            starsForDisplay: nextStars,
+            geometry: nextGeometry,
+            colorUtils,
+        });
+        const frame0Scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: nextStars,
+                activeTransition: makeTransition(0),
+                tunables,
+            }),
+            starsForDisplay: prevStars,
+            geometry: prevGeometry,
+            transitionPlan: plan,
+            colorUtils,
+        });
+        const frame1Scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: nextStars,
+                activeTransition: makeTransition(1),
+                tunables,
+            }),
+            starsForDisplay: prevStars,
+            geometry: prevGeometry,
+            transitionPlan: plan,
+            colorUtils,
+        });
+
+        expect(plan.movers.length).toBeGreaterThan(0);
+        expect(frame0Scene.debug.transitionPlan?.conquestKey).toBe(plan.conquestKey);
+        expect(sampleSignature(frame0Scene.sceneInput.samples)).toEqual(
+            sampleSignature(prevScene.sceneInput.samples),
+        );
+        expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
+            sampleSignature(nextScene.sceneInput.samples),
         );
     });
 });

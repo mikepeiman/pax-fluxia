@@ -298,6 +298,19 @@ export function sampleVSetFromGeometry(params: {
                 cacheKey,
                 geometryVersion: params.geometry.version,
             },
+            logDetail: {
+                cacheKey,
+                geometry: params.geometry,
+                options: {
+                    spacing: params.options.spacing,
+                    offsetPx: params.options.offsetPx,
+                    strength: params.options.strength,
+                    ownerToCluster: Object.fromEntries(
+                        params.options.ownerToCluster.entries(),
+                    ),
+                },
+                cachedVSet: cached,
+            },
         });
         return cached as PerimeterV[];
     }
@@ -384,6 +397,17 @@ export function sampleVSetFromGeometry(params: {
             geometryVersion: geometry.version,
             topologySections: topology.sections.size,
             topologyLoops: topology.loops.length,
+        },
+        logDetail: {
+            cacheKey,
+            geometry,
+            options: {
+                spacing: options.spacing,
+                offsetPx: options.offsetPx,
+                strength: options.strength,
+                ownerToCluster: Object.fromEntries(options.ownerToCluster.entries()),
+            },
+            sampledVSet: vs,
         },
     });
     return vs;

@@ -279,13 +279,9 @@ export interface TransitionPlan {
     prevVSet: readonly PerimeterV[];
     /** All NEXT V's, arclength-ordered per loop, including preserved V's. */
     nextVSet: readonly PerimeterV[];
-    /** Conquest-scoped changed-front chains used to build the plan. */
-    changedFronts: ChangedFrontSelectionResult;
-    /** Preserved PREV/NEXT pairs identified by tolerance + tangent + order. */
-    preserved: readonly PreservedVPair[];
     /** Set of PREV-side V IDs that are preserved across the transition. */
     preservedVIds: ReadonlySet<string>;
-    /** Canonical preserved pair keys for diagnostics/export only. */
+    /** Canonical preserved match keys (`sectionId:indexInSection`) shared by PREV and NEXT. */
     preservedMatchKeys: ReadonlySet<string>;
     /** Paired movers within unmatched spans. Bijective within each SpanPair. */
     movers: readonly TransitionMover[];

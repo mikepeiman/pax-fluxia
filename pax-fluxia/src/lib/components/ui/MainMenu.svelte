@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
+    import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
     import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -44,7 +43,11 @@
     import PlayersPanel from "./main-menu/PlayersPanel.svelte";
     import MultiplayerPanel from "./main-menu/MultiplayerPanel.svelte";
     import MenuCommandBar from "./main-menu/MenuCommandBar.svelte";
-    import type { MapDefinition } from "$lib/types/map.types";
+    import {
+        measurePerf,
+        measurePerfAsync,
+        recordPerfEvent,
+    } from "$lib/perf/perfProbe";
 
     type MapMode = "random" | "classic" | "custom";
     type MobileTab = "setup" | "players" | "multiplayer";
@@ -118,6 +121,7 @@
     let lastPreviewKey = "";
     let previewWorker: Worker | null = null;
     let previewFrame: number | null = null;
+    let startPending = $state(false);
 
     const selectedRoom = $derived(
         multiplayerStore.availableRooms.find((room) => room.roomId === selectedRoomId) ?? null,
@@ -755,20 +759,58 @@
         GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = selectedMap.mapType === "debug-b";
     }
 
-    function startSPGame() {
-        saveAllSettings();
-        const savedMap = getSelectedSavedMap();
-        if (savedMap) {
-            applyConfig();
-            gameStore.loadSavedMap(savedMap);
-            gameStore.restart();
-            visible = false;
-            return;
-        }
+    async function yieldForMenuDismissPaint(): Promise<void> {
+        await tick();
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve());
+        });
+    }
 
-        applyConfig();
-        gameStore.restart();
-        visible = false;
+    async function startSPGame() {
+        if (startPending) return;
+        startPending = true;
+        recordPerfEvent("menu.startGame.requested");
+        try {
+            await measurePerfAsync("menu.startGame.total", async () => {
+                measurePerf("menu.startGame.saveSettings", () => {
+                    saveAllSettings();
+                });
+
+                const selectedSavedMapName =
+                    mapMode === "classic"
+                        ? selectedClassicMap
+                        : mapMode === "custom"
+                          ? selectedCustomMap
+                          : null;
+                const savedMap = selectedSavedMapName
+                    ? gameStore.savedMaps.find(
+                          (map) => map.metadata.name === selectedSavedMapName,
+                      ) ?? null
+                    : null;
+
+                visible = false;
+                await measurePerfAsync("menu.startGame.dismissMenuPaint", async () => {
+                    await yieldForMenuDismissPaint();
+                });
+
+                measurePerf("menu.startGame.applyConfig", () => {
+                    applyConfig();
+                });
+                if (savedMap) {
+                    measurePerf("menu.startGame.queueSavedMap", () => {
+                        gameStore.loadSavedMap(savedMap);
+                    });
+                }
+                await measurePerfAsync("menu.startGame.restart", async () => {
+                    await gameStore.restart();
+                });
+            });
+        } catch (error) {
+            visible = true;
+            throw error;
+        } finally {
+            startPending = false;
+        }
     }
 
     function syncMenuSelectionToSavedMap(savedMap: MapDefinition) {
@@ -863,7 +905,7 @@
 
     function triggerStartAction() {
         audioManager.play("click");
-        startSPGame();
+        void startSPGame();
     }
 
     function triggerCreateLobbyAction() {
@@ -1212,9 +1254,8 @@
             <MenuCommandBar
                 summary={commandSummary}
                 selectedRoomLabel={selectedRoomLabel}
-                startDisabled={multiplayerStore.isConnected}
-                loadMapDisabled={multiplayerStore.isConnected || getLoadableMaps().length === 0}
-                createDisabled={multiplayerStore.isConnected}
+                startDisabled={multiplayerStore.isConnected || startPending}
+                createDisabled={mapMode === "custom" || multiplayerStore.isConnected}
                 joinDisabled={!selectedRoom || multiplayerStore.isConnected}
                 onOpenEditor={openMapEditor}
                 onStart={triggerStartAction}

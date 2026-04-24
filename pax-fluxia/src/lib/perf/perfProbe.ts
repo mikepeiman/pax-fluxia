@@ -181,17 +181,18 @@ function ensureBrowserPerfObservers(): void {
     });
 
     observe("event", (entry) => {
-        const detail = entry as PerformanceEventTiming;
+        const detail = entry as PerformanceEventTiming & {
+            interactionId?: number;
+        };
         recordPerfEvent("browser.eventTiming", {
             name: detail.name,
             durationMs: detail.duration,
             startTimeMs: detail.startTime,
             processingStartMs: detail.processingStart,
             processingEndMs: detail.processingEnd,
-            interactionId:
-                typeof detail.interactionId === "number"
-                    ? detail.interactionId
-                    : undefined,
+            interactionId: typeof detail.interactionId === "number"
+                ? detail.interactionId
+                : undefined,
         });
     });
 

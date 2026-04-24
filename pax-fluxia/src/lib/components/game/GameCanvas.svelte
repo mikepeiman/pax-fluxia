@@ -244,6 +244,10 @@
     const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 96;
     const TERRITORY_IDLE_MIN_CADENCE_MS = 48;
     const TERRITORY_MAX_STALE_MS = 220;
+    const SHIP_RENDER_HEAVY_UPDATE_MS = 3;
+    const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
+    const SHIP_RENDER_IDLE_MIN_CADENCE_MS = 16;
+    const SHIP_RENDER_MAX_STALE_MS = 144;
     let territoryInputPriorityUntilMs = 0;
     let lastTerritoryUpdateStartedAtMs = 0;
     let lastTerritoryUpdateCostMs = 0;
@@ -253,6 +257,13 @@
     let deferredTerritoryReason = "";
     let territoryCadenceSkipCount = 0;
     let territoryLastMode = "";
+    let lastShipRenderStartedAtMs = 0;
+    let lastShipRenderCostMs = 0;
+    let lastShipRenderPresentedAtMs = 0;
+    let shipRenderDeferralActive = false;
+    let deferredShipRenderFrameCount = 0;
+    let deferredShipRenderReason = "";
+    let shipRenderCadenceSkipCount = 0;
     type QueuedOrderMutation =
         | {
               kind: "issue";
@@ -270,10 +281,54 @@
               targetId: string;
               persist: boolean;
           };
+    type OrderDispatchMode = "queued" | "immediate";
     const queuedOrderMutations: QueuedOrderMutation[] = [];
     const orderDispatchChannel =
         typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
     let orderDispatchScheduled = false;
+    type BackgroundTaskScheduler = {
+        postTask?: (
+            callback: () => void | Promise<void>,
+            options?: { priority?: "user-blocking" | "user-visible" | "background" },
+        ) => Promise<void>;
+    };
+    type TerritoryPresentationRequest = {
+        requestId: number;
+        enqueuedAtMs: number;
+        activeMode: string;
+        isPaused: boolean;
+        stars: StarState[];
+        pendingConquests: readonly import("@pax/common").ConquestEvent[];
+        run: () => void;
+        territoryScheduler: {
+            cadenceMs: number;
+            staleMs: number;
+            reason: string;
+        };
+    };
+    const territoryPresentationChannel =
+        typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
+    const starHitIndexCellPx = 96;
+    let territoryPresentationScheduled = false;
+    let territoryPresentationRunning = false;
+    let territoryPresentationRequestSeq = 0;
+    let territoryPresentationPostedCount = 0;
+    let territoryPresentationCompletedCount = 0;
+    let territoryPresentationSupersededCount = 0;
+    let territoryPresentationLastQueuedAtMs = 0;
+    let territoryPresentationLastStartedAtMs = 0;
+    let territoryPresentationLastFinishedAtMs = 0;
+    let territoryPresentationLastQueueWaitMs = 0;
+    let territoryPresentationLastCommitLagMs = 0;
+    let territoryPresentationLastRequestId = 0;
+    let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
+        null;
+    let interactionStarsSource: ReadonlyArray<StarState> | null = null;
+    let interactionConnectionsSource: ReadonlyArray<StarConnection> | null = null;
+    const interactionStarsById = new Map<string, StarState>();
+    const interactionConnectionAdjacency = new Map<string, Set<string>>();
+    const interactionLaneKeyToConnection = new Map<string, StarConnection>();
+    const interactionStarHitIndex = new Map<string, StarState[]>();
 
     function recordInputHandlingLatency(
         kind: string,
@@ -293,6 +348,28 @@
         return queueDelayMs;
     }
 
+    function applyOrderMutation(mutation: QueuedOrderMutation): void {
+        switch (mutation.kind) {
+            case "issue":
+                activeGameStore.issueOrder(
+                    mutation.sourceId,
+                    mutation.targetId,
+                    mutation.persist,
+                );
+                break;
+            case "cancel":
+                activeGameStore.cancelOrder(mutation.starId);
+                break;
+            case "defer":
+                activeGameStore.setDeferredOrder(
+                    mutation.sourceId,
+                    mutation.targetId,
+                    mutation.persist,
+                );
+                break;
+        }
+    }
+
     function flushQueuedOrderMutations(): void {
         if (queuedOrderMutations.length === 0) {
             orderDispatchScheduled = false;
@@ -304,25 +381,7 @@
             "game.input.orderQueue.flush",
             () => {
                 for (const mutation of mutations) {
-                    switch (mutation.kind) {
-                        case "issue":
-                            activeGameStore.issueOrder(
-                                mutation.sourceId,
-                                mutation.targetId,
-                                mutation.persist,
-                            );
-                            break;
-                        case "cancel":
-                            activeGameStore.cancelOrder(mutation.starId);
-                            break;
-                        case "defer":
-                            activeGameStore.setDeferredOrder(
-                                mutation.sourceId,
-                                mutation.targetId,
-                                mutation.persist,
-                            );
-                            break;
-                    }
+                    applyOrderMutation(mutation);
                 }
             },
             {
@@ -348,7 +407,23 @@
         }, 0);
     }
 
-    function enqueueOrderMutation(mutation: QueuedOrderMutation): void {
+    function enqueueOrderMutation(
+        mutation: QueuedOrderMutation,
+        dispatchMode: OrderDispatchMode = "queued",
+    ): void {
+        if (dispatchMode === "immediate") {
+            measurePerf(
+                "game.input.orderImmediate",
+                () => {
+                    applyOrderMutation(mutation);
+                },
+                { kind: mutation.kind },
+            );
+            recordPerfEvent("input.orderMutation.immediate", {
+                kind: mutation.kind,
+            });
+            return;
+        }
         queuedOrderMutations.push(mutation);
         recordPerfEvent("input.orderQueue.enqueued", {
             kind: mutation.kind,
@@ -360,6 +435,11 @@
     if (orderDispatchChannel) {
         orderDispatchChannel.port1.onmessage = () => {
             flushQueuedOrderMutations();
+        };
+    }
+    if (territoryPresentationChannel) {
+        territoryPresentationChannel.port1.onmessage = () => {
+            void flushTerritoryPresentationQueue();
         };
     }
 
@@ -409,6 +489,15 @@
         return result;
     }
 
+    function runShipRender<T>(name: string, fn: () => T): T {
+        const startedAt = performance.now();
+        lastShipRenderStartedAtMs = startedAt;
+        const result = measurePerf(name, fn);
+        lastShipRenderCostMs = performance.now() - startedAt;
+        lastShipRenderPresentedAtMs = performance.now();
+        return result;
+    }
+
     function computeTerritoryCadenceMs(nowMs: number): number {
         const recentInteraction = nowMs < territoryInputPriorityUntilMs;
         const activeInteraction =
@@ -428,6 +517,28 @@
         return Math.min(
             TERRITORY_MAX_STALE_MS,
             Math.max(baseCadenceMs, Math.round(lastTerritoryUpdateCostMs * 4)),
+        );
+    }
+
+    function computeShipRenderCadenceMs(nowMs: number): number {
+        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        const browserInputPending = hasBrowserInputPending();
+        const hasQueuedOrders = queuedOrderMutations.length > 0;
+        const baseCadenceMs =
+            recentInteraction ||
+            activeInteraction ||
+            browserInputPending ||
+            hasQueuedOrders
+                ? SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS
+                : SHIP_RENDER_IDLE_MIN_CADENCE_MS;
+        if (lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
+            return baseCadenceMs;
+        }
+        return Math.min(
+            SHIP_RENDER_MAX_STALE_MS,
+            Math.max(baseCadenceMs, Math.round(lastShipRenderCostMs * 3)),
         );
     }
 
@@ -482,6 +593,156 @@
             cadenceMs,
             staleMs,
         };
+    }
+
+    function shouldThrottleShipRenderCadence(params: {
+        nowMs: number;
+        isPaused: boolean;
+    }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
+        const cadenceMs = computeShipRenderCadenceMs(params.nowMs);
+        const staleMs =
+            lastShipRenderPresentedAtMs > 0
+                ? params.nowMs - lastShipRenderPresentedAtMs
+                : Number.POSITIVE_INFINITY;
+        if (params.isPaused || lastShipRenderPresentedAtMs === 0) {
+            return {
+                defer: false,
+                reason: "fresh_required",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        if (staleMs >= SHIP_RENDER_MAX_STALE_MS) {
+            return {
+                defer: false,
+                reason: "stale_limit",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        const recentInteraction = params.nowMs < territoryInputPriorityUntilMs;
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        const browserInputPending = hasBrowserInputPending();
+        const hasQueuedOrders = queuedOrderMutations.length > 0;
+        const pressureActive =
+            recentInteraction ||
+            activeInteraction ||
+            browserInputPending ||
+            hasQueuedOrders;
+        if (!pressureActive && lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
+            return {
+                defer: false,
+                reason: "idle",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        return {
+            defer: staleMs < cadenceMs,
+            reason: pressureActive ? "interactive_pressure" : "cadence_budget",
+            cadenceMs,
+            staleMs,
+        };
+    }
+
+    function starHitIndexKey(cellX: number, cellY: number): string {
+        return `${cellX}:${cellY}`;
+    }
+
+    function resolveInteractionHitRadius(star: StarState): number {
+        return GAME_CONFIG.STAR_HIT_RADIUS ?? Math.max(star.radius * 2, 40);
+    }
+
+    function getLaneKeyForPair(a: string, b: string): string {
+        return a <= b ? `${a}|${b}` : `${b}|${a}`;
+    }
+
+    function rebuildInteractionCaches(
+        stars: ReadonlyArray<StarState>,
+        connections: ReadonlyArray<StarConnection>,
+    ): void {
+        if (stars !== interactionStarsSource) {
+            interactionStarsSource = stars;
+            interactionStarsById.clear();
+            interactionStarHitIndex.clear();
+            for (const star of stars) {
+                interactionStarsById.set(star.id, star);
+                const hitRadius = resolveInteractionHitRadius(star);
+                const minCellX = Math.floor(
+                    (mapTranspose.x(star) - hitRadius) / starHitIndexCellPx,
+                );
+                const maxCellX = Math.floor(
+                    (mapTranspose.x(star) + hitRadius) / starHitIndexCellPx,
+                );
+                const minCellY = Math.floor(
+                    (mapTranspose.y(star) - hitRadius) / starHitIndexCellPx,
+                );
+                const maxCellY = Math.floor(
+                    (mapTranspose.y(star) + hitRadius) / starHitIndexCellPx,
+                );
+                for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+                    for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
+                        const key = starHitIndexKey(cellX, cellY);
+                        const bucket =
+                            interactionStarHitIndex.get(key) ?? [];
+                        bucket.push(star);
+                        interactionStarHitIndex.set(key, bucket);
+                    }
+                }
+            }
+        }
+        if (connections !== interactionConnectionsSource) {
+            interactionConnectionsSource = connections;
+            interactionConnectionAdjacency.clear();
+            interactionLaneKeyToConnection.clear();
+            for (const connection of connections) {
+                const sourceNeighbors =
+                    interactionConnectionAdjacency.get(connection.sourceId) ??
+                    new Set<string>();
+                sourceNeighbors.add(connection.targetId);
+                interactionConnectionAdjacency.set(
+                    connection.sourceId,
+                    sourceNeighbors,
+                );
+                const laneKey = getLaneKeyForPair(
+                    connection.sourceId,
+                    connection.targetId,
+                );
+                if (!interactionLaneKeyToConnection.has(laneKey)) {
+                    interactionLaneKeyToConnection.set(laneKey, connection);
+                }
+            }
+        }
+    }
+
+    function ensureInteractionCaches(): {
+        stars: ReadonlyArray<StarState>;
+        connections: ReadonlyArray<StarConnection>;
+    } {
+        const stars = activeGameStore.stars as StarState[];
+        const connections = activeGameStore.connections as StarConnection[];
+        rebuildInteractionCaches(stars, connections);
+        return { stars, connections };
+    }
+
+    function getInteractionStarById(starId: string): StarState | null {
+        ensureInteractionCaches();
+        return interactionStarsById.get(starId) ?? null;
+    }
+
+    function areStarsConnected(sourceId: string, targetId: string): boolean {
+        ensureInteractionCaches();
+        return Boolean(
+            interactionConnectionAdjacency.get(sourceId)?.has(targetId),
+        );
+    }
+
+    function getTaskScheduler(): BackgroundTaskScheduler | null {
+        const scheduler = (globalThis as { scheduler?: BackgroundTaskScheduler })
+            .scheduler;
+        if (scheduler?.postTask) return scheduler;
+        return null;
     }
 
     function clampUnitInterval(value: number): number {
@@ -2325,13 +2586,13 @@
         targetId: string,
         isDeferred: boolean = false,
     ) {
-        // Validate both stars exist in current data source
-        const currentStars = activeGameStore.stars as StarState[];
-        if (currentStars.length === 0) return;
-
-        const sourceExists = currentStars.some((s) => s.id === sourceId);
-        const targetExists = currentStars.some((s) => s.id === targetId);
-        if (!sourceExists || !targetExists) return;
+        ensureInteractionCaches();
+        if (
+            !interactionStarsById.has(sourceId) ||
+            !interactionStarsById.has(targetId)
+        ) {
+            return;
+        }
 
         const key = `${sourceId}|${targetId}`;
 
@@ -2380,20 +2641,27 @@
         sourceId: string,
         targetId: string,
         persist: boolean,
+        dispatchMode: OrderDispatchMode = "queued",
     ): boolean {
-        const targetStar = activeGameStore.stars.find((s) => s.id === targetId);
+        const targetStar = getInteractionStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        enqueueOrderMutation({ kind: "issue", sourceId, targetId, persist });
+        enqueueOrderMutation(
+            { kind: "issue", sourceId, targetId, persist },
+            dispatchMode,
+        );
         return true;
     }
 
     // Helper: Cancel order via unified store
-    function doCancelOrder(starId: string): void {
-        enqueueOrderMutation({ kind: "cancel", starId });
+    function doCancelOrder(
+        starId: string,
+        dispatchMode: OrderDispatchMode = "queued",
+    ): void {
+        enqueueOrderMutation({ kind: "cancel", starId }, dispatchMode);
     }
 
     // Helper: Set deferred order via unified store
@@ -2401,14 +2669,18 @@
         sourceId: string,
         targetId: string,
         persist: boolean,
+        dispatchMode: OrderDispatchMode = "queued",
     ): boolean {
-        const targetStar = activeGameStore.stars.find((s) => s.id === targetId);
+        const targetStar = getInteractionStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        enqueueOrderMutation({ kind: "defer", sourceId, targetId, persist });
+        enqueueOrderMutation(
+            { kind: "defer", sourceId, targetId, persist },
+            dispatchMode,
+        );
         return true;
     }
 
@@ -2641,6 +2913,15 @@
         canonicalController = null;
         canonicalControllerTransitionDurationMs = null;
         canonicalRenderer = null;
+        territoryPresentationScheduled = false;
+        territoryPresentationRunning = false;
+        territoryPresentationPendingRequest = null;
+        interactionStarsSource = null;
+        interactionConnectionsSource = null;
+        interactionStarsById.clear();
+        interactionConnectionAdjacency.clear();
+        interactionLaneKeyToConnection.clear();
+        interactionStarHitIndex.clear();
 
         starGraphics.clear();
         starLabels.clear();
@@ -3758,6 +4039,144 @@
         }
     }
 
+    function scheduleTerritoryPresentationQueue(): void {
+        if (territoryPresentationScheduled || territoryPresentationRunning) return;
+        if (!territoryPresentationPendingRequest) return;
+        territoryPresentationScheduled = true;
+        territoryPresentationPostedCount += 1;
+        const scheduler = getTaskScheduler();
+        if (scheduler?.postTask) {
+            void scheduler
+                .postTask(
+                    async () => {
+                        await flushTerritoryPresentationQueue();
+                    },
+                    { priority: "background" },
+                )
+                .catch((error) => {
+                    territoryPresentationScheduled = false;
+                    log.error(
+                        "GameCanvas",
+                        "Territory presentation background task failed",
+                        error,
+                    );
+                    setTimeout(() => {
+                        void flushTerritoryPresentationQueue();
+                    }, 0);
+                });
+            return;
+        }
+        if (territoryPresentationChannel) {
+            territoryPresentationChannel.port2.postMessage(null);
+            return;
+        }
+        setTimeout(() => {
+            void flushTerritoryPresentationQueue();
+        }, 0);
+    }
+
+    async function flushTerritoryPresentationQueue(): Promise<void> {
+        if (territoryPresentationRunning) return;
+        territoryPresentationScheduled = false;
+        if (!territoryPresentationPendingRequest) return;
+        territoryPresentationRunning = true;
+        try {
+            while (territoryPresentationPendingRequest) {
+                const request = territoryPresentationPendingRequest;
+                territoryPresentationPendingRequest = null;
+                territoryPresentationLastRequestId = request.requestId;
+                territoryPresentationLastStartedAtMs = performance.now();
+                territoryPresentationLastQueueWaitMs =
+                    territoryPresentationLastStartedAtMs - request.enqueuedAtMs;
+                recordPerfEvent("game.territory.async.start", {
+                    requestId: request.requestId,
+                    activeMode: request.activeMode,
+                    queueWaitMs: territoryPresentationLastQueueWaitMs,
+                    cadenceMs: request.territoryScheduler.cadenceMs,
+                    staleMs: request.territoryScheduler.staleMs,
+                });
+                logPipelineStage({
+                    channel: "input",
+                    context: "GameCanvas",
+                    stage: "territory_async_start",
+                    from: "Territory presentation queue",
+                    to: "Territory renderer commit",
+                    purpose:
+                        "Run heavy territory presentation work outside the pointer-handling turn",
+                    summary:
+                        `requestId=${request.requestId} mode=${request.activeMode} ` +
+                        `queueWaitMs=${territoryPresentationLastQueueWaitMs.toFixed(3)}`,
+                });
+                runTerritoryUpdate(
+                    `game.renderFrame.territory.${request.activeMode}`,
+                    () => {
+                        request.run();
+                    },
+                );
+                territoryPresentationLastFinishedAtMs = performance.now();
+                territoryPresentationLastCommitLagMs =
+                    territoryPresentationLastFinishedAtMs - request.enqueuedAtMs;
+                territoryPresentationCompletedCount += 1;
+                recordPerfEvent("game.territory.async.finish", {
+                    requestId: request.requestId,
+                    activeMode: request.activeMode,
+                    queueWaitMs: territoryPresentationLastQueueWaitMs,
+                    commitLagMs: territoryPresentationLastCommitLagMs,
+                    lastTerritoryUpdateCostMs,
+                    supersededCount: territoryPresentationSupersededCount,
+                });
+            }
+        } finally {
+            territoryPresentationRunning = false;
+            if (territoryPresentationPendingRequest) {
+                scheduleTerritoryPresentationQueue();
+            }
+        }
+    }
+
+    function queueTerritoryPresentation(request: {
+        activeMode: string;
+        isPaused: boolean;
+        stars: StarState[];
+        pendingConquests: readonly import("@pax/common").ConquestEvent[];
+        run: () => void;
+        territoryScheduler: {
+            cadenceMs: number;
+            staleMs: number;
+            reason: string;
+        };
+    }): void {
+        const nextRequest: TerritoryPresentationRequest = {
+            requestId: territoryPresentationRequestSeq + 1,
+            enqueuedAtMs: performance.now(),
+            activeMode: request.activeMode,
+            isPaused: request.isPaused,
+            stars: request.stars,
+            pendingConquests: request.pendingConquests,
+            run: request.run,
+            territoryScheduler: request.territoryScheduler,
+        };
+        territoryPresentationRequestSeq = nextRequest.requestId;
+        territoryPresentationLastQueuedAtMs = nextRequest.enqueuedAtMs;
+        if (territoryPresentationPendingRequest) {
+            territoryPresentationSupersededCount += 1;
+            recordPerfEvent("game.territory.async.replaced", {
+                replacedRequestId: territoryPresentationPendingRequest.requestId,
+                nextRequestId: nextRequest.requestId,
+                activeMode: nextRequest.activeMode,
+            });
+        } else {
+            recordPerfEvent("game.territory.async.queued", {
+                requestId: nextRequest.requestId,
+                activeMode: nextRequest.activeMode,
+                cadenceMs: request.territoryScheduler.cadenceMs,
+                staleMs: request.territoryScheduler.staleMs,
+            });
+        }
+        territoryPresentationPendingRequest = nextRequest;
+        scheduleTerritoryPresentationQueue();
+    }
+
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
         g.moveTo(x + r * Math.cos(0), y + r * Math.sin(0));
         for (let i = 1; i <= 6; i++) {
@@ -3802,6 +4221,26 @@
             deferredTerritoryReason = "";
             territoryCadenceSkipCount = 0;
             territoryLastMode = "";
+            territoryPresentationScheduled = false;
+            territoryPresentationRunning = false;
+            territoryPresentationRequestSeq = 0;
+            territoryPresentationPostedCount = 0;
+            territoryPresentationCompletedCount = 0;
+            territoryPresentationSupersededCount = 0;
+            territoryPresentationLastQueuedAtMs = 0;
+            territoryPresentationLastStartedAtMs = 0;
+            territoryPresentationLastFinishedAtMs = 0;
+            territoryPresentationLastQueueWaitMs = 0;
+            territoryPresentationLastCommitLagMs = 0;
+            territoryPresentationLastRequestId = 0;
+            territoryPresentationPendingRequest = null;
+            lastShipRenderStartedAtMs = 0;
+            lastShipRenderCostMs = 0;
+            lastShipRenderPresentedAtMs = 0;
+            shipRenderDeferralActive = false;
+            deferredShipRenderFrameCount = 0;
+            deferredShipRenderReason = "";
+            shipRenderCadenceSkipCount = 0;
             // B-57: Clear territory fills from previous game immediately so
             // old conquest state doesn't persist while paused after restart.
             if (voronoiContainer) {
@@ -3814,6 +4253,12 @@
             canonicalBridge = null;
             canonicalController = null;
             canonicalRenderer = null;
+            interactionStarsSource = null;
+            interactionConnectionsSource = null;
+            interactionStarsById.clear();
+            interactionConnectionAdjacency.clear();
+            interactionLaneKeyToConnection.clear();
+            interactionStarHitIndex.clear();
             log.sys(
                 "GameCanvas",
                 `Session changed to ${currentSessionId}, state reset`,
@@ -3847,6 +4292,10 @@
             for (const s of stars) cachedStarsById.set(s.id, s);
             cachedStarsSource = stars;
         }
+        rebuildInteractionCaches(
+            stars,
+            activeGameStore.connections as StarConnection[],
+        );
         const starsById = cachedStarsById;
         const pendingTickEvents = activeGameStore.peekTickEvents();
 
@@ -3956,9 +4405,13 @@
                 if (!isPausedNow)
                     (globalThis as any).__territoryRenderedWhilePaused = false;
                 voronoiContainer.visible = true;
-                runTerritoryUpdate(
-                    `game.renderFrame.territory.${activeTerritoryMode}`,
-                    () => {
+                queueTerritoryPresentation({
+                    activeMode: activeTerritoryMode,
+                    isPaused: isPausedNow,
+                    stars,
+                    pendingConquests: pendingTickEvents?.conquests ?? [],
+                    territoryScheduler,
+                    run: () => {
             territoryLastMode = activeTerritoryMode;
             recordPerfEvent("game.territory.schedule.run", {
                 mode: activeTerritoryMode,
@@ -4543,68 +4996,99 @@
                 }
                 }
                     },
-                );
+                });
             }
         } // end territory pause guard
 
-        renderPerimeterFieldDebugOverlay(activeTerritoryMode);
+        measurePerf("game.renderFrame.perimeterDebugOverlay", () => {
+            renderPerimeterFieldDebugOverlay(activeTerritoryMode);
+        });
 
         // Render stars (static elements)
-        renderStarsModule(
-            stars,
-            starsContainer!,
-            labelsContainer!,
-            { starGraphics, starLabels },
-            {
-                activeStarId,
-                dragSourceId,
-                pendingConquests,
-                conquestFlashes,
-                gameNowMs: fxOrchestrator.gameTime,
-            },
-            colorUtils,
-        );
+        measurePerf("game.renderFrame.stars", () => {
+            renderStarsModule(
+                stars,
+                starsContainer!,
+                labelsContainer!,
+                { starGraphics, starLabels },
+                {
+                    activeStarId,
+                    dragSourceId,
+                    pendingConquests,
+                    conquestFlashes,
+                    gameNowMs: fxOrchestrator.gameTime,
+                },
+                colorUtils,
+            );
+        });
 
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
         if (connections) {
-            renderConnectionsModule(
-                connectionGraphics!,
-                stars,
-                connections,
-                starsById,
-                colorUtils,
+            measurePerf(
+                "game.renderFrame.connections",
+                () => {
+                    renderConnectionsModule(
+                        connectionGraphics!,
+                        stars,
+                        connections,
+                        starsById,
+                        colorUtils,
+                    );
+                },
+                { connectionCount: connections.length },
             );
         }
 
         // Render flow links
-        renderOrderArrowsModule(
-            linkGraphics!,
-            stars,
-            starsById,
-            {
-                pendingOrders,
-                deferredOrders,
-                isLocalPlayerStar,
-                snapshotStars: activeGameStore.stars,
+        measurePerf(
+            "game.renderFrame.orderArrows",
+            () => {
+                renderOrderArrowsModule(
+                    linkGraphics!,
+                    stars,
+                    starsById,
+                    {
+                        pendingOrders,
+                        deferredOrders,
+                        isLocalPlayerStar,
+                        snapshotStars: activeGameStore.stars,
+                    },
+                    colorUtils,
+                );
             },
-            colorUtils,
+            {
+                pendingOrders: pendingOrders.size,
+                deferredOrders: deferredOrders.size,
+            },
         );
 
-        // Reset particle pool index for this frame
-        shipParticleIndex = 0;
-        // Clear orb travel graphics (drawn fresh each frame)
-        if (orbGraphics) orbGraphics.clear();
-
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
-        const tickEvents = activeGameStore.consumeTickEvents();
+        const tickEvents = measurePerf(
+            "game.renderFrame.tickEvents.consume",
+            () => activeGameStore.consumeTickEvents(),
+        );
 
         // Clear combat tracking before processing new tick events
         // (starsInCombat is rebuilt each tick from CombatEvents)
         if (tickEvents) {
             // Existing event processing (transfers, conquests, combat log, etc.)
-            starsInCombat.clear();
-            processTickEvents(stars, tickEvents, connections || [], starsById);
+            measurePerf(
+                "game.renderFrame.tickEvents.process",
+                () => {
+                    starsInCombat.clear();
+                    processTickEvents(
+                        stars,
+                        tickEvents,
+                        connections || [],
+                        starsById,
+                    );
+                },
+                {
+                    conquestCount: tickEvents.conquests.length,
+                    combatCount: tickEvents.combats.length,
+                },
+            );
 
             // Export local rendering states if snapshot recording is enabled
             const willCapture =
@@ -4612,41 +5096,77 @@
                 tickEvents.conquests.length > 0 &&
                 transitionSnapshotRecorder.isEnabled();
             if (willCapture) {
-                const prevGeometry = exportPowerVoronoiGeometrySnapshot("previous", "dy4:prev", "dy4:prev");
-                const nextGeometry = exportPowerVoronoiGeometrySnapshot("current", "dy4:next", "dy4:next");
-                log.state("GameCanvas", "DY4 snapshot attempt", {
-                    conquestCount: tickEvents.conquests.length,
-                    hasPreviousGeometry: Boolean(prevGeometry),
-                    hasNextGeometry: Boolean(nextGeometry),
-                });
-                
-                if (prevGeometry && nextGeometry) {
-                    const owners = new Map();
-                    stars.forEach((s) => owners.set(s.id, s.ownerId));
-                    const starPos = new Map();
-                    stars.forEach((s) => starPos.set(s.id, { x: s.x, y: s.y }));
-                    
-                    const conquestsMap = tickEvents.conquests.map(c => ({ ...c, atMs: fxOrchestrator.gameTime }));
-
-                    transitionSnapshotRecorder.setColorResolver((ownerId: string) => colorUtils.getPlayerColor(ownerId));
-                    transitionSnapshotRecorder.capture({
-                        conquestEvents: conquestsMap,
-                        previousGeometry: prevGeometry,
-                        nextGeometry: nextGeometry,
-                        previousOwnership: { version: "1", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
-                        nextOwnership: { version: "2", starOwners: owners, contestedLaneIds: [], conquestEvents: conquestsMap, virtualStars: [] },
-                        transition: { envelope: null as any, fillFrame: null as any, borderFrame: null as any, geometryVersion: "1" },
-                        fillPlan: null,
-                        activeFrontPlan: null,
-                        prevFrontierTopology: null,
-                        nextFrontierTopology: null,
-                        selection: { geometryMode: "unified_vector", fillTransitionMode: "active_front", borderTransitionMode: "off", ownershipMode: "star_ownership_snapshot", styleMode: "canonical" },
-                        nowMs: fxOrchestrator.gameTime,
-                        starPositions: starPos,
-                        worldWidth: GAME_WIDTH,
-                        worldHeight: GAME_HEIGHT
+                measurePerf("game.renderFrame.tickEvents.capture", () => {
+                    const prevGeometry = exportPowerVoronoiGeometrySnapshot(
+                        "previous",
+                        "dy4:prev",
+                        "dy4:prev",
+                    );
+                    const nextGeometry = exportPowerVoronoiGeometrySnapshot(
+                        "current",
+                        "dy4:next",
+                        "dy4:next",
+                    );
+                    log.state("GameCanvas", "DY4 snapshot attempt", {
+                        conquestCount: tickEvents.conquests.length,
+                        hasPreviousGeometry: Boolean(prevGeometry),
+                        hasNextGeometry: Boolean(nextGeometry),
                     });
-                }
+
+                    if (prevGeometry && nextGeometry) {
+                        const owners = new Map();
+                        stars.forEach((s) => owners.set(s.id, s.ownerId));
+                        const starPos = new Map();
+                        stars.forEach((s) => starPos.set(s.id, { x: s.x, y: s.y }));
+
+                        const conquestsMap = tickEvents.conquests.map((c) => ({
+                            ...c,
+                            atMs: fxOrchestrator.gameTime,
+                        }));
+
+                        transitionSnapshotRecorder.setColorResolver(
+                            (ownerId: string) =>
+                                colorUtils.getPlayerColor(ownerId),
+                        );
+                        transitionSnapshotRecorder.capture({
+                            conquestEvents: conquestsMap,
+                            previousGeometry: prevGeometry,
+                            nextGeometry: nextGeometry,
+                            previousOwnership: {
+                                version: "1",
+                                starOwners: owners,
+                                contestedLaneIds: [],
+                                conquestEvents: conquestsMap,
+                                virtualStars: [],
+                            },
+                            nextOwnership: {
+                                version: "2",
+                                starOwners: owners,
+                                contestedLaneIds: [],
+                                conquestEvents: conquestsMap,
+                                virtualStars: [],
+                            },
+                            transition: {
+                                envelope: null as any,
+                                fillFrame: null as any,
+                                borderFrame: null as any,
+                                geometryVersion: "1",
+                            },
+                            fillPlan: null,
+                            selection: {
+                                geometryMode: "unified_vector",
+                                fillTransitionMode: "active_front",
+                                borderTransitionMode: "off",
+                                ownershipMode: "star_ownership_snapshot",
+                                styleMode: "canonical",
+                            },
+                            nowMs: fxOrchestrator.gameTime,
+                            starPositions: starPos,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                        });
+                    }
+                });
             }
 
             // Record game-time at tick boundary for tickProgress computation
@@ -4654,80 +5174,173 @@
 
             // V2 SURGE: Create surge animations from CombatEvents
             // Each combat tick starts one pulse per attacker star
-            for (const combat of tickEvents.combats) {
-                if (!combat.conquered) {
-                    for (const attackerId of combat.attackerIds) {
-                        const aStar = starsById.get(attackerId);
-                        const dStar = starsById.get(combat.defenderId);
-                        if (aStar && dStar) {
-                            const rawLane = getDirectedLanePolyline(attackerId, combat.defenderId);
-                            const trimmedLane = rawLane && rawLane.length >= 2
-                                ? trimLanePolylineToStarRims(rawLane, aStar, dStar, 5)
-                                : undefined;
-                            const heading = computeLaneHeadingForNearside(
-                                aStar,
-                                dStar,
-                                trimmedLane && trimmedLane.length >= 2 ? trimmedLane : undefined,
-                            );
-                            activeSurges.set(attackerId, {
-                                startTime: fxOrchestrator.gameTime,
-                                dirX: heading.ndx,
-                                dirY: heading.ndy,
-                            });
+            measurePerf("game.renderFrame.tickEvents.surges", () => {
+                for (const combat of tickEvents.combats) {
+                    if (!combat.conquered) {
+                        for (const attackerId of combat.attackerIds) {
+                            const aStar = starsById.get(attackerId);
+                            const dStar = starsById.get(combat.defenderId);
+                            if (aStar && dStar) {
+                                const rawLane = getDirectedLanePolyline(
+                                    attackerId,
+                                    combat.defenderId,
+                                );
+                                const trimmedLane =
+                                    rawLane && rawLane.length >= 2
+                                        ? trimLanePolylineToStarRims(
+                                              rawLane,
+                                              aStar,
+                                              dStar,
+                                              5,
+                                          )
+                                        : undefined;
+                                const heading = computeLaneHeadingForNearside(
+                                    aStar,
+                                    dStar,
+                                    trimmedLane && trimmedLane.length >= 2
+                                        ? trimmedLane
+                                        : undefined,
+                                );
+                                activeSurges.set(attackerId, {
+                                    startTime: fxOrchestrator.gameTime,
+                                    dirX: heading.ndx,
+                                    dirY: heading.ndy,
+                                });
+                            }
                         }
                     }
                 }
-            }
+            });
         }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         // IMPORTANT: Always read from VSM to stay in sync — ShipRenderer replaces the array
         // with a filtered `stillTraveling` copy, which would disconnect from VSM's internal array.
         travelingShips = fxOrchestrator.vsm.travelingShips;
-        const shipState: ShipRenderState = {
-            visualShips,
-            visualDamagedShips,
-            travelingShips,
-            starsInCombat,
-            pendingConquests,
-            activeSurges,
-            nextShipId,
-            gameNowMs: fxOrchestrator.gameTime,
+        const shipScheduler = shouldThrottleShipRenderCadence({
+            nowMs: performance.now(),
             isPaused: activeGameStore.isPaused,
-            effectiveTickMs: activeGameStore.effectiveTickMs,
-            tickProgress,
-        };
-        const shipRes: ShipRenderResources = {
-            shipCircleTexture: shipCircleTexture!,
-            glowTexture: glowTexture!,
-            shipParticleContainer: shipParticleContainer!,
-            orbGraphics: orbGraphics!,
-            glowContainer: glowContainer!,
-            shipParticlePool,
-            shipParticleIndex,
-            glowSprites,
-        };
-        renderShipsModule(stars, starsById, shipState, shipRes, colorUtils);
-        // Read back mutable state modified by the module
-        nextShipId = shipState.nextShipId;
-        shipParticleIndex = shipRes.shipParticleIndex;
-        // Sync filtered array back to VSM so arrived ships are removed from the canonical source
-        fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
+        });
+        const deferShipRender =
+            !activeGameStore.isPaused && shipScheduler.defer;
+        if (deferShipRender) {
+            deferredShipRenderFrameCount += 1;
+            shipRenderCadenceSkipCount += 1;
+            if (!shipRenderDeferralActive) {
+                shipRenderDeferralActive = true;
+                deferredShipRenderReason = shipScheduler.reason;
+                recordPerfEvent("game.ships.defer.start", {
+                    lastShipRenderCostMs,
+                    reason: shipScheduler.reason,
+                    cadenceMs: shipScheduler.cadenceMs,
+                    staleMs: shipScheduler.staleMs,
+                });
+                logPipelineStage({
+                    channel: "input",
+                    context: "GameCanvas",
+                    stage: "ship_render_defer_start",
+                    from: "Input pressure window",
+                    to: "Ship render scheduler",
+                    purpose:
+                        "Prioritize command input and camera interaction over heavy ship rendering",
+                    summary:
+                        `reason=${shipScheduler.reason} ` +
+                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)} ` +
+                        `cadenceMs=${shipScheduler.cadenceMs} ` +
+                        `staleMs=${shipScheduler.staleMs.toFixed(3)}`,
+                });
+            }
+        } else {
+            if (shipRenderDeferralActive) {
+                recordPerfEvent("game.ships.defer.stop", {
+                    deferredFrames: deferredShipRenderFrameCount,
+                    cadenceSkips: shipRenderCadenceSkipCount,
+                    lastShipRenderCostMs,
+                    reason: deferredShipRenderReason,
+                    cadenceMs: shipScheduler.cadenceMs,
+                    staleMs: shipScheduler.staleMs,
+                });
+                logPipelineStage({
+                    channel: "input",
+                    context: "GameCanvas",
+                    stage: "ship_render_defer_stop",
+                    from: "Ship render scheduler",
+                    to: "Normal ship cadence",
+                    purpose:
+                        "Resume heavier ship rendering after interaction pressure subsides",
+                    summary:
+                        `deferredFrames=${deferredShipRenderFrameCount} ` +
+                        `cadenceSkips=${shipRenderCadenceSkipCount} ` +
+                        `reason=${deferredShipRenderReason} ` +
+                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)}`,
+                });
+                shipRenderDeferralActive = false;
+                deferredShipRenderFrameCount = 0;
+                shipRenderCadenceSkipCount = 0;
+                deferredShipRenderReason = "";
+            }
 
-        // Hide unused particles from pool
-        for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
-            shipParticlePool[i].alpha = 0;
+            // Reset particle pool index for this frame
+            shipParticleIndex = 0;
+            // Clear orb travel graphics (drawn fresh each frame)
+            if (orbGraphics) orbGraphics.clear();
+
+            const shipState: ShipRenderState = {
+                visualShips,
+                visualDamagedShips,
+                travelingShips,
+                starsInCombat,
+                pendingConquests,
+                activeSurges,
+                nextShipId,
+                gameNowMs: fxOrchestrator.gameTime,
+                isPaused: activeGameStore.isPaused,
+                effectiveTickMs: activeGameStore.effectiveTickMs,
+                tickProgress,
+            };
+            const shipRes: ShipRenderResources = {
+                shipCircleTexture: shipCircleTexture!,
+                glowTexture: glowTexture!,
+                shipParticleContainer: shipParticleContainer!,
+                orbGraphics: orbGraphics!,
+                glowContainer: glowContainer!,
+                shipParticlePool,
+                shipParticleIndex,
+                glowSprites,
+            };
+            runShipRender("game.renderFrame.ships", () => {
+                renderShipsModule(
+                    stars,
+                    starsById,
+                    shipState,
+                    shipRes,
+                    colorUtils,
+                );
+            });
+            // Read back mutable state modified by the module
+            nextShipId = shipState.nextShipId;
+            shipParticleIndex = shipRes.shipParticleIndex;
+            // Sync filtered array back to VSM so arrived ships are removed from the canonical source
+            fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
+
+            measurePerf("game.renderFrame.shipParticleUpdate", () => {
+                for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
+                    shipParticlePool[i].alpha = 0;
+                }
+                if (shipParticleContainer) shipParticleContainer.update();
+            });
         }
-        if (shipParticleContainer) shipParticleContainer.update();
 
         // Selection hex overlay (above ships)
         if (selectionOverlayGraphics) {
-            renderSelectionOverlay(
-                stars,
-                selectionOverlayGraphics,
-                activeStarId,
-                dragSourceId,
-            );
+            measurePerf("game.renderFrame.selectionOverlay", () => {
+                renderSelectionOverlay(
+                    stars,
+                    selectionOverlayGraphics,
+                    activeStarId,
+                    dragSourceId,
+                );
+            });
         }
 
         // Count total visual ships for HUD
@@ -4811,11 +5424,10 @@
         | null {
         const localPlayerId = activeGameStore.localPlayerId;
         if (!localPlayerId) return null;
-        const stars = activeGameStore.stars as StarState[];
-        const starsById = new Map(stars.map((star) => [star.id, star] as const));
+        const { stars, connections } = ensureInteractionCaches();
         for (const source of stars) {
             if (source.ownerId !== localPlayerId) continue;
-            for (const connection of activeGameStore.connections as StarConnection[]) {
+            for (const connection of connections) {
                 const targetId =
                     connection.sourceId === source.id
                         ? connection.targetId
@@ -4823,7 +5435,7 @@
                           ? connection.sourceId
                           : null;
                 if (!targetId) continue;
-                const target = starsById.get(targetId);
+                const target = interactionStarsById.get(targetId);
                 if (!target || target.ownerId === localPlayerId) continue;
                 if (!activeGameStore.canIssueOrder(source.id, target.id)) continue;
                 return { source, target };
@@ -4877,7 +5489,32 @@
             deferredTerritoryReason,
             territoryCadenceSkipCount,
             territoryLastMode,
+            lastShipRenderStartedAtMs,
+            lastShipRenderCostMs,
+            lastShipRenderPresentedAtMs,
+            shipRenderDeferralActive,
+            deferredShipRenderFrameCount,
+            deferredShipRenderReason,
+            shipRenderCadenceSkipCount,
             queuedOrderMutations: queuedOrderMutations.length,
+            territoryPresentationScheduled,
+            territoryPresentationRunning,
+            territoryPresentationPostedCount,
+            territoryPresentationCompletedCount,
+            territoryPresentationSupersededCount,
+            territoryPresentationLastQueuedAtMs,
+            territoryPresentationLastStartedAtMs,
+            territoryPresentationLastFinishedAtMs,
+            territoryPresentationLastQueueWaitMs,
+            territoryPresentationLastCommitLagMs,
+            territoryPresentationLastRequestId,
+            territoryPresentationPendingRequestId:
+                territoryPresentationPendingRequest?.requestId ?? null,
+            territoryPresentationPendingMode:
+                territoryPresentationPendingRequest?.activeMode ?? null,
+            territoryPresentationPendingAgeMs: territoryPresentationPendingRequest
+                ? performance.now() - territoryPresentationPendingRequest.enqueuedAtMs
+                : 0,
         };
     }
 
@@ -4893,8 +5530,7 @@
     let lastHitStarId: string | null | undefined = undefined; // undefined = never set
 
     function hitTestStar(screenX: number, screenY: number): StarState | null {
-        // Use activeGameStore for unified star access
-        const stars = activeGameStore.stars as StarState[];
+        const { stars } = ensureInteractionCaches();
 
         if (stars.length === 0) {
             if (lastHitStarId !== null) {
@@ -4906,21 +5542,26 @@
 
         // Convert screen coordinates to world coordinates
         const { x, y } = screenToWorld(screenX, screenY);
+        const candidates =
+            interactionStarHitIndex.get(
+                starHitIndexKey(
+                    Math.floor(x / starHitIndexCellPx),
+                    Math.floor(y / starHitIndexCellPx),
+                ),
+            ) ?? [];
 
         // Find the NEAREST star within a reasonable hit radius
         let nearest: StarState | null = null;
         let nearestDist = Infinity;
 
-        for (const star of stars) {
+        for (const star of candidates) {
             const dist = distance(
                 x,
                 y,
                 mapTranspose.x(star),
                 mapTranspose.y(star),
             );
-            // Hit radius: configurable via STAR_HIT_RADIUS (default 50px)
-            const hitRadius =
-                GAME_CONFIG.STAR_HIT_RADIUS ?? Math.max(star.radius * 2, 40);
+            const hitRadius = resolveInteractionHitRadius(star);
             if (dist <= hitRadius && dist < nearestDist) {
                 nearest = star;
                 nearestDist = dist;
@@ -4936,7 +5577,7 @@
                 );
             } else {
                 log.input(
-                    `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${stars.length} stars checked`,
+                    `hitTest MISS — screen(${screenX.toFixed(0)},${screenY.toFixed(0)}) → world(${x.toFixed(0)},${y.toFixed(0)}), ${candidates.length}/${stars.length} candidates checked`,
                 );
             }
             lastHitStarId = newId;
@@ -5019,8 +5660,7 @@
         screenY: number,
     ): RulerPoint | null {
         const { x, y } = screenToWorld(screenX, screenY);
-        const stars = activeGameStore.stars as StarState[];
-        const starsById = new Map(stars.map((star) => [star.id, star] as const));
+        const { connections } = ensureInteractionCaches();
         const seen = new Set<string>();
         const laneHitboxPx = get(rulerTool).laneHitboxPx;
         let best:
@@ -5033,7 +5673,7 @@
               }
             | null = null;
 
-        for (const connection of activeGameStore.connections as StarConnection[]) {
+        for (const connection of connections) {
             const a =
                 connection.sourceId <= connection.targetId
                     ? connection.sourceId
@@ -5046,8 +5686,8 @@
             if (seen.has(laneKey)) continue;
             seen.add(laneKey);
 
-            const source = starsById.get(a);
-            const target = starsById.get(b);
+            const source = interactionStarsById.get(a);
+            const target = interactionStarsById.get(b);
             if (!source || !target) continue;
 
             const polyline = buildVisibleLanePolyline(source, target);
@@ -5110,18 +5750,8 @@
     }
 
     function findConnectionByLaneKey(laneKey: string): StarConnection | null {
-        for (const connection of activeGameStore.connections as StarConnection[]) {
-            const a =
-                connection.sourceId <= connection.targetId
-                    ? connection.sourceId
-                    : connection.targetId;
-            const b =
-                connection.sourceId <= connection.targetId
-                    ? connection.targetId
-                    : connection.sourceId;
-            if (`${a}|${b}` === laneKey) return connection;
-        }
-        return null;
+        ensureInteractionCaches();
+        return interactionLaneKeyToConnection.get(laneKey) ?? null;
     }
 
     function finalizeRulerMeasurement(
@@ -5485,7 +6115,7 @@
         if (event.button === 2) {
             event.preventDefault();
             if (star && isLocalPlayerStar(star)) {
-                doCancelOrder(star.id);
+                doCancelOrder(star.id, "immediate");
                 // OPTIMISTIC UI: Remove from pending immediately
                 pendingOrders.forEach((key) => {
                     if (key.startsWith(`${star.id}|`)) {
@@ -5609,21 +6239,10 @@
         const targetStar = hitTestStar(dragCurrentX, dragCurrentY);
 
         if (targetStar && targetStar.id !== dragSourceId) {
-            // Validate connection first - use correct data source for multiplayer
-            const connections = activeGameStore.connections as StarConnection[];
-            const isConnected = connections.some(
-                (c) =>
-                    (c.sourceId === dragSourceId &&
-                        c.targetId === targetStar.id) ||
-                    (c.sourceId === targetStar.id &&
-                        c.targetId === dragSourceId),
-            );
+            const isConnected = areStarsConnected(dragSourceId, targetStar.id);
 
             if (isConnected) {
-                const stars = activeGameStore.stars as StarState[];
-                const sourceStar = stars.find(
-                    (s: StarState) => s.id === dragSourceId,
-                );
+                const sourceStar = getInteractionStarById(dragSourceId);
                 const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
                 const isTargetMine = targetStar.ownerId === localPlayerId;
@@ -5637,6 +6256,7 @@
                         dragSourceId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
+                        "queued",
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
@@ -5667,6 +6287,7 @@
                         dragSourceId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
+                        "queued",
                     );
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
@@ -5729,9 +6350,9 @@
             ) {
                 // Double-tap on same star → cancel orders
                 if (isLocalPlayerStar(star)) {
-                    doCancelOrder(star.id);
+                    doCancelOrder(star.id, "immediate");
                     pendingOrders.forEach((key) => {
-                        if (key.startsWith(star.id + "->"))
+                        if (key.startsWith(`${star.id}|`))
                             pendingOrders.delete(key);
                     });
                     log.success(
@@ -5787,16 +6408,7 @@
         // DRAG MODE: If we dragged significantly
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
-                // Validate connection before issuing order
-                const connections =
-                    activeGameStore.connections as StarConnection[];
-                const isConnected = connections.some(
-                    (c) =>
-                        (c.sourceId === dragSourceId &&
-                            c.targetId === targetStar.id) ||
-                        (c.sourceId === targetStar.id &&
-                            c.targetId === dragSourceId),
-                );
+                const isConnected = areStarsConnected(dragSourceId, targetStar.id);
 
                 if (isConnected) {
                     // Issue order from drag
@@ -5805,6 +6417,7 @@
                         dragSourceId,
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
+                        "queued",
                     );
                     if (success) {
                         // OPTIMISTIC UI: Add immediately for instant arrow display
@@ -5841,21 +6454,14 @@
             }
             // Case 2: Have a prior selection -> try to issue order, then select Y
             else if (activeStarId) {
-                const currentConnections =
-                    activeGameStore.connections as StarConnection[];
-                const isConnected = currentConnections.some(
-                    (c) =>
-                        (c.sourceId === activeStarId &&
-                            c.targetId === targetStar.id) ||
-                        (c.sourceId === targetStar.id &&
-                            c.targetId === activeStarId),
+                const isConnected = areStarsConnected(
+                    activeStarId,
+                    targetStar.id,
                 );
 
                 if (isConnected) {
-                    const currentStars = activeGameStore.stars as StarState[];
-                    const activeStarSnapshot = currentStars.find(
-                        (s) => s.id === activeStarId,
-                    );
+                    const activeStarSnapshot =
+                        getInteractionStarById(activeStarId);
                     // B-43 diagnostic: trace deferred order decision
                     const localPid = activeGameStore.localPlayerId;
                     log.input(
@@ -5871,6 +6477,7 @@
                             activeStarId,
                             targetStar.id,
                             !event.ctrlKey,
+                            "immediate",
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id);
@@ -5887,6 +6494,7 @@
                             activeStarId,
                             targetStar.id,
                             !event.ctrlKey,
+                            "immediate",
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id, true);
@@ -5940,7 +6548,7 @@
 
         if (star && isLocalPlayerStar(star) && star.targetId) {
             // Cancel order for this star
-            doCancelOrder(star.id);
+            doCancelOrder(star.id, "immediate");
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
         } else if (
             star &&
@@ -6011,15 +6619,7 @@
         // Highlight target star if hovering AND valid connection exists
         const target = hitTestStar(dragCurrentX, dragCurrentY);
         if (target && target.id !== dragSourceId) {
-            // Check connectivity
-            // Check connectivity
-            const currentConnections =
-                activeGameStore.connections as StarConnection[];
-            const isConnected = currentConnections.some(
-                (c: StarConnection) =>
-                    (c.sourceId === dragSourceId && c.targetId === target.id) ||
-                    (c.sourceId === target.id && c.targetId === dragSourceId),
-            );
+            const isConnected = areStarsConnected(dragSourceId, target.id);
 
             if (isConnected) {
                 dragPreviewGraphics.circle(

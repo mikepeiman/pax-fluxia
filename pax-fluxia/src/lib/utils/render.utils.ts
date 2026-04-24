@@ -96,10 +96,42 @@ export const SHIP_ANIM = {
  */
 const MAX_ORBIT_LAYERS = 5;
 
+interface OrbitCapacityMetrics {
+    baseSize: number;
+    padding: number;
+    ringSpacing: number;
+    firstLayerRadius: number;
+    layerCapacities: number[];
+    totalCapacity: number;
+}
+
+let orbitCapacityCacheFingerprint = "";
+const orbitCapacityCache = new Map<number, OrbitCapacityMetrics>();
+
+function getOrbitCapacityFingerprint(): string {
+    return [
+        GAME_CONFIG.SHIP_BASE_SIZE || 4,
+        GAME_CONFIG.ORBIT_BASE_RADIUS || 0,
+        GAME_CONFIG.ORBIT_RING_MULT || 1.4,
+        GAME_CONFIG.ORBIT_DENSITY || 1.5,
+    ].join("|");
+}
+
 /**
  * Calculate the total capacity of layers 0 through maxLayer
  */
-function calculateTotalCapacity(starRadius: number): { layerCapacities: number[], totalCapacity: number } {
+function calculateTotalCapacity(starRadius: number): OrbitCapacityMetrics {
+    const fingerprint = getOrbitCapacityFingerprint();
+    if (fingerprint !== orbitCapacityCacheFingerprint) {
+        orbitCapacityCacheFingerprint = fingerprint;
+        orbitCapacityCache.clear();
+    }
+
+    const cached = orbitCapacityCache.get(starRadius);
+    if (cached) {
+        return cached;
+    }
+
     const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
     const PADDING = 2 + (GAME_CONFIG.ORBIT_BASE_RADIUS || 0);
     const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
@@ -107,6 +139,7 @@ function calculateTotalCapacity(starRadius: number): { layerCapacities: number[]
     const layerCapacities: number[] = [];
     let totalCapacity = 0;
     let currentRadius = starRadius + PADDING + BASE_SIZE;
+    const firstLayerRadius = currentRadius;
 
     for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         const circumference = 2 * Math.PI * currentRadius;
@@ -116,7 +149,16 @@ function calculateTotalCapacity(starRadius: number): { layerCapacities: number[]
         currentRadius += RING_SPACING;
     }
 
-    return { layerCapacities, totalCapacity };
+    const metrics: OrbitCapacityMetrics = {
+        baseSize: BASE_SIZE,
+        padding: PADDING,
+        ringSpacing: RING_SPACING,
+        firstLayerRadius,
+        layerCapacities,
+        totalCapacity,
+    };
+    orbitCapacityCache.set(starRadius, metrics);
+    return metrics;
 }
 
 /**
@@ -138,15 +180,11 @@ export function getOrbitSlot(
     biasStrength: number = 0,
     totalShips?: number
 ): { x: number, y: number, multiplier: number, layer: number } {
-    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
-    const PADDING = 2 + (GAME_CONFIG.ORBIT_BASE_RADIUS || 0);
-    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
-
     // Orbit starts at ownership-ring edge (visual radius), not game-logic starRadius
     const orbitBase = GAME_CONFIG.STAR_RING_RADIUS ?? starRadius;
 
-    // Calculate total capacity for 10 layers
-    const { layerCapacities, totalCapacity } = calculateTotalCapacity(orbitBase);
+    const { ringSpacing, firstLayerRadius, layerCapacities, totalCapacity } =
+        calculateTotalCapacity(orbitBase);
 
     // Calculate which "wrap cycle" we're in and the effective index within that cycle
     const wrapCycle = Math.floor(index / totalCapacity);
@@ -156,7 +194,7 @@ export function getOrbitSlot(
     // Find which layer this effective index belongs to
     let layer = 0;
     let countInInnerLayers = 0;
-    let currentRadius = orbitBase + PADDING + BASE_SIZE;
+    let currentRadius = firstLayerRadius;
 
     for (layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         const capacity = layerCapacities[layer];
@@ -203,7 +241,7 @@ export function getOrbitSlot(
         }
 
         countInInnerLayers += capacity;
-        currentRadius += RING_SPACING;
+        currentRadius += ringSpacing;
     }
 
     // Fallback (shouldn't reach here due to modulo)
@@ -235,20 +273,18 @@ export function getTotalOccupiedLayers(starRadius: number, shipCount: number): n
  * Used to place the orb fragmentation boundary just outside this ring.
  */
 export function getOuterOrbitRadius(starRadius: number, shipCount: number): number {
-    const BASE_SIZE = GAME_CONFIG.SHIP_BASE_SIZE || 4;
-    const PADDING = 2 + (GAME_CONFIG.ORBIT_BASE_RADIUS || 0);
-    const RING_SPACING = BASE_SIZE * (GAME_CONFIG.ORBIT_RING_MULT || 1.4);
-    const { layerCapacities } = calculateTotalCapacity(starRadius);
+    const { baseSize, padding, ringSpacing, layerCapacities } =
+        calculateTotalCapacity(starRadius);
 
-    if (shipCount <= 0) return starRadius + PADDING + BASE_SIZE;
+    if (shipCount <= 0) return starRadius + padding + baseSize;
 
-    let currentRadius = starRadius + PADDING + BASE_SIZE;
+    let currentRadius = starRadius + padding + baseSize;
     let remaining = shipCount;
 
     for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer++) {
         remaining -= layerCapacities[layer];
         if (remaining <= 0) return currentRadius;
-        currentRadius += RING_SPACING;
+        currentRadius += ringSpacing;
     }
     return currentRadius;
 }

@@ -15,14 +15,12 @@
       "name": "@pax/common",
       "version": "0.1.0",
       "dependencies": {
+        "@colyseus/schema": "^4.0.0",
         "d3-delaunay": "^6.0.4",
       },
       "devDependencies": {
         "@types/d3-delaunay": "^6.0.4",
         "typescript": "~5.6.2",
-      },
-      "peerDependencies": {
-        "@colyseus/schema": ">=2.0.0",
       },
     },
     "pax-fluxia": {
