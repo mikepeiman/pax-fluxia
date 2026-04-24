@@ -436,11 +436,26 @@ export function buildMetaballBaseContext(
             `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
             summarizeMetaballBaseContext(context),
         perfEventName: 'territory.metaball.baseContextBuilt',
-        detail: {
+        perfDetail: {
             actualStars: actualStars.length,
             effectiveStars: effectiveStars.length,
             ownedStars: ownedStars.length,
             overrides: overrides?.size ?? 0,
+        },
+        logDetail: {
+            stars: input.stars,
+            lanes: input.lanes,
+            actualStars,
+            effectiveStars,
+            ownedStars,
+            overrides: Object.fromEntries(overrides?.entries() ?? []),
+            clusterMap: Object.fromEntries(context.clusterMap.entries()),
+            starStrengthById: Object.fromEntries(
+                context.starStrengthById.entries(),
+            ),
+            playerColors: context.playerColors,
+            clusterShips: context.clusterShips,
+            samples: context.samples,
         },
     });
     return context;

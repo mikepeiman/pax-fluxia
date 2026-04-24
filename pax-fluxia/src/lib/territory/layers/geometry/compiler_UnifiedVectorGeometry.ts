@@ -59,6 +59,23 @@ interface CompileResult {
     _rawGeometry?: TerritoryGeometryData;
 }
 
+function serializeSharedFrontierMap(
+    sharedFrontierMap: SharedFrontierMap,
+): Record<string, unknown> {
+    return Object.fromEntries(
+        [...sharedFrontierMap.entries()].map(([ownerPairKey, polylines]) => [
+            ownerPairKey,
+            polylines.map((polyline) => ({
+                frontierId: polyline.frontierId,
+                ownerPairKey: polyline.ownerPairKey,
+                pointCount: polyline.points.length,
+                ownerA: polyline.ownerA,
+                ownerB: polyline.ownerB,
+            })),
+        ]),
+    );
+}
+
 // ─── Main Entry Point ───────────────────────────────────────────────────────
 
 /**
@@ -89,10 +106,26 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
             `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
             summarizeOwnership(input.ownership),
         perfEventName: 'territory.geometry.compileInput',
-        detail: {
+        perfDetail: {
             worldWidth: input.world.width,
             worldHeight: input.world.height,
             styleMode: input.styleMode,
+        },
+        logDetail: {
+            world: input.world,
+            styleMode: input.styleMode,
+            tunables: Object.fromEntries(input.tunables.entries()),
+            stars: input.stars,
+            lanes: input.lanes,
+            ownership: {
+                version: input.ownership.version,
+                starOwners: Object.fromEntries(
+                    input.ownership.starOwners?.entries() ?? [],
+                ),
+                contestedLaneIds: input.ownership.contestedLaneIds ?? [],
+                conquestEvents: input.ownership.conquestEvents ?? [],
+                virtualStars: input.ownership.virtualStars ?? [],
+            },
         },
     });
 
@@ -129,8 +162,14 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
             `sharedPolylines=${geometry.sharedPolylines.length} ` +
             `worldBorders=${geometry.worldBorderPolylines.length}`,
         perfEventName: 'territory.geometry.generatorOutput',
-        detail: {
+        perfDetail: {
             fingerprint: geometry.fingerprint,
+        },
+        logDetail: {
+            fingerprint: geometry.fingerprint,
+            mergedTerritories: geometry.mergedTerritories,
+            sharedPolylines: geometry.sharedPolylines,
+            worldBorderPolylines: geometry.worldBorderPolylines,
         },
     });
 
@@ -150,6 +189,10 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         summary:
             `interOwner=${allInterOwnerPolylines.length} worldBorders=${worldBorderPolylines.length}`,
         perfEventName: 'territory.geometry.frontiersBuilt',
+        logDetail: {
+            frontierPolylines: allInterOwnerPolylines,
+            worldBorderPolylines,
+        },
     });
 
     // ── Step 3: Build canonical territory regions ──
@@ -163,6 +206,9 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         purpose: 'Assign stable region identity to owner polygons for downstream sampling and rendering',
         summary: `regions=${territoryRegions.length}`,
         perfEventName: 'territory.geometry.regionsBuilt',
+        logDetail: {
+            territoryRegions,
+        },
     });
 
     // ── Step 4: Build shared frontier map (D-90 multimap) ──
@@ -176,6 +222,9 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         purpose: 'Group frontiers by owner pair for topology and border consumers',
         summary: `ownerPairs=${sharedFrontierMap.size}`,
         perfEventName: 'territory.geometry.sharedFrontierMapBuilt',
+        logDetail: {
+            sharedFrontierMap: serializeSharedFrontierMap(sharedFrontierMap),
+        },
     });
 
     // ── Step 5: Build frontier topology from TMAP ──
@@ -191,6 +240,21 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
             ? `vertices=${frontierTopology.vertices.size} sections=${frontierTopology.sections.size} loops=${frontierTopology.loops.length}`
             : 'topology=missing',
         perfEventName: 'territory.geometry.topologyBuilt',
+        logDetail: frontierTopology
+            ? {
+                  topology: {
+                      vertices: Object.fromEntries(
+                          frontierTopology.vertices.entries(),
+                      ),
+                      sections: Object.fromEntries(
+                          frontierTopology.sections.entries(),
+                      ),
+                      loops: frontierTopology.loops,
+                  },
+              }
+            : {
+                  topology: null,
+              },
     });
 
     // ── Step 6: Build owner shells (FG2 concepts absorbed) ──
@@ -204,6 +268,10 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         purpose: 'Classify outer and hole loops for shell-aware territory consumers',
         summary: `shells=${shells.length} shellLoops=${shellLoops.length}`,
         perfEventName: 'territory.geometry.shellsBuilt',
+        logDetail: {
+            shells,
+            shellLoops,
+        },
     });
 
     // ── Step 7: Assemble canonical snapshot ──
@@ -246,9 +314,12 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
             `regions=${snapshot.territoryRegions.length} frontiers=${snapshot.frontierPolylines.length} ` +
             `worldBorders=${snapshot.worldBorderPolylines.length} shells=${snapshot.shells.length}`,
         perfEventName: 'territory.geometry.snapshotBuilt',
-        detail: {
+        perfDetail: {
             version: snapshot.version,
             ownershipVersion: snapshot.ownershipVersion,
+        },
+        logDetail: {
+            snapshot,
         },
     });
 

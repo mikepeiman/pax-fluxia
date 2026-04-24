@@ -40,14 +40,11 @@
 
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
-    import {
-        renderStars as renderStarsModule,
-        renderSelectionOverlay,
-    } from "$lib/renderers/StarRenderer";
+    import { renderStars as renderStarsModule } from "$lib/renderers/StarRenderer";
     import {
         renderConnections as renderConnectionsModule,
-        renderOrderArrows as renderOrderArrowsModule,
     } from "$lib/renderers/LaneRenderer";
+    import { renderInteractionOverlay } from "$lib/renderers/InteractionOverlayRenderer";
     import {
         renderShips as renderShipsModule,
         type SurgeState,
@@ -180,19 +177,9 @@
     // ============================================================================
 
     let canvasContainer: HTMLDivElement;
+    let interactionOverlayCanvas: HTMLCanvasElement | null = null;
     let app: PIXI.Application | null = null;
-    let handlePerimeterFieldArtifactExport:
-        | ((event: Event) => void)
-        | null = null;
-    let handlePerimeterFieldConquestPackageExport:
-        | ((event: Event) => void)
-        | null = null;
-    let handlePerimeterFieldContactSheetExport:
-        | ((event: Event) => void)
-        | null = null;
-    let handlePerimeterFieldCaptureClear:
-        | ((event: Event) => void)
-        | null = null;
+    let interactionOverlayCtx: CanvasRenderingContext2D | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -223,6 +210,7 @@
     // Star glow rendering
     let glowTexture: PIXI.Texture | null = null;
     let glowSprites: Map<string, PIXI.Sprite> = new Map();
+    let dragHoverTargetId: string | null = null;
     let orbGraphics: PIXI.Graphics | null = null; // For orb travel glow effects (needs Graphics)
 
     // FPS tracking
@@ -244,6 +232,7 @@
     const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 96;
     const TERRITORY_IDLE_MIN_CADENCE_MS = 48;
     const TERRITORY_MAX_STALE_MS = 220;
+    const TERRITORY_ASYNC_REQUEUE_DELAY_MS = 16;
     const SHIP_RENDER_HEAVY_UPDATE_MS = 3;
     const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
     const SHIP_RENDER_IDLE_MIN_CADENCE_MS = 16;
@@ -270,22 +259,59 @@
               sourceId: string;
               targetId: string;
               persist: boolean;
+              requestId: number;
+              enqueuedAtMs: number;
+              path: string;
           }
         | {
               kind: "cancel";
               starId: string;
+              requestId: number;
+              enqueuedAtMs: number;
+              path: string;
           }
         | {
               kind: "defer";
               sourceId: string;
               targetId: string;
               persist: boolean;
+              requestId: number;
+              enqueuedAtMs: number;
+              path: string;
           };
     type OrderDispatchMode = "queued" | "immediate";
+    type InteractionVisualAckKind =
+        | "issue"
+        | "defer"
+        | "cancel"
+        | "select"
+        | "clear";
+    interface PendingInteractionVisualAck {
+        requestId: number;
+        kind: InteractionVisualAckKind;
+        path: string;
+        sourceId: string | null;
+        targetId: string | null;
+        activeStarId: string | null;
+        recordedAtMs: number;
+    }
     const queuedOrderMutations: QueuedOrderMutation[] = [];
     const orderDispatchChannel =
         typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
     let orderDispatchScheduled = false;
+    let orderMutationRequestSeq = 0;
+    let lastOrderMutationQueuedAtMs = 0;
+    let lastOrderMutationQueueDelayMs = 0;
+    let lastOrderQueueScheduleAtMs = 0;
+    let lastOrderQueueFlushStartedAtMs = 0;
+    let lastOrderQueueFlushFinishedAtMs = 0;
+    let lastOrderQueueFlushMutationCount = 0;
+    let lastOrderQueueFlushKinds: string[] = [];
+    let lastOrderQueueFlushRequestIds: number[] = [];
+    let lastOrderQueueScheduleMode = "";
+    const pendingInteractionVisualAcks: PendingInteractionVisualAck[] = [];
+    let lastInteractionLocalAck: Record<string, unknown> | null = null;
+    let lastInteractionVisualAck: Record<string, unknown> | null = null;
     type BackgroundTaskScheduler = {
         postTask?: (
             callback: () => void | Promise<void>,
@@ -321,7 +347,16 @@
     let territoryPresentationLastQueueWaitMs = 0;
     let territoryPresentationLastCommitLagMs = 0;
     let territoryPresentationLastRequestId = 0;
+    let territoryPresentationYieldCount = 0;
+    let territoryPresentationForcedCount = 0;
+    let territoryPresentationLastYieldAtMs = 0;
+    let territoryPresentationLastYieldAgeMs = 0;
+    let territoryPresentationLastYieldRequestId = 0;
+    let territoryPresentationLastYieldReason = "";
+    let territoryPresentationLastScheduleMode = "";
     let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
+        null;
+    let territoryPresentationDelayTimer: ReturnType<typeof setTimeout> | null =
         null;
     let interactionStarsSource: ReadonlyArray<StarState> | null = null;
     let interactionConnectionsSource: ReadonlyArray<StarConnection> | null = null;
@@ -346,6 +381,230 @@
             clientY: event.clientY,
         });
         return queueDelayMs;
+    }
+
+    function recordOrderPathEvent(
+        step: string,
+        detail: Record<string, unknown> = {},
+    ): void {
+        recordPerfEvent(`input.orderPath.${step}`, detail);
+    }
+
+    function nextOrderMutationRequestId(): number {
+        orderMutationRequestSeq += 1;
+        return orderMutationRequestSeq;
+    }
+
+    function removeQueuedOrderEntriesFromSource(
+        sourceId: string,
+        collection: Set<string>,
+    ): void {
+        for (const key of collection) {
+            if (key.startsWith(`${sourceId}|`)) {
+                collection.delete(key);
+            }
+        }
+    }
+
+    function hasQueuedOrderEntryForSource(sourceId: string): boolean {
+        for (const key of pendingOrders) {
+            if (key.startsWith(`${sourceId}|`)) return true;
+        }
+        for (const key of deferredOrders) {
+            if (key.startsWith(`${sourceId}|`)) return true;
+        }
+        return false;
+    }
+
+    function getVisibleOrderTargetId(sourceId: string): string | null {
+        const sourceStar = getInteractionStarById(sourceId) as
+            | (StarState & {
+                  targetId?: string | null;
+                  queuedOrderTargetId?: string | null;
+              })
+            | null;
+        return (
+            sourceStar?.queuedOrderTargetId ??
+            sourceStar?.targetId ??
+            null
+        );
+    }
+
+    function queueInteractionVisualAck(
+        ack: Omit<PendingInteractionVisualAck, "requestId" | "recordedAtMs"> & {
+            requestId?: number;
+        },
+    ): number {
+        const requestId = ack.requestId ?? nextOrderMutationRequestId();
+        pendingInteractionVisualAcks.push({
+            ...ack,
+            requestId,
+            recordedAtMs: performance.now(),
+        });
+        return requestId;
+    }
+
+    function isInteractionVisualAckVisible(
+        ack: PendingInteractionVisualAck,
+    ): boolean {
+        const orderKey =
+            ack.sourceId && ack.targetId
+                ? `${ack.sourceId}|${ack.targetId}`
+                : null;
+        if (ack.kind === "issue") {
+            const visibleTargetId = ack.sourceId
+                ? getVisibleOrderTargetId(ack.sourceId)
+                : null;
+            return Boolean(
+                (orderKey && pendingOrders.has(orderKey)) ||
+                    (ack.targetId && visibleTargetId === ack.targetId),
+            );
+        }
+        if (ack.kind === "defer") {
+            return Boolean(orderKey && deferredOrders.has(orderKey));
+        }
+        if (ack.kind === "cancel") {
+            const visibleTargetId = ack.sourceId
+                ? getVisibleOrderTargetId(ack.sourceId)
+                : null;
+            return Boolean(
+                ack.sourceId &&
+                    !hasQueuedOrderEntryForSource(ack.sourceId) &&
+                    !visibleTargetId,
+            );
+        }
+        return activeStarId === ack.activeStarId;
+    }
+
+    function commitInteractionVisualAck(
+        ack: PendingInteractionVisualAck,
+        reason: "immediate" | "frame",
+    ): void {
+        const nowMs = performance.now();
+        const detail = {
+            requestId: ack.requestId,
+            kind: ack.kind,
+            path: ack.path,
+            sourceId: ack.sourceId,
+            targetId: ack.targetId,
+            activeStarId: ack.activeStarId,
+            pendingOrders: pendingOrders.size,
+            deferredOrders: deferredOrders.size,
+            visualLagMs: nowMs - ack.recordedAtMs,
+            reason,
+        };
+        lastInteractionVisualAck = {
+            atMs: nowMs,
+            ...detail,
+        };
+        recordPerfEvent("input.interaction.visualAck", detail);
+        logPipelineStage({
+            channel: "renderer",
+            context: "GameCanvas",
+            stage: "interaction_visual_ack",
+            from: "Optimistic interaction state",
+            to: "Visible order or selection overlay",
+            purpose:
+                "Confirm the command or selection has reached a visible UI surface",
+            summary:
+                `requestId=${ack.requestId} kind=${ack.kind} path=${ack.path} ` +
+                `visualLagMs=${detail.visualLagMs.toFixed(3)} reason=${reason}`,
+            detail,
+        });
+    }
+
+    function presentInteractionVisualStateNow(): boolean {
+        const { stars } = ensureInteractionCaches();
+        if (stars.length === 0) return false;
+        measurePerf(
+            "game.input.visualAck.present",
+            () => {
+                renderInteractionOverlayNow();
+            },
+            {
+                pendingOrders: pendingOrders.size,
+                deferredOrders: deferredOrders.size,
+                activeStarId,
+                dragSourceId,
+            },
+        );
+        return true;
+    }
+
+    function tryFlushInteractionVisualAcksImmediately(): void {
+        if (pendingInteractionVisualAcks.length === 0) return;
+        if (!presentInteractionVisualStateNow()) return;
+        for (
+            let index = pendingInteractionVisualAcks.length - 1;
+            index >= 0;
+            index -= 1
+        ) {
+            const ack = pendingInteractionVisualAcks[index]!;
+            if (!isInteractionVisualAckVisible(ack)) continue;
+            commitInteractionVisualAck(ack, "immediate");
+            pendingInteractionVisualAcks.splice(index, 1);
+        }
+    }
+
+    function recordInteractionLocalAck(params: {
+        kind: InteractionVisualAckKind;
+        path: string;
+        sourceId?: string | null;
+        targetId?: string | null;
+        activeStarId?: string | null;
+        requestId?: number;
+        dispatchMode?: OrderDispatchMode;
+        extra?: Record<string, unknown>;
+    }): number {
+        const requestId = queueInteractionVisualAck({
+            requestId: params.requestId,
+            kind: params.kind,
+            path: params.path,
+            sourceId: params.sourceId ?? null,
+            targetId: params.targetId ?? null,
+            activeStarId: params.activeStarId ?? null,
+        });
+        const detail = {
+            requestId,
+            kind: params.kind,
+            path: params.path,
+            sourceId: params.sourceId ?? null,
+            targetId: params.targetId ?? null,
+            activeStarId: params.activeStarId ?? null,
+            dispatchMode: params.dispatchMode ?? null,
+            ...(params.extra ?? {}),
+        };
+        lastInteractionLocalAck = {
+            atMs: performance.now(),
+            ...detail,
+        };
+        recordPerfEvent("input.interaction.localAck", detail);
+        logPipelineStage({
+            channel: "input",
+            context: "GameCanvas",
+            stage: "interaction_local_ack",
+            from: "Pointer handler",
+            to: "Optimistic local interaction state",
+            purpose:
+                "Acknowledge command or selection intent before heavyweight rendering catches up",
+            summary:
+                `requestId=${requestId} kind=${params.kind} path=${params.path} ` +
+                `source=${params.sourceId ?? "null"} target=${params.targetId ?? "null"} ` +
+                `active=${params.activeStarId ?? "null"}`,
+            detail,
+        });
+        tryFlushInteractionVisualAcksImmediately();
+        return requestId;
+    }
+
+    function flushInteractionVisualAcks(): void {
+        if (pendingInteractionVisualAcks.length === 0) return;
+        for (let index = pendingInteractionVisualAcks.length - 1; index >= 0; index -= 1) {
+            const ack = pendingInteractionVisualAcks[index]!;
+            if (!isInteractionVisualAckVisible(ack)) continue;
+            commitInteractionVisualAck(ack, "frame");
+            pendingInteractionVisualAcks.splice(index, 1);
+        }
     }
 
     function applyOrderMutation(mutation: QueuedOrderMutation): void {
@@ -377,6 +636,16 @@
         }
         orderDispatchScheduled = false;
         const mutations = queuedOrderMutations.splice(0);
+        lastOrderQueueFlushStartedAtMs = performance.now();
+        lastOrderMutationQueueDelayMs = Math.max(
+            0,
+            lastOrderQueueFlushStartedAtMs -
+                Math.min(...mutations.map((mutation) => mutation.enqueuedAtMs)),
+        );
+        lastOrderQueueFlushRequestIds = mutations.map(
+            (mutation) => mutation.requestId,
+        );
+        lastOrderQueueFlushKinds = mutations.map((mutation) => mutation.kind);
         measurePerf(
             "game.input.orderQueue.flush",
             () => {
@@ -387,49 +656,102 @@
             {
                 mutationCount: mutations.length,
                 kinds: mutations.map((mutation) => mutation.kind),
+                requestIds: mutations.map((mutation) => mutation.requestId),
             },
         );
+        lastOrderQueueFlushFinishedAtMs = performance.now();
+        lastOrderQueueFlushMutationCount = mutations.length;
         recordPerfEvent("input.orderQueue.flushed", {
             mutationCount: mutations.length,
             kinds: mutations.map((mutation) => mutation.kind),
+            requestIds: mutations.map((mutation) => mutation.requestId),
+            queueDelayMs: lastOrderMutationQueueDelayMs,
+            flushMs:
+                lastOrderQueueFlushFinishedAtMs - lastOrderQueueFlushStartedAtMs,
         });
     }
 
     function scheduleQueuedOrderMutations(): void {
         if (orderDispatchScheduled) return;
         orderDispatchScheduled = true;
+        lastOrderQueueScheduleAtMs = performance.now();
+        recordPerfEvent("input.orderQueue.scheduled", {
+            mutationCount: queuedOrderMutations.length,
+        });
+        const scheduler = getTaskScheduler();
+        if (scheduler?.postTask) {
+            lastOrderQueueScheduleMode = "scheduler-user-blocking";
+            void scheduler
+                .postTask(
+                    () => {
+                        flushQueuedOrderMutations();
+                    },
+                    { priority: "user-blocking" },
+                )
+                .catch(() => {
+                    orderDispatchScheduled = false;
+                    scheduleQueuedOrderMutations();
+                });
+            return;
+        }
         if (orderDispatchChannel) {
+            lastOrderQueueScheduleMode = "message-channel";
             orderDispatchChannel.port2.postMessage(null);
             return;
         }
+        lastOrderQueueScheduleMode = "timeout";
         setTimeout(() => {
             flushQueuedOrderMutations();
         }, 0);
     }
 
     function enqueueOrderMutation(
-        mutation: QueuedOrderMutation,
+        mutation:
+            | Omit<
+                  Extract<QueuedOrderMutation, { kind: "issue" }>,
+                  "requestId" | "enqueuedAtMs"
+              >
+            | Omit<
+                  Extract<QueuedOrderMutation, { kind: "cancel" }>,
+                  "requestId" | "enqueuedAtMs"
+              >
+            | Omit<
+                  Extract<QueuedOrderMutation, { kind: "defer" }>,
+                  "requestId" | "enqueuedAtMs"
+              >,
         dispatchMode: OrderDispatchMode = "queued",
-    ): void {
+    ): number {
+        const requestId = nextOrderMutationRequestId();
+        const enqueuedAtMs = performance.now();
+        const queuedMutation = {
+            ...mutation,
+            requestId,
+            enqueuedAtMs,
+        } as QueuedOrderMutation;
         if (dispatchMode === "immediate") {
             measurePerf(
                 "game.input.orderImmediate",
                 () => {
-                    applyOrderMutation(mutation);
+                    applyOrderMutation(queuedMutation);
                 },
-                { kind: mutation.kind },
+                { kind: mutation.kind, requestId },
             );
             recordPerfEvent("input.orderMutation.immediate", {
                 kind: mutation.kind,
+                requestId,
             });
-            return;
+            return requestId;
         }
-        queuedOrderMutations.push(mutation);
+        queuedOrderMutations.push(queuedMutation);
+        lastOrderMutationQueuedAtMs = enqueuedAtMs;
         recordPerfEvent("input.orderQueue.enqueued", {
             kind: mutation.kind,
             mutationCount: queuedOrderMutations.length,
+            requestId,
+            path: mutation.path,
         });
         scheduleQueuedOrderMutations();
+        return requestId;
     }
 
     if (orderDispatchChannel) {
@@ -747,6 +1069,79 @@
 
     function clampUnitInterval(value: number): number {
         return Math.max(0, Math.min(1, value));
+    }
+
+    function projectInteractionWorldPoint(point: { x: number; y: number }): {
+        x: number;
+        y: number;
+    } {
+        return {
+            x: mapTranspose.active ? point.y : point.x,
+            y: mapTranspose.active ? mapTranspose.mapWidth - point.x : point.y,
+        };
+    }
+
+    function syncInteractionOverlaySurface(): {
+        width: number;
+        height: number;
+    } | null {
+        if (!interactionOverlayCanvas || !canvasContainer) return null;
+        const rect = canvasContainer.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const pixelWidth = Math.max(1, Math.round(width * dpr));
+        const pixelHeight = Math.max(1, Math.round(height * dpr));
+        if (
+            interactionOverlayCanvas.width !== pixelWidth ||
+            interactionOverlayCanvas.height !== pixelHeight
+        ) {
+            interactionOverlayCanvas.width = pixelWidth;
+            interactionOverlayCanvas.height = pixelHeight;
+        }
+        interactionOverlayCtx ??=
+            interactionOverlayCanvas.getContext("2d");
+        if (!interactionOverlayCtx) return null;
+        interactionOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { width, height };
+    }
+
+    function renderInteractionOverlayNow(): boolean {
+        if (!app) return false;
+        const surface = syncInteractionOverlaySurface();
+        if (!surface || !interactionOverlayCtx) return false;
+        const { stars } = ensureInteractionCaches();
+        renderInteractionOverlay({
+            ctx: interactionOverlayCtx,
+            canvasWidth: surface.width,
+            canvasHeight: surface.height,
+            stars: stars as StarState[],
+            starsById: interactionStarsById,
+            pendingOrders,
+            deferredOrders,
+            activeStarId,
+            dragSourceId,
+            dragHoverTargetId,
+            isDragging,
+            dragSourceCenter:
+                isDragging && dragSourceId
+                    ? { x: dragSourceCenterX, y: dragSourceCenterY }
+                    : null,
+            dragCurrentWorld:
+                isDragging && dragSourceId
+                    ? screenToWorld(dragCurrentX, dragCurrentY)
+                    : null,
+            transform: {
+                scaleX: app.stage.scale.x,
+                scaleY: app.stage.scale.y,
+                offsetX: app.stage.x,
+                offsetY: app.stage.y,
+            },
+            projectWorldPoint: projectInteractionWorldPoint,
+            isLocalPlayerStar,
+            colorUtils,
+        });
+        return true;
     }
 
     function transitionIdentityKey(
@@ -2585,7 +2980,7 @@
         sourceId: string,
         targetId: string,
         isDeferred: boolean = false,
-    ) {
+    ): void {
         ensureInteractionCaches();
         if (
             !interactionStarsById.has(sourceId) ||
@@ -2598,19 +2993,11 @@
 
         if (isDeferred) {
             // For deferred orders, allow one per enemy star
-            deferredOrders.forEach((k) => {
-                if (k.startsWith(`${sourceId}|`)) {
-                    deferredOrders.delete(k);
-                }
-            });
+            removeQueuedOrderEntriesFromSource(sourceId, deferredOrders);
             deferredOrders.add(key);
         } else {
             // Remove any old order from source (source can only have one target)
-            pendingOrders.forEach((k) => {
-                if (k.startsWith(`${sourceId}|`)) {
-                    pendingOrders.delete(k);
-                }
-            });
+            removeQueuedOrderEntriesFromSource(sourceId, pendingOrders);
             // Remove opposite flow for same-owner stars (A→B cancels B→A) unless opposing allowed
             if (!GAME_CONFIG.ALLOW_OPPOSING_ORDERS) {
                 pendingOrders.delete(`${targetId}|${sourceId}`);
@@ -2642,26 +3029,30 @@
         targetId: string,
         persist: boolean,
         dispatchMode: OrderDispatchMode = "queued",
-    ): boolean {
+        path = "game_canvas",
+    ): number {
         const targetStar = getInteractionStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        enqueueOrderMutation(
-            { kind: "issue", sourceId, targetId, persist },
+        return enqueueOrderMutation(
+            { kind: "issue", sourceId, targetId, persist, path },
             dispatchMode,
         );
-        return true;
     }
 
     // Helper: Cancel order via unified store
     function doCancelOrder(
         starId: string,
         dispatchMode: OrderDispatchMode = "queued",
-    ): void {
-        enqueueOrderMutation({ kind: "cancel", starId }, dispatchMode);
+        path = "game_canvas",
+    ): number {
+        return enqueueOrderMutation(
+            { kind: "cancel", starId, path },
+            dispatchMode,
+        );
     }
 
     // Helper: Set deferred order via unified store
@@ -2670,18 +3061,18 @@
         targetId: string,
         persist: boolean,
         dispatchMode: OrderDispatchMode = "queued",
-    ): boolean {
+        path = "game_canvas",
+    ): number {
         const targetStar = getInteractionStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        enqueueOrderMutation(
-            { kind: "defer", sourceId, targetId, persist },
+        return enqueueOrderMutation(
+            { kind: "defer", sourceId, targetId, persist, path },
             dispatchMode,
         );
-        return true;
     }
 
     // ============================================================================
@@ -2821,6 +3212,9 @@
             "GameCanvas",
             `PixiJS initialized (${app.screen.width}x${app.screen.height})`,
         );
+        if (linkGraphics) linkGraphics.visible = false;
+        if (selectionOverlayGraphics) selectionOverlayGraphics.visible = false;
+        if (dragPreviewGraphics) dragPreviewGraphics.visible = false;
 
         // Apply initial scale transformation
         handleResize();
@@ -2886,6 +3280,8 @@
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
         }
+        interactionOverlayCtx = null;
+        interactionOverlayCanvas = null;
 
         if (perimeterFieldReplayTexture) {
             perimeterFieldReplayTexture.destroy(true);
@@ -3189,6 +3585,7 @@
             "handleResize",
             `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
+        renderInteractionOverlayNow();
     }
 
     function applyZoomTransform() {
@@ -4046,6 +4443,7 @@
         territoryPresentationPostedCount += 1;
         const scheduler = getTaskScheduler();
         if (scheduler?.postTask) {
+            territoryPresentationLastScheduleMode = "scheduler-background";
             void scheduler
                 .postTask(
                     async () => {
@@ -4067,12 +4465,94 @@
             return;
         }
         if (territoryPresentationChannel) {
+            territoryPresentationLastScheduleMode = "message-channel";
             territoryPresentationChannel.port2.postMessage(null);
             return;
         }
+        territoryPresentationLastScheduleMode = "timeout";
         setTimeout(() => {
             void flushTerritoryPresentationQueue();
         }, 0);
+    }
+
+    function scheduleTerritoryPresentationQueueDelay(delayMs: number): void {
+        if (territoryPresentationDelayTimer || !territoryPresentationPendingRequest) {
+            return;
+        }
+        territoryPresentationScheduled = true;
+        territoryPresentationLastScheduleMode = "delay-timeout";
+        territoryPresentationDelayTimer = setTimeout(() => {
+            territoryPresentationDelayTimer = null;
+            territoryPresentationScheduled = false;
+            void flushTerritoryPresentationQueue();
+        }, delayMs);
+    }
+
+    function classifyTerritoryPresentationPressure(nowMs: number): {
+        active: boolean;
+        reason: string;
+    } {
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        if (activeInteraction) {
+            return { active: true, reason: "active_interaction" };
+        }
+        if (nowMs < territoryInputPriorityUntilMs) {
+            return { active: true, reason: "recent_interaction" };
+        }
+        if (hasBrowserInputPending()) {
+            return { active: true, reason: "browser_input_pending" };
+        }
+        if (queuedOrderMutations.length > 0) {
+            return { active: true, reason: "queued_orders" };
+        }
+        if (pendingInteractionVisualAcks.length > 0) {
+            return { active: true, reason: "pending_visual_ack" };
+        }
+        return { active: false, reason: "ready" };
+    }
+
+    function shouldYieldTerritoryPresentationRequest(
+        request: TerritoryPresentationRequest,
+        nowMs: number,
+    ): {
+        yield: boolean;
+        requestAgeMs: number;
+        reason: string;
+        forced: boolean;
+    } {
+        const requestAgeMs = nowMs - request.enqueuedAtMs;
+        if (request.isPaused) {
+            return {
+                yield: false,
+                requestAgeMs,
+                reason: "paused_fresh_required",
+                forced: true,
+            };
+        }
+        if (request.pendingConquests.length > 0) {
+            return {
+                yield: false,
+                requestAgeMs,
+                reason: "conquest_fresh_required",
+                forced: true,
+            };
+        }
+        if (requestAgeMs >= TERRITORY_MAX_STALE_MS) {
+            return {
+                yield: false,
+                requestAgeMs,
+                reason: "stale_limit",
+                forced: true,
+            };
+        }
+        const pressure = classifyTerritoryPresentationPressure(nowMs);
+        return {
+            yield: pressure.active,
+            requestAgeMs,
+            reason: pressure.reason,
+            forced: false,
+        };
     }
 
     async function flushTerritoryPresentationQueue(): Promise<void> {
@@ -4083,11 +4563,59 @@
         try {
             while (territoryPresentationPendingRequest) {
                 const request = territoryPresentationPendingRequest;
+                const nowMs = performance.now();
+                const decision = shouldYieldTerritoryPresentationRequest(
+                    request,
+                    nowMs,
+                );
+                if (decision.yield) {
+                    territoryPresentationYieldCount += 1;
+                    territoryPresentationLastYieldAtMs = nowMs;
+                    territoryPresentationLastYieldAgeMs = decision.requestAgeMs;
+                    territoryPresentationLastYieldRequestId = request.requestId;
+                    territoryPresentationLastYieldReason = decision.reason;
+                    recordPerfEvent("game.territory.async.yield", {
+                        requestId: request.requestId,
+                        activeMode: request.activeMode,
+                        requestAgeMs: decision.requestAgeMs,
+                        reason: decision.reason,
+                        queuedOrderMutations: queuedOrderMutations.length,
+                        pendingVisualAcks: pendingInteractionVisualAcks.length,
+                    });
+                    logPipelineStage({
+                        channel: "input",
+                        context: "GameCanvas",
+                        stage: "territory_async_yield",
+                        from: "Territory presentation queue",
+                        to: "Delayed async territory retry",
+                        purpose:
+                            "Keep heavy territory presentation off the current main-thread turn while input pressure is active",
+                        summary:
+                            `requestId=${request.requestId} mode=${request.activeMode} ` +
+                            `reason=${decision.reason} ageMs=${decision.requestAgeMs.toFixed(3)}`,
+                        detail: {
+                            requestId: request.requestId,
+                            activeMode: request.activeMode,
+                            requestAgeMs: decision.requestAgeMs,
+                            reason: decision.reason,
+                            queuedOrderMutations: queuedOrderMutations.length,
+                            pendingVisualAcks:
+                                pendingInteractionVisualAcks.length,
+                        },
+                    });
+                    scheduleTerritoryPresentationQueueDelay(
+                        TERRITORY_ASYNC_REQUEUE_DELAY_MS,
+                    );
+                    return;
+                }
                 territoryPresentationPendingRequest = null;
                 territoryPresentationLastRequestId = request.requestId;
                 territoryPresentationLastStartedAtMs = performance.now();
                 territoryPresentationLastQueueWaitMs =
                     territoryPresentationLastStartedAtMs - request.enqueuedAtMs;
+                if (decision.forced) {
+                    territoryPresentationForcedCount += 1;
+                }
                 recordPerfEvent("game.territory.async.start", {
                     requestId: request.requestId,
                     activeMode: request.activeMode,
@@ -4125,10 +4653,34 @@
                     lastTerritoryUpdateCostMs,
                     supersededCount: territoryPresentationSupersededCount,
                 });
+                logPipelineStage({
+                    channel: "renderer",
+                    context: "GameCanvas",
+                    stage: "territory_async_finish",
+                    from: "Territory renderer commit",
+                    to: "Visible territory layer",
+                    purpose:
+                        "Record the final async territory presentation cost and commit lag for the current render mode",
+                    summary:
+                        `requestId=${request.requestId} mode=${request.activeMode} ` +
+                        `commitLagMs=${territoryPresentationLastCommitLagMs.toFixed(3)} ` +
+                        `updateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
+                    detail: {
+                        requestId: request.requestId,
+                        activeMode: request.activeMode,
+                        queueWaitMs: territoryPresentationLastQueueWaitMs,
+                        commitLagMs: territoryPresentationLastCommitLagMs,
+                        lastTerritoryUpdateCostMs,
+                        supersededCount: territoryPresentationSupersededCount,
+                    },
+                });
             }
         } finally {
             territoryPresentationRunning = false;
-            if (territoryPresentationPendingRequest) {
+            if (
+                territoryPresentationPendingRequest &&
+                !territoryPresentationScheduled
+            ) {
                 scheduleTerritoryPresentationQueue();
             }
         }
@@ -4165,12 +4717,53 @@
                 nextRequestId: nextRequest.requestId,
                 activeMode: nextRequest.activeMode,
             });
+            logPipelineStage({
+                channel: "input",
+                context: "GameCanvas",
+                stage: "territory_async_replace",
+                from: "Queued territory request",
+                to: "Newer territory request",
+                purpose:
+                    "Replace an older queued territory presentation with a fresher scene snapshot",
+                summary:
+                    `replaced=${territoryPresentationPendingRequest.requestId} ` +
+                    `next=${nextRequest.requestId} mode=${nextRequest.activeMode}`,
+                detail: {
+                    replacedRequestId:
+                        territoryPresentationPendingRequest.requestId,
+                    nextRequestId: nextRequest.requestId,
+                    activeMode: nextRequest.activeMode,
+                    cadenceMs: request.territoryScheduler.cadenceMs,
+                    staleMs: request.territoryScheduler.staleMs,
+                    reason: request.territoryScheduler.reason,
+                },
+            });
         } else {
             recordPerfEvent("game.territory.async.queued", {
                 requestId: nextRequest.requestId,
                 activeMode: nextRequest.activeMode,
                 cadenceMs: request.territoryScheduler.cadenceMs,
                 staleMs: request.territoryScheduler.staleMs,
+            });
+            logPipelineStage({
+                channel: "input",
+                context: "GameCanvas",
+                stage: "territory_async_queue",
+                from: "Render-frame territory request",
+                to: "Territory presentation queue",
+                purpose:
+                    "Queue heavy territory presentation so input and order mutation work can stay responsive",
+                summary:
+                    `requestId=${nextRequest.requestId} mode=${nextRequest.activeMode} ` +
+                    `cadenceMs=${request.territoryScheduler.cadenceMs} ` +
+                    `staleMs=${request.territoryScheduler.staleMs.toFixed(3)}`,
+                detail: {
+                    requestId: nextRequest.requestId,
+                    activeMode: nextRequest.activeMode,
+                    cadenceMs: request.territoryScheduler.cadenceMs,
+                    staleMs: request.territoryScheduler.staleMs,
+                    reason: request.territoryScheduler.reason,
+                },
             });
         }
         territoryPresentationPendingRequest = nextRequest;
@@ -4213,6 +4806,18 @@
             nextShipId = 0;
             starShipCounts.clear();
             shipSpawnTimers.clear();
+            queuedOrderMutations.splice(0, queuedOrderMutations.length);
+            orderDispatchScheduled = false;
+            orderMutationRequestSeq = 0;
+            lastOrderMutationQueuedAtMs = 0;
+            lastOrderMutationQueueDelayMs = 0;
+            lastOrderQueueScheduleAtMs = 0;
+            lastOrderQueueFlushStartedAtMs = 0;
+            lastOrderQueueFlushFinishedAtMs = 0;
+            lastOrderQueueFlushMutationCount = 0;
+            lastOrderQueueFlushKinds = [];
+            lastOrderQueueFlushRequestIds = [];
+            lastOrderQueueScheduleMode = "";
             lastTerritoryUpdateStartedAtMs = 0;
             lastTerritoryUpdateCostMs = 0;
             lastTerritoryPresentedAtMs = 0;
@@ -4233,6 +4838,17 @@
             territoryPresentationLastQueueWaitMs = 0;
             territoryPresentationLastCommitLagMs = 0;
             territoryPresentationLastRequestId = 0;
+            territoryPresentationYieldCount = 0;
+            territoryPresentationForcedCount = 0;
+            territoryPresentationLastYieldAtMs = 0;
+            territoryPresentationLastYieldAgeMs = 0;
+            territoryPresentationLastYieldRequestId = 0;
+            territoryPresentationLastYieldReason = "";
+            territoryPresentationLastScheduleMode = "";
+            if (territoryPresentationDelayTimer) {
+                clearTimeout(territoryPresentationDelayTimer);
+                territoryPresentationDelayTimer = null;
+            }
             territoryPresentationPendingRequest = null;
             lastShipRenderStartedAtMs = 0;
             lastShipRenderCostMs = 0;
@@ -5021,6 +5637,22 @@
                 colorUtils,
             );
         });
+        logPipelineStage({
+            channel: "renderer",
+            context: "GameCanvas",
+            stage: "stars_present",
+            from: "Star state snapshot",
+            to: "Pixi star + label layers",
+            purpose:
+                "Project star ownership, ship counts, and conquest effects into visible star sprites",
+            summary: summarizeStars(stars),
+            perfEventName: "game.renderFrame.starsPresent",
+            perfDetail: {
+                activeStarId,
+                dragSourceId,
+                pendingConquests: pendingConquests.size,
+            },
+        });
 
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
@@ -5038,30 +5670,55 @@
                 },
                 { connectionCount: connections.length },
             );
+            logPipelineStage({
+                channel: "renderer",
+                context: "GameCanvas",
+                stage: "connections_present",
+                from: "Lane topology snapshot",
+                to: "Pixi connection graphics",
+                purpose:
+                    "Project stable connection truth into the visible lane network layer",
+                summary: summarizeConnections(connections),
+                perfEventName: "game.renderFrame.connectionsPresent",
+                perfDetail: {
+                    connectionCount: connections.length,
+                },
+            });
         }
 
-        // Render flow links
+        // Render interaction overlay on a dedicated 2D canvas so command
+        // feedback stays outside the heavier Pixi batch rebuild path.
         measurePerf(
-            "game.renderFrame.orderArrows",
+            "game.renderFrame.interactionOverlay",
             () => {
-                renderOrderArrowsModule(
-                    linkGraphics!,
-                    stars,
-                    starsById,
-                    {
-                        pendingOrders,
-                        deferredOrders,
-                        isLocalPlayerStar,
-                        snapshotStars: activeGameStore.stars,
-                    },
-                    colorUtils,
-                );
+                renderInteractionOverlayNow();
             },
             {
                 pendingOrders: pendingOrders.size,
                 deferredOrders: deferredOrders.size,
+                activeStarId,
+                dragSourceId,
             },
         );
+        logPipelineStage({
+            channel: "renderer",
+            context: "GameCanvas",
+            stage: "interaction_overlay_present",
+            from: "Confirmed + optimistic order state",
+            to: "2D interaction overlay canvas",
+            purpose:
+                "Project active orders, selection, and drag intent into a lightweight overlay that can update independently of the Pixi scene",
+            summary:
+                `pending=${pendingOrders.size} deferred=${deferredOrders.size} ` +
+                summarizeStars(stars),
+            perfEventName: "game.renderFrame.interactionOverlayPresent",
+            perfDetail: {
+                pendingOrders: pendingOrders.size,
+                deferredOrders: deferredOrders.size,
+                activeStarId,
+                dragSourceId,
+            },
+        });
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = measurePerf(
@@ -5322,6 +5979,24 @@
             shipParticleIndex = shipRes.shipParticleIndex;
             // Sync filtered array back to VSM so arrived ships are removed from the canonical source
             fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
+            logPipelineStage({
+                channel: "renderer",
+                context: "GameCanvas",
+                stage: "ships_present",
+                from: "Visual ship state + travel animation snapshot",
+                to: "Pixi ship, glow, orb, and particle layers",
+                purpose:
+                    "Project orbital, damaged, and traveling ships into the visible fleet presentation layers",
+                summary:
+                    `${summarizeStars(stars)} ` +
+                    `traveling=${shipState.travelingShips.length} ` +
+                    `pendingConquests=${shipState.pendingConquests.size}`,
+                perfEventName: "game.renderFrame.shipsPresent",
+                perfDetail: {
+                    travelingShips: shipState.travelingShips.length,
+                    pendingConquests: shipState.pendingConquests.size,
+                },
+            });
 
             measurePerf("game.renderFrame.shipParticleUpdate", () => {
                 for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
@@ -5331,17 +6006,7 @@
             });
         }
 
-        // Selection hex overlay (above ships)
-        if (selectionOverlayGraphics) {
-            measurePerf("game.renderFrame.selectionOverlay", () => {
-                renderSelectionOverlay(
-                    stars,
-                    selectionOverlayGraphics,
-                    activeStarId,
-                    dragSourceId,
-                );
-            });
-        }
+        flushInteractionVisualAcks();
 
         // Count total visual ships for HUD
         let shipCount = 0;
@@ -5497,6 +6162,25 @@
             deferredShipRenderReason,
             shipRenderCadenceSkipCount,
             queuedOrderMutations: queuedOrderMutations.length,
+            orderMutationRequestSeq,
+            lastOrderMutationQueuedAtMs,
+            lastOrderMutationQueueDelayMs,
+            lastOrderQueueScheduleAtMs,
+            lastOrderQueueFlushStartedAtMs,
+            lastOrderQueueFlushFinishedAtMs,
+            lastOrderQueueFlushMutationCount,
+            lastOrderQueueFlushKinds,
+            lastOrderQueueFlushRequestIds,
+            lastOrderQueueScheduleMode,
+            pendingInteractionVisualAckCount: pendingInteractionVisualAcks.length,
+            pendingInteractionVisualAcks: pendingInteractionVisualAcks.map(
+                (ack) => ({
+                    ...ack,
+                    ageMs: performance.now() - ack.recordedAtMs,
+                }),
+            ),
+            lastInteractionLocalAck,
+            lastInteractionVisualAck,
             territoryPresentationScheduled,
             territoryPresentationRunning,
             territoryPresentationPostedCount,
@@ -5508,6 +6192,13 @@
             territoryPresentationLastQueueWaitMs,
             territoryPresentationLastCommitLagMs,
             territoryPresentationLastRequestId,
+            territoryPresentationYieldCount,
+            territoryPresentationForcedCount,
+            territoryPresentationLastYieldAtMs,
+            territoryPresentationLastYieldAgeMs,
+            territoryPresentationLastYieldRequestId,
+            territoryPresentationLastYieldReason,
+            territoryPresentationLastScheduleMode,
             territoryPresentationPendingRequestId:
                 territoryPresentationPendingRequest?.requestId ?? null,
             territoryPresentationPendingMode:
@@ -6115,17 +6806,32 @@
         if (event.button === 2) {
             event.preventDefault();
             if (star && isLocalPlayerStar(star)) {
-                doCancelOrder(star.id, "immediate");
+                const requestId = doCancelOrder(
+                    star.id,
+                    "immediate",
+                    "pointerdown.rightclick",
+                );
                 // OPTIMISTIC UI: Remove from pending immediately
-                pendingOrders.forEach((key) => {
-                    if (key.startsWith(`${star.id}|`)) {
-                        pendingOrders.delete(key);
-                    }
+                removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
+                recordInteractionLocalAck({
+                    kind: "cancel",
+                    path: "pointerdown.rightclick",
+                    sourceId: star.id,
+                    activeStarId: null,
+                    requestId,
+                    dispatchMode: "immediate",
                 });
                 log.success("GameCanvas", `Cancelled order on ${star.id}`);
             }
             // Also clear selection
             activeStarId = null;
+            recordInteractionLocalAck({
+                kind: "clear",
+                path: "pointerdown.rightclick",
+                sourceId: star?.id ?? null,
+                activeStarId: null,
+                dispatchMode: "immediate",
+            });
             return;
         }
 
@@ -6142,7 +6848,9 @@
             dragCurrentX = x;
             dragCurrentY = y;
             lastEnemyPassthrough = null;
+            dragHoverTargetId = null;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
+            renderInteractionOverlayNow();
         } else if (star) {
             // Start drag from non-owned star — deferred order chain
             isDragging = true;
@@ -6154,16 +6862,20 @@
             dragCurrentX = x;
             dragCurrentY = y;
             lastEnemyPassthrough = star.id; // Mark as deferred anchor
+            dragHoverTargetId = null;
             log.input(
                 `pointerDown → DRAG START from non-owned star ${star.id} (deferred mode)`,
             );
+            renderInteractionOverlayNow();
         } else {
             // Desktop: empty space click (non-touch) — just reset drag
             isDragging = false;
             dragSourceId = null;
             dragStartX = x;
             dragStartY = y;
+            dragHoverTargetId = null;
             log.input(`pointerDown → empty space, drag state reset`);
+            renderInteractionOverlayNow();
         }
     }
 
@@ -6237,11 +6949,13 @@
         // DRAG-THROUGH LOGIC:
         // If we hover a DIFFERENT star while dragging, issue order and continue drag from THERE
         const targetStar = hitTestStar(dragCurrentX, dragCurrentY);
+        dragHoverTargetId = null;
 
         if (targetStar && targetStar.id !== dragSourceId) {
             const isConnected = areStarsConnected(dragSourceId, targetStar.id);
 
             if (isConnected) {
+                dragHoverTargetId = targetStar.id;
                 const sourceStar = getInteractionStarById(dragSourceId);
                 const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
@@ -6257,9 +6971,19 @@
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
                         "queued",
+                        "pointermove.dragThrough",
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
+                        recordInteractionLocalAck({
+                            kind: "issue",
+                            path: "pointermove.dragThrough",
+                            sourceId: dragSourceId,
+                            targetId: targetStar.id,
+                            activeStarId: targetStar.id,
+                            requestId: success,
+                            dispatchMode: "queued",
+                        });
                         log.success(
                             "GameCanvas",
                             `Drag-through: ${dragSourceId} -> ${targetStar.id}`,
@@ -6288,10 +7012,20 @@
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
                         "queued",
+                        "pointermove.dragThrough",
                     );
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
                         addPendingOrder(dragSourceId, targetStar.id, true); // true = deferred
+                        recordInteractionLocalAck({
+                            kind: "defer",
+                            path: "pointermove.dragThrough",
+                            sourceId: dragSourceId,
+                            targetId: targetStar.id,
+                            activeStarId: targetStar.id,
+                            requestId: success,
+                            dispatchMode: "queued",
+                        });
                         log.success(
                             "GameCanvas",
                             `Deferred order set: ${dragSourceId} -> ${targetStar.id} (on capture)`,
@@ -6321,6 +7055,12 @@
     function handlePointerUp(event: PointerEvent) {
         noteInteractivePressure("pointerup");
         recordInputHandlingLatency("pointerup", event);
+        recordOrderPathEvent("pointerup.start", {
+            button: event.button,
+            pointerType: event.pointerType,
+            activeStarId,
+            dragSourceId,
+        });
         log.input(
             `▲ pointerUp btn=${event.button} @(${event.clientX},${event.clientY})`,
         );
@@ -6350,10 +7090,19 @@
             ) {
                 // Double-tap on same star → cancel orders
                 if (isLocalPlayerStar(star)) {
-                    doCancelOrder(star.id, "immediate");
-                    pendingOrders.forEach((key) => {
-                        if (key.startsWith(`${star.id}|`))
-                            pendingOrders.delete(key);
+                    const requestId = doCancelOrder(
+                        star.id,
+                        "immediate",
+                        "pointerup.doubletap",
+                    );
+                    removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
+                    recordInteractionLocalAck({
+                        kind: "cancel",
+                        path: "pointerup.doubletap",
+                        sourceId: star.id,
+                        activeStarId: null,
+                        requestId,
+                        dispatchMode: "immediate",
                     });
                     log.success(
                         "GameCanvas",
@@ -6400,7 +7149,11 @@
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const targetStar = hitTestStar(x, y);
+        const targetStar = measurePerf(
+            "game.input.pointerup.hitTest",
+            () => hitTestStar(x, y),
+            { x, y },
+        );
         const movedSignificantly =
             isDragging &&
             (Math.abs(x - dragStartX) > 10 || Math.abs(y - dragStartY) > 10);
@@ -6418,16 +7171,43 @@
                         targetStar.id,
                         !event.ctrlKey, // persist unless ctrl-click
                         "queued",
+                        "pointerup.drag",
                     );
                     if (success) {
                         // OPTIMISTIC UI: Add immediately for instant arrow display
                         addPendingOrder(dragSourceId, targetStar.id);
+                        recordInteractionLocalAck({
+                            kind: "issue",
+                            path: "pointerup.drag",
+                            sourceId: dragSourceId,
+                            targetId: targetStar.id,
+                            activeStarId,
+                            requestId: success,
+                            dispatchMode: "queued",
+                        });
+                        recordOrderPathEvent("issue", {
+                            path: "drag",
+                            dispatchMode: "queued",
+                            sourceId: dragSourceId,
+                            targetId: targetStar.id,
+                            persistAfterConquest: !event.ctrlKey,
+                            sourceOwnerId:
+                                getInteractionStarById(dragSourceId)?.ownerId ??
+                                null,
+                            targetOwnerId: targetStar.ownerId,
+                        });
                         log.success(
                             "GameCanvas",
                             `Drag order: ${dragSourceId} → ${targetStar.id}`,
                         );
                     }
                 } else {
+                    recordOrderPathEvent("reject", {
+                        path: "drag",
+                        reason: "not_connected",
+                        sourceId: dragSourceId,
+                        targetId: targetStar.id,
+                    });
                     log.state(
                         "GameCanvas",
                         `Drag order rejected: ${dragSourceId} → ${targetStar.id} (not connected)`,
@@ -6450,10 +7230,22 @@
             // Case 1: Clicked same star -> TOGGLE (deselect)
             if (activeStarId === targetStar.id) {
                 activeStarId = null;
+                recordInteractionLocalAck({
+                    kind: "select",
+                    path: "pointerup.click.toggle",
+                    targetId: targetStar.id,
+                    activeStarId: null,
+                    dispatchMode: "immediate",
+                });
+                recordOrderPathEvent("select", {
+                    branch: "toggle",
+                    targetId: targetStar.id,
+                });
                 log.input(`  Case 1: TOGGLE deselect ${targetStar.id}`);
             }
             // Case 2: Have a prior selection -> try to issue order, then select Y
             else if (activeStarId) {
+                const previousActiveStarId = activeStarId;
                 const isConnected = areStarsConnected(
                     activeStarId,
                     targetStar.id,
@@ -6478,9 +7270,28 @@
                             targetStar.id,
                             !event.ctrlKey,
                             "immediate",
+                            "pointerup.click",
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id);
+                            recordInteractionLocalAck({
+                                kind: "issue",
+                                path: "pointerup.click",
+                                sourceId: activeStarId,
+                                targetId: targetStar.id,
+                                activeStarId,
+                                requestId: success,
+                                dispatchMode: "immediate",
+                            });
+                            recordOrderPathEvent("issue", {
+                                path: "click",
+                                dispatchMode: "immediate",
+                                sourceId: activeStarId,
+                                targetId: targetStar.id,
+                                persistAfterConquest: !event.ctrlKey,
+                                sourceOwnerId: activeStarSnapshot.ownerId,
+                                targetOwnerId: targetStar.ownerId,
+                            });
                             log.input(
                                 `  Case 2a: ORDER issued ${activeStarId} → ${targetStar.id}`,
                             );
@@ -6495,19 +7306,51 @@
                             targetStar.id,
                             !event.ctrlKey,
                             "immediate",
+                            "pointerup.click",
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id, true);
+                            recordInteractionLocalAck({
+                                kind: "defer",
+                                path: "pointerup.click",
+                                sourceId: activeStarId,
+                                targetId: targetStar.id,
+                                activeStarId,
+                                requestId: success,
+                                dispatchMode: "immediate",
+                            });
+                            recordOrderPathEvent("defer", {
+                                path: "click",
+                                dispatchMode: "immediate",
+                                sourceId: activeStarId,
+                                targetId: targetStar.id,
+                                persistAfterConquest: !event.ctrlKey,
+                                sourceOwnerId: activeStarSnapshot.ownerId,
+                                targetOwnerId: targetStar.ownerId,
+                            });
                             log.input(
                                 `  Case 2b: DEFERRED order ${activeStarId} → ${targetStar.id}`,
                             );
                         }
                     } else {
+                        recordOrderPathEvent("reject", {
+                            path: "click",
+                            reason: "source_unavailable",
+                            sourceId: activeStarId,
+                            targetId: targetStar.id,
+                            sourceOwnerId: activeStarSnapshot?.ownerId ?? null,
+                        });
                         log.input(
                             `  Case 2c: no order (source=${activeStarId} owner=${activeStarSnapshot?.ownerId || "null"})`,
                         );
                     }
                 } else {
+                    recordOrderPathEvent("reject", {
+                        path: "click",
+                        reason: "not_connected",
+                        sourceId: activeStarId,
+                        targetId: targetStar.id,
+                    });
                     log.input(
                         `  Case 2d: NOT CONNECTED ${activeStarId} ↛ ${targetStar.id}`,
                     );
@@ -6515,18 +7358,52 @@
 
                 // Always select the new star (whether order was issued or not)
                 activeStarId = targetStar.id;
+                recordInteractionLocalAck({
+                    kind: "select",
+                    path: "pointerup.click.handoff",
+                    targetId: targetStar.id,
+                    activeStarId: targetStar.id,
+                    dispatchMode: "immediate",
+                    extra: {
+                        previousActiveStarId,
+                    },
+                });
+                recordOrderPathEvent("select", {
+                    branch: "handoff",
+                    targetId: targetStar.id,
+                    previousActiveStarId,
+                });
             }
             // Case 3: No prior selection -> just select
             else {
                 activeStarId = targetStar.id;
+                recordInteractionLocalAck({
+                    kind: "select",
+                    path: "pointerup.click.new",
+                    targetId: targetStar.id,
+                    activeStarId: targetStar.id,
+                    dispatchMode: "immediate",
+                });
+                recordOrderPathEvent("select", {
+                    branch: "new",
+                    targetId: targetStar.id,
+                });
                 log.input(`  Case 3: SELECT ${targetStar.id}`);
             }
         } else if (!movedSignificantly && !targetStar) {
+            recordOrderPathEvent("clear", {
+                reason: "empty_space",
+            });
             log.input(
                 `pointerUp CLICK → empty space, clearing selection (movedSig=${movedSignificantly})`,
             );
             clearSelection();
         } else {
+            recordOrderPathEvent("noop", {
+                movedSignificantly,
+                targetId: targetStar?.id ?? null,
+                dragSourceId,
+            });
             log.input(
                 `pointerUp → no action (movedSig=${movedSignificantly}, target=${targetStar?.id || "null"}, dragSrc=${dragSourceId || "null"})`,
             );
@@ -6544,11 +7421,36 @@
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const star = hitTestStar(x, y);
+        const star = measurePerf(
+            "game.input.rightclick.hitTest",
+            () => hitTestStar(x, y),
+            { x, y },
+        );
 
         if (star && isLocalPlayerStar(star) && star.targetId) {
             // Cancel order for this star
-            doCancelOrder(star.id, "immediate");
+            const requestId = doCancelOrder(
+                star.id,
+                "immediate",
+                "contextmenu.rightclick",
+            );
+            removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
+            recordInteractionLocalAck({
+                kind: "cancel",
+                path: "contextmenu.rightclick",
+                sourceId: star.id,
+                targetId: star.targetId,
+                activeStarId: null,
+                requestId,
+                dispatchMode: "immediate",
+            });
+            recordOrderPathEvent("cancel", {
+                path: "rightclick",
+                dispatchMode: "immediate",
+                sourceId: star.id,
+                targetId: star.targetId,
+                sourceOwnerId: star.ownerId,
+            });
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
         } else if (
             star &&
@@ -6556,11 +7458,20 @@
             star.ownerId !== "neutral"
         ) {
             // Right-click on enemy star - cancel any deferred order
-            const key = Array.from(deferredOrders).find((k) =>
-                k.startsWith(`${star.id}|`),
-            );
-            if (key) {
-                deferredOrders.delete(key);
+            if (hasQueuedOrderEntryForSource(star.id)) {
+                removeQueuedOrderEntriesFromSource(star.id, deferredOrders);
+                recordInteractionLocalAck({
+                    kind: "cancel",
+                    path: "contextmenu.defer_cancel",
+                    sourceId: star.id,
+                    activeStarId: null,
+                    dispatchMode: "immediate",
+                });
+                recordOrderPathEvent("defer_cancel", {
+                    path: "rightclick",
+                    targetId: star.id,
+                    targetOwnerId: star.ownerId,
+                });
                 log.state(
                     "GameCanvas",
                     `Deferred order cancelled for enemy star ${star.id}`,
@@ -6575,12 +7486,21 @@
     function clearSelection() {
         activeStarId = null;
         cancelDrag();
+        recordInteractionLocalAck({
+            kind: "clear",
+            path: "selection.clear",
+            activeStarId: null,
+            dispatchMode: "immediate",
+        });
         log.state("GameCanvas", "Selection cleared");
     }
 
     function cancelDrag() {
+        const hadTransientOverlayState =
+            isDragging || Boolean(dragSourceId) || Boolean(dragHoverTargetId);
         isDragging = false;
         dragSourceId = null;
+        dragHoverTargetId = null;
 
         // Reset order chain depth for audio
         orderChainDepth = 0;
@@ -6589,51 +7509,13 @@
         if (dragPreviewGraphics) {
             dragPreviewGraphics.clear();
         }
+        if (hadTransientOverlayState) {
+            renderInteractionOverlayNow();
+        }
     }
 
     function renderDragPreview() {
-        if (!dragPreviewGraphics || !isDragging || !dragSourceId) return;
-
-        dragPreviewGraphics.clear();
-
-        // Convert current mouse position to world coordinates for drawing
-        const cursorWorld = screenToWorld(dragCurrentX, dragCurrentY);
-
-        // Draw line from star CENTER to cursor (not click position)
-        dragPreviewGraphics.moveTo(dragSourceCenterX, dragSourceCenterY);
-        dragPreviewGraphics.lineTo(cursorWorld.x, cursorWorld.y);
-        dragPreviewGraphics.stroke({
-            color: 0x00ffff,
-            width: 3,
-            alpha: 0.7,
-        });
-
-        // Draw circle at cursor
-        dragPreviewGraphics.circle(cursorWorld.x, cursorWorld.y, 8);
-        dragPreviewGraphics.stroke({
-            color: 0x00ffff,
-            width: 2,
-            alpha: 0.9,
-        });
-
-        // Highlight target star if hovering AND valid connection exists
-        const target = hitTestStar(dragCurrentX, dragCurrentY);
-        if (target && target.id !== dragSourceId) {
-            const isConnected = areStarsConnected(dragSourceId, target.id);
-
-            if (isConnected) {
-                dragPreviewGraphics.circle(
-                    mapTranspose.x(target),
-                    mapTranspose.y(target),
-                    target.radius + 15,
-                );
-                dragPreviewGraphics.stroke({
-                    color: isLocalPlayerStar(target) ? 0x00ff00 : 0xff4466,
-                    width: 3,
-                    alpha: 0.8,
-                });
-            }
-        }
+        renderInteractionOverlayNow();
     }
 
     // ============================================================================
@@ -6716,7 +7598,13 @@
     }}
     oncontextmenu={handleRightClick}
     onwheel={handleWheel}
-></div>
+>
+    <canvas
+        class="interaction-overlay"
+        aria-hidden="true"
+        bind:this={interactionOverlayCanvas}
+    ></canvas>
+</div>
 
 <!-- FPS / Ship Count Overlay -->
 <div class="fps-overlay">
@@ -6740,6 +7628,12 @@
         width: 100% !important;
         height: 100% !important;
         pointer-events: none;
+    }
+
+    .interaction-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 6;
     }
 
     .fps-overlay {

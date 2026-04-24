@@ -226,6 +226,9 @@ export class PerimeterFieldFamily implements RenderFamily {
                 purpose: 'Receive current territory geometry for sample-field planning',
                 summary: summarizeGeometry(currentGeometry),
                 perfEventName: 'territory.perimeterField.geometryReceived',
+                logDetail: {
+                    geometry: currentGeometry,
+                },
             });
 
             const transitionKey = buildTransitionKey(input);
@@ -234,6 +237,13 @@ export class PerimeterFieldFamily implements RenderFamily {
                     'PERIMETER_FIELD_GEOMETRY_SOURCE',
                 ) as string | undefined) ?? null;
             const transitionEngine = readTransitionEngine(input);
+            const oldGeometryCacheHit =
+                Boolean(transitionKey) && this.oldGeometryKey === transitionKey;
+            const transitionPlanCacheHit =
+                transitionEngine === 'plan' &&
+                Boolean(transitionKey) &&
+                this.transitionPlanKey === transitionKey &&
+                Boolean(this.transitionPlan);
 
             if (transitionKey && this.oldGeometryKey !== transitionKey) {
                 const revertedStars = revertStarsForTransition(input);
@@ -335,8 +345,32 @@ export class PerimeterFieldFamily implements RenderFamily {
                 purpose: 'Translate perimeter samples into renderer-ready influence fields',
                 summary: summarizeScene(builtScene.sceneInput),
                 perfEventName: 'territory.perimeterField.familySceneReady',
-                detail: {
+                perfDetail: {
                     displayStars: displayStars.length,
+                    oldGeometryCacheHit,
+                    transitionPlanCacheHit,
+                    geometrySource,
+                    transitionEngine,
+                },
+                logDetail: {
+                    renderInput: {
+                        world: input.world,
+                        gameTick: input.gameTick,
+                        nowMs: input.nowMs,
+                        paused: input.paused,
+                        activeTransition: input.activeTransition,
+                        ownershipVersion: input.ownership.version,
+                        geometryVersion: currentGeometry.version,
+                        geometrySource,
+                        transitionEngine,
+                    },
+                    oldGeometryCacheHit,
+                    transitionPlanCacheHit,
+                    oldGeometry: this.oldGeometry,
+                    transitionPlan: this.transitionPlan,
+                    displayStars,
+                    debugSnapshot: builtScene.debug,
+                    sceneInput: builtScene.sceneInput,
                 },
             });
             const renderMetrics: MetaballRenderMetrics = {
@@ -372,6 +406,20 @@ export class PerimeterFieldFamily implements RenderFamily {
                 purpose: 'Render perimeter-field sample solve through the shared metaball substrate',
                 summary: summarizeRendererMetrics(renderMetrics),
                 perfEventName: 'territory.perimeterField.familyRendered',
+                perfDetail: {
+                    geometrySource,
+                    transitionEngine,
+                    oldGeometryCacheHit,
+                    transitionPlanCacheHit,
+                },
+                logDetail: {
+                    geometrySource,
+                    transitionEngine,
+                    oldGeometryCacheHit,
+                    transitionPlanCacheHit,
+                    renderMetrics,
+                    sceneFingerprint: builtScene.sceneInput.sceneFingerprint,
+                },
             });
 
             return { container: this.root };

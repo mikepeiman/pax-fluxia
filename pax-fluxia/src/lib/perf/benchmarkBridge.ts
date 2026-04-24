@@ -41,12 +41,17 @@ interface BenchmarkBridgeApi {
     resetPerfCapture: () => void;
     snapshotPerfCapture: () => ReturnType<typeof snapshotPerfCapture>;
     getPerfEventCursor: () => number;
+    getPerfEventsSince: (
+        sinceIndex: number,
+        limit?: number,
+    ) => Array<Record<string, unknown>>;
     findPerfEventSince: (
         sinceIndex: number,
         name: string,
         detailMatchers?: Record<string, unknown>,
     ) => Record<string, unknown> | null;
     setLogFlags: (flags: Partial<typeof logFlags>) => void;
+    getLogFlags: () => Record<string, boolean>;
     restartSinglePlayerGame: () => Promise<void>;
     beginGameplay: () => Promise<void>;
     pauseGameplay: () => Promise<void>;
@@ -252,6 +257,14 @@ export function installBenchmarkBridge(params: {
         snapshotPerfCapture,
         getPerfEventCursor: () =>
             globalThis.__PAX_PERF_STATE__?.events.length ?? 0,
+        getPerfEventsSince: (sinceIndex, limit = 200) => {
+            const events = globalThis.__PAX_PERF_STATE__?.events ?? [];
+            return events
+                .slice(Math.max(0, sinceIndex), Math.max(0, sinceIndex) + limit)
+                .map((event) => ({
+                    ...event,
+                }));
+        },
         findPerfEventSince: (sinceIndex, name, detailMatchers = {}) => {
             const events = globalThis.__PAX_PERF_STATE__?.events ?? [];
             outer: for (
@@ -281,6 +294,7 @@ export function installBenchmarkBridge(params: {
                 }
             }
         },
+        getLogFlags: () => ({ ...(logFlags as Record<string, boolean>) }),
         restartSinglePlayerGame: async () => {
             await openGameShell();
             const { gameStore } = await loadRuntimeDeps();

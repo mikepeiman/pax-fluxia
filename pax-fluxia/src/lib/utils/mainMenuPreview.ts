@@ -1,5 +1,10 @@
 import { generateMap, type LaneAdjustmentStyle, type StarType } from "@pax/common";
 import type { MapLaneMode } from "@pax/common/mapgen";
+import {
+    logPipelineStage,
+    summarizeConnections,
+    summarizeStars,
+} from "$lib/perf/pipelineTelemetry";
 import type { ThumbnailConnection, ThumbnailStar } from "$lib/utils/mapThumbnail";
 
 export interface MainMenuPreviewRequest {
@@ -45,6 +50,31 @@ export function buildMainMenuPreview(request: MainMenuPreviewRequest): MainMenuP
         mapLaneMode: request.mapLaneMode,
         mapgenLaneAdjustedPathStyle: request.mapgenLaneAdjustedPathStyle,
     });
+    logPipelineStage({
+        channel: "data",
+        context: "MainMenuPreview",
+        stage: "preview_map_generation",
+        from: "@pax/common.generateMap",
+        to: "Main menu preview topology",
+        purpose:
+            "Generate a lightweight map topology preview before thumbnail rendering and game start",
+        summary:
+            `positions=${result.positions.length} connections=${result.connections.length} ` +
+            `world=${request.width}x${request.height}`,
+        perfEventName: "game.mainMenuPreview.mapGenerated",
+        detail: {
+            width: request.width,
+            height: request.height,
+            playerCount: request.playerCount,
+            starsPerPlayer: request.starsPerPlayer,
+            neutralStarCount: request.neutralStarCount,
+        },
+        logDetail: {
+            request,
+            positions: result.positions,
+            connections: result.connections,
+        },
+    });
 
     const ownerIds: string[] = [];
     for (let playerIndex = 0; playerIndex < request.playerCount; playerIndex++) {
@@ -84,14 +114,38 @@ export function buildMainMenuPreview(request: MainMenuPreviewRequest): MainMenuP
             starType,
         };
     });
+    const previewConnections = result.connections.map((connection) => ({
+        sourceId: connection.sourceId,
+        targetId: connection.targetId,
+        laneWaypoints: connection.laneWaypoints,
+        lanePathKind: connection.lanePathKind,
+    }));
+    logPipelineStage({
+        channel: "data",
+        context: "MainMenuPreview",
+        stage: "preview_scene",
+        from: "Preview topology + randomized ownership",
+        to: "Thumbnail-ready preview stars and connections",
+        purpose:
+            "Package main-menu preview ownership, star types, and lane geometry for thumbnail rendering",
+        summary:
+            `${summarizeStars(stars)} ${summarizeConnections(previewConnections)}`,
+        perfEventName: "game.mainMenuPreview.sceneBuilt",
+        detail: {
+            ownerPool: ownerIds,
+            capitals: [...hasCapital],
+        },
+        logDetail: {
+            request,
+            ownerIds,
+            capitals: [...hasCapital],
+            stars,
+            connections: previewConnections,
+        },
+    });
 
     return {
         stars,
-        connections: result.connections.map((connection) => ({
-            sourceId: connection.sourceId,
-            targetId: connection.targetId,
-            laneWaypoints: connection.laneWaypoints,
-            lanePathKind: connection.lanePathKind,
-        })),
+        connections: previewConnections,
     };
 }

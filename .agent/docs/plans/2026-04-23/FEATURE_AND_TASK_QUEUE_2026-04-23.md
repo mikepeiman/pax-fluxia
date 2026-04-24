@@ -85,3 +85,30 @@
 - Texture upload and border draw still remain on the main thread after workerization and may need further slicing.
 - Pointer responsiveness will not be fixed by territory changes alone if selection, line batching, or ship rendering still serialize with input.
 - Perimeter transition planning may also need a worker path if scene-build work remains dominant after renderer offload.
+
+## Late-Session Update - 2026-04-24 02:09 ET
+
+- Immediate interaction feedback is now split onto a lightweight 2D overlay canvas via `pax-fluxia/src/lib/renderers/InteractionOverlayRenderer.ts`.
+- `GameCanvas.svelte` now presents command feedback through that overlay instead of forcing the old Pixi interaction overlay path on every local acknowledgement.
+- Latest browser checkpoint is now `.agent-harness/metrics/browser-gameplay-benchmark-latest.json` generated at `2026-04-24T02:09:59.552Z`.
+- Most important current numbers:
+  - `metaballOrders`
+    - `game.input.visualAck.present = 0.481ms avg`
+    - `game.renderFrame.interactionOverlay = 1.26ms avg`
+    - pointer issue avg `139.933ms`
+    - direct issue avg `4.3ms`
+    - pointer cancel avg `322.8ms`
+  - `perimeterOrders`
+    - `game.renderFrame.interactionOverlay = 1.208ms avg`
+    - pointer issue avg `146.167ms`
+    - direct issue avg `4.5ms`
+    - pointer cancel avg `47.333ms`
+  - `perimeterGameplay`
+    - territory avg `2.164ms`
+    - geometry avg `0.654ms`
+    - territory max spikes still reach `52.4ms`
+- Updated interpretation:
+  - the local visual acknowledgement path is no longer the main problem
+  - the remaining gameplay lag is still dominated by broader main-thread work
+  - dominant residual hotspots remain `bufferSubData`, `packAttributes`, `buildLine`, and repeated `getBoundingClientRect()` reads
+- The next queued implementation step is rect caching plus broader screen-space conversion cleanup in `GameCanvas.svelte`, followed by more explicit "input under render stress" benchmark scenarios.

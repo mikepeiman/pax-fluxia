@@ -136,7 +136,9 @@ export class MetaballFamily implements RenderFamily {
                 conquestCache: this.conquestCache,
             });
             const staticSceneKey = buildStaticSceneKey(input);
-            if (this.staticSceneKey !== staticSceneKey || !this.staticScene) {
+            const staticSceneCacheHit =
+                this.staticSceneKey === staticSceneKey && Boolean(this.staticScene);
+            if (!staticSceneCacheHit) {
                 this.staticScene = measurePerf(
                     'territory.metaballFamily.buildStaticScene',
                     () => buildMetaballStaticScene(input, this.colorUtils),
@@ -162,6 +164,26 @@ export class MetaballFamily implements RenderFamily {
                 purpose: 'Hand off stable and dynamic sample fields to the grid renderer',
                 summary: summarizeScene(sceneInput),
                 perfEventName: 'territory.metaball.familySceneReady',
+                perfDetail: {
+                    staticSceneCacheHit,
+                    conquestCacheEntries: this.conquestCache.size,
+                    staticSceneKeyLength: staticSceneKey.length,
+                },
+                logDetail: {
+                    renderInput: {
+                        world: input.world,
+                        gameTick: input.gameTick,
+                        nowMs: input.nowMs,
+                        paused: input.paused,
+                        activeTransition: input.activeTransition,
+                        ownershipVersion: input.ownership.version,
+                        geometryVersion: input.geometry?.version ?? null,
+                    },
+                    staticSceneCacheHit,
+                    staticSceneKey,
+                    conquestCacheKeys: [...this.conquestCache.keys()],
+                    sceneInput,
+                },
             });
             const renderMetrics: MetaballRenderMetrics = {
                 solveMs: 0,
@@ -195,6 +217,15 @@ export class MetaballFamily implements RenderFamily {
                 purpose: 'Upload metaball texture and borders for presentation',
                 summary: summarizeRendererMetrics(renderMetrics),
                 perfEventName: 'territory.metaball.familyRendered',
+                perfDetail: {
+                    sceneFingerprint: sceneInput.sceneFingerprint,
+                    staticSceneCacheHit,
+                },
+                logDetail: {
+                    sceneFingerprint: sceneInput.sceneFingerprint,
+                    staticSceneCacheHit,
+                    renderMetrics,
+                },
             });
             return { container: this.root };
         });

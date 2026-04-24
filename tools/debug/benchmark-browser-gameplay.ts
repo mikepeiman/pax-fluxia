@@ -33,10 +33,21 @@ interface TraceDurationBucket {
     count: number;
 }
 
+interface TraceCategoryBucket {
+    name: string;
+    totalMs: number;
+    maxMs: number;
+    count: number;
+}
+
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
+const TRACE_DIR = path.join(METRICS_DIR, "browser-traces");
 const HOST = "127.0.0.1";
+const WRITE_TRACE_ARTIFACTS = /^(1|true|yes)$/i.test(
+    process.env.PAX_WRITE_TRACE ?? "",
+);
 const SELECTED_SCENARIOS = new Set(
     (process.env.PAX_BENCH_ONLY ?? "")
         .split(",")
@@ -55,6 +66,10 @@ function sleep(ms: number): Promise<void> {
 function round(value: number, digits = 3): number {
     const factor = 10 ** digits;
     return Math.round(value * factor) / factor;
+}
+
+function sanitizeLabelForPath(label: string): string {
+    return label.replace(/[^a-z0-9_-]+/gi, "-").replace(/-+/g, "-");
 }
 
 function resolveBrowserPath(): string {
@@ -316,6 +331,25 @@ const MEASURE_GROUP_PREFIXES = [
     "game.startGame",
 ] as const;
 
+const FOCUS_MEASURE_PATTERNS = [
+    "game.renderFrame.ownership.",
+    "game.renderFrame.geometry.",
+    "game.renderFrame.renderFamilyInput.",
+    "game.renderFrame.territory.",
+    "game.renderFrame.connections",
+    "game.renderFrame.orderArrows",
+    "game.renderFrame.interactionOverlay",
+    "game.renderFrame.stars",
+    "game.renderFrame.ships",
+    "game.renderFrame.selectionOverlay",
+    "game.input.visualAck.present",
+    "game.input.orderQueue.flush",
+    "game.input.orderImmediate",
+    "territory.metaballRenderer",
+    "territory.metaballFamily",
+    "territory.perimeterFieldFamily",
+] as const;
+
 function summarizeMeasureGroups(snapshot: any): Record<string, JsonValue> {
     const groups = new Map<
         string,
@@ -415,6 +449,83 @@ function summarizeInputLatency(snapshot: any): Record<string, JsonValue> {
     };
 }
 
+function summarizeLongAnimationFrames(snapshot: any): Record<string, JsonValue> {
+    const longFrames = (snapshot?.events ?? []).filter(
+        (event: any) => event.name === "browser.longAnimationFrame",
+    );
+    const durations = longFrames
+        .map((event: any) => Number(event.detail?.durationMs ?? 0))
+        .filter((value: number) => Number.isFinite(value) && value >= 0);
+    const blockingDurations = longFrames
+        .map((event: any) => Number(event.detail?.blockingDurationMs ?? 0))
+        .filter((value: number) => Number.isFinite(value) && value >= 0);
+    const topScripts = new Map<
+        string,
+        { count: number; totalMs: number; maxMs: number }
+    >();
+    for (const event of longFrames) {
+        const scriptUrl = String(event.detail?.topScriptUrl ?? "unknown");
+        const durationMs = Number(event.detail?.durationMs ?? 0);
+        const bucket = topScripts.get(scriptUrl) ?? {
+            count: 0,
+            totalMs: 0,
+            maxMs: 0,
+        };
+        bucket.count += 1;
+        bucket.totalMs += durationMs;
+        bucket.maxMs = Math.max(bucket.maxMs, durationMs);
+        topScripts.set(scriptUrl, bucket);
+    }
+    return {
+        count: longFrames.length,
+        duration: summarizeNumericSamples(durations),
+        blockingDuration: summarizeNumericSamples(blockingDurations),
+        topScripts: [...topScripts.entries()]
+            .map(([scriptUrl, bucket]) => ({
+                scriptUrl,
+                count: bucket.count,
+                totalMs: round(bucket.totalMs),
+                maxMs: round(bucket.maxMs),
+            }))
+            .sort((a, b) => Number(b.totalMs ?? 0) - Number(a.totalMs ?? 0))
+            .slice(0, 10),
+    };
+}
+
+function summarizePerfEventGroups(
+    snapshot: any,
+    prefixes: readonly string[],
+): Array<Record<string, JsonValue>> {
+    const groups = new Map<
+        string,
+        { count: number; firstAtMs: number; lastAtMs: number }
+    >();
+    for (const event of snapshot?.events ?? []) {
+        const name = String(event.name ?? "unknown");
+        const prefix = prefixes.find((candidate) => name.startsWith(candidate));
+        if (!prefix) continue;
+        const bucket = groups.get(name) ?? {
+            count: 0,
+            firstAtMs: Number(event.atMs ?? 0),
+            lastAtMs: Number(event.atMs ?? 0),
+        };
+        bucket.count += 1;
+        bucket.firstAtMs = Math.min(bucket.firstAtMs, Number(event.atMs ?? 0));
+        bucket.lastAtMs = Math.max(bucket.lastAtMs, Number(event.atMs ?? 0));
+        groups.set(name, bucket);
+    }
+    return [...groups.entries()]
+        .map(([name, bucket]) => ({
+            name,
+            count: bucket.count,
+            firstAtMs: round(bucket.firstAtMs),
+            lastAtMs: round(bucket.lastAtMs),
+            spanMs: round(bucket.lastAtMs - bucket.firstAtMs),
+        }))
+        .sort((a, b) => Number(b.count ?? 0) - Number(a.count ?? 0))
+        .slice(0, 40);
+}
+
 function summarizeTerritorySchedulerSnapshot(
     scheduler: Record<string, JsonValue> | null,
 ): Record<string, JsonValue> | null {
@@ -453,6 +564,22 @@ function summarizeTerritorySchedulerSnapshot(
             pendingAgeMs: round(
                 Number(scheduler.territoryPresentationPendingAgeMs ?? 0),
             ),
+            yieldCount: Number(scheduler.territoryPresentationYieldCount ?? 0),
+            forcedCount: Number(
+                scheduler.territoryPresentationForcedCount ?? 0,
+            ),
+            lastYieldAtMs: round(
+                Number(scheduler.territoryPresentationLastYieldAtMs ?? 0),
+            ),
+            lastYieldAgeMs: round(
+                Number(scheduler.territoryPresentationLastYieldAgeMs ?? 0),
+            ),
+            lastYieldRequestId:
+                scheduler.territoryPresentationLastYieldRequestId ?? null,
+            lastYieldReason:
+                scheduler.territoryPresentationLastYieldReason ?? null,
+            scheduleMode:
+                scheduler.territoryPresentationLastScheduleMode ?? null,
         },
         ships: {
             lastRenderMs: round(Number(scheduler.lastShipRenderCostMs ?? 0)),
@@ -466,11 +593,65 @@ function summarizeTerritorySchedulerSnapshot(
         },
         orders: {
             queuedMutations: Number(scheduler.queuedOrderMutations ?? 0),
+            requestSeq: Number(scheduler.orderMutationRequestSeq ?? 0),
+            lastQueuedAtMs: round(
+                Number(scheduler.lastOrderMutationQueuedAtMs ?? 0),
+            ),
+            lastQueueDelayMs: round(
+                Number(scheduler.lastOrderMutationQueueDelayMs ?? 0),
+            ),
+            lastQueueScheduleAtMs: round(
+                Number(scheduler.lastOrderQueueScheduleAtMs ?? 0),
+            ),
+            lastQueueFlushStartedAtMs: round(
+                Number(scheduler.lastOrderQueueFlushStartedAtMs ?? 0),
+            ),
+            lastQueueFlushFinishedAtMs: round(
+                Number(scheduler.lastOrderQueueFlushFinishedAtMs ?? 0),
+            ),
+            lastQueueFlushMutationCount: Number(
+                scheduler.lastOrderQueueFlushMutationCount ?? 0,
+            ),
+            lastQueueFlushKinds: Array.isArray(
+                scheduler.lastOrderQueueFlushKinds,
+            )
+                ? scheduler.lastOrderQueueFlushKinds
+                : [],
+            lastQueueFlushRequestIds: Array.isArray(
+                scheduler.lastOrderQueueFlushRequestIds,
+            )
+                ? scheduler.lastOrderQueueFlushRequestIds
+                : [],
+            scheduleMode: scheduler.lastOrderQueueScheduleMode ?? null,
             inputPriorityUntilMs: round(
                 Number(scheduler.territoryInputPriorityUntilMs ?? 0),
             ),
         },
+        interactions: {
+            pendingVisualAckCount: Number(
+                scheduler.pendingInteractionVisualAckCount ?? 0,
+            ),
+            pendingVisualAcks: Array.isArray(
+                scheduler.pendingInteractionVisualAcks,
+            )
+                ? scheduler.pendingInteractionVisualAcks
+                : [],
+            lastLocalAck: scheduler.lastInteractionLocalAck ?? null,
+            lastVisualAck: scheduler.lastInteractionVisualAck ?? null,
+        },
     };
+}
+
+function summarizeFocusMeasures(
+    measures: Array<Record<string, JsonValue>>,
+): Array<Record<string, JsonValue>> {
+    return measures
+        .filter((entry) =>
+            FOCUS_MEASURE_PATTERNS.some((pattern) =>
+                String(entry.name ?? "").startsWith(pattern),
+            ),
+        )
+        .slice(0, 30);
 }
 
 function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
@@ -502,6 +683,7 @@ function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
 
     return {
         topMeasures: measures,
+        focusMeasures: summarizeFocusMeasures(measures),
         highlightMeasures: measures.filter((entry) =>
             [
                 "game.renderFrame.territory.",
@@ -543,7 +725,16 @@ function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => (b.count as number) - (a.count as number))
             .slice(0, 25),
+        pipelineEvents: summarizePerfEventGroups(snapshot, [
+            "game.map.",
+            "game.snapshot.",
+            "territory.",
+            "game.renderFrame.",
+        ]),
+        interactionEvents: summarizePerfEventGroups(snapshot, ["input."]),
+        browserEvents: summarizePerfEventGroups(snapshot, ["browser."]),
         longTasks: summarizeLongTasks(snapshot),
+        longAnimationFrames: summarizeLongAnimationFrames(snapshot),
         eventTiming: summarizeEventTiming(snapshot),
         inputLatency: summarizeInputLatency(snapshot),
         recentEvents: (snapshot?.events ?? []).slice(-40),
@@ -584,6 +775,32 @@ function summarizeCpuProfile(profile: any): CpuHotspot[] {
         }))
         .sort((a, b) => b.selfMs - a.selfMs)
         .slice(0, 20);
+}
+
+const CPU_HOTSPOT_PATTERNS = [
+    "bufferSubData",
+    "packAttributes",
+    "buildLine",
+    "collectRenderablesSimple",
+    "generateProgram",
+    "updateBuffer",
+    "triangulate",
+    "pointInPolygon",
+    "buildGridWave",
+    "resolveOwnerAt",
+    "buildGridClassification",
+    "collectRenderables",
+    "renderFrame",
+] as const;
+
+function summarizeFocusCpuHotspots(
+    cpuHotspots: readonly CpuHotspot[],
+): CpuHotspot[] {
+    return cpuHotspots.filter((hotspot) =>
+        CPU_HOTSPOT_PATTERNS.some((pattern) =>
+            hotspot.label.toLowerCase().includes(pattern.toLowerCase()),
+        ),
+    );
 }
 
 function isTraceDurationEvent(event: any): boolean {
@@ -706,6 +923,36 @@ function summarizeSampleMetric(
     return summarizeNumericSamples(values);
 }
 
+function getEventRecord(
+    eventResult: Record<string, JsonValue> | null | undefined,
+): Record<string, JsonValue> | null {
+    const event = eventResult?.event;
+    if (!event || typeof event !== "object" || Array.isArray(event)) return null;
+    return event as Record<string, JsonValue>;
+}
+
+function getEventDeltaMs(
+    eventResult: Record<string, JsonValue> | null | undefined,
+    startedAt: number,
+): number | null {
+    const event = getEventRecord(eventResult);
+    if (!event) return null;
+    return round(Number(event.atMs ?? startedAt) - startedAt);
+}
+
+function getEventDetailValue(
+    eventResult: Record<string, JsonValue> | null | undefined,
+    key: string,
+): JsonValue {
+    const event = getEventRecord(eventResult);
+    if (!event) return null;
+    const detail =
+        typeof event.detail === "object" && !Array.isArray(event.detail)
+            ? (event.detail as Record<string, JsonValue>)
+            : null;
+    return detail?.[key] ?? event[key] ?? null;
+}
+
 function summarizeOrderPathGap(
     actionResult: any,
 ): Record<string, JsonValue> | null {
@@ -744,6 +991,26 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "issueCommitMs",
         ),
+        pointerIssueLocalAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueLocalAckMs",
+        ),
+        pointerIssueLocalAckAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueLocalAckAfterTargetClickMs",
+        ),
+        pointerIssueVisualAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueVisualAckMs",
+        ),
+        pointerIssueVisualAckAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueVisualAckAfterTargetClickMs",
+        ),
+        pointerSourceSelect: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "sourceSelectMs",
+        ),
         pointerIssueAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "issueAfterTargetClickMs",
@@ -756,6 +1023,14 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "issueQueueFlushAfterTargetClickMs",
         ),
+        pointerIssueOrderPathEvent: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueOrderPathEventMs",
+        ),
+        pointerIssueOrderPathEventAfterTargetClick: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "issueOrderPathEventAfterTargetClickMs",
+        ),
         pointerIssuePerfEvent: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "issuePerfEventMs",
@@ -767,6 +1042,18 @@ function summarizeOrderPathGap(
         pointerCancelCommit: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "cancelCommitMs",
+        ),
+        pointerCancelLocalAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelLocalAckMs",
+        ),
+        pointerCancelVisualAck: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelVisualAckMs",
+        ),
+        pointerCancelOrderPathEvent: summarizeSampleMetric(
+            actionResult?.pointerSamples,
+            "cancelOrderPathEventMs",
         ),
         pointerCancelQueueFlush: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -819,6 +1106,70 @@ function summarizeOrderPathGap(
             Number.isFinite(directCancelAvg)
                 ? round(pointerCancelAvg - directCancelAvg)
                 : null,
+        pointerIssueLocalToVisualGapMs:
+            Number.isFinite(
+                Number(
+                    summarizeSampleMetric(
+                        actionResult?.pointerSamples,
+                        "issueVisualAckAfterTargetClickMs",
+                    )?.avgMs ?? Number.NaN,
+                ),
+            ) &&
+            Number.isFinite(
+                Number(
+                    summarizeSampleMetric(
+                        actionResult?.pointerSamples,
+                        "issueLocalAckAfterTargetClickMs",
+                    )?.avgMs ?? Number.NaN,
+                ),
+            )
+                ? round(
+                      Number(
+                          summarizeSampleMetric(
+                              actionResult?.pointerSamples,
+                              "issueVisualAckAfterTargetClickMs",
+                          )?.avgMs ?? 0,
+                      ) -
+                          Number(
+                              summarizeSampleMetric(
+                                  actionResult?.pointerSamples,
+                                  "issueLocalAckAfterTargetClickMs",
+                              )?.avgMs ?? 0,
+                          ),
+                  )
+                : null,
+        pointerCancelLocalToVisualGapMs:
+            Number.isFinite(
+                Number(
+                    summarizeSampleMetric(
+                        actionResult?.pointerSamples,
+                        "cancelVisualAckMs",
+                    )?.avgMs ?? Number.NaN,
+                ),
+            ) &&
+            Number.isFinite(
+                Number(
+                    summarizeSampleMetric(
+                        actionResult?.pointerSamples,
+                        "cancelLocalAckMs",
+                    )?.avgMs ?? Number.NaN,
+                ),
+            )
+                ? round(
+                      Number(
+                          summarizeSampleMetric(
+                              actionResult?.pointerSamples,
+                              "cancelVisualAckMs",
+                          )?.avgMs ?? 0,
+                      ) -
+                          Number(
+                              summarizeSampleMetric(
+                                  actionResult?.pointerSamples,
+                                  "cancelLocalAckMs",
+                              )?.avgMs ?? 0,
+                          ),
+                  )
+                : null,
     };
 }
 
@@ -830,14 +1181,24 @@ function summarizeScenarioCollection(
         requestedMode: scenario?.requestedMode ?? null,
         elapsedMs: round(Number(scenario?.elapsedMs ?? 0)),
         longTasks: scenario?.perf?.longTasks ?? null,
+        longAnimationFrames: scenario?.perf?.longAnimationFrames ?? null,
         frameMeasures: scenario?.perf?.frameMeasures ?? [],
+        focusMeasures: scenario?.perf?.focusMeasures ?? [],
         highlightMeasures: scenario?.perf?.highlightMeasures ?? [],
         inputLatency: scenario?.perf?.inputLatency ?? null,
         renderLineItems: scenario?.perf?.renderLineItems ?? [],
+        interactionEvents: scenario?.perf?.interactionEvents ?? [],
+        pipelineEvents: scenario?.perf?.pipelineEvents ?? [],
+        browserEvents: scenario?.perf?.browserEvents ?? [],
         orderLatency: summarizeOrderPathGap(scenario?.actionResult),
         cpuHotspots: scenario?.cpuHotspots ?? [],
+        cpuFocusHotspots: scenario?.cpuFocusHotspots ?? [],
         territoryScheduler: scenario?.territoryScheduler ?? null,
         traceMainThread: scenario?.trace?.mainThreadTopByTotalMs ?? [],
+        traceCategories: scenario?.trace?.mainThreadCategoriesTopByTotalMs ?? [],
+        traceFocusBuckets: scenario?.traceFocusBuckets ?? [],
+        devtoolsMetricsDelta: scenario?.devtoolsMetricsDelta ?? null,
+        perfEventTail: scenario?.perfEventTail ?? [],
     }));
     return {
         scenarios: summaryEntries,
@@ -852,6 +1213,70 @@ function summarizeScenarioCollection(
     };
 }
 
+function classifyTraceCategory(bucket: TraceDurationBucket): string {
+    const joined = `${bucket.cat} ${bucket.name}`.toLowerCase();
+    if (
+        joined.includes("layout") ||
+        joined.includes("prepaint") ||
+        joined.includes("paint") ||
+        joined.includes("layer") ||
+        joined.includes("composite") ||
+        joined.includes("hittest")
+    ) {
+        return "layout_paint_composite";
+    }
+    if (
+        joined.includes("gc") ||
+        joined.includes("scavenger") ||
+        joined.includes("garbage")
+    ) {
+        return "gc";
+    }
+    if (
+        joined.includes("eventdispatch") ||
+        joined.includes("runmicrotasks") ||
+        joined.includes("runtask") ||
+        joined.includes("functioncall") ||
+        joined.includes("fireanimationframe") ||
+        joined.includes("evaluate")
+    ) {
+        return "script_events";
+    }
+    if (joined.includes("user_timing") || joined.includes("measure")) {
+        return "user_timing";
+    }
+    if (joined.includes("loading") || joined.includes("resource")) {
+        return "loading";
+    }
+    return "other";
+}
+
+function summarizeTraceCategories(
+    buckets: readonly TraceDurationBucket[],
+): TraceCategoryBucket[] {
+    const categories = new Map<string, TraceCategoryBucket>();
+    for (const bucket of buckets) {
+        const name = classifyTraceCategory(bucket);
+        const entry = categories.get(name) ?? {
+            name,
+            totalMs: 0,
+            maxMs: 0,
+            count: 0,
+        };
+        entry.totalMs += Number(bucket.totalMs ?? 0);
+        entry.maxMs = Math.max(entry.maxMs, Number(bucket.maxMs ?? 0));
+        entry.count += Number(bucket.count ?? 0);
+        categories.set(name, entry);
+    }
+    return [...categories.values()]
+        .map((entry) => ({
+            ...entry,
+            totalMs: round(entry.totalMs),
+            maxMs: round(entry.maxMs),
+        }))
+        .sort((a, b) => b.totalMs - a.totalMs);
+}
+
 function summarizeTrace(traceEvents: readonly any[]): Record<string, JsonValue> {
     const summary = summarizeTraceBuckets(traceEvents);
     return {
@@ -859,14 +1284,57 @@ function summarizeTrace(traceEvents: readonly any[]): Record<string, JsonValue> 
         mainThreadCount: summary.mainThread.length,
         topByTotalMs: summary.all,
         mainThreadTopByTotalMs: summary.mainThread,
+        categoriesTopByTotalMs: summarizeTraceCategories(summary.all),
+        mainThreadCategoriesTopByTotalMs: summarizeTraceCategories(
+            summary.mainThread,
+        ),
         largestSlices: summary.largestSlices,
     };
+}
+
+const TRACE_FOCUS_NAMES = [
+    "RunTask",
+    "FunctionCall",
+    "EventDispatch",
+    "FireAnimationFrame",
+    "Layout",
+    "Paint",
+    "PrePaint",
+    "UpdateLayer",
+    "CompositeLayers",
+    "RasterTask",
+    "ParseHTML",
+    "UpdateCounters",
+] as const;
+
+function summarizeFocusTraceBuckets(
+    buckets: readonly Record<string, JsonValue>[],
+): Record<string, JsonValue>[] {
+    return buckets.filter((bucket) =>
+        TRACE_FOCUS_NAMES.some(
+            (name) => String(bucket.name ?? "").toLowerCase() === name.toLowerCase(),
+        ),
+    );
+}
+
+function collectDevtoolsMetricValues(
+    metricsPayload: any,
+): Map<string, number> {
+    const values = new Map<string, number>();
+    for (const metric of metricsPayload?.metrics ?? []) {
+        values.set(String(metric.name), Number(metric.value ?? 0));
+    }
+    return values;
 }
 
 async function collectTraceDuring<T>(
     client: CdpClient,
     action: () => Promise<T>,
-): Promise<{ actionResult: T; traceSummary: Record<string, JsonValue> }> {
+): Promise<{
+    actionResult: T;
+    traceSummary: Record<string, JsonValue>;
+    rawTraceEvents: any[];
+}> {
     const traceEvents: any[] = [];
     let resolveComplete!: () => void;
     let rejectComplete!: (reason?: unknown) => void;
@@ -893,8 +1361,10 @@ async function collectTraceDuring<T>(
             "-*",
             "devtools.timeline",
             "blink.user_timing",
+            "blink",
             "loading",
             "v8.execute",
+            "disabled-by-default-v8.gc",
             "disabled-by-default-devtools.timeline",
             "disabled-by-default-devtools.timeline.frame",
             "disabled-by-default-v8.cpu_profiler",
@@ -911,6 +1381,7 @@ async function collectTraceDuring<T>(
         return {
             actionResult,
             traceSummary: summarizeTrace(traceEvents),
+            rawTraceEvents: traceEvents,
         };
     } finally {
         if (!tracingEnded) {
@@ -926,15 +1397,23 @@ async function collectTraceDuring<T>(
 
 function summarizeDevtoolsMetrics(metricsPayload: any): Record<string, JsonValue> {
     const selectedNames = new Set([
+        "Timestamp",
+        "AudioHandlers",
+        "Documents",
         "TaskDuration",
         "ScriptDuration",
         "LayoutDuration",
         "RecalcStyleDuration",
+        "DevToolsCommandDuration",
+        "ProcessTime",
+        "TaskOtherDuration",
         "JSHeapUsedSize",
         "JSHeapTotalSize",
         "Nodes",
         "JSEventListeners",
         "Frames",
+        "DomContentLoaded",
+        "NavigationStart",
         "LayoutCount",
         "RecalcStyleCount",
     ]);
@@ -946,6 +1425,38 @@ function summarizeDevtoolsMetrics(metricsPayload: any): Record<string, JsonValue
     return Object.fromEntries(values.entries());
 }
 
+function summarizeDevtoolsMetricDelta(
+    beforePayload: any,
+    afterPayload: any,
+): Record<string, JsonValue> {
+    const deltaNames = [
+        "TaskDuration",
+        "ScriptDuration",
+        "LayoutDuration",
+        "RecalcStyleDuration",
+        "DevToolsCommandDuration",
+        "ProcessTime",
+        "TaskOtherDuration",
+        "LayoutCount",
+        "RecalcStyleCount",
+        "Documents",
+        "Nodes",
+        "JSEventListeners",
+        "Frames",
+        "AudioHandlers",
+        "JSHeapUsedSize",
+        "JSHeapTotalSize",
+    ];
+    const before = collectDevtoolsMetricValues(beforePayload);
+    const after = collectDevtoolsMetricValues(afterPayload);
+    return Object.fromEntries(
+        deltaNames.map((name) => [
+            name,
+            round((after.get(name) ?? 0) - (before.get(name) ?? 0)),
+        ]),
+    );
+}
+
 async function collectBrowserRuntimeStats(client: CdpClient): Promise<Record<string, JsonValue>> {
     return await client.evaluate<Record<string, JsonValue>>(`
         (() => {
@@ -954,6 +1465,15 @@ async function collectBrowserRuntimeStats(client: CdpClient): Promise<Record<str
                 startTimeMs: Number(entry.startTime.toFixed(3)),
                 durationMs: Number(entry.duration.toFixed(3)),
             }));
+            const resources = performance
+                .getEntriesByType("resource")
+                .slice(-20)
+                .map((entry) => ({
+                    name: entry.name.split("/").slice(-1)[0],
+                    initiatorType: entry.initiatorType,
+                    durationMs: Number(entry.duration.toFixed(3)),
+                    transferSize: "transferSize" in entry ? entry.transferSize : 0,
+                }));
             const nav = performance.getEntriesByType("navigation")[0];
             const navSummary = nav
                 ? {
@@ -972,7 +1492,20 @@ async function collectBrowserRuntimeStats(client: CdpClient): Promise<Record<str
                     jsHeapLimitSize: performance.memory.jsHeapSizeLimit,
                 }
                 : null;
-            return { paints, navigation: navSummary, memory };
+            const perfState = window.__PAX_BENCH__.snapshotPerfCapture();
+            const browserEventCounts = (perfState?.events ?? []).reduce((acc, event) => {
+                const name = String(event?.name ?? "");
+                if (!name.startsWith("browser.")) return acc;
+                acc[name] = (acc[name] ?? 0) + 1;
+                return acc;
+            }, {});
+            return {
+                paints,
+                resources,
+                navigation: navSummary,
+                memory,
+                browserEventCounts,
+            };
         })()
     `);
 }
@@ -1022,6 +1555,20 @@ async function dispatchMouseClick(
         button,
         buttons: 0,
         clickCount,
+    });
+}
+
+async function dispatchMouseMove(
+    client: CdpClient,
+    x: number,
+    y: number,
+): Promise<void> {
+    await client.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: round(x),
+        y: round(y),
+        button: "none",
+        buttons: 0,
     });
 }
 
@@ -1091,9 +1638,70 @@ async function waitForPerfEvent(
     return { matched: false, event: null };
 }
 
+async function waitForAnyPerfEvent(
+    client: CdpClient,
+    sinceIndex: number,
+    candidates: Array<{
+        name: string;
+        detailMatchers?: Record<string, JsonValue>;
+    }>,
+    timeoutMs = 3000,
+): Promise<Record<string, JsonValue>> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        for (const candidate of candidates) {
+            const result = await waitForPerfEvent(
+                client,
+                sinceIndex,
+                candidate.name,
+                candidate.detailMatchers ?? {},
+                1,
+            );
+            if (result.event) {
+                return {
+                    matched: true,
+                    event: result.event,
+                    matchedName: candidate.name,
+                };
+            }
+        }
+        await sleep(8);
+    }
+    return { matched: false, event: null, matchedName: null };
+}
+
+async function runHoverSweepStressLoop(
+    client: CdpClient,
+    path: Record<string, JsonValue>,
+    stopSignal: { stopped: boolean },
+): Promise<void> {
+    const sourceX = Number(path.sourceClientX ?? 0);
+    const sourceY = Number(path.sourceClientY ?? 0);
+    const targetX = Number(path.targetClientX ?? 0);
+    const targetY = Number(path.targetClientY ?? 0);
+    const midX = (sourceX + targetX) * 0.5;
+    const midY = (sourceY + targetY) * 0.5;
+    const points = [
+        { x: sourceX, y: sourceY },
+        { x: midX, y: midY },
+        { x: targetX, y: targetY },
+        { x: midX, y: sourceY },
+    ];
+    let index = 0;
+    while (!stopSignal.stopped) {
+        const point = points[index % points.length] ?? points[0];
+        await dispatchMouseMove(client, point.x, point.y);
+        index += 1;
+        await sleep(12);
+    }
+}
+
 async function executePointerOrderLoop(
     client: CdpClient,
     iterations: number,
+    options?: {
+        hoverStress?: boolean;
+    },
 ): Promise<JsonValue> {
     const samples: Array<Record<string, JsonValue>> = [];
     for (let i = 0; i < iterations; i += 1) {
@@ -1109,10 +1717,34 @@ async function executePointerOrderLoop(
         const issueEventStartIndex = await client.evaluate<number>(
             "window.__PAX_BENCH__.getPerfEventCursor()",
         );
+        const stressSignal = { stopped: false };
+        const stressLoop =
+            options?.hoverStress === true
+                ? runHoverSweepStressLoop(client, path, stressSignal)
+                : null;
         await dispatchMouseClick(
             client,
             Number(path.sourceClientX),
             Number(path.sourceClientY),
+        );
+        const sourceSelectLocalAck = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "input.interaction.localAck",
+            {
+                kind: "select",
+                targetId: String(path.sourceId),
+            },
+            800,
+        );
+        const sourceSelectEvent = await waitForPerfEvent(
+            client,
+            issueEventStartIndex,
+            "input.orderPath.select",
+            {
+                targetId: String(path.sourceId),
+            },
+            1500,
         );
         await sleep(24);
         const targetClickStartedAt = await client.evaluate<number>(
@@ -1123,6 +1755,52 @@ async function executePointerOrderLoop(
             Number(path.targetClientX),
             Number(path.targetClientY),
         );
+        const issueLocalAck = await waitForAnyPerfEvent(
+            client,
+            issueEventStartIndex,
+            [
+                {
+                    name: "input.interaction.localAck",
+                    detailMatchers: {
+                        kind: "issue",
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+                {
+                    name: "input.interaction.localAck",
+                    detailMatchers: {
+                        kind: "defer",
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+            ],
+            800,
+        );
+        const issueVisualAck = await waitForAnyPerfEvent(
+            client,
+            issueEventStartIndex,
+            [
+                {
+                    name: "input.interaction.visualAck",
+                    detailMatchers: {
+                        kind: "issue",
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+                {
+                    name: "input.interaction.visualAck",
+                    detailMatchers: {
+                        kind: "defer",
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+            ],
+            800,
+        );
         const issueApplied = await waitForOrderState(
             client,
             String(path.sourceId),
@@ -1132,6 +1810,8 @@ async function executePointerOrderLoop(
             client,
             issueEventStartIndex,
             "input.orderQueue.flushed",
+            {},
+            1200,
         );
         const issuePerfEvent = await waitForPerfEvent(
             client,
@@ -1141,6 +1821,28 @@ async function executePointerOrderLoop(
                 from: `Star ${String(path.sourceId)}`,
                 to: `Star ${String(path.targetId)}`,
             },
+            2000,
+        );
+        const issueOrderPathEvent = await waitForAnyPerfEvent(
+            client,
+            issueEventStartIndex,
+            [
+                {
+                    name: "input.orderPath.issue",
+                    detailMatchers: {
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+                {
+                    name: "input.orderPath.defer",
+                    detailMatchers: {
+                        sourceId: String(path.sourceId),
+                        targetId: String(path.targetId),
+                    },
+                },
+            ],
+            1200,
         );
         const cancelStartedAt = await client.evaluate<number>("performance.now()");
         const cancelEventStartIndex = await client.evaluate<number>(
@@ -1152,6 +1854,26 @@ async function executePointerOrderLoop(
             Number(path.sourceClientY),
             "right",
         );
+        const cancelLocalAck = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.interaction.localAck",
+            {
+                kind: "cancel",
+                sourceId: String(path.sourceId),
+            },
+            800,
+        );
+        const cancelVisualAck = await waitForPerfEvent(
+            client,
+            cancelEventStartIndex,
+            "input.interaction.visualAck",
+            {
+                kind: "cancel",
+                sourceId: String(path.sourceId),
+            },
+            800,
+        );
         const cancelApplied = await waitForOrderState(
             client,
             String(path.sourceId),
@@ -1161,6 +1883,8 @@ async function executePointerOrderLoop(
             client,
             cancelEventStartIndex,
             "input.orderQueue.flushed",
+            {},
+            1200,
         );
         const cancelPerfEvent = await waitForPerfEvent(
             client,
@@ -1169,11 +1893,55 @@ async function executePointerOrderLoop(
             {
                 from: `Star ${String(path.sourceId)}`,
             },
+            2000,
         );
+        const cancelOrderPathEvent = await waitForAnyPerfEvent(
+            client,
+            cancelEventStartIndex,
+            [
+                {
+                    name: "input.orderPath.cancel",
+                    detailMatchers: {
+                        sourceId: String(path.sourceId),
+                    },
+                },
+                {
+                    name: "input.orderPath.defer_cancel",
+                    detailMatchers: {
+                        targetId: String(path.sourceId),
+                    },
+                },
+            ],
+            1200,
+        );
+        stressSignal.stopped = true;
+        await stressLoop;
         samples.push({
             ok: true,
             sourceId: path.sourceId ?? null,
             targetId: path.targetId ?? null,
+            sourceSelectLocalAckMs: getEventDeltaMs(
+                sourceSelectLocalAck,
+                issueStartedAt,
+            ),
+            sourceSelectMs: sourceSelectEvent.event
+                ? round(
+                      Number(
+                          (sourceSelectEvent.event as Record<string, JsonValue>)
+                              .atMs ?? issueStartedAt,
+                      ) - issueStartedAt,
+                  )
+                : null,
+            issueLocalAckMs: getEventDeltaMs(issueLocalAck, issueStartedAt),
+            issueLocalAckAfterTargetClickMs: getEventDeltaMs(
+                issueLocalAck,
+                targetClickStartedAt,
+            ),
+            issueVisualAckMs: getEventDeltaMs(issueVisualAck, issueStartedAt),
+            issueVisualAckAfterTargetClickMs: getEventDeltaMs(
+                issueVisualAck,
+                targetClickStartedAt,
+            ),
             issueCommitMs: round(
                 Number(issueApplied.observedAtMs ?? issueStartedAt) -
                     issueStartedAt,
@@ -1208,16 +1976,78 @@ async function executePointerOrderLoop(
                       ) - targetClickStartedAt,
                   )
                 : null,
+            issueOrderPathEventMs: issueOrderPathEvent.event
+                ? round(
+                      Number(
+                          (
+                              issueOrderPathEvent.event as Record<
+                                  string,
+                                  JsonValue
+                              >
+                          ).atMs ?? issueStartedAt,
+                      ) - issueStartedAt,
+                  )
+                : null,
+            issueOrderPathEventAfterTargetClickMs: issueOrderPathEvent.event
+                ? round(
+                      Number(
+                          (
+                              issueOrderPathEvent.event as Record<
+                                  string,
+                                  JsonValue
+                              >
+                          ).atMs ?? targetClickStartedAt,
+                      ) - targetClickStartedAt,
+                  )
+                : null,
+            issueOrderPathEventName:
+                issueOrderPathEvent.matchedName ?? null,
+            issueAckKind: getEventDetailValue(issueLocalAck, "kind"),
+            issueAckPath: getEventDetailValue(issueLocalAck, "path"),
+            issueRequestId: getEventDetailValue(issueLocalAck, "requestId"),
+            issueVisualAckReason: getEventDetailValue(
+                issueVisualAck,
+                "reason",
+            ),
             issueMatched: issueApplied.matched ?? false,
             cancelMatched: cancelApplied.matched ?? false,
+            cancelLocalAckMs: getEventDeltaMs(cancelLocalAck, cancelStartedAt),
+            cancelVisualAckMs: getEventDeltaMs(
+                cancelVisualAck,
+                cancelStartedAt,
+            ),
             cancelQueueFlushMs: cancelQueueFlush.event
                 ? round(Number((cancelQueueFlush.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
                 : null,
             cancelPerfEventMs: cancelPerfEvent.event
                 ? round(Number((cancelPerfEvent.event as Record<string, JsonValue>).atMs ?? cancelStartedAt) - cancelStartedAt)
                 : null,
+            cancelOrderPathEventMs: cancelOrderPathEvent.event
+                ? round(
+                      Number(
+                          (
+                              cancelOrderPathEvent.event as Record<
+                                  string,
+                                  JsonValue
+                              >
+                          ).atMs ?? cancelStartedAt,
+                      ) - cancelStartedAt,
+                  )
+                : null,
+            cancelOrderPathEventName:
+                cancelOrderPathEvent.matchedName ?? null,
+            cancelAckPath: getEventDetailValue(cancelLocalAck, "path"),
+            cancelRequestId: getEventDetailValue(cancelLocalAck, "requestId"),
+            cancelVisualAckReason: getEventDetailValue(
+                cancelVisualAck,
+                "reason",
+            ),
             issueStatus: issueApplied.status ?? null,
             cancelStatus: cancelApplied.status ?? null,
+            perfEventTail: await client.evaluate<Array<Record<string, JsonValue>>>(
+                `window.__PAX_BENCH__.getPerfEventsSince(${issueEventStartIndex}, 80)`,
+            ),
+            stressMode: options?.hoverStress === true ? "hover_sweep" : null,
         });
         await sleep(120);
     }
@@ -1261,6 +2091,7 @@ async function executeDirectOrderLoop(
                 from: `Star ${sourceId}`,
                 to: `Star ${targetId}`,
             },
+            1500,
         );
 
         const cancelStartedAt = await client.evaluate<number>("performance.now()");
@@ -1282,6 +2113,7 @@ async function executeDirectOrderLoop(
             {
                 from: `Star ${sourceId}`,
             },
+            1500,
         );
 
         samples.push({
@@ -1339,7 +2171,11 @@ async function profileScenario(
     await client.send("Profiler.enable");
     await client.send("Profiler.setSamplingInterval", { interval: 1000 });
     await client.send("Profiler.start");
+    const devtoolsMetricsBefore = await client.send("Performance.getMetrics");
     const scenarioStartedAt = Date.now();
+    const scenarioEventCursor = await client.evaluate<number>(
+        "window.__PAX_BENCH__.getPerfEventCursor()",
+    );
     const traced = await collectTraceDuring(client, async () => {
         return await Promise.race([
             (typeof action === "string"
@@ -1363,11 +2199,22 @@ async function profileScenario(
     const stateSummary = await client.evaluate<any>(
         "window.__PAX_BENCH__.getStateSummary()",
     );
+    const logFlags = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.getLogFlags()",
+    );
     const territoryScheduler = await client.evaluate<Record<string, JsonValue> | null>(
         "window.__PAX_BENCH__.getTerritorySchedulerSnapshot()",
     );
     const browserRuntime = await collectBrowserRuntimeStats(client);
-    const devtoolsMetrics = await client.send("Performance.getMetrics");
+    const devtoolsMetricsAfter = await client.send("Performance.getMetrics");
+    const cpuHotspots = summarizeCpuProfile(profileResult.profile);
+    const perfEventTailStartIndex =
+        Number(snapshot?.events?.length ?? 0) < scenarioEventCursor
+            ? 0
+            : scenarioEventCursor;
+    const perfEventTail = await client.evaluate<Array<Record<string, JsonValue>>>(
+        `window.__PAX_BENCH__.getPerfEventsSince(${perfEventTailStartIndex}, 240)`,
+    );
     if (
         options?.expectedMode &&
         (modeWait?.matches !== true ||
@@ -1388,14 +2235,48 @@ async function profileScenario(
         requestedMode: options?.expectedMode ?? null,
         perf: summarizePerfSnapshot(snapshot),
         trace: traced.traceSummary,
+        traceFocusBuckets: summarizeFocusTraceBuckets(
+            (traced.traceSummary.mainThreadTopByTotalMs ?? []) as Record<
+                string,
+                JsonValue
+            >[],
+        ),
+        perfEventTail,
+        logFlags,
         territoryScheduler: summarizeTerritorySchedulerSnapshot(
             territoryScheduler,
         ),
         browserRuntime,
-        devtoolsMetrics: summarizeDevtoolsMetrics(devtoolsMetrics),
-        cpuHotspots: summarizeCpuProfile(profileResult.profile),
+        devtoolsMetrics: summarizeDevtoolsMetrics(devtoolsMetricsAfter),
+        devtoolsMetricsDelta: summarizeDevtoolsMetricDelta(
+            devtoolsMetricsBefore,
+            devtoolsMetricsAfter,
+        ),
+        cpuHotspots,
+        cpuFocusHotspots: summarizeFocusCpuHotspots(cpuHotspots),
         networkFailures: summarizeNetworkFailures(client),
     };
+    if (WRITE_TRACE_ARTIFACTS) {
+        mkdirSync(TRACE_DIR, { recursive: true });
+        const tracePath = path.join(
+            TRACE_DIR,
+            `${sanitizeLabelForPath(label)}.trace.json`,
+        );
+        writeFileSync(
+            tracePath,
+            JSON.stringify(
+                {
+                    label,
+                    generatedAt: new Date().toISOString(),
+                    traceEvents: traced.rawTraceEvents,
+                },
+                null,
+                2,
+            ),
+            "utf8",
+        );
+        Object.assign(result, { traceArtifactPath: tracePath });
+    }
     console.log(JSON.stringify({ stage: "scenario_done", label }));
     return result;
 }
@@ -1568,6 +2449,38 @@ async function main(): Promise<void> {
                 { expectedMode: "metaball" },
             );
         }
+        if (shouldRunScenario("metaballOrdersStress")) {
+            scenarios.metaballOrdersStress = await profileScenario(
+                client,
+                "metaballOrdersStress",
+                async (scenarioClient) => {
+                    await scenarioClient.evaluate(`
+                        (async () => {
+                            window.__PAX_BENCH__.resetPerfCapture();
+                            await window.__PAX_BENCH__.restartSinglePlayerGame();
+                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("metaball");
+                            await window.__PAX_BENCH__.beginGameplay();
+                            await new Promise((resolve) => setTimeout(resolve, 1200));
+                            return modePrep;
+                        })()
+                    `);
+                    const pointerSamples = await executePointerOrderLoop(
+                        scenarioClient,
+                        3,
+                        { hoverStress: true },
+                    );
+                    const directSamples = await executeDirectOrderLoop(
+                        scenarioClient,
+                        4,
+                    );
+                    const frames = await scenarioClient.evaluate<JsonValue>(
+                        "window.__PAX_BENCH__.collectFrameStats(1800)",
+                    );
+                    return { pointerSamples, directSamples, frames };
+                },
+                { expectedMode: "metaball" },
+            );
+        }
         if (shouldRunScenario("perimeterLoad")) {
             scenarios.perimeterLoad = await profileScenario(
                 client,
@@ -1625,6 +2538,38 @@ async function main(): Promise<void> {
                     const pointerSamples = await executePointerOrderLoop(
                         scenarioClient,
                         3,
+                    );
+                    const directSamples = await executeDirectOrderLoop(
+                        scenarioClient,
+                        4,
+                    );
+                    const frames = await scenarioClient.evaluate<JsonValue>(
+                        "window.__PAX_BENCH__.collectFrameStats(1800)",
+                    );
+                    return { pointerSamples, directSamples, frames };
+                },
+                { expectedMode: "perimeter_field" },
+            );
+        }
+        if (shouldRunScenario("perimeterOrdersStress")) {
+            scenarios.perimeterOrdersStress = await profileScenario(
+                client,
+                "perimeterOrdersStress",
+                async (scenarioClient) => {
+                    await scenarioClient.evaluate(`
+                        (async () => {
+                            window.__PAX_BENCH__.resetPerfCapture();
+                            await window.__PAX_BENCH__.restartSinglePlayerGame();
+                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("perimeter_field");
+                            await window.__PAX_BENCH__.beginGameplay();
+                            await new Promise((resolve) => setTimeout(resolve, 1200));
+                            return modePrep;
+                        })()
+                    `);
+                    const pointerSamples = await executePointerOrderLoop(
+                        scenarioClient,
+                        3,
+                        { hoverStress: true },
                     );
                     const directSamples = await executeDirectOrderLoop(
                         scenarioClient,

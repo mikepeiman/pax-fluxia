@@ -33,7 +33,7 @@ declare global {
 }
 
 const MAX_MEASURE_SAMPLES = 64;
-const MAX_EVENT_SAMPLES = 4096;
+const MAX_EVENT_SAMPLES = 8192;
 let browserObserversInstalled = false;
 
 function perfNow(): number {
@@ -177,6 +177,61 @@ function ensureBrowserPerfObservers(): void {
             durationMs: entry.duration,
             startTimeMs: entry.startTime,
             name: entry.name,
+        });
+    });
+
+    observe("layout-shift", (entry) => {
+        const shift = entry as PerformanceEntry & {
+            value?: number;
+            hadRecentInput?: boolean;
+            sources?: unknown[];
+        };
+        recordPerfEvent("browser.layoutShift", {
+            durationMs: entry.duration,
+            startTimeMs: entry.startTime,
+            value: typeof shift.value === "number" ? shift.value : 0,
+            hadRecentInput: Boolean(shift.hadRecentInput),
+            sourceCount: Array.isArray(shift.sources) ? shift.sources.length : 0,
+        });
+    });
+
+    observe("largest-contentful-paint", (entry) => {
+        const lcp = entry as PerformanceEntry & {
+            renderTime?: number;
+            loadTime?: number;
+            size?: number;
+            url?: string;
+        };
+        recordPerfEvent("browser.lcp", {
+            startTimeMs: entry.startTime,
+            renderTimeMs:
+                typeof lcp.renderTime === "number" ? lcp.renderTime : 0,
+            loadTimeMs: typeof lcp.loadTime === "number" ? lcp.loadTime : 0,
+            size: typeof lcp.size === "number" ? lcp.size : 0,
+            url: typeof lcp.url === "string" ? lcp.url : null,
+        });
+    });
+
+    observe("long-animation-frame", (entry) => {
+        const longFrame = entry as PerformanceEntry & {
+            blockingDuration?: number;
+            scripts?: Array<{ duration?: number; sourceURL?: string }>;
+        };
+        recordPerfEvent("browser.longAnimationFrame", {
+            durationMs: entry.duration,
+            startTimeMs: entry.startTime,
+            blockingDurationMs:
+                typeof longFrame.blockingDuration === "number"
+                    ? longFrame.blockingDuration
+                    : 0,
+            scriptCount: Array.isArray(longFrame.scripts)
+                ? longFrame.scripts.length
+                : 0,
+            topScriptUrl:
+                Array.isArray(longFrame.scripts) &&
+                typeof longFrame.scripts[0]?.sourceURL === "string"
+                    ? longFrame.scripts[0].sourceURL
+                    : null,
         });
     });
 
