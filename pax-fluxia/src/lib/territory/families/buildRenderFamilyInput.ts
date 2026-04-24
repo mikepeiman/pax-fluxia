@@ -1,4 +1,11 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
+import {
+    logPipelineStage,
+    summarizeConnections,
+    summarizeGeometry,
+    summarizeOwnership,
+    summarizeStars,
+} from '$lib/perf/pipelineTelemetry';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type {
@@ -26,6 +33,16 @@ function collectRenderFamilyTunables(params: {
     return tunables;
 }
 
+function summarizeTunables(
+    tunables: ReadonlyMap<string, RenderFamilyTunableValue>,
+): string {
+    const preview = [...tunables.entries()]
+        .slice(0, 4)
+        .map(([key, value]) => `${key}=${String(value)}`)
+        .join(',');
+    return `tunables=${tunables.size}${preview ? ` preview=${preview}` : ''}`;
+}
+
 export function buildRenderFamilyInput(params: {
     stars: StarState[];
     lanes: StarConnection[];
@@ -43,7 +60,11 @@ export function buildRenderFamilyInput(params: {
     tunableKeys?: readonly string[];
     configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
-    return {
+    const tunables = collectRenderFamilyTunables({
+        tunableKeys: params.tunableKeys,
+        configSource: params.configSource,
+    });
+    const input = {
         ownership: params.ownership ?? null,
         geometry: params.geometry ?? null,
         prevGeometry: params.prevGeometry ?? null,
@@ -53,12 +74,29 @@ export function buildRenderFamilyInput(params: {
         stars: params.stars,
         lanes: params.lanes,
         world: { width: params.worldWidth, height: params.worldHeight },
-        tunables: collectRenderFamilyTunables({
-            tunableKeys: params.tunableKeys,
-            configSource: params.configSource,
-        }),
+        tunables,
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
         transitionTruth: params.transitionTruth ?? null,
     };
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'RenderFamilyInput',
+        stage: 'family_input',
+        from: 'GameCanvas frame state',
+        to: 'Render-family contract',
+        purpose: 'Freeze stars, lanes, ownership, geometry, and tunables into a single family update payload',
+        summary:
+            `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
+            `${input.ownership ? summarizeOwnership(input.ownership) : 'ownership=null'} ` +
+            `${summarizeGeometry(input.geometry)} ${summarizeTunables(tunables)}`,
+        perfEventName: 'territory.renderFamily.inputBuilt',
+        detail: {
+            nowMs: input.nowMs,
+            paused: input.paused,
+            gameTick: input.gameTick ?? null,
+            activeTransitionEvents: input.activeTransition?.events.length ?? 0,
+        },
+    });
+    return input;
 }

@@ -1,5 +1,9 @@
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
-import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
+import {
+    logPipelineStage,
+    summarizePerimeterVSet,
+    summarizeTransitionPlan,
+} from '$lib/perf/pipelineTelemetry';
 import type {
     FrontierSection,
     FrontierTopology,
@@ -7,23 +11,16 @@ import type {
 } from '../../contracts/FrontierTopologyContracts';
 import type { RenderFamilyTransitionEvent } from '../RenderFamilyTypes';
 import { flattenRegionLoopPoints } from '../buildPowerVoronoiFrontierTopology';
-import {
-    listPerimeterGeometryLoops,
-    type PerimeterGeometryLoop,
-} from './perimeterFieldGeometryLoops';
 import type {
     AppearingV,
-    ChangedFrontChain,
-    ChangedFrontChainSectionRef,
-    ChangedFrontSelectionResult,
     ChangedSectionSets,
     DisappearingV,
     PerimeterV,
     PerimeterVOwnerRole,
-    PerimeterFieldTransitionTruth,
-    PreservedVPair,
+    SpanPair,
     TransitionMover,
     TransitionPlan,
+    UnmatchedSpan,
 } from './perimeterFieldTransitionTypes';
 
 interface SamplingOptions {
@@ -32,6 +29,18 @@ interface SamplingOptions {
     strength: number;
     ownerToCluster: ReadonlyMap<string, number>;
 }
+
+interface ResampledPoint {
+    x: number;
+    y: number;
+    ownerId: string;
+    playerIdx: number;
+    strength: number;
+    normalX: number;
+    normalY: number;
+}
+
+const sampledVSetCache = new Map<string, readonly PerimeterV[]>();
 
 function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
@@ -202,25 +211,57 @@ function chooseOffsetPoint(
     };
 }
 
-function chooseOffsetPointFromNeighbors(
-    point: [number, number],
-    prevPoint: [number, number],
-    nextPoint: [number, number],
-    polygon: ReadonlyArray<[number, number]>,
-    offsetPx: number,
-): { x: number; y: number; normalX: number; normalY: number } {
-    const tangent = normalizeVector(
-        nextPoint[0] - prevPoint[0],
-        nextPoint[1] - prevPoint[1],
-    );
-    return chooseOffsetPoint(point, tangent, polygon, offsetPx);
-}
-
 function getSectionPoints(
     section: FrontierSection,
     direction: 'forward' | 'reverse',
 ): [number, number][] {
     return direction === 'forward' ? section.points : [...section.points].reverse();
+}
+
+function buildLoopSampleCount(sectionLength: number, spacing: number): number {
+    if (sectionLength <= 1e-6) return 1;
+    return Math.max(1, Math.round(sectionLength / Math.max(4, spacing)));
+}
+
+function buildOwnerClusterKey(ownerToCluster: ReadonlyMap<string, number>): string {
+    return [...ownerToCluster.entries()]
+        .sort(([ownerA], [ownerB]) => ownerA.localeCompare(ownerB))
+        .map(([ownerId, clusterIdx]) => `${ownerId}:${clusterIdx}`)
+        .join('|');
+}
+
+function buildGeometryCacheKey(geometry: CanonicalGeometrySnapshot): string {
+    const loopKey = geometry.frontierTopology.loops
+        .map(
+            (loop) =>
+                `${loop.id}:${loop.ownerId}:${loop.sectionRefs
+                    .map((section) => `${section.sectionId}:${section.direction}`)
+                    .join(',')}`,
+        )
+        .join('|');
+    const sectionKey = [...geometry.frontierTopology.sections.values()]
+        .map(
+            (section) =>
+                `${section.id}:${section.kind}:${section.points
+                    .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
+                    .join(';')}`,
+        )
+        .join('|');
+    return `${geometry.version}::${loopKey}::${sectionKey}`;
+}
+
+function buildVSetCacheKey(params: {
+    geometry: CanonicalGeometrySnapshot;
+    options: SamplingOptions;
+}): string {
+    const { geometry, options } = params;
+    return [
+        buildGeometryCacheKey(geometry),
+        options.spacing.toFixed(3),
+        options.offsetPx.toFixed(3),
+        options.strength.toFixed(3),
+        buildOwnerClusterKey(options.ownerToCluster),
+    ].join('::');
 }
 
 export function hasUsableFrontierTopology(
@@ -237,505 +278,115 @@ export function buildPerimeterVMatchKey(v: Pick<PerimeterV, 'sectionId' | 'index
     return `${v.sectionId}:${v.indexInSection}`;
 }
 
-function signedArea(points: ReadonlyArray<[number, number]>): number {
-    if (points.length < 3) return 0;
-    let area = 0;
-    for (let i = 0; i < points.length; i++) {
-        const [ax, ay] = points[i]!;
-        const [bx, by] = points[(i + 1) % points.length]!;
-        area += ax * by - bx * ay;
-    }
-    return area * 0.5;
-}
-
-function buildClosedLoopSampleCount(loopLength: number, spacing: number): number {
-    if (loopLength <= 1e-6) return 1;
-    return Math.max(3, Math.round(loopLength / Math.max(4, spacing)));
-}
-
-function interpolateAlongClosedLoop(
-    points: ReadonlyArray<[number, number]>,
-    cumulative: ReadonlyArray<number>,
-    target: number,
-): { point: [number, number]; tangent: { x: number; y: number } } {
-    if (points.length === 0) {
-        return { point: [0, 0], tangent: { x: 0, y: 0 } };
-    }
-    if (points.length === 1) {
-        return { point: points[0]!, tangent: { x: 0, y: 0 } };
-    }
-
-    const total = cumulative[cumulative.length - 1] ?? 0;
-    if (total <= 1e-6) {
-        return { point: points[0]!, tangent: { x: 0, y: 0 } };
-    }
-
-    const wrapped = ((target % total) + total) % total;
-    let segment = 0;
-    while (segment < cumulative.length - 2 && cumulative[segment + 1]! < wrapped) {
-        segment += 1;
-    }
-    const spanStart = cumulative[segment]!;
-    const spanEnd = cumulative[segment + 1]!;
-    const t = spanEnd > spanStart ? (wrapped - spanStart) / (spanEnd - spanStart) : 0;
-    const [ax, ay] = points[segment]!;
-    const [bx, by] = points[(segment + 1) % points.length]!;
-    return {
-        point: [ax + (bx - ax) * t, ay + (by - ay) * t],
-        tangent: normalizeVector(bx - ax, by - ay),
-    };
-}
-
-interface LoopSectionSpan {
-    section: FrontierSection;
-    start: number;
-    end: number;
-}
-
-function buildLoopSectionSpans(
-    loop: RegionLoop,
-    sections: ReadonlyMap<string, FrontierSection>,
-): { spans: LoopSectionSpan[]; totalLength: number } {
-    const spans: LoopSectionSpan[] = [];
-    let cursor = 0;
-    for (const sectionRef of loop.sectionRefs) {
-        const section = sections.get(sectionRef.sectionId);
-        if (!section) continue;
-        const sectionPoints = getSectionPoints(section, sectionRef.direction);
-        const sectionLength = polylineLength(sectionPoints);
-        spans.push({
-            section,
-            start: cursor,
-            end: cursor + sectionLength,
-        });
-        cursor += sectionLength;
-    }
-    return { spans, totalLength: cursor };
-}
-
-function resolveLoopSectionSpan(
-    spans: readonly LoopSectionSpan[],
-    target: number,
-    totalLength: number,
-): LoopSectionSpan | null {
-    if (spans.length === 0) return null;
-    const clamped =
-        totalLength <= 1e-6
-            ? 0
-            : Math.max(0, Math.min(target, Math.max(0, totalLength - 1e-6)));
-    for (const span of spans) {
-        if (clamped < span.end || Math.abs(clamped - span.end) <= 1e-6) {
-            return span;
-        }
-    }
-    return spans[spans.length - 1] ?? null;
-}
-
-function scoreVisibleLoopMatch(
-    visibleLoop: PerimeterGeometryLoop,
-    topologyLoopPoints: ReadonlyArray<[number, number]>,
-): number {
-    const [visibleCx, visibleCy] = averagePoint(visibleLoop.points);
-    const [topologyCx, topologyCy] = averagePoint(topologyLoopPoints);
-    const areaDelta =
-        Math.abs(Math.sqrt(Math.abs(signedArea(visibleLoop.points)))) -
-        Math.abs(Math.sqrt(Math.abs(signedArea(topologyLoopPoints))));
-    const centroidDistance = Math.hypot(visibleCx - topologyCx, visibleCy - topologyCy);
-    return Math.abs(areaDelta) * 4 + centroidDistance;
-}
-
-function isUsableOwnedTopologyLoop(loop: { ownerId: string; signedArea: number }): boolean {
-    return Boolean(loop.ownerId) && Math.abs(loop.signedArea) > 1e-6;
-}
-
-function matchVisibleLoopsByTopology(
-    geometry: CanonicalGeometrySnapshot,
-): ReadonlyMap<string, PerimeterGeometryLoop> {
-    if (geometry.sourceMethod !== 'power_voronoi') {
-        return new Map();
-    }
-
-    const visibleLoops = listPerimeterGeometryLoops(geometry).filter(
-        (loop) => loop.points.length >= 3 && Boolean(loop.ownerId),
-    );
-    const topologyLoops = [...geometry.frontierTopology.loops]
-        .filter(isUsableOwnedTopologyLoop)
-        .sort((a, b) => a.id.localeCompare(b.id));
-
-    const byOwner = new Map<string, Array<{ index: number; loop: PerimeterGeometryLoop }>>();
-    visibleLoops.forEach((loop, index) => {
-        const bucket = byOwner.get(loop.ownerId);
-        if (bucket) bucket.push({ index, loop });
-        else byOwner.set(loop.ownerId, [{ index, loop }]);
-    });
-
-    const usedVisibleIndices = new Set<number>();
-    const mapping = new Map<string, PerimeterGeometryLoop>();
-    for (const topologyLoop of topologyLoops) {
-        const topologyLoopPoints = buildPerimeterSectionPoints(
-            topologyLoop,
-            geometry.frontierTopology.sections,
-        );
-        const candidates = (byOwner.get(topologyLoop.ownerId) ?? []).filter(
-            ({ index }) => !usedVisibleIndices.has(index),
-        );
-        if (candidates.length === 0) continue;
-
-        let bestCandidate = candidates[0]!;
-        let bestScore = scoreVisibleLoopMatch(bestCandidate.loop, topologyLoopPoints);
-        for (const candidate of candidates.slice(1)) {
-            const score = scoreVisibleLoopMatch(candidate.loop, topologyLoopPoints);
-            if (score < bestScore) {
-                bestScore = score;
-                bestCandidate = candidate;
-            }
-        }
-
-        usedVisibleIndices.add(bestCandidate.index);
-        mapping.set(topologyLoop.id, bestCandidate.loop);
-    }
-
-    return mapping;
-}
-
 export function sampleVSetFromGeometry(params: {
     geometry: CanonicalGeometrySnapshot;
     options: SamplingOptions;
 }): PerimeterV[] {
+    const cacheKey = buildVSetCacheKey(params);
+    const cached = sampledVSetCache.get(cacheKey);
+    if (cached) {
+        logPipelineStage({
+            channel: 'renderer',
+            context: 'PerimeterFieldPlanEngine',
+            stage: 'vset_cache_hit',
+            from: 'Geometry + sampling options',
+            to: 'Cached perimeter V-set',
+            purpose: 'Reuse perimeter-field sample points without resampling unchanged topology',
+            summary: summarizePerimeterVSet(cached as readonly PerimeterV[]),
+            perfEventName: 'territory.perimeterField.vsetCacheHit',
+            detail: {
+                cacheKey,
+                geometryVersion: params.geometry.version,
+            },
+        });
+        return cached as PerimeterV[];
+    }
+
     const { geometry, options } = params;
     const topology = geometry.frontierTopology;
     if (topology.sections.size === 0 || topology.loops.length === 0) return [];
 
     const vs: PerimeterV[] = [];
     const loops = [...topology.loops]
-        .filter(isUsableOwnedTopologyLoop)
+        .filter((loop) => loop.signedArea > 0 && Boolean(loop.ownerId))
         .sort((a, b) => a.id.localeCompare(b.id));
-    const visibleLoopMapping = matchVisibleLoopsByTopology(geometry);
 
     for (const loop of loops) {
         const playerIdx = options.ownerToCluster.get(loop.ownerId);
         if (playerIdx === undefined) continue;
-        const topologyLoopPoints = buildPerimeterSectionPoints(loop, topology.sections);
-        const visibleLoopPoints =
-            visibleLoopMapping.get(loop.id)?.points ?? topologyLoopPoints;
-        if (visibleLoopPoints.length < 3 || topologyLoopPoints.length < 3) continue;
+        const loopPoints = buildPerimeterSectionPoints(loop, topology.sections);
+        if (loopPoints.length < 3) continue;
 
-        const visibleLoopPerimeter = polylineLength(visibleLoopPoints, true);
-        const { spans, totalLength: topologyLoopPerimeter } = buildLoopSectionSpans(
-            loop,
-            topology.sections,
-        );
-        if (visibleLoopPerimeter <= 1e-6 || topologyLoopPerimeter <= 1e-6 || spans.length === 0) {
-            continue;
-        }
-
+        const loopPerimeter = polylineLength(loopPoints, false);
         const adjustedOffset =
-            visibleLoopPerimeter > 0 && visibleLoopPerimeter < options.offsetPx * 2
-                ? visibleLoopPerimeter / 4
+            loopPerimeter > 0 && loopPerimeter < options.offsetPx * 2
+                ? loopPerimeter / 4
                 : options.offsetPx;
 
-        const sampleCount = buildClosedLoopSampleCount(
-            visibleLoopPerimeter,
-            options.spacing,
-        );
-        const visibleCumulative = buildCumulativeLengths(visibleLoopPoints, true);
-        const sampledLoopPoints = Array.from({ length: sampleCount }, (_, sampleIndex) => {
-            const visibleTarget = (sampleIndex / sampleCount) * visibleLoopPerimeter;
-            const topologyTarget =
-                (visibleTarget / visibleLoopPerimeter) * topologyLoopPerimeter;
-            const { point } = interpolateAlongClosedLoop(
-                visibleLoopPoints,
-                visibleCumulative,
-                visibleTarget,
-            );
-            return { point, visibleTarget, topologyTarget };
-        });
-        const perSectionIndexes = new Map<string, number>();
+        let arclengthCursor = 0;
+        for (const sectionRef of loop.sectionRefs) {
+            const section = topology.sections.get(sectionRef.sectionId);
+            if (!section) continue;
+            const sectionPoints = getSectionPoints(section, sectionRef.direction);
+            const sectionLength = polylineLength(sectionPoints);
+            const sampleCount = buildLoopSampleCount(sectionLength, options.spacing);
 
-        for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++) {
-            const sampled = sampledLoopPoints[sampleIndex]!;
-            const prevSample = sampledLoopPoints[(sampleIndex + sampleCount - 1) % sampleCount]!;
-            const nextSample = sampledLoopPoints[(sampleIndex + 1) % sampleCount]!;
-            const visibleTarget = sampled.visibleTarget;
-            const topologyTarget = sampled.topologyTarget;
-            const span = resolveLoopSectionSpan(spans, topologyTarget, topologyLoopPerimeter);
-            if (!span) continue;
+            for (let indexInSection = 0; indexInSection < sampleCount; indexInSection++) {
+                const localTarget =
+                    sectionLength <= 1e-6
+                        ? 0
+                        : ((indexInSection + 0.5) / sampleCount) * sectionLength;
+                const { point, tangent } = interpolateAlongPolyline(
+                    sectionPoints,
+                    localTarget,
+                );
+                const offset = chooseOffsetPoint(
+                    point,
+                    tangent,
+                    loopPoints,
+                    adjustedOffset,
+                );
 
-            const offset = chooseOffsetPointFromNeighbors(
-                sampled.point,
-                prevSample.point,
-                nextSample.point,
-                visibleLoopPoints,
-                adjustedOffset,
-            );
-            const indexInSection = perSectionIndexes.get(span.section.id) ?? 0;
-            perSectionIndexes.set(span.section.id, indexInSection + 1);
-
-            vs.push({
-                id: `v:${loop.id}:${span.section.id}:${indexInSection}`,
-                x: offset.x,
-                y: offset.y,
-                ownerId: loop.ownerId,
-                playerIdx,
-                strength: options.strength,
-                loopId: loop.id,
-                sectionId: span.section.id,
-                indexInSection,
-                sectionKind: span.section.kind,
-                arclengthInSection: Math.max(0, topologyTarget - span.start),
-                arclengthInLoop: topologyTarget,
-                normalX: offset.normalX,
-                normalY: offset.normalY,
-            });
-        }
-    }
-
-    return vs;
-}
-
-function sampleSectionShape(
-    points: ReadonlyArray<[number, number]>,
-    sampleCount = 7,
-): [number, number][] {
-    if (points.length <= 1) return [...points];
-    const cumulative = buildCumulativeLengths(points, false);
-    const total = cumulative[cumulative.length - 1] ?? 0;
-    if (total <= 1e-6) return [...points];
-    const samples: [number, number][] = [];
-    for (let i = 0; i < sampleCount; i++) {
-        const target =
-            sampleCount === 1 ? total / 2 : (i / (sampleCount - 1)) * total;
-        samples.push(interpolateOnPath(points, cumulative, target, false));
-    }
-    return samples;
-}
-
-function sectionsEquivalent(
-    prevSection: FrontierSection,
-    nextSection: FrontierSection,
-    pointMoePx = 1.5,
-): boolean {
-    if (
-        prevSection.leftOwnerId !== nextSection.leftOwnerId ||
-        prevSection.rightOwnerId !== nextSection.rightOwnerId ||
-        prevSection.kind !== nextSection.kind
-    ) {
-        return false;
-    }
-    const prevSamples = sampleSectionShape(prevSection.points);
-    const nextSamples = sampleSectionShape(nextSection.points);
-    if (prevSamples.length !== nextSamples.length) return false;
-    for (let i = 0; i < prevSamples.length; i++) {
-        const prev = prevSamples[i]!;
-        const next = nextSamples[i]!;
-        if (Math.hypot(prev[0] - next[0], prev[1] - next[1]) > pointMoePx) {
-            return false;
-        }
-    }
-    return true;
-}
-
-function buildRawLoopRecords(
-    geometry: CanonicalGeometrySnapshot,
-): Array<{
-    ownerId: string;
-    loopId: string;
-    points: ReadonlyArray<[number, number]>;
-    starIds: readonly string[];
-}> {
-    const outerLoops = geometry.shellLoops.filter(
-        (loop) => loop.classification === 'outer' && Boolean(loop.ownerId),
-    );
-    if (outerLoops.length > 0) {
-        return outerLoops.map((loop) => ({
-            ownerId: loop.ownerId!,
-            loopId: loop.shellLoopId,
-            points: loop.points,
-            starIds: [...(loop.anchorStarIds ?? loop.starIds ?? [])],
-        }));
-    }
-    if (geometry.territoryRegions.length > 0) {
-        return geometry.territoryRegions.map((region) => ({
-            ownerId: region.ownerId,
-            loopId: region.regionId,
-            points: region.points,
-            starIds: [...(region.anchorStarIds ?? region.starIds ?? [])],
-        }));
-    }
-    if (geometry.frontierTopology.loops.length > 0) {
-        return geometry.frontierTopology.loops
-            .filter((loop) => Boolean(loop.ownerId))
-            .map((loop) => ({
-                ownerId: loop.ownerId,
-                loopId: loop.id,
-                points: flattenRegionLoopPoints(
-                    loop,
-                    geometry.frontierTopology.sections,
-                ),
-                starIds: [],
-            }));
-    }
-    return [];
-}
-
-function centroidOfPoints(
-    points: ReadonlyArray<[number, number]>,
-): { x: number; y: number } {
-    const [x, y] = averagePoint(points);
-    return { x, y };
-}
-
-function polygonContainsCentroid(
-    a: ReadonlyArray<[number, number]>,
-    b: ReadonlyArray<[number, number]>,
-): boolean {
-    const centroid = centroidOfPoints(a);
-    return pointInPolygon(centroid.x, centroid.y, b);
-}
-
-function mapRawLoopToTopologyLoop(
-    rawLoop: { ownerId: string; points: ReadonlyArray<[number, number]> },
-    topology: FrontierTopology,
-): RegionLoop | null {
-    const candidates = topology.loops.filter(
-        (loop) => loop.ownerId === rawLoop.ownerId && Math.abs(loop.signedArea) > 1e-6,
-    );
-    if (candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0]!;
-    const rawCentroid = centroidOfPoints(rawLoop.points);
-    let bestLoop: RegionLoop | null = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    for (const candidate of candidates) {
-        const points = flattenRegionLoopPoints(candidate, topology.sections);
-        const candidateCentroid = centroidOfPoints(points);
-        let score = -Math.hypot(
-            candidateCentroid.x - rawCentroid.x,
-            candidateCentroid.y - rawCentroid.y,
-        );
-        if (polygonContainsCentroid(rawLoop.points, points)) score += 500;
-        if (polygonContainsCentroid(points, rawLoop.points)) score += 250;
-        if (score > bestScore) {
-            bestScore = score;
-            bestLoop = candidate;
-        }
-    }
-    return bestLoop;
-}
-
-function sectionTouchesOwners(
-    section: FrontierSection,
-    previousOwnerId: string,
-    newOwnerId: string,
-): boolean {
-    return (
-        section.leftOwnerId === previousOwnerId ||
-        section.rightOwnerId === previousOwnerId ||
-        section.leftOwnerId === newOwnerId ||
-        section.rightOwnerId === newOwnerId
-    );
-}
-
-function collectSeedLoopIds(params: {
-    geometry: CanonicalGeometrySnapshot;
-    topology: FrontierTopology;
-    ownerId: string;
-    starId: string;
-}): string[] {
-    const seedLoops = buildRawLoopRecords(params.geometry).filter(
-        (loop) =>
-            loop.ownerId === params.ownerId &&
-            loop.starIds.includes(params.starId),
-    );
-    const resolved = seedLoops
-        .map((loop) => mapRawLoopToTopologyLoop(loop, params.topology)?.id ?? null)
-        .filter((loopId): loopId is string => loopId !== null);
-    if (resolved.length > 0) return [...new Set(resolved)];
-    return [];
-}
-
-function expandChangedSectionsFromSeeds(params: {
-    topology: FrontierTopology;
-    seedLoopIds: readonly string[];
-    candidateSectionIds: ReadonlySet<string>;
-    previousOwnerId: string;
-    newOwnerId: string;
-}): Set<string> {
-    const allowed = new Set<string>();
-    for (const sectionId of params.candidateSectionIds) {
-        const section = params.topology.sections.get(sectionId);
-        if (
-            section &&
-            sectionTouchesOwners(
-                section,
-                params.previousOwnerId,
-                params.newOwnerId,
-            )
-        ) {
-            allowed.add(sectionId);
-        }
-    }
-
-    const loopById = new Map(params.topology.loops.map((loop) => [loop.id, loop]));
-    const queue: string[] = [];
-    const visited = new Set<string>();
-    for (const loopId of params.seedLoopIds) {
-        const loop = loopById.get(loopId);
-        if (!loop) continue;
-        for (const ref of loop.sectionRefs) {
-            if (!allowed.has(ref.sectionId) || visited.has(ref.sectionId)) continue;
-            visited.add(ref.sectionId);
-            queue.push(ref.sectionId);
-        }
-    }
-
-    while (queue.length > 0) {
-        const sectionId = queue.shift()!;
-        const section = params.topology.sections.get(sectionId);
-        if (!section) continue;
-        for (const vertexId of [section.startVertexId, section.endVertexId]) {
-            for (const adjacentId of params.topology.sectionsByVertex.get(vertexId) ?? []) {
-                if (!allowed.has(adjacentId) || visited.has(adjacentId)) continue;
-                visited.add(adjacentId);
-                queue.push(adjacentId);
+                vs.push({
+                    id: `v:${loop.id}:${section.id}:${indexInSection}`,
+                    x: offset.x,
+                    y: offset.y,
+                    ownerId: loop.ownerId,
+                    playerIdx,
+                    strength: options.strength,
+                    loopId: loop.id,
+                    sectionId: section.id,
+                    indexInSection,
+                    sectionKind: section.kind,
+                    arclengthInSection: localTarget,
+                    arclengthInLoop: arclengthCursor + localTarget,
+                    normalX: offset.normalX,
+                    normalY: offset.normalY,
+                });
             }
+
+            arclengthCursor += sectionLength;
         }
     }
 
-    return visited;
-}
-
-function buildSpanOrderForSelection(params: {
-    topology: FrontierTopology;
-    loopIds: readonly string[];
-    selectedSectionIds: ReadonlySet<string>;
-}): ChangedFrontChainSectionRef[] {
-    const loopById = new Map(params.topology.loops.map((loop) => [loop.id, loop]));
-    const orderedLoopIds = [
-        ...params.loopIds,
-        ...params.topology.loops
-            .filter((loop) => !params.loopIds.includes(loop.id))
-            .filter((loop) =>
-                loop.sectionRefs.some((ref) =>
-                    params.selectedSectionIds.has(ref.sectionId),
-                ),
-            )
-            .map((loop) => loop.id)
-            .sort((a, b) => a.localeCompare(b)),
-    ];
-    const refs: ChangedFrontChainSectionRef[] = [];
-    for (const loopId of orderedLoopIds) {
-        const loop = loopById.get(loopId);
-        if (!loop) continue;
-        for (const ref of loop.sectionRefs) {
-            if (!params.selectedSectionIds.has(ref.sectionId)) continue;
-            refs.push({
-                loopId,
-                sectionId: ref.sectionId,
-                direction: ref.direction,
-            });
-        }
-    }
-    return refs;
+    sampledVSetCache.set(cacheKey, vs);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'PerimeterFieldPlanEngine',
+        stage: 'vset_cache_miss',
+        from: 'Geometry + sampling options',
+        to: 'New perimeter V-set',
+        purpose: 'Sample perimeter-field frontier loops into cached V points for rendering and transition planning',
+        summary: summarizePerimeterVSet(vs),
+        perfEventName: 'territory.perimeterField.vsetCacheMiss',
+        detail: {
+            cacheKey,
+            geometryVersion: geometry.version,
+            topologySections: topology.sections.size,
+            topologyLoops: topology.loops.length,
+        },
+    });
+    return vs;
 }
 
 export function findChangedSectionIds(params: {
@@ -747,342 +398,219 @@ export function findChangedSectionIds(params: {
 
     const removedSectionIds = new Set<string>();
     const addedSectionIds = new Set<string>();
-    const sharedChangedSectionIds = new Set<string>();
     const unchangedSectionIds = new Set<string>();
 
     for (const sectionId of prevSectionIds) {
-        if (!nextSectionIds.has(sectionId)) {
-            removedSectionIds.add(sectionId);
-            continue;
-        }
-        const prevSection = params.prevTopology.sections.get(sectionId);
-        const nextSection = params.nextTopology.sections.get(sectionId);
-        if (prevSection && nextSection && sectionsEquivalent(prevSection, nextSection)) {
-            unchangedSectionIds.add(sectionId);
-        } else {
-            sharedChangedSectionIds.add(sectionId);
-        }
+        if (nextSectionIds.has(sectionId)) unchangedSectionIds.add(sectionId);
+        else removedSectionIds.add(sectionId);
     }
     for (const sectionId of nextSectionIds) {
-        if (!prevSectionIds.has(sectionId)) {
-            addedSectionIds.add(sectionId);
-        }
+        if (!prevSectionIds.has(sectionId)) addedSectionIds.add(sectionId);
     }
 
-    return {
-        removedSectionIds,
-        addedSectionIds,
-        sharedChangedSectionIds,
-        unchangedSectionIds,
-        selectedPrevSectionIds: new Set<string>(),
-        selectedNextSectionIds: new Set<string>(),
-    };
+    return { removedSectionIds, addedSectionIds, unchangedSectionIds };
 }
 
-export function buildChangedFrontSelection(params: {
-    prevGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
-    conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
-}): ChangedFrontSelectionResult {
-    const changedSections = findChangedSectionIds({
-        prevTopology: params.prevGeometry.frontierTopology,
-        nextTopology: params.nextGeometry.frontierTopology,
-    });
-    const prevCandidateSectionIds = new Set<string>([
-        ...changedSections.removedSectionIds,
-        ...changedSections.sharedChangedSectionIds,
-    ]);
-    const nextCandidateSectionIds = new Set<string>([
-        ...changedSections.addedSectionIds,
-        ...changedSections.sharedChangedSectionIds,
-    ]);
-    const selectedPrevSectionIds = new Set<string>();
-    const selectedNextSectionIds = new Set<string>();
-    const chains: ChangedFrontChain[] = [];
-
-    params.conquestEvents.forEach((entry, index) => {
-        const event = entry.event;
-        const prevLoopIds = collectSeedLoopIds({
-            geometry: params.prevGeometry,
-            topology: params.prevGeometry.frontierTopology,
-            ownerId: event.previousOwner,
-            starId: event.starId,
-        });
-        const nextLoopIds = collectSeedLoopIds({
-            geometry: params.nextGeometry,
-            topology: params.nextGeometry.frontierTopology,
-            ownerId: event.newOwner,
-            starId: event.starId,
-        });
-        const prevSectionIds = expandChangedSectionsFromSeeds({
-            topology: params.prevGeometry.frontierTopology,
-            seedLoopIds: prevLoopIds,
-            candidateSectionIds: prevCandidateSectionIds,
-            previousOwnerId: event.previousOwner,
-            newOwnerId: event.newOwner,
-        });
-        const nextSectionIds = expandChangedSectionsFromSeeds({
-            topology: params.nextGeometry.frontierTopology,
-            seedLoopIds: nextLoopIds,
-            candidateSectionIds: nextCandidateSectionIds,
-            previousOwnerId: event.previousOwner,
-            newOwnerId: event.newOwner,
-        });
-
-        for (const sectionId of prevSectionIds) {
-            selectedPrevSectionIds.add(sectionId);
-        }
-        for (const sectionId of nextSectionIds) {
-            selectedNextSectionIds.add(sectionId);
-        }
-
-        chains.push({
-            chainId: `chain:${String(index).padStart(2, '0')}:${event.starId}`,
-            seedStarId: event.starId,
-            previousOwnerId: event.previousOwner,
-            newOwnerId: event.newOwner,
-            ownerPairTransition: `${event.previousOwner}->${event.newOwner}`,
-            prevSectionIds: [...prevSectionIds].sort(),
-            nextSectionIds: [...nextSectionIds].sort(),
-            prevLoopIds,
-            nextLoopIds,
-            prevSpanOrder: buildSpanOrderForSelection({
-                topology: params.prevGeometry.frontierTopology,
-                loopIds: prevLoopIds,
-                selectedSectionIds: prevSectionIds,
-            }),
-            nextSpanOrder: buildSpanOrderForSelection({
-                topology: params.nextGeometry.frontierTopology,
-                loopIds: nextLoopIds,
-                selectedSectionIds: nextSectionIds,
-            }),
-        });
-    });
-
-    return {
-        chains,
-        changedSections: {
-            ...changedSections,
-            selectedPrevSectionIds,
-            selectedNextSectionIds,
-        },
-    };
-}
-
-interface OrderedChainV {
-    v: PerimeterV;
-    chainProgress: number;
-    tangent: { x: number; y: number };
-}
-
-interface PreservedIndexPair {
-    prevIndex: number;
-    nextIndex: number;
-}
-
-interface IntervalPair {
-    chainId: string;
-    prevVs: readonly PerimeterV[];
-    nextVs: readonly PerimeterV[];
-}
-
-function buildOrderedChainVs(params: {
-    vs: readonly PerimeterV[];
-    spanOrder: readonly ChangedFrontChainSectionRef[];
-}): OrderedChainV[] {
-    const byLoopAndSection = new Map<string, PerimeterV[]>();
-    for (const v of params.vs) {
-        const key = `${v.loopId}:${v.sectionId}`;
-        const bucket = byLoopAndSection.get(key);
+function groupByLoop(vs: readonly PerimeterV[]): Map<string, PerimeterV[]> {
+    const grouped = new Map<string, PerimeterV[]>();
+    for (const v of vs) {
+        const bucket = grouped.get(v.loopId);
         if (bucket) bucket.push(v);
-        else byLoopAndSection.set(key, [v]);
+        else grouped.set(v.loopId, [v]);
     }
+    for (const bucket of grouped.values()) {
+        bucket.sort((a, b) => a.arclengthInLoop - b.arclengthInLoop);
+    }
+    return grouped;
+}
 
-    const orderedVs: PerimeterV[] = [];
-    const seenIds = new Set<string>();
-    for (const ref of params.spanOrder) {
-        const key = `${ref.loopId}:${ref.sectionId}`;
-        const bucket = [...(byLoopAndSection.get(key) ?? [])].sort(
-            (a, b) => a.arclengthInSection - b.arclengthInSection,
+function buildAnchorKey(v: PerimeterV): string {
+    return `anchor:${buildPerimeterVMatchKey(v)}`;
+}
+
+function extractUnmatchedSpans(params: {
+    vs: readonly PerimeterV[];
+    changedSectionIds: ReadonlySet<string>;
+    preservedMatchKeys: ReadonlySet<string>;
+}): UnmatchedSpan[] {
+    const spans: UnmatchedSpan[] = [];
+    const byLoop = groupByLoop(params.vs);
+
+    for (const [loopId, loopVs] of byLoop.entries()) {
+        if (loopVs.length === 0) continue;
+        const changedFlags = loopVs.map((v) =>
+            params.changedSectionIds.has(v.sectionId) &&
+            !params.preservedMatchKeys.has(buildPerimeterVMatchKey(v)),
         );
-        for (const v of bucket) {
-            if (seenIds.has(v.id)) continue;
-            seenIds.add(v.id);
-            orderedVs.push(v);
+
+        if (!changedFlags.some(Boolean)) continue;
+        if (changedFlags.every(Boolean)) {
+            spans.push({
+                spanId: `span:${loopId}:_:_`,
+                loopId,
+                anchorBeforeId: null,
+                anchorAfterId: null,
+                vs: [...loopVs],
+            });
+            continue;
+        }
+
+        let firstPreservedIndex = changedFlags.findIndex((flag) => !flag);
+        if (firstPreservedIndex < 0) firstPreservedIndex = 0;
+        let current: PerimeterV[] = [];
+        let anchorBefore = loopVs[firstPreservedIndex]!;
+        let index = (firstPreservedIndex + 1) % loopVs.length;
+
+        while (index !== firstPreservedIndex) {
+            const v = loopVs[index]!;
+            if (changedFlags[index]) {
+                current.push(v);
+            } else if (current.length > 0) {
+                const anchorAfter = v;
+                spans.push({
+                    spanId: `span:${loopId}:${buildAnchorKey(anchorBefore)}:${buildAnchorKey(anchorAfter)}`,
+                    loopId,
+                    anchorBeforeId: buildAnchorKey(anchorBefore),
+                    anchorAfterId: buildAnchorKey(anchorAfter),
+                    vs: current,
+                });
+                current = [];
+                anchorBefore = v;
+            } else {
+                anchorBefore = v;
+            }
+            index = (index + 1) % loopVs.length;
+        }
+
+        if (current.length > 0) {
+            const anchorAfter = loopVs[firstPreservedIndex]!;
+            spans.push({
+                spanId: `span:${loopId}:${buildAnchorKey(anchorBefore)}:${buildAnchorKey(anchorAfter)}`,
+                loopId,
+                anchorBeforeId: buildAnchorKey(anchorBefore),
+                anchorAfterId: buildAnchorKey(anchorAfter),
+                vs: current,
+            });
         }
     }
-    if (orderedVs.length === 0) return [];
-    if (orderedVs.length === 1) {
-        return [{ v: orderedVs[0]!, chainProgress: 0, tangent: { x: 0, y: 0 } }];
-    }
 
-    const cumulative = [0];
-    for (let i = 1; i < orderedVs.length; i++) {
-        const prev = orderedVs[i - 1]!;
-        const next = orderedVs[i]!;
-        cumulative.push(
-            cumulative[i - 1]! + Math.hypot(next.x - prev.x, next.y - prev.y),
-        );
+    return spans;
+}
+
+function spanCentroid(span: UnmatchedSpan): { x: number; y: number } {
+    if (span.vs.length === 0) return { x: 0, y: 0 };
+    let x = 0;
+    let y = 0;
+    for (const v of span.vs) {
+        x += v.x;
+        y += v.y;
     }
-    const total = cumulative[cumulative.length - 1] ?? 0;
-    return orderedVs.map((v, index) => {
-        const prev = orderedVs[Math.max(0, index - 1)]!;
-        const next = orderedVs[Math.min(orderedVs.length - 1, index + 1)]!;
-        return {
-            v,
-            chainProgress:
-                total <= 1e-6
-                    ? index / Math.max(1, orderedVs.length - 1)
-                    : cumulative[index]! / total,
-            tangent: normalizeVector(next.x - prev.x, next.y - prev.y),
-        };
+    return { x: x / span.vs.length, y: y / span.vs.length };
+}
+
+function buildSpanAnchorKey(span: UnmatchedSpan): string | null {
+    if (span.anchorBeforeId == null && span.anchorAfterId == null) return null;
+    return `${span.anchorBeforeId ?? '_'}->${span.anchorAfterId ?? '_'}`;
+}
+
+function pairSpans(params: {
+    prevSpans: readonly UnmatchedSpan[];
+    nextSpans: readonly UnmatchedSpan[];
+}): {
+    spanPairs: SpanPair[];
+    unmatchedPrev: UnmatchedSpan[];
+    unmatchedNext: UnmatchedSpan[];
+} {
+    const spanPairs: SpanPair[] = [];
+    const unmatchedPrev: UnmatchedSpan[] = [];
+    const unmatchedNext: UnmatchedSpan[] = [];
+    const usedNext = new Set<number>();
+    let pairIndex = 0;
+
+    const nextByAnchor = new Map<string, number[]>();
+    params.nextSpans.forEach((span, index) => {
+        const key = buildSpanAnchorKey(span);
+        if (!key) return;
+        const bucket = nextByAnchor.get(key);
+        if (bucket) bucket.push(index);
+        else nextByAnchor.set(key, [index]);
     });
-}
 
-function isPreserveCompatible(params: {
-    prev: OrderedChainV;
-    next: OrderedChainV;
-    positionMoePx?: number;
-}): boolean {
-    const positionMoePx = params.positionMoePx ?? 3;
-    const distance = Math.hypot(
-        params.prev.v.x - params.next.v.x,
-        params.prev.v.y - params.next.v.y,
-    );
-    if (distance > positionMoePx) return false;
-    const tangentDot =
-        params.prev.tangent.x * params.next.tangent.x +
-        params.prev.tangent.y * params.next.tangent.y;
-    if (tangentDot < 0.2) return false;
-    return (
-        Math.abs(params.prev.chainProgress - params.next.chainProgress) <= 0.22
-    );
-}
-
-function selectPreservedPairs(params: {
-    prev: readonly OrderedChainV[];
-    next: readonly OrderedChainV[];
-}): PreservedIndexPair[] {
-    const prevCount = params.prev.length;
-    const nextCount = params.next.length;
-    const matches: number[][] = Array.from({ length: prevCount + 1 }, () =>
-        Array.from({ length: nextCount + 1 }, () => 0),
-    );
-    const costs: number[][] = Array.from({ length: prevCount + 1 }, () =>
-        Array.from({ length: nextCount + 1 }, () => 0),
-    );
-
-    for (let i = prevCount - 1; i >= 0; i--) {
-        for (let j = nextCount - 1; j >= 0; j--) {
-            let bestMatches = matches[i + 1]![j]!;
-            let bestCost = costs[i + 1]![j]!;
-            if (
-                matches[i]![j + 1]! > bestMatches ||
-                (matches[i]![j + 1]! === bestMatches &&
-                    costs[i]![j + 1]! < bestCost)
-            ) {
-                bestMatches = matches[i]![j + 1]!;
-                bestCost = costs[i]![j + 1]!;
+    params.prevSpans.forEach((prevSpan) => {
+        const key = buildSpanAnchorKey(prevSpan);
+        if (key) {
+            const bucket = nextByAnchor.get(key) ?? [];
+            const nextIndex = bucket.find((candidate) => !usedNext.has(candidate));
+            if (nextIndex != null) {
+                const nextSpan = params.nextSpans[nextIndex]!;
+                usedNext.add(nextIndex);
+                spanPairs.push({
+                    pairId: `sp:${String(pairIndex++).padStart(2, '0')}`,
+                    prevSpan,
+                    nextSpan,
+                    prevVs: [...prevSpan.vs],
+                    nextVs: [...nextSpan.vs],
+                });
+                return;
             }
-            if (
-                isPreserveCompatible({
-                    prev: params.prev[i]!,
-                    next: params.next[j]!,
-                })
-            ) {
-                const distance = Math.hypot(
-                    params.prev[i]!.v.x - params.next[j]!.v.x,
-                    params.prev[i]!.v.y - params.next[j]!.v.y,
+        }
+
+        if (prevSpan.anchorBeforeId == null && prevSpan.anchorAfterId == null) {
+            const prevCentroid = spanCentroid(prevSpan);
+            const wholeLoopCandidates = params.nextSpans
+                .map((candidate, index) => ({ candidate, index }))
+                .filter(
+                    ({ candidate, index }) =>
+                        !usedNext.has(index) &&
+                        candidate.anchorBeforeId == null &&
+                        candidate.anchorAfterId == null,
                 );
-                const candidateMatches = 1 + matches[i + 1]![j + 1]!;
-                const candidateCost = distance + costs[i + 1]![j + 1]!;
-                if (
-                    candidateMatches > bestMatches ||
-                    (candidateMatches === bestMatches &&
-                        candidateCost < bestCost)
-                ) {
-                    bestMatches = candidateMatches;
-                    bestCost = candidateCost;
+            const preferredOwnerId = prevSpan.vs[0]?.ownerId ?? null;
+            const ownerMatchedCandidates = preferredOwnerId
+                ? wholeLoopCandidates.filter(
+                      ({ candidate }) => candidate.vs[0]?.ownerId === preferredOwnerId,
+                  )
+                : [];
+            const candidatePool =
+                ownerMatchedCandidates.length > 0
+                    ? ownerMatchedCandidates
+                    : wholeLoopCandidates;
+
+            let bestIndex = -1;
+            let bestDistance = Infinity;
+            candidatePool.forEach(({ candidate, index }) => {
+                const centroid = spanCentroid(candidate);
+                const distance = Math.hypot(
+                    centroid.x - prevCentroid.x,
+                    centroid.y - prevCentroid.y,
+                );
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestIndex = index;
                 }
-            }
-            matches[i]![j] = bestMatches;
-            costs[i]![j] = bestCost;
-        }
-    }
-
-    const selected: PreservedIndexPair[] = [];
-    let i = 0;
-    let j = 0;
-    while (i < prevCount && j < nextCount) {
-        if (
-            isPreserveCompatible({
-                prev: params.prev[i]!,
-                next: params.next[j]!,
-            })
-        ) {
-            const distance = Math.hypot(
-                params.prev[i]!.v.x - params.next[j]!.v.x,
-                params.prev[i]!.v.y - params.next[j]!.v.y,
-            );
-            const candidateMatches = 1 + matches[i + 1]![j + 1]!;
-            const candidateCost = distance + costs[i + 1]![j + 1]!;
-            if (
-                candidateMatches === matches[i]![j] &&
-                Math.abs(candidateCost - costs[i]![j]!) <= 1e-6
-            ) {
-                selected.push({ prevIndex: i, nextIndex: j });
-                i += 1;
-                j += 1;
-                continue;
+            });
+            if (bestIndex >= 0) {
+                const nextSpan = params.nextSpans[bestIndex]!;
+                usedNext.add(bestIndex);
+                spanPairs.push({
+                    pairId: `sp:${String(pairIndex++).padStart(2, '0')}`,
+                    prevSpan,
+                    nextSpan,
+                    prevVs: [...prevSpan.vs],
+                    nextVs: [...nextSpan.vs],
+                });
+                return;
             }
         }
 
-        if (
-            matches[i + 1]![j]! > matches[i]![j + 1]! ||
-            (matches[i + 1]![j]! === matches[i]![j + 1]! &&
-                costs[i + 1]![j]! <= costs[i]![j + 1]!)
-        ) {
-            i += 1;
-        } else {
-            j += 1;
-        }
-    }
-    return selected;
-}
-
-function buildIntervalPairs(params: {
-    chainId: string;
-    prev: readonly OrderedChainV[];
-    next: readonly OrderedChainV[];
-    preservedPairs: readonly PreservedIndexPair[];
-}): IntervalPair[] {
-    const intervals: IntervalPair[] = [];
-    let prevCursor = 0;
-    let nextCursor = 0;
-
-    for (const pair of params.preservedPairs) {
-        intervals.push({
-            chainId: params.chainId,
-            prevVs: params.prev
-                .slice(prevCursor, pair.prevIndex)
-                .map((entry) => entry.v),
-            nextVs: params.next
-                .slice(nextCursor, pair.nextIndex)
-                .map((entry) => entry.v),
-        });
-        prevCursor = pair.prevIndex + 1;
-        nextCursor = pair.nextIndex + 1;
-    }
-
-    intervals.push({
-        chainId: params.chainId,
-        prevVs: params.prev.slice(prevCursor).map((entry) => entry.v),
-        nextVs: params.next.slice(nextCursor).map((entry) => entry.v),
+        unmatchedPrev.push(prevSpan);
     });
 
-    return intervals.filter(
-        (interval) => interval.prevVs.length > 0 || interval.nextVs.length > 0,
-    );
+    params.nextSpans.forEach((span, index) => {
+        if (!usedNext.has(index)) unmatchedNext.push(span);
+    });
+
+    return { spanPairs, unmatchedPrev, unmatchedNext };
 }
 
 function buildCumulativeLengths(points: ReadonlyArray<[number, number]>, closed: boolean): number[] {
@@ -1123,22 +651,63 @@ function interpolateOnPath(
     return [ax + (bx - ax) * t, ay + (by - ay) * t];
 }
 
-function expandVsToTargetCount(
+function findNearestSampleIndex(
+    cumulative: ReadonlyArray<number>,
+    target: number,
+): number {
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < cumulative.length; i++) {
+        const distance = Math.abs(cumulative[i]! - target);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = Math.min(i, cumulative.length - 2);
+        }
+    }
+    return bestIndex;
+}
+
+function resampleVs(
     vs: readonly PerimeterV[],
     targetCount: number,
-): PerimeterV[] {
+    closed: boolean,
+): ResampledPoint[] {
     if (vs.length === 0 || targetCount <= 0) return [];
-    if (vs.length === 1) {
-        return Array.from({ length: targetCount }, () => vs[0]!);
+    const points = vs.map((v) => [v.x, v.y] as [number, number]);
+    const cumulative = buildCumulativeLengths(points, closed);
+    const total = cumulative[cumulative.length - 1] ?? 0;
+    if (total <= 1e-6 || vs.length === 1) {
+        return Array.from({ length: targetCount }, () => ({
+            x: vs[0]!.x,
+            y: vs[0]!.y,
+            ownerId: vs[0]!.ownerId,
+            playerIdx: vs[0]!.playerIdx,
+            strength: vs[0]!.strength,
+            normalX: vs[0]!.normalX,
+            normalY: vs[0]!.normalY,
+        }));
     }
-    if (vs.length === targetCount) return [...vs];
 
-    const result: PerimeterV[] = [];
+    const result: ResampledPoint[] = [];
     for (let i = 0; i < targetCount; i++) {
-        const normalized =
-            targetCount === 1 ? 0 : i / Math.max(1, targetCount - 1);
-        const sourceIndex = Math.round(normalized * Math.max(0, vs.length - 1));
-        result.push(vs[Math.max(0, Math.min(sourceIndex, vs.length - 1))]!);
+        const target =
+            closed
+                ? (i / targetCount) * total
+                : targetCount === 1
+                  ? total / 2
+                  : (i / (targetCount - 1)) * total;
+        const [x, y] = interpolateOnPath(points, cumulative, target, closed);
+        const nearestIndex = findNearestSampleIndex(cumulative, target);
+        const nearest = vs[nearestIndex]!;
+        result.push({
+            x,
+            y,
+            ownerId: nearest.ownerId,
+            playerIdx: nearest.playerIdx,
+            strength: nearest.strength,
+            normalX: nearest.normalX,
+            normalY: nearest.normalY,
+        });
     }
     return result;
 }
@@ -1244,31 +813,32 @@ function classifyOwnerRole(
 }
 
 function buildTransitionMovers(params: {
-    intervalPairs: readonly IntervalPair[];
+    spanPairs: readonly SpanPair[];
     conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
     nextGeometry: CanonicalGeometrySnapshot;
     changedSections: ChangedSectionSets;
 }): TransitionMover[] {
     const movers: TransitionMover[] = [];
     const staticPolylines = [...params.nextGeometry.frontierTopology.sections.values()]
-        .filter(
-            (section) =>
-                !params.changedSections.selectedNextSectionIds.has(section.id),
-        )
+        .filter((section) => params.changedSections.unchangedSectionIds.has(section.id))
         .map((section) => section.points);
 
     let moverIndex = 0;
-    for (const interval of params.intervalPairs) {
-        if (interval.prevVs.length === 0 || interval.nextVs.length === 0) continue;
-        const targetCount = Math.max(interval.prevVs.length, interval.nextVs.length, 1);
+    for (const spanPair of params.spanPairs) {
+        const closed =
+            spanPair.prevSpan.anchorBeforeId == null &&
+            spanPair.prevSpan.anchorAfterId == null &&
+            spanPair.nextSpan.anchorBeforeId == null &&
+            spanPair.nextSpan.anchorAfterId == null;
+        const targetCount = Math.max(spanPair.prevVs.length, spanPair.nextVs.length);
         if (targetCount <= 0) continue;
 
-        const prevMatched = expandVsToTargetCount(interval.prevVs, targetCount);
-        const nextMatched = expandVsToTargetCount(interval.nextVs, targetCount);
+        const prevResampled = resampleVs(spanPair.prevVs, targetCount, closed);
+        const nextResampled = resampleVs(spanPair.nextVs, targetCount, closed);
 
         for (let i = 0; i < targetCount; i++) {
-            const prevPoint = prevMatched[i]!;
-            const nextPoint = nextMatched[i]!;
+            const prevPoint = prevResampled[i]!;
+            const nextPoint = nextResampled[i]!;
             const start: [number, number] = [prevPoint.x, prevPoint.y];
             const end: [number, number] = [nextPoint.x, nextPoint.y];
             const deltaX = end[0] - start[0];
@@ -1335,6 +905,38 @@ function buildTransitionMovers(params: {
     return movers;
 }
 
+function buildAppearingVs(spans: readonly UnmatchedSpan[]): AppearingV[] {
+    const appearing: AppearingV[] = [];
+    for (const span of spans) {
+        for (const v of span.vs) {
+            appearing.push({
+                v,
+                reason:
+                    span.anchorBeforeId == null && span.anchorAfterId == null
+                        ? 'region_created'
+                        : 'new_section',
+            });
+        }
+    }
+    return appearing;
+}
+
+function buildDisappearingVs(spans: readonly UnmatchedSpan[]): DisappearingV[] {
+    const disappearing: DisappearingV[] = [];
+    for (const span of spans) {
+        for (const v of span.vs) {
+            disappearing.push({
+                v,
+                reason:
+                    span.anchorBeforeId == null && span.anchorAfterId == null
+                        ? 'region_eliminated'
+                        : 'section_removed',
+            });
+        }
+    }
+    return disappearing;
+}
+
 export function evaluateTransitionMoverPosition(
     mover: TransitionMover,
     progress: number,
@@ -1362,155 +964,83 @@ export function buildTransitionPlan(params: {
     conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
     prevGeometry: CanonicalGeometrySnapshot;
     nextGeometry: CanonicalGeometrySnapshot;
-    changedFronts?: ChangedFrontSelectionResult;
 }): TransitionPlan {
-    const changedFronts =
-        params.changedFronts ??
-        buildChangedFrontSelection({
-            prevGeometry: params.prevGeometry,
-            nextGeometry: params.nextGeometry,
-            conquestEvents: params.conquestEvents,
-        });
-    const changedSections = changedFronts.changedSections;
-    const preserved: PreservedVPair[] = [];
-    const preservedMatchKeys = new Set<string>();
-    const preservedVIds = new Set<string>();
-    const intervalPairs: IntervalPair[] = [];
-    const appearing: AppearingV[] = [];
-    const disappearing: DisappearingV[] = [];
-
-    changedFronts.chains.forEach((chain, chainIndex) => {
-        const prevOrdered = buildOrderedChainVs({
-            vs: params.prevVSet.filter((v) =>
-                changedSections.selectedPrevSectionIds.has(v.sectionId),
-            ),
-            spanOrder: chain.prevSpanOrder,
-        });
-        const nextOrdered = buildOrderedChainVs({
-            vs: params.nextVSet.filter((v) =>
-                changedSections.selectedNextSectionIds.has(v.sectionId),
-            ),
-            spanOrder: chain.nextSpanOrder,
-        });
-        if (prevOrdered.length === 0 && nextOrdered.length === 0) return;
-
-        const preservedPairs = selectPreservedPairs({
-            prev: prevOrdered,
-            next: nextOrdered,
-        });
-        preservedPairs.forEach((pair, pairIndex) => {
-            const prevV = prevOrdered[pair.prevIndex]!.v;
-            const nextV = nextOrdered[pair.nextIndex]!.v;
-            preserved.push({
-                preservedId: `K${String(chainIndex).padStart(2, '0')}:${String(pairIndex).padStart(2, '0')}`,
-                prevV,
-                nextV,
-            });
-            preservedVIds.add(prevV.id);
-            preservedMatchKeys.add(`${prevV.id}->${nextV.id}`);
-        });
-
-        for (const interval of buildIntervalPairs({
-            chainId: chain.chainId,
-            prev: prevOrdered,
-            next: nextOrdered,
-            preservedPairs,
-        })) {
-            if (interval.prevVs.length > 0 && interval.nextVs.length > 0) {
-                intervalPairs.push(interval);
-            } else if (interval.nextVs.length > 0) {
-                for (const v of interval.nextVs) {
-                    appearing.push({ v, reason: 'new_section' });
-                }
-            } else if (interval.prevVs.length > 0) {
-                for (const v of interval.prevVs) {
-                    disappearing.push({ v, reason: 'section_removed' });
-                }
-            }
-        }
+    const changedSections = findChangedSectionIds({
+        prevTopology: params.prevGeometry.frontierTopology,
+        nextTopology: params.nextGeometry.frontierTopology,
     });
 
-    return {
+    const prevByMatchKey = new Map<string, PerimeterV>();
+    const nextByMatchKey = new Map<string, PerimeterV>();
+    for (const v of params.prevVSet) {
+        if (changedSections.unchangedSectionIds.has(v.sectionId)) {
+            prevByMatchKey.set(buildPerimeterVMatchKey(v), v);
+        }
+    }
+    for (const v of params.nextVSet) {
+        if (changedSections.unchangedSectionIds.has(v.sectionId)) {
+            nextByMatchKey.set(buildPerimeterVMatchKey(v), v);
+        }
+    }
+
+    const preservedMatchKeys = new Set<string>();
+    const preservedVIds = new Set<string>();
+    for (const [matchKey, prevV] of prevByMatchKey.entries()) {
+        if (!nextByMatchKey.has(matchKey)) continue;
+        preservedMatchKeys.add(matchKey);
+        preservedVIds.add(prevV.id);
+    }
+
+    const prevSpans = extractUnmatchedSpans({
+        vs: params.prevVSet,
+        changedSectionIds: changedSections.removedSectionIds,
+        preservedMatchKeys,
+    });
+    const nextSpans = extractUnmatchedSpans({
+        vs: params.nextVSet,
+        changedSectionIds: changedSections.addedSectionIds,
+        preservedMatchKeys,
+    });
+    const { spanPairs, unmatchedPrev, unmatchedNext } = pairSpans({
+        prevSpans,
+        nextSpans,
+    });
+
+    const plan: TransitionPlan = {
         conquestKey: params.conquestKey,
         prevVSet: [...params.prevVSet],
         nextVSet: [...params.nextVSet],
-        changedFronts,
-        preserved,
         preservedVIds,
         preservedMatchKeys,
         movers: buildTransitionMovers({
-            intervalPairs,
+            spanPairs,
             conquestEvents: params.conquestEvents,
             nextGeometry: params.nextGeometry,
             changedSections,
         }),
-        appearing,
-        disappearing,
+        appearing: buildAppearingVs(unmatchedNext),
+        disappearing: buildDisappearingVs(unmatchedPrev),
         prevGeometry: params.prevGeometry,
         nextGeometry: params.nextGeometry,
         changedSections,
     };
-}
-
-function buildOwnerToClusterFromGeometryOwners(params: {
-    prevGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
-}): ReadonlyMap<string, number> {
-    const ownerIds = [
-        ...new Set([
-            ...params.prevGeometry.territoryRegions.map((region) => region.ownerId),
-            ...params.nextGeometry.territoryRegions.map((region) => region.ownerId),
-        ]),
-    ].sort((a, b) => a.localeCompare(b));
-    return new Map(ownerIds.map((ownerId, index) => [ownerId, index] as const));
-}
-
-export function buildPerimeterFieldTransitionTruth(params: {
-    conquestKey: string;
-    conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
-    prevGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
-    prevOwnership: OwnershipSnapshot;
-    nextOwnership: OwnershipSnapshot;
-    spacing: number;
-    offsetPx: number;
-    strength: number;
-}): PerimeterFieldTransitionTruth {
-    const ownerToCluster = buildOwnerToClusterFromGeometryOwners({
-        prevGeometry: params.prevGeometry,
-        nextGeometry: params.nextGeometry,
-    });
-    const prevVSet = sampleVSetFromGeometry({
-        geometry: params.prevGeometry,
-        options: {
-            spacing: params.spacing,
-            offsetPx: params.offsetPx,
-            strength: params.strength,
-            ownerToCluster,
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'PerimeterFieldPlanEngine',
+        stage: 'transition_plan',
+        from: 'Previous + next perimeter V-sets',
+        to: 'Perimeter transition plan',
+        purpose: 'Match preserved sections and build movers, appearing, and disappearing boundary samples',
+        summary:
+            `${summarizePerimeterVSet(params.prevVSet)} ` +
+            `${summarizePerimeterVSet(params.nextVSet)} ` +
+            summarizeTransitionPlan(plan),
+        perfEventName: 'territory.perimeterField.transitionPlanBuilt',
+        detail: {
+            conquestKey: params.conquestKey,
+            prevGeometryVersion: params.prevGeometry.version,
+            nextGeometryVersion: params.nextGeometry.version,
         },
     });
-    const nextVSet = sampleVSetFromGeometry({
-        geometry: params.nextGeometry,
-        options: {
-            spacing: params.spacing,
-            offsetPx: params.offsetPx,
-            strength: params.strength,
-            ownerToCluster,
-        },
-    });
-    const changedFronts = buildChangedFrontSelection({
-        prevGeometry: params.prevGeometry,
-        nextGeometry: params.nextGeometry,
-        conquestEvents: params.conquestEvents,
-    });
-    return {
-        conquestKey: params.conquestKey,
-        prevGeometry: params.prevGeometry,
-        nextGeometry: params.nextGeometry,
-        prevOwnership: params.prevOwnership,
-        nextOwnership: params.nextOwnership,
-        prevVSet,
-        nextVSet,
-        changedFronts,
-    };
+    return plan;
 }

@@ -43,6 +43,12 @@ import {
     createEmptyTerritoryGeometryData,
     isCompileError,
 } from './modes/geometryModeUtils';
+import {
+    logPipelineStage,
+    summarizeConnections,
+    summarizeOwnership,
+    summarizeStars,
+} from '$lib/perf/pipelineTelemetry';
 import { log } from '$lib/utils/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -72,6 +78,23 @@ interface CompileResult {
  */
 export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeometrySnapshot {
     log.renderer('Compiler', `compileVectorGeometry() — ownership v${input.ownership.version}, ${input.stars.length} stars`);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'compile_input',
+        from: 'Ownership + live topology',
+        to: 'Vector geometry compiler',
+        purpose: 'Accept gameplay topology and ownership as the canonical geometry build request',
+        summary:
+            `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
+            summarizeOwnership(input.ownership),
+        perfEventName: 'territory.geometry.compileInput',
+        detail: {
+            worldWidth: input.world.width,
+            worldHeight: input.world.height,
+            styleMode: input.styleMode,
+        },
+    });
 
     const settings = buildGeneratorSettings(input.world, input.tunables);
     const version = buildGeometryVersion(
@@ -94,6 +117,22 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
     }
 
     const geometry = result as TerritoryGeometryData;
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'generator_output',
+        from: 'Power-Voronoi geometry generator',
+        to: 'Raw territory geometry',
+        purpose: 'Capture the direct geometry compiler output before canonical adaptation',
+        summary:
+            `mergedTerritories=${geometry.mergedTerritories.length} ` +
+            `sharedPolylines=${geometry.sharedPolylines.length} ` +
+            `worldBorders=${geometry.worldBorderPolylines.length}`,
+        perfEventName: 'territory.geometry.generatorOutput',
+        detail: {
+            fingerprint: geometry.fingerprint,
+        },
+    });
 
     // ── Step 2: Build canonical frontier polylines ──
     const frontierPolylines = buildCanonicalFrontierPolylines(geometry);
@@ -101,18 +140,71 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
     const allInterOwnerPolylines = frontierPolylines.filter(
         (p) => !p.ownerPairKey.includes('__world__') && !p.ownerPairKey.endsWith('|world'),
     );
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'frontier_polylines',
+        from: 'Raw geometry polylines',
+        to: 'Canonical frontier polylines',
+        purpose: 'Normalize inter-owner and world-border frontiers into stable polyline records',
+        summary:
+            `interOwner=${allInterOwnerPolylines.length} worldBorders=${worldBorderPolylines.length}`,
+        perfEventName: 'territory.geometry.frontiersBuilt',
+    });
 
     // ── Step 3: Build canonical territory regions ──
     const territoryRegions = buildCanonicalRegions(geometry);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'territory_regions',
+        from: 'Merged raw territories',
+        to: 'Canonical territory regions',
+        purpose: 'Assign stable region identity to owner polygons for downstream sampling and rendering',
+        summary: `regions=${territoryRegions.length}`,
+        perfEventName: 'territory.geometry.regionsBuilt',
+    });
 
     // ── Step 4: Build shared frontier map (D-90 multimap) ──
     const sharedFrontierMap = buildCanonicalSharedFrontierMap(allInterOwnerPolylines);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'shared_frontier_map',
+        from: 'Canonical frontier polylines',
+        to: 'Owner-pair frontier multimap',
+        purpose: 'Group frontiers by owner pair for topology and border consumers',
+        summary: `ownerPairs=${sharedFrontierMap.size}`,
+        perfEventName: 'territory.geometry.sharedFrontierMapBuilt',
+    });
 
     // ── Step 5: Build frontier topology from TMAP ──
     const frontierTopology = buildFrontierTopologyFromGeometry(geometry, input);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'frontier_topology',
+        from: 'Frontier multimap + TMAP',
+        to: 'Canonical frontier topology',
+        purpose: 'Build vertices, sections, loops, and adjacency for geometric reasoning',
+        summary: frontierTopology
+            ? `vertices=${frontierTopology.vertices.size} sections=${frontierTopology.sections.size} loops=${frontierTopology.loops.length}`
+            : 'topology=missing',
+        perfEventName: 'territory.geometry.topologyBuilt',
+    });
 
     // ── Step 6: Build owner shells (FG2 concepts absorbed) ──
     const { shells, shellLoops } = buildOwnerShells(geometry);
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'shell_classification',
+        from: 'Canonical regions',
+        to: 'Shells + shell loops',
+        purpose: 'Classify outer and hole loops for shell-aware territory consumers',
+        summary: `shells=${shells.length} shellLoops=${shellLoops.length}`,
+        perfEventName: 'territory.geometry.shellsBuilt',
+    });
 
     // ── Step 7: Assemble canonical snapshot ──
     const snapshot: CanonicalGeometrySnapshot = {
@@ -143,6 +235,22 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
         provenance: buildProvenance(input, settings),
         diagnostics: buildDiagnostics(frontierTopology, shells),
     };
+    logPipelineStage({
+        channel: 'renderer',
+        context: 'UnifiedVectorGeometry',
+        stage: 'canonical_snapshot',
+        from: 'Canonical geometry sub-artifacts',
+        to: 'CanonicalGeometrySnapshot',
+        purpose: 'Publish the full geometry contract consumed by render families and diagnostics',
+        summary:
+            `regions=${snapshot.territoryRegions.length} frontiers=${snapshot.frontierPolylines.length} ` +
+            `worldBorders=${snapshot.worldBorderPolylines.length} shells=${snapshot.shells.length}`,
+        perfEventName: 'territory.geometry.snapshotBuilt',
+        detail: {
+            version: snapshot.version,
+            ownershipVersion: snapshot.ownershipVersion,
+        },
+    });
 
     log.renderer('Compiler',
         `Compiled: ${territoryRegions.length} regions, ` +

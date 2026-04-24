@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { SharedPolylineLike } from '../compiler/chainWalkCore';
+import type { SharedPolyline } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
 
 describe('buildPowerVoronoiFrontierTopology', () => {
     it('builds a reliable owner-world loop from closed world-border polylines', () => {
-        const worldBorderPolylines: SharedPolylineLike[] = [
+        const worldBorderPolylines: SharedPolyline[] = [
             {
                 ownerPairKey: 'red|world',
                 color: 0,

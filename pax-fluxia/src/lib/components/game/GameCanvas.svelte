@@ -136,6 +136,7 @@
     } from "$lib/territory/families/buildFamilyGeometry";
     import type {
         RenderFamilyActiveTransition,
+        RenderFamilyTransitionEvent,
     } from "$lib/territory/families/RenderFamilyTypes";
     import {
         buildRenderFamilyTransitionLifecycle,
@@ -165,6 +166,14 @@
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
+    import { measurePerf, recordPerfEvent } from "$lib/perf/perfProbe";
+    import {
+        logPipelineStage,
+        summarizeConnections,
+        summarizeGeometry,
+        summarizeOwnership,
+        summarizeStars,
+    } from "$lib/perf/pipelineTelemetry";
 
     // ============================================================================
     // PixiJS Application
@@ -229,6 +238,332 @@
 
     // ── FX Orchestrator (V2 — manages all visual ship state via VSM) ────
     const fxOrchestrator = new FXOrchestrator();
+    const TERRITORY_INPUT_PRIORITY_WINDOW_MS = 120;
+    const TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS = 48;
+    const TERRITORY_HEAVY_UPDATE_MS = 8;
+    const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 96;
+    const TERRITORY_IDLE_MIN_CADENCE_MS = 48;
+    const TERRITORY_MAX_STALE_MS = 220;
+    let territoryInputPriorityUntilMs = 0;
+    let lastTerritoryUpdateStartedAtMs = 0;
+    let lastTerritoryUpdateCostMs = 0;
+    let lastTerritoryPresentedAtMs = 0;
+    let territoryDeferralActive = false;
+    let deferredTerritoryFrameCount = 0;
+    let deferredTerritoryReason = "";
+    let territoryCadenceSkipCount = 0;
+    let territoryLastMode = "";
+    type QueuedOrderMutation =
+        | {
+              kind: "issue";
+              sourceId: string;
+              targetId: string;
+              persist: boolean;
+          }
+        | {
+              kind: "cancel";
+              starId: string;
+          }
+        | {
+              kind: "defer";
+              sourceId: string;
+              targetId: string;
+              persist: boolean;
+          };
+    const queuedOrderMutations: QueuedOrderMutation[] = [];
+    const orderDispatchChannel =
+        typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
+    let orderDispatchScheduled = false;
+
+    function recordInputHandlingLatency(
+        kind: string,
+        event: MouseEvent | PointerEvent | WheelEvent,
+        thresholdMs = 0,
+    ): number {
+        const queueDelayMs = Math.max(0, performance.now() - event.timeStamp);
+        if (queueDelayMs < thresholdMs) return queueDelayMs;
+        recordPerfEvent(`input.${kind}.handled`, {
+            queueDelayMs,
+            button: "button" in event ? event.button : undefined,
+            pointerType:
+                "pointerType" in event ? event.pointerType : "mouse",
+            clientX: event.clientX,
+            clientY: event.clientY,
+        });
+        return queueDelayMs;
+    }
+
+    function flushQueuedOrderMutations(): void {
+        if (queuedOrderMutations.length === 0) {
+            orderDispatchScheduled = false;
+            return;
+        }
+        orderDispatchScheduled = false;
+        const mutations = queuedOrderMutations.splice(0);
+        measurePerf(
+            "game.input.orderQueue.flush",
+            () => {
+                for (const mutation of mutations) {
+                    switch (mutation.kind) {
+                        case "issue":
+                            activeGameStore.issueOrder(
+                                mutation.sourceId,
+                                mutation.targetId,
+                                mutation.persist,
+                            );
+                            break;
+                        case "cancel":
+                            activeGameStore.cancelOrder(mutation.starId);
+                            break;
+                        case "defer":
+                            activeGameStore.setDeferredOrder(
+                                mutation.sourceId,
+                                mutation.targetId,
+                                mutation.persist,
+                            );
+                            break;
+                    }
+                }
+            },
+            {
+                mutationCount: mutations.length,
+                kinds: mutations.map((mutation) => mutation.kind),
+            },
+        );
+        recordPerfEvent("input.orderQueue.flushed", {
+            mutationCount: mutations.length,
+            kinds: mutations.map((mutation) => mutation.kind),
+        });
+    }
+
+    function scheduleQueuedOrderMutations(): void {
+        if (orderDispatchScheduled) return;
+        orderDispatchScheduled = true;
+        if (orderDispatchChannel) {
+            orderDispatchChannel.port2.postMessage(null);
+            return;
+        }
+        setTimeout(() => {
+            flushQueuedOrderMutations();
+        }, 0);
+    }
+
+    function enqueueOrderMutation(mutation: QueuedOrderMutation): void {
+        queuedOrderMutations.push(mutation);
+        recordPerfEvent("input.orderQueue.enqueued", {
+            kind: mutation.kind,
+            mutationCount: queuedOrderMutations.length,
+        });
+        scheduleQueuedOrderMutations();
+    }
+
+    if (orderDispatchChannel) {
+        orderDispatchChannel.port1.onmessage = () => {
+            flushQueuedOrderMutations();
+        };
+    }
+
+    function noteInteractivePressure(kind?: string): void {
+        territoryInputPriorityUntilMs = Math.max(
+            territoryInputPriorityUntilMs,
+            performance.now() + TERRITORY_INPUT_PRIORITY_WINDOW_MS,
+        );
+        if (kind) {
+            recordPerfEvent(`input.${kind}`);
+        }
+    }
+
+    function hasBrowserInputPending(): boolean {
+        const scheduling = (navigator as Navigator & {
+            scheduling?: { isInputPending?: () => boolean };
+        }).scheduling;
+        if (typeof scheduling?.isInputPending !== "function") return false;
+        try {
+            return scheduling.isInputPending();
+        } catch {
+            return false;
+        }
+    }
+
+    function shouldDeferTerritoryUpdate(nowMs: number): boolean {
+        if (!voronoiContainer?.children.length) return false;
+        if (lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS) return false;
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
+        if (!activeInteraction && !recentInteraction && !hasBrowserInputPending()) {
+            return false;
+        }
+        return (
+            nowMs - lastTerritoryUpdateStartedAtMs <
+            TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS
+        );
+    }
+
+    function runTerritoryUpdate<T>(name: string, fn: () => T): T {
+        const startedAt = performance.now();
+        lastTerritoryUpdateStartedAtMs = startedAt;
+        const result = measurePerf(name, fn);
+        lastTerritoryUpdateCostMs = performance.now() - startedAt;
+        lastTerritoryPresentedAtMs = performance.now();
+        return result;
+    }
+
+    function computeTerritoryCadenceMs(nowMs: number): number {
+        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
+        const activeInteraction =
+            isDragging || isPanning || isPinching || activePointers.size > 0;
+        const browserInputPending = hasBrowserInputPending();
+        const hasQueuedOrders = queuedOrderMutations.length > 0;
+        const baseCadenceMs =
+            recentInteraction ||
+            activeInteraction ||
+            browserInputPending ||
+            hasQueuedOrders
+                ? TERRITORY_INTERACTIVE_MIN_CADENCE_MS
+                : TERRITORY_IDLE_MIN_CADENCE_MS;
+        if (lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS) {
+            return baseCadenceMs;
+        }
+        return Math.min(
+            TERRITORY_MAX_STALE_MS,
+            Math.max(baseCadenceMs, Math.round(lastTerritoryUpdateCostMs * 4)),
+        );
+    }
+
+    function shouldThrottleTerritoryCadence(params: {
+        nowMs: number;
+        isPaused: boolean;
+        configChanged: boolean;
+        activeMode: string;
+        pendingConquests: number;
+    }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
+        const cadenceMs = computeTerritoryCadenceMs(params.nowMs);
+        const staleMs =
+            lastTerritoryPresentedAtMs > 0
+                ? params.nowMs - lastTerritoryPresentedAtMs
+                : Number.POSITIVE_INFINITY;
+        const forceFresh =
+            params.isPaused ||
+            params.configChanged ||
+            lastTerritoryPresentedAtMs === 0 ||
+            territoryLastMode !== params.activeMode ||
+            params.pendingConquests > 0;
+        if (forceFresh) {
+            return {
+                defer: false,
+                reason: "fresh_required",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        if (
+            shouldDeferTerritoryUpdate(params.nowMs) &&
+            staleMs < TERRITORY_MAX_STALE_MS
+        ) {
+            return {
+                defer: true,
+                reason: "input_priority",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        if (staleMs < cadenceMs) {
+            return {
+                defer: true,
+                reason: "cadence_budget",
+                cadenceMs,
+                staleMs,
+            };
+        }
+        return {
+            defer: false,
+            reason: "cadence_ready",
+            cadenceMs,
+            staleMs,
+        };
+    }
+
+    function clampUnitInterval(value: number): number {
+        return Math.max(0, Math.min(1, value));
+    }
+
+    function transitionIdentityKey(
+        conquest: import("@pax/common").ConquestEvent,
+    ): string {
+        return [
+            conquest.tick,
+            conquest.starId,
+            conquest.previousOwner,
+            conquest.newOwner,
+        ].join(":");
+    }
+
+    function buildActiveRenderFamilyTransition(
+        nowMs: number,
+        effectiveTickMs: number,
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
+    ): RenderFamilyActiveTransition | null {
+        const eventsByKey = new Map<string, RenderFamilyTransitionEvent>();
+
+        for (const entry of territoryTransitions.getActiveEntries()) {
+            const durationMs = Math.max(1, entry.durationMs);
+            const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
+            if (rawProgress >= 1) continue;
+            eventsByKey.set(transitionIdentityKey(entry.event), {
+                event: entry.event,
+                startedAtMs: entry.startTimeMs,
+                durationMs,
+                rawProgress,
+                progress: clampUnitInterval(rawProgress),
+            });
+        }
+
+        const previewDurationMs = resolveTerritoryTransitionDurationMs(
+            effectiveTickMs,
+        );
+        if (previewDurationMs > 0) {
+            for (const conquest of pendingConquests) {
+                const key = transitionIdentityKey(conquest);
+                if (eventsByKey.has(key)) continue;
+                eventsByKey.set(key, {
+                    event: conquest,
+                    startedAtMs: nowMs,
+                    durationMs: previewDurationMs,
+                    rawProgress: 0,
+                    progress: 0,
+                });
+            }
+        }
+
+        const events = [...eventsByKey.values()]
+            .map((entry) => {
+                const durationMs = Math.max(1, entry.durationMs);
+                return {
+                    event: entry.event,
+                    startedAtMs: entry.startedAtMs,
+                    durationMs,
+                    rawProgress: entry.rawProgress,
+                    progress: clampUnitInterval(entry.rawProgress),
+                };
+            })
+            .sort((a, b) => a.startedAtMs - b.startedAtMs);
+
+        if (events.length === 0) return null;
+
+        const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
+        const durationMs = Math.max(...events.map((event) => event.durationMs));
+        const rawProgress = Math.max(...events.map((event) => event.rawProgress));
+
+        return {
+            conquestEvents: events.map((event) => event.event),
+            events,
+            startedAtMs,
+            durationMs,
+            rawProgress,
+            progress: clampUnitInterval(rawProgress),
+        };
+    }
 
     function buildRenderFamilyOwnershipSnapshot(
         stars: ReadonlyArray<StarState>,
@@ -241,7 +576,7 @@
             }
         }
 
-        return {
+        const snapshot = {
             version: "render-family-live",
             starOwners,
             contestedLaneIds: [],
@@ -254,6 +589,18 @@
                 })) ?? [],
             virtualStars: [],
         };
+        logPipelineStage({
+            channel: "state",
+            context: "GameCanvas",
+            stage: "ownership_snapshot",
+            from: "Active stars + transition overlay",
+            to: "Render-family ownership snapshot",
+            purpose: "Provide ownership state for family geometry and scene builders",
+            summary:
+                `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
+            perfEventName: "game.renderFrame.ownershipSnapshot",
+        });
+        return snapshot;
     }
 
     type PerimeterFieldCapturedFrame = {
@@ -1671,6 +2018,18 @@
                     GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "power_voronoi_0319",
             });
             renderFamilyGeometryCacheKey = key;
+            logPipelineStage({
+                channel: "renderer",
+                context: "GameCanvas",
+                stage: "geometry_cache_refresh",
+                from: "Stars + lane topology",
+                to: "Cached render-family geometry",
+                purpose: "Refresh geometry only when world topology or ownership changes",
+                summary:
+                    `${summarizeStars(stars)} ${summarizeConnections(lanes)} ` +
+                    summarizeGeometry(renderFamilyGeometryCache),
+                perfEventName: "game.renderFrame.geometryCacheRefresh",
+            });
         }
         return renderFamilyGeometryCache;
     }
@@ -2028,13 +2387,13 @@
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        activeGameStore.issueOrder(sourceId, targetId, persist);
+        enqueueOrderMutation({ kind: "issue", sourceId, targetId, persist });
         return true;
     }
 
     // Helper: Cancel order via unified store
     function doCancelOrder(starId: string): void {
-        activeGameStore.cancelOrder(starId);
+        enqueueOrderMutation({ kind: "cancel", starId });
     }
 
     // Helper: Set deferred order via unified store
@@ -2049,7 +2408,7 @@
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        activeGameStore.setDeferredOrder(sourceId, targetId, persist);
+        enqueueOrderMutation({ kind: "defer", sourceId, targetId, persist });
         return true;
     }
 
@@ -2614,6 +2973,8 @@
     }
 
     function handleWheel(event: WheelEvent) {
+        noteInteractivePressure("wheel");
+        recordInputHandlingLatency("wheel", event);
         log.input(
             `⚙ wheel deltaY=${event.deltaY.toFixed(0)} @(${event.clientX},${event.clientY})`,
         );
@@ -3433,6 +3794,14 @@
             nextShipId = 0;
             starShipCounts.clear();
             shipSpawnTimers.clear();
+            lastTerritoryUpdateStartedAtMs = 0;
+            lastTerritoryUpdateCostMs = 0;
+            lastTerritoryPresentedAtMs = 0;
+            territoryDeferralActive = false;
+            deferredTerritoryFrameCount = 0;
+            deferredTerritoryReason = "";
+            territoryCadenceSkipCount = 0;
+            territoryLastMode = "";
             // B-57: Clear territory fills from previous game immediately so
             // old conquest state doesn't persist while paused after restart.
             if (voronoiContainer) {
@@ -3519,11 +3888,84 @@
         ) {
             // Territory already rendered once since pause and config unchanged — skip
         } else if (voronoiContainer) {
-            if (isPausedNow)
-                (globalThis as any).__territoryRenderedWhilePaused = true;
-            if (!isPausedNow)
-                (globalThis as any).__territoryRenderedWhilePaused = false;
-            voronoiContainer.visible = true;
+            const territoryScheduler = shouldThrottleTerritoryCadence({
+                nowMs: performance.now(),
+                isPaused: isPausedNow,
+                configChanged,
+                activeMode: activeTerritoryMode,
+                pendingConquests: pendingTickEvents?.conquests?.length ?? 0,
+            });
+            const deferTerritoryUpdate =
+                !isPausedNow && territoryScheduler.defer;
+            if (deferTerritoryUpdate) {
+                deferredTerritoryFrameCount += 1;
+                territoryCadenceSkipCount += 1;
+                if (!territoryDeferralActive) {
+                    territoryDeferralActive = true;
+                    deferredTerritoryReason = territoryScheduler.reason;
+                    recordPerfEvent("game.territory.defer.start", {
+                        lastTerritoryUpdateCostMs,
+                        reason: territoryScheduler.reason,
+                        cadenceMs: territoryScheduler.cadenceMs,
+                        staleMs: territoryScheduler.staleMs,
+                    });
+                    logPipelineStage({
+                        channel: "input",
+                        context: "GameCanvas",
+                        stage: "territory_defer_start",
+                        from: "Input pressure window",
+                        to: "Territory renderer scheduler",
+                        purpose: "Prioritize order input and camera interaction over heavy territory updates",
+                        summary:
+                            `reason=${territoryScheduler.reason} ` +
+                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
+                            `cadenceMs=${territoryScheduler.cadenceMs} ` +
+                            `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
+                    });
+                }
+            } else {
+                if (territoryDeferralActive) {
+                    recordPerfEvent("game.territory.defer.stop", {
+                        deferredFrames: deferredTerritoryFrameCount,
+                        cadenceSkips: territoryCadenceSkipCount,
+                        lastTerritoryUpdateCostMs,
+                        reason: deferredTerritoryReason,
+                        cadenceMs: territoryScheduler.cadenceMs,
+                        staleMs: territoryScheduler.staleMs,
+                    });
+                    logPipelineStage({
+                        channel: "input",
+                        context: "GameCanvas",
+                        stage: "territory_defer_stop",
+                        from: "Territory renderer scheduler",
+                        to: "Normal territory cadence",
+                        purpose: "Resume heavier territory updates after interactive pressure subsides",
+                        summary:
+                            `deferredFrames=${deferredTerritoryFrameCount} ` +
+                            `cadenceSkips=${territoryCadenceSkipCount} ` +
+                            `reason=${deferredTerritoryReason} ` +
+                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
+                    });
+                    territoryDeferralActive = false;
+                    deferredTerritoryFrameCount = 0;
+                    territoryCadenceSkipCount = 0;
+                    deferredTerritoryReason = "";
+                }
+                if (isPausedNow)
+                    (globalThis as any).__territoryRenderedWhilePaused = true;
+                if (!isPausedNow)
+                    (globalThis as any).__territoryRenderedWhilePaused = false;
+                voronoiContainer.visible = true;
+                runTerritoryUpdate(
+                    `game.renderFrame.territory.${activeTerritoryMode}`,
+                    () => {
+            territoryLastMode = activeTerritoryMode;
+            recordPerfEvent("game.territory.schedule.run", {
+                mode: activeTerritoryMode,
+                cadenceMs: territoryScheduler.cadenceMs,
+                staleMs: territoryScheduler.staleMs,
+                lastTerritoryUpdateCostMs,
+            });
 
             // Hide all children first — only the active renderer will re-show its own
             for (const child of voronoiContainer.children) {
@@ -3539,8 +3981,9 @@
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
-                    console.log(
-                        `[Territory Style Dispatch] TERRITORY_RENDER_MODE="${GAME_CONFIG.TERRITORY_RENDER_MODE}" → activeMode="${activeMode}"`,
+                    log.state(
+                        "GameCanvas",
+                        `territory style dispatch renderMode="${GAME_CONFIG.TERRITORY_RENDER_MODE}" activeMode="${activeMode}"`,
                     );
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
@@ -3691,26 +4134,38 @@
                         const mf = fam as MetaballFamily;
                         const activeTransition =
                             renderFamilyTransitionLifecycle?.activeTransition ??
-                            null;
-                        mf.update(
-                            buildRenderFamilyInput({
-                                stars,
-                                lanes: activeGameStore
-                                    .connections as StarConnection[],
-                                worldWidth: GAME_WIDTH,
-                                worldHeight: GAME_HEIGHT,
-                                nowMs: fxOrchestrator.gameTime,
-                                paused: isPausedNow,
-                                gameTick: activeGameStore.currentTick,
-                                ownership: buildRenderFamilyOwnershipSnapshot(
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
                                     stars,
                                     activeTransition,
                                 ),
-                                renderer: app?.renderer ?? undefined,
-                                activeTransition,
-                                tunableKeys: mf.tunableKeys,
-                            }),
                         );
+                        const mfInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes: activeGameStore
+                                        .connections as StarConnection[],
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    tunableKeys: mf.tunableKeys,
+                                }),
+                        );
+                        mf.update(mfInput);
                         if (mf.displayRoot.parent !== voronoiContainer) {
                             voronoiContainer.addChild(mf.displayRoot);
                         }
@@ -3736,45 +4191,63 @@
                         const pf = fam as PerimeterFieldFamily;
                         const activeTransition =
                             renderFamilyTransitionLifecycle?.activeTransition ??
-                            null;
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
                         const lanes = activeGameStore
                             .connections as StarConnection[];
-                        const activeOwnership =
-                            buildRenderFamilyOwnershipSnapshot(
-                                stars,
-                                activeTransition,
-                            );
-                        const activeGeometry = getCurrentRenderFamilyGeometry(
-                            stars,
-                            lanes,
+                        const activeOwnership = measurePerf(
+                            "game.renderFrame.ownership.perimeter_field",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
                         );
-                        const transitionTruth =
-                            resolvePerimeterFieldTransitionTruth({
-                                activeTransition,
-                                geometry: activeGeometry,
-                                ownership: activeOwnership,
-                            });
-                        const pfInput = buildRenderFamilyInput({
-                            stars,
-                            lanes,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                            nowMs: fxOrchestrator.gameTime,
-                            paused: isPausedNow,
-                            gameTick: activeGameStore.currentTick,
-                            ownership: activeOwnership,
-                            geometry: activeGeometry,
-                            prevGeometry:
+                        const activeGeometry = measurePerf(
+                            "game.renderFrame.geometry.perimeter_field",
+                            () => getCurrentRenderFamilyGeometry(stars, lanes),
+                        );
+                        const prevGeometry = measurePerf(
+                            "game.renderFrame.prevGeometry.perimeter_field",
+                            () =>
                                 getPrevRenderFamilyGeometryForTransition(
                                     stars,
                                     lanes,
                                     activeTransition,
                                 ),
-                            renderer: app?.renderer ?? undefined,
-                            activeTransition,
-                            transitionTruth,
-                            tunableKeys: pf.tunableKeys,
-                        });
+                        );
+                        const transitionTruth = measurePerf(
+                            "game.renderFrame.transitionTruth.perimeter_field",
+                            () =>
+                                resolvePerimeterFieldTransitionTruth({
+                                    activeTransition,
+                                    geometry: activeGeometry,
+                                    ownership: activeOwnership,
+                                }),
+                        );
+                        const pfInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.perimeter_field",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership: activeOwnership,
+                                    geometry: activeGeometry,
+                                    prevGeometry,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionTruth,
+                                    tunableKeys: pf.tunableKeys,
+                                }),
+                        );
                         pf.update(pfInput);
                         if (pf.displayRoot.parent !== voronoiContainer) {
                             voronoiContainer.addChild(pf.displayRoot);
@@ -3821,35 +4294,53 @@
                         const mg = fam as MetaballGridFamily;
                         const activeTransition =
                             renderFamilyTransitionLifecycle?.activeTransition ??
-                            null;
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
                         const lanes = activeGameStore
                             .connections as StarConnection[];
-                        const mgInput = buildRenderFamilyInput({
-                            stars,
-                            lanes,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                            nowMs: fxOrchestrator.gameTime,
-                            paused: isPausedNow,
-                            gameTick: activeGameStore.currentTick,
-                            ownership: buildRenderFamilyOwnershipSnapshot(
-                                stars,
-                                activeTransition,
-                            ),
-                            geometry: getCurrentRenderFamilyGeometry(
-                                stars,
-                                lanes,
-                            ),
-                            prevGeometry:
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball_grid",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = measurePerf(
+                            "game.renderFrame.geometry.metaball_grid",
+                            () => getCurrentRenderFamilyGeometry(stars, lanes),
+                        );
+                        const prevGeometry = measurePerf(
+                            "game.renderFrame.prevGeometry.metaball_grid",
+                            () =>
                                 getPrevRenderFamilyGeometryForTransition(
                                     stars,
                                     lanes,
                                     activeTransition,
                                 ),
-                            renderer: app?.renderer ?? undefined,
-                            activeTransition,
-                            tunableKeys: mg.tunableKeys,
-                        });
+                        );
+                        const mgInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball_grid",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    prevGeometry,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    tunableKeys: mg.tunableKeys,
+                                }),
+                        );
                         mg.update(mgInput);
                         if (mg.displayRoot.parent !== voronoiContainer) {
                             voronoiContainer.addChild(mg.displayRoot);
@@ -3933,8 +4424,9 @@
                                 } catch (error) {
                                     if (!canonicalBridgeFallbackLogged) {
                                         canonicalBridgeFallbackLogged = true;
-                                        console.warn(
-                                            "[CanonicalBridge] Falling back to legacy canonical controller path:",
+                                        log.error(
+                                            "GameCanvas",
+                                            "CanonicalBridge falling back to legacy canonical controller path",
                                             error,
                                         );
                                     }
@@ -4014,16 +4506,25 @@
                                 (globalThis as any).__canonicalLoggedOnce =
                                     true;
                                 if (!state) {
-                                    console.warn(
-                                        "[Canonical🔍] state=null — compiler returned error or no stars",
+                                    log.state(
+                                        "GameCanvas",
+                                        "canonical state unavailable; compiler returned no renderable state",
                                     );
                                 } else {
-                                    console.log(
-                                        `[Canonical🔍] state.kind=${state.kind}` +
-                                            ` regions=${state.regions?.length ?? "?"}` +
-                                            ` frontierEdges=${state.frontierGraph?.edges?.size ?? "?"}` +
-                                            ` fittedFrontiers=${state.fittedFrontiers?.length ?? "?"}` +
-                                            ` transitionActive=${state.transitionActive}`,
+                                    log.state(
+                                        "GameCanvas",
+                                        "canonical state snapshot",
+                                        {
+                                            kind: state.kind,
+                                            regions: state.regions?.length ?? null,
+                                            frontierEdges:
+                                                state.frontierGraph?.edges?.size ??
+                                                null,
+                                            fittedFrontiers:
+                                                state.fittedFrontiers?.length ?? null,
+                                            transitionActive:
+                                                state.transitionActive,
+                                        },
                                     );
                                 }
                             }
@@ -4040,6 +4541,9 @@
                     }
                     // 'none' or unrecognized — no territory rendering
                 }
+                }
+                    },
+                );
             }
         } // end territory pause guard
 
@@ -4110,7 +4614,11 @@
             if (willCapture) {
                 const prevGeometry = exportPowerVoronoiGeometrySnapshot("previous", "dy4:prev", "dy4:prev");
                 const nextGeometry = exportPowerVoronoiGeometrySnapshot("current", "dy4:next", "dy4:next");
-                console.log(`[GameCanvas] DY4 Snapshot attempt: conquests=${tickEvents.conquests.length}, prev=${!!prevGeometry}, next=${!!nextGeometry}`);
+                log.state("GameCanvas", "DY4 snapshot attempt", {
+                    conquestCount: tickEvents.conquests.length,
+                    hasPreviousGeometry: Boolean(prevGeometry),
+                    hasNextGeometry: Boolean(nextGeometry),
+                });
                 
                 if (prevGeometry && nextGeometry) {
                     const owners = new Map();
@@ -4283,6 +4791,93 @@
         return {
             x: (screenX - offsetX) / scale,
             y: (screenY - offsetY) / scale,
+        };
+    }
+
+    function worldToScreen(
+        worldX: number,
+        worldY: number,
+    ): { x: number; y: number } {
+        if (!app) return { x: worldX, y: worldY };
+        const scale = app.stage.scale.x;
+        return {
+            x: worldX * scale + app.stage.x,
+            y: worldY * scale + app.stage.y,
+        };
+    }
+
+    function findBenchmarkSampleOrder():
+        | { source: StarState; target: StarState }
+        | null {
+        const localPlayerId = activeGameStore.localPlayerId;
+        if (!localPlayerId) return null;
+        const stars = activeGameStore.stars as StarState[];
+        const starsById = new Map(stars.map((star) => [star.id, star] as const));
+        for (const source of stars) {
+            if (source.ownerId !== localPlayerId) continue;
+            for (const connection of activeGameStore.connections as StarConnection[]) {
+                const targetId =
+                    connection.sourceId === source.id
+                        ? connection.targetId
+                        : connection.targetId === source.id
+                          ? connection.sourceId
+                          : null;
+                if (!targetId) continue;
+                const target = starsById.get(targetId);
+                if (!target || target.ownerId === localPlayerId) continue;
+                if (!activeGameStore.canIssueOrder(source.id, target.id)) continue;
+                return { source, target };
+            }
+        }
+        return null;
+    }
+
+    export function getBenchmarkOrderPointerPath():
+        | {
+              sourceId: string;
+              targetId: string;
+              sourceClientX: number;
+              sourceClientY: number;
+              targetClientX: number;
+              targetClientY: number;
+          }
+        | null {
+        if (!app || !canvasContainer) return null;
+        const sampleOrder = findBenchmarkSampleOrder();
+        if (!sampleOrder) return null;
+        const rect = canvasContainer.getBoundingClientRect();
+        const sourcePoint = worldToScreen(
+            mapTranspose.x(sampleOrder.source),
+            mapTranspose.y(sampleOrder.source),
+        );
+        const targetPoint = worldToScreen(
+            mapTranspose.x(sampleOrder.target),
+            mapTranspose.y(sampleOrder.target),
+        );
+        return {
+            sourceId: sampleOrder.source.id,
+            targetId: sampleOrder.target.id,
+            sourceClientX: rect.left + sourcePoint.x,
+            sourceClientY: rect.top + sourcePoint.y,
+            targetClientX: rect.left + targetPoint.x,
+            targetClientY: rect.top + targetPoint.y,
+        };
+    }
+
+    export function getBenchmarkTerritorySchedulerSnapshot():
+        | Record<string, unknown>
+        | null {
+        return {
+            territoryInputPriorityUntilMs,
+            lastTerritoryUpdateStartedAtMs,
+            lastTerritoryUpdateCostMs,
+            lastTerritoryPresentedAtMs,
+            territoryDeferralActive,
+            deferredTerritoryFrameCount,
+            deferredTerritoryReason,
+            territoryCadenceSkipCount,
+            territoryLastMode,
+            queuedOrderMutations: queuedOrderMutations.length,
         };
     }
 
@@ -4776,6 +5371,8 @@
 
     function handlePointerDown(event: PointerEvent) {
         if (!app) return;
+        noteInteractivePressure("pointerdown");
+        recordInputHandlingLatency("pointerdown", event);
         log.input(
             `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY}) ptrType=${event.pointerType}`,
         );
@@ -4951,6 +5548,8 @@
                 y: event.clientY,
             });
         }
+        noteInteractivePressure();
+        recordInputHandlingLatency("pointermove", event, 16);
 
         // Pinch zoom + 2-finger pan
         if (isPinching && activePointers.size >= 2) {
@@ -5099,6 +5698,8 @@
     }
 
     function handlePointerUp(event: PointerEvent) {
+        noteInteractivePressure("pointerup");
+        recordInputHandlingLatency("pointerup", event);
         log.input(
             `▲ pointerUp btn=${event.button} @(${event.clientX},${event.clientY})`,
         );
@@ -5257,8 +5858,8 @@
                     );
                     // B-43 diagnostic: trace deferred order decision
                     const localPid = activeGameStore.localPlayerId;
-                    console.log(
-                        `[B43] Click: active=${activeStarId} target=${targetStar.id} connected=${isConnected} activeOwner=${activeStarSnapshot?.ownerId} localPid=${localPid} isLocal=${activeStarSnapshot ? isLocalPlayerStar(activeStarSnapshot) : "N/A"}`,
+                    log.input(
+                        `[B43] click active=${activeStarId} target=${targetStar.id} connected=${isConnected} activeOwner=${activeStarSnapshot?.ownerId ?? "null"} localPid=${localPid} isLocal=${activeStarSnapshot ? isLocalPlayerStar(activeStarSnapshot) : "N/A"}`,
                     );
 
                     if (
@@ -5327,6 +5928,8 @@
     }
 
     function handleRightClick(event: MouseEvent) {
+        noteInteractivePressure("rightclick");
+        recordInputHandlingLatency("rightclick", event);
         event.preventDefault();
 
         const rect = canvasContainer.getBoundingClientRect();

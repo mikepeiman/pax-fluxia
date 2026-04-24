@@ -8,10 +8,10 @@ import type {
     SectionInfluence,
     SectionRef,
 } from '../contracts/FrontierTopologyContracts';
+import type { SharedPolyline } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import {
     executeChainWalk,
     type ChainWalkSegment,
-    type SharedPolylineLike,
 } from '../compiler/chainWalkCore';
 
 const WORLD_OWNER = 'world';
@@ -133,8 +133,8 @@ function hashStringList(items: ReadonlyArray<string>): string {
 }
 
 export interface BuildPowerVoronoiFrontierTopologyParams {
-    sharedPolylines: ReadonlyArray<SharedPolylineLike>;
-    worldBorderPolylines: ReadonlyArray<SharedPolylineLike>;
+    sharedPolylines: ReadonlyArray<SharedPolyline>;
+    worldBorderPolylines: ReadonlyArray<SharedPolyline>;
     ownershipVersion: string;
     worldWidth: number;
     worldHeight: number;
