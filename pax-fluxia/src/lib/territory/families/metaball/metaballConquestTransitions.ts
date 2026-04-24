@@ -124,25 +124,11 @@ function readWeightMultiplier(rawValue: number, fallback: number): number {
     return rawValue > 0 ? rawValue / 100 : fallback;
 }
 
-function readTransitionSettleFraction(input: RenderFamilyInput): number {
-    const rawPct = readTunableNumber(
-        input,
-        'TERRITORY_TRANSITION_SETTLE_PCT',
-        GAME_CONFIG.TERRITORY_TRANSITION_SETTLE_PCT ?? 10,
-    );
-    return clamp01(rawPct / 100);
-}
-
 function readTransitionTiming(
     input: RenderFamilyInput,
     transition: RenderFamilyTransitionEvent,
 ): {
-    progress: number;
     elapsedMs: number;
-    settleFraction: number;
-    movingWindowMs: number;
-    movingProgress: number;
-    settleProgress: number;
     victorTravelMs: number;
     loserTravelMs: number;
     powerLerpMs: number;
@@ -150,46 +136,24 @@ function readTransitionTiming(
     loserTravelT: number;
     powerT: number;
 } {
-    const progress = clamp01(transition.progress);
     const elapsedMs = Math.max(0, input.nowMs - transition.startedAtMs);
-    const settleFraction = readTransitionSettleFraction(input);
-    const movingWindowMs = Math.max(
-        1,
-        transition.durationMs * Math.max(0, 1 - settleFraction),
+    const victorTravelMs = readDurationMs(
+        input,
+        'VS_VICTOR_TRAVEL_MS',
+        transition.durationMs,
     );
-    const victorTravelMs = Math.min(
-        readDurationMs(input, 'VS_VICTOR_TRAVEL_MS', movingWindowMs),
-        movingWindowMs,
+    const loserTravelMs = readDurationMs(
+        input,
+        'VS_LOSER_TRAVEL_MS',
+        transition.durationMs,
     );
-    const loserTravelMs = Math.min(
-        readDurationMs(input, 'VS_LOSER_TRAVEL_MS', movingWindowMs),
-        movingWindowMs,
+    const powerLerpMs = readDurationMs(
+        input,
+        'VS_POWER_LERP_DURATION_MS',
+        Math.max(victorTravelMs, loserTravelMs),
     );
-    const powerLerpMs = Math.min(
-        readDurationMs(
-            input,
-            'VS_POWER_LERP_DURATION_MS',
-            Math.max(victorTravelMs, loserTravelMs),
-        ),
-        movingWindowMs,
-    );
-    const movingProgress =
-        settleFraction <= 0
-            ? progress
-            : clamp01(progress / Math.max(1e-6, 1 - settleFraction));
-    const settleProgress =
-        settleFraction <= 0
-            ? progress >= 1
-                ? 1
-                : 0
-            : clamp01((progress - (1 - settleFraction)) / settleFraction);
     return {
-        progress,
         elapsedMs,
-        settleFraction,
-        movingWindowMs,
-        movingProgress,
-        settleProgress,
         victorTravelMs,
         loserTravelMs,
         powerLerpMs,
@@ -500,6 +464,7 @@ export function reconcileMetaballConquestCache(params: {
 
     const activeKeys = new Set<string>();
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (clamp01(transition.progress) >= 1) continue;
         const key = buildTransitionKey(transition);
         activeKeys.add(key);
         if (!params.conquestCache.has(key)) {
@@ -528,47 +493,17 @@ export function buildMetaballTransitionStarOverrides(
     const overrides = new Map<string, MetaballStarOverride>();
     for (const transition of input.activeTransition?.events ?? []) {
         const conquest = transition.event;
-        if (!conquest.previousOwner) continue;
-        const timing = readTransitionTiming(input, transition);
+        const progress = clamp01(transition.progress);
+        if (progress >= 1 || !conquest.previousOwner) continue;
 
         if (mode === 'metaball_six_slice_burst') {
-            if (timing.settleProgress > 0) {
-                overrides.set(conquest.starId, {
-                    sampleStrengthScale: timing.settleProgress,
-                });
-            } else {
-                overrides.set(conquest.starId, {
-                    ownerId: null,
-                    omitFromTopology: true,
-                    omitFromSamples: true,
-                });
-            }
+            overrides.set(conquest.starId, {
+                ownerId: null,
+                omitFromTopology: true,
+                omitFromSamples: true,
+            });
         } else if (mode === 'metaball_hold_then_switch') {
-            const rawStart = readTunableNumber(
-                input,
-                'VS_POWER_LERP_START',
-                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
-            );
-            const rawEnd = readTunableNumber(
-                input,
-                'VS_POWER_LERP_END',
-                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
-            );
-            if (timing.settleProgress > 0) {
-                overrides.set(conquest.starId, {
-                    sampleStrengthScale: timing.settleProgress,
-                });
-            } else {
-                overrides.set(conquest.starId, {
-                    ownerId: conquest.previousOwner,
-                    sampleStrengthScale: lerp(
-                        readWeightMultiplier(rawStart, 1),
-                        readWeightMultiplier(rawEnd, 0),
-                        timing.powerT,
-                    ),
-                });
-            }
-        } else if (mode === 'metaball_instant_switch_grow_in') {
+            const timing = readTransitionTiming(input, transition);
             const rawStart = readTunableNumber(
                 input,
                 'VS_POWER_LERP_START',
@@ -580,26 +515,37 @@ export function buildMetaballTransitionStarOverrides(
                 GAME_CONFIG.VS_POWER_LERP_END ?? 0,
             );
             overrides.set(conquest.starId, {
-                sampleStrengthScale:
-                    timing.settleProgress > 0
-                        ? 1
-                        : lerp(
-                              readWeightMultiplier(rawStart, 0),
-                              readWeightMultiplier(rawEnd, 1),
-                              timing.powerT,
-                          ),
+                ownerId: conquest.previousOwner,
+                sampleStrengthScale: lerp(
+                    readWeightMultiplier(rawStart, 1),
+                    readWeightMultiplier(rawEnd, 0),
+                    timing.powerT,
+                ),
+            });
+        } else if (mode === 'metaball_instant_switch_grow_in') {
+            const timing = readTransitionTiming(input, transition);
+            const rawStart = readTunableNumber(
+                input,
+                'VS_POWER_LERP_START',
+                GAME_CONFIG.VS_POWER_LERP_START ?? 0,
+            );
+            const rawEnd = readTunableNumber(
+                input,
+                'VS_POWER_LERP_END',
+                GAME_CONFIG.VS_POWER_LERP_END ?? 0,
+            );
+            overrides.set(conquest.starId, {
+                sampleStrengthScale: lerp(
+                    readWeightMultiplier(rawStart, 0),
+                    readWeightMultiplier(rawEnd, 1),
+                    timing.powerT,
+                ),
             });
         } else {
-            if (timing.settleProgress > 0) {
-                overrides.set(conquest.starId, {
-                    sampleStrengthScale: timing.settleProgress,
-                });
-            } else {
-                overrides.set(conquest.starId, {
-                    ownerId: conquest.previousOwner,
-                    sampleStrengthScale: Math.max(0, 1 - timing.movingProgress),
-                });
-            }
+            overrides.set(conquest.starId, {
+                ownerId: conquest.previousOwner,
+                sampleStrengthScale: Math.max(0, 1 - progress),
+            });
         }
     }
     return overrides;
@@ -728,7 +674,25 @@ function buildLanePushTransitionSamples(params: {
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
 
-        const timing = readTransitionTiming(params.input, transition);
+        const elapsedMs = Math.max(0, params.input.nowMs - transition.startedAtMs);
+        const victorTravelMs = readDurationMs(
+            params.input,
+            'VS_VICTOR_TRAVEL_MS',
+            transition.durationMs,
+        );
+        const loserTravelMs = readDurationMs(
+            params.input,
+            'VS_LOSER_TRAVEL_MS',
+            transition.durationMs,
+        );
+        const powerLerpMs = readDurationMs(
+            params.input,
+            'VS_POWER_LERP_DURATION_MS',
+            Math.max(victorTravelMs, loserTravelMs),
+        );
+        const victorTravelT = clamp01(elapsedMs / victorTravelMs);
+        const loserTravelT = clamp01(elapsedMs / loserTravelMs);
+        const powerT = clamp01(elapsedMs / powerLerpMs);
         const rawStart = readTunableNumber(
             params.input,
             'VS_POWER_LERP_START',
@@ -745,11 +709,9 @@ function buildLanePushTransitionSamples(params: {
         const victorWeightMultiplier = lerp(
             victorStartMultiplier,
             victorEndMultiplier,
-            timing.powerT,
-        ) * (1 - timing.settleProgress);
-        const loserWeightMultiplier =
-            lerp(loserStartMultiplier, 0, timing.powerT) *
-            (1 - timing.settleProgress);
+            powerT,
+        );
+        const loserWeightMultiplier = lerp(loserStartMultiplier, 0, powerT);
 
         const targetStrength =
             params.context.starStrengthById.get(targetStar.id) ?? 0;
@@ -778,10 +740,10 @@ function buildLanePushTransitionSamples(params: {
                 id: `transition:${conquest.starId}:${transition.startedAtMs}:new:${attackerId}`,
                 x:
                     attackerStar.x +
-                    (targetStar.x - attackerStar.x) * timing.victorTravelT,
+                    (targetStar.x - attackerStar.x) * victorTravelT,
                 y:
                     attackerStar.y +
-                    (targetStar.y - attackerStar.y) * timing.victorTravelT,
+                    (targetStar.y - attackerStar.y) * victorTravelT,
                 playerIdx: attackerClusterIdx,
                 strength: pairStrength * victorWeightMultiplier,
             });
@@ -800,12 +762,10 @@ function buildLanePushTransitionSamples(params: {
               params.context.ensureOwnerClusterIdx(conquest.previousOwner))
             : params.context.ensureOwnerClusterIdx(conquest.previousOwner);
         const retreatX = retreatAnchor
-            ? targetStar.x +
-              (retreatAnchor.x - targetStar.x) * timing.loserTravelT
+            ? targetStar.x + (retreatAnchor.x - targetStar.x) * loserTravelT
             : targetStar.x;
         const retreatY = retreatAnchor
-            ? targetStar.y +
-              (retreatAnchor.y - targetStar.y) * timing.loserTravelT
+            ? targetStar.y + (retreatAnchor.y - targetStar.y) * loserTravelT
             : targetStar.y;
 
         out.push({
@@ -831,7 +791,7 @@ function buildHoldThenSwitchSamples(params: {
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
 
-        const timing = readTransitionTiming(params.input, transition);
+        const { victorTravelT } = readTransitionTiming(params.input, transition);
         const attackerIds = [
             ...new Set(
                 conquest.attackerStarIds?.length
@@ -851,14 +811,13 @@ function buildHoldThenSwitchSamples(params: {
                 id: `transition:${conquest.starId}:${transition.startedAtMs}:victor:${attackerId}`,
                 x:
                     attackerStar.x +
-                    (targetStar.x - attackerStar.x) * timing.victorTravelT,
+                    (targetStar.x - attackerStar.x) * victorTravelT,
                 y:
                     attackerStar.y +
-                    (targetStar.y - attackerStar.y) * timing.victorTravelT,
+                    (targetStar.y - attackerStar.y) * victorTravelT,
                 playerIdx: victorPlayerIdx,
                 strength:
-                    (params.context.starStrengthById.get(attackerStar.id) ?? 0) *
-                    (1 - timing.settleProgress),
+                    params.context.starStrengthById.get(attackerStar.id) ?? 0,
             });
         }
     }
@@ -877,7 +836,10 @@ function buildInstantSwitchGrowInSamples(params: {
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
 
-        const timing = readTransitionTiming(params.input, transition);
+        const { victorTravelT, powerT } = readTransitionTiming(
+            params.input,
+            transition,
+        );
         const rawStart = readTunableNumber(
             params.input,
             'VS_POWER_LERP_START',
@@ -891,8 +853,8 @@ function buildInstantSwitchGrowInSamples(params: {
         const victorStrengthScale = lerp(
             readWeightMultiplier(rawStart, 0),
             readWeightMultiplier(rawEnd, 1),
-            timing.powerT,
-        ) * (1 - timing.settleProgress);
+            powerT,
+        );
         const attackerIds = [
             ...new Set(
                 conquest.attackerStarIds?.length
@@ -912,10 +874,10 @@ function buildInstantSwitchGrowInSamples(params: {
                 id: `transition:${conquest.starId}:${transition.startedAtMs}:victor:${attackerId}`,
                 x:
                     attackerStar.x +
-                    (targetStar.x - attackerStar.x) * timing.victorTravelT,
+                    (targetStar.x - attackerStar.x) * victorTravelT,
                 y:
                     attackerStar.y +
-                    (targetStar.y - attackerStar.y) * timing.victorTravelT,
+                    (targetStar.y - attackerStar.y) * victorTravelT,
                 playerIdx: victorPlayerIdx,
                 strength:
                     (params.context.starStrengthById.get(attackerStar.id) ?? 0) *
@@ -938,7 +900,25 @@ function buildSixSliceBurstSamples(params: {
         const cache = params.conquestCache.get(buildTransitionKey(transition));
         if (!cache) continue;
 
-        const timing = readTransitionTiming(params.input, transition);
+        const elapsedMs = Math.max(0, params.input.nowMs - transition.startedAtMs);
+        const victorTravelMs = readDurationMs(
+            params.input,
+            'VS_VICTOR_TRAVEL_MS',
+            transition.durationMs,
+        );
+        const loserTravelMs = readDurationMs(
+            params.input,
+            'VS_LOSER_TRAVEL_MS',
+            transition.durationMs,
+        );
+        const powerLerpMs = readDurationMs(
+            params.input,
+            'VS_POWER_LERP_DURATION_MS',
+            Math.max(victorTravelMs, loserTravelMs),
+        );
+        const victorTravelT = clamp01(elapsedMs / victorTravelMs);
+        const loserTravelT = clamp01(elapsedMs / loserTravelMs);
+        const powerT = clamp01(elapsedMs / powerLerpMs);
         const rawStart = readTunableNumber(
             params.input,
             'VS_POWER_LERP_START',
@@ -955,11 +935,9 @@ function buildSixSliceBurstSamples(params: {
         const victorWeightMultiplier = lerp(
             victorStartMultiplier,
             victorEndMultiplier,
-            timing.powerT,
-        ) * (1 - timing.settleProgress);
-        const loserWeightMultiplier =
-            lerp(loserStartMultiplier, 0, timing.powerT) *
-            (1 - timing.settleProgress);
+            powerT,
+        );
+        const loserWeightMultiplier = lerp(loserStartMultiplier, 0, powerT);
         const victorPlayerIdx = params.context.ensureOwnerClusterIdx(cache.newOwner);
         const loserPlayerIdx = params.context.ensureOwnerClusterIdx(
             cache.previousOwner,
@@ -970,10 +948,10 @@ function buildSixSliceBurstSamples(params: {
                 id: `transition:${cache.starId}:${cache.startedAtMs}:victor:${attacker.starId}`,
                 x:
                     attacker.x +
-                    (cache.targetOrigin.x - attacker.x) * timing.victorTravelT,
+                    (cache.targetOrigin.x - attacker.x) * victorTravelT,
                 y:
                     attacker.y +
-                    (cache.targetOrigin.y - attacker.y) * timing.victorTravelT,
+                    (cache.targetOrigin.y - attacker.y) * victorTravelT,
                 playerIdx: victorPlayerIdx,
                 strength: attacker.strength * victorWeightMultiplier,
             });
@@ -982,8 +960,7 @@ function buildSixSliceBurstSamples(params: {
         const loserBaseStrength =
             cache.targetStrength /
             Math.max(1, cache.loserRayDirections.length);
-        const travelDistance =
-            cache.commonBurstDistancePx * timing.loserTravelT;
+        const travelDistance = cache.commonBurstDistancePx * loserTravelT;
 
         cache.loserRayDirections.forEach((direction, index) => {
             out.push({

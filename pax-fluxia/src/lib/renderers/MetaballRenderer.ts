@@ -399,16 +399,6 @@ function buildCorridorSamples(
     const spacing = Math.max(12, GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60);
     const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
     const cxWeight = Math.max(0, GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5);
-    const cxContestPairCount =
-        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1;
-    const cxContestPairWeight = Math.max(
-        0,
-        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
-    );
-    const starMargin = Math.max(
-        0,
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-    );
 
     const ownedStars = [...starById.values()].filter((s) => Boolean(s.ownerId));
     const sites = buildCorridorVirtualSites(
@@ -421,9 +411,6 @@ function buildCorridorSamples(
         contestMidpointEnabled,
         corridorEnabled,
         corridorEnabled,
-        cxContestPairWeight,
-        Math.max(1, Math.round(cxContestPairCount)),
-        starMargin,
     );
 
     const out: MetaballInfluenceSample[] = [];
@@ -539,18 +526,12 @@ function buildFingerprint(
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}:${shipInfluenceBucket(s)}:${combatActivityBucket(s, gameTick)}|`;
     }
-    const effectiveInfluenceRadius =
-        sceneInfluenceRadiusPx ?? GAME_CONFIG.METABALL_INFLUENCE_RADIUS;
-    const effectiveOwnershipMargin =
-        sceneOwnershipMarginPx ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN;
-    fp += `${effectiveInfluenceRadius}:${GAME_CONFIG.METABALL_FALLOFF}`;
+    fp += `${GAME_CONFIG.METABALL_INFLUENCE_RADIUS}:${GAME_CONFIG.METABALL_FALLOFF}`;
     fp += `:${GAME_CONFIG.METABALL_BLEND_SHARPNESS}:${GAME_CONFIG.METABALL_ALPHA}`;
-    fp += `:${GAME_CONFIG.METABALL_FILL_ENABLED ? 1 : 0}`;
     fp += `:${GAME_CONFIG.METABALL_CELL_SIZE}:${GAME_CONFIG.METABALL_THRESHOLD}`;
     fp += `:${GAME_CONFIG.METABALL_STRENGTH_MULT}:${GAME_CONFIG.METABALL_EDGE_FADE}`;
     fp += `:${GAME_CONFIG.METABALL_COVERAGE}`;
     fp += `:${GAME_CONFIG.METABALL_BLUR}:${GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS ? 1 : 0}:${GAME_CONFIG.TERRITORY_METABALL}`;
-    fp += `:${GAME_CONFIG.METABALL_BORDER_ENABLED ? 1 : 0}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_WIDTH}:${GAME_CONFIG.METABALL_BORDER_ALPHA}`;
     fp += `:${GAME_CONFIG.METABALL_SATURATION}:${GAME_CONFIG.METABALL_LIGHTNESS}`;
     fp += `:${GAME_CONFIG.METABALL_BORDER_SATURATION}:${GAME_CONFIG.METABALL_BORDER_LIGHTNESS}`;
@@ -559,8 +540,8 @@ function buildFingerprint(
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS}:${GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
-    fp += `:msr${effectiveOwnershipMargin}`;
-    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}`;
+    fp += `:msr${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
+    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
     fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
     if (sceneFingerprint) {
         fp += `:scene:${sceneFingerprint}`;
@@ -1699,9 +1680,7 @@ function renderMetaballImpl(
     const radius = sceneInput?.influenceRadiusPx ?? GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 120;
     const falloffType = GAME_CONFIG.METABALL_FALLOFF ?? 'inverse-square';
     const sharpness = GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3.0;
-    const fillEnabled = GAME_CONFIG.METABALL_FILL_ENABLED ?? true;
-    const bordersEnabled = GAME_CONFIG.METABALL_BORDER_ENABLED ?? true;
-    const alpha = fillEnabled ? (GAME_CONFIG.METABALL_ALPHA ?? 0.5) : 0;
+    const alpha = GAME_CONFIG.METABALL_ALPHA ?? 0.5;
     const cellSize = GAME_CONFIG.METABALL_CELL_SIZE ?? 8;
     const rawDominanceThresh = GAME_CONFIG.METABALL_THRESHOLD ?? 0.52;
     /** ≤0.5 disables filter; above 0.5 requires winner share of (w1+w2) at least this */

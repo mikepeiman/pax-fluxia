@@ -38,7 +38,7 @@ import type { PhaseContext } from '$lib/fx/phases/travelTypes';
 import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
 import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
-import type { ColorUtils, PlayerHSL } from './RenderContext';
+import type { ColorUtils } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
@@ -133,7 +133,6 @@ function buildIncomingTravelSummary(
 export function drawShip(
     res: ShipRenderResources,
     colorUtils: ColorUtils,
-    frame: ShipFrameContext | undefined,
     x: number,
     y: number,
     color: number,
@@ -148,23 +147,22 @@ export function drawShip(
     const { shipParticleContainer, shipCircleTexture, shipParticlePool } = res;
     if (!shipParticleContainer || !shipCircleTexture) return;
 
-    const style = frame?.style ?? resolveShipFrameStyle();
-    const pixelSize = style.visualRadius * scale * style.globalScale;
+    const globalScale = GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0;
+    const visualRadius = GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3;
+    const pixelSize = visualRadius * scale * globalScale;
     const spriteScale = (pixelSize * 2) / 128;
 
     // Ring-based density coloring
     let fillColor = color;
     if (ringTier > 0 && ownerId) {
-        const playerHsl = frame
-            ? getCachedOwnerHsl(frame, colorUtils, ownerId)
-            : colorUtils.getPlayerHSL(ownerId);
+        const playerHsl = colorUtils.getPlayerHSL(ownerId);
         const darken = GAME_CONFIG.DENSITY_DARKEN_ALT && shipIndex % 2 === 1;
         fillColor = colorUtils.getDensityFillColor(playerHsl, ringTier, darken);
     }
 
     // === Radial glow sprite (F-75 Option 3) ===
-    const glowRadius = style.glowRadius;
-    const glowIntensity = style.glowIntensity;
+    const glowRadius = GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0;
+    const glowIntensity = GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0;
     if (glowRadius > 0 && glowIntensity > 0) {
         const glowPixels = pixelSize * glowRadius * 0.5;
         const glowScale = (glowPixels * 2) / 128;
@@ -191,8 +189,8 @@ export function drawShip(
     }
 
     // === Outline: backing circle (F-75 Option 2: brightened outline) ===
-    if (style.outlineOn) {
-        const outlinePx = style.outlinePx;
+    if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
+        const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
         const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
         // F-75: Lighten outline color by SHIP_GLOW_INTENSITY
         const outlineColor = glowIntensity > 0
@@ -277,7 +275,6 @@ export function renderTravelingShips(
     state: ShipRenderState,
     res: ShipRenderResources,
     colorUtils: ColorUtils,
-    frame: ShipFrameContext,
 ): void {
     if (!res.shipParticleContainer) return;
 
@@ -323,12 +320,12 @@ export function renderTravelingShips(
 
         if (elapsed < 0) {
             stillTraveling.push(ship);
-            const color = getCachedOwnerColor(frame, colorUtils, ship.ownerId);
-            drawShip(res, colorUtils, frame, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
+            const color = colorUtils.getPlayerColor(ship.ownerId);
+            drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
             continue;
         }
 
-        const color = getCachedOwnerColor(frame, colorUtils, ship.ownerId);
+        const color = colorUtils.getPlayerColor(ship.ownerId);
 
         if (ship.state === 'departing') {
             const departMode = GAME_CONFIG.ORB_TRAVEL ? 'orb' : (GAME_CONFIG.TRAVEL_MODE || 'lane');
@@ -376,7 +373,7 @@ export function renderTravelingShips(
                 const cfs = (ship as any).conquestForceScale ?? 1;
                 const drawAlpha = Math.min(1, ship.alpha * cfs);
                 const drawScale = ship.scale * (1 + (cfs - 1) * 0.3); // subtle size boost
-                drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 stillTraveling.push(ship);
             }
         } else if (ship.state === 'traveling') {
@@ -490,7 +487,7 @@ export function renderTravelingShips(
                     const cfs = (ship as any).conquestForceScale ?? 1;
                     const drawAlpha = Math.min(1, ship.alpha * cfs);
                     const drawScale = ship.scale * (1 + (cfs - 1) * 0.3);
-                    drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                    drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 }
                 stillTraveling.push(ship);
             }
@@ -545,7 +542,6 @@ export function renderShips(
     colorUtils: ColorUtils,
 ): void {
     if (!res.shipParticleContainer) return;
-    const frame = createShipFrameContext(state);
 
     const incomingTravelByDestination = buildIncomingTravelSummary(
         state.travelingShips,
@@ -576,7 +572,7 @@ export function renderShips(
                 state.pendingConquests.delete(star.id);
             }
         }
-        const color = getCachedOwnerColor(frame, colorUtils, effectiveOwner);
+        const color = colorUtils.getPlayerColor(effectiveOwner);
 
         // 1. Manage Active Ships State
         let ships = state.visualShips.get(star.id) || [];
@@ -920,7 +916,7 @@ export function renderShips(
     }
 
     // Render in-flight ships
-    renderTravelingShips(stars, starsById, state, res, colorUtils, frame);
+    renderTravelingShips(stars, starsById, state, res, colorUtils);
 
 }
 
@@ -957,7 +953,7 @@ export function renderFleets(
             const jitterX = Math.sin(animTime * 10 + i) * 5;
             const jitterY = Math.cos(animTime * 10 + i) * 5;
 
-            drawShip(res, colorUtils, undefined, lx + jitterX, ly + jitterY, color, 1.0, 1.0, false, 1, fleet.ownerId);
+            drawShip(res, colorUtils, lx + jitterX, ly + jitterY, color, 1.0, 1.0, false, 1, fleet.ownerId);
         }
     });
 }

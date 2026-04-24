@@ -485,165 +485,6 @@ describe('buildPerimeterFieldScene', () => {
         ).toBe(true);
     });
 
-    it('prefers authoritative power-voronoi source loops over reconstructed topology loops', () => {
-        const geometry = makeTopologyGeometry({
-            ownerId: 'red',
-            loopId: 'red-loop',
-            bounds: [20, 20, 80, 80],
-            starIds: ['target'],
-        });
-        geometry.shellLoops = [
-            {
-                shellLoopId: 'stale-shell-loop',
-                shellId: 'stale-shell',
-                ownerId: 'red',
-                starIds: ['wrong-star'],
-                points: [
-                    [0, 0],
-                    [180, 0],
-                    [180, 180],
-                    [0, 180],
-                ],
-                classification: 'outer',
-                confidence: 1,
-            },
-        ];
-
-        const loops = listPerimeterGeometryLoops(geometry);
-
-        expect(loops).toHaveLength(1);
-        expect(loops[0]?.loopId).toBe('stale-shell-loop');
-        expect(loops[0]?.starIds).toEqual(['wrong-star']);
-        expect(loops[0]?.points).toEqual([
-            [0, 0],
-            [180, 0],
-            [180, 180],
-            [0, 180],
-        ]);
-    });
-
-    it('uses authoritative power-voronoi loop geometry for sample coordinates while keeping plan ids', () => {
-        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
-        const geometry = makeTopologyGeometry({
-            ownerId: 'red',
-            loopId: 'red-loop',
-            bounds: [20, 20, 80, 80],
-            starIds: ['target'],
-        });
-        geometry.shellLoops = [
-            {
-                shellLoopId: 'authoritative-shell',
-                shellId: 'shell:red-loop',
-                ownerId: 'red',
-                starIds: ['target'],
-                points: [
-                    [10, 10],
-                    [90, 10],
-                    [90, 90],
-                    [10, 90],
-                ],
-                classification: 'outer',
-                confidence: 1,
-            },
-        ];
-
-        const scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars,
-                tunables: {
-                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_TRANSITION_ENGINE: 'plan',
-                },
-            }),
-            starsForDisplay: stars,
-            geometry,
-            colorUtils,
-        });
-
-        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
-        expect(
-            scene.sceneInput.samples.every((sample) => sample.id?.startsWith('v:red-loop:')),
-        ).toBe(true);
-        expect(
-            scene.sceneInput.samples.some(
-                (sample) =>
-                    sample.x < 20 ||
-                    sample.x > 80 ||
-                    sample.y < 20 ||
-                    sample.y > 80,
-            ),
-        ).toBe(true);
-    });
-
-    it('keeps power-voronoi perimeter samples strictly inside the authoritative loop when inward offset is positive', () => {
-        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
-        const geometry = makeTopologyGeometry({
-            ownerId: 'red',
-            loopId: 'red-loop-offset',
-            bounds: [20, 20, 80, 80],
-            starIds: ['target'],
-            sourceMethod: 'power_voronoi',
-        });
-
-        const scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars,
-                tunables: {
-                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
-                },
-            }),
-            starsForDisplay: stars,
-            geometry,
-            colorUtils,
-        });
-
-        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
-        for (const sample of scene.sceneInput.samples) {
-            expect(sample.x).toBeGreaterThan(20);
-            expect(sample.x).toBeLessThan(80);
-            expect(sample.y).toBeGreaterThan(20);
-            expect(sample.y).toBeLessThan(80);
-        }
-    });
-
-    it('does not drop a valid power-voronoi region when the topology loop orientation is negative', () => {
-        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
-        const geometry = makeTopologyGeometry({
-            ownerId: 'red',
-            loopId: 'red-loop-negative-orientation',
-            bounds: [20, 20, 80, 80],
-            starIds: ['target'],
-            sourceMethod: 'power_voronoi',
-        });
-        geometry.frontierTopology.loops = geometry.frontierTopology.loops.map((loop) => ({
-            ...loop,
-            signedArea: -Math.abs(loop.signedArea),
-        }));
-
-        expect(listPerimeterGeometryLoops(geometry)).toHaveLength(1);
-
-        const scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars,
-                tunables: {
-                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-                },
-            }),
-            starsForDisplay: stars,
-            geometry,
-            colorUtils,
-        });
-
-        expect(scene.sceneInput.samples.length).toBeGreaterThan(0);
-        expect(
-            scene.sceneInput.samples.every((sample) =>
-                sample.id?.startsWith('v:red-loop-negative-orientation:'),
-            ),
-        ).toBe(true);
-    });
-
     it('offsets static perimeter samples inside the source boundary', () => {
         const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
         const geometry = makeGeometry({
@@ -683,72 +524,47 @@ describe('buildPerimeterFieldScene', () => {
         }
     });
 
-    it('uses actual PREV sample coordinates as vector starts and NEXT sample coordinates as vector ends', () => {
+    it('uses actual PREV perimeter samples as transition-old starts and NEXT perimeter samples as transition-new ends', () => {
         const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
         ];
-        const oldGeometry = makeTopologyGeometry({
+        const oldGeometry = makeGeometry({
             ownerId: 'red',
             loopId: 'red-loop',
-            bounds: [25, 25, 75, 75],
+            points: [
+                [25, 25],
+                [75, 25],
+                [75, 75],
+                [25, 75],
+            ],
             starIds: ['target'],
-            sourceMethod: 'power_voronoi',
         });
-        const newGeometry = makeTopologyGeometry({
+        const newGeometry = makeGeometry({
             ownerId: 'blue',
             loopId: 'blue-loop',
-            bounds: [15, 15, 85, 85],
+            points: [
+                [15, 15],
+                [85, 15],
+                [85, 85],
+                [15, 85],
+            ],
             starIds: ['target'],
-            sourceMethod: 'power_voronoi',
-        });
-        const nextStars = [
-            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
-        ];
-        const ownerToCluster = new Map<string, number>([
-            ['blue', 0],
-            ['red', 1],
-        ]);
-        const plan = buildTransitionPlan({
-            conquestKey: 'test:vector-paths-resolve-to-prev-and-next',
-            prevVSet: sampleVSetFromGeometry({
-                geometry: oldGeometry,
-                options: {
-                    spacing: 20,
-                    offsetPx: 0,
-                    strength: 2,
-                    ownerToCluster,
-                },
-            }),
-            nextVSet: sampleVSetFromGeometry({
-                geometry: newGeometry,
-                options: {
-                    spacing: 20,
-                    offsetPx: 0,
-                    strength: 2,
-                    ownerToCluster,
-                },
-            }),
-            conquestEvents: makeTransition().events,
-            prevGeometry: oldGeometry,
-            nextGeometry: newGeometry,
         });
 
         const scene = buildPerimeterFieldScene({
             input: makeInput({
-                stars: nextStars,
+                stars: displayStars,
                 activeTransition: makeTransition(0.5),
                 tunables: {
                     PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
                     PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
                     PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
                 },
             }),
-            starsForDisplay: nextStars,
-            geometry: newGeometry,
-            transitionPlan: plan,
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
             colorUtils,
         });
 
@@ -757,7 +573,6 @@ describe('buildPerimeterFieldScene', () => {
                 stars: [displayStars[1]!],
                 tunables: {
                     PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
                     PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
                 },
             }),
@@ -765,12 +580,15 @@ describe('buildPerimeterFieldScene', () => {
             geometry: oldGeometry,
             colorUtils,
         });
+        const nextStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
+        ];
         const nextScene = buildPerimeterFieldScene({
             input: makeInput({
                 stars: nextStars,
                 tunables: {
                     PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
                     PERIMETER_FIELD_INFLUENCE_WEIGHT: 2,
                 },
             }),
@@ -786,17 +604,17 @@ describe('buildPerimeterFieldScene', () => {
             nextScene.sceneInput.samples.map((sample) => pointKey(sample.x, sample.y)),
         );
 
-        const vectorSamples = scene.debug.transitionSamples.filter(
-            (sample) =>
-                sample.pathStartX != null &&
-                sample.pathStartY != null &&
-                sample.pathEndX != null &&
-                sample.pathEndY != null,
+        const oldTransitionSamples = scene.debug.transitionSamples.filter(
+            (sample) => sample.debugState === 'transition-old',
+        );
+        const newTransitionSamples = scene.debug.transitionSamples.filter(
+            (sample) => sample.debugState === 'transition-new',
         );
 
-        expect(vectorSamples.length).toBeGreaterThan(0);
+        expect(oldTransitionSamples.length).toBeGreaterThan(0);
+        expect(newTransitionSamples.length).toBeGreaterThan(0);
         expect(
-            vectorSamples.every(
+            oldTransitionSamples.every(
                 (sample) =>
                     sample.pathStartX != null &&
                     sample.pathStartY != null &&
@@ -804,440 +622,238 @@ describe('buildPerimeterFieldScene', () => {
             ),
         ).toBe(true);
         expect(
-            vectorSamples.every(
+            newTransitionSamples.every(
                 (sample) =>
                     sample.pathEndX != null &&
                     sample.pathEndY != null &&
                     nextKeys.has(pointKey(sample.pathEndX, sample.pathEndY)),
             ),
         ).toBe(true);
-        expect(
-            scene.debug.transitionSamples.some(
-                (sample) =>
-                    sample.transitionRole === 'mover' ||
-                    sample.transitionRole === 'preserved',
-            ),
-        ).toBe(true);
         expect(scene.sceneInput.influenceRadiusPx).toBe(44);
     });
 
-    it('does not fan a conquest out to every owner loop when seed loop resolution fails', () => {
-        const prevGeometry = combineTopologyGeometries([
-            {
-                ...makeTopologyGeometry({
-                    ownerId: 'red',
-                    loopId: 'red-target-loop',
-                    bounds: [10, 10, 40, 40],
-                    starIds: [],
-                    sourceMethod: 'power_voronoi',
-                }),
-                shellLoops: [
-                    {
-                        ...makeTopologyGeometry({
-                            ownerId: 'red',
-                            loopId: 'red-target-loop',
-                            bounds: [10, 10, 40, 40],
-                            starIds: [],
-                            sourceMethod: 'power_voronoi',
-                        }).shellLoops[0]!,
-                        starIds: [],
-                        anchorStarIds: [],
-                    },
-                ],
-            },
-            {
-                ...makeTopologyGeometry({
-                    ownerId: 'red',
-                    loopId: 'red-other-loop',
-                    bounds: [60, 10, 90, 40],
-                    starIds: [],
-                    sourceMethod: 'power_voronoi',
-                }),
-                shellLoops: [
-                    {
-                        ...makeTopologyGeometry({
-                            ownerId: 'red',
-                            loopId: 'red-other-loop',
-                            bounds: [60, 10, 90, 40],
-                            starIds: [],
-                            sourceMethod: 'power_voronoi',
-                        }).shellLoops[0]!,
-                        starIds: [],
-                        anchorStarIds: [],
-                    },
-                ],
-            },
-        ]);
-        const nextGeometry = combineTopologyGeometries([
-            {
-                ...makeTopologyGeometry({
-                    ownerId: 'blue',
-                    loopId: 'blue-target-loop',
-                    bounds: [10, 10, 40, 40],
-                    starIds: [],
-                    sourceMethod: 'power_voronoi',
-                }),
-                shellLoops: [
-                    {
-                        ...makeTopologyGeometry({
-                            ownerId: 'blue',
-                            loopId: 'blue-target-loop',
-                            bounds: [10, 10, 40, 40],
-                            starIds: [],
-                            sourceMethod: 'power_voronoi',
-                        }).shellLoops[0]!,
-                        starIds: [],
-                        anchorStarIds: [],
-                    },
-                ],
-            },
-            {
-                ...makeTopologyGeometry({
-                    ownerId: 'blue',
-                    loopId: 'blue-other-loop',
-                    bounds: [60, 10, 90, 40],
-                    starIds: [],
-                    sourceMethod: 'power_voronoi',
-                }),
-                shellLoops: [
-                    {
-                        ...makeTopologyGeometry({
-                            ownerId: 'blue',
-                            loopId: 'blue-other-loop',
-                            bounds: [60, 10, 90, 40],
-                            starIds: [],
-                            sourceMethod: 'power_voronoi',
-                        }).shellLoops[0]!,
-                        starIds: [],
-                        anchorStarIds: [],
-                    },
-                ],
-            },
-        ]);
-
-        const selection = buildChangedFrontSelection({
-            prevGeometry,
-            nextGeometry,
-            conquestEvents: makeTransition().events,
-        });
-
-        expect(selection.chains).toHaveLength(1);
-        expect(selection.chains[0]?.prevLoopIds).toEqual([]);
-        expect(selection.chains[0]?.nextLoopIds).toEqual([]);
-        expect(selection.changedSections.selectedPrevSectionIds.size).toBe(0);
-        expect(selection.changedSections.selectedNextSectionIds.size).toBe(0);
-    });
-
-    it('uses exact PREV at frame 0 and exact NEXT at frame 1 for raw power_voronoi geometry', () => {
-        const prevStars = [
+    it('matches PREV at transition frame 0 instead of inflating the affected frontier', () => {
+        const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
         ];
-        const nextStars = [
-            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
-        ];
-        const prevGeometry = makeTopologyGeometry({
+        const oldGeometry = makeGeometry({
             ownerId: 'red',
             loopId: 'red-loop',
-            bounds: [25, 25, 75, 75],
+            points: [
+                [25, 25],
+                [75, 25],
+                [75, 75],
+                [25, 75],
+            ],
             starIds: ['target'],
-            sourceMethod: 'power_voronoi',
         });
-        const nextGeometry = makeTopologyGeometry({
+        const newGeometry = makeGeometry({
             ownerId: 'blue',
             loopId: 'blue-loop',
-            bounds: [15, 15, 85, 85],
+            points: [
+                [15, 15],
+                [85, 15],
+                [85, 85],
+                [15, 85],
+            ],
             starIds: ['target'],
-            sourceMethod: 'power_voronoi',
-        });
-        const tunables = {
-            PERIMETER_FIELD_SAMPLE_SPACING: 20,
-            PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-            PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
-            PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
-        } satisfies Record<string, RenderFamilyTunableValue>;
-        const ownerToCluster = new Map<string, number>([
-            ['blue', 0],
-            ['red', 1],
-        ]);
-        const prevVSet = sampleVSetFromGeometry({
-            geometry: prevGeometry,
-            options: {
-                spacing: 20,
-                offsetPx: 0,
-                strength: 1.5,
-                ownerToCluster,
-            },
-        });
-        const nextVSet = sampleVSetFromGeometry({
-            geometry: nextGeometry,
-            options: {
-                spacing: 20,
-                offsetPx: 0,
-                strength: 1.5,
-                ownerToCluster,
-            },
-        });
-        const plan = buildTransitionPlan({
-            conquestKey: 'test:raw-power-voronoi-frame-invariants',
-            prevVSet,
-            nextVSet,
-            conquestEvents: makeTransition().events,
-            prevGeometry,
-            nextGeometry,
         });
 
         const prevScene = buildPerimeterFieldScene({
-            input: makeInput({ stars: prevStars, tunables }),
-            starsForDisplay: prevStars,
-            geometry: prevGeometry,
-            colorUtils,
-        });
-        const nextScene = buildPerimeterFieldScene({
-            input: makeInput({ stars: nextStars, tunables }),
-            starsForDisplay: nextStars,
-            geometry: nextGeometry,
-            colorUtils,
-        });
-        const frame0Scene = buildPerimeterFieldScene({
             input: makeInput({
-                stars: nextStars,
+                stars: [displayStars[1]!],
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
+            }),
+            starsForDisplay: [displayStars[1]!],
+            geometry: oldGeometry,
+            colorUtils,
+        });
+        const transitionScene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars: displayStars,
                 activeTransition: makeTransition(0),
-                tunables,
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
             }),
-            starsForDisplay: nextStars,
-            geometry: nextGeometry,
-            transitionPlan: plan,
-            colorUtils,
-        });
-        const frame1Scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: nextStars,
-                activeTransition: makeTransition(1),
-                tunables,
-            }),
-            starsForDisplay: nextStars,
-            geometry: nextGeometry,
-            transitionPlan: plan,
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
             colorUtils,
         });
 
-        expect(sampleSignature(frame0Scene.sceneInput.samples)).toEqual(
-            sampleSignature(prevScene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
-            sampleSignature(nextScene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame0Scene.debug.renderedSamples)).toEqual(
-            sampleSignature(frame0Scene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame1Scene.debug.renderedSamples)).toEqual(
-            sampleSignature(frame1Scene.sceneInput.samples),
-        );
+        const prevNonZeroKeys = [...prevScene.sceneInput.samples]
+            .filter((sample) => sample.strength > 1e-6)
+            .map((sample) => pointKey(sample.x, sample.y))
+            .sort();
+        const transitionNonZeroKeys = [...transitionScene.sceneInput.samples]
+            .filter((sample) => sample.strength > 1e-6)
+            .map((sample) => pointKey(sample.x, sample.y))
+            .sort();
+
+        expect(transitionNonZeroKeys).toEqual(prevNonZeroKeys);
+        expect(
+            transitionScene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.debugState === 'transition-new' && sample.strength === 0,
+            ),
+        ).toBe(true);
     });
 
-    it('never emits legacy synthetic transition sample ids on the active path', () => {
-        const prevGeometry = makeTopologyGeometry({
+    it('skips transition samples when there is no deterministic star-anchored perimeter source', () => {
+        const displayStars = [
+            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
+            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
+        ];
+        const oldGeometry = makeGeometry({
             ownerId: 'red',
-            loopId: 'red-loop-topology',
-            bounds: [25, 25, 75, 75],
-            starIds: ['target'],
-            sourceMethod: 'fg2_enriched',
+            loopId: 'red-loop',
+            points: [
+                [5, 5],
+                [25, 5],
+                [25, 25],
+                [5, 25],
+            ],
         });
-        const nextGeometry = makeTopologyGeometry({
+        const newGeometry = makeGeometry({
             ownerId: 'blue',
-            loopId: 'blue-loop-topology',
-            bounds: [15, 15, 85, 85],
-            starIds: ['target'],
-            sourceMethod: 'fg2_enriched',
-        });
-        const ownerToCluster = new Map<string, number>([
-            ['blue', 0],
-            ['red', 1],
-        ]);
-        const plan = buildTransitionPlan({
-            conquestKey: 'test:no-legacy-transition-ids',
-            prevVSet: sampleVSetFromGeometry({
-                geometry: prevGeometry,
-                options: {
-                    spacing: 20,
-                    offsetPx: 0,
-                    strength: 1.5,
-                    ownerToCluster,
-                },
-            }),
-            nextVSet: sampleVSetFromGeometry({
-                geometry: nextGeometry,
-                options: {
-                    spacing: 20,
-                    offsetPx: 0,
-                    strength: 1.5,
-                    ownerToCluster,
-                },
-            }),
-            conquestEvents: makeTransition().events,
-            prevGeometry,
-            nextGeometry,
+            loopId: 'blue-loop',
+            points: [
+                [75, 75],
+                [95, 75],
+                [95, 95],
+                [75, 95],
+            ],
         });
 
         const scene = buildPerimeterFieldScene({
             input: makeInput({
-                stars: [
-                    makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-                    makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
-                ],
-                activeTransition: makeTransition(0.5),
-                tunables: {
-                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
-                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
-                },
+                stars: displayStars,
+                activeTransition: makeTransition(),
             }),
-            starsForDisplay: [
-                makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-                makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
-            ],
-            geometry: nextGeometry,
-            transitionPlan: plan,
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
             colorUtils,
         });
 
         expect(
-            scene.debug.transitionSamples.every(
-                (sample) =>
-                    sample.debugState !== 'transition-old' &&
-                    sample.debugState !== 'transition-new',
+            scene.sceneInput.samples.filter((sample) =>
+                (sample.id ?? '').startsWith('transition:'),
             ),
-        ).toBe(true);
-        expect(scene.debug.transitionPlan?.conquestKey).toBe(
-            'test:no-legacy-transition-ids',
-        );
-        expect(
-            scene.debug.transitionSamples.some(
-                (sample) =>
-                    sample.transitionRole === 'mover' ||
-                    sample.transitionRole === 'preserved',
-            ),
-        ).toBe(true);
+        ).toHaveLength(0);
+        expect(scene.debug.transitionSamples).toHaveLength(0);
     });
 
-    it('makes topology-plan frame 0 equal PREV and frame 1 equal NEXT', () => {
-        const prevStars = [
+    it('uses deterministic star membership when multiple same-owner regions exist', () => {
+        const displayStars = [
             makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
             makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' }),
         ];
-        const nextStars = [
-            makeStar({ id: 'attacker', x: 20, y: 50, ownerId: 'blue' }),
-            makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' }),
-        ];
-        const prevGeometry = makeTopologyGeometry({
-            ownerId: 'red',
-            loopId: 'red-loop-topology',
-            bounds: [25, 25, 75, 75],
-            starIds: ['target'],
-            sourceMethod: 'fg2_enriched',
-        });
-        const nextGeometry = makeTopologyGeometry({
-            ownerId: 'blue',
-            loopId: 'blue-loop-topology',
-            bounds: [15, 15, 85, 85],
-            starIds: ['target'],
-            sourceMethod: 'fg2_enriched',
-        });
-        const tunables = {
-            PERIMETER_FIELD_TRANSITION_ENGINE: 'plan',
-            PERIMETER_FIELD_SAMPLE_SPACING: 20,
-            PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
-            PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
-            PERIMETER_FIELD_INFLUENCE_RADIUS: 44,
-        } satisfies Record<string, RenderFamilyTunableValue>;
-        const ownerToCluster = new Map<string, number>([
-            ['blue', 0],
-            ['red', 1],
-        ]);
-        const prevVSet = sampleVSetFromGeometry({
-            geometry: prevGeometry,
-            options: {
-                spacing: 20,
-                offsetPx: 0,
-                strength: 1.5,
-                ownerToCluster,
-            },
-        });
-        const nextVSet = sampleVSetFromGeometry({
-            geometry: nextGeometry,
-            options: {
-                spacing: 20,
-                offsetPx: 0,
-                strength: 1.5,
-                ownerToCluster,
-            },
-        });
-        const plan = buildTransitionPlan({
-            conquestKey: 'test:plan-frame-invariants',
-            prevVSet,
-            nextVSet,
-            conquestEvents: makeTransition().events,
-            prevGeometry,
-            nextGeometry,
-        });
+        const oldGeometry = {
+            ...makeGeometry({
+                ownerId: 'red',
+                loopId: 'red-loop',
+                points: [
+                    [50, 50],
+                    [80, 50],
+                    [80, 80],
+                    [50, 80],
+                ],
+                starIds: ['target'],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:red:target',
+                    ownerId: 'red',
+                    starIds: ['target'],
+                    points: [
+                        [50, 50],
+                        [80, 50],
+                        [80, 80],
+                        [50, 80],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+                {
+                    regionId: 'region:red:other',
+                    ownerId: 'red',
+                    starIds: ['other-red'],
+                    points: [
+                        [5, 5],
+                        [25, 5],
+                        [25, 25],
+                        [5, 25],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
+        const newGeometry = {
+            ...makeGeometry({
+                ownerId: 'blue',
+                loopId: 'blue-loop',
+                points: [
+                    [50, 50],
+                    [90, 50],
+                    [90, 90],
+                    [50, 90],
+                ],
+                starIds: ['target'],
+            }),
+            territoryRegions: [
+                {
+                    regionId: 'region:blue:target',
+                    ownerId: 'blue',
+                    starIds: ['target'],
+                    points: [
+                        [50, 50],
+                        [90, 50],
+                        [90, 90],
+                        [50, 90],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+                {
+                    regionId: 'region:blue:other',
+                    ownerId: 'blue',
+                    starIds: ['other-blue'],
+                    points: [
+                        [110, 110],
+                        [130, 110],
+                        [130, 130],
+                        [110, 130],
+                    ] as [number, number][],
+                    confidence: 1,
+                },
+            ],
+        } as CanonicalGeometrySnapshot;
 
-        const prevScene = buildPerimeterFieldScene({
+        const scene = buildPerimeterFieldScene({
             input: makeInput({
-                stars: prevStars,
-                tunables,
+                stars: displayStars,
+                activeTransition: makeTransition(),
+                tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
             }),
-            starsForDisplay: prevStars,
-            geometry: prevGeometry,
-            colorUtils,
-        });
-        const nextScene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: nextStars,
-                tunables,
-            }),
-            starsForDisplay: nextStars,
-            geometry: nextGeometry,
-            colorUtils,
-        });
-        const frame0Scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: nextStars,
-                activeTransition: makeTransition(0),
-                tunables,
-            }),
-            starsForDisplay: prevStars,
-            geometry: prevGeometry,
-            transitionPlan: plan,
-            colorUtils,
-        });
-        const frame1Scene = buildPerimeterFieldScene({
-            input: makeInput({
-                stars: nextStars,
-                activeTransition: makeTransition(1),
-                tunables,
-            }),
-            starsForDisplay: prevStars,
-            geometry: prevGeometry,
-            transitionPlan: plan,
+            starsForDisplay: displayStars,
+            geometry: oldGeometry,
+            transitionTargetGeometry: newGeometry,
             colorUtils,
         });
 
-        expect(plan.movers.length).toBeGreaterThan(0);
-        expect(frame0Scene.debug.transitionPlan?.conquestKey).toBe(plan.conquestKey);
-        expect(sampleSignature(frame0Scene.sceneInput.samples)).toEqual(
-            sampleSignature(prevScene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
-            sampleSignature(nextScene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame0Scene.debug.renderedSamples)).toEqual(
-            sampleSignature(frame0Scene.sceneInput.samples),
-        );
-        expect(sampleSignature(frame1Scene.debug.renderedSamples)).toEqual(
-            sampleSignature(frame1Scene.sceneInput.samples),
-        );
+        expect(
+            scene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.ownerId === 'red' &&
+                    sample.sourceId === 'red-loop',
+            ),
+        ).toBe(true);
+        expect(
+            scene.debug.transitionSamples.some(
+                (sample) =>
+                    sample.ownerId === 'blue' &&
+                    sample.sourceId === 'blue-loop',
+            ),
+        ).toBe(true);
     });
 
     it('makes topology-plan frame 0 equal PREV and frame 1 equal NEXT', () => {

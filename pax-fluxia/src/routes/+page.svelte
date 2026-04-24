@@ -50,6 +50,7 @@
 
   function handlePlay() {
     audioManager.play("play");
+    // In production, redirect to play subdomain; in dev, toggle in-page
     const isProd =
       typeof window !== "undefined" &&
       window.location.hostname === "paxfluxia.com";
@@ -59,11 +60,11 @@
       showGame = true;
       void ensureGameShellLoaded();
     }
-    void goto("/play");
   }
 </script>
 
 <svelte:head>
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     rel="preconnect"

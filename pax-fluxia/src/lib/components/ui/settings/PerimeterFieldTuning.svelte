@@ -2,49 +2,28 @@
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { perimeterFieldDebugPlaybackStore } from '$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore';
-    import TerritorySurfaceStyleTuning from './TerritorySurfaceStyleTuning.svelte';
+
+    interface Props {
+        panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
+    }
+
+    let { panel, updatePanel }: Props = $props();
 
     type PerimeterFieldModuleId =
         | 'all'
         | 'none'
         | 'source'
         | 'field'
-        | 'style'
         | 'transition'
         | 'diagnostics';
 
-    type PerimeterFieldVisibleModuleId = Exclude<
-        PerimeterFieldModuleId,
-        'all' | 'none'
-    >;
-
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        showDiagnosticsSection?: boolean;
-        visibleModules?: PerimeterFieldVisibleModuleId[];
-        showCaptureControls?: boolean;
-    }
-
-    let {
-        panel,
-        updatePanel,
-        showDiagnosticsSection = true,
-        visibleModules = [],
-        showCaptureControls = true,
-    }: Props = $props();
-
-    const CORE_PERIMETER_FIELD_MODULES = [
+    const PERIMETER_FIELD_MODULES = [
         { id: 'source', label: 'Source' },
         { id: 'field', label: 'Field' },
-        { id: 'style', label: 'Style' },
         { id: 'transition', label: 'Transition' },
+        { id: 'diagnostics', label: 'Diagnostics' },
     ] as const;
-
-    const DIAGNOSTICS_PERIMETER_FIELD_MODULE = {
-        id: 'diagnostics',
-        label: 'Diagnostics',
-    } as const;
 
     const PERIMETER_FIELD_MODULE_PANEL_KEY = 'perimeterFieldModuleVisibility';
 
@@ -52,33 +31,14 @@
         (panel[PERIMETER_FIELD_MODULE_PANEL_KEY] ?? 'all') as PerimeterFieldModuleId,
     );
 
-    function showModule(id: PerimeterFieldVisibleModuleId): boolean {
-        if (perimeterFieldModules().length === 1) {
-            return perimeterFieldModules()[0]?.id === id;
-        }
+    function showModule(
+        id: Exclude<PerimeterFieldModuleId, 'all' | 'none'>,
+    ): boolean {
         return activeModule === 'all' || activeModule === id;
     }
 
     function setActiveModule(value: PerimeterFieldModuleId): void {
         updatePanel(PERIMETER_FIELD_MODULE_PANEL_KEY, value);
-    }
-
-    function perimeterFieldModules(): Array<{
-        id: PerimeterFieldVisibleModuleId;
-        label: string;
-    }> {
-        const baseModules = showDiagnosticsSection
-            ? [
-                  ...CORE_PERIMETER_FIELD_MODULES,
-                  DIAGNOSTICS_PERIMETER_FIELD_MODULE,
-              ]
-            : [...CORE_PERIMETER_FIELD_MODULES];
-
-        if (visibleModules.length === 0) {
-            return baseModules;
-        }
-
-        return baseModules.filter((module) => visibleModules.includes(module.id));
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -117,10 +77,16 @@
     }
 
     let activeReplaySlot = $derived(
-        resolveReplaySlot(
-            panel.perimeterFieldDebugReplaySlot ??
-                GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
-                0,
+        Math.max(
+            0,
+            Math.min(
+                3,
+                Math.round(
+                    panel.perimeterFieldDebugReplaySlot ??
+                        GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
+                        0,
+                ),
+            ),
         ),
     );
 
@@ -154,107 +120,6 @@
         setScrubFrameIndex(currentScrubFrameIndex() + delta);
     }
 
-    function exportGeometryArtifact(): void {
-        if (typeof window === 'undefined') return;
-        window.dispatchEvent(
-            new CustomEvent('pax-export-perimeter-field-geometry-artifact'),
-        );
-    }
-
-    function exportConquestPackage(): void {
-        if (typeof window === 'undefined') return;
-        window.dispatchEvent(
-            new CustomEvent('pax-export-perimeter-field-conquest-package'),
-        );
-    }
-
-    function exportConquestContactSheet(): void {
-        if (typeof window === 'undefined') return;
-        window.dispatchEvent(
-            new CustomEvent('pax-export-perimeter-field-contact-sheet'),
-        );
-    }
-
-    function clearConquestCaptures(): void {
-        if (typeof window === 'undefined') return;
-        window.dispatchEvent(
-            new CustomEvent('pax-clear-perimeter-field-captures'),
-        );
-    }
-
-    function formatReplayStatusLabel(frameCount: number): string {
-        if (frameCount <= 0) return 'empty';
-        return `${frameCount} frame${frameCount === 1 ? '' : 's'}`;
-    }
-
-    function currentSnapshotMode():
-        | 'off'
-        | 'prev'
-        | 'next'
-        | 'transition'
-        | 'compare' {
-        const value =
-            panel.perimeterFieldDebugSnapshotMode ??
-            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE ??
-            'off';
-        return ['prev', 'next', 'transition', 'compare'].includes(value)
-            ? (value as 'prev' | 'next' | 'transition' | 'compare')
-            : 'off';
-    }
-
-    function snapshotModeLabel(): string {
-        switch (currentSnapshotMode()) {
-            case 'prev':
-                return 'Prev';
-            case 'next':
-                return 'Next';
-            case 'transition':
-                return 'Transition';
-            case 'compare':
-                return 'Compare';
-            default:
-                return 'Off';
-        }
-    }
-
-    $effect(() => {
-        const requestedSlot = Math.max(
-            0,
-            Math.min(
-                3,
-                Math.round(
-                    panel.perimeterFieldDebugReplaySlot ??
-                        GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
-                        0,
-                ),
-            ),
-        );
-        if (requestedSlot !== activeReplaySlot) {
-            writeConfig(
-                'PERIMETER_FIELD_DEBUG_REPLAY_SLOT',
-                'perimeterFieldDebugReplaySlot',
-                activeReplaySlot,
-            );
-        }
-    });
-
-    $effect(() => {
-        if (!showDiagnosticsSection && activeModule === 'diagnostics') {
-            setActiveModule('all');
-        }
-    });
-
-    $effect(() => {
-        const visibleModuleIds = perimeterFieldModules().map((module) => module.id);
-        if (
-            activeModule !== 'all' &&
-            activeModule !== 'none' &&
-            !visibleModuleIds.includes(activeModule)
-        ) {
-            setActiveModule('all');
-        }
-    });
-
     $effect(() => {
         if (availableScrubFrameCount <= 0) {
             if (
@@ -280,41 +145,39 @@
     });
 </script>
 
-{#if perimeterFieldModules().length > 1}
-    <div class="module-head">
-        <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
-            <button
-                type="button"
-                class="module-all-toggle"
-                class:active={activeModule === 'all'}
-                onclick={() => {
-                    setActiveModule('all');
-                }}>All</button>
-            <button
-                type="button"
-                class="module-all-toggle"
-                class:active={activeModule === 'none'}
-                onclick={() => {
-                    setActiveModule('none');
-                }}>None</button>
-        </div>
+<div class="module-head">
+    <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
+        <button
+            type="button"
+            class="module-all-toggle"
+            class:active={activeModule === 'all'}
+            onclick={() => {
+                setActiveModule('all');
+            }}>All</button>
+        <button
+            type="button"
+            class="module-all-toggle"
+            class:active={activeModule === 'none'}
+            onclick={() => {
+                setActiveModule('none');
+            }}>None</button>
     </div>
+</div>
 
-    <div class="module-nav">
-        {#each perimeterFieldModules() as module}
-            <button
-                type="button"
-                class="module-chip"
-                class:active={activeModule === module.id}
-                onclick={() => {
-                    setActiveModule(activeModule === module.id ? 'all' : module.id);
-                }}
-            >
-                {module.label}
-            </button>
-        {/each}
-    </div>
-{/if}
+<div class="module-nav">
+    {#each PERIMETER_FIELD_MODULES as module}
+        <button
+            type="button"
+            class="module-chip"
+            class:active={activeModule === module.id}
+            onclick={() => {
+                setActiveModule(activeModule === module.id ? 'all' : module.id);
+            }}
+        >
+            {module.label}
+        </button>
+    {/each}
+</div>
 
 {#if showModule('source')}
 <div class="module-block">
@@ -662,38 +525,6 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="0 = derive the perimeter vstar count from spacing. Nonzero = explicit sample count for each perimeter loop."
-        >
-            Perimeter Samples / Loop
-        </span>
-        <span class="val">
-            {#if (panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0) <= 0}
-                Auto
-            {:else}
-                {panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0}
-            {/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Directly limits the number of derived perimeter vstars per loop. `0` falls back to spacing-based auto sampling. This also drives the old/new transition sample counts.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="96"
-        step="1"
-        value={panel.perimeterFieldSampleCountPerLoop ?? GAME_CONFIG.PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP', 'perimeterFieldSampleCountPerLoop', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
             title="How far inward from the source boundary each perimeter vstar is placed. Higher values move the samples deeper into the region interior."
         >
             Perimeter Inward Offset
@@ -771,19 +602,6 @@
 </div>
 {/if}
 
-{#if showModule('style')}
-<div class="module-block">
-    <TerritorySurfaceStyleTuning
-        {panel}
-        onUpdate={writeConfig}
-        sectionHeading={null}
-        intro="Shared surface styling for perimeter-field output. These controls affect the displayed fill and border only; they do not change the ownership geometry source."
-        fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-        borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
-    />
-</div>
-{/if}
-
 {#if showModule('transition')}
 <div class="module-block">
 <div class="var-row">
@@ -822,13 +640,24 @@
             class="var-name"
             title="Number of radial slices cast from the conquered star to build the conquest-local boundary override."
         >
-            Transition Model
+            Transition Slice Count
         </span>
-        <span class="val">Plan-Driven</span>
+        <span class="val">{panel.perimeterFieldTransitionRayCount ?? GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT ?? 60}</span>
     </div>
     <div class="var-desc">
-        The active implementation consumes captured PREV and NEXT truth, builds a deterministic frontier correspondence plan, and renders only that plan. Legacy synthetic controls are intentionally retired from this panel.
+        More slices make the conquest override rounder and smoother. Fewer slices make it cheaper and more faceted.
     </div>
+    <input
+        type="range"
+        min="8"
+        max="180"
+        step="1"
+        value={panel.perimeterFieldTransitionRayCount ?? GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT ?? 60}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('PERIMETER_FIELD_TRANSITION_RAY_COUNT', 'perimeterFieldTransitionRayCount', value);
+        }}
+    />
 </div>
 
 <div class="var-row">
@@ -842,7 +671,7 @@
         <span class="val">{panel.territoryTransitionMs ?? GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400}ms</span>
     </div>
     <div class="var-desc">
-        Total time for the authoritative PREV→NEXT handoff. This writes the shared territory transition duration used by the family.
+        Total time for the local boundary override to move from previous ownership to next ownership.
     </div>
     <input
         type="range"
@@ -857,7 +686,31 @@
     />
 </div>
 
-{#if false}
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={panel.perimeterFieldFreezeBaseDuringTransition ?? GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION ?? true}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            writeConfig('PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION', 'perimeterFieldFreezeBaseDuringTransition', value);
+        }}
+    />
+    <span
+        class="var-name"
+        title="When on, the static displayed perimeter field stays on T0 while only the conquest-local override moves."
+    >
+        Hold Base State During Transition
+    </span>
+    <span class="val">
+        {(panel.perimeterFieldFreezeBaseDuringTransition ?? GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION ?? true)
+            ? 'On'
+            : 'Off'}
+    </span>
+</label>
+<div class="var-desc">
+    Keeps the pre-conquest perimeter shell fixed while the local transition override does the visible handoff.
+</div>
+
 <div class="var-row">
     <div class="row-top">
         <span
@@ -910,191 +763,13 @@
     />
 </div>
 
-{/if}
-<div class="sub-heading">Shared Renderer</div>
-
-<div class="var-desc">
-    These controls still shape the actual field rasterization and edge finish used
-    to display perimeter-field output after the perimeter samples are generated.
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Cell size of the metaball field grid used to rasterize the displayed surface. Lower is cleaner and heavier."
-        >
-            Grid Cell Size
-        </span>
-        <span class="val">{panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 8}px</span>
-    </div>
-    <div class="var-desc">
-        Lower values tighten the visible edge and reduce stair-stepping at higher CPU cost.
-    </div>
-    <input
-        type="range"
-        min="2"
-        max="20"
-        step="1"
-        value={panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 8}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_CELL_SIZE', 'metaballCellSize', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="How strongly the winning owner must dominate a cell before that cell is considered owned."
-        >
-            Ownership Threshold
-        </span>
-        <span class="val">{(panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.52).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Higher values produce a stricter, tighter shell. Lower values make the field more generous and blobby.
-    </div>
-    <input
-        type="range"
-        min="0.3"
-        max="0.9"
-        step="0.01"
-        value={panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.52}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_THRESHOLD', 'metaballThreshold', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Extra smoothing on the field-edge confidence falloff near the ownership boundary."
-        >
-            Edge Fade
-        </span>
-        <span class="val">{(panel.metaballEdgeFade ?? GAME_CONFIG.METABALL_EDGE_FADE ?? 3).toFixed(1)}</span>
-    </div>
-    <div class="var-desc">
-        Higher values soften the visible rim. Lower values make the boundary more abrupt.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="10"
-        step="0.1"
-        value={panel.metaballEdgeFade ?? GAME_CONFIG.METABALL_EDGE_FADE ?? 3}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_EDGE_FADE', 'metaballEdgeFade', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Extra field extent beyond the map. Helpful when zoom or effects would otherwise clip the visible surface."
-        >
-            Coverage Padding
-        </span>
-        <span class="val">{(panel.metaballCoverage ?? GAME_CONFIG.METABALL_COVERAGE ?? 0).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Expands the raster field around the map bounds. Usually keep this low unless edges are clipping.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="0.45"
-        step="0.05"
-        value={panel.metaballCoverage ?? GAME_CONFIG.METABALL_COVERAGE ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_COVERAGE', 'metaballCoverage', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Sharpness of the faction blend transition where ownership influence competes."
-        >
-            Faction Blend Sharpness
-        </span>
-        <span class="val">{(panel.metaballSharpness ?? GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3).toFixed(1)}</span>
-    </div>
-    <div class="var-desc">
-        Higher values create a crisper winner boundary. Lower values create a softer mixed edge band.
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="40"
-        step="0.5"
-        value={panel.metaballSharpness ?? GAME_CONFIG.METABALL_BLEND_SHARPNESS ?? 3}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_BLEND_SHARPNESS', 'metaballSharpness', value);
-        }}
-    />
-</div>
-
 </div>
 {/if}
 
-{#if showDiagnosticsSection && showModule('diagnostics')}
+{#if showModule('diagnostics')}
 <div class="module-block">
 <div class="sub-heading">Diagnostics</div>
 
-{#if showCaptureControls}
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugCaptureEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED', 'perimeterFieldDebugCaptureEnabled', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Record each perimeter-field conquest into the live capture slot and rolling replay history so scrub and package export have data."
-    >
-        Record Conquest
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugCaptureEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED ?? false)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Turn this on before a conquest if you want replay slots, scrub, `Export Conquest Package`, and `Export Contact Sheet` to have data. It is separate from the legacy transition recorder shown higher in the Diagnostics panel.
-</div>
-
-<div class="diag-action-row">
-    <button
-        type="button"
-        class="module-all-toggle diag-action-btn"
-        onclick={clearConquestCaptures}
-    >
-        Clear Captured Conquests
-    </button>
-</div>
-<div class="var-desc">
-    Capture status: live {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.liveFrameCount)} · replay 1 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[0])} · replay 2 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[1])} · replay 3 {formatReplayStatusLabel($perimeterFieldDebugPlaybackStore.replayFrameCounts[2])}
-</div>
-
-{/if}
 <label class="toggle-row">
     <input
         type="checkbox"
@@ -1118,131 +793,6 @@
 </label>
 <div class="var-desc">
     Cyan shows the current base geometry. In paused scrub mode, magenta shows the next-state geometry as well.
-</div>
-
-<div class="diag-action-row">
-    <button
-        type="button"
-        class="module-all-toggle diag-action-btn"
-        onclick={exportGeometryArtifact}
-    >
-        Export Geometry Artifact
-    </button>
-    <button
-        type="button"
-        class="module-all-toggle diag-action-btn"
-        disabled={availableScrubFrameCount <= 0}
-        onclick={exportConquestPackage}
-    >
-        Export Conquest Package
-    </button>
-    <button
-        type="button"
-        class="module-all-toggle diag-action-btn"
-        disabled={availableScrubFrameCount <= 0}
-        onclick={exportConquestContactSheet}
-    >
-        Export Contact Sheet
-    </button>
-</div>
-<div class="var-desc">
-    Downloads the exact displayed perimeter-field debug snapshot plus the recomputed `power_voronoi_0319` stage outputs and virtual-site inputs for deterministic comparison.
-</div>
-<div class="var-desc">
-    Conquest package exports the selected live/replay conquest: prior frame, every captured transition frame, next frame when available, all-arcs summary, and optional onion-skin/strobe summary images when those diagnostics are enabled.
-</div>
-<div class="var-desc">
-    Contact sheet export lays the entire conquest out in one glanceable board so you can read frame-to-frame motion without scrubbing.
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Stroke width used by exported conquest-vector overlays."
-        >
-            Diagnostic Arrow Width
-        </span>
-        <span class="val">{(panel.perimeterFieldDebugVectorWidth ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5).toFixed(2)}px</span>
-    </div>
-    <div class="var-desc">
-        Controls the exported conquest-vector stroke width for per-frame and all-arcs diagnostic images.
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="12"
-        step="0.25"
-        value={panel.perimeterFieldDebugVectorWidth ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_VECTOR_WIDTH ?? 2.5}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_VECTOR_WIDTH', 'perimeterFieldDebugVectorWidth', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="0 = off. Otherwise draw this many ghosted past/future vstar positions on each side of the selected scrub frame."
-        >
-            Onion-Skin Steps
-        </span>
-        <span class="val">
-            {#if (panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0) <= 0}
-                Off
-            {:else}
-                {(panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0)} each side
-            {/if}
-        </span>
-    </div>
-<div class="var-desc">
-    Live overlay: around the current scrubbed frame, draw ghosted past and future vstar positions on both sides of the selected frame. Package export: also writes `summary/onion_skin_selected.png` when this is above `0`.
-</div>
-    <input
-        type="range"
-        min="0"
-        max="5"
-        step="1"
-        value={panel.perimeterFieldDebugOnionSkinCount ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT', 'perimeterFieldDebugOnionSkinCount', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="0 = off. Otherwise render every Nth captured conquest frame simultaneously as a stroboscopic trail."
-        >
-            Strobe Frame Stride
-        </span>
-        <span class="val">
-            {#if (panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0) <= 0}
-                Off
-            {:else}
-                Every {(panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0)} frame(s)
-            {/if}
-        </span>
-    </div>
-<div class="var-desc">
-    Live overlay: render every Nth captured transition state simultaneously as a motion trail across the conquest. Package export: also writes `summary/strobe_trail.png` when this is above `0`.
-</div>
-    <input
-        type="range"
-        min="0"
-        max="8"
-        step="1"
-        value={panel.perimeterFieldDebugStrobeStride ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_STROBE_STRIDE ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_STROBE_STRIDE', 'perimeterFieldDebugStrobeStride', value);
-        }}
-    />
 </div>
 
 <label class="toggle-row">
@@ -1292,7 +842,7 @@
     </span>
 </label>
     <div class="var-desc">
-    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. This preview consumes already-captured conquest frames; it does not itself guarantee capture.
+    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. Turn it off for normal gameplay; pause alone will no longer switch views.
     </div>
 
 <div class="var-row">
@@ -1304,10 +854,10 @@
             Replay Source
         </span>
         <span class="val">
-            {#if activeReplaySlot === 0}
+            {#if (panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) === 0}
                 Live
             {:else}
-                Replay {activeReplaySlot}
+                Replay {(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0)}
             {/if}
         </span>
     </div>
@@ -1316,7 +866,7 @@
     </div>
     <select
         class="mode-select"
-        value={activeReplaySlot.toString()}
+        value={(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0).toString()}
         onchange={(event) => {
             const value = parseFloat((event.target as HTMLSelectElement).value);
             writeConfig('PERIMETER_FIELD_DEBUG_REPLAY_SLOT', 'perimeterFieldDebugReplaySlot', value);
@@ -1380,119 +930,6 @@
     </div>
 </div>
 
-<div class="sub-heading">Paused Snapshot Overlay</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Overlay an exact captured PREV, NEXT, transition, or compare snapshot above the paused live map."
-        >
-            Snapshot Mode
-        </span>
-        <span class="val">{snapshotModeLabel()}</span>
-    </div>
-    <div class="var-desc">
-        This is separate from underlying-geometry diagnostics. It overlays a captured truth snapshot above the paused map using the alpha control below.
-    </div>
-    <select
-        class="mode-select"
-        value={currentSnapshotMode()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig(
-                'PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE',
-                'perimeterFieldDebugSnapshotMode',
-                ['prev', 'next', 'transition', 'compare'].includes(value)
-                    ? value
-                    : 'off',
-            );
-        }}
-    >
-        <option value="off">Off</option>
-        <option value="prev">Prev</option>
-        <option value="next">Next</option>
-        <option value="transition">Transition</option>
-        <option value="compare">Compare</option>
-    </select>
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Opacity of the paused snapshot overlay composited over the paused live map."
-        >
-            Snapshot Alpha
-        </span>
-        <span class="val">{(panel.perimeterFieldDebugSnapshotAlpha ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA ?? 0.65).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Higher values make the captured snapshot more dominant. Lower values let the paused live map show through underneath.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={panel.perimeterFieldDebugSnapshotAlpha ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA ?? 0.65}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA', 'perimeterFieldDebugSnapshotAlpha', value);
-        }}
-    />
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugSnapshotShowIds ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS', 'perimeterFieldDebugSnapshotShowIds', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Show stable V IDs and mover IDs on paused snapshot overlays."
-    >
-        Show Snapshot IDs
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugSnapshotShowIds ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS ?? true)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Labels use stable perimeter V IDs where available, plus mover IDs for planned motion paths.
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugSnapshotShowVectors ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS', 'perimeterFieldDebugSnapshotShowVectors', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Show prev-to-next vectors for preserved and moving V correspondence on paused snapshot overlays."
-    >
-        Show Snapshot Vectors
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugSnapshotShowVectors ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS ?? true)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Start markers show PREV locations and end markers show NEXT locations so the correspondence plan can be inspected directly.
-</div>
-
 </div>
 {/if}
 
@@ -1509,18 +946,6 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-    }
-
-    .diag-action-row {
-        display: flex;
-        justify-content: flex-start;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin: 10px 0 6px;
-    }
-
-    .diag-action-btn {
-        min-width: 180px;
     }
 
     .module-all-toggle {

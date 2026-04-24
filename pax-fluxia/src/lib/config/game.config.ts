@@ -4,15 +4,10 @@
 
 import { calculateCombat as sharedCalculateCombat } from '@pax/common';
 import type { EngineConfig } from '@pax/common';
-import {
-    formatGeometry0319DebugConfig,
-    snapshotGeometry0319DebugConfig,
-} from '$lib/config/geometry0319Debug';
 import type {
     MetaballBurstBoundaryBasis,
     VsTransitionModeId,
 } from '$lib/territory/transitions/territoryTransitionModes';
-import { log } from '$lib/utils/logger';
 
 /**
  * Build an EngineConfig from the current GAME_CONFIG values.
@@ -326,7 +321,6 @@ interface GameConfigType {
      * Drives Delaunay pass-through prune and curved-lane solver only — **not** territory MSR.
      */
     MAPGEN_LANE_MARGIN_PX: number;
-    MAPGEN_LANE_MARGIN_ENABLED: boolean;
     /**
      * Lane centerline: `straight` = chord only. `curved` = chord when it clears other
      * stars at lane margin and does not cross other lanes; else Bézier or a short detour.
@@ -338,8 +332,6 @@ interface GameConfigType {
      * then satisfies full **lane margin** on sampled paths. Does not relax lane margin itself.
      */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: number;
-    /** Re-run authored-map connectivity reconciliation after lane-setting changes. */
-    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: boolean;
 
     // ── Territory Overlay ────────────────────────────────────────────────────
     SHOW_STAR_POWER: boolean;       // Show star power alpha overlay behind stars (default true)
@@ -371,7 +363,6 @@ interface GameConfigType {
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
-    TERRITORY_TRANSITION_SETTLE_PCT: number; // Final % of transition reserved for end-state settle (default 10)
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
@@ -384,50 +375,19 @@ interface GameConfigType {
     PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
-    PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: number; // 0 = auto by spacing, otherwise explicit derived sample count per perimeter loop
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
     PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: boolean; // Show derived perimeter vstars and transition-local override points
-    PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: boolean; // Capture perimeter-field conquests into live/replay slots for package export and scrub
     PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: boolean; // When paused, override transition progress with the scrub slider
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
-    PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: number; // 0 = off, otherwise ghost this many past/future frames on each side of the selected scrub frame
-    PERIMETER_FIELD_DEBUG_STROBE_STRIDE: number; // 0 = off, otherwise render every Nth captured frame as a simultaneous stroboscopic trail
-    PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: number; // Stroke width used by exported conquest diagnostic vectors
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE: 'off' | 'prev' | 'next' | 'transition' | 'compare'; // Paused overlay snapshot source rendered above the live map
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA: number; // Alpha for paused overlay snapshot compositing
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS: boolean; // Show stable V IDs / mover IDs on snapshot overlays
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS: boolean; // Show prev->next vectors on snapshot overlays
-    PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // @deprecated Legacy selector retained only for config migration
-    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // @deprecated Legacy synthetic bridge control retained only for config migration
-    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // @deprecated Legacy synthetic bridge control retained only for config migration
-    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // @deprecated Legacy synthetic bridge control retained only for config migration
-    // ── Metaball Grid (additive new render family, additive to perimeter_field) ──
-    METABALL_GRID_ENABLED: boolean; // Enable metaball-grid render family (default false)
-    METABALL_GRID_SPACING_PX: number; // World-space spacing between grid vstars (px, perf-sensitive)
-    METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid origin offset mode
-    METABALL_GRID_ADJACENCY: '4' | '8'; // BFS adjacency used by grid_bfs wave geometry
-    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' | 'euclidean_band'; // Wave rank source for flip-time assignment
-    METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Wave seed set
-    METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell flip style at flipTime
-    METABALL_GRID_FLIP_WINDOW: number; // Lerp window half-width around flipTime (0-1)
-    METABALL_GRID_STRENGTH: number; // Deprecated compatibility key. Runtime ignores it and uses fixed cell alpha gain 1.0.
-    METABALL_GRID_INWARD_OFFSET_PX: number; // Optional inward offset applied to edge cells (0 = none)
-    METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Per-cell quad primitive (visual only)
-    METABALL_GRID_CELL_INSET_PX: number; // Shrink each cell by this amount on all sides (creates grid-lines when > 0)
-    METABALL_GRID_CELL_CORNER_PX: number; // Rounded-corner radius for square cells (0 = sharp)
-    METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Where to draw per-cell borders
-    METABALL_GRID_BORDER_BLEND: boolean; // In territory_edge mode, draw one centered blended stroke on each owner-boundary edge instead of two abutting per-player strokes
-    METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Chaikin corner-cutting passes applied to blended-edge polylines (0..4, 0 = off)
-    METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Progress easing curve applied before flip math
-    METABALL_GRID_FLIP_WINDOW_JITTER: number; // Per-cell deterministic jitter applied to flipTime (0..0.5 fraction)
-    METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Cell-position distribution pattern
-    METABALL_GRID_POSITION_JITTER: number; // Deterministic per-cell position scatter, fraction of spacing (0..0.5). Only applied under 'jittered'.
-    METABALL_GRID_MAX_CELLS: number; // Hard cap on cols*rows; builder coarsens spacing to stay under cap. 0 = uncapped.
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -501,7 +461,7 @@ interface GameConfigType {
     DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
-    MODIFIED_VORONOI_STAR_MARGIN: number;      // Shared power-voronoi scale input: base real-site weight/radius term, clip padding contributor, and contested midpoint-pair spacing source (px, 0–500)
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory ownership boundary margin from star centers (px, 0–500); not used for mapgen lane clearance
     MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
     MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
@@ -553,7 +513,6 @@ interface GameConfigType {
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
-    METABALL_FILL_ENABLED: boolean;     // Master fill toggle for metaball-family renderers (default true)
     METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
     METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
     /**
@@ -567,7 +526,6 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
-    METABALL_BORDER_ENABLED: boolean;    // Master border toggle for metaball-family renderers (default true)
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
@@ -739,12 +697,6 @@ function loadSavedConfig(): Partial<GameConfigType> {
                 o.MAPGEN_LANE_MARGIN_PX = msr + buf;
                 delete o.MAPGEN_LANE_BUFFER_PX;
             }
-            const geometrySnapshot = snapshotGeometry0319DebugConfig(o);
-            log.renderer(
-                'ConfigLoad',
-                `pax-fluxia-game-config ${formatGeometry0319DebugConfig(geometrySnapshot)}`,
-                geometrySnapshot,
-            );
             return o as Partial<GameConfigType>;
         }
     } catch { /* ignore corrupt data */ }
@@ -1233,14 +1185,11 @@ const _rawConfig: GameConfigType = {
 
     /** Lane–obstacle clearance for mapgen + live lane rebuild (default ≈ old 45 MSR + 30 buffer) */
     MAPGEN_LANE_MARGIN_PX: 75,
-    MAPGEN_LANE_MARGIN_ENABLED: true,
 
     MAPGEN_LANE_MODE: 'curved',
 
     /** 0 = prune-first topology; 1 = keep edges for curved geometry (Phase 4 chord test scaled) */
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
-    /** Re-run authored-map connectivity reconciliation after lane-setting changes. */
-    MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS: false,
 
     /** Connection line color (hex) */
     CONNECTION_COLOR: '0xffffff',
@@ -1309,7 +1258,6 @@ const _rawConfig: GameConfigType = {
     /** Duration of territory morph/crossfade animation in ms (0=instant) */
     TERRITORY_TRANSITION_MS: 400,
     TERRITORY_TRANSITION_BIND_TO_TICK: false,
-    TERRITORY_TRANSITION_SETTLE_PCT: 10,
     // ── Virtual Star Transition (F-165) ──
     VS_VICTOR_TRAVEL_MS: 0,        // 0 = use TERRITORY_TRANSITION_MS
     VS_LOSER_TRAVEL_MS: 0,         // 0 = use TERRITORY_TRANSITION_MS
@@ -1322,59 +1270,19 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_TRANSITION_ENGINE: 'plan' as const,
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319' as const,
     PERIMETER_FIELD_SAMPLE_SPACING: 28,
-    PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP: 0,
     PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
     PERIMETER_FIELD_INFLUENCE_RADIUS: 52,
     PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.35,
+    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
+    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: true,
+    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
+    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: false,
     PERIMETER_FIELD_DEBUG_SHOW_VSTARS: false,
-    PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED: false,
     PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: false,
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
-    PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT: 0,
-    PERIMETER_FIELD_DEBUG_STROBE_STRIDE: 0,
-    PERIMETER_FIELD_DEBUG_VECTOR_WIDTH: 2.5,
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_MODE: 'off' as const,
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_ALPHA: 0.65,
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_IDS: true,
-    PERIMETER_FIELD_DEBUG_SNAPSHOT_SHOW_VECTORS: true,
-    PERIMETER_FIELD_TRANSITION_ENGINE: 'plan' as const,
-    PERIMETER_FIELD_TRANSITION_RAY_COUNT: 60,
-    PERIMETER_FIELD_OLD_BOUNDARY_FADE: 1,
-    PERIMETER_FIELD_NEW_BOUNDARY_GROW: 1,
-    // ── Metaball Grid (additive new render family, MG1) ──────────────────────────
-    METABALL_GRID_ENABLED: false,
-    // MG-PERF: 48 px keeps sample count ~4× smaller than 24 px and still stays
-    // well inside METABALL_INFLUENCE_RADIUS (default 90) so neighbor samples
-    // overlap cleanly (no between-cell moats). Lower values for finer waves
-    // cost more CPU on the metaball compositor.
-    METABALL_GRID_SPACING_PX: 48,
-    METABALL_GRID_ORIGIN_MODE: 'centered' as const,
-    METABALL_GRID_ADJACENCY: '8' as const,
-    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
-    METABALL_GRID_WAVE_SEEDING: 'winner_natives' as const,
-    METABALL_GRID_FLIP_TRANSITION: 'hard' as const,
-    METABALL_GRID_FLIP_WINDOW: 0.06,
-    METABALL_GRID_STRENGTH: 1.0,
-    METABALL_GRID_INWARD_OFFSET_PX: 0,
-    METABALL_GRID_CELL_SHAPE: 'square' as const,
-    METABALL_GRID_CELL_INSET_PX: 0,
-    METABALL_GRID_CELL_CORNER_PX: 0,
-    METABALL_GRID_BORDER_MODE: 'off' as const,
-    METABALL_GRID_BORDER_BLEND: true,
-    METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
-    METABALL_GRID_WAVE_EASE: 'linear' as const,
-    METABALL_GRID_FLIP_WINDOW_JITTER: 0,
-    METABALL_GRID_DISTRIBUTION: 'square' as const,
-    // Default 0.15 (15 % of spacing) so switching METABALL_GRID_DISTRIBUTION
-    // to 'jittered' produces a visible scatter out-of-box. Users can still
-    // pin to 0 via the settings UI to see pure aligned positions.
-    METABALL_GRID_POSITION_JITTER: 0.15,
-    // 80k cells ≈ 1920×1080 @ 4.7 px spacing. Above that a single PIXI.Graphics
-    // flush starts to miss frames on iGPU. Set to 0 to disable the cap.
-    METABALL_GRID_MAX_CELLS: 80000,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,
@@ -1516,8 +1424,6 @@ const _rawConfig: GameConfigType = {
     METABALL_FALLOFF: 'gaussian' as 'inverse-square' | 'gaussian' | 'smoothstep',
     /** Faction boundary sharpness (higher = crisper borders, lower = softer blend) */
     METABALL_BLEND_SHARPNESS: 20,
-    /** Master fill toggle for metaball-family renderers */
-    METABALL_FILL_ENABLED: true,
     /** Overall metaball territory alpha (0-1) */
     METABALL_ALPHA: 0.5,
     /** Grid resolution in px per cell (lower = sharper but slower, 4-16 typical) */
@@ -1531,8 +1437,6 @@ const _rawConfig: GameConfigType = {
     /** GPU blur on metaball output (0=pixelated, 4=smooth, higher=very soft) */
     METABALL_BLUR: 0,
     METABALL_BLUR_AFFECTS_BORDERS: false,
-    /** Master border toggle for metaball-family renderers */
-    METABALL_BORDER_ENABLED: true,
     /** Border line width between metaball territories */
     METABALL_BORDER_WIDTH: 3,
     /** Border line alpha */

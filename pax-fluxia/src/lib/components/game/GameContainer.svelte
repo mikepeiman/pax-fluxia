@@ -23,12 +23,10 @@
   import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
-  import { groupThemesByRenderFamily } from "$lib/config/themeRouting";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
   import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
-  import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
 
   if (typeof window !== "undefined") {
@@ -118,16 +116,8 @@
     showAudioSettings = true;
   }
 
-  function setTransitionDebugPanelOpen(nextOpen: boolean) {
-    showTransitionDebugPanel = nextOpen;
-  }
-
   function openTransitionDebugPanel() {
-    setTransitionDebugPanelOpen(true);
-  }
-
-  function toggleTransitionDebugPanel() {
-    setTransitionDebugPanelOpen(!showTransitionDebugPanel);
+    showTransitionDebugPanel = true;
   }
 
   // ── In-game menu collapse ──
@@ -294,10 +284,6 @@
     diagnosticsUi.setOpen(false);
   }
 
-  function toggleAuthoredMeasurements() {
-    authoredMeasurementsUi.toggle();
-  }
-
   function startResize(e: PointerEvent) {
     e.preventDefault();
     isResizing = true;
@@ -368,36 +354,19 @@
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
   let showExitConfirm = $state(false);
-  const themeFamilyGroups = $derived.by(() =>
-    groupThemesByRenderFamily(themeStore.allThemes),
-  );
 
-  onMount(() => {
-    if (typeof window === "undefined") return;
+  // ── Back button navigation: close overlays instead of exiting ──
+  // Push a history entry so Android back button fires popstate
+  if (typeof window !== "undefined") {
+    // Ensure we have a base history entry to pop against
+    replaceState("", { pax: "base" });
+    pushState("", { pax: "game" });
 
-    const pushGameHistoryState = () => {
-      window.history.pushState(
-        { ...(window.history.state ?? {}), pax: "game" },
-        "",
-        window.location.href,
-      );
-    };
+    window.addEventListener("popstate", (e) => {
+      // Always re-push so we never actually leave the page
+      pushState("", { pax: "game" });
 
-    // Ensure there is a base entry to pop against before we trap back presses.
-    window.history.replaceState(
-      { ...(window.history.state ?? {}), pax: "base" },
-      "",
-      window.location.href,
-    );
-    pushGameHistoryState();
-
-    const handlePopState = () => {
-      // Only trap the browser back action while the in-game container is active.
-      if (gameStore.currentView !== "game") return;
-
-      // Re-push so the next back press stays inside the app until overlays are cleared.
-      pushGameHistoryState();
-
+      // Close overlays in priority order
       if (showSettingsPanel) {
         setSettingsPanelOpen(false);
         return;
@@ -422,18 +391,20 @@
         showExitConfirm = false;
         return;
       }
-      if (activeGameStore.phase === "playing") {
+      // Nothing open — if game is active, show exit confirmation
+      if (
+        gameStore.currentView === "game" &&
+        activeGameStore.phase === "playing"
+      ) {
         showExitConfirm = true;
         return;
       }
-      gameStore.setView("menu");
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  });
+      // Not in active game — allow natural back (go to menu)
+      if (gameStore.currentView === "game") {
+        gameStore.setView("menu");
+      }
+    });
+  }
 
   // ── Exit confirmation: warn before closing tab during active game ──
   if (typeof window !== "undefined") {
@@ -457,10 +428,6 @@
   function cancelExit() {
     showExitConfirm = false;
   }
-
-  $effect(() => {
-    authoredMeasurementsUi.syncDefault(activeGameStore.mapDiagnostics.measurements);
-  });
 
   $effect(() => {
     if (typeof localStorage !== "undefined") {
@@ -503,25 +470,10 @@
     onSettingsClick={gameStore.currentView !== "game"
       ? openAudioSettings
       : undefined}
-    onDiagnosticsClick={gameStore.currentView === "game"
-      ? toggleTransitionDebugPanel
-      : undefined}
-    diagnosticsActive={gameStore.currentView === "game"
-      ? showTransitionDebugPanel
-      : false}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
       : undefined}
-    onAuthoredMeasurementsToggle={gameStore.currentView === "game" &&
-    activeGameStore.mapDiagnostics.measurements.length > 0
-      ? toggleAuthoredMeasurements
-      : undefined}
-    authoredMeasurementsActive={gameStore.currentView === "game"
-      ? $authoredMeasurementsUi.visible
-      : false}
-    authoredMeasurementsAvailable={gameStore.currentView === "game" &&
-    activeGameStore.mapDiagnostics.measurements.length > 0}
     onRulerToggle={gameStore.currentView === "game"
       ? toggleRulerDiagnostics
       : undefined}
@@ -540,7 +492,7 @@
 
     {#if showTransitionDebugPanel}
       <TransitionDebugPanel
-        onClose={() => setTransitionDebugPanelOpen(false)}
+        onClose={() => (showTransitionDebugPanel = false)}
       />
     {/if}
 
@@ -693,12 +645,8 @@
             }}
           >
             <option value="">Select Theme…</option>
-            {#each themeFamilyGroups as group}
-              <optgroup label={`${group.label} (${group.themes.length})`}>
-                {#each group.themes as theme}
-                  <option value={theme.name}>{theme.name}</option>
-                {/each}
-              </optgroup>
+            {#each themeStore.allThemes as theme}
+              <option value={theme.name}>{theme.name}</option>
             {/each}
           </select>
         </div>
@@ -991,17 +939,6 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
-            openTransitionDebugPanel();
-            showSettingsFab = false;
-          }}
-        >
-          <span class="fab-icon">◎</span>
-          <span>Diagnostics</span>
-        </button>
-        <button
-          class="fab-item"
-          onclick={() => {
-            audioManager.play("click");
             openAudioSettings();
             showSettingsFab = false;
           }}
@@ -1086,12 +1023,8 @@
               }}
             >
               <option value="">Theme…</option>
-              {#each themeFamilyGroups as group}
-                <optgroup label={`${group.label} (${group.themes.length})`}>
-                  {#each group.themes as theme}
-                    <option value={theme.name}>{theme.name}</option>
-                  {/each}
-                </optgroup>
+              {#each themeStore.allThemes as theme}
+                <option value={theme.name}>{theme.name}</option>
               {/each}
             </select>
           </div>

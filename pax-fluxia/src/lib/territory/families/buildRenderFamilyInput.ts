@@ -53,10 +53,8 @@ export function buildRenderFamilyInput(params: {
     gameTick?: number;
     ownership?: RenderFamilyInput['ownership'];
     geometry?: CanonicalGeometrySnapshot | null;
-    prevGeometry?: CanonicalGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
-    transitionTruth?: RenderFamilyInput['transitionTruth'];
     tunableKeys?: readonly string[];
     configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
@@ -67,7 +65,6 @@ export function buildRenderFamilyInput(params: {
     const input = {
         ownership: params.ownership ?? null,
         geometry: params.geometry ?? null,
-        prevGeometry: params.prevGeometry ?? null,
         nowMs: params.nowMs,
         paused: params.paused ?? false,
         gameTick: params.gameTick,
@@ -77,7 +74,6 @@ export function buildRenderFamilyInput(params: {
         tunables,
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
-        transitionTruth: params.transitionTruth ?? null,
     };
     logPipelineStage({
         channel: 'renderer',

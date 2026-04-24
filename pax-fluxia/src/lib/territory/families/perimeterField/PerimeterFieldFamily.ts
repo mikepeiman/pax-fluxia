@@ -12,6 +12,7 @@ import {
     summarizeScene,
 } from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
+import type { StarState } from '$lib/types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import {
@@ -37,6 +38,10 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_INWARD_OFFSET_PX',
     'PERIMETER_FIELD_INFLUENCE_RADIUS',
     'PERIMETER_FIELD_INFLUENCE_WEIGHT',
+    'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
+    'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
+    'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
+    'PERIMETER_FIELD_NEW_BOUNDARY_GROW',
     'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY',
     'PERIMETER_FIELD_DEBUG_SHOW_VSTARS',
     'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
@@ -44,13 +49,10 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS',
     'TERRITORY_TRANSITION_MS',
     'TERRITORY_TRANSITION_BIND_TO_TICK',
-    'METABALL_FILL_ENABLED',
     'METABALL_ALPHA',
-    'METABALL_BLEND_SHARPNESS',
     'METABALL_CELL_SIZE',
     'METABALL_THRESHOLD',
     'METABALL_EDGE_FADE',
-    'METABALL_BORDER_ENABLED',
     'METABALL_BORDER_WIDTH',
     'METABALL_BORDER_ALPHA',
     'METABALL_BLUR',
@@ -172,7 +174,7 @@ export class PerimeterFieldFamily implements RenderFamily {
 
     private buildSceneForInput(params: {
         input: RenderFamilyInput;
-        displayGeometry: CanonicalGeometrySnapshot;
+        currentGeometry: CanonicalGeometrySnapshot;
     }) {
         const transitionKey = buildTransitionKey(params.input);
         const transitionEngine = readTransitionEngine(params.input);
@@ -200,7 +202,8 @@ export class PerimeterFieldFamily implements RenderFamily {
             transitionPlan: transitionEngine === 'plan' ? this.transitionPlan : null,
             colorUtils: this.colorUtils,
         });
-        return { builtScene, displayStars: params.input.stars };
+
+        return { builtScene, displayStars };
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {

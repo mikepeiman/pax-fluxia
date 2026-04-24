@@ -37,7 +37,6 @@
     import { BG_IMAGES, normalizeBgImagePath } from "$lib/config/bgManifest";
     import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
     import type { MainMenuPreviewRequest, MainMenuPreviewResult } from "$lib/utils/mainMenuPreview";
-    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import MenuUtilityTopbar from "./main-menu/MenuUtilityTopbar.svelte";
     import GameMapPanel from "./main-menu/GameMapPanel.svelte";
     import PlayersPanel from "./main-menu/PlayersPanel.svelte";
@@ -115,7 +114,6 @@
     let selectedRoomId = $state<string | null>(null);
     let confirmJoinTarget = $state<RoomListing | null>(null);
     let selectedTakeOverId = $state<string | null>(null);
-    let showLoadMapDialog = $state(false);
     let previewTimer: ReturnType<typeof setTimeout> | null = null;
     let previewRequestId = 0;
     let lastPreviewKey = "";
@@ -425,20 +423,9 @@
                     45,
             ),
             laneMargin: Math.round(
-                resolveEffectiveLaneMarginPx({
-                    MAPGEN_LANE_MARGIN_ENABLED:
-                        panelSettings.mapgenLaneMarginEnabled ??
-                        GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ??
-                        true,
-                    MAPGEN_LANE_MARGIN_PX:
-                        panelSettings.mapgenLaneMarginPx ??
-                        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
-                        75,
-                    MODIFIED_VORONOI_STAR_MARGIN:
-                        panelSettings.starMargin ??
-                        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                        45,
-                }),
+                panelSettings.mapgenLaneMarginPx ??
+                    GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
+                    75,
             ),
             curveVsPruneBias: Math.min(
                 1,
@@ -523,12 +510,7 @@
             neutralStarCount,
             specialStarPercentage,
             mapgenStarMarginPx: menuStarMargin,
-            mapgenLaneMarginPx: resolveEffectiveLaneMarginPx({
-                MAPGEN_LANE_MARGIN_ENABLED:
-                    GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ?? true,
-                MAPGEN_LANE_MARGIN_PX: menuLaneMargin,
-                MODIFIED_VORONOI_STAR_MARGIN: menuStarMargin,
-            }),
+            mapgenLaneMarginPx: menuLaneMargin,
             mapgenLaneCurveVsPruneBias: menuCurveVsPruneBias,
             mapLaneMode: menuLaneMode,
         };
@@ -692,17 +674,6 @@
         return gameStore.savedMaps.filter((map) => !Boolean((map as any).builtIn));
     }
 
-    function getLoadableMaps(): MapDefinition[] {
-        return [...gameStore.savedMaps].sort((left, right) => {
-            const leftBuiltIn = Boolean((left as any).builtIn);
-            const rightBuiltIn = Boolean((right as any).builtIn);
-            if (leftBuiltIn !== rightBuiltIn) {
-                return leftBuiltIn ? -1 : 1;
-            }
-            return left.metadata.name.localeCompare(right.metadata.name);
-        });
-    }
-
     function getPlayerHue(index: number): number {
         return (
             (index < playerCount ? activePlayerPaletteHues[index] : fullPlayerPaletteHues[index]) ??
@@ -813,52 +784,14 @@
         }
     }
 
-    function syncMenuSelectionToSavedMap(savedMap: MapDefinition) {
-        const isBuiltIn = Boolean((savedMap as any).builtIn);
-        mapMode = isBuiltIn ? "classic" : "custom";
-        selectedClassicMap = isBuiltIn ? savedMap.metadata.name : null;
-        selectedCustomMap = isBuiltIn ? null : savedMap.metadata.name;
-    }
-
-    async function loadSavedMapFromMenu(savedMap: MapDefinition) {
-        syncMenuSelectionToSavedMap(savedMap);
-        saveAllSettings();
-        applyConfig();
-        gameStore.loadSavedMap(savedMap);
-        await gameStore.startGame();
-        visible = false;
-    }
-
     async function handleCreateRoom() {
         saveAllSettings();
         applyConfig();
 
         if (mapMode === "custom") {
-            const savedMap = getSelectedSavedMap();
-            if (!savedMap) {
-                multiplayerStore.playerName = playerName || "Commander";
-                multiplayerStore.playerColor = getPlayerColorHex(0);
-                multiplayerStore.fetchRooms();
-                return;
-            }
-
-            await multiplayerStore.createRoom({
-                playerCount,
-                mapType: "custom",
-                customMap: savedMap,
-                starsPerPlayer,
-                shipsPerStar,
-                starSpacing,
-                mapBoardFit,
-                minLinks,
-                maxLinks,
-                retainOrderOnConquest,
-                gameplayConfig: buildEngineConfig(),
-                playerColors: getConfiguredPlayerColors(playerCount),
-            });
-
             multiplayerStore.playerName = playerName || "Commander";
             multiplayerStore.playerColor = getPlayerColorHex(0);
+            multiplayerStore.fetchRooms();
             return;
         }
 
@@ -913,44 +846,9 @@
         void handleCreateRoom();
     }
 
-    function triggerLoadMapAction() {
-        audioManager.play("click");
-        showLoadMapDialog = true;
-    }
-
-    async function handleLoadMapAction(savedMap: MapDefinition) {
-        audioManager.play("click");
-        showLoadMapDialog = false;
-        await loadSavedMapFromMenu(savedMap);
-    }
-
     function triggerJoinSelectedAction() {
         audioManager.play("click");
         void handleJoinSelectedRoom();
-    }
-
-    function getSelectedSavedMap() {
-        const selectedSavedMapName =
-            mapMode === "classic"
-                ? selectedClassicMap
-                : mapMode === "custom"
-                  ? selectedCustomMap
-                  : null;
-
-        if (!selectedSavedMapName) {
-            return null;
-        }
-
-        return (
-            gameStore.savedMaps.find(
-                (map) => map.metadata.name === selectedSavedMapName,
-            ) ?? null
-        );
-    }
-
-    function openMapEditor() {
-        audioManager.play("click");
-        void goto("/map-editor");
     }
 
     function handleMapModeChange(mode: MapMode) {
@@ -1257,61 +1155,10 @@
                 startDisabled={multiplayerStore.isConnected || startPending}
                 createDisabled={mapMode === "custom" || multiplayerStore.isConnected}
                 joinDisabled={!selectedRoom || multiplayerStore.isConnected}
-                onOpenEditor={openMapEditor}
                 onStart={triggerStartAction}
-                onLoadMap={triggerLoadMapAction}
                 onCreateLobby={triggerCreateLobbyAction}
                 onJoinSelected={triggerJoinSelectedAction}
             />
-        </div>
-    </div>
-{/if}
-
-{#if showLoadMapDialog}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-        class="confirm-overlay"
-        transition:fade
-        onclick={() => {
-            showLoadMapDialog = false;
-        }}
-    >
-        <div class="confirm-dialog load-map-dialog" onclick={(event) => event.stopPropagation()}>
-            <h3>Load Saved Map</h3>
-            <p>Select a built-in or custom map and start a new single-player session from it.</p>
-
-            <div class="load-map-list">
-                {#each getLoadableMaps() as map}
-                    <button
-                        type="button"
-                        class="load-map-option"
-                        onclick={() => void handleLoadMapAction(map)}
-                    >
-                        <span class="load-map-option__header">
-                            <strong>{map.metadata.name}</strong>
-                            <span class="load-map-option__badge">
-                                {Boolean((map as any).builtIn) ? "Classic" : "Custom"}
-                            </span>
-                        </span>
-                        <span class="load-map-option__meta">
-                            {map.stars.length} stars · {map.connections.length} links
-                        </span>
-                    </button>
-                {/each}
-            </div>
-
-            <div class="confirm-actions">
-                <button
-                    type="button"
-                    class="confirm-secondary"
-                    onclick={() => {
-                        showLoadMapDialog = false;
-                    }}
-                >
-                    Cancel
-                </button>
-            </div>
         </div>
     </div>
 {/if}
@@ -1696,68 +1543,6 @@
         font-family: var(--pf-font-body);
         font-size: 1rem;
         color: var(--pf-muted-strong);
-    }
-
-    .load-map-dialog {
-        width: min(560px, 100%);
-    }
-
-    .load-map-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-height: min(56vh, 420px);
-        margin-top: 18px;
-        padding-right: 4px;
-        overflow-y: auto;
-    }
-
-    .load-map-option {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        width: 100%;
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: 1px solid var(--pf-border-soft);
-        background: var(--pf-frame-control), var(--pf-surface-control);
-        color: var(--pf-text);
-        cursor: pointer;
-        text-align: left;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            transform 0.15s ease;
-    }
-
-    .load-map-option:hover {
-        border-color: var(--pf-accent-soft);
-        background: var(--pf-frame-control), var(--pf-surface-control-hover);
-        transform: translateY(-1px);
-    }
-
-    .load-map-option__header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-    }
-
-    .load-map-option__badge {
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: rgba(125, 211, 252, 0.12);
-        color: var(--pf-heading);
-        font-size: 0.74rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .load-map-option__meta {
-        font-family: var(--pf-font-body);
-        font-size: 0.88rem;
-        color: var(--pf-muted);
     }
 
     .ai-select {

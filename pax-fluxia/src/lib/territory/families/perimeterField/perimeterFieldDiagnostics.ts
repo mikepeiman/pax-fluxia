@@ -338,12 +338,8 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     height: number;
     snapshot: PerimeterFieldDebugSnapshot;
     baseCanvas?: HTMLCanvasElement | null;
-    snapshotMode?: PerimeterFieldSnapshotMode;
     showGeometry?: boolean;
     showVstars?: boolean;
-    showIds?: boolean;
-    showVectors?: boolean;
-    transparentBackground?: boolean;
 }): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     canvas.width = args.width;
@@ -353,28 +349,21 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
         return canvas;
     }
 
-    if (!(args.transparentBackground ?? false)) {
-        ctx.fillStyle = '#0b1117';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    ctx.fillStyle = '#0b1117';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (args.baseCanvas) {
         ctx.drawImage(args.baseCanvas, 0, 0, canvas.width, canvas.height);
     }
 
-    const renderState = resolveSnapshotRenderState(
-        args.snapshot,
-        args.snapshotMode ?? 'transition',
-    );
-
     if (args.showGeometry ?? true) {
-        for (const points of getPerimeterDebugLoops(renderState.primaryGeometry)) {
+        for (const points of getPerimeterDebugLoops(args.snapshot.displayGeometry)) {
             drawClosedPolyline(ctx, points, 0x47d7ff, 0.85, 2);
         }
-        if (renderState.secondaryGeometry) {
-            for (const points of getPerimeterDebugLoops(renderState.secondaryGeometry)) {
+        if (args.snapshot.transitionTargetGeometry) {
+            for (const points of getPerimeterDebugLoops(
+                args.snapshot.transitionTargetGeometry,
+            )) {
                 drawClosedPolyline(ctx, points, 0xff5bd1, 0.65, 2);
             }
         }
@@ -382,19 +371,15 @@ export function renderPerimeterFieldDiagnosticCanvas(args: {
     }
 
     if (args.showVstars ?? true) {
-        if ((args.showVectors ?? true) && renderState.vectorSamples.length > 0) {
-            drawPerimeterSampleTrajectories(ctx, renderState.vectorSamples);
+        drawPerimeterSampleTrajectories(ctx, args.snapshot.transitionSamples);
+        drawSamplePoints(ctx, args.snapshot.staticSamples, 0.95, 2.6);
+        drawPerimeterSampleLabels(ctx, args.snapshot.staticSamples);
+        if (args.snapshot.transitionTargetGeometry) {
+            drawSamplePoints(ctx, args.snapshot.targetStaticSamples, 0.75, 2.3);
+            drawPerimeterSampleLabels(ctx, args.snapshot.targetStaticSamples);
         }
-        drawSamplePoints(ctx, renderState.currentSamples, 0.95, 2.6);
-        if (args.showIds ?? true) {
-            drawPerimeterSampleLabels(ctx, renderState.currentSamples);
-        }
-        if (renderState.referenceSamples.length > 0) {
-            drawSamplePoints(ctx, renderState.referenceSamples, 0.75, 2.3);
-            if (args.showIds ?? true) {
-                drawPerimeterSampleLabels(ctx, renderState.referenceSamples);
-            }
-        }
+        drawSamplePoints(ctx, args.snapshot.transitionSamples, 0.95, 3.2);
+        drawPerimeterSampleLabels(ctx, args.snapshot.transitionSamples);
     }
 
     return canvas;
@@ -465,7 +450,6 @@ export function compactPerimeterFieldDebugSnapshot(
         displayGeometryVersion: snapshot.displayGeometry.version,
         transitionTargetGeometryVersion:
             snapshot.transitionTargetGeometry?.version ?? null,
-        renderedSamples: snapshot.renderedSamples.map(compactSample),
         staticSamples: snapshot.staticSamples.map(compactSample),
         targetStaticSamples: snapshot.targetStaticSamples.map(compactSample),
         transitionSamples: snapshot.transitionSamples.map(compactSample),
