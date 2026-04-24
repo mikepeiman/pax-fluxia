@@ -112,3 +112,35 @@
   - the remaining gameplay lag is still dominated by broader main-thread work
   - dominant residual hotspots remain `bufferSubData`, `packAttributes`, `buildLine`, and repeated `getBoundingClientRect()` reads
 - The next queued implementation step is rect caching plus broader screen-space conversion cleanup in `GameCanvas.svelte`, followed by more explicit "input under render stress" benchmark scenarios.
+
+## Completion Queue
+
+The following items remain in scope and are still required for completion:
+
+1. Finish the hot-path input cleanup in `GameCanvas.svelte`
+   - cache container rect and screen transforms
+   - remove repeated `getBoundingClientRect()` reads from pointer and overlay paths
+2. Add explicit input-under-render-stress benchmarks
+   - keep CDP/browser automation as the reproducible benchmark harness
+   - report local ack, visual ack, pointer issue/cancel, queue wait, and commit lag under contention
+3. Complete end-to-end semantic instrumentation
+   - map generation -> ownership -> geometry -> scene build -> renderer -> draw commit
+   - each handoff needs a concise source / destination / purpose / payload summary log
+4. Keep targeting residual gameplay hotspots outside territory solve
+   - `buildLine`
+   - `packAttributes`
+   - `bufferSubData`
+   - ship rendering
+   - lane geometry sampling
+5. Continue Perimeter-Field spike reduction work
+   - especially load / transition spikes that still materially exceed steady-state cost
+6. If responsiveness still misses target after the above, continue with deeper architectural work
+   - more off-main-thread execution
+   - stricter frame slicing / cadence control
+   - lighter-weight rendering alternatives that preserve the practical look of the metaball presentation
+
+## Not Yet Proven
+
+- The responsiveness goal is not yet met.
+- The 10x gameplay responsiveness improvement target is not yet proven by the browser benchmark.
+- The current overlay split is a real improvement, but it is not the end state.
