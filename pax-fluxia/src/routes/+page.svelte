@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Component } from "svelte";
   import "../app.css";
   import LandingPage from "$lib/components/landing/LandingPage.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -37,10 +36,17 @@
     }
   }
 
+  type GameContainerModule = typeof import(
+    "$lib/components/game/GameContainer.svelte"
+  );
+
   let showGame = $state(false);
   let isGameShellLoading = $state(false);
   let gameShellErrorMessage = $state<string | null>(null);
-  let GameContainerComponent = $state<Component | null>(null);
+  let gameContainerRenderPromise = $state<Promise<GameContainerModule> | null>(
+    null,
+  );
+  let hasGameContainerComponent = $state(false);
   let gameContainerMounted = $state(false);
   let homeRouteDebugVisible = $state(false);
   let homeRouteDiagnostics = $state<HomeRouteDiagSnapshot>(EMPTY_HOME_ROUTE_DIAG);
@@ -64,7 +70,7 @@
         ? "loading"
         : gameShellErrorMessage
           ? "error"
-          : GameContainerComponent
+          : hasGameContainerComponent
             ? "component_ready"
             : "landing",
   );
@@ -132,7 +138,7 @@
     }
   }
 
-  async function loadGameContainerModule(): Promise<void> {
+  async function loadGameContainerModule(): Promise<GameContainerModule> {
     let lastError: unknown = null;
     for (
       let attempt = 1;
@@ -145,15 +151,13 @@
       });
       try {
         const module = await import("$lib/components/game/GameContainer.svelte");
-        GameContainerComponent = module.default;
-        gameShellErrorMessage = null;
         recordHomeRouteEvent("game_shell_import_succeeded", {
           attempt,
         });
         if (attempt > 1) {
           log.sys("LandingRoute", "Game shell loaded after retry", { attempt });
         }
-        return;
+        return module;
       } catch (error) {
         lastError = error;
         recordHomeRouteError("game_shell_import_failed", error, {
@@ -174,20 +178,39 @@
   }
 
   async function ensureGameShellLoaded(): Promise<void> {
-    if (GameContainerComponent) {
+    if (hasGameContainerComponent && gameContainerRenderPromise) {
       recordHomeRouteEvent("game_shell_component_already_ready", null);
+      await gameContainerRenderPromise;
       return;
     }
     if (!gameContainerLoadPromise) {
-      gameContainerLoadPromise = loadGameContainerModule().finally(() => {
-        if (!GameContainerComponent) {
-          gameContainerLoadPromise = null;
-        }
-      });
+      gameContainerRenderPromise = loadGameContainerModule();
+      gameContainerLoadPromise = gameContainerRenderPromise
+        .then(() => {
+          hasGameContainerComponent = true;
+          gameShellErrorMessage = null;
+        })
+        .catch((error) => {
+          gameContainerRenderPromise = null;
+          hasGameContainerComponent = false;
+          throw error;
+        })
+        .finally(() => {
+          if (!hasGameContainerComponent || !gameContainerRenderPromise) {
+            gameContainerLoadPromise = null;
+          }
+        });
     } else {
       recordHomeRouteEvent("game_shell_import_reused_inflight_promise", null);
     }
-    await gameContainerLoadPromise;
+    try {
+      await gameContainerLoadPromise;
+    } catch (error) {
+      if (!hasGameContainerComponent) {
+        gameContainerLoadPromise = null;
+      }
+      throw error;
+    }
   }
 
   async function openGameShell(
@@ -198,9 +221,9 @@
       trigger,
       interactiveOpen,
       showGame,
-      hasGameContainerComponent: Boolean(GameContainerComponent),
+      hasGameContainerComponent,
     });
-    if (showGame && GameContainerComponent) {
+    if (showGame && hasGameContainerComponent && gameContainerRenderPromise) {
       recordHomeRouteEvent("open_game_shell_short_circuit", {
         trigger,
       });
@@ -275,7 +298,7 @@
       showGame,
       isGameShellLoading,
       gameShellErrorMessage,
-      hasGameContainerComponent: Boolean(GameContainerComponent),
+      hasGameContainerComponent,
       gameContainerMounted,
       phase: gameShellPhase,
       lastUpdatedAt: homeRouteDiagnostics.lastUpdatedAt,
@@ -404,8 +427,10 @@
 </svelte:head>
 
 <main>
-  {#if showGame && GameContainerComponent}
-    <GameContainerComponent />
+  {#if showGame && gameContainerRenderPromise}
+    {#await gameContainerRenderPromise then GameContainerModule}
+      <GameContainerModule.default />
+    {/await}
   {:else}
     <LandingPage onPlay={handlePlay} />
   {/if}
@@ -440,7 +465,7 @@
         <div class="game-shell-diag-dock__meta">
           <span>phase: <code>{gameShellPhase}</code></span>
           <span>showGame: <code>{showGame ? "true" : "false"}</code></span>
-          <span>component: <code>{GameContainerComponent ? "ready" : "missing"}</code></span>
+          <span>component: <code>{hasGameContainerComponent ? "ready" : "missing"}</code></span>
           <span>mounted: <code>{gameContainerMounted ? "true" : "false"}</code></span>
           <span>updated: <code>{homeRouteDiagnostics.lastUpdatedAt ?? "none"}</code></span>
         </div>

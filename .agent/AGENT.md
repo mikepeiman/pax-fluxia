@@ -82,9 +82,12 @@ When removing, renaming, or commenting out any symbol:
 | Daily active queue | `.agent/docs/plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
 | Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
 | Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
-| Plans | `.agent/docs/plans/YYYY-MM-DD/` |
-| Session notes | `.agent/docs/sessions/notes/SESSION_YYYY-MM-DD.md` |
-| Chat log | `.agent/docs/sessions/chats/CHAT_YYYY-MM-DD.md` |
+| **Session-specific** | `.agent/docs/sessions/YYYY-MM-DD/` |
+(all of the following go into daily session dir)
+  | Plans | `YYYY-MM-DD_[semantic-plan-name].md` |
+  | Session notes | `YYYY-MM-DD_Session.md` |
+  | Chat log | `YYYY-MM-DD_Chat.md` |
+  | Important Ideas & Quotes, Issues & Features; summary of post-mortems, rules & lessons learned; summary or work done, plans, and decisions | `YYYY-MM-DD_Takeaways.md` |
 
 ### 3.2 Daily Queue Protocol
 
@@ -144,7 +147,7 @@ Before writing code:
 
 Then:
 
-- propose the smallest correct fix
+- propose the correct fix
 - mention better structural alternatives if warranted
 - state risks and tradeoffs
 - give a verification plan
