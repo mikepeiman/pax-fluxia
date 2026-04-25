@@ -105,6 +105,7 @@
         registerRenderFamily,
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
+    import { MetaballGridFamily, createMetaballGridFamily } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -149,6 +150,10 @@
         summarizeOwnership,
         summarizeStars,
     } from "$lib/perf/pipelineTelemetry";
+    import {
+        resetTerritoryRenderStatus,
+        setTerritoryRenderStatus,
+    } from "$lib/stores/territoryRenderStatusStore";
 
     // ============================================================================
     // PixiJS Application
@@ -172,6 +177,7 @@
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, PIXI.Container> = new Map();
+    let starVisualKeys: Map<string, string> = new Map();
     let linkGraphics: PIXI.Graphics | null = null;
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
@@ -213,20 +219,25 @@
     const TERRITORY_MAX_STALE_MS = 220;
     const TERRITORY_INPUT_HOLD_MAX_STALE_MS = 480;
     const TERRITORY_ASYNC_REQUEUE_DELAY_MS = 16;
-    const SHIP_RENDER_HEAVY_UPDATE_MS = 3;
+    const SHIP_RENDER_HEAVY_UPDATE_MS = 6;
     const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
     const SHIP_RENDER_IDLE_MIN_CADENCE_MS = 16;
     const SHIP_RENDER_MAX_STALE_MS = 144;
+    const SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS = 18;
+    const SHIP_RENDER_TRAVEL_INTERACTIVE_MIN_CADENCE_MS = 8;
+    const SHIP_RENDER_TRAVEL_IDLE_MIN_CADENCE_MS = 0;
+    const SHIP_RENDER_TRAVEL_MAX_STALE_MS = 32;
     const SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS = 360;
+    const SHIP_RENDER_INPUT_YIELD_RESCUE_STALE_MS = 32;
     const CONNECTIONS_PRESENT_HEAVY_UPDATE_MS = 2;
     const CONNECTIONS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 96;
-    const CONNECTIONS_PRESENT_IDLE_MIN_CADENCE_MS = 16;
+    const CONNECTIONS_PRESENT_IDLE_MIN_CADENCE_MS = 24;
     const CONNECTIONS_PRESENT_MAX_STALE_MS = 160;
     const CONNECTIONS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 360;
     const STARS_PRESENT_HEAVY_UPDATE_MS = 2;
     const STARS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 80;
-    const STARS_PRESENT_IDLE_MIN_CADENCE_MS = 16;
-    const STARS_PRESENT_MAX_STALE_MS = 128;
+    const STARS_PRESENT_IDLE_MIN_CADENCE_MS = 48;
+    const STARS_PRESENT_MAX_STALE_MS = 144;
     const STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 320;
     const RENDER_INPUT_PENDING_MIN_BUDGET_MS = 4;
     const RENDER_INPUT_PENDING_SOFT_BUDGET_MS = 8;
@@ -250,6 +261,13 @@
     let lastConnectionsPresentedAtMs = 0;
     let lastStarsPresentCostMs = 0;
     let lastStarsPresentedAtMs = 0;
+    let renderFrameInputYieldCount = 0;
+    let lastRenderFrameInputYieldStage = "";
+    let lastRenderFrameInputYieldReason = "";
+    let lastRenderFrameInputYieldAtMs = 0;
+    let shipRenderYieldRescueCount = 0;
+    let lastShipRenderContext = "";
+    let lastShipRenderReason = "";
     type QueuedOrderMutation =
         | {
               kind: "issue";
@@ -885,6 +903,10 @@
     ): boolean {
         const yieldState = getRenderFrameInputYieldState(frameStartedAtMs);
         if (!yieldState.shouldYield) return false;
+        renderFrameInputYieldCount += 1;
+        lastRenderFrameInputYieldStage = stage;
+        lastRenderFrameInputYieldReason = yieldState.reason;
+        lastRenderFrameInputYieldAtMs = performance.now();
         noteInteractivePressure(
             "renderInputYield",
             ORDER_MUTATION_PRIORITY_WINDOW_MS,
@@ -934,6 +956,193 @@
         lastShipRenderCostMs = performance.now() - startedAt;
         lastShipRenderPresentedAtMs = performance.now();
         return result;
+    }
+
+    function clearShipRenderDeferralState(shipScheduler: {
+        cadenceMs: number;
+        staleMs: number;
+    }): void {
+        if (!shipRenderDeferralActive) return;
+        recordPerfEvent("game.ships.defer.stop", {
+            deferredFrames: deferredShipRenderFrameCount,
+            cadenceSkips: shipRenderCadenceSkipCount,
+            lastShipRenderCostMs,
+            reason: deferredShipRenderReason,
+            cadenceMs: shipScheduler.cadenceMs,
+            staleMs: shipScheduler.staleMs,
+        });
+        logPipelineStage({
+            channel: "input",
+            context: "GameCanvas",
+            stage: "ship_render_defer_stop",
+            from: "Ship render scheduler",
+            to: "Normal ship cadence",
+            purpose:
+                "Resume heavier ship rendering after interaction pressure subsides",
+            summary:
+                `deferredFrames=${deferredShipRenderFrameCount} ` +
+                `cadenceSkips=${shipRenderCadenceSkipCount} ` +
+                `reason=${deferredShipRenderReason} ` +
+                `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)}`,
+        });
+        shipRenderDeferralActive = false;
+        deferredShipRenderFrameCount = 0;
+        shipRenderCadenceSkipCount = 0;
+        deferredShipRenderReason = "";
+    }
+
+    function presentShipsFrame(params: {
+        stars: StarState[];
+        starsById: Map<string, StarState>;
+        tickProgress: number;
+        nowMs: number;
+        context: string;
+        rescueStaleMs?: number;
+    }): boolean {
+        travelingShips = fxOrchestrator.vsm.travelingShips;
+        const shipScheduler = shouldThrottleShipRenderCadence({
+            nowMs: params.nowMs,
+            isPaused: activeGameStore.isPaused,
+            travelingShips: travelingShips.length,
+        });
+        const rescueStaleMs = params.rescueStaleMs ?? null;
+        const rescueShipCadence =
+            rescueStaleMs !== null &&
+            travelingShips.length > 0 &&
+            shipScheduler.staleMs >= rescueStaleMs;
+        const deferShipRender =
+            !activeGameStore.isPaused &&
+            shipScheduler.defer &&
+            !rescueShipCadence;
+
+        if (deferShipRender) {
+            deferredShipRenderFrameCount += 1;
+            shipRenderCadenceSkipCount += 1;
+            if (!shipRenderDeferralActive) {
+                shipRenderDeferralActive = true;
+                deferredShipRenderReason = shipScheduler.reason;
+                recordPerfEvent("game.ships.defer.start", {
+                    lastShipRenderCostMs,
+                    reason: shipScheduler.reason,
+                    cadenceMs: shipScheduler.cadenceMs,
+                    staleMs: shipScheduler.staleMs,
+                });
+                logPipelineStage({
+                    channel: "input",
+                    context: "GameCanvas",
+                    stage: "ship_render_defer_start",
+                    from: "Input pressure window",
+                    to: "Ship render scheduler",
+                    purpose:
+                        "Prioritize command input and camera interaction over heavy ship rendering",
+                    summary:
+                        `reason=${shipScheduler.reason} ` +
+                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)} ` +
+                        `cadenceMs=${shipScheduler.cadenceMs} ` +
+                        `staleMs=${shipScheduler.staleMs.toFixed(3)}`,
+                });
+            }
+            return false;
+        }
+
+        clearShipRenderDeferralState(shipScheduler);
+
+        if (rescueShipCadence) {
+            shipRenderYieldRescueCount += 1;
+        }
+
+        // Reset particle pool index for this frame
+        shipParticleIndex = 0;
+        // Clear orb travel graphics (drawn fresh each frame)
+        if (orbGraphics) orbGraphics.clear();
+
+        const shipState: ShipRenderState = {
+            visualShips,
+            visualDamagedShips,
+            travelingShips,
+            starsInCombat,
+            pendingConquests,
+            activeSurges,
+            nextShipId,
+            gameNowMs: fxOrchestrator.gameTime,
+            isPaused: activeGameStore.isPaused,
+            effectiveTickMs: activeGameStore.effectiveTickMs,
+            tickProgress: params.tickProgress,
+        };
+        const shipRes: ShipRenderResources = {
+            shipCircleTexture: shipCircleTexture!,
+            glowTexture: glowTexture!,
+            shipParticleContainer: shipParticleContainer!,
+            orbGraphics: orbGraphics!,
+            glowContainer: glowContainer!,
+            shipParticlePool,
+            shipParticleIndex,
+            glowSprites,
+        };
+        runShipRender("game.renderFrame.ships", () => {
+            renderShipsModule(
+                params.stars,
+                params.starsById,
+                shipState,
+                shipRes,
+                colorUtils,
+            );
+        });
+        // Read back mutable state modified by the module
+        nextShipId = shipState.nextShipId;
+        shipParticleIndex = shipRes.shipParticleIndex;
+        // Sync filtered array back to VSM so arrived ships are removed from the canonical source
+        fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
+        lastShipRenderContext = params.context;
+        lastShipRenderReason = rescueShipCadence
+            ? `yield_rescue:${shipScheduler.reason}`
+            : shipScheduler.reason;
+        logPipelineStage({
+            channel: "renderer",
+            context: "GameCanvas",
+            stage: "ships_present",
+            from: "Visual ship state + travel animation snapshot",
+            to: "Pixi ship, glow, orb, and particle layers",
+            purpose:
+                "Project orbital, damaged, and traveling ships into the visible fleet presentation layers",
+            summary:
+                `${summarizeStars(params.stars)} ` +
+                `traveling=${shipState.travelingShips.length} ` +
+                `pendingConquests=${shipState.pendingConquests.size}`,
+            perfEventName: "game.renderFrame.shipsPresent",
+            perfDetail: {
+                travelingShips: shipState.travelingShips.length,
+                pendingConquests: shipState.pendingConquests.size,
+                context: params.context,
+                reason: lastShipRenderReason,
+            },
+        });
+
+        measurePerf("game.renderFrame.shipParticleUpdate", () => {
+            for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
+                shipParticlePool[i].alpha = 0;
+            }
+            if (shipParticleContainer) shipParticleContainer.update();
+        });
+        return true;
+    }
+
+    function maybeRenderShipsBeforeInputYield(params: {
+        stars: StarState[];
+        starsById: Map<string, StarState>;
+        tickProgress: number;
+        stage: string;
+    }): void {
+        if (activeGameStore.isPaused) return;
+        if (fxOrchestrator.vsm.travelingShips.length === 0) return;
+        presentShipsFrame({
+            stars: params.stars,
+            starsById: params.starsById,
+            tickProgress: params.tickProgress,
+            nowMs: performance.now(),
+            context: `yield:${params.stage}`,
+            rescueStaleMs: SHIP_RENDER_INPUT_YIELD_RESCUE_STALE_MS,
+        });
     }
 
     function runConnectionsPresentation<T>(name: string, fn: () => T): T {
@@ -1039,16 +1248,39 @@
         );
     }
 
-    function computeShipRenderCadenceMs(nowMs: number): number {
-        const baseCadenceMs = isInputPriorityActive(nowMs)
-                ? SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS
-                : SHIP_RENDER_IDLE_MIN_CADENCE_MS;
-        if (lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
+    function computeShipRenderCadenceMs(
+        nowMs: number,
+        travelingShips: number,
+    ): number {
+        const prioritizeTravelCadence = travelingShips > 0;
+        const baseCadenceMs = prioritizeTravelCadence
+            ? (
+                  isInputPriorityActive(nowMs)
+                      ? SHIP_RENDER_TRAVEL_INTERACTIVE_MIN_CADENCE_MS
+                      : SHIP_RENDER_TRAVEL_IDLE_MIN_CADENCE_MS
+              )
+            : (
+                  isInputPriorityActive(nowMs)
+                      ? SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS
+                      : SHIP_RENDER_IDLE_MIN_CADENCE_MS
+              );
+        const heavyUpdateMs = prioritizeTravelCadence
+            ? SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS
+            : SHIP_RENDER_HEAVY_UPDATE_MS;
+        if (lastShipRenderCostMs < heavyUpdateMs) {
             return baseCadenceMs;
         }
         return Math.min(
-            SHIP_RENDER_MAX_STALE_MS,
-            Math.max(baseCadenceMs, Math.round(lastShipRenderCostMs * 3)),
+            prioritizeTravelCadence
+                ? SHIP_RENDER_TRAVEL_MAX_STALE_MS
+                : SHIP_RENDER_MAX_STALE_MS,
+            Math.max(
+                baseCadenceMs,
+                Math.round(
+                    lastShipRenderCostMs *
+                        (prioritizeTravelCadence ? 1 : 3),
+                ),
+            ),
         );
     }
 
@@ -1119,8 +1351,13 @@
     function shouldThrottleShipRenderCadence(params: {
         nowMs: number;
         isPaused: boolean;
+        travelingShips: number;
     }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
-        const cadenceMs = computeShipRenderCadenceMs(params.nowMs);
+        const prioritizeTravelCadence = params.travelingShips > 0;
+        const cadenceMs = computeShipRenderCadenceMs(
+            params.nowMs,
+            params.travelingShips,
+        );
         const staleMs =
             lastShipRenderPresentedAtMs > 0
                 ? params.nowMs - lastShipRenderPresentedAtMs
@@ -1134,22 +1371,31 @@
             };
         }
         if (shouldHoldPresentationForInput(params.nowMs)) {
-            if (staleMs >= SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS) {
+            const inputHoldMaxStaleMs = prioritizeTravelCadence
+                ? Math.min(
+                      SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
+                      SHIP_RENDER_TRAVEL_MAX_STALE_MS * 2,
+                  )
+                : SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS;
+            if (staleMs >= inputHoldMaxStaleMs) {
                 return {
                     defer: false,
                     reason: "input_hold_stale_limit",
-                    cadenceMs: SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
+                    cadenceMs: inputHoldMaxStaleMs,
                     staleMs,
                 };
             }
             return {
                 defer: true,
                 reason: "input_priority_hold",
-                cadenceMs: SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
+                cadenceMs: inputHoldMaxStaleMs,
                 staleMs,
             };
         }
-        if (staleMs >= SHIP_RENDER_MAX_STALE_MS) {
+        const maxStaleMs = prioritizeTravelCadence
+            ? SHIP_RENDER_TRAVEL_MAX_STALE_MS
+            : SHIP_RENDER_MAX_STALE_MS;
+        if (staleMs >= maxStaleMs) {
             return {
                 defer: false,
                 reason: "stale_limit",
@@ -1158,10 +1404,13 @@
             };
         }
         const pressureActive = isInputPriorityActive(params.nowMs);
-        if (!pressureActive && lastShipRenderCostMs < SHIP_RENDER_HEAVY_UPDATE_MS) {
+        const heavyUpdateMs = prioritizeTravelCadence
+            ? SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS
+            : SHIP_RENDER_HEAVY_UPDATE_MS;
+        if (!pressureActive && lastShipRenderCostMs < heavyUpdateMs) {
             return {
                 defer: false,
-                reason: "idle",
+                reason: prioritizeTravelCadence ? "travel_priority" : "idle",
                 cadenceMs,
                 staleMs,
             };
@@ -1405,6 +1654,7 @@
             isLocalPlayerStar,
             colorUtils,
         });
+        setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" });
         return true;
     }
 
@@ -2203,6 +2453,7 @@
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
+    let lastRenderedTickProgress = 0;
     type CanvasClientRectSnapshot = {
         left: number;
         top: number;
@@ -2694,9 +2945,11 @@
         interactionConnectionAdjacency.clear();
         interactionLaneKeyToConnection.clear();
         interactionStarHitIndex.clear();
+        resetTerritoryRenderStatus();
 
         starGraphics.clear();
         starLabels.clear();
+        starVisualKeys.clear();
         linkGraphics = null;
         starsContainer = null;
         glowContainer = null;
@@ -2754,6 +3007,7 @@
                               activeGameStore.effectiveTickMs,
                           1,
                       );
+                lastRenderedTickProgress = tickProgress;
                 renderFrame(displayStars, tickProgress);
             }
 
@@ -3923,6 +4177,13 @@
             lastConnectionsPresentedAtMs = 0;
             lastStarsPresentCostMs = 0;
             lastStarsPresentedAtMs = 0;
+            renderFrameInputYieldCount = 0;
+            lastRenderFrameInputYieldStage = "";
+            lastRenderFrameInputYieldReason = "";
+            lastRenderFrameInputYieldAtMs = 0;
+            shipRenderYieldRescueCount = 0;
+            lastShipRenderContext = "";
+            lastShipRenderReason = "";
             // B-57: Clear territory fills from previous game immediately so
             // old conquest state doesn't persist while paused after restart.
             if (voronoiContainer) {
@@ -4123,6 +4384,23 @@
             {
                 // Resolve active render mode — check new enum first, fall back to old booleans
                 const activeMode = activeTerritoryMode;
+                const activeModeNeedsGeometry =
+                    activeMode === "metaball" ||
+                    activeMode === "metaball_grid" ||
+                    activeMode === "perimeter_field";
+                let geometryReady: boolean | null = activeModeNeedsGeometry
+                    ? false
+                    : null;
+                let lastRenderFailure: string | null = null;
+                const lanes = activeGameStore.connections as StarConnection[];
+                const readFamilyGeometry = (): CanonicalGeometrySnapshot => {
+                    const geometry = measurePerf(
+                        `game.renderFrame.geometry.${activeMode}`,
+                        () => getCurrentRenderFamilyGeometry(stars, lanes),
+                    );
+                    geometryReady = true;
+                    return geometry;
+                };
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -4152,6 +4430,18 @@
                     ) {
                         voronoiContainer.removeChild(
                             perimeterFieldFamily.displayRoot,
+                        );
+                    }
+                    const metaballGridFamily =
+                        getRenderFamily("metaball_grid");
+                    if (
+                        activeMode !== "metaball_grid" &&
+                        metaballGridFamily instanceof MetaballGridFamily &&
+                        metaballGridFamily.displayRoot.parent ===
+                            voronoiContainer
+                    ) {
+                        voronoiContainer.removeChild(
+                            metaballGridFamily.displayRoot,
                         );
                     }
                 }
@@ -4278,22 +4568,23 @@
                                     activeTransition,
                                 ),
                         );
+                        const geometry = readFamilyGeometry();
                         const mfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball",
                             () =>
                                 buildRenderFamilyInput({
-                                stars,
-                                lanes: activeGameStore
-                                    .connections as StarConnection[],
-                                worldWidth: GAME_WIDTH,
-                                worldHeight: GAME_HEIGHT,
-                                nowMs: fxOrchestrator.gameTime,
-                                paused: isPausedNow,
-                                gameTick: activeGameStore.currentTick,
-                                ownership,
-                                renderer: app?.renderer ?? undefined,
-                                activeTransition,
-                                tunableKeys: mf.tunableKeys,
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    tunableKeys: mf.tunableKeys,
                                 }),
                         );
                         mf.update(mfInput);
@@ -4301,6 +4592,55 @@
                             voronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
+                        break;
+                    }
+                    case "metaball_grid": {
+                        let fam = getRenderFamily("metaball_grid");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballGridFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("metaball_grid")!;
+                        }
+                        const mg = fam as MetaballGridFamily;
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball_grid",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = readFamilyGeometry();
+                        const mgInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball_grid",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    tunableKeys: mg.tunableKeys,
+                                }),
+                        );
+                        mg.update(mgInput);
+                        if (mg.displayRoot.parent !== voronoiContainer) {
+                            voronoiContainer.addChild(mg.displayRoot);
+                        }
+                        mg.displayRoot.visible = true;
                         break;
                     }
                     case "perimeter_field": {
@@ -4323,8 +4663,6 @@
                                 fxOrchestrator.gameTime,
                                 activeGameStore.effectiveTickMs,
                             );
-                        const lanes = activeGameStore
-                            .connections as StarConnection[];
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.perimeter_field",
                             () =>
@@ -4333,10 +4671,7 @@
                                     activeTransition,
                                 ),
                         );
-                        const geometry = measurePerf(
-                            "game.renderFrame.geometry.perimeter_field",
-                            () => getCurrentRenderFamilyGeometry(stars, lanes),
-                        );
+                        const geometry = readFamilyGeometry();
                         const pfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.perimeter_field",
                             () =>
@@ -4557,6 +4892,17 @@
                         break;
                     }
                     // 'none' or unrecognized — no territory rendering
+                    if (activeModeNeedsGeometry && geometryReady !== true) {
+                        lastRenderFailure =
+                            `${activeMode} requires canonical geometry, but none was supplied`;
+                        log.error("GameCanvas", lastRenderFailure);
+                    }
+                    setTerritoryRenderStatus({
+                        territoryMode: activeMode,
+                        geometryReady,
+                        arrowRenderer: "overlay_canvas",
+                        lastRenderFailure,
+                    });
                 }
                 }
                     },
@@ -4565,6 +4911,12 @@
         } // end territory pause guard
 
         if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_territory")) {
+            maybeRenderShipsBeforeInputYield({
+                stars,
+                starsById,
+                tickProgress,
+                stage: "after_territory",
+            });
             finalizeRenderFrame({ stars });
             return;
         }
@@ -4591,7 +4943,7 @@
                     stars,
                     starsContainer!,
                     labelsContainer!,
-                    { starGraphics, starLabels },
+                    { starGraphics, starLabels, starVisualKeys },
                     {
                         activeStarId,
                         dragSourceId,
@@ -4624,6 +4976,12 @@
         }
 
         if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_stars")) {
+            maybeRenderShipsBeforeInputYield({
+                stars,
+                starsById,
+                tickProgress,
+                stage: "after_stars",
+            });
             finalizeRenderFrame({ stars });
             return;
         }
@@ -4683,6 +5041,12 @@
                 "after_connections",
             )
         ) {
+            maybeRenderShipsBeforeInputYield({
+                stars,
+                starsById,
+                tickProgress,
+                stage: "after_connections",
+            });
             finalizeRenderFrame({ stars });
             return;
         }
@@ -4697,6 +5061,12 @@
                 "after_interaction_overlay",
             )
         ) {
+            maybeRenderShipsBeforeInputYield({
+                stars,
+                starsById,
+                tickProgress,
+                stage: "after_interaction_overlay",
+            });
             finalizeRenderFrame({ stars, interactionOverlayPresented: true });
             return;
         }
@@ -4854,6 +5224,12 @@
         if (
             shouldYieldRenderFrameForInput(frameStartedAtMs, "after_tick_events")
         ) {
+            maybeRenderShipsBeforeInputYield({
+                stars,
+                starsById,
+                tickProgress,
+                stage: "after_tick_events",
+            });
             finalizeRenderFrame({ stars, interactionOverlayPresented: true });
             return;
         }
@@ -4861,138 +5237,13 @@
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         // IMPORTANT: Always read from VSM to stay in sync — ShipRenderer replaces the array
         // with a filtered `stillTraveling` copy, which would disconnect from VSM's internal array.
-        travelingShips = fxOrchestrator.vsm.travelingShips;
-        const shipScheduler = shouldThrottleShipRenderCadence({
+        presentShipsFrame({
+            stars,
+            starsById,
+            tickProgress,
             nowMs: performance.now(),
-            isPaused: activeGameStore.isPaused,
+            context: "main",
         });
-        const deferShipRender =
-            !activeGameStore.isPaused && shipScheduler.defer;
-        if (deferShipRender) {
-            deferredShipRenderFrameCount += 1;
-            shipRenderCadenceSkipCount += 1;
-            if (!shipRenderDeferralActive) {
-                shipRenderDeferralActive = true;
-                deferredShipRenderReason = shipScheduler.reason;
-                recordPerfEvent("game.ships.defer.start", {
-                    lastShipRenderCostMs,
-                    reason: shipScheduler.reason,
-                    cadenceMs: shipScheduler.cadenceMs,
-                    staleMs: shipScheduler.staleMs,
-                });
-                logPipelineStage({
-                    channel: "input",
-                    context: "GameCanvas",
-                    stage: "ship_render_defer_start",
-                    from: "Input pressure window",
-                    to: "Ship render scheduler",
-                    purpose:
-                        "Prioritize command input and camera interaction over heavy ship rendering",
-                    summary:
-                        `reason=${shipScheduler.reason} ` +
-                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)} ` +
-                        `cadenceMs=${shipScheduler.cadenceMs} ` +
-                        `staleMs=${shipScheduler.staleMs.toFixed(3)}`,
-                });
-            }
-        } else {
-            if (shipRenderDeferralActive) {
-                recordPerfEvent("game.ships.defer.stop", {
-                    deferredFrames: deferredShipRenderFrameCount,
-                    cadenceSkips: shipRenderCadenceSkipCount,
-                    lastShipRenderCostMs,
-                    reason: deferredShipRenderReason,
-                    cadenceMs: shipScheduler.cadenceMs,
-                    staleMs: shipScheduler.staleMs,
-                });
-                logPipelineStage({
-                    channel: "input",
-                    context: "GameCanvas",
-                    stage: "ship_render_defer_stop",
-                    from: "Ship render scheduler",
-                    to: "Normal ship cadence",
-                    purpose:
-                        "Resume heavier ship rendering after interaction pressure subsides",
-                    summary:
-                        `deferredFrames=${deferredShipRenderFrameCount} ` +
-                        `cadenceSkips=${shipRenderCadenceSkipCount} ` +
-                        `reason=${deferredShipRenderReason} ` +
-                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)}`,
-                });
-                shipRenderDeferralActive = false;
-                deferredShipRenderFrameCount = 0;
-                shipRenderCadenceSkipCount = 0;
-                deferredShipRenderReason = "";
-            }
-
-            // Reset particle pool index for this frame
-            shipParticleIndex = 0;
-            // Clear orb travel graphics (drawn fresh each frame)
-            if (orbGraphics) orbGraphics.clear();
-
-            const shipState: ShipRenderState = {
-                visualShips,
-                visualDamagedShips,
-                travelingShips,
-                starsInCombat,
-                pendingConquests,
-                activeSurges,
-                nextShipId,
-                gameNowMs: fxOrchestrator.gameTime,
-                isPaused: activeGameStore.isPaused,
-                effectiveTickMs: activeGameStore.effectiveTickMs,
-                tickProgress,
-            };
-            const shipRes: ShipRenderResources = {
-                shipCircleTexture: shipCircleTexture!,
-                glowTexture: glowTexture!,
-                shipParticleContainer: shipParticleContainer!,
-                orbGraphics: orbGraphics!,
-                glowContainer: glowContainer!,
-                shipParticlePool,
-                shipParticleIndex,
-                glowSprites,
-            };
-            runShipRender("game.renderFrame.ships", () => {
-                renderShipsModule(
-                    stars,
-                    starsById,
-                    shipState,
-                    shipRes,
-                    colorUtils,
-                );
-            });
-            // Read back mutable state modified by the module
-            nextShipId = shipState.nextShipId;
-            shipParticleIndex = shipRes.shipParticleIndex;
-            // Sync filtered array back to VSM so arrived ships are removed from the canonical source
-            fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
-            logPipelineStage({
-                channel: "renderer",
-                context: "GameCanvas",
-                stage: "ships_present",
-                from: "Visual ship state + travel animation snapshot",
-                to: "Pixi ship, glow, orb, and particle layers",
-                purpose:
-                    "Project orbital, damaged, and traveling ships into the visible fleet presentation layers",
-                summary:
-                    `${summarizeStars(stars)} ` +
-                    `traveling=${shipState.travelingShips.length} ` +
-                    `pendingConquests=${shipState.pendingConquests.size}`,
-                perfEventName: "game.renderFrame.shipsPresent",
-                perfDetail: {
-                    travelingShips: shipState.travelingShips.length,
-                    pendingConquests: shipState.pendingConquests.size,
-                },
-            });
-
-            measurePerf("game.renderFrame.shipParticleUpdate", () => {
-                for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
-                    shipParticlePool[i].alpha = 0;
-                }
-                if (shipParticleContainer) shipParticleContainer.update();
-            });
-        }
 
         // Count total visual ships for HUD
         let shipCount = 0;
@@ -5140,7 +5391,54 @@
     export function getBenchmarkTerritorySchedulerSnapshot():
         | Record<string, unknown>
         | null {
+        const ownerStarCounts: Record<string, number> = {};
+        for (const star of activeGameStore.stars as StarState[]) {
+            const ownerId = star.ownerId ?? "__unowned__";
+            ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
+        }
+        const metaballGridFamily = getRenderFamily("metaball_grid");
+        const metaballGridDebug =
+            metaballGridFamily instanceof MetaballGridFamily
+                ? metaballGridFamily.getDebugSnapshot()
+                : null;
+        const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
+            .slice()
+            .sort((a, b) => a.id - b.id)
+            .slice(0, 12)
+            .map((ship) => ({
+                id: ship.id,
+                state: ship.state,
+                fromStarId: ship.fromStarId ?? null,
+                toStarId: ship.toStarId ?? null,
+                x: Number(ship.x.toFixed(2)),
+                y: Number(ship.y.toFixed(2)),
+                alpha: Number(ship.alpha.toFixed(3)),
+                scale: Number(ship.scale.toFixed(3)),
+                departTime: Number(ship.departTime.toFixed(2)),
+                travelDuration: Number(ship.travelDuration.toFixed(2)),
+                departDuration: Number(ship.departDuration.toFixed(2)),
+            }));
+        const travelingShipsSampleHash = travelingShipsSnapshot
+            .map(
+                (ship) =>
+                    `${ship.id}:${ship.state}:${ship.x.toFixed(1)},${ship.y.toFixed(1)}:${ship.alpha.toFixed(2)}:${ship.scale.toFixed(2)}`,
+            )
+            .join("|");
         return {
+            currentTick: activeGameStore.currentTick ?? null,
+            localPlayerId: activeGameStore.localPlayerId ?? null,
+            renderMode: GAME_CONFIG.TERRITORY_RENDER_MODE,
+            ownerStarCounts,
+            metaballGridDebug,
+            fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
+            effectiveTickMs: activeGameStore.effectiveTickMs,
+            tickProgress: Number(lastRenderedTickProgress.toFixed(4)),
+            totalVisualShips,
+            visualShipStars: visualShips.size,
+            travelingShipCount: fxOrchestrator.vsm.travelingShips.length,
+            travelingShipsSampleHash,
+            travelingShipsSnapshot,
+            browserInputPending: hasBrowserInputPending(),
             territoryInputPriorityUntilMs,
             lastTerritoryUpdateStartedAtMs,
             lastTerritoryUpdateCostMs,
@@ -5157,6 +5455,13 @@
             deferredShipRenderFrameCount,
             deferredShipRenderReason,
             shipRenderCadenceSkipCount,
+            shipRenderYieldRescueCount,
+            lastShipRenderContext,
+            lastShipRenderReason,
+            renderFrameInputYieldCount,
+            lastRenderFrameInputYieldStage,
+            lastRenderFrameInputYieldReason,
+            lastRenderFrameInputYieldAtMs,
             queuedOrderMutations: queuedOrderMutations.length,
             orderMutationRequestSeq,
             lastOrderMutationQueuedAtMs,

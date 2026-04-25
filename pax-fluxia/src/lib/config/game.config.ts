@@ -339,6 +339,9 @@ interface GameConfigType {
     STAR_POWER_RADIUS_MULT: number; // Radius multiplier for star power circles (default 3.0)
     STAR_POWER_LAYERS: number;      // Number of concentric gradient layers (1-12, default 4)
     STAR_POWER_BLUR: number;        // GPU blur on halos (0=off, default 4)
+    STAR_POWER_LAYER_CURVE: number; // Exponent applied to halo layer falloff (default 1.0)
+    STAR_POWER_EDGE_BAND_STRENGTH: number; // Extra alpha bias for the halo outer band (default 0)
+    STAR_POWER_EDGE_BAND_WIDTH: number; // Fraction of outer halo radius affected by the edge band (default 0.2)
     HALO_FLEET_SCALE: boolean;     // Bind halo alpha to ship count (default true)
     HALO_FLEET_MODE: string;       // 'stepped' (original: +intensity per step) or 'linear' (smooth)
     HALO_FLEET_INTENSITY: number;  // Intensity multiplier for ship-count binding (0-2, default 1.0)
@@ -388,6 +391,26 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
+    METABALL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
+    METABALL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
+    METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
+    METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
+    METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
+    METABALL_GRID_MAX_CELLS: number; // Optional planner cap; coarsens spacing upward when exceeded
+    METABALL_GRID_INWARD_OFFSET_PX: number; // Extra inset applied to boundary / in-transition cells
+    METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Primitive painted for each cell
+    METABALL_GRID_CELL_INSET_PX: number; // Base inset applied to all cells
+    METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
+    METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
+    METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
+    METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
+    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' | 'euclidean_band'; // Flip-time rank geometry
+    METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Seed selection mode
+    METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell ownership transition style
+    METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time
+    METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Easing applied to transition progress before cell flips
+    METABALL_GRID_FLIP_WINDOW_JITTER: number; // Deterministic per-cell flip-time jitter
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -1219,6 +1242,12 @@ const _rawConfig: GameConfigType = {
     STAR_POWER_LAYERS: 8,
     /** GPU blur on star power halos (0=off) */
     STAR_POWER_BLUR: 16,
+    /** Exponent applied to halo layer falloff */
+    STAR_POWER_LAYER_CURVE: 1,
+    /** Additional alpha bias applied near the halo edge */
+    STAR_POWER_EDGE_BAND_STRENGTH: 0,
+    /** Fraction of outer halo radius reserved for edge-band emphasis */
+    STAR_POWER_EDGE_BAND_WIDTH: 0.2,
     HALO_FLEET_SCALE: false,
     /** Fleet halo mode: 'stepped' or 'linear' */
     HALO_FLEET_MODE: 'stepped',
@@ -1283,6 +1312,26 @@ const _rawConfig: GameConfigType = {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: 0,
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: 0,
+    METABALL_GRID_ENABLED: true,
+    METABALL_GRID_SPACING_PX: 48,
+    METABALL_GRID_ORIGIN_MODE: 'centered' as const,
+    METABALL_GRID_DISTRIBUTION: 'square' as const,
+    METABALL_GRID_POSITION_JITTER: 0,
+    METABALL_GRID_MAX_CELLS: 0,
+    METABALL_GRID_INWARD_OFFSET_PX: 0,
+    METABALL_GRID_CELL_SHAPE: 'square' as const,
+    METABALL_GRID_CELL_INSET_PX: 0,
+    METABALL_GRID_CELL_CORNER_PX: 0,
+    METABALL_GRID_BORDER_MODE: 'off' as const,
+    METABALL_GRID_BORDER_BLEND: false,
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
+    METABALL_GRID_ADJACENCY: '8' as const,
+    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
+    METABALL_GRID_WAVE_SEEDING: 'winner_natives' as const,
+    METABALL_GRID_FLIP_TRANSITION: 'hard' as const,
+    METABALL_GRID_FLIP_WINDOW: 0.06,
+    METABALL_GRID_WAVE_EASE: 'linear' as const,
+    METABALL_GRID_FLIP_WINDOW_JITTER: 0,
     /** Number of control points for frontier loop morphing (5-300) */
     TERRITORY_MORPH_CONTROL_POINTS: 68,
     TERRITORY_BOUNDARY_MODE: 'smooth' as const,

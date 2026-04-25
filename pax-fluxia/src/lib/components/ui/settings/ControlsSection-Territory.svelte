@@ -25,6 +25,7 @@
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
+  import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -696,6 +697,24 @@
               >USE_RENDER_FAMILIES (family gate)</span>
           </label>
         </div>
+
+        {#if $territoryRenderStatus.updatedAtMs > 0}
+          <div class="axis-note">
+            <strong>Live render:</strong>
+            mode <code>{$territoryRenderStatus.territoryMode}</code>
+            {#if $territoryRenderStatus.geometryReady !== null}
+              · geometry {$territoryRenderStatus.geometryReady
+                ? "ready"
+                : "missing"}
+            {/if}
+            · arrows <code>{$territoryRenderStatus.arrowRenderer}</code>
+            {#if $territoryRenderStatus.lastRenderFailure}
+              <br />
+              <span style="color: #fca5a5;"
+                >Failure: {$territoryRenderStatus.lastRenderFailure}</span>
+            {/if}
+          </div>
+        {/if}
 
         {#if showLegacyVsTransitionModeSelector()}
           <div

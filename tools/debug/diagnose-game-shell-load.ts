@@ -1,4 +1,15 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { Buffer } from "node:buffer";
+import {
+    closeSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    openSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+} from "node:fs";
+import { spawn as spawnChildProcess } from "node:child_process";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -21,14 +32,30 @@ interface CdpMessage {
 
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
+const LOGS_DIR = path.join(ROOT, ".agent-harness", "logs");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
 const HOST = "127.0.0.1";
 const DIAG_ROUTE = process.env.PAX_DIAG_ROUTE?.trim() || "/";
-const DIAG_ACTION = process.env.PAX_DIAG_ACTION?.trim() || "openGameShell";
 const DIAG_APP_URL = process.env.PAX_DIAG_APP_URL?.trim() || null;
+const DIAG_TERRITORY_MODE =
+    process.env.PAX_DIAG_TERRITORY_MODE?.trim() || null;
+const DIAG_MAP_NAME = process.env.PAX_DIAG_MAP_NAME?.trim() || null;
+const DEFAULT_DIAG_ACTION =
+    DIAG_ROUTE === "/__bench" ? "openGameShell" : "clickLandingPlay";
+const DIAG_ACTION = process.env.PAX_DIAG_ACTION?.trim() || DEFAULT_DIAG_ACTION;
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readTextTail(filePath: string, maxChars = 10_000): string | null {
+    if (!existsSync(filePath)) return null;
+    try {
+        const content = readFileSync(filePath, "utf8");
+        return content.slice(Math.max(0, content.length - maxChars));
+    } catch (error) {
+        return `Could not read log tail: ${error instanceof Error ? error.message : String(error)}`;
+    }
 }
 
 async function cleanupStaleHarnessBrowsers(
@@ -295,6 +322,7 @@ async function captureDomSummary(
             bodyHtml: document.body ? document.body.innerHTML.slice(0, 5000) : "",
             appHtml: document.querySelector("#app")?.innerHTML?.slice(0, 5000) ?? "",
             gameShellDiag: window.__PAX_GAME_SHELL_DIAG__ ?? null,
+            homeRouteDiagLog: window.__PAX_HOME_ROUTE_DIAG_LOG__ ?? null,
         }))()`,
     );
 }
@@ -454,7 +482,11 @@ async function waitForSinglePlayerMenuReady(
     client: CdpClient,
     timeoutMs: number,
 ): Promise<void> {
-    await waitForButtonByText(client, "^Start Game$", timeoutMs);
+    await waitForButtonByText(
+        client,
+        "^(?:▶\\s*)?Start(?:\\s+Game)?$",
+        timeoutMs,
+    );
 }
 
 async function waitForGameplayViewReady(
@@ -486,7 +518,7 @@ async function runNormalRouteAction(
     client: CdpClient,
     action: string,
 ): Promise<Record<string, JsonValue>> {
-    if (action === "clickLandingPlay") {
+    if (action === "openGameShell" || action === "clickLandingPlay") {
         await waitForHomeRouteStable(client, 45_000);
         const click = await clickElement(client, "button.btn--primary.btn--lg.btn--pulse");
         await waitForGameShellInteractionSettle(client, 45_000);
@@ -523,7 +555,10 @@ async function runNormalRouteAction(
         );
         await waitForGameShellInteractionSettle(client, 45_000);
         await waitForSinglePlayerMenuReady(client, 45_000);
-        const startClick = await clickButtonByText(client, "^Start Game$");
+        const startClick = await clickButtonByText(
+            client,
+            "^(?:▶\\s*)?Start(?:\\s+Game)?$",
+        );
         await waitForGameplayViewReady(client, 45_000);
         await sleep(1_800);
         const dom = await captureDomSummary(client);
@@ -541,6 +576,31 @@ async function runNormalRouteAction(
     throw new Error(`Unknown normal-route DIAG_ACTION: ${action}`);
 }
 
+function writeScreenshotArtifact(
+    screenshotBase64: string | null,
+    outputPath: string,
+): string | null {
+    if (!screenshotBase64) return null;
+    const screenshotPath = outputPath.replace(/\.json$/i, ".png");
+    writeFileSync(screenshotPath, Buffer.from(screenshotBase64, "base64"));
+    return screenshotPath;
+}
+
+function buildDiagOutputPath(): string {
+    const territorySuffix = DIAG_TERRITORY_MODE
+        ? `-${DIAG_TERRITORY_MODE.replace(/[^a-z0-9_-]+/gi, "-")}`
+        : "";
+    const mapSuffix = DIAG_MAP_NAME
+        ? `-${DIAG_MAP_NAME.replace(/[^a-z0-9_-]+/gi, "-")}`
+        : "";
+    return path.join(
+        METRICS_DIR,
+        DIAG_ROUTE === "/__bench"
+            ? `diagnose-${DIAG_ACTION}${territorySuffix}${mapSuffix}.json`
+            : "diagnose-home-load.json",
+    );
+}
+
 async function main(): Promise<void> {
     await cleanupStaleHarnessBrowsers("pax-shell-diagnose-");
     const cdpPort = await findAvailablePort(9400);
@@ -548,12 +608,29 @@ async function main(): Promise<void> {
     const appUrl = DIAG_APP_URL ?? `http://${HOST}:${appPort}${DIAG_ROUTE}`;
     const browserPath = resolveBrowserPath();
     const profileDir = mkdtempSync(path.join(tmpdir(), "pax-shell-diagnose-"));
+    mkdirSync(LOGS_DIR, { recursive: true });
+    const devServerStdoutPath = path.join(
+        LOGS_DIR,
+        "diagnose-game-shell-load-vite.out.log",
+    );
+    const devServerStderrPath = path.join(
+        LOGS_DIR,
+        "diagnose-game-shell-load-vite.err.log",
+    );
+    const devServerStdoutFd =
+        appPort == null ? null : openSync(devServerStdoutPath, "w");
+    const devServerStderrFd =
+        appPort == null ? null : openSync(devServerStderrPath, "w");
+    if (appPort != null) {
+        writeFileSync(devServerStdoutPath, "", "utf8");
+        writeFileSync(devServerStderrPath, "", "utf8");
+    }
     const devServer =
         appPort == null
             ? null
-            : Bun.spawn(
+            : spawnChildProcess(
+                  "cmd.exe",
                   [
-                      "cmd.exe",
                       "/c",
                       "bunx",
                       "vite",
@@ -565,13 +642,16 @@ async function main(): Promise<void> {
                   ],
                   {
                       cwd: CLIENT_DIR,
-                      stdout: "ignore",
-                      stderr: "ignore",
                       env: {
                           ...process.env,
                           PAX_BENCH_NO_HMR: "1",
                           PAX_BENCH_STANDALONE: "1",
                       },
+                      stdio: [
+                          "ignore",
+                          devServerStdoutFd ?? "ignore",
+                          devServerStderrFd ?? "ignore",
+                      ],
                   },
               );
     const browser = Bun.spawn(
@@ -617,16 +697,158 @@ async function main(): Promise<void> {
             result = await client.evaluate<Record<string, JsonValue>>(
                 `
                     (async () => {
+                        const action = ${JSON.stringify(DIAG_ACTION)};
+                        const territoryMode = ${JSON.stringify(DIAG_TERRITORY_MODE)};
+                        const mapName = ${JSON.stringify(DIAG_MAP_NAME)};
                         try {
-                            const action = ${JSON.stringify(DIAG_ACTION)};
                             let actionResult = null;
+                            let modePrep = null;
+                            const prepareSinglePlayerGame = async () => {
+                                if (mapName) {
+                                    const loaded =
+                                        await window.__PAX_BENCH__.loadSavedMapByName(
+                                            mapName,
+                                        );
+                                    if (!loaded) {
+                                        throw new Error(
+                                            "Could not find saved map: " + mapName,
+                                        );
+                                    }
+                                    return;
+                                }
+                                await window.__PAX_BENCH__.restartSinglePlayerGame();
+                            };
+                            if (territoryMode) {
+                                modePrep =
+                                    await window.__PAX_BENCH__.ensureTerritoryMode(
+                                        territoryMode,
+                                    );
+                            }
                             if (action === "openGameShell") {
                                 await window.__PAX_BENCH__.openGameShell();
                             } else if (action === "restartSinglePlayerGame") {
-                                await window.__PAX_BENCH__.restartSinglePlayerGame();
+                                await prepareSinglePlayerGame();
                             } else if (action === "beginGameplay") {
-                                await window.__PAX_BENCH__.restartSinglePlayerGame();
+                                await prepareSinglePlayerGame();
                                 await window.__PAX_BENCH__.beginGameplay();
+                            } else if (action === "beginGameplayAndSampleStartupFill") {
+                                await prepareSinglePlayerGame();
+                                await window.__PAX_BENCH__.beginGameplay();
+                                const startupSamples = [];
+                                for (let i = 0; i < 16; i += 1) {
+                                    await new Promise((resolve) => setTimeout(resolve, 250));
+                                    startupSamples.push({
+                                        sampleIndex: i,
+                                        state: await window.__PAX_BENCH__.getStateSummary(),
+                                        territory: await window.__PAX_BENCH__.getTerritorySchedulerSnapshot(),
+                                    });
+                                }
+                                actionResult = { startupSamples };
+                            } else if (action === "beginGameplayAndIssueSampleOrder") {
+                                await prepareSinglePlayerGame();
+                                await window.__PAX_BENCH__.beginGameplay();
+                                await new Promise((resolve) => setTimeout(resolve, 1200));
+                                actionResult =
+                                    await window.__PAX_BENCH__.issueSampleOrder();
+                                await new Promise((resolve) => setTimeout(resolve, 1000));
+                            } else if (
+                                action ===
+                                "beginGameplayIssueSampleOrderAndSampleShipMotion"
+                            ) {
+                                await prepareSinglePlayerGame();
+                                await window.__PAX_BENCH__.beginGameplay();
+                                await new Promise((resolve) => setTimeout(resolve, 1200));
+                                window.__PAX_BENCH__.resetPerfCapture();
+                                window.__PAX_BENCH__.enablePerfCapture();
+                                const perfCursor =
+                                    window.__PAX_BENCH__.getPerfEventCursor();
+                                const issuedOrder =
+                                    await window.__PAX_BENCH__.issueSampleOrder();
+                                const shipMotionSamples = [];
+                                for (let i = 0; i < 96; i += 1) {
+                                    await new Promise((resolve) =>
+                                        requestAnimationFrame(() => resolve()),
+                                    );
+                                    const territory =
+                                        await window.__PAX_BENCH__.getTerritorySchedulerSnapshot();
+                                    const firstTravelingShip =
+                                        Array.isArray(
+                                            territory?.travelingShipsSnapshot,
+                                        ) &&
+                                        territory.travelingShipsSnapshot.length > 0
+                                            ? territory.travelingShipsSnapshot[0]
+                                            : null;
+                                    shipMotionSamples.push({
+                                        sampleIndex: i,
+                                        currentTick: territory?.currentTick ?? null,
+                                        tickProgress: territory?.tickProgress ?? null,
+                                        fxGameNowMs: territory?.fxGameNowMs ?? null,
+                                        effectiveTickMs:
+                                            territory?.effectiveTickMs ?? null,
+                                        travelingShipCount:
+                                            territory?.travelingShipCount ?? 0,
+                                        totalVisualShips:
+                                            territory?.totalVisualShips ?? 0,
+                                        lastShipRenderCostMs:
+                                            territory?.lastShipRenderCostMs ?? null,
+                                        lastShipRenderPresentedAtMs:
+                                            territory?.lastShipRenderPresentedAtMs ??
+                                            null,
+                                        shipRenderDeferralActive:
+                                            territory?.shipRenderDeferralActive ??
+                                            false,
+                                        deferredShipRenderReason:
+                                            territory?.deferredShipRenderReason ??
+                                            "",
+                                        shipRenderCadenceSkipCount:
+                                            territory?.shipRenderCadenceSkipCount ??
+                                            0,
+                                        shipRenderYieldRescueCount:
+                                            territory?.shipRenderYieldRescueCount ??
+                                            0,
+                                        lastShipRenderContext:
+                                            territory?.lastShipRenderContext ?? "",
+                                        lastShipRenderReason:
+                                            territory?.lastShipRenderReason ?? "",
+                                        browserInputPending:
+                                            territory?.browserInputPending ?? false,
+                                        renderFrameInputYieldCount:
+                                            territory?.renderFrameInputYieldCount ??
+                                            0,
+                                        lastRenderFrameInputYieldStage:
+                                            territory?.lastRenderFrameInputYieldStage ??
+                                            "",
+                                        lastRenderFrameInputYieldReason:
+                                            territory?.lastRenderFrameInputYieldReason ??
+                                            "",
+                                        pendingInteractionVisualAckCount:
+                                            territory?.pendingInteractionVisualAckCount ??
+                                            0,
+                                        queuedOrderMutations:
+                                            territory?.queuedOrderMutations ?? 0,
+                                        firstTravelingShip,
+                                    });
+                                }
+                                const perfEvents =
+                                    window.__PAX_BENCH__
+                                        .getPerfEventsSince(perfCursor, 400)
+                                        .filter((event) => {
+                                            const name = String(
+                                                event?.name ?? "",
+                                            );
+                                            return (
+                                                name ===
+                                                    "game.renderFrame.inputYield" ||
+                                                name === "game.ships.defer.start" ||
+                                                name === "game.ships.defer.stop"
+                                            );
+                                        });
+                                window.__PAX_BENCH__.disablePerfCapture();
+                                actionResult = {
+                                    issuedOrder,
+                                    shipMotionSamples,
+                                    perfEvents,
+                                };
                             } else {
                                 throw new Error("Unknown DIAG_ACTION: " + action);
                             }
@@ -634,18 +856,24 @@ async function main(): Promise<void> {
                             return {
                                 ok: true,
                                 action,
+                                territoryMode,
+                                mapName,
+                                modePrep,
                                 actionResult,
                                 frames: await window.__PAX_BENCH__.collectFrameStats(1200),
                                 state: await window.__PAX_BENCH__.getStateSummary(),
                                 bodyChildCount: document.body?.children.length ?? 0,
                                 bodyText: document.body ? document.body.innerText.slice(0, 1000) : "",
                                 bodyHtml: document.body ? document.body.innerHTML.slice(0, 2000) : "",
+                                screenshotBase64: null,
                             };
                         } catch (error) {
                             const typed = error;
                             return {
                                 ok: false,
                                 action,
+                                territoryMode,
+                                mapName,
                                 name: typed?.name ?? null,
                                 message: typed?.message ?? String(typed),
                                 stack: typed?.stack ?? null,
@@ -664,26 +892,58 @@ async function main(): Promise<void> {
             result = await runNormalRouteAction(client, DIAG_ACTION);
         }
 
+        const benchScreenshotBase64 =
+            DIAG_ROUTE === "/__bench"
+                ? await captureScreenshotBase64(client)
+                : null;
+        if (benchScreenshotBase64) {
+            result = {
+                ...result,
+                screenshotBase64: benchScreenshotBase64,
+            };
+        }
+
         const notifications = client.getRecentNotifications([
             "Runtime.consoleAPICalled",
             "Runtime.exceptionThrown",
             "Log.entryAdded",
             "Network.loadingFailed",
         ]);
-
+        mkdirSync(METRICS_DIR, { recursive: true });
+        const outputPath = buildDiagOutputPath();
+        const screenshotBase64 =
+            typeof result.screenshotBase64 === "string"
+                ? result.screenshotBase64
+                : null;
+        const screenshotPath = writeScreenshotArtifact(
+            screenshotBase64,
+            outputPath,
+        );
+        if (screenshotPath) {
+            result = {
+                ...result,
+                screenshotPath,
+                screenshotBase64ByteLength: screenshotBase64?.length ?? 0,
+                screenshotBase64: undefined,
+            };
+        }
         const payload = {
             generatedAt: new Date().toISOString(),
             appUrl,
+            diagRoute: DIAG_ROUTE,
+            diagAction: DIAG_ACTION,
             result,
             notifications,
+            devServerLogs:
+                appPort == null
+                    ? null
+                    : {
+                          stdoutPath: devServerStdoutPath,
+                          stderrPath: devServerStderrPath,
+                          stdoutTail: readTextTail(devServerStdoutPath),
+                          stderrTail: readTextTail(devServerStderrPath),
+                      },
         };
-        mkdirSync(METRICS_DIR, { recursive: true });
-        const outputPath = path.join(
-            METRICS_DIR,
-            DIAG_ROUTE === "/__bench"
-                ? `diagnose-${DIAG_ACTION}.json`
-                : "diagnose-home-load.json",
-        );
         writeFileSync(outputPath, JSON.stringify(payload, null, 2), "utf8");
         console.log(JSON.stringify({ ok: true, outputPath }, null, 2));
         client.close();
@@ -691,6 +951,12 @@ async function main(): Promise<void> {
         browser.kill();
         devServer?.kill();
         await sleep(500);
+        if (devServerStdoutFd != null) {
+            closeSync(devServerStdoutFd);
+        }
+        if (devServerStderrFd != null) {
+            closeSync(devServerStderrFd);
+        }
         try {
             rmSync(profileDir, { recursive: true, force: true });
         } catch {}

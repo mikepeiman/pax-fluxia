@@ -12,6 +12,10 @@ export interface MetaballGridStats {
     readonly requestedSpacingPx: number;
     /** Effective spacing after `METABALL_GRID_MAX_CELLS` coarsening (px). */
     readonly effectiveSpacingPx: number;
+    /** Requested grid density expressed as cells per megapixel. */
+    readonly requestedDensityCellsPerMpx: number;
+    /** Effective grid density after coarsening, in cells per megapixel. */
+    readonly effectiveDensityCellsPerMpx: number;
     /** Total cells in the classification grid (cols * rows). */
     readonly totalCells: number;
     /** Emittable cells (native + dispossessed + emergent + vacating). */
@@ -43,6 +47,8 @@ export interface MetaballGridStats {
 const INITIAL: MetaballGridStats = {
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
+    requestedDensityCellsPerMpx: 0,
+    effectiveDensityCellsPerMpx: 0,
     totalCells: 0,
     emittableCells: 0,
     paintedCells: 0,

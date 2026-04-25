@@ -145,6 +145,30 @@
             return raw;
         return 'linear';
     }
+
+    const METABALL_GRID_BASELINE_SPACING_PX = 48;
+
+    function currentSpacingPx(): number {
+        return panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? METABALL_GRID_BASELINE_SPACING_PX;
+    }
+
+    function spacingToDensityCellsPerMpx(spacingPx: number): number {
+        if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
+        return 1_000_000 / (spacingPx * spacingPx);
+    }
+
+    function spacingToDensityMultiplier(spacingPx: number): number {
+        if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
+        return (
+            (METABALL_GRID_BASELINE_SPACING_PX * METABALL_GRID_BASELINE_SPACING_PX) /
+            (spacingPx * spacingPx)
+        );
+    }
+
+    function densityMultiplierToSpacing(multiplier: number): number {
+        const safe = Math.max(0.05, multiplier);
+        return METABALL_GRID_BASELINE_SPACING_PX / Math.sqrt(safe);
+    }
 </script>
 
 <div class="module-head">
@@ -204,7 +228,7 @@
         <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
             Cell Spacing
         </span>
-        <span class="val">{panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48}px</span>
+        <span class="val">{currentSpacingPx()}px</span>
     </div>
     <div class="var-desc">
         Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)×(worldHeight/spacing).
@@ -214,10 +238,40 @@
         min="4"
         max="200"
         step="1"
-        value={panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48}
+        value={currentSpacingPx()}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
+            Grid Density
+        </span>
+        <span class="val">
+            {spacingToDensityMultiplier(currentSpacingPx()).toFixed(2)}x
+            <span class="perf-sub">~{Math.round(spacingToDensityCellsPerMpx(currentSpacingPx()))} cells/Mpx</span>
+        </span>
+    </div>
+    <div class="var-desc">
+        Direct density alias for Cell Spacing. Higher density means more grid cells and sharper ownership edges, but heavier CPU. Effective density can still be reduced by Max Cells.
+    </div>
+    <input
+        type="range"
+        min="0.10"
+        max="8.00"
+        step="0.05"
+        value={spacingToDensityMultiplier(currentSpacingPx())}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_SPACING_PX',
+                'metaballGridSpacingPx',
+                densityMultiplierToSpacing(value),
+            );
         }}
     />
 </div>
@@ -708,6 +762,17 @@
             / {$metaballGridStats.effectiveSpacingPx.toFixed(1)} px
             {#if $metaballGridStats.effectiveSpacingPx > $metaballGridStats.requestedSpacingPx + 0.01}
                 <span class="perf-coarsen">(coarsened)</span>
+            {/if}
+        </span>
+    </div>
+
+    <div class="perf-label">Density (requested / effective)</div>
+    <div class="perf-value">
+        {$metaballGridStats.requestedDensityCellsPerMpx.toFixed(0)} cells/Mpx
+        <span class="perf-sub">
+            / {$metaballGridStats.effectiveDensityCellsPerMpx.toFixed(0)} cells/Mpx
+            {#if $metaballGridStats.effectiveDensityCellsPerMpx + 0.5 < $metaballGridStats.requestedDensityCellsPerMpx}
+                <span class="perf-coarsen">(reduced)</span>
             {/if}
         </span>
     </div>

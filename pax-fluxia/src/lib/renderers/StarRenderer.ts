@@ -37,6 +37,54 @@ const TYPE_SIDES: Record<string, number> = {
     portal: 0,
 };
 
+const STAR_VISUAL_BUCKET_MS = 96;
+
+function resolveStarVisualConfigKey(): string {
+    return [
+        GAME_CONFIG.STAR_RENDER_RADIUS ?? '',
+        GAME_CONFIG.STAR_SHAPE_MODE ?? '',
+        GAME_CONFIG.STAR_CORNER_RADIUS ?? '',
+        GAME_CONFIG.STAR_RING_RADIUS ?? '',
+        GAME_CONFIG.STAR_RING_WIDTH ?? '',
+        GAME_CONFIG.STAR_RING_ALPHA ?? '',
+        GAME_CONFIG.STAR_RING_SATURATION ?? '',
+        GAME_CONFIG.STAR_RING_LIGHTNESS ?? '',
+        GAME_CONFIG.STAR_ICON_SCALE ?? '',
+    ].join('|');
+}
+
+function buildStarVisualKey(params: {
+    star: StarState;
+    effectiveOwner: string | null;
+    isActive: boolean;
+    radius: number;
+    flashBucket: number;
+    animationBucket: number;
+    visualConfigKey: string;
+}): string {
+    const {
+        star,
+        effectiveOwner,
+        isActive,
+        radius,
+        flashBucket,
+        animationBucket,
+        visualConfigKey,
+    } = params;
+    return [
+        star.x,
+        star.y,
+        radius,
+        effectiveOwner ?? '',
+        star.starType,
+        star.portalGroup ?? '',
+        isActive ? 1 : 0,
+        flashBucket,
+        animationBucket,
+        visualConfigKey,
+    ].join('|');
+}
+
 // ── Polygon Geometry Helpers ────────────────────────────────────────────────
 
 /**
@@ -178,6 +226,7 @@ function drawPortalStar(
 export interface StarRenderCaches {
     starGraphics: Map<string, PIXI.Graphics>;
     starLabels: Map<string, PIXI.Container>;
+    starVisualKeys?: Map<string, string>;
 }
 
 // Per-star interpolation cache for smooth number transitions
@@ -218,6 +267,9 @@ export function renderStars(
     state: StarRenderState,
     colorUtils: ColorUtils,
 ): void {
+    const starVisualKeys = caches.starVisualKeys;
+    const animationBucket = Math.floor(state.gameNowMs / STAR_VISUAL_BUCKET_MS);
+    const visualConfigKey = resolveStarVisualConfigKey();
     stars.forEach((star) => {
         let graphics = caches.starGraphics.get(star.id);
         let label = caches.starLabels.get(star.id);
@@ -233,8 +285,6 @@ export function renderStars(
             labelsContainer.addChild(label);
             caches.starLabels.set(star.id, label);
         }
-
-        graphics.clear();
 
         // Delayed star color change: use previous owner until ships arrive
         let effectiveOwner = star.ownerId;
@@ -252,8 +302,23 @@ export function renderStars(
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
         const isPortalStar = star.starType === 'portal';
         const portalColor = isPortalStar ? getPortalGroupHexColor(star.portalGroup) : 0;
+        const flash = state.conquestFlashes.get(star.id);
+        const flashBucket = flash
+            ? Math.floor((state.gameNowMs - flash.startTime) / STAR_VISUAL_BUCKET_MS)
+            : -1;
+        const visualKey = buildStarVisualKey({
+            star,
+            effectiveOwner,
+            isActive,
+            radius,
+            flashBucket,
+            animationBucket,
+            visualConfigKey,
+        });
+        const shouldRedrawVisuals = starVisualKeys?.get(star.id) !== visualKey;
 
-
+        if (shouldRedrawVisuals) {
+            graphics.clear();
 
         // Determine shape properties
         const sides = TYPE_SIDES[star.starType] ?? 0;
@@ -337,7 +402,6 @@ export function renderStars(
         }
 
         // Conquest flash: bright white pulse overlay
-        const flash = state.conquestFlashes.get(star.id);
         if (flash) {
             const flashCheckNow = state.gameNowMs;
             const flashElapsed = flashCheckNow - flash.startTime;
@@ -370,6 +434,9 @@ export function renderStars(
             const iconScale = GAME_CONFIG.STAR_ICON_SCALE ?? 0.55;
             const iconSize = radius * iconScale;
             drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
+        }
+
+            starVisualKeys?.set(star.id, visualKey);
         }
 
         // Get label elements (pill layout)

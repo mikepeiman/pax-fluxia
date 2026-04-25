@@ -26,103 +26,6 @@ import {
     trimLanePolylineToStarRims,
 } from '$lib/lanes/laneGeometry';
 
-interface ConnectionRenderCacheEntry {
-    connectionsRef: StarConnection[];
-    starLayoutKey: string;
-    styleKey: string;
-}
-
-interface OrderArrowRenderCacheEntry {
-    orderKey: string;
-    styleKey: string;
-    animationBucket: number;
-}
-
-const connectionRenderCache = new WeakMap<
-    PIXI.Graphics,
-    ConnectionRenderCacheEntry
->();
-const orderArrowRenderCache = new WeakMap<
-    PIXI.Graphics,
-    OrderArrowRenderCacheEntry
->();
-
-function buildStarLayoutKey(stars: ReadonlyArray<StarState>): string {
-    let key = `${stars.length}`;
-    for (const star of stars) {
-        key += `|${star.id}:${Math.round(star.x)}:${Math.round(star.y)}:${Math.round(star.radius)}`;
-    }
-    return key;
-}
-
-function getConnectionStyleKey(colorUtils: ColorUtils): string {
-    return [
-        GAME_CONFIG.CONNECTION_WIDTH,
-        GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
-        GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-        GAME_CONFIG.CONNECTION_ALPHA,
-        colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
-    ].join(':');
-}
-
-function getOrderArrowStyleKey(): string {
-    return [
-        GAME_CONFIG.ARROW_HEAD_SIZE,
-        GAME_CONFIG.ARROW_SHAFT_WIDTH,
-        GAME_CONFIG.ARROW_ALPHA,
-        GAME_CONFIG.ARROW_LENGTH_FRACTION,
-        GAME_CONFIG.ARROW_HEAD_SPREAD_DEG,
-        GAME_CONFIG.ARROW_OUTLINE_WIDTH,
-        GAME_CONFIG.ARROW_OUTLINE_COLOR,
-        GAME_CONFIG.ARROW_OUTLINE_ALPHA,
-        GAME_CONFIG.ARROW_HEAD_ALPHA,
-        GAME_CONFIG.ARROW_HEAD_VFX_ALPHA,
-        GAME_CONFIG.ARROW_SHAFT_STEPS,
-        GAME_CONFIG.ARROW_FLOW_SPEED,
-        GAME_CONFIG.ARROW_DASH_LENGTH,
-        GAME_CONFIG.ARROW_DASH_GAP,
-        GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS,
-        GAME_CONFIG.ARROW_PATH_PADDING,
-        GAME_CONFIG.ALLOW_OPPOSING_ORDERS,
-    ].join(':');
-}
-
-function getOrderArrowAnimationBucket(): number {
-    const steps = Math.max(1, Math.round(GAME_CONFIG.ARROW_SHAFT_STEPS ?? 1));
-    const flowSpeed = Math.max(0, GAME_CONFIG.ARROW_FLOW_SPEED ?? 0);
-    if (steps <= 1 || flowSpeed <= 0) return -1;
-    return Math.floor(performance.now() / 64);
-}
-
-function buildOrderArrowKey(
-    stars: ReadonlyArray<StarState>,
-    pendingOrders: ReadonlySet<string>,
-    deferredOrders: ReadonlySet<string>,
-): string {
-    const confirmedOrders: string[] = [];
-    const deferredStates: string[] = [];
-    for (const star of stars) {
-        if (star.targetId) {
-            confirmedOrders.push(`${star.id}|${star.targetId}|${star.ownerId ?? ''}`);
-        }
-        if (star.queuedOrderTargetId) {
-            deferredStates.push(
-                `${star.id}|${star.queuedOrderTargetId}|${star.ownerId ?? ''}`,
-            );
-        }
-    }
-    confirmedOrders.sort();
-    deferredStates.sort();
-    const pending = [...pendingOrders].sort();
-    const deferred = [...deferredOrders].sort();
-    return [
-        confirmedOrders.join(','),
-        deferredStates.join(','),
-        pending.join(','),
-        deferred.join(','),
-    ].join('||');
-}
-
 // ── Connection Lanes ────────────────────────────────────────────────────────
 
 /**
@@ -136,17 +39,6 @@ export function renderConnections(
     starsById: Map<string, StarState>,
     colorUtils: ColorUtils,
 ): void {
-    const starLayoutKey = buildStarLayoutKey(stars);
-    const styleKey = getConnectionStyleKey(colorUtils);
-    const cached = connectionRenderCache.get(connectionGraphics);
-    if (
-        cached?.connectionsRef === connections &&
-        cached.starLayoutKey === starLayoutKey &&
-        cached.styleKey === styleKey
-    ) {
-        return;
-    }
-
     connectionGraphics.clear();
 
     const smoothPaths: [number, number][][] = [];
@@ -209,11 +101,6 @@ export function renderConnections(
         width: GAME_CONFIG.CONNECTION_WIDTH,
         alpha: GAME_CONFIG.CONNECTION_ALPHA,
         cap: 'round',
-    });
-    connectionRenderCache.set(connectionGraphics, {
-        connectionsRef: connections,
-        starLayoutKey,
-        styleKey,
     });
 }
 
@@ -487,22 +374,6 @@ export function renderOrderArrows(
     orderState: OrderArrowState,
     colorUtils: ColorUtils,
 ): void {
-    const styleKey = getOrderArrowStyleKey();
-    const animationBucket = getOrderArrowAnimationBucket();
-    const orderKey = buildOrderArrowKey(
-        stars,
-        orderState.pendingOrders,
-        orderState.deferredOrders,
-    );
-    const cached = orderArrowRenderCache.get(linkGraphics);
-    if (
-        cached?.orderKey === orderKey &&
-        cached.styleKey === styleKey &&
-        cached.animationBucket === animationBucket
-    ) {
-        return;
-    }
-
     linkGraphics.clear();
 
     const { pendingOrders, deferredOrders, isLocalPlayerStar, snapshotStars } = orderState;
@@ -709,10 +580,5 @@ export function renderOrderArrows(
                 alpha: headVfxAlpha,
             });
         }
-    });
-    orderArrowRenderCache.set(linkGraphics, {
-        orderKey,
-        styleKey,
-        animationBucket,
     });
 }

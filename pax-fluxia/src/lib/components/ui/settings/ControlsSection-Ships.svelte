@@ -46,6 +46,29 @@
         const starId = selectedStarStore.id;
         if (starId) debugShipCount = count;
     }
+
+    function applyGlowDominantOwnershipPreset() {
+        const config = GAME_CONFIG as Record<string, any>;
+        const updates: Array<[string, string, boolean | number]> = [
+            ["showStarPower", "SHOW_STAR_POWER", true],
+            ["starPowerAlpha", "STAR_POWER_ALPHA", 0.16],
+            ["starPowerRadiusMult", "STAR_POWER_RADIUS_MULT", 2.3],
+            ["starPowerLayers", "STAR_POWER_LAYERS", 8],
+            ["starPowerBlur", "STAR_POWER_BLUR", 14],
+            ["starPowerLayerCurve", "STAR_POWER_LAYER_CURVE", 1.55],
+            [
+                "starPowerEdgeBandStrength",
+                "STAR_POWER_EDGE_BAND_STRENGTH",
+                0.45,
+            ],
+            ["starPowerEdgeBandWidth", "STAR_POWER_EDGE_BAND_WIDTH", 0.28],
+            ["haloFleetScale", "HALO_FLEET_SCALE", false],
+        ];
+        for (const [panelKey, configKey, value] of updates) {
+            config[configKey] = value;
+            updatePanel(panelKey, value);
+        }
+    }
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 </script>
 
@@ -377,6 +400,89 @@
                 updatePanel("starPowerBlur", v);
             }}
         />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Layer Curve</span><span class="val"
+                >{((panel.starPowerLayerCurve ??
+                    GAME_CONFIG.STAR_POWER_LAYER_CURVE ??
+                    1) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.4"
+            max="2.5"
+            step="0.05"
+            value={panel.starPowerLayerCurve ??
+                GAME_CONFIG.STAR_POWER_LAYER_CURVE ??
+                1}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_POWER_LAYER_CURVE = v;
+                updatePanel("starPowerLayerCurve", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Band</span><span class="val"
+                >{((panel.starPowerEdgeBandStrength ??
+                    GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ??
+                    0) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.starPowerEdgeBandStrength ??
+                GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ??
+                0}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH = v;
+                updatePanel("starPowerEdgeBandStrength", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Edge Width</span><span class="val"
+                >{((panel.starPowerEdgeBandWidth ??
+                    GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ??
+                    0.2) as number).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0.05"
+            max="0.6"
+            step="0.01"
+            value={panel.starPowerEdgeBandWidth ??
+                GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ??
+                0.2}
+            oninput={(e) => {
+                const v = +(e.target as HTMLInputElement).value;
+                GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH = v;
+                updatePanel("starPowerEdgeBandWidth", v);
+            }}
+        />
+    </div>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Glow-Dominant Ownership</span>
+            <button
+                type="button"
+                class="mode-btn"
+                onclick={applyGlowDominantOwnershipPreset}
+                >Apply Experimental Preset</button
+            >
+        </div>
+        <div class="mini-help">
+            Opt-in halo-heavy preset for ownership readability experiments.
+        </div>
     </div>
     <div class="var-row">
         <div class="row-top">

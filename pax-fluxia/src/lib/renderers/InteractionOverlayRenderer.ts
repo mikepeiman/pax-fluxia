@@ -134,11 +134,17 @@ function getArrowPolyline(
         : null;
 
     if (!trimmedPath || trimmedPath.length < 2) {
-        return [sourcePoint, targetPoint];
+        return [
+            worldToScreen(state.transform, sourcePoint),
+            worldToScreen(state.transform, targetPoint),
+        ];
     }
 
     return trimmedPath.map((point) =>
-        state.projectWorldPoint({ x: point[0], y: point[1] }),
+        worldToScreen(
+            state.transform,
+            state.projectWorldPoint({ x: point[0], y: point[1] }),
+        ),
     );
 }
 

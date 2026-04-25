@@ -31,6 +31,18 @@ export function renderStarPower(
     const alpha = GAME_CONFIG.STAR_POWER_ALPHA ?? 0.08;
     const radiusMult = GAME_CONFIG.STAR_POWER_RADIUS_MULT ?? 3.0;
     const layers = Math.max(1, GAME_CONFIG.STAR_POWER_LAYERS ?? 4);
+    const layerCurve = Math.max(
+        0.2,
+        GAME_CONFIG.STAR_POWER_LAYER_CURVE ?? 1,
+    );
+    const edgeBandStrength = Math.max(
+        0,
+        GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ?? 0,
+    );
+    const edgeBandWidth = Math.max(
+        0.01,
+        Math.min(1, GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ?? 0.2),
+    );
 
     if (alpha <= 0) return;
 
@@ -67,8 +79,18 @@ export function renderStarPower(
 
         // Draw radial gradient as concentric circles with decreasing alpha
         for (let i = layers; i >= 1; i--) {
-            const layerR = radius * (i / layers);
-            const layerAlpha = starAlpha * (1 - (i - 1) / layers);
+            const layerRatio = i / layers;
+            const layerR = radius * layerRatio;
+            const normalizedDepth = 1 - (i - 1) / layers;
+            const curvedAlpha = Math.pow(normalizedDepth, layerCurve);
+            const edgeBandStart = 1 - edgeBandWidth;
+            const edgeBandProgress =
+                layerRatio <= edgeBandStart
+                    ? 0
+                    : (layerRatio - edgeBandStart) / edgeBandWidth;
+            const edgeBandAlpha = edgeBandStrength * edgeBandProgress;
+            const layerAlpha =
+                starAlpha * Math.min(1, curvedAlpha + edgeBandAlpha);
             territoryGraphics.circle(star.x, star.y, layerR);
             territoryGraphics.fill({ color, alpha: layerAlpha });
         }

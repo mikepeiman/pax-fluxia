@@ -20,13 +20,16 @@ import type {
     SetDeferredOrderInput,
     TickEvents,
     EngineConfig,
-    StarType
+    StarType,
+    Star,
+    Connection,
 } from '@pax/common';
 import {
     GameEngine as SharedEngine,
     GameRoomState,
     StarSchema,
     ConnectionSchema,
+    PointSchema,
     PlayerSchema,
     STAR_TYPE_STATS,
     DEFAULT_ENGINE_CONFIG,
@@ -45,7 +48,7 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
-import type { MapLaneMode } from '@pax/common/mapgen';
+import type { MapConnection, MapLaneMode } from '@pax/common/mapgen';
 import {
     seedLanePolylineCacheFromMapGen,
     rebuildLanePolylineCache,
@@ -53,6 +56,10 @@ import {
     clearLanePolylineCache,
 } from '$lib/lanes/lanePolylineCache';
 import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
+import type {
+    LanePolylineRebuildWorkerRequest,
+    LanePolylineRebuildWorkerResponse,
+} from '$lib/lanes/lanePolylineRebuildWorkerTypes';
 import {
     PLAYER_PALETTE_DEFAULTS,
     buildPlayerPaletteHex,
@@ -114,6 +121,10 @@ let state: GameRoomState | null = null;
 /** AI player instances */
 let aiPlayers: Map<string, AI> = new Map();
 
+/** Dedicated worker for heavy lane-polyline synthesis. */
+let lanePolylineWorker: Worker | null = null;
+let lanePolylineWorkerRequestSeq = 0;
+
 /** Tick loop interval — stored on globalThis to survive HMR re-evaluation */
 const _G = globalThis as any;
 // Clear any leaked interval from previous HMR module instance
@@ -134,6 +145,25 @@ let pausedElapsed = 0;  // How far into current tick when paused (ms)
 let startTime = 0;
 let peakFleetSize = 0;
 let starsCaptured = 0;
+let lastTickStartedAtMs = 0;
+let lastTickFinishedAtMs = 0;
+let lastTickTotalMs = 0;
+let lastTickConfigMs = 0;
+let lastTickAiMs = 0;
+let lastTickEngineMs = 0;
+let lastTickEventPushMs = 0;
+let lastTickHistoryMs = 0;
+let lastTickSnapshotMs = 0;
+let lastTickAudioMs = 0;
+let lastTickStatsMs = 0;
+let lastTickOverBudgetMs = 0;
+let lastTickStarCount = 0;
+let lastTickConnectionCount = 0;
+let lastTickEventCounts = {
+    transfers: 0,
+    combats: 0,
+    conquests: 0,
+};
 
 /** History for endgame charts */
 let history: GameHistoryEntry[] = [];
@@ -452,32 +482,99 @@ function stopTick(): void {
 function executeTick(): void {
     if (!state) return;
 
+    const tickStartedAtMs = performance.now();
+    lastTickStartedAtMs = tickStartedAtMs;
+    lastTickStarCount = state.stars.size;
+    lastTickConnectionCount = state.connections.length;
+    const expectedTick = state.tick + 1;
+
     // Build engine config from live GAME_CONFIG values
-    const engineCfg = buildEngineConfig();
+    const configStartedAtMs = performance.now();
+    const engineCfg = measurePerf('game.tick.config', () => buildEngineConfig(), {
+        expectedTick,
+        stars: lastTickStarCount,
+        connections: lastTickConnectionCount,
+    });
+    lastTickConfigMs = performance.now() - configStartedAtMs;
 
     // Run AI evaluations first
-    runAI(engineCfg);
+    const aiStartedAtMs = performance.now();
+    measurePerf('game.tick.ai', () => {
+        runAI(engineCfg);
+    }, {
+        expectedTick,
+        aiPlayers: aiPlayers.size,
+        stars: lastTickStarCount,
+        connections: lastTickConnectionCount,
+    });
+    lastTickAiMs = performance.now() - aiStartedAtMs;
 
     // Execute shared engine tick (mutates state in place)
-    const events: TickEvents = SharedEngine.tick(state, engineCfg);
+    const engineStartedAtMs = performance.now();
+    const events: TickEvents = measurePerf('game.tick.engine', () => (
+        SharedEngine.tick(state!, engineCfg)
+    ), {
+        expectedTick,
+        stars: lastTickStarCount,
+        connections: lastTickConnectionCount,
+    });
+    lastTickEngineMs = performance.now() - engineStartedAtMs;
+    lastTickEventCounts = {
+        transfers: events?.transfers?.length ?? 0,
+        combats: events?.combats?.length ?? 0,
+        conquests: events?.conquests?.length ?? 0,
+    };
 
     // Feed tick events to animation pipeline
+    const eventPushStartedAtMs = performance.now();
     if (events) {
-        activeGameStore.pushTickEvents(events);
+        measurePerf('game.tick.events.push', () => {
+            activeGameStore.pushTickEvents(events);
+        }, {
+            tick: state.tick,
+            ...lastTickEventCounts,
+        });
     }
+    lastTickEventPushMs = performance.now() - eventPushStartedAtMs;
 
     // Record history
-    recordHistory();
+    const historyStartedAtMs = performance.now();
+    measurePerf('game.tick.history', () => {
+        recordHistory();
+    }, {
+        tick: state.tick,
+        players: state.players.size,
+    });
+    lastTickHistoryMs = performance.now() - historyStartedAtMs;
 
     // Update snapshot for UI
-    snapshot = toGameState(state);
+    const snapshotStartedAtMs = performance.now();
+    snapshot = measurePerf('game.tick.snapshot', () => toGameState(state!), {
+        tick: state.tick,
+        stars: state.stars.size,
+        players: state.players.size,
+    });
+    lastTickSnapshotMs = performance.now() - snapshotStartedAtMs;
 
     // Play tick sound
-    audioManager.play('tick');
+    const audioStartedAtMs = performance.now();
+    measurePerf('game.tick.audio', () => {
+        audioManager.play('tick');
+    }, {
+        tick: state.tick,
+    });
+    lastTickAudioMs = performance.now() - audioStartedAtMs;
 
     // Track stats
-    const totalShips = Array.from(state.stars.values())
-        .reduce((sum, s) => sum + s.activeShips + s.damagedShips, 0);
+    const statsStartedAtMs = performance.now();
+    const totalShips = measurePerf('game.tick.stats', () => (
+        Array.from(state!.stars.values())
+            .reduce((sum, s) => sum + s.activeShips + s.damagedShips, 0)
+    ), {
+        tick: state.tick,
+        stars: state.stars.size,
+    });
+    lastTickStatsMs = performance.now() - statsStartedAtMs;
     if (totalShips > peakFleetSize) peakFleetSize = totalShips;
 
     // Check for game over
@@ -487,7 +584,38 @@ function executeTick(): void {
         // F-62: keep view as 'game' — overlay ResultsModal shows over the map
     }
 
-    lastTickTime = performance.now();
+    lastTickFinishedAtMs = performance.now();
+    lastTickTotalMs = lastTickFinishedAtMs - tickStartedAtMs;
+    lastTickOverBudgetMs = Math.max(0, lastTickTotalMs - tickIntervalMs);
+    recordPerfEvent('game.tick.completed', {
+        tick: state.tick,
+        totalMs: lastTickTotalMs,
+        configMs: lastTickConfigMs,
+        aiMs: lastTickAiMs,
+        engineMs: lastTickEngineMs,
+        eventPushMs: lastTickEventPushMs,
+        historyMs: lastTickHistoryMs,
+        snapshotMs: lastTickSnapshotMs,
+        audioMs: lastTickAudioMs,
+        statsMs: lastTickStatsMs,
+        tickIntervalMs,
+        overBudgetMs: lastTickOverBudgetMs,
+        stars: lastTickStarCount,
+        connections: lastTickConnectionCount,
+        ...lastTickEventCounts,
+    });
+    if (lastTickOverBudgetMs > 0) {
+        recordPerfEvent('game.tick.overBudget', {
+            tick: state.tick,
+            totalMs: lastTickTotalMs,
+            overBudgetMs: lastTickOverBudgetMs,
+            tickIntervalMs,
+            aiMs: lastTickAiMs,
+            engineMs: lastTickEngineMs,
+            snapshotMs: lastTickSnapshotMs,
+        });
+    }
+    lastTickTime = lastTickFinishedAtMs;
 }
 
 function runAI(engineCfg: EngineConfig): void {
@@ -502,35 +630,9 @@ function runAI(engineCfg: EngineConfig): void {
         AI_RANDOM_AGGRESSION: GAME_CONFIG.AI_RANDOM_AGGRESSION,
     };
 
-    // Convert schema to plain Star[] and Connection[] for AI
-    const stars = Array.from(state.stars.values()).map(s => ({
-        id: s.id,
-        x: s.x,
-        y: s.y,
-        radius: s.radius,
-        ownerId: s.ownerId,
-        activeShips: s.activeShips,
-        damagedShips: s.damagedShips,
-        starType: s.starType as StarType,
-        productionRate: s.productionRate,
-        repairRate: s.repairRate,
-        transferRate: s.transferRate,
-        activationRate: s.activationRate,
-        defensivePosture: s.defensivePosture,
-        defenseStrength: s.defenseStrength,
-        lastCombatTick: s.lastCombatTick,
-        lastAttackTick: s.lastAttackTick ?? -1,
-        targetId: s.targetId || null,
-        queuedOrderTargetId: s.queuedOrderTargetId || null,
-        productionOverflow: s.productionOverflow,
-        repairOverflow: s.repairOverflow,
-    }));
-
-    const connections = Array.from(state.connections).map(c => ({
-        sourceId: c.sourceId,
-        targetId: c.targetId,
-        distance: c.distance,
-    }));
+    // AI only reads star and connection state, so avoid per-tick deep cloning.
+    const stars = Array.from(state.stars.values()) as unknown as Star[];
+    const connections = Array.from(state.connections) as unknown as Connection[];
 
     // Run each AI
     aiPlayers.forEach((ai) => {
@@ -624,18 +726,182 @@ function laneDClearancePx(): number {
     return Math.max(0, GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75);
 }
 
+function laneConnectionKey(sourceId: string, targetId: string): string {
+    return sourceId <= targetId
+        ? `${sourceId}|${targetId}`
+        : `${targetId}|${sourceId}`;
+}
+
+function terminateLanePolylineWorker(): void {
+    if (!lanePolylineWorker) return;
+    lanePolylineWorker.terminate();
+    lanePolylineWorker = null;
+}
+
+function applyLanePolylineResultsToState(
+    connections: ReadonlyArray<MapConnection>,
+): void {
+    if (!state) return;
+
+    const connectionsByKey = new Map(
+        connections.map((connection) => [
+            laneConnectionKey(connection.sourceId, connection.targetId),
+            connection,
+        ] as const),
+    );
+
+    for (const connection of state.connections) {
+        const resolved = connectionsByKey.get(
+            laneConnectionKey(connection.sourceId, connection.targetId),
+        );
+        if (!resolved) continue;
+
+        connection.distance = resolved.distance;
+        connection.lanePathKind = resolved.lanePathKind ?? '';
+        connection.laneConstraintStatus = resolved.laneConstraintStatus ?? '';
+
+        while (connection.laneWaypoints.length > 0) {
+            connection.laneWaypoints.pop();
+        }
+
+        for (const [x, y] of resolved.laneWaypoints ?? []) {
+            const point = new PointSchema();
+            point.x = x;
+            point.y = y;
+            connection.laneWaypoints.push(point);
+        }
+    }
+}
+
+function commitLanePolylineResults(
+    connections: ReadonlyArray<MapConnection>,
+): void {
+    seedLanePolylineCacheFromMapGen(connections);
+    applyLanePolylineResultsToState(connections);
+    if (state) {
+        snapshot = toGameState(state);
+    }
+}
+
+function rebuildLanePolylinesRuntime(params: {
+    reason: string;
+    nodes: Array<{ id: string; x: number; y: number }>;
+    connections: Array<{ sourceId: string; targetId: string }>;
+    mode: MapLaneMode;
+    clearancePx: number;
+}): void {
+    const syncRebuild = (perfName: string): void => {
+        const rebuilt = measurePerf(perfName, () =>
+            rebuildLanePolylineCache(
+                params.nodes,
+                params.connections,
+                params.mode,
+                params.clearancePx,
+            ),
+        );
+        applyLanePolylineResultsToState(rebuilt);
+        if (state) {
+            snapshot = toGameState(state);
+        }
+    };
+
+    if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+        syncRebuild(`${params.reason}.sync`);
+        return;
+    }
+
+    terminateLanePolylineWorker();
+
+    const requestId = ++lanePolylineWorkerRequestSeq;
+    const sessionAtDispatch = sessionId;
+    const worker = new Worker(
+        new URL('../lanes/lanePolylineRebuild.worker.ts', import.meta.url),
+        { type: 'module' },
+    );
+    lanePolylineWorker = worker;
+
+    const finalizeWorker = () => {
+        if (lanePolylineWorker === worker) {
+            lanePolylineWorker = null;
+        }
+        worker.terminate();
+    };
+
+    worker.addEventListener('message', (event: MessageEvent<LanePolylineRebuildWorkerResponse>) => {
+        finalizeWorker();
+        const result = event.data;
+        if (result.requestId !== requestId || sessionAtDispatch !== sessionId) {
+            return;
+        }
+
+        commitLanePolylineResults(result.connections);
+        recordPerfEvent('game.lanePolylineWorker.complete', {
+            requestId,
+            sessionId: sessionAtDispatch,
+            reason: params.reason,
+            elapsedMs: result.elapsedMs,
+            nodes: params.nodes.length,
+            connections: params.connections.length,
+            mode: params.mode,
+            clearancePx: params.clearancePx,
+        });
+        logPipelineStage({
+            channel: 'worker',
+            context: 'GameStore',
+            stage: 'lane_polyline_worker_complete',
+            from: 'Lane polyline worker',
+            to: 'Runtime lane cache + snapshot',
+            purpose:
+                'Hydrate authored lane paths without blocking the game start or config-change critical path',
+            summary:
+                `reason=${params.reason} elapsedMs=${result.elapsedMs.toFixed(1)} ` +
+                `nodes=${params.nodes.length} connections=${params.connections.length} ` +
+                `mode=${params.mode}`,
+        });
+    });
+
+    worker.addEventListener('error', (event) => {
+        finalizeWorker();
+        recordPerfEvent('game.lanePolylineWorker.error', {
+            requestId,
+            sessionId: sessionAtDispatch,
+            reason: params.reason,
+            message: event.message,
+        });
+        syncRebuild(`${params.reason}.fallback`);
+    });
+
+    const request: LanePolylineRebuildWorkerRequest = {
+        requestId,
+        nodes: params.nodes,
+        connections: params.connections,
+        mode: params.mode,
+        clearancePx: params.clearancePx,
+    };
+
+    recordPerfEvent('game.lanePolylineWorker.start', {
+        requestId,
+        sessionId: sessionAtDispatch,
+        reason: params.reason,
+        nodes: params.nodes.length,
+        connections: params.connections.length,
+        mode: params.mode,
+        clearancePx: params.clearancePx,
+    });
+    worker.postMessage(request);
+}
+
 function refreshLanePolylinesFromConfig(): void {
     measurePerf('game.refreshLanePolylinesFromConfig', () => {
         if (!state || state.stars.size < 2) return;
         const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
         const uni = canonicalUniConnections(state.connections);
-        measurePerf('game.refreshLanePolylinesFromConfig.rebuildLanePolylineCache', () => {
-            rebuildLanePolylineCache(
-                nodes,
-                uni,
-                (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-                laneDClearancePx(),
-            );
+        rebuildLanePolylinesRuntime({
+            reason: 'game.refreshLanePolylinesFromConfig.rebuildLanePolylineCache',
+            nodes,
+            connections: uni,
+            mode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+            clearancePx: laneDClearancePx(),
         });
         logPipelineStage({
             context: 'GameStore',
@@ -682,13 +948,12 @@ function rebuildConnectionsFromLaneClearance(): void {
     for (const c of uni) {
         addDebugConnection(c.sourceId, c.targetId);
     }
-    measurePerf('game.rebuildConnectionsFromLaneClearance.rebuildLanePolylineCache', () => {
-        rebuildLanePolylineCache(
-            nodes,
-            uni,
-            (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-            laneDClearancePx(),
-        );
+    rebuildLanePolylinesRuntime({
+        reason: 'game.rebuildConnectionsFromLaneClearance.rebuildLanePolylineCache',
+        nodes,
+        connections: uni,
+        mode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+        clearancePx: laneDClearancePx(),
     });
     logPipelineStage({
         context: 'GameStore',
@@ -754,13 +1019,12 @@ function initDebugMap(playerIds: string[], variant: string): void {
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
     const uniDbg = canonicalUniConnections(state!.connections);
-   measurePerf('game.initDebugMap.rebuildLanePolylineCache', () => {
-       rebuildLanePolylineCache(
-           nodesDbg,
-           uniDbg,
-           (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-           laneDClearancePx(),
-       );
+   rebuildLanePolylinesRuntime({
+       reason: 'game.initDebugMap.rebuildLanePolylineCache',
+       nodes: nodesDbg,
+       connections: uniDbg,
+       mode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+       clearancePx: laneDClearancePx(),
    });
     });
 }
@@ -1488,16 +1752,32 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     for (const conn of map.connections) {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
-    const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const uniSaved = canonicalUniConnections(state!.connections);
-    measurePerf('game.initSavedMap.rebuildLanePolylineCache', () => {
-        rebuildLanePolylineCache(
-            nodesSaved,
-            uniSaved,
-            (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
-            laneDClearancePx(),
-        );
-    });
+    const savedConnectionsWithWaypoints = map.connections.filter(
+        (conn) => Array.isArray(conn.laneWaypoints) && conn.laneWaypoints.length >= 2,
+    );
+    if (savedConnectionsWithWaypoints.length === map.connections.length) {
+        measurePerf('game.initSavedMap.seedLanePolylineCache', () => {
+            seedLanePolylineCacheFromMapGen(
+                savedConnectionsWithWaypoints.map((conn) => ({
+                    sourceId: conn.sourceId,
+                    targetId: conn.targetId,
+                    laneWaypoints: (conn.laneWaypoints ?? []).map(
+                        ([x, y]) => [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number],
+                    ),
+                })),
+            );
+        });
+    } else {
+        const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
+        const uniSaved = canonicalUniConnections(state!.connections);
+        rebuildLanePolylinesRuntime({
+            reason: 'game.initSavedMap.rebuildLanePolylineCache',
+            nodes: nodesSaved,
+            connections: uniSaved,
+            mode: (GAME_CONFIG.MAPGEN_LANE_MODE ?? 'curved') as MapLaneMode,
+            clearancePx: laneDClearancePx(),
+        });
+    }
     logPipelineStage({
         context: 'GameStore',
         stage: 'saved_map_init',
@@ -1655,6 +1935,7 @@ function initializeState(): void {
 
 function destroyGame(): void {
     stopTick();
+    terminateLanePolylineWorker();
     state = null;
     aiPlayers.clear();
     history = [];
@@ -2036,6 +2317,27 @@ function getTick(): number {
     return snapshot?.tick ?? 0;
 }
 
+function getTickDiagnostics() {
+    return {
+        tickIntervalMs,
+        lastTickStartedAtMs,
+        lastTickFinishedAtMs,
+        lastTickTotalMs,
+        lastTickConfigMs,
+        lastTickAiMs,
+        lastTickEngineMs,
+        lastTickEventPushMs,
+        lastTickHistoryMs,
+        lastTickSnapshotMs,
+        lastTickAudioMs,
+        lastTickStatsMs,
+        lastTickOverBudgetMs,
+        lastTickStarCount,
+        lastTickConnectionCount,
+        lastTickEventCounts,
+    };
+}
+
 function getHistory() {
     return history;
 }
@@ -2102,6 +2404,7 @@ export const gameStore = {
     getStats,
     getHistory,
     getTick,
+    getTickDiagnostics,
     updateConfig,
     beginGame,
     toggleRetainOrderOnConquest,

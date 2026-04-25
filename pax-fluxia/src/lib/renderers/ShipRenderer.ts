@@ -38,7 +38,7 @@ import type { PhaseContext } from '$lib/fx/phases/travelTypes';
 import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
 import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
-import type { ColorUtils } from './RenderContext';
+import type { ColorUtils, PlayerHSL } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
@@ -99,29 +99,129 @@ export interface ShipRenderResources {
     glowSprites: Map<string, PIXI.Sprite>;
 }
 
-interface IncomingTravelSummary {
-    incomingCount: number;
-    sourceXSum: number;
-    sourceYSum: number;
+interface ShipFrameStyle {
+    readonly globalScale: number;
+    readonly visualRadius: number;
+    readonly glowRadius: number;
+    readonly glowIntensity: number;
+    readonly outlineOn: boolean;
+    readonly outlinePx: number;
 }
 
-function buildIncomingTravelSummary(
-    travelingShips: VisualShipState[],
-): Map<string, IncomingTravelSummary> {
-    const summaryByDestination = new Map<string, IncomingTravelSummary>();
+interface IncomingTravelStats {
+    count: number;
+    sumLaneStartX: number;
+    sumLaneStartY: number;
+}
+
+interface ShipFrameContext {
+    readonly style: ShipFrameStyle;
+    readonly incomingByStarId: ReadonlyMap<string, IncomingTravelStats>;
+    readonly ownerColorById: Map<string, number>;
+    readonly ownerHslById: Map<string, PlayerHSL>;
+}
+
+interface CachedAttackHeading {
+    readonly ndx: number;
+    readonly ndy: number;
+}
+
+const attackHeadingCache = new WeakMap<
+    ReadonlyArray<readonly [number, number]>,
+    Map<string, CachedAttackHeading>
+>();
+
+function resolveShipFrameStyle(): ShipFrameStyle {
+    return {
+        globalScale: GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0,
+        visualRadius: GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3,
+        glowRadius: GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0,
+        glowIntensity: GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0,
+        outlineOn: GAME_CONFIG.SHIP_OUTLINE_ON !== false,
+        outlinePx: GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0,
+    };
+}
+
+function buildIncomingTravelStats(travelingShips: readonly VisualShipState[]): Map<string, IncomingTravelStats> {
+    const incomingByStarId = new Map<string, IncomingTravelStats>();
     for (const ship of travelingShips) {
-        if (!ship.toStarId) continue;
-        const summary = summaryByDestination.get(ship.toStarId) ?? {
-            incomingCount: 0,
-            sourceXSum: 0,
-            sourceYSum: 0,
-        };
-        summary.incomingCount += 1;
-        summary.sourceXSum += ship.laneStartX;
-        summary.sourceYSum += ship.laneStartY;
-        summaryByDestination.set(ship.toStarId, summary);
+        const toStarId = ship.toStarId;
+        if (!toStarId) continue;
+        let stats = incomingByStarId.get(toStarId);
+        if (!stats) {
+            stats = { count: 0, sumLaneStartX: 0, sumLaneStartY: 0 };
+            incomingByStarId.set(toStarId, stats);
+        }
+        stats.count += 1;
+        stats.sumLaneStartX += ship.laneStartX;
+        stats.sumLaneStartY += ship.laneStartY;
     }
-    return summaryByDestination;
+    return incomingByStarId;
+}
+
+function createShipFrameContext(state: ShipRenderState): ShipFrameContext {
+    return {
+        style: resolveShipFrameStyle(),
+        incomingByStarId: buildIncomingTravelStats(state.travelingShips),
+        ownerColorById: new Map<string, number>(),
+        ownerHslById: new Map<string, PlayerHSL>(),
+    };
+}
+
+function getCachedOwnerColor(
+    frame: ShipFrameContext,
+    colorUtils: ColorUtils,
+    ownerId: string | null | undefined,
+): number {
+    const key = ownerId ?? '';
+    const cached = frame.ownerColorById.get(key);
+    if (cached !== undefined) return cached;
+    const color = colorUtils.getPlayerColor(key);
+    frame.ownerColorById.set(key, color);
+    return color;
+}
+
+function getCachedOwnerHsl(
+    frame: ShipFrameContext,
+    colorUtils: ColorUtils,
+    ownerId: string,
+): PlayerHSL {
+    const cached = frame.ownerHslById.get(ownerId);
+    if (cached) return cached;
+    const hsl = colorUtils.getPlayerHSL(ownerId);
+    frame.ownerHslById.set(ownerId, hsl);
+    return hsl;
+}
+
+function getCachedAttackHeading(
+    source: StarState,
+    target: StarState,
+): CachedAttackHeading {
+    const rawLane = getDirectedLanePolyline(source.id, target.id);
+    if (!rawLane || rawLane.length < 2) {
+        return computeLaneHeadingForNearside(source, target, undefined);
+    }
+
+    let headingsByShape = attackHeadingCache.get(rawLane);
+    if (!headingsByShape) {
+        headingsByShape = new Map<string, CachedAttackHeading>();
+        attackHeadingCache.set(rawLane, headingsByShape);
+    }
+
+    const shapeKey =
+        `${source.x}:${source.y}:${source.radius}|` +
+        `${target.x}:${target.y}:${target.radius}|5`;
+    const cached = headingsByShape.get(shapeKey);
+    if (cached) return cached;
+
+    const trimmed = trimLanePolylineToStarRims(rawLane, source, target, 5);
+    const heading = computeLaneHeadingForNearside(
+        source,
+        target,
+        trimmed.length >= 2 ? trimmed : undefined,
+    );
+    headingsByShape.set(shapeKey, heading);
+    return heading;
 }
 
 // ── drawShip — Low-level particle placement ─────────────────────────────────
@@ -133,6 +233,7 @@ function buildIncomingTravelSummary(
 export function drawShip(
     res: ShipRenderResources,
     colorUtils: ColorUtils,
+    frame: ShipFrameContext | undefined,
     x: number,
     y: number,
     color: number,
@@ -147,22 +248,23 @@ export function drawShip(
     const { shipParticleContainer, shipCircleTexture, shipParticlePool } = res;
     if (!shipParticleContainer || !shipCircleTexture) return;
 
-    const globalScale = GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0;
-    const visualRadius = GAME_CONFIG.SHIP_VISUAL_RADIUS ?? 3;
-    const pixelSize = visualRadius * scale * globalScale;
+    const style = frame?.style ?? resolveShipFrameStyle();
+    const pixelSize = style.visualRadius * scale * style.globalScale;
     const spriteScale = (pixelSize * 2) / 128;
 
     // Ring-based density coloring
     let fillColor = color;
     if (ringTier > 0 && ownerId) {
-        const playerHsl = colorUtils.getPlayerHSL(ownerId);
+        const playerHsl = frame
+            ? getCachedOwnerHsl(frame, colorUtils, ownerId)
+            : colorUtils.getPlayerHSL(ownerId);
         const darken = GAME_CONFIG.DENSITY_DARKEN_ALT && shipIndex % 2 === 1;
         fillColor = colorUtils.getDensityFillColor(playerHsl, ringTier, darken);
     }
 
     // === Radial glow sprite (F-75 Option 3) ===
-    const glowRadius = GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0;
-    const glowIntensity = GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0;
+    const glowRadius = style.glowRadius;
+    const glowIntensity = style.glowIntensity;
     if (glowRadius > 0 && glowIntensity > 0) {
         const glowPixels = pixelSize * glowRadius * 0.5;
         const glowScale = (glowPixels * 2) / 128;
@@ -189,8 +291,8 @@ export function drawShip(
     }
 
     // === Outline: backing circle (F-75 Option 2: brightened outline) ===
-    if (GAME_CONFIG.SHIP_OUTLINE_ON !== false) {
-        const outlinePx = GAME_CONFIG.SHIP_OUTLINE_PX ?? 1.0;
+    if (style.outlineOn) {
+        const outlinePx = style.outlinePx;
         const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
         // F-75: Lighten outline color by SHIP_GLOW_INTENSITY
         const outlineColor = glowIntensity > 0
@@ -275,6 +377,7 @@ export function renderTravelingShips(
     state: ShipRenderState,
     res: ShipRenderResources,
     colorUtils: ColorUtils,
+    frame: ShipFrameContext,
 ): void {
     if (!res.shipParticleContainer) return;
 
@@ -320,12 +423,12 @@ export function renderTravelingShips(
 
         if (elapsed < 0) {
             stillTraveling.push(ship);
-            const color = colorUtils.getPlayerColor(ship.ownerId);
-            drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
+            const color = getCachedOwnerColor(frame, colorUtils, ship.ownerId);
+            drawShip(res, colorUtils, frame, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
             continue;
         }
 
-        const color = colorUtils.getPlayerColor(ship.ownerId);
+        const color = getCachedOwnerColor(frame, colorUtils, ship.ownerId);
 
         if (ship.state === 'departing') {
             const departMode = GAME_CONFIG.ORB_TRAVEL ? 'orb' : (GAME_CONFIG.TRAVEL_MODE || 'lane');
@@ -373,7 +476,7 @@ export function renderTravelingShips(
                 const cfs = (ship as any).conquestForceScale ?? 1;
                 const drawAlpha = Math.min(1, ship.alpha * cfs);
                 const drawScale = ship.scale * (1 + (cfs - 1) * 0.3); // subtle size boost
-                drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 stillTraveling.push(ship);
             }
         } else if (ship.state === 'traveling') {
@@ -487,7 +590,7 @@ export function renderTravelingShips(
                     const cfs = (ship as any).conquestForceScale ?? 1;
                     const drawAlpha = Math.min(1, ship.alpha * cfs);
                     const drawScale = ship.scale * (1 + (cfs - 1) * 0.3);
-                    drawShip(res, colorUtils, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                    drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
                 }
                 stillTraveling.push(ship);
             }
@@ -542,25 +645,9 @@ export function renderShips(
     colorUtils: ColorUtils,
 ): void {
     if (!res.shipParticleContainer) return;
+    const frame = createShipFrameContext(state);
 
-    const incomingTravelByDestination = buildIncomingTravelSummary(
-        state.travelingShips,
-    );
-    const orbitTimeSeconds = GAME_CONFIG.STATIC_ORBITS
-        ? 0
-        : state.gameNowMs / 1000;
-    const effectiveTickMs =
-        state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS;
-    const orbitBiasOscillation = GAME_CONFIG.ORBIT_BIAS_OSCILLATE
-        ? Math.sin(
-              (orbitTimeSeconds / effectiveTickMs) *
-                  (GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0) *
-                  Math.PI *
-                  2,
-          )
-        : 0;
-
-    for (const star of stars) {
+    stars.forEach((star) => {
         // Delayed star color
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
@@ -572,12 +659,12 @@ export function renderShips(
                 state.pendingConquests.delete(star.id);
             }
         }
-        const color = colorUtils.getPlayerColor(effectiveOwner);
+        const color = getCachedOwnerColor(frame, colorUtils, effectiveOwner);
 
         // 1. Manage Active Ships State
         let ships = state.visualShips.get(star.id) || [];
-        const incomingTravel = incomingTravelByDestination.get(star.id);
-        const inFlightToStar = incomingTravel?.incomingCount ?? 0;
+        const incomingTravelStats = frame.incomingByStarId.get(star.id);
+        const inFlightToStar = incomingTravelStats?.count ?? 0;
         const actualCount = Math.max(0, star.activeShips - inFlightToStar);
         const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
         const targetCount = Math.min(actualCount, maxVisual);
@@ -652,40 +739,17 @@ export function renderShips(
         // 2. Physics & Render Loop for Active Ships
         if (ships.length > 0) {
             const hasTarget = star.targetId !== null;
-            const targetStar =
-                hasTarget && star.targetId
-                    ? starsById.get(star.targetId) ?? null
-                    : null;
+            const targetStar = hasTarget && star.targetId ? (starsById.get(star.targetId) ?? null) : null;
             const isAttack = hasTarget && targetStar && targetStar.ownerId !== star.ownerId;
-            const biasAngle = targetStar
-                ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
-                : undefined;
-            const biasStrength = !targetStar
-                ? 0
-                : GAME_CONFIG.ORBIT_BIAS_OSCILLATE
-                  ? (GAME_CONFIG.ORBIT_BIAS_MIN ?? 0) +
-                    ((GAME_CONFIG.ORBIT_BIAS_MAX ?? 1) -
-                        (GAME_CONFIG.ORBIT_BIAS_MIN ?? 0)) *
-                        (orbitBiasOscillation * 0.5 + 0.5)
-                  : (GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6);
 
             let dirX = 0, dirY = 0;
             if (targetStar) {
-                const rawLane = getDirectedLanePolyline(star.id, targetStar.id);
-                const trimmedLane = rawLane && rawLane.length >= 2
-                    ? trimLanePolylineToStarRims(rawLane, star, targetStar, 5)
-                    : undefined;
-                const heading = computeLaneHeadingForNearside(
-                    star,
-                    targetStar,
-                    trimmedLane && trimmedLane.length >= 2 ? trimmedLane : undefined,
-                );
+                const heading = getCachedAttackHeading(star, targetStar);
                 dirX = heading.ndx;
                 dirY = heading.ndy;
             }
 
-            for (let i = 0; i < ships.length; i += 1) {
-                const ship = ships[i];
+            ships.forEach((ship, i) => {
                 if (ship.targetIndex !== i) {
                     ship.settleStartTime = state.gameNowMs;
                     ship.settleStartAngle = Math.atan2(ship.y - star.y, ship.x - star.x);
@@ -696,9 +760,31 @@ export function renderShips(
                 const shipPhase = (ship.id % 17) / 17;
 
                 // Orbit slot
+                const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                    : (state.gameNowMs / 1000);
+                const biasAngle = targetStar
+                    ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
+                    : undefined;
+
+                let biasStrength: number;
+                if (!targetStar) {
+                    biasStrength = 0;
+                } else if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
+                    const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
+                    const effectiveTick = state.effectiveTickMs;
+                    const orbitFxTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                        : (state.gameNowMs / 1000);
+                    const phase = Math.sin((orbitFxTime / effectiveTick) * freq * Math.PI * 2);
+                    const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
+                    const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
+                    biasStrength = min + (max - min) * (phase * 0.5 + 0.5);
+                } else {
+                    biasStrength = GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6;
+                }
+
                 const slot = getOrbitSlot(
                     ship.targetIndex, star.x, star.y, star.radius,
-                    orbitTimeSeconds, biasAngle, biasStrength,
+                    orbitTime, biasAngle, biasStrength,
                 );
                 let targetX = slot.x;
                 let targetY = slot.y;
@@ -820,8 +906,8 @@ export function renderShips(
                 const ringTier = Math.max(0, baseTier - slot.layer);
 
                 // Apply surge offset at render time only — ship.x/ship.y remain at clean orbit position
-                drawShip(res, colorUtils, ship.x + surgeOffsetX, ship.y + surgeOffsetY, color, ship.scale, ship.alpha, false, shipMultiplier, effectiveOwner, ringTier, i);
-            }
+                drawShip(res, colorUtils, frame, ship.x + surgeOffsetX, ship.y + surgeOffsetY, color, ship.scale, ship.alpha, false, shipMultiplier, effectiveOwner, ringTier, i);
+            });
         }
 
         // 3. Damaged Ships
@@ -872,23 +958,19 @@ export function renderShips(
                     dangerDy += targetStar.y - star.y;
                 }
             }
-            if (incomingTravel) {
-                // Add vectors from incoming ships without rescanning all in-flight ships.
-                dangerDx +=
-                    incomingTravel.sourceXSum -
-                    star.x * incomingTravel.incomingCount;
-                dangerDy +=
-                    incomingTravel.sourceYSum -
-                    star.y * incomingTravel.incomingCount;
+            // Add vectors from incoming ships
+            if (incomingTravelStats) {
+                dangerDx += incomingTravelStats.sumLaneStartX - star.x * incomingTravelStats.count;
+                dangerDy += incomingTravelStats.sumLaneStartY - star.y * incomingTravelStats.count;
             }
         }
 
         const hasDanger = dangerDx !== 0 || dangerDy !== 0;
         const safeAngle = hasDanger ? Math.atan2(-dangerDy, -dangerDx) : 0;
 
-        for (let i = 0; i < damagedShips.length; i += 1) {
-            const ship = damagedShips[i];
-            const damageTime = orbitTimeSeconds;
+        damagedShips.forEach((ship, i) => {
+            const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0
+                : (state.gameNowMs / 1000);
 
             let angle = 0;
             if (GAME_CONFIG.DAMAGED_ORBIT_EVADE && hasDanger) {
@@ -911,12 +993,12 @@ export function renderShips(
             ship.scale = lerp(ship.scale, GAME_CONFIG.DAMAGED_SHIP_SCALE ?? 0.7, 0.1);
             ship.alpha = lerp(ship.alpha, 0.8, 0.1);
 
-            drawShip(res, colorUtils, ship.x, ship.y, color, ship.scale, ship.alpha, true, 1, effectiveOwner);
-        }
-    }
+            drawShip(res, colorUtils, frame, ship.x, ship.y, color, ship.scale, ship.alpha, true, 1, effectiveOwner);
+        });
+    });
 
     // Render in-flight ships
-    renderTravelingShips(stars, starsById, state, res, colorUtils);
+    renderTravelingShips(stars, starsById, state, res, colorUtils, frame);
 
 }
 
@@ -953,7 +1035,7 @@ export function renderFleets(
             const jitterX = Math.sin(animTime * 10 + i) * 5;
             const jitterY = Math.cos(animTime * 10 + i) * 5;
 
-            drawShip(res, colorUtils, lx + jitterX, ly + jitterY, color, 1.0, 1.0, false, 1, fleet.ownerId);
+            drawShip(res, colorUtils, undefined, lx + jitterX, ly + jitterY, color, 1.0, 1.0, false, 1, fleet.ownerId);
         }
     });
 }

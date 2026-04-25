@@ -110,9 +110,33 @@ export class AI {
      */
     evaluate(stars: Star[], connections: Connection[], config: AIConfig = DEFAULT_AI_CONFIG): AIDecision[] {
         const decisions: AIDecision[] = [];
-        const myStars = stars.filter(s => s.ownerId === this.playerId);
+        const myStars: Star[] = [];
+        const starsById = new Map<StarId, Star>();
+        for (const star of stars) {
+            starsById.set(star.id, star);
+            if (star.ownerId === this.playerId) {
+                myStars.push(star);
+            }
+        }
 
         if (myStars.length === 0) return []; // Eliminated
+
+        const neighborIdsByStarId = new Map<StarId, StarId[]>();
+        for (const connection of connections) {
+            const sourceNeighbors = neighborIdsByStarId.get(connection.sourceId);
+            if (sourceNeighbors) {
+                sourceNeighbors.push(connection.targetId);
+            } else {
+                neighborIdsByStarId.set(connection.sourceId, [connection.targetId]);
+            }
+
+            const targetNeighbors = neighborIdsByStarId.get(connection.targetId);
+            if (targetNeighbors) {
+                targetNeighbors.push(connection.sourceId);
+            } else {
+                neighborIdsByStarId.set(connection.targetId, [connection.sourceId]);
+            }
+        }
 
         // Read live config values
         const mustAttackRatio = config.AI_MUST_ATTACK_RATIO + this.aggressionBonus;
@@ -130,7 +154,7 @@ export class AI {
             // ALREADY HAS TARGET: check continue, retreat, or re-target
             // ---------------------------------------------------------
             if (star.targetId) {
-                const target = stars.find(s => s.id === star.targetId);
+                const target = starsById.get(star.targetId);
 
                 // Target gone or now friendly → CLEAR and fall through to find new target
                 if (!target || target.ownerId === this.playerId) {
@@ -170,13 +194,13 @@ export class AI {
             if (star.activeShips < 3) return; // Skip very weak stars
 
             // Find connected enemy/neutral stars
-            const connectedTargets = stars.filter(s =>
-                s.ownerId !== this.playerId &&
-                connections.some(c =>
-                    (c.sourceId === star.id && c.targetId === s.id) ||
-                    (c.sourceId === s.id && c.targetId === star.id)
-                )
-            );
+            const connectedTargets: Star[] = [];
+            const neighborIds = neighborIdsByStarId.get(star.id) ?? [];
+            for (const neighborId of neighborIds) {
+                const neighbor = starsById.get(neighborId);
+                if (!neighbor || neighbor.ownerId === this.playerId) continue;
+                connectedTargets.push(neighbor);
+            }
 
             if (connectedTargets.length === 0) return;
 

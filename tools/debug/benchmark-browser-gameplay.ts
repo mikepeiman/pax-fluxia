@@ -48,15 +48,41 @@ const HOST = "127.0.0.1";
 const WRITE_TRACE_ARTIFACTS = /^(1|true|yes)$/i.test(
     process.env.PAX_WRITE_TRACE ?? "",
 );
+const BENCH_MAP_NAME = process.env.PAX_BENCH_MAP_NAME?.trim() || "";
+const BENCH_TERRITORY_MODE = process.env.PAX_BENCH_TERRITORY_MODE?.trim() || "";
 const SELECTED_SCENARIOS = new Set(
     (process.env.PAX_BENCH_ONLY ?? "")
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean),
 );
+const METABALL_SCENARIO_MODE = BENCH_TERRITORY_MODE || "metaball";
+const PERIMETER_SCENARIO_MODE = BENCH_TERRITORY_MODE || "perimeter_field";
 
 function shouldRunScenario(name: string): boolean {
     return SELECTED_SCENARIOS.size === 0 || SELECTED_SCENARIOS.has(name);
+}
+
+function buildScenarioPrepStatements(
+    mode: string,
+    beginGameplay = false,
+): string {
+    const mapLiteral = BENCH_MAP_NAME ? JSON.stringify(BENCH_MAP_NAME) : "null";
+    const modeLiteral = JSON.stringify(mode);
+    return `
+        window.__PAX_BENCH__.resetPerfCapture();
+        const mapName = ${mapLiteral};
+        if (mapName) {
+            const loaded = await window.__PAX_BENCH__.loadSavedMapByName(mapName);
+            if (!loaded) {
+                throw new Error("Could not find saved map: " + mapName);
+            }
+        } else {
+            await window.__PAX_BENCH__.restartSinglePlayerGame();
+        }
+        const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode(${modeLiteral});
+        ${beginGameplay ? "await window.__PAX_BENCH__.beginGameplay();" : ""}
+    `;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -2956,9 +2982,7 @@ async function main(): Promise<void> {
                 "metaballLoad",
                 `
                     (async () => {
-                        window.__PAX_BENCH__.resetPerfCapture();
-                        await window.__PAX_BENCH__.restartSinglePlayerGame();
-                        const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("metaball");
+                        ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE)}
                         return {
                             modePrep,
                             state: await window.__PAX_BENCH__.getStateSummary(),
@@ -2966,7 +2990,7 @@ async function main(): Promise<void> {
                         };
                     })()
                 `,
-                { expectedMode: "metaball" },
+                { expectedMode: METABALL_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("metaballGameplay")) {
@@ -2975,10 +2999,7 @@ async function main(): Promise<void> {
                 "metaballGameplay",
                 `
                     (async () => {
-                        window.__PAX_BENCH__.resetPerfCapture();
-                        await window.__PAX_BENCH__.restartSinglePlayerGame();
-                        const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("metaball");
-                        await window.__PAX_BENCH__.beginGameplay();
+                        ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
                         await new Promise((resolve) => setTimeout(resolve, 1200));
                         return {
                             modePrep,
@@ -2986,7 +3007,7 @@ async function main(): Promise<void> {
                         };
                     })()
                 `,
-                { expectedMode: "metaball" },
+                { expectedMode: METABALL_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("metaballOrders")) {
@@ -2996,10 +3017,7 @@ async function main(): Promise<void> {
                 async (scenarioClient) => {
                     await scenarioClient.evaluate(`
                         (async () => {
-                            window.__PAX_BENCH__.resetPerfCapture();
-                            await window.__PAX_BENCH__.restartSinglePlayerGame();
-                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("metaball");
-                            await window.__PAX_BENCH__.beginGameplay();
+                            ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
                             await new Promise((resolve) => setTimeout(resolve, 1200));
                             return modePrep;
                         })()
@@ -3017,7 +3035,7 @@ async function main(): Promise<void> {
                     );
                     return { pointerSamples, directSamples, frames };
                 },
-                { expectedMode: "metaball" },
+                { expectedMode: METABALL_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("metaballOrdersStress")) {
@@ -3027,10 +3045,7 @@ async function main(): Promise<void> {
                 async (scenarioClient) => {
                     await scenarioClient.evaluate(`
                         (async () => {
-                            window.__PAX_BENCH__.resetPerfCapture();
-                            await window.__PAX_BENCH__.restartSinglePlayerGame();
-                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("metaball");
-                            await window.__PAX_BENCH__.beginGameplay();
+                            ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
                             await new Promise((resolve) => setTimeout(resolve, 1200));
                             return modePrep;
                         })()
@@ -3049,7 +3064,7 @@ async function main(): Promise<void> {
                     );
                     return { pointerSamples, directSamples, frames };
                 },
-                { expectedMode: "metaball" },
+                { expectedMode: METABALL_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("perimeterLoad")) {
@@ -3058,9 +3073,7 @@ async function main(): Promise<void> {
                 "perimeterLoad",
                 `
                     (async () => {
-                        window.__PAX_BENCH__.resetPerfCapture();
-                        await window.__PAX_BENCH__.restartSinglePlayerGame();
-                        const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("perimeter_field");
+                        ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE)}
                         return {
                             modePrep,
                             state: await window.__PAX_BENCH__.getStateSummary(),
@@ -3068,7 +3081,7 @@ async function main(): Promise<void> {
                         };
                     })()
                 `,
-                { expectedMode: "perimeter_field" },
+                { expectedMode: PERIMETER_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("perimeterGameplay")) {
@@ -3077,10 +3090,7 @@ async function main(): Promise<void> {
                 "perimeterGameplay",
                 `
                     (async () => {
-                        window.__PAX_BENCH__.resetPerfCapture();
-                        await window.__PAX_BENCH__.restartSinglePlayerGame();
-                        const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("perimeter_field");
-                        await window.__PAX_BENCH__.beginGameplay();
+                        ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
                         await new Promise((resolve) => setTimeout(resolve, 1200));
                         return {
                             modePrep,
@@ -3088,7 +3098,7 @@ async function main(): Promise<void> {
                         };
                     })()
                 `,
-                { expectedMode: "perimeter_field" },
+                { expectedMode: PERIMETER_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("perimeterOrders")) {
@@ -3098,10 +3108,7 @@ async function main(): Promise<void> {
                 async (scenarioClient) => {
                     await scenarioClient.evaluate(`
                         (async () => {
-                            window.__PAX_BENCH__.resetPerfCapture();
-                            await window.__PAX_BENCH__.restartSinglePlayerGame();
-                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("perimeter_field");
-                            await window.__PAX_BENCH__.beginGameplay();
+                            ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
                             await new Promise((resolve) => setTimeout(resolve, 1200));
                             return modePrep;
                         })()
@@ -3119,7 +3126,7 @@ async function main(): Promise<void> {
                     );
                     return { pointerSamples, directSamples, frames };
                 },
-                { expectedMode: "perimeter_field" },
+                { expectedMode: PERIMETER_SCENARIO_MODE },
             );
         }
         if (shouldRunScenario("perimeterOrdersStress")) {
@@ -3129,10 +3136,7 @@ async function main(): Promise<void> {
                 async (scenarioClient) => {
                     await scenarioClient.evaluate(`
                         (async () => {
-                            window.__PAX_BENCH__.resetPerfCapture();
-                            await window.__PAX_BENCH__.restartSinglePlayerGame();
-                            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode("perimeter_field");
-                            await window.__PAX_BENCH__.beginGameplay();
+                            ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
                             await new Promise((resolve) => setTimeout(resolve, 1200));
                             return modePrep;
                         })()
@@ -3151,7 +3155,7 @@ async function main(): Promise<void> {
                     );
                     return { pointerSamples, directSamples, frames };
                 },
-                { expectedMode: "perimeter_field" },
+                { expectedMode: PERIMETER_SCENARIO_MODE },
             );
         }
 

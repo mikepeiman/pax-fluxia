@@ -62,6 +62,7 @@ interface BenchmarkBridgeApi {
     setLogFlags: (flags: Partial<typeof logFlags>) => void;
     getLogFlags: () => Record<string, boolean>;
     restartSinglePlayerGame: () => Promise<void>;
+    loadSavedMapByName: (mapName: string) => Promise<boolean>;
     beginGameplay: () => Promise<void>;
     pauseGameplay: () => Promise<void>;
     getStateSummary: () => Promise<Record<string, unknown>>;
@@ -149,16 +150,28 @@ async function getStateSummary(): Promise<Record<string, unknown>> {
     const stars = activeGameStore.stars ?? [];
     const connections = activeGameStore.connections ?? [];
     const players = activeGameStore.players ?? [];
+    const ownerStarCounts: Record<string, number> = {};
+    for (const star of stars) {
+        const ownerId = star.ownerId ?? "__unowned__";
+        ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
+    }
     return {
         phase: activeGameStore.phase,
         currentView: gameStore.currentView,
         hasStarted: gameStore.hasStarted,
         paused: activeGameStore.isPaused,
         localPlayerId: activeGameStore.localPlayerId,
+        tick: activeGameStore.currentTick,
         stars: stars.length,
         connections: connections.length,
         players: players.length,
+        playerIds: players.map((player: { id?: string | null }) => player.id ?? null),
+        ownerStarCounts,
         renderMode: GAME_CONFIG.TERRITORY_RENDER_MODE,
+        tickDiagnostics:
+            typeof gameStore.getTickDiagnostics === "function"
+                ? gameStore.getTickDiagnostics()
+                : null,
     };
 }
 
@@ -312,6 +325,21 @@ export function installBenchmarkBridge(params: {
             const { gameStore } = await loadRuntimeDeps();
             await gameStore.restart();
             await settleAfterShellOpen();
+        },
+        loadSavedMapByName: async (mapName) => {
+            await openGameShell();
+            const { gameStore } = await loadRuntimeDeps();
+            const savedMap = gameStore.savedMaps.find(
+                (entry: { metadata?: { name?: string | null } }) =>
+                    entry.metadata?.name === mapName,
+            );
+            if (!savedMap) {
+                return false;
+            }
+            gameStore.loadSavedMap(savedMap);
+            await gameStore.startGame();
+            await settleAfterShellOpen();
+            return true;
         },
         beginGameplay: async () => {
             await openGameShell();

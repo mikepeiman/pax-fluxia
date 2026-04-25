@@ -28,6 +28,7 @@
   import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
+  import { pushHomeRouteDiagEvent } from "$lib/utils/homeRouteDiagnostics";
 
   if (typeof window !== "undefined") {
     hydrateConfigFromPersistedUiSettings();
@@ -354,6 +355,7 @@
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
   let showExitConfirm = $state(false);
+  let lastShellViewKey = "";
 
   // ── Back button navigation: close overlays instead of exiting ──
   // Push a history entry so Android back button fires popstate
@@ -452,11 +454,36 @@
     }
   });
 
+  $effect(() => {
+    const viewKey = `${gameStore.currentView}:${activeGameStore.phase}`;
+    if (viewKey === lastShellViewKey) return;
+    lastShellViewKey = viewKey;
+    pushHomeRouteDiagEvent("game_container_view_changed", {
+      currentView: gameStore.currentView,
+      phase: activeGameStore.phase,
+    });
+  });
+
+  onMount(() => {
+    pushHomeRouteDiagEvent("game_container_mounted", {
+      currentView: gameStore.currentView,
+      phase: activeGameStore.phase,
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("pax-game-container-mounted"));
+    }
+  });
+
   onDestroy(() => {
+    pushHomeRouteDiagEvent("game_container_unmounted", {
+      currentView: gameStore.currentView,
+      phase: activeGameStore.phase,
+    });
     if (typeof document !== "undefined") {
       document.body.classList.remove("game-active");
     }
     if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("pax-game-container-unmounted"));
       window.removeEventListener(
         "pax-open-transition-debug-panel",
         handleOpenTransitionDebugPanelEvent as EventListener,

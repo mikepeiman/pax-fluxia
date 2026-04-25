@@ -1,0 +1,40 @@
+[SvelteKit server error] {
+  url: 'http://127.0.0.1:4300/favicon.ico',
+  routeId: null,
+  status: 404,
+  message: 'Not Found',
+  error: SvelteKitError: Not found: /favicon.ico
+      at resolve (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:691:13)
+      at C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:441:11
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+      at with_request_store (file:///C:/Users/mikep/Desktop/WebDev/pax-fluxia/node_modules/.bun/@sveltejs+kit@2.50.2+d11cb67e13bee82d/node_modules/@sveltejs/kit/src/exports/internal/event.js:77:20)
+      at fn (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:440:17)
+      at record_span (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\telemetry\record_span.js:9:10)
+      at resolve (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:432:15)
+      at Object.eval [as handle] (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\index.js:111:56)
+      at C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:429:20
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14) {
+    status: 404,
+    text: 'Not Found'
+  }
+}
+[SvelteKit server error] {
+  url: 'http://127.0.0.1:4300/matchmake/joinOrCreate/lobby',
+  routeId: null,
+  status: 404,
+  message: 'Not Found',
+  error: SvelteKitError: Not found: /matchmake/joinOrCreate/lobby
+      at resolve (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:691:13)
+      at C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:441:11
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+      at with_request_store (file:///C:/Users/mikep/Desktop/WebDev/pax-fluxia/node_modules/.bun/@sveltejs+kit@2.50.2+d11cb67e13bee82d/node_modules/@sveltejs/kit/src/exports/internal/event.js:77:20)
+      at fn (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:440:17)
+      at record_span (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\telemetry\record_span.js:9:10)
+      at resolve (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:432:15)
+      at Object.eval [as handle] (C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\index.js:111:56)
+      at C:\Users\mikep\Desktop\WebDev\pax-fluxia\node_modules\.bun\@sveltejs+kit@2.50.2+d11cb67e13bee82d\node_modules\@sveltejs\kit\src\runtime\server\respond.js:429:20
+      at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14) {
+    status: 404,
+    text: 'Not Found'
+  }
+}
