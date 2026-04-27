@@ -39,7 +39,10 @@
 
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { createColorUtils } from "$lib/renderers/colorUtils";
-    import { renderStars as renderStarsModule } from "$lib/renderers/StarRenderer";
+    import {
+        renderStars as renderStarsModule,
+        type StarLabelView,
+    } from "$lib/renderers/StarRenderer";
     import {
         renderConnections as renderConnectionsModule,
     } from "$lib/renderers/LaneRenderer";
@@ -177,7 +180,7 @@
 
     // Graphics cache
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
-    let starLabels: Map<string, PIXI.Container> = new Map();
+    let starLabels: Map<string, StarLabelView> = new Map();
     let starVisualKeys: Map<string, string> = new Map();
     let linkGraphics: PIXI.Graphics | null = null;
     let territoryGraphics: PIXI.Graphics | null = null;
@@ -4285,10 +4288,10 @@
                 starGraphics.delete(id);
             }
         });
-        starLabels.forEach((label, id) => {
+        starLabels.forEach((labelView, id) => {
             if (!currentIds.has(id)) {
-                labelsContainer!.removeChild(label);
-                label.destroy();
+                labelsContainer!.removeChild(labelView.container);
+                labelView.container.destroy();
                 starLabels.delete(id);
             }
         });
@@ -5035,6 +5038,7 @@
                         pendingConquests,
                         conquestFlashes,
                         gameNowMs: fxOrchestrator.gameTime,
+                        stageScale: app?.stage.scale.x ?? 1,
                     },
                     colorUtils,
                 );

@@ -679,6 +679,15 @@ function buildDiagnosticBundleV1(
     };
 }
 
+export function buildDiagnosticBundleForInspection(
+    bundle: TransitionDebugBundle,
+): Record<string, unknown> {
+    return buildDiagnosticBundleV1(
+        bundle,
+        selectDiagnosticIntermediateFrames(bundle.transitionFrames),
+    );
+}
+
 function buildDiagnosticReadme(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],

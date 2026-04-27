@@ -23,6 +23,7 @@ import { isTrackedShip, traceDepartFrame, traceDepartToTravel, traceTravelFrame,
 import * as PIXI from 'pixi.js';
 import type { StarState, FleetState } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { measurePerf } from '$lib/perf/perfProbe';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import {
     getOrbitSlot,
@@ -645,9 +646,12 @@ export function renderShips(
     colorUtils: ColorUtils,
 ): void {
     if (!res.shipParticleContainer) return;
-    const frame = createShipFrameContext(state);
+    const frame = measurePerf('game.renderFrame.ships.context', () =>
+        createShipFrameContext(state),
+    );
 
-    stars.forEach((star) => {
+    measurePerf('game.renderFrame.ships.orbitals', () => {
+        stars.forEach((star) => {
         // Delayed star color
         let effectiveOwner = star.ownerId;
         const pending = state.pendingConquests.get(star.id);
@@ -995,10 +999,13 @@ export function renderShips(
 
             drawShip(res, colorUtils, frame, ship.x, ship.y, color, ship.scale, ship.alpha, true, 1, effectiveOwner);
         });
+        });
     });
 
     // Render in-flight ships
-    renderTravelingShips(stars, starsById, state, res, colorUtils, frame);
+    measurePerf('game.renderFrame.ships.travel', () => {
+        renderTravelingShips(stars, starsById, state, res, colorUtils, frame);
+    });
 
 }
 

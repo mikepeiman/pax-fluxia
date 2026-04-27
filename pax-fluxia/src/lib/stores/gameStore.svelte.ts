@@ -2366,6 +2366,19 @@ function debugSetStarShips(starId: string, count: number): void {
     }
 }
 
+function debugSetStarForce(
+    starId: string,
+    activeShips: number,
+    damagedShips = 0,
+): void {
+    if (!state) return;
+    const star = state.stars.get(starId);
+    if (!star) return;
+    star.activeShips = Math.max(0, Math.floor(activeShips));
+    star.damagedShips = Math.max(0, Math.floor(damagedShips));
+    snapshot = toGameState(state);
+}
+
 // ============================================================================
 // Export Store (identical shape to previous version)
 // ============================================================================
@@ -2410,6 +2423,7 @@ export const gameStore = {
     toggleRetainOrderOnConquest,
     toggleAllowOpposingOrders,
     debugSetStarShips,
+    debugSetStarForce,
 
     // Map save/load (F-70)
     get savedMaps() { return savedMaps; },

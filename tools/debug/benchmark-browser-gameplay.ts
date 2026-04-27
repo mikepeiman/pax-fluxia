@@ -43,7 +43,8 @@ interface TraceCategoryBucket {
 interface SavedMapSummary {
     name: string;
     starCount: number;
-    connectionCount: number;
+    laneCount: number;
+    runtimeConnectionCount: number;
     builtIn: boolean;
 }
 
@@ -118,7 +119,8 @@ function normalizeSavedMapSummary(
     return {
         name: String(value.name ?? "unnamed"),
         starCount: Number(value.starCount ?? 0),
-        connectionCount: Number(value.connectionCount ?? 0),
+        laneCount: Number(value.laneCount ?? 0),
+        runtimeConnectionCount: Number(value.runtimeConnectionCount ?? 0),
         builtIn: Boolean(value.builtIn),
     };
 }
@@ -129,7 +131,8 @@ function resolveBenchmarkMap(
     requestedMapName: string | null;
     resolvedMapName: string | null;
     starCount: number | null;
-    connectionCount: number | null;
+    laneCount: number | null;
+    runtimeConnectionCount: number | null;
     builtIn: boolean | null;
     selectionReason: string;
 } {
@@ -144,7 +147,8 @@ function resolveBenchmarkMap(
             requestedMapName: BENCH_MAP_NAME,
             resolvedMapName: requested.name,
             starCount: requested.starCount,
-            connectionCount: requested.connectionCount,
+            laneCount: requested.laneCount,
+            runtimeConnectionCount: requested.runtimeConnectionCount,
             builtIn: requested.builtIn,
             selectionReason: "requested_saved_map",
         };
@@ -152,16 +156,20 @@ function resolveBenchmarkMap(
 
     const exactLegacyBaseline =
         savedMaps.find(
-            (map) => map.starCount === 172 && map.connectionCount === 428,
+            (map) =>
+                map.starCount === 172 &&
+                map.laneCount === 214 &&
+                map.runtimeConnectionCount === 428,
         ) ?? null;
     if (exactLegacyBaseline) {
         return {
             requestedMapName: null,
             resolvedMapName: exactLegacyBaseline.name,
             starCount: exactLegacyBaseline.starCount,
-            connectionCount: exactLegacyBaseline.connectionCount,
+            laneCount: exactLegacyBaseline.laneCount,
+            runtimeConnectionCount: exactLegacyBaseline.runtimeConnectionCount,
             builtIn: exactLegacyBaseline.builtIn,
-            selectionReason: "auto_exact_172x428",
+            selectionReason: "auto_exact_172x214x428",
         };
     }
 
@@ -171,7 +179,8 @@ function resolveBenchmarkMap(
             requestedMapName: null,
             resolvedMapName: null,
             starCount: null,
-            connectionCount: null,
+            laneCount: null,
+            runtimeConnectionCount: null,
             builtIn: null,
             selectionReason: "restart_single_player_fallback",
         };
@@ -181,7 +190,8 @@ function resolveBenchmarkMap(
         requestedMapName: null,
         resolvedMapName: fallback.name,
         starCount: fallback.starCount,
-        connectionCount: fallback.connectionCount,
+        laneCount: fallback.laneCount,
+        runtimeConnectionCount: fallback.runtimeConnectionCount,
         builtIn: fallback.builtIn,
         selectionReason: "auto_largest_saved_map",
     };
@@ -2893,6 +2903,96 @@ async function executeDirectOrderLoop(
     return { samples };
 }
 
+async function captureTransitionDiagnosticScenario(
+    client: CdpClient,
+    mode: string,
+    _mapName: string | null,
+): Promise<JsonValue> {
+    const modeLiteral = JSON.stringify(mode);
+    const prepScript = `
+        (async () => {
+            window.__PAX_BENCH__.resetPerfCapture();
+            const loadedMap =
+                await window.__PAX_BENCH__.loadSavedMapByName("lane_margin_ruler_2p");
+            if (!loadedMap) {
+                throw new Error("Could not load conquest diagnostic saved map");
+            }
+            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode(${modeLiteral});
+            await window.__PAX_BENCH__.clearTransitionRecorderBundles();
+            await window.__PAX_BENCH__.setTransitionRecorderEnabled(true);
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            return {
+                modePrep,
+                recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                sampleOrder:
+                    await window.__PAX_BENCH__.prepareConquestDiagnosticOrder(),
+            };
+        })()
+    `;
+    const prep = await client.evaluate<Record<string, JsonValue>>(prepScript);
+    const sampleOrder = prep.sampleOrder as Record<string, JsonValue> | null;
+    if (!sampleOrder?.sourceId || !sampleOrder?.targetId) {
+        await client.evaluate(
+            "window.__PAX_BENCH__.setTransitionRecorderEnabled(false)",
+        );
+        return {
+            ok: false,
+            reason: "missing_conquest_order",
+            prep,
+        };
+    }
+
+    const issued = await client.evaluate<boolean>(
+        `window.__PAX_BENCH__.issueOrderDirect(${JSON.stringify(String(sampleOrder.sourceId))}, ${JSON.stringify(String(sampleOrder.targetId))}, true)`,
+    );
+    if (!issued) {
+        await client.evaluate(
+            "window.__PAX_BENCH__.setTransitionRecorderEnabled(false)",
+        );
+        return {
+            ok: false,
+            reason: "issue_order_rejected",
+            prep,
+            sampleOrder,
+        };
+    }
+    const bundleWait = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.waitForTransitionBundle(0, 25000)",
+    );
+    const recorderSummary = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.getTransitionRecorderSummary()",
+    );
+    const diagnosticBundle =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            "window.__PAX_BENCH__.getLatestTransitionDiagnosticBundle()",
+        );
+    await client.evaluate("window.__PAX_BENCH__.setTransitionRecorderEnabled(false)");
+    return {
+        ok: Boolean(bundleWait.matched),
+        issued,
+        sampleOrder,
+        bundleWait,
+        recorderSummary,
+        diagnosticBundle,
+        diagnosticStepSummary: Array.isArray(diagnosticBundle?.steps)
+            ? (diagnosticBundle?.steps as Array<Record<string, JsonValue>>).map(
+                  (step) => ({
+                      stepId: step.stepId ?? null,
+                      stage: step.stage ?? null,
+                      title: step.title ?? null,
+                      checks: Array.isArray(step.checks) ? step.checks.length : 0,
+                      failIfTriggered: Array.isArray(step.failIf)
+                          ? step.failIf.filter(
+                                (entry: Record<string, JsonValue>) =>
+                                    entry.triggered === true,
+                            ).length
+                          : 0,
+                  }),
+              )
+            : [],
+    };
+}
+
 type ScenarioAction = string | ((client: CdpClient) => Promise<JsonValue>);
 
 async function profileScenario(
@@ -3100,6 +3200,9 @@ async function main(): Promise<void> {
             })()
         `);
 
+        const savedMapWait = await client.evaluate<Record<string, JsonValue>>(
+            "window.__PAX_BENCH__.waitForSavedMaps(1, 8000)",
+        );
         const savedMaps = (
             await client.evaluate<Array<Record<string, JsonValue>>>(
                 "window.__PAX_BENCH__.listSavedMaps()",
@@ -3109,6 +3212,7 @@ async function main(): Promise<void> {
         console.log(
             JSON.stringify({
                 stage: "benchmark_target",
+                savedMapWait,
                 benchmarkTarget,
             }),
         );
@@ -3167,6 +3271,24 @@ async function main(): Promise<void> {
                         })()
                     `,
                     { expectedMode: spec.mode },
+                );
+            }
+
+            const conquestDiagnosticScenarioName = `${spec.scenarioKey}ConquestDiagnostic`;
+            if (shouldRunScenario(conquestDiagnosticScenarioName)) {
+                scenarios[conquestDiagnosticScenarioName] = await profileScenario(
+                    client,
+                    conquestDiagnosticScenarioName,
+                    async (scenarioClient) =>
+                        await captureTransitionDiagnosticScenario(
+                            scenarioClient,
+                            spec.mode,
+                            benchmarkTarget.resolvedMapName,
+                        ),
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: 40_000,
+                    },
                 );
             }
 
@@ -3236,6 +3358,7 @@ async function main(): Promise<void> {
             generatedAt: new Date().toISOString(),
             browserPath,
             appUrl,
+            savedMapWait,
             benchmarkTarget,
             savedMaps,
             ports: {

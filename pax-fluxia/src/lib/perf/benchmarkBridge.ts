@@ -4,6 +4,8 @@ import {
     resetPerfCapture,
     snapshotPerfCapture,
 } from "$lib/perf/perfProbe";
+import { buildDiagnosticBundleForInspection } from "$lib/territory/devtools/TransitionBundleSerializer";
+import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
 import { logFlags } from "$lib/utils/logger";
 
 interface FrameStats {
@@ -67,14 +69,20 @@ interface BenchmarkBridgeApi {
         Array<{
             name: string;
             starCount: number;
-            connectionCount: number;
+            laneCount: number;
+            runtimeConnectionCount: number;
             builtIn: boolean;
         }>
     >;
+    waitForSavedMaps: (
+        minCount?: number,
+        timeoutMs?: number,
+    ) => Promise<Record<string, unknown>>;
     beginGameplay: () => Promise<void>;
     pauseGameplay: () => Promise<void>;
     getStateSummary: () => Promise<Record<string, unknown>>;
     resolveSampleOrder: () => Promise<Record<string, unknown> | null>;
+    prepareConquestDiagnosticOrder: () => Promise<Record<string, unknown> | null>;
     issueSampleOrder: () => Promise<Record<string, unknown> | null>;
     cancelSampleOrder: () => Promise<Record<string, unknown> | null>;
     issueOrderDirect: (
@@ -98,6 +106,14 @@ interface BenchmarkBridgeApi {
     ) => Promise<BenchmarkStarClientPoint | null>;
     getOrderStatus: (sourceId: string) => Promise<Record<string, unknown> | null>;
     getTerritorySchedulerSnapshot: () => Promise<Record<string, unknown> | null>;
+    setTransitionRecorderEnabled: (enabled: boolean) => Promise<boolean>;
+    clearTransitionRecorderBundles: () => Promise<void>;
+    getTransitionRecorderSummary: () => Promise<Record<string, unknown>>;
+    getLatestTransitionDiagnosticBundle: () => Promise<Record<string, unknown> | null>;
+    waitForTransitionBundle: (
+        previousCount: number,
+        timeoutMs?: number,
+    ) => Promise<Record<string, unknown>>;
 }
 
 declare global {
@@ -140,6 +156,20 @@ function nextAnimationFrame(): Promise<void> {
 
 function waitMs(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeTransitionRecorder(): Record<string, unknown> {
+    const bundles = transitionSnapshotRecorder.getBundles();
+    const latest = bundles[bundles.length - 1] ?? null;
+    return {
+        enabled: transitionSnapshotRecorder.isEnabled(),
+        bundleCount: bundles.length,
+        latestBundleId: latest?.id ?? null,
+        latestTransitionId: latest?.meta.transitionId ?? null,
+        latestTimestamp: latest?.timestamp ?? null,
+        latestFrameCount: latest?.transitionFrames?.length ?? 0,
+        latestConquestCount: latest?.conquestEvents.length ?? 0,
+    };
 }
 
 async function settleAfterShellOpen(): Promise<void> {
@@ -219,6 +249,48 @@ async function findSampleOrder(): Promise<{
     return null;
 }
 
+async function prepareConquestDiagnosticOrder(): Promise<{
+    sourceId: string;
+    targetId: string;
+    sourceBeforeActiveShips: number;
+    sourceBeforeDamagedShips: number;
+    targetBeforeActiveShips: number;
+    targetBeforeDamagedShips: number;
+    preparedSourceActiveShips: number;
+    preparedTargetActiveShips: number;
+    preparedTargetDamagedShips: number;
+} | null> {
+    const { activeGameStore, gameStore } = await loadRuntimeDeps();
+    const order = await findSampleOrder();
+    if (!order) return null;
+
+    const stars = activeGameStore.stars ?? [];
+    const source = stars.find((star) => star.id === order.sourceId);
+    const target = stars.find((star) => star.id === order.targetId);
+    if (!source || !target) return null;
+
+    const preparedSourceActiveShips = Math.max(
+        240,
+        source.activeShips ?? 0,
+        (target.activeShips ?? 0) * 240,
+    );
+    gameStore.debugSetStarForce(order.sourceId, preparedSourceActiveShips, 0);
+    gameStore.debugSetStarForce(order.targetId, 0, 0);
+    await settleFrames(2);
+
+    return {
+        sourceId: order.sourceId,
+        targetId: order.targetId,
+        sourceBeforeActiveShips: source.activeShips ?? 0,
+        sourceBeforeDamagedShips: source.damagedShips ?? 0,
+        targetBeforeActiveShips: target.activeShips ?? 0,
+        targetBeforeDamagedShips: target.damagedShips ?? 0,
+        preparedSourceActiveShips,
+        preparedTargetActiveShips: 0,
+        preparedTargetDamagedShips: 0,
+    };
+}
+
 async function collectFrameStats(durationMs = 2000): Promise<FrameStats> {
     const samples: number[] = [];
     const startedAt = performance.now();
@@ -282,6 +354,37 @@ export function installBenchmarkBridge(params: {
         await settleAfterShellOpen();
     };
 
+    const waitForSavedMaps = async (
+        minCount = 1,
+        timeoutMs = 8_000,
+    ): Promise<Record<string, unknown>> => {
+        await openGameShell();
+        const startedAt = performance.now();
+        let count = 0;
+        while (performance.now() - startedAt < timeoutMs) {
+            const { gameStore } = await loadRuntimeDeps();
+            count = gameStore.savedMaps.length;
+            if (count >= minCount) {
+                return {
+                    ready: true,
+                    count,
+                    minCount,
+                    elapsedMs: performance.now() - startedAt,
+                };
+            }
+            await waitMs(100);
+        }
+
+        const { gameStore } = await loadRuntimeDeps();
+        count = gameStore.savedMaps.length;
+        return {
+            ready: count >= minCount,
+            count,
+            minCount,
+            elapsedMs: performance.now() - startedAt,
+        };
+    };
+
     window.__PAX_BENCH__ = {
         openGameShell,
         enablePerfCapture,
@@ -336,6 +439,7 @@ export function installBenchmarkBridge(params: {
         },
         loadSavedMapByName: async (mapName) => {
             await openGameShell();
+            await waitForSavedMaps(1, 8_000);
             const { gameStore } = await loadRuntimeDeps();
             const savedMap = gameStore.savedMaps.find(
                 (entry: { metadata?: { name?: string | null } }) =>
@@ -351,6 +455,7 @@ export function installBenchmarkBridge(params: {
         },
         listSavedMaps: async () => {
             await openGameShell();
+            await waitForSavedMaps(1, 8_000);
             const { gameStore } = await loadRuntimeDeps();
             return [...gameStore.savedMaps]
                 .map((map: {
@@ -361,18 +466,23 @@ export function installBenchmarkBridge(params: {
                 }) => ({
                     name: map.metadata?.name ?? 'unnamed',
                     starCount: Array.isArray(map.stars) ? map.stars.length : 0,
-                    connectionCount: Array.isArray(map.connections)
+                    laneCount: Array.isArray(map.connections)
                         ? map.connections.length
+                        : 0,
+                    runtimeConnectionCount: Array.isArray(map.connections)
+                        ? map.connections.length * 2
                         : 0,
                     builtIn: Boolean(map.builtIn),
                 }))
                 .sort(
                     (left, right) =>
                         right.starCount - left.starCount ||
-                        right.connectionCount - left.connectionCount ||
+                        right.laneCount - left.laneCount ||
+                        right.runtimeConnectionCount - left.runtimeConnectionCount ||
                         left.name.localeCompare(right.name),
                 );
         },
+        waitForSavedMaps,
         beginGameplay: async () => {
             await openGameShell();
             const { activeGameStore } = await loadRuntimeDeps();
@@ -387,6 +497,9 @@ export function installBenchmarkBridge(params: {
         getStateSummary,
         resolveSampleOrder: async () => {
             return await findSampleOrder();
+        },
+        prepareConquestDiagnosticOrder: async () => {
+            return await prepareConquestDiagnosticOrder();
         },
         issueSampleOrder: async () => {
             const { activeGameStore } = await loadRuntimeDeps();
@@ -477,6 +590,39 @@ export function installBenchmarkBridge(params: {
             const canvasApi =
                 params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
             return canvasApi?.getBenchmarkTerritorySchedulerSnapshot?.() ?? null;
+        },
+        setTransitionRecorderEnabled: async (enabled) => {
+            transitionSnapshotRecorder.setEnabled(enabled);
+            return transitionSnapshotRecorder.isEnabled();
+        },
+        clearTransitionRecorderBundles: async () => {
+            transitionSnapshotRecorder.clear();
+        },
+        getTransitionRecorderSummary: async () => {
+            return summarizeTransitionRecorder();
+        },
+        getLatestTransitionDiagnosticBundle: async () => {
+            const bundles = transitionSnapshotRecorder.getBundles();
+            const latest = bundles[bundles.length - 1] ?? null;
+            if (!latest) return null;
+            return buildDiagnosticBundleForInspection(latest);
+        },
+        waitForTransitionBundle: async (previousCount, timeoutMs = 12000) => {
+            const deadline = performance.now() + timeoutMs;
+            while (performance.now() < deadline) {
+                const summary = summarizeTransitionRecorder();
+                if (Number(summary.bundleCount ?? 0) > previousCount) {
+                    return {
+                        matched: true,
+                        ...summary,
+                    };
+                }
+                await waitMs(32);
+            }
+            return {
+                matched: false,
+                ...summarizeTransitionRecorder(),
+            };
         },
     };
 

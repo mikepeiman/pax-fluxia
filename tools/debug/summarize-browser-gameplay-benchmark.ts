@@ -257,6 +257,39 @@ function printScenario(name: string, scenario: any): void {
             );
         }
     }
+    const diagnosticAction = scenario?.actionResult;
+    const diagnosticBundle = scenario?.actionResult?.diagnosticBundle;
+    if (diagnosticBundle) {
+        console.log("transition diagnostic:");
+        console.log(
+            `  - schema=${String(diagnosticBundle?.schemaVersion ?? "unknown")} conquest=${String(diagnosticBundle?.conquestId ?? "n/a")} target=${String(diagnosticBundle?.targetStarId ?? "n/a")}`,
+        );
+        const steps = Array.isArray(diagnosticBundle?.steps)
+            ? diagnosticBundle.steps
+            : [];
+        const failingSteps = steps.filter((step: any) =>
+            Array.isArray(step?.failIf)
+                ? step.failIf.some((entry: any) => entry?.triggered === true)
+                : false,
+        );
+        console.log(
+            `  - steps=${steps.length} failing=${failingSteps.map((step: any) => String(step?.stepId ?? "?")).join(", ") || "none"}`,
+        );
+        const finalStep = steps.find((step: any) => String(step?.stepId ?? "") === "R04");
+        if (finalStep?.text) {
+            console.log(
+                `  - finalCompare withinTolerance=${String(finalStep.text?.withinTolerance ?? "n/a")} changedPixels=${Number(finalStep.text?.changedPixels ?? 0)} maxChannelDiff=${round(Number(finalStep.text?.maxChannelDiff ?? 0))}`,
+            );
+        }
+    } else if (
+        diagnosticAction
+        && Object.prototype.hasOwnProperty.call(diagnosticAction, "issued")
+    ) {
+        console.log("transition diagnostic:");
+        console.log(
+            `  - status=missing_bundle issued=${String(diagnosticAction?.issued ?? false)} matched=${String(diagnosticAction?.bundleWait?.matched ?? false)} bundleCount=${Number(diagnosticAction?.recorderSummary?.bundleCount ?? 0)}`,
+        );
+    }
 }
 
 function main(): void {
@@ -266,9 +299,14 @@ function main(): void {
     const report = JSON.parse(readFileSync(INPUT_PATH, "utf8"));
     console.log(`artifact=${INPUT_PATH}`);
     console.log(`generatedAt=${String(report?.generatedAt ?? "unknown")}`);
+    if (report?.savedMapWait) {
+        console.log(
+            `savedMapWait ready=${String(report.savedMapWait?.ready ?? false)} count=${Number(report.savedMapWait?.count ?? 0)} elapsedMs=${round(Number(report.savedMapWait?.elapsedMs ?? 0))}`,
+        );
+    }
     if (report?.benchmarkTarget) {
         console.log(
-            `benchmarkTarget map=${String(report.benchmarkTarget?.resolvedMapName ?? "none")} stars=${Number(report.benchmarkTarget?.starCount ?? 0)} connections=${Number(report.benchmarkTarget?.connectionCount ?? 0)} reason=${String(report.benchmarkTarget?.selectionReason ?? "unknown")}`,
+            `benchmarkTarget map=${String(report.benchmarkTarget?.resolvedMapName ?? "none")} stars=${Number(report.benchmarkTarget?.starCount ?? 0)} lanes=${Number(report.benchmarkTarget?.laneCount ?? 0)} runtimeConnections=${Number(report.benchmarkTarget?.runtimeConnectionCount ?? 0)} reason=${String(report.benchmarkTarget?.selectionReason ?? "unknown")}`,
         );
     }
 
