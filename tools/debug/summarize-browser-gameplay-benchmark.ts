@@ -266,6 +266,11 @@ function main(): void {
     const report = JSON.parse(readFileSync(INPUT_PATH, "utf8"));
     console.log(`artifact=${INPUT_PATH}`);
     console.log(`generatedAt=${String(report?.generatedAt ?? "unknown")}`);
+    if (report?.benchmarkTarget) {
+        console.log(
+            `benchmarkTarget map=${String(report.benchmarkTarget?.resolvedMapName ?? "none")} stars=${Number(report.benchmarkTarget?.starCount ?? 0)} connections=${Number(report.benchmarkTarget?.connectionCount ?? 0)} reason=${String(report.benchmarkTarget?.selectionReason ?? "unknown")}`,
+        );
+    }
 
     const scenarios = report?.scenarios ?? {};
     const analysisByName = new Map<string, any>(

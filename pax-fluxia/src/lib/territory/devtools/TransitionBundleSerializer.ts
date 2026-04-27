@@ -417,6 +417,268 @@ function buildDiagnosticManifest(
     };
 }
 
+function extractAttackerStarIds(bundle: TransitionDebugBundle): string[] {
+    const attackerStarIds = new Set<string>();
+    for (const event of bundle.conquestEvents) {
+        const attackers = Array.isArray(
+            (event as { attackerStarIds?: unknown }).attackerStarIds,
+        )
+            ? ((event as { attackerStarIds?: string[] }).attackerStarIds ?? [])
+            : [];
+        for (const attackerStarId of attackers) attackerStarIds.add(attackerStarId);
+    }
+    return [...attackerStarIds].sort();
+}
+
+function computeBundleBounds(bundle: TransitionDebugBundle): {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+} {
+    const points = Object.values(serializeRelevantStarPositions(bundle));
+    if (points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return {
+        x: roundCoord(minX),
+        y: roundCoord(minY),
+        w: roundCoord(maxX - minX),
+        h: roundCoord(maxY - minY),
+    };
+}
+
+function compareCanvasesWithinTolerance(
+    expected: HTMLCanvasElement | null | undefined,
+    actual: HTMLCanvasElement | null | undefined,
+    tolerance = 4,
+): Record<string, unknown> {
+    if (!expected || !actual) {
+        return { available: false, withinTolerance: false, reason: 'missing_canvas' };
+    }
+    if (expected.width !== actual.width || expected.height !== actual.height) {
+        return {
+            available: true,
+            withinTolerance: false,
+            reason: 'dimension_mismatch',
+            expected: { width: expected.width, height: expected.height },
+            actual: { width: actual.width, height: actual.height },
+        };
+    }
+    const expectedCtx = expected.getContext('2d');
+    const actualCtx = actual.getContext('2d');
+    if (!expectedCtx || !actualCtx) {
+        return { available: false, withinTolerance: false, reason: 'missing_2d_context' };
+    }
+    const expectedData = expectedCtx.getImageData(0, 0, expected.width, expected.height).data;
+    const actualData = actualCtx.getImageData(0, 0, actual.width, actual.height).data;
+    let changedPixels = 0;
+    let maxChannelDiff = 0;
+    let totalChannelDiff = 0;
+    for (let index = 0; index < expectedData.length; index += 4) {
+        const channelDiff = Math.max(
+            Math.abs(expectedData[index] - actualData[index]),
+            Math.abs(expectedData[index + 1] - actualData[index + 1]),
+            Math.abs(expectedData[index + 2] - actualData[index + 2]),
+            Math.abs(expectedData[index + 3] - actualData[index + 3]),
+        );
+        if (channelDiff > 0) changedPixels += 1;
+        maxChannelDiff = Math.max(maxChannelDiff, channelDiff);
+        totalChannelDiff += channelDiff;
+    }
+    const pixelCount = expected.width * expected.height;
+    return {
+        available: true,
+        withinTolerance: maxChannelDiff <= tolerance,
+        tolerance,
+        changedPixels,
+        changedPixelRatio: pixelCount > 0 ? changedPixels / pixelCount : 0,
+        maxChannelDiff,
+        avgChannelDiff: pixelCount > 0 ? totalChannelDiff / pixelCount : 0,
+    };
+}
+
+function buildDiagnosticBundleV1(
+    bundle: TransitionDebugBundle,
+    selectedFrames: readonly DiagnosticPackageFrame[],
+): Record<string, unknown> {
+    const legacyManifest = buildDiagnosticManifest(bundle, selectedFrames);
+    const primaryEvent = bundle.conquestEvents[0];
+    const attackerStarIds = extractAttackerStarIds(bundle);
+    const firstFrameImage =
+        selectedFrames[0] ? `render/${selectedFrames[0].filename}` : 'render/next.png';
+    const lastFrameImage =
+        selectedFrames.length > 0
+            ? `render/${selectedFrames[selectedFrames.length - 1].filename}`
+            : 'render/next.png';
+    const frontierDiffSummary = {
+        drifted: bundle.frontierDiff.drifted.length,
+        static: bundle.frontierDiff.staticPolylines.length,
+        appeared: bundle.frontierDiff.appearedKeyOrSegment.length,
+        removed: bundle.frontierDiff.removedKeyOrSegment.length,
+    };
+    const relevantStarPositions = serializeRelevantStarPositions(bundle);
+    const bundleBounds = computeBundleBounds(bundle);
+    const lastTransitionFrame =
+        bundle.transitionFrames && bundle.transitionFrames.length > 0
+            ? bundle.transitionFrames[bundle.transitionFrames.length - 1]
+            : null;
+    const finalCompare = compareCanvasesWithinTolerance(
+        bundle.nextCanvas,
+        lastTransitionFrame?.canvas ?? bundle.nextCanvas,
+    );
+    const check = (name: string, pass: boolean, detail?: Record<string, unknown>) => ({
+        name,
+        pass,
+        ...(detail ? { detail } : {}),
+    });
+    const failIf = (
+        condition: string,
+        triggered: boolean,
+        detail?: Record<string, unknown>,
+    ) => ({
+        condition,
+        triggered,
+        ...(detail ? { detail } : {}),
+    });
+    const step = (
+        stepId: string,
+        stage: string,
+        title: string,
+        image: string,
+        text: Record<string, unknown>,
+        checks: Record<string, unknown>[],
+        failures: Record<string, unknown>[],
+    ) => ({
+        stepId,
+        stage,
+        title,
+        status: 'ok',
+        inputs: [],
+        outputs: [`${stepId}.${title.replace(/\s+/g, '')}`],
+        visual: { image, legend: [title] },
+        text,
+        checks,
+        failIf: failures,
+    });
+
+    return {
+        schemaVersion: 'pv-transition-diagnostics-v1',
+        captureId: bundle.id,
+        tickId: String(bundle.meta.tick),
+        conquestId: bundle.meta.transitionId,
+        createdAt: bundle.timestamp,
+        targetStarId: primaryEvent?.starId ?? null,
+        preOwnerId: primaryEvent?.previousOwner ?? null,
+        postOwnerId: primaryEvent?.newOwner ?? null,
+        attackerStarIds,
+        bounds: bundleBounds,
+        tunables: {
+            msr: {},
+            laneMargin: {},
+            cx: {},
+            dx: {},
+            transitionVertexSpacing: null,
+            guideSmoothness: null,
+            frontRelaxation: null,
+            pathBias: null,
+            modeSelection: bundle.context.selection,
+            modes: bundle.meta.modes,
+        },
+        steps: [
+            step('O01', 'ownership', 'Tick decision snapshot', 'render/prev.png', {
+                tickId: bundle.meta.tick,
+                conquestId: bundle.meta.transitionId,
+                targetStarId: primaryEvent?.starId ?? null,
+                attackerStarIds,
+                modes: bundle.meta.modes,
+            }, [
+                check('has_conquest_event', bundle.conquestEvents.length > 0),
+                check('pre_and_post_ownership_available', Boolean(bundle.context.previousOwnership) && Boolean(bundle.context.nextOwnership)),
+            ], [failIf('missing_conquest_event', bundle.conquestEvents.length === 0)]),
+            step('O02', 'ownership', 'PRE ownership state', 'render/prev.png', {
+                stars: bundle.context.previousOwnership
+                    ? [...bundle.context.previousOwnership.starOwners.entries()]
+                          .sort(([left], [right]) => left.localeCompare(right))
+                          .map(([starId, ownerId]) => ({ starId, ownerId }))
+                    : [],
+            }, [check('pre_ownership_available', Boolean(bundle.context.previousOwnership))], []),
+            step('O03', 'ownership', 'POST ownership state', 'render/next.png', {
+                stars: [...bundle.context.nextOwnership.starOwners.entries()]
+                    .sort(([left], [right]) => left.localeCompare(right))
+                    .map(([starId, ownerId]) => ({ starId, ownerId })),
+            }, [check('post_ownership_available', true)], []),
+            step('G01', 'geometry', 'Geometry inputs PRE / POST', 'render/prev.png', {
+                preGeometryVersion: bundle.context.previousGeometry?.version ?? null,
+                postGeometryVersion: bundle.context.nextGeometry.version,
+                bounds: bundleBounds,
+            }, [
+                check('previous_geometry_available', Boolean(bundle.context.previousGeometry)),
+                check('next_geometry_available', Boolean(bundle.context.nextGeometry)),
+            ], []),
+            step('G02', 'geometry', 'Geometry primitives', 'render/prev.png', {
+                previousGeometry: legacyManifest.previousGeometry,
+                nextGeometry: legacyManifest.nextGeometry,
+            }, [check('affected_territories_present', bundle.meta.changeSummary.affectedTerritoryCount > 0)], []),
+            step('G03', 'geometry', 'Compiled PRE / POST frontiers', 'render/next.png', {
+                previousTopology: legacyManifest.previousTopology,
+                nextTopology: legacyManifest.nextTopology,
+            }, [check('topology_summary_available', Boolean(legacyManifest.previousTopology) || Boolean(legacyManifest.nextTopology))], []),
+            step('G04', 'geometry', 'Local frontier set selection', firstFrameImage, {
+                affectedOwners: [...buildAffectedOwnerSet(bundle)].sort(),
+                bounds: bundleBounds,
+            }, [check('local_bounds_non_zero', bundleBounds.w > 0 && bundleBounds.h > 0)], []),
+            step('G05', 'geometry', 'Overlay vertices', firstFrameImage, {
+                relevantStarPositions,
+            }, [check('relevant_star_positions_available', Object.keys(relevantStarPositions).length > 0)], []),
+            step('G06', 'geometry', 'Split frontier segments', firstFrameImage, frontierDiffSummary, [check('frontier_diff_available', Object.values(frontierDiffSummary).some((value) => Number(value) > 0))], []),
+            step('G07', 'geometry', 'Segment classification', firstFrameImage, {
+                sharedSegments: frontierDiffSummary.static,
+                preChangedSegments: frontierDiffSummary.removed,
+                postChangedSegments: frontierDiffSummary.appeared,
+                driftedSegments: frontierDiffSummary.drifted,
+            }, [check('classification_counts_non_negative', Object.values(frontierDiffSummary).every((value) => Number(value) >= 0))], []),
+            step('T01', 'transition', 'Change anchor detection', firstFrameImage, {
+                transitionFrameCount: bundle.transitionFrames?.length ?? 0,
+                transitionEnvelope: bundle.context.transition.envelope ?? null,
+            }, [check('transition_capture_available', Boolean(bundle.transitionFrames?.length))], []),
+            step('T02', 'transition', 'Conquest front extraction', firstFrameImage, {
+                conquestEvents: bundle.conquestEvents,
+            }, [check('conquest_front_available', bundle.conquestEvents.length > 0)], []),
+            step('T03', 'transition', 'Transition vertex sampling', firstFrameImage, {
+                selectedFrames,
+            }, [check('selected_intermediate_frames_available', selectedFrames.length > 0)], []),
+            step('T04', 'transition', 'Transition front construction', lastFrameImage, {
+                transitionId: bundle.meta.transitionId,
+                captureDiagnostics: legacyManifest.captureDiagnostics ?? null,
+            }, [check('transition_id_available', Boolean(bundle.meta.transitionId))], []),
+            step('T05', 'transition', 'Path construction', lastFrameImage, {
+                modes: bundle.meta.modes,
+            }, [check('mode_summary_available', true)], []),
+            step('R01', 'render', 'TransientTransitionFrontline evaluation', firstFrameImage, {
+                selectedFrames: selectedFrames.map((frame) => ({ progress: frame.progress, filename: frame.filename })),
+            }, [check('transition_progress_samples_present', selectedFrames.length > 0)], []),
+            step('R02', 'render', 'Adjacent loop rebuild', lastFrameImage, {
+                previousGeometryVersion: bundle.context.previousGeometry?.version ?? null,
+                nextGeometryVersion: bundle.context.nextGeometry.version,
+            }, [check('geometry_versions_present', Boolean(bundle.context.nextGeometry.version))], []),
+            step('R03', 'render', 'Current frame render', lastFrameImage, {
+                frameCount: bundle.transitionFrames?.length ?? 0,
+            }, [check('current_frame_image_available', Boolean(lastFrameImage))], []),
+            step('R04', 'render', 'Final POST compare', 'render/next.png', finalCompare, [
+                check('final_frame_within_tolerance', Boolean(finalCompare.withinTolerance), finalCompare),
+            ], [
+                failIf('final_frame_out_of_tolerance', finalCompare.available === true && finalCompare.withinTolerance !== true, finalCompare),
+            ]),
+        ],
+        legacyManifest,
+    };
+}
+
 function buildDiagnosticReadme(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
@@ -435,6 +697,7 @@ function buildDiagnosticReadme(
     return [
         '# Transition Diagnostic Package',
         '',
+        'Schema: pv-transition-diagnostics-v1',
         `Bundle ID: ${bundle.id}`,
         `Timestamp: ${bundle.timestamp}`,
         conquestLine,
@@ -591,7 +854,7 @@ export async function downloadDiagnosticPackage(
     const prefix = filePrefixFromIsoTimestamp(bundle.timestamp);
     const zip = new JSZip();
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
-    const manifest = buildDiagnosticManifest(bundle, selectedFrames);
+    const diagnosticBundle = buildDiagnosticBundleV1(bundle, selectedFrames);
     const perimeterDiagnostics = isPerimeterFieldLiveCaptureDiagnostics(
         bundle.extraDiagnostics,
     )
@@ -626,7 +889,10 @@ export async function downloadDiagnosticPackage(
     };
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
-    zip.file('debug/diagnostic.json', JSON.stringify(manifest, null, 2));
+    zip.file(
+        'debug/diagnostic.json',
+        JSON.stringify(diagnosticBundle, null, 2),
+    );
     zip.file(
         'debug/topology.json',
         JSON.stringify(serializeTopologyPairCompact(bundle), null, 2),

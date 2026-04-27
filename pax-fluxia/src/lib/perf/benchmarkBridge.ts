@@ -63,6 +63,14 @@ interface BenchmarkBridgeApi {
     getLogFlags: () => Record<string, boolean>;
     restartSinglePlayerGame: () => Promise<void>;
     loadSavedMapByName: (mapName: string) => Promise<boolean>;
+    listSavedMaps: () => Promise<
+        Array<{
+            name: string;
+            starCount: number;
+            connectionCount: number;
+            builtIn: boolean;
+        }>
+    >;
     beginGameplay: () => Promise<void>;
     pauseGameplay: () => Promise<void>;
     getStateSummary: () => Promise<Record<string, unknown>>;
@@ -340,6 +348,30 @@ export function installBenchmarkBridge(params: {
             await gameStore.startGame();
             await settleAfterShellOpen();
             return true;
+        },
+        listSavedMaps: async () => {
+            await openGameShell();
+            const { gameStore } = await loadRuntimeDeps();
+            return [...gameStore.savedMaps]
+                .map((map: {
+                    metadata?: { name?: string | null };
+                    stars?: unknown[];
+                    connections?: unknown[];
+                    builtIn?: boolean;
+                }) => ({
+                    name: map.metadata?.name ?? 'unnamed',
+                    starCount: Array.isArray(map.stars) ? map.stars.length : 0,
+                    connectionCount: Array.isArray(map.connections)
+                        ? map.connections.length
+                        : 0,
+                    builtIn: Boolean(map.builtIn),
+                }))
+                .sort(
+                    (left, right) =>
+                        right.starCount - left.starCount ||
+                        right.connectionCount - left.connectionCount ||
+                        left.name.localeCompare(right.name),
+                );
         },
         beginGameplay: async () => {
             await openGameShell();

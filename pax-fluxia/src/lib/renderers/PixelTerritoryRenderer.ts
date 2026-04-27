@@ -17,6 +17,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
+import { measurePerf } from '$lib/perf/perfProbe';
 import PixelWorker from './pixelTerritory.worker?worker';
 
 /** Cached state */
@@ -25,6 +26,11 @@ let cachedSprite: PIXI.Sprite | null = null;
 let cachedTexture: PIXI.Texture | null = null;
 let cachedBlurFilter: PIXI.BlurFilter | null = null;
 let cachedBlurStrength = -1;
+let cachedCanvas: HTMLCanvasElement | null = null;
+let cachedCanvasContext: CanvasRenderingContext2D | null = null;
+let cachedImageData: ImageData | null = null;
+let cachedCanvasWidth = 0;
+let cachedCanvasHeight = 0;
 
 /** Worker state */
 let worker: Worker | null = null;
@@ -103,6 +109,52 @@ function hslToRGB(h: number, s: number, l: number): [number, number, number] {
     ];
 }
 
+function ensurePixelCanvasResources(
+    canvasW: number,
+    canvasH: number,
+): {
+    canvas: HTMLCanvasElement;
+    context: CanvasRenderingContext2D;
+    imageData: ImageData;
+    texture: PIXI.Texture;
+} {
+    if (!cachedCanvas) {
+        cachedCanvas = document.createElement('canvas');
+    }
+    if (
+        cachedCanvasWidth !== canvasW ||
+        cachedCanvasHeight !== canvasH ||
+        !cachedCanvasContext ||
+        !cachedImageData
+    ) {
+        cachedCanvas.width = canvasW;
+        cachedCanvas.height = canvasH;
+        cachedCanvasContext = cachedCanvas.getContext('2d');
+        if (!cachedCanvasContext) {
+            throw new Error('Could not acquire 2D context for pixel territory canvas.');
+        }
+        cachedImageData = cachedCanvasContext.createImageData(canvasW, canvasH);
+        cachedCanvasWidth = canvasW;
+        cachedCanvasHeight = canvasH;
+        if (cachedTexture) {
+            cachedTexture.destroy(true);
+            cachedTexture = null;
+        }
+    }
+
+    if (!cachedTexture) {
+        cachedTexture = PIXI.Texture.from(cachedCanvas);
+        cachedTexture.source.scaleMode = 'linear';
+    }
+
+    return {
+        canvas: cachedCanvas,
+        context: cachedCanvasContext!,
+        imageData: cachedImageData!,
+        texture: cachedTexture,
+    };
+}
+
 // ── Worker result handler ──────────────────────────────────────────────────
 
 function handleWorkerResult(e: MessageEvent): void {
@@ -115,25 +167,19 @@ function handleWorkerResult(e: MessageEvent): void {
     const container = pendingContainer;
     if (!container) return;
 
-    // Create canvas from pixel data
-    const canvas = document.createElement('canvas');
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-    const ctx = canvas.getContext('2d')!;
-    const imageData = new ImageData(pixelData, canvasW, canvasH);
-    ctx.putImageData(imageData, 0, 0);
-
-    // Create PIXI texture
-    if (cachedTexture) cachedTexture.destroy(true);
-    cachedTexture = PIXI.Texture.from(canvas);
-    cachedTexture.source.scaleMode = 'linear';
+    const resources = ensurePixelCanvasResources(canvasW, canvasH);
+    resources.imageData.data.set(pixelData);
+    measurePerf('game.renderFrame.pixel.textureUpload', () => {
+        resources.context.putImageData(resources.imageData, 0, 0);
+        resources.texture.source.update();
+    });
 
     // Create or update sprite
     if (!cachedSprite) {
-        cachedSprite = new PIXI.Sprite(cachedTexture);
+        cachedSprite = new PIXI.Sprite(resources.texture);
         container.addChild(cachedSprite);
     } else {
-        cachedSprite.texture = cachedTexture;
+        cachedSprite.texture = resources.texture;
         if (!cachedSprite.parent) container.addChild(cachedSprite);
     }
 
@@ -388,6 +434,11 @@ export function resetPixelTerritoryCache(): void {
     }
     cachedBlurFilter = null;
     cachedBlurStrength = -1;
+    cachedCanvas = null;
+    cachedCanvasContext = null;
+    cachedImageData = null;
+    cachedCanvasWidth = 0;
+    cachedCanvasHeight = 0;
     if (worker) {
         worker.terminate();
         worker = null;

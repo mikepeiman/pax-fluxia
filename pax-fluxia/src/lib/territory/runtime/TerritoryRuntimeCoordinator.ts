@@ -18,6 +18,12 @@ import { TransitionLayerCoordinator } from '../layers/transition/TransitionLayer
 import { PresentationLayerCoordinator } from '../layers/presentation/PresentationLayerCoordinator';
 import { TerritoryWorker } from './TerritoryWorker';
 
+function shouldEmitGeometrySnapshotDump(): boolean {
+    return Boolean(
+        (globalThis as Record<string, unknown>).__PAX_TERRITORY_GEOMETRY_DUMP__,
+    );
+}
+
 export interface TerritoryRuntimeOutput {
     ownership: OwnershipSnapshot;
     geometry: GeometrySnapshot;
@@ -41,7 +47,7 @@ export class TerritoryRuntimeCoordinator {
 
     /** One-shot: dump prev + current geometry snapshots to downloadable JSON */
     private dumpGeometrySnapshots(prev: GeometrySnapshot | null, current: GeometrySnapshot): void {
-        if (this.geometryDumped) return;
+        if (this.geometryDumped || !shouldEmitGeometrySnapshotDump()) return;
         this.geometryDumped = true;
 
         const serializeSnapshot = (snap: GeometrySnapshot | null) => {
@@ -79,10 +85,11 @@ export class TerritoryRuntimeCoordinator {
         };
 
         const json = JSON.stringify(dump, null, 2);
-        log.renderer('Territory', `GEOMETRY DUMP: ${json.length} bytes captured. Check console for data.`);
-        console.log('[Territory] GEOMETRY SNAPSHOT DUMP:\n', json);
+        log.renderer(
+            'Territory',
+            `GEOMETRY DUMP READY: ${json.length} bytes captured for explicit dev diagnostics`,
+        );
 
-        // Also attempt to download as file in browser
         try {
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -183,8 +190,12 @@ export class TerritoryRuntimeCoordinator {
                 ` | geom: ${geometry.territoryRegions.length} regions, ${geometry.frontierPolylines.length} frontiers` +
                 ` | version: ${geometry.version.slice(0, 50)}`,
             );
-            // Dump geometry on first conquest for data analysis
-            this.dumpGeometrySnapshots(this.state.previousGeometry ?? null, geometry);
+            if (shouldEmitGeometrySnapshotDump()) {
+                this.dumpGeometrySnapshots(
+                    this.state.previousGeometry ?? null,
+                    geometry,
+                );
+            }
 
             // Capture debug snapshot — renders clean geometry to canvas, no transitions
             const starPositions = new Map<string, { x: number; y: number }>();

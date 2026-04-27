@@ -40,6 +40,13 @@ interface TraceCategoryBucket {
     count: number;
 }
 
+interface SavedMapSummary {
+    name: string;
+    starCount: number;
+    connectionCount: number;
+    builtIn: boolean;
+}
+
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
@@ -50,14 +57,33 @@ const WRITE_TRACE_ARTIFACTS = /^(1|true|yes)$/i.test(
 );
 const BENCH_MAP_NAME = process.env.PAX_BENCH_MAP_NAME?.trim() || "";
 const BENCH_TERRITORY_MODE = process.env.PAX_BENCH_TERRITORY_MODE?.trim() || "";
+const INCLUDE_LEGACY_SCENARIOS = /^(1|true|yes)$/i.test(
+    process.env.PAX_BENCH_INCLUDE_LEGACY ?? "",
+);
 const SELECTED_SCENARIOS = new Set(
     (process.env.PAX_BENCH_ONLY ?? "")
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean),
 );
-const METABALL_SCENARIO_MODE = BENCH_TERRITORY_MODE || "metaball";
-const PERIMETER_SCENARIO_MODE = BENCH_TERRITORY_MODE || "perimeter_field";
+const BUN_EXECUTABLE = process.execPath;
+const DEFAULT_TERRITORY_SCENARIO_SPECS = [
+    { scenarioKey: "metaball", mode: "metaball_grid" },
+    { scenarioKey: "distanceField", mode: "distance_field" },
+    { scenarioKey: "vsPvv3", mode: "vs_pvv3" },
+    { scenarioKey: "pixel", mode: "pixel" },
+    ...(INCLUDE_LEGACY_SCENARIOS
+        ? [{ scenarioKey: "perimeter", mode: "perimeter_field" }]
+        : []),
+] as const;
+const TERRITORY_SCENARIO_SPECS = BENCH_TERRITORY_MODE
+    ? [
+          {
+              scenarioKey: sanitizeLabelForPath(BENCH_TERRITORY_MODE),
+              mode: BENCH_TERRITORY_MODE,
+          },
+      ]
+    : DEFAULT_TERRITORY_SCENARIO_SPECS;
 
 function shouldRunScenario(name: string): boolean {
     return SELECTED_SCENARIOS.size === 0 || SELECTED_SCENARIOS.has(name);
@@ -65,9 +91,10 @@ function shouldRunScenario(name: string): boolean {
 
 function buildScenarioPrepStatements(
     mode: string,
+    mapName: string | null,
     beginGameplay = false,
 ): string {
-    const mapLiteral = BENCH_MAP_NAME ? JSON.stringify(BENCH_MAP_NAME) : "null";
+    const mapLiteral = mapName ? JSON.stringify(mapName) : "null";
     const modeLiteral = JSON.stringify(mode);
     return `
         window.__PAX_BENCH__.resetPerfCapture();
@@ -85,6 +112,81 @@ function buildScenarioPrepStatements(
     `;
 }
 
+function normalizeSavedMapSummary(
+    value: Record<string, JsonValue>,
+): SavedMapSummary {
+    return {
+        name: String(value.name ?? "unnamed"),
+        starCount: Number(value.starCount ?? 0),
+        connectionCount: Number(value.connectionCount ?? 0),
+        builtIn: Boolean(value.builtIn),
+    };
+}
+
+function resolveBenchmarkMap(
+    savedMaps: SavedMapSummary[],
+): {
+    requestedMapName: string | null;
+    resolvedMapName: string | null;
+    starCount: number | null;
+    connectionCount: number | null;
+    builtIn: boolean | null;
+    selectionReason: string;
+} {
+    if (BENCH_MAP_NAME) {
+        const requested = savedMaps.find((map) => map.name === BENCH_MAP_NAME);
+        if (!requested) {
+            throw new Error(
+                `Requested benchmark map "${BENCH_MAP_NAME}" was not found in saved maps.`,
+            );
+        }
+        return {
+            requestedMapName: BENCH_MAP_NAME,
+            resolvedMapName: requested.name,
+            starCount: requested.starCount,
+            connectionCount: requested.connectionCount,
+            builtIn: requested.builtIn,
+            selectionReason: "requested_saved_map",
+        };
+    }
+
+    const exactLegacyBaseline =
+        savedMaps.find(
+            (map) => map.starCount === 172 && map.connectionCount === 428,
+        ) ?? null;
+    if (exactLegacyBaseline) {
+        return {
+            requestedMapName: null,
+            resolvedMapName: exactLegacyBaseline.name,
+            starCount: exactLegacyBaseline.starCount,
+            connectionCount: exactLegacyBaseline.connectionCount,
+            builtIn: exactLegacyBaseline.builtIn,
+            selectionReason: "auto_exact_172x428",
+        };
+    }
+
+    const fallback = savedMaps[0] ?? null;
+    if (!fallback) {
+        return {
+            requestedMapName: null,
+            resolvedMapName: null,
+            starCount: null,
+            connectionCount: null,
+            builtIn: null,
+            selectionReason: "restart_single_player_fallback",
+        };
+    }
+
+    return {
+        requestedMapName: null,
+        resolvedMapName: fallback.name,
+        starCount: fallback.starCount,
+        connectionCount: fallback.connectionCount,
+        builtIn: fallback.builtIn,
+        selectionReason: "auto_largest_saved_map",
+    };
+}
+
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -98,6 +200,43 @@ async function cleanupStaleHarnessBrowsers(
         Where-Object {
             $_.CommandLine -like '*${escapedPrefix}*' -and
             ($_.Name -ieq 'chrome.exe' -or $_.Name -ieq 'msedge.exe')
+        } |
+        ForEach-Object {
+            try {
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
+            } catch {}
+        }
+    `;
+    const cleanup = Bun.spawn(
+        ["powershell.exe", "-NoProfile", "-Command", command],
+        {
+            stdout: "ignore",
+            stderr: "ignore",
+        },
+    );
+    await cleanup.exited;
+}
+
+async function killProcessTree(pid: number | undefined | null): Promise<void> {
+    if (!pid) return;
+    const killer = Bun.spawn(
+        ["taskkill.exe", "/PID", String(pid), "/T", "/F"],
+        {
+            stdout: "ignore",
+            stderr: "ignore",
+        },
+    );
+    await killer.exited;
+}
+
+async function cleanupStaleHarnessDevServer(port: number): Promise<void> {
+    const escapedClientDir = CLIENT_DIR.replace(/'/g, "''");
+    const command = `
+        Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.CommandLine -like '*vite*dev*--host ${HOST}*--port ${port}*' -and
+            $_.CommandLine -like '*${escapedClientDir}*' -and
+            ($_.Name -ieq 'node.exe' -or $_.Name -ieq 'bun.exe' -or $_.Name -ieq 'cmd.exe')
         } |
         ForEach-Object {
             try {
@@ -405,9 +544,12 @@ const MEASURE_GROUP_PREFIXES = [
 const FOCUS_MEASURE_PATTERNS = [
     "game.renderFrame.ownership.",
     "game.renderFrame.geometry.",
+    "game.renderFrame.fg2DataPipeline.",
     "game.renderFrame.renderFamilyInput.",
     "game.renderFrame.territory.",
+    "game.renderFrame.territory.present.",
     "game.renderFrame.connections",
+    "game.renderFrame.pixel.",
     "game.renderFrame.orderArrows",
     "game.renderFrame.interactionOverlay",
     "game.renderFrame.stars",
@@ -2886,7 +3028,7 @@ async function main(): Promise<void> {
     const browserPath = resolveBrowserPath();
     const profileDir = mkdtempSync(path.join(tmpdir(), "pax-bench-browser-"));
     const devServer = Bun.spawn(
-        ["cmd.exe", "/c", "bunx", "vite", "dev", "--host", HOST, "--port", String(appPort)],
+        [BUN_EXECUTABLE, "x", "vite", "dev", "--host", HOST, "--port", String(appPort)],
         {
             cwd: CLIENT_DIR,
             stdout: "ignore",
@@ -2958,6 +3100,19 @@ async function main(): Promise<void> {
             })()
         `);
 
+        const savedMaps = (
+            await client.evaluate<Array<Record<string, JsonValue>>>(
+                "window.__PAX_BENCH__.listSavedMaps()",
+            )
+        ).map(normalizeSavedMapSummary);
+        const benchmarkTarget = resolveBenchmarkMap(savedMaps);
+        console.log(
+            JSON.stringify({
+                stage: "benchmark_target",
+                benchmarkTarget,
+            }),
+        );
+
         const scenarios: Record<string, JsonValue> = {};
         if (shouldRunScenario("mainMenuIdle")) {
             scenarios.mainMenuIdle = await profileScenario(
@@ -2976,193 +3131,113 @@ async function main(): Promise<void> {
                 `,
             );
         }
-        if (shouldRunScenario("metaballLoad")) {
-            scenarios.metaballLoad = await profileScenario(
-                client,
-                "metaballLoad",
-                `
-                    (async () => {
-                        ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE)}
-                        return {
-                            modePrep,
-                            state: await window.__PAX_BENCH__.getStateSummary(),
-                            frames: await window.__PAX_BENCH__.collectFrameStats(1600),
-                        };
-                    })()
-                `,
-                { expectedMode: METABALL_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("metaballGameplay")) {
-            scenarios.metaballGameplay = await profileScenario(
-                client,
-                "metaballGameplay",
-                `
-                    (async () => {
-                        ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
-                        await new Promise((resolve) => setTimeout(resolve, 1200));
-                        return {
-                            modePrep,
-                            frames: await window.__PAX_BENCH__.collectFrameStats(2600),
-                        };
-                    })()
-                `,
-                { expectedMode: METABALL_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("metaballOrders")) {
-            scenarios.metaballOrders = await profileScenario(
-                client,
-                "metaballOrders",
-                async (scenarioClient) => {
-                    await scenarioClient.evaluate(`
+        for (const spec of TERRITORY_SCENARIO_SPECS) {
+            const loadScenarioName = `${spec.scenarioKey}Load`;
+            if (shouldRunScenario(loadScenarioName)) {
+                scenarios[loadScenarioName] = await profileScenario(
+                    client,
+                    loadScenarioName,
+                    `
                         (async () => {
-                            ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
-                            await new Promise((resolve) => setTimeout(resolve, 1200));
-                            return modePrep;
+                            ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName)}
+                            return {
+                                modePrep,
+                                state: await window.__PAX_BENCH__.getStateSummary(),
+                                frames: await window.__PAX_BENCH__.collectFrameStats(1600),
+                            };
                         })()
-                    `);
-                    const pointerSamples = await executePointerOrderLoop(
-                        scenarioClient,
-                        3,
-                    );
-                    const directSamples = await executeDirectOrderLoop(
-                        scenarioClient,
-                        4,
-                    );
-                    const frames = await scenarioClient.evaluate<JsonValue>(
-                        "window.__PAX_BENCH__.collectFrameStats(1800)",
-                    );
-                    return { pointerSamples, directSamples, frames };
-                },
-                { expectedMode: METABALL_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("metaballOrdersStress")) {
-            scenarios.metaballOrdersStress = await profileScenario(
-                client,
-                "metaballOrdersStress",
-                async (scenarioClient) => {
-                    await scenarioClient.evaluate(`
+                    `,
+                    { expectedMode: spec.mode },
+                );
+            }
+
+            const gameplayScenarioName = `${spec.scenarioKey}Gameplay`;
+            if (shouldRunScenario(gameplayScenarioName)) {
+                scenarios[gameplayScenarioName] = await profileScenario(
+                    client,
+                    gameplayScenarioName,
+                    `
                         (async () => {
-                            ${buildScenarioPrepStatements(METABALL_SCENARIO_MODE, true)}
+                            ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
                             await new Promise((resolve) => setTimeout(resolve, 1200));
-                            return modePrep;
+                            return {
+                                modePrep,
+                                frames: await window.__PAX_BENCH__.collectFrameStats(2600),
+                            };
                         })()
-                    `);
-                    const pointerSamples = await executePointerOrderLoop(
-                        scenarioClient,
-                        3,
-                        { hoverStress: true },
-                    );
-                    const directSamples = await executeDirectOrderLoop(
-                        scenarioClient,
-                        4,
-                    );
-                    const frames = await scenarioClient.evaluate<JsonValue>(
-                        "window.__PAX_BENCH__.collectFrameStats(1800)",
-                    );
-                    return { pointerSamples, directSamples, frames };
-                },
-                { expectedMode: METABALL_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("perimeterLoad")) {
-            scenarios.perimeterLoad = await profileScenario(
-                client,
-                "perimeterLoad",
-                `
-                    (async () => {
-                        ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE)}
-                        return {
-                            modePrep,
-                            state: await window.__PAX_BENCH__.getStateSummary(),
-                            frames: await window.__PAX_BENCH__.collectFrameStats(1600),
-                        };
-                    })()
-                `,
-                { expectedMode: PERIMETER_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("perimeterGameplay")) {
-            scenarios.perimeterGameplay = await profileScenario(
-                client,
-                "perimeterGameplay",
-                `
-                    (async () => {
-                        ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
-                        await new Promise((resolve) => setTimeout(resolve, 1200));
-                        return {
-                            modePrep,
-                            frames: await window.__PAX_BENCH__.collectFrameStats(2600),
-                        };
-                    })()
-                `,
-                { expectedMode: PERIMETER_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("perimeterOrders")) {
-            scenarios.perimeterOrders = await profileScenario(
-                client,
-                "perimeterOrders",
-                async (scenarioClient) => {
-                    await scenarioClient.evaluate(`
-                        (async () => {
-                            ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
-                            await new Promise((resolve) => setTimeout(resolve, 1200));
-                            return modePrep;
-                        })()
-                    `);
-                    const pointerSamples = await executePointerOrderLoop(
-                        scenarioClient,
-                        3,
-                    );
-                    const directSamples = await executeDirectOrderLoop(
-                        scenarioClient,
-                        4,
-                    );
-                    const frames = await scenarioClient.evaluate<JsonValue>(
-                        "window.__PAX_BENCH__.collectFrameStats(1800)",
-                    );
-                    return { pointerSamples, directSamples, frames };
-                },
-                { expectedMode: PERIMETER_SCENARIO_MODE },
-            );
-        }
-        if (shouldRunScenario("perimeterOrdersStress")) {
-            scenarios.perimeterOrdersStress = await profileScenario(
-                client,
-                "perimeterOrdersStress",
-                async (scenarioClient) => {
-                    await scenarioClient.evaluate(`
-                        (async () => {
-                            ${buildScenarioPrepStatements(PERIMETER_SCENARIO_MODE, true)}
-                            await new Promise((resolve) => setTimeout(resolve, 1200));
-                            return modePrep;
-                        })()
-                    `);
-                    const pointerSamples = await executePointerOrderLoop(
-                        scenarioClient,
-                        3,
-                        { hoverStress: true },
-                    );
-                    const directSamples = await executeDirectOrderLoop(
-                        scenarioClient,
-                        4,
-                    );
-                    const frames = await scenarioClient.evaluate<JsonValue>(
-                        "window.__PAX_BENCH__.collectFrameStats(1800)",
-                    );
-                    return { pointerSamples, directSamples, frames };
-                },
-                { expectedMode: PERIMETER_SCENARIO_MODE },
-            );
+                    `,
+                    { expectedMode: spec.mode },
+                );
+            }
+
+            const ordersScenarioName = `${spec.scenarioKey}Orders`;
+            if (shouldRunScenario(ordersScenarioName)) {
+                scenarios[ordersScenarioName] = await profileScenario(
+                    client,
+                    ordersScenarioName,
+                    async (scenarioClient) => {
+                        await scenarioClient.evaluate(`
+                            (async () => {
+                                ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
+                                await new Promise((resolve) => setTimeout(resolve, 1200));
+                                return modePrep;
+                            })()
+                        `);
+                        const pointerSamples = await executePointerOrderLoop(
+                            scenarioClient,
+                            3,
+                        );
+                        const directSamples = await executeDirectOrderLoop(
+                            scenarioClient,
+                            4,
+                        );
+                        const frames = await scenarioClient.evaluate<JsonValue>(
+                            "window.__PAX_BENCH__.collectFrameStats(1800)",
+                        );
+                        return { pointerSamples, directSamples, frames };
+                    },
+                    { expectedMode: spec.mode },
+                );
+            }
+
+            const stressScenarioName = `${spec.scenarioKey}OrdersStress`;
+            if (shouldRunScenario(stressScenarioName)) {
+                scenarios[stressScenarioName] = await profileScenario(
+                    client,
+                    stressScenarioName,
+                    async (scenarioClient) => {
+                        await scenarioClient.evaluate(`
+                            (async () => {
+                                ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
+                                await new Promise((resolve) => setTimeout(resolve, 1200));
+                                return modePrep;
+                            })()
+                        `);
+                        const pointerSamples = await executePointerOrderLoop(
+                            scenarioClient,
+                            3,
+                            { hoverStress: true },
+                        );
+                        const directSamples = await executeDirectOrderLoop(
+                            scenarioClient,
+                            4,
+                        );
+                        const frames = await scenarioClient.evaluate<JsonValue>(
+                            "window.__PAX_BENCH__.collectFrameStats(1800)",
+                        );
+                        return { pointerSamples, directSamples, frames };
+                    },
+                    { expectedMode: spec.mode },
+                );
+            }
         }
 
         const results = {
             generatedAt: new Date().toISOString(),
             browserPath,
             appUrl,
+            benchmarkTarget,
+            savedMaps,
             ports: {
                 appPort,
                 cdpPort,
@@ -3182,6 +3257,13 @@ async function main(): Promise<void> {
     } finally {
         browser.kill();
         devServer.kill();
+        await Promise.allSettled([
+            browser.exited,
+            devServer.exited,
+            killProcessTree(browser.pid),
+            killProcessTree(devServer.pid),
+        ]);
+        await cleanupStaleHarnessDevServer(appPort);
         await sleep(1000);
         try {
             rmSync(profileDir, { recursive: true, force: true });

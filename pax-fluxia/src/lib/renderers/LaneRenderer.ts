@@ -17,6 +17,7 @@ import * as PIXI from 'pixi.js';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from './RenderContext';
+import { measurePerf } from '$lib/perf/perfProbe';
 import { getDirectedLanePolyline } from '$lib/lanes/lanePolylineCache';
 import {
     polylineTotalLength,
@@ -25,6 +26,41 @@ import {
     tangentAtArcFraction,
     trimLanePolylineToStarRims,
 } from '$lib/lanes/laneGeometry';
+
+let cachedConnectionFingerprint = '';
+let cachedConnectionGraphics: PIXI.Graphics | null = null;
+
+function buildConnectionFingerprint(
+    connections: StarConnection[],
+    starsById: Map<string, StarState>,
+): string {
+    const styleFingerprint = [
+        GAME_CONFIG.CONNECTION_WIDTH ?? '',
+        GAME_CONFIG.CONNECTION_SHADOW_WIDTH ?? '',
+        GAME_CONFIG.CONNECTION_SHADOW_ALPHA ?? '',
+        GAME_CONFIG.CONNECTION_COLOR ?? '',
+        GAME_CONFIG.CONNECTION_ALPHA ?? '',
+    ].join('|');
+    const connectionFingerprint = connections
+        .map((conn) => {
+            const source = starsById.get(conn.sourceId);
+            const target = starsById.get(conn.targetId);
+            const waypoints = conn.laneWaypoints?.length
+                ? conn.laneWaypoints
+                      .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
+                      .join(';')
+                : `${source?.x ?? 0},${source?.y ?? 0}>${target?.x ?? 0},${target?.y ?? 0}`;
+            const [a, b] =
+                conn.sourceId <= conn.targetId
+                    ? [conn.sourceId, conn.targetId]
+                    : [conn.targetId, conn.sourceId];
+            return `${a}|${b}|${waypoints}`;
+        })
+        .sort()
+        .join('||');
+
+    return `${styleFingerprint}::${connectionFingerprint}`;
+}
 
 // ── Connection Lanes ────────────────────────────────────────────────────────
 
@@ -39,69 +75,82 @@ export function renderConnections(
     starsById: Map<string, StarState>,
     colorUtils: ColorUtils,
 ): void {
-    connectionGraphics.clear();
+    const fingerprint = buildConnectionFingerprint(connections, starsById);
+    if (
+        cachedConnectionFingerprint === fingerprint &&
+        cachedConnectionGraphics === connectionGraphics
+    ) {
+        return;
+    }
 
-    const smoothPaths: [number, number][][] = [];
-    const seen = new Set<string>();
-    connections.forEach((conn) => {
-        const source = starsById.get(conn.sourceId);
-        const target = starsById.get(conn.targetId);
-        if (!source || !target) return;
-        const key = conn.sourceId <= conn.targetId
-            ? `${conn.sourceId}|${conn.targetId}`
-            : `${conn.targetId}|${conn.sourceId}`;
-        if (seen.has(key)) return;
-        seen.add(key);
+    measurePerf('game.renderFrame.connections.redraw', () => {
+        connectionGraphics.clear();
 
-        const truthPolyline = conn.laneWaypoints && conn.laneWaypoints.length >= 2
-            ? conn.laneWaypoints
-            : undefined;
-        const basePath: ReadonlyArray<readonly [number, number]> =
-            truthPolyline && truthPolyline.length >= 2
-                ? truthPolyline
-                : [
-                    [source.x, source.y],
-                    [target.x, target.y],
-                ];
-        if (basePath.length >= 2) {
-            smoothPaths.push(basePath.map(([x, y]) => [x, y]));
+        const smoothPaths: [number, number][][] = [];
+        const seen = new Set<string>();
+        connections.forEach((conn) => {
+            const source = starsById.get(conn.sourceId);
+            const target = starsById.get(conn.targetId);
+            if (!source || !target) return;
+            const key = conn.sourceId <= conn.targetId
+                ? `${conn.sourceId}|${conn.targetId}`
+                : `${conn.targetId}|${conn.sourceId}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+
+            const truthPolyline = conn.laneWaypoints && conn.laneWaypoints.length >= 2
+                ? conn.laneWaypoints
+                : undefined;
+            const basePath: ReadonlyArray<readonly [number, number]> =
+                truthPolyline && truthPolyline.length >= 2
+                    ? truthPolyline
+                    : [
+                        [source.x, source.y],
+                        [target.x, target.y],
+                    ];
+            if (basePath.length >= 2) {
+                smoothPaths.push(basePath.map(([x, y]) => [x, y]));
+            }
+        });
+
+        // Pass 1: Dark shadow/border
+        const shadowWidth = GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
+        for (const path of smoothPaths) {
+            strokePolyline(connectionGraphics, path, {
+                color: 0x000000,
+                width: shadowWidth,
+                alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+                cap: 'round',
+                join: 'round',
+            });
         }
-    });
-
-    // Pass 1: Dark shadow/border
-    const shadowWidth = GAME_CONFIG.CONNECTION_WIDTH + GAME_CONFIG.CONNECTION_SHADOW_WIDTH;
-    for (const path of smoothPaths) {
-        strokePolyline(connectionGraphics, path, {
+        connectionGraphics.stroke({
             color: 0x000000,
             width: shadowWidth,
             alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
             cap: 'round',
-            join: 'round',
         });
-    }
-    connectionGraphics.stroke({
-        color: 0x000000,
-        width: shadowWidth,
-        alpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-        cap: 'round',
-    });
 
-    // Pass 2: Foreground lane stroke
-    for (const path of smoothPaths) {
-        strokePolyline(connectionGraphics, path, {
+        // Pass 2: Foreground lane stroke
+        for (const path of smoothPaths) {
+            strokePolyline(connectionGraphics, path, {
+                color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
+                width: GAME_CONFIG.CONNECTION_WIDTH,
+                alpha: GAME_CONFIG.CONNECTION_ALPHA,
+                cap: 'round',
+                join: 'round',
+            });
+        }
+        connectionGraphics.stroke({
             color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
             width: GAME_CONFIG.CONNECTION_WIDTH,
             alpha: GAME_CONFIG.CONNECTION_ALPHA,
             cap: 'round',
-            join: 'round',
         });
-    }
-    connectionGraphics.stroke({
-        color: colorUtils.parseColor(GAME_CONFIG.CONNECTION_COLOR),
-        width: GAME_CONFIG.CONNECTION_WIDTH,
-        alpha: GAME_CONFIG.CONNECTION_ALPHA,
-        cap: 'round',
     });
+
+    cachedConnectionFingerprint = fingerprint;
+    cachedConnectionGraphics = connectionGraphics;
 }
 
 // ── Order Arrows ────────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { measurePerf } from '$lib/perf/perfProbe';
 import { getPortalGroupHexColor } from '$lib/utils/portalStyling';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
@@ -83,6 +84,13 @@ function buildStarVisualKey(params: {
         animationBucket,
         visualConfigKey,
     ].join('|');
+}
+
+function shouldAnimateStarVisual(params: {
+    isActive: boolean;
+    isPortalStar: boolean;
+}): boolean {
+    return params.isActive || params.isPortalStar;
 }
 
 // ── Polygon Geometry Helpers ────────────────────────────────────────────────
@@ -268,7 +276,7 @@ export function renderStars(
     colorUtils: ColorUtils,
 ): void {
     const starVisualKeys = caches.starVisualKeys;
-    const animationBucket = Math.floor(state.gameNowMs / STAR_VISUAL_BUCKET_MS);
+    const globalAnimationBucket = Math.floor(state.gameNowMs / STAR_VISUAL_BUCKET_MS);
     const visualConfigKey = resolveStarVisualConfigKey();
     stars.forEach((star) => {
         let graphics = caches.starGraphics.get(star.id);
@@ -306,19 +314,24 @@ export function renderStars(
         const flashBucket = flash
             ? Math.floor((state.gameNowMs - flash.startTime) / STAR_VISUAL_BUCKET_MS)
             : -1;
+        const shouldAnimateVisuals = shouldAnimateStarVisual({
+            isActive,
+            isPortalStar,
+        });
         const visualKey = buildStarVisualKey({
             star,
             effectiveOwner,
             isActive,
             radius,
             flashBucket,
-            animationBucket,
+            animationBucket: shouldAnimateVisuals ? globalAnimationBucket : -1,
             visualConfigKey,
         });
         const shouldRedrawVisuals = starVisualKeys?.get(star.id) !== visualKey;
 
         if (shouldRedrawVisuals) {
-            graphics.clear();
+            measurePerf('game.renderFrame.stars.visuals', () => {
+                graphics.clear();
 
         // Determine shape properties
         const sides = TYPE_SIDES[star.starType] ?? 0;
@@ -346,8 +359,10 @@ export function renderStars(
         graphics.stroke({ color: ringColor, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
 
         // Outer glow ring (pulses slightly, stronger when active)
-        const starFxTime = state.gameNowMs / 1000;
-        const glowPulse = 1 + Math.sin(starFxTime * 2) * 0.1;
+        const starFxTime = shouldAnimateVisuals ? state.gameNowMs / 1000 : 0;
+        const glowPulse = shouldAnimateVisuals
+            ? 1 + Math.sin(starFxTime * 2) * 0.1
+            : 1;
         const glowAlpha = isActive ? 0.35 : 0.15;
         const glowRadius = ringRadius * glowPulse;
         graphics.beginPath();
@@ -429,24 +444,26 @@ export function renderStars(
 
         if (!isPortalStar) {
             // Inner type icon (geometric shape) — larger and more visible
-            const iconTime = state.gameNowMs / 1000;
-            const iconAlpha = 0.6 + Math.sin(iconTime * 3) * 0.1;
+            const iconTime = isActive ? state.gameNowMs / 1000 : 0;
+            const iconAlpha = isActive ? 0.6 + Math.sin(iconTime * 3) * 0.1 : 0.6;
             const iconScale = GAME_CONFIG.STAR_ICON_SCALE ?? 0.55;
             const iconSize = radius * iconScale;
             drawTypeIcon(graphics, star.x, star.y, iconSize, star.starType, iconAlpha, typeColor);
         }
 
-            starVisualKeys?.set(star.id, visualKey);
+                starVisualKeys?.set(star.id, visualKey);
+            });
         }
 
-        // Get label elements (pill layout)
-        const pillBg = label.getChildByLabel('pillBg') as PIXI.Graphics;
-        const idText2 = label.getChildByLabel('starId') as PIXI.Text;
-        const sepText = label.getChildByLabel('sep') as PIXI.Text;
-        const activeText = label.getChildByLabel('active') as PIXI.Text;
-        const slashText = label.getChildByLabel('slash') as PIXI.Text;
-        const damagedText = label.getChildByLabel('damaged') as PIXI.Text;
-        const leashGraphics = label.getChildByLabel('leash') as PIXI.Graphics;
+        measurePerf('game.renderFrame.stars.labels', () => {
+            // Get label elements (pill layout)
+            const pillBg = label.getChildByLabel('pillBg') as PIXI.Graphics;
+            const idText2 = label.getChildByLabel('starId') as PIXI.Text;
+            const sepText = label.getChildByLabel('sep') as PIXI.Text;
+            const activeText = label.getChildByLabel('active') as PIXI.Text;
+            const slashText = label.getChildByLabel('slash') as PIXI.Text;
+            const damagedText = label.getChildByLabel('damaged') as PIXI.Text;
+            const leashGraphics = label.getChildByLabel('leash') as PIXI.Graphics;
 
         // --- Smooth number transitions (mode-aware) ---
         const transMs = GAME_CONFIG.NUMBER_TRANSITION_MS ?? 120;
@@ -612,18 +629,19 @@ export function renderStars(
             label.pivot.set(0, lineH);
         }
 
-        // Draw leash line from star edge to label (toggled by config)
-        if (leashGraphics) {
-            leashGraphics.clear();
-            if (GAME_CONFIG.STAR_LABEL_LEASH) {
-                leashGraphics.beginPath();
-                const starEdgeX = -labelOffsetX + radius * 0.7;
-                const starEdgeY = -labelOffsetY + radius * 0.7;
-                leashGraphics.moveTo(starEdgeX, starEdgeY);
-                leashGraphics.lineTo(-pad, 0);
-                leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.4 });
+            // Draw leash line from star edge to label (toggled by config)
+            if (leashGraphics) {
+                leashGraphics.clear();
+                if (GAME_CONFIG.STAR_LABEL_LEASH) {
+                    leashGraphics.beginPath();
+                    const starEdgeX = -labelOffsetX + radius * 0.7;
+                    const starEdgeY = -labelOffsetY + radius * 0.7;
+                    leashGraphics.moveTo(starEdgeX, starEdgeY);
+                    leashGraphics.lineTo(-pad, 0);
+                    leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.4 });
+                }
             }
-        }
+        });
     });
 }
 

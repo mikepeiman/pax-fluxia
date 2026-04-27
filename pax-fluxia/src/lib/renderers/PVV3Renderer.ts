@@ -76,6 +76,15 @@ let cachedShapeFingerprint = '';
 let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
+let cachedCanonicalData: CanonicalTerritoryData | null = null;
+
+export interface PVV3InvalidationState {
+    shapeFingerprint: string;
+    visualFingerprint: string;
+    shapeChanged: boolean;
+    visualChanged: boolean;
+    dirty: boolean;
+}
 
 
 
@@ -131,6 +140,23 @@ function buildVisualFingerprint(): string {
     return fp;
 }
 
+export function inspectPVV3Invalidation(
+    stars: StarState[],
+): PVV3InvalidationState {
+    const shapeFingerprint = buildShapeFingerprint(stars);
+    const visualFingerprint = buildVisualFingerprint();
+    const shapeChanged = shapeFingerprint !== cachedShapeFingerprint;
+    const visualChanged = visualFingerprint !== cachedVisualFingerprint;
+
+    return {
+        shapeFingerprint,
+        visualFingerprint,
+        shapeChanged,
+        visualChanged,
+        dirty: shapeChanged || visualChanged,
+    };
+}
+
 // ── Geometry functions extracted to geometry/ sub-modules ──────────────────
 // See: borderPipeline.ts, frontierLoops.ts, morphUtils.ts, mergeUtils.ts
 // Functions are imported above and re-exported for backward compatibility.
@@ -145,6 +171,7 @@ export function renderPVV3(
     worldHeight: number,
     connections?: StarConnection[],
     canonicalData?: CanonicalTerritoryData,
+    invalidationState?: PVV3InvalidationState,
 ): void {
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
     const now = performance.now();
@@ -167,10 +194,8 @@ export function renderPVV3(
     // Territories snap on rebuild instead of morphing.
     // TODO: restore with proper clear-and-redraw-all-per-frame approach.
 
-    const shapeFp = buildShapeFingerprint(stars);
-    const visualFp = buildVisualFingerprint();
-    const shapeChanged = shapeFp !== cachedShapeFingerprint;
-    const visualChanged = visualFp !== cachedVisualFingerprint;
+    const invalidation = invalidationState ?? inspectPVV3Invalidation(stars);
+    const { shapeChanged, visualChanged } = invalidation;
 
     if (!shapeChanged && !visualChanged) return;  // nothing changed
 
@@ -179,8 +204,12 @@ export function renderPVV3(
     // ── Shape changed: snapshot for transition animation ─────────────────
     // Transition snapshots disabled � no per-frame morph to feed
 
-    cachedShapeFingerprint = shapeFp;
-    cachedVisualFingerprint = visualFp;
+    cachedShapeFingerprint = invalidation.shapeFingerprint;
+    cachedVisualFingerprint = invalidation.visualFingerprint;
+
+    if (canonicalData && canonicalData.shells.length > 0) {
+        cachedCanonicalData = canonicalData;
+    }
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
     const borderWidth = GAME_CONFIG.VORONOI_BORDER_WIDTH ?? 1.5;
@@ -352,10 +381,14 @@ export function renderPVV3(
     // ── FG2 CANONICAL PATH ──────────────────────────────────────────────────
     // If canonical data was provided by the orchestrator, use it.
     // Otherwise fall through to legacy PVV3 datagen path.
-    const fg2Shells = canonicalData?.shells ?? [];
-    const fg2ShellLoops = canonicalData?.shellLoops ?? [];
-    const fg2AnimShells = canonicalData?.animatedShells ?? [];
-    const fg2AnimActive = canonicalData?.transitionActive ?? false;
+    const activeCanonicalData =
+        canonicalData?.shells.length || canonicalData?.animatedShells.length
+            ? canonicalData
+            : cachedCanonicalData;
+    const fg2Shells = activeCanonicalData?.shells ?? [];
+    const fg2ShellLoops = activeCanonicalData?.shellLoops ?? [];
+    const fg2AnimShells = activeCanonicalData?.animatedShells ?? [];
+    const fg2AnimActive = activeCanonicalData?.transitionActive ?? false;
     const useFG2 = fg2Shells.length > 0;
 
     // Smooth passes — shared by FG2 and legacy paths
@@ -752,6 +785,7 @@ export function renderPVV3(
 export function resetPVV3Cache(): void {
     cachedShapeFingerprint = '';
     cachedVisualFingerprint = '';
+    cachedCanonicalData = null;
     // Smooth mode state
     isSmoothTransitioning = false;
     prevSharedPolylines = null;

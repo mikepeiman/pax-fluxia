@@ -85,6 +85,7 @@
     } from "$lib/renderers/PowerVoronoiRenderer_DY4";
     import {
         renderPVV3 as renderPVV3Module,
+        inspectPVV3Invalidation,
         resetPVV3Cache,
     } from "$lib/renderers/PVV3Renderer";
     import {
@@ -214,10 +215,10 @@
     const ORDER_MUTATION_PRIORITY_WINDOW_MS = 320;
     const TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS = 48;
     const TERRITORY_HEAVY_UPDATE_MS = 8;
-    const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 96;
-    const TERRITORY_IDLE_MIN_CADENCE_MS = 48;
-    const TERRITORY_MAX_STALE_MS = 220;
-    const TERRITORY_INPUT_HOLD_MAX_STALE_MS = 480;
+    const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 72;
+    const TERRITORY_IDLE_MIN_CADENCE_MS = 32;
+    const TERRITORY_MAX_STALE_MS = 180;
+    const TERRITORY_INPUT_HOLD_MAX_STALE_MS = 320;
     const TERRITORY_ASYNC_REQUEUE_DELAY_MS = 16;
     const SHIP_RENDER_HEAVY_UPDATE_MS = 6;
     const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
@@ -336,6 +337,7 @@
     type TerritoryPresentationRequest = {
         requestId: number;
         enqueuedAtMs: number;
+        signature: string;
         activeMode: string;
         isPaused: boolean;
         stars: StarState[];
@@ -356,6 +358,7 @@
     let territoryPresentationPostedCount = 0;
     let territoryPresentationCompletedCount = 0;
     let territoryPresentationSupersededCount = 0;
+    let territoryPresentationDedupedCount = 0;
     let territoryPresentationLastQueuedAtMs = 0;
     let territoryPresentationLastStartedAtMs = 0;
     let territoryPresentationLastFinishedAtMs = 0;
@@ -1686,6 +1689,29 @@
             conquest.previousOwner,
             conquest.newOwner,
         ].join(":");
+    }
+
+    function buildTerritoryPresentationRequestSignature(params: {
+        activeMode: string;
+        isPaused: boolean;
+        currentTick: number | null | undefined;
+        territoryConfigFp: string;
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
+    }): string {
+        const pendingConquestSig =
+            params.pendingConquests.length > 0
+                ? params.pendingConquests
+                      .map((conquest) => transitionIdentityKey(conquest))
+                      .sort()
+                      .join("|")
+                : "";
+        return [
+            params.activeMode,
+            params.isPaused ? 1 : 0,
+            params.currentTick ?? -1,
+            pendingConquestSig,
+            params.territoryConfigFp,
+        ].join("::");
     }
 
     function buildActiveRenderFamilyTransition(
@@ -3902,7 +3928,12 @@
                 runTerritoryUpdate(
                     `game.renderFrame.territory.${request.activeMode}`,
                     () => {
-                        request.run();
+                        measurePerf(
+                            `game.renderFrame.territory.present.${request.activeMode}`,
+                            () => {
+                                request.run();
+                            },
+                        );
                     },
                 );
                 territoryPresentationLastFinishedAtMs = performance.now();
@@ -3951,6 +3982,7 @@
     }
 
     function queueTerritoryPresentation(request: {
+        signature: string;
         activeMode: string;
         isPaused: boolean;
         stars: StarState[];
@@ -3965,6 +3997,7 @@
         const nextRequest: TerritoryPresentationRequest = {
             requestId: territoryPresentationRequestSeq + 1,
             enqueuedAtMs: performance.now(),
+            signature: request.signature,
             activeMode: request.activeMode,
             isPaused: request.isPaused,
             stars: request.stars,
@@ -3972,6 +4005,36 @@
             run: request.run,
             territoryScheduler: request.territoryScheduler,
         };
+        if (
+            territoryPresentationPendingRequest &&
+            territoryPresentationPendingRequest.signature === nextRequest.signature
+        ) {
+            territoryPresentationDedupedCount += 1;
+            recordPerfEvent("game.territory.async.deduped", {
+                pendingRequestId: territoryPresentationPendingRequest.requestId,
+                activeMode: nextRequest.activeMode,
+            });
+            logPipelineStage({
+                channel: "input",
+                context: "GameCanvas",
+                stage: "territory_async_deduped",
+                from: "Queued territory request",
+                to: "Existing territory request",
+                purpose:
+                    "Keep one pending territory presentation for the same semantic scene state instead of churning identical replacements",
+                summary:
+                    `pending=${territoryPresentationPendingRequest.requestId} ` +
+                    `mode=${nextRequest.activeMode}`,
+                detail: {
+                    pendingRequestId: territoryPresentationPendingRequest.requestId,
+                    activeMode: nextRequest.activeMode,
+                    cadenceMs: request.territoryScheduler.cadenceMs,
+                    staleMs: request.territoryScheduler.staleMs,
+                    reason: request.territoryScheduler.reason,
+                },
+            });
+            return;
+        }
         territoryPresentationRequestSeq = nextRequest.requestId;
         territoryPresentationLastQueuedAtMs = nextRequest.enqueuedAtMs;
         if (territoryPresentationPendingRequest) {
@@ -4148,6 +4211,7 @@
             territoryPresentationPostedCount = 0;
             territoryPresentationCompletedCount = 0;
             territoryPresentationSupersededCount = 0;
+            territoryPresentationDedupedCount = 0;
             territoryPresentationLastQueuedAtMs = 0;
             territoryPresentationLastStartedAtMs = 0;
             territoryPresentationLastFinishedAtMs = 0;
@@ -4359,6 +4423,13 @@
                     (globalThis as any).__territoryRenderedWhilePaused = false;
                 voronoiContainer.visible = true;
                 queueTerritoryPresentation({
+                    signature: buildTerritoryPresentationRequestSignature({
+                        activeMode: activeTerritoryMode,
+                        isPaused: isPausedNow,
+                        currentTick: activeGameStore.currentTick,
+                        territoryConfigFp,
+                        pendingConquests: pendingTickEvents?.conquests ?? [],
+                    }),
                     activeMode: activeTerritoryMode,
                     isPaused: isPausedNow,
                     stars,
@@ -4461,16 +4532,23 @@
                         });
                         break;
                     case "vs_pvv3": {
-                        const fg2Artifacts = runFG2DataPipeline({
-                            stars,
-                            container: voronoiContainer,
-                            colorUtils,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                            connections:
-                                activeGameStore.connections as StarConnection[],
-                            gameNowMs: fxOrchestrator.gameTime,
-                        });
+                        const pvv3Invalidation = inspectPVV3Invalidation(stars);
+                        const fg2Artifacts = pvv3Invalidation.shapeChanged
+                            ? measurePerf(
+                                  "game.renderFrame.fg2DataPipeline.vs_pvv3",
+                                  () =>
+                                      runFG2DataPipeline({
+                                          stars,
+                                          container: voronoiContainer,
+                                          colorUtils,
+                                          worldWidth: GAME_WIDTH,
+                                          worldHeight: GAME_HEIGHT,
+                                          connections:
+                                              activeGameStore.connections as StarConnection[],
+                                          gameNowMs: fxOrchestrator.gameTime,
+                                      }),
+                              )
+                            : null;
                         renderPVV3Module(
                             stars,
                             voronoiContainer,
@@ -4478,21 +4556,28 @@
                             GAME_WIDTH,
                             GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
-                            extractCanonicalData(fg2Artifacts),
+                            fg2Artifacts
+                                ? extractCanonicalData(fg2Artifacts)
+                                : undefined,
+                            pvv3Invalidation,
                         );
                         break;
                     }
                     case "power_voronoi": {
-                        const fg2ArtifactsPV = runFG2DataPipeline({
-                            stars,
-                            container: voronoiContainer,
-                            colorUtils,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                            connections:
-                                activeGameStore.connections as StarConnection[],
-                            gameNowMs: fxOrchestrator.gameTime,
-                        });
+                        const fg2ArtifactsPV = measurePerf(
+                            "game.renderFrame.fg2DataPipeline.power_voronoi",
+                            () =>
+                                runFG2DataPipeline({
+                                    stars,
+                                    container: voronoiContainer,
+                                    colorUtils,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    connections:
+                                        activeGameStore.connections as StarConnection[],
+                                    gameNowMs: fxOrchestrator.gameTime,
+                                }),
+                        );
                         renderPowerVoronoiModule(
                             stars,
                             voronoiContainer,
@@ -5487,6 +5572,7 @@
             territoryPresentationPostedCount,
             territoryPresentationCompletedCount,
             territoryPresentationSupersededCount,
+            territoryPresentationDedupedCount,
             territoryPresentationLastQueuedAtMs,
             territoryPresentationLastStartedAtMs,
             territoryPresentationLastFinishedAtMs,
