@@ -7,20 +7,21 @@
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
-  import MainMenu from "$lib/components/ui/MainMenu.svelte";
-  import ResultsModal from "$lib/components/ui/ResultsModal.svelte";
+  import MainMenu, { type MenuTheme } from "$lib/components/ui/main-menu";
+  import {
+    Leaderboard,
+    ResultsModal,
+    SpeedControls,
+    StarInfoPanel,
+    StarNav,
+    StarsPanel,
+    StatusBar,
+    TopBar,
+  } from "$lib/components/ui/hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
   import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
-  import Leaderboard from "$lib/components/ui/Leaderboard.svelte";
-  import SpeedControls from "$lib/components/ui/SpeedControls.svelte";
-  import StarsPanel from "$lib/components/ui/StarsPanel.svelte";
-  import StarInfoPanel from "$lib/components/ui/StarInfoPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
-  import type { MenuTheme } from "$lib/components/ui/menuTheme";
-  import TopBar from "$lib/components/ui/TopBar.svelte";
-  import StatusBar from "$lib/components/ui/StatusBar.svelte";
-  import StarNav from "$lib/components/ui/StarNav.svelte";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";

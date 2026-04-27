@@ -2966,6 +2966,8 @@ async function captureTransitionDiagnosticScenario(
                 modePrep,
                 gameplayPrep,
                 recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                captureStateBeforePrepOrder:
+                    await window.__PAX_BENCH__.getTransitionDiagnosticCaptureState(),
                 stateBeforePrepOrder: await window.__PAX_BENCH__.getStateSummary(),
                 sampleOrder:
                     await window.__PAX_BENCH__.prepareConquestDiagnosticOrder(),
@@ -3016,6 +3018,8 @@ async function captureTransitionDiagnosticScenario(
                         target: await window.__PAX_BENCH__.getStarState(${targetIdLiteral}),
                         sourceOrder: await window.__PAX_BENCH__.getOrderStatus(${sourceIdLiteral}),
                         recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                        captureState:
+                            await window.__PAX_BENCH__.getTransitionDiagnosticCaptureState(),
                     });
                     await new Promise((resolve) => setTimeout(resolve, 250));
                 }
@@ -3026,9 +3030,17 @@ async function captureTransitionDiagnosticScenario(
     const stateAfterIssue = await client.evaluate<Record<string, JsonValue>>(
         "window.__PAX_BENCH__.getStateSummary()",
     );
+    const captureStateAfterIssue =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            "window.__PAX_BENCH__.getTransitionDiagnosticCaptureState()",
+        );
     const recorderSummary = await client.evaluate<Record<string, JsonValue>>(
         "window.__PAX_BENCH__.getTransitionRecorderSummary()",
     );
+    const captureStateAfterWait =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            "window.__PAX_BENCH__.getTransitionDiagnosticCaptureState()",
+        );
     const diagnosticBundle =
         await client.evaluate<Record<string, JsonValue> | null>(
             "window.__PAX_BENCH__.getLatestTransitionDiagnosticBundle()",
@@ -3041,7 +3053,9 @@ async function captureTransitionDiagnosticScenario(
         bundleWait,
         starTimeline,
         stateAfterIssue,
+        captureStateAfterIssue,
         recorderSummary,
+        captureStateAfterWait,
         diagnosticBundle,
         diagnosticStepSummary: Array.isArray(diagnosticBundle?.steps)
             ? (diagnosticBundle?.steps as Array<Record<string, JsonValue>>).map(

@@ -80,7 +80,6 @@
     import {
         renderPowerVoronoi as renderPowerVoronoiModule,
         resetPowerVoronoiCache,
-        exportPowerVoronoiGeometrySnapshot,
     } from "$lib/renderers/PowerVoronoiRenderer";
     import {
         renderPVV2DY4 as renderPVV2DY4Module,
@@ -1851,6 +1850,29 @@
         frames: ReadonlyArray<PerimeterFieldCapturedTransitionFrame>;
     };
 
+    type TransitionDiagnosticCapturedFrame = {
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        canvas: HTMLCanvasElement;
+        mode: string;
+        debugSnapshot: Record<string, unknown> | null;
+    };
+
+    type TransitionDiagnosticCapturedTransitionFrame = {
+        frameIndex: number;
+        progress: number;
+        canvas: HTMLCanvasElement;
+        debugSnapshot: Record<string, unknown> | null;
+    };
+
+    type TransitionDiagnosticCaptureSession = {
+        key: string;
+        mode: string;
+        conquestEvents: readonly TerritoryConquestEvent[];
+        previousFrame: TransitionDiagnosticCapturedFrame;
+        frames: TransitionDiagnosticCapturedTransitionFrame[];
+    };
+
     let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
     let perimeterFieldCaptureSession: PerimeterFieldCaptureSession | null =
         null;
@@ -1860,6 +1882,12 @@
     let perimeterFieldDebugSnapshotOverride:
         | PerimeterFieldDebugSnapshot
         | null = null;
+    let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
+        null;
+    let transitionDiagnosticCaptureSession:
+        | TransitionDiagnosticCaptureSession
+        | null = null;
+    let transitionDiagnosticCaptureState: Record<string, unknown> | null = null;
 
     function cloneCanvasFrame(
         source: HTMLCanvasElement,
@@ -1894,7 +1922,23 @@
         };
     }
 
-    function buildPerimeterFieldTransitionCaptureKey(
+    function cloneTransitionDiagnosticSnapshot(
+        snapshot: Record<string, unknown> | null,
+    ): Record<string, unknown> | null {
+        if (!snapshot) return null;
+        if (typeof structuredClone === "function") {
+            return structuredClone(snapshot);
+        }
+        return JSON.parse(JSON.stringify(snapshot)) as Record<string, unknown>;
+    }
+
+    function resetTransitionDiagnosticCaptureState(): void {
+        transitionDiagnosticStableFrame = null;
+        transitionDiagnosticCaptureSession = null;
+        transitionDiagnosticCaptureState = null;
+    }
+
+    function buildTransitionDiagnosticCaptureKey(
         activeTransition: RenderFamilyActiveTransition | null,
     ): string | null {
         const events = activeTransition?.events;
@@ -1912,7 +1956,7 @@
             .join("|");
     }
 
-    function buildPerimeterFieldConquestEvents(
+    function buildTransitionDiagnosticConquestEvents(
         activeTransition: RenderFamilyActiveTransition,
     ): TerritoryConquestEvent[] {
         return activeTransition.events
@@ -1926,6 +1970,18 @@
                 if (a.atMs !== b.atMs) return a.atMs - b.atMs;
                 return a.starId.localeCompare(b.starId);
             });
+    }
+
+    function buildPerimeterFieldTransitionCaptureKey(
+        activeTransition: RenderFamilyActiveTransition | null,
+    ): string | null {
+        return buildTransitionDiagnosticCaptureKey(activeTransition);
+    }
+
+    function buildPerimeterFieldConquestEvents(
+        activeTransition: RenderFamilyActiveTransition,
+    ): TerritoryConquestEvent[] {
+        return buildTransitionDiagnosticConquestEvents(activeTransition);
     }
 
     function capturePerimeterFieldLiveFrame(params: {
@@ -2348,6 +2404,10 @@
     let canonicalRenderer: TerritoryRenderer | null = null;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
+    let transitionDiagnosticPrevKey: string | null = null;
+    let transitionDiagnosticPrevGeometry: CanonicalGeometrySnapshot | null =
+        null;
+    let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
 
     function buildCanonicalBridgeInput(
         stars: StarState[],
@@ -2424,6 +2484,352 @@
             });
         }
         return renderFamilyGeometryCache;
+    }
+
+    function revertStarsForTransitionDiagnostic(
+        activeTransition: RenderFamilyActiveTransition,
+        stars: ReadonlyArray<StarState>,
+    ): StarState[] {
+        const overrides = new Map<string, string>();
+        for (const entry of activeTransition.events) {
+            overrides.set(entry.event.starId, entry.event.previousOwner);
+        }
+        return stars.map((star) => {
+            const ownerId = overrides.get(star.id);
+            return ownerId === undefined ? { ...star } : { ...star, ownerId };
+        });
+    }
+
+    function getTransitionDiagnosticPrevFrame(params: {
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        lanes: ReadonlyArray<StarConnection>;
+    }):
+        | {
+              key: string;
+              geometry: CanonicalGeometrySnapshot;
+              ownership: OwnershipSnapshot;
+          }
+        | null {
+        const key = buildTransitionDiagnosticCaptureKey(
+            params.activeTransition,
+        );
+        if (!key || !params.activeTransition) {
+            transitionDiagnosticPrevKey = null;
+            transitionDiagnosticPrevGeometry = null;
+            transitionDiagnosticPrevOwnership = null;
+            return null;
+        }
+        if (
+            transitionDiagnosticPrevKey !== key ||
+            !transitionDiagnosticPrevGeometry ||
+            !transitionDiagnosticPrevOwnership
+        ) {
+            const revertedStars = revertStarsForTransitionDiagnostic(
+                params.activeTransition,
+                params.stars,
+            );
+            const ownership = buildOwnershipSnapshotFromStars(revertedStars);
+            const geometry = measurePerf(
+                "game.renderFrame.tickEvents.capture.prevGeometry",
+                () =>
+                    buildPerimeterFieldRenderFamilyGeometry({
+                        stars: revertedStars,
+                        lanes: params.lanes,
+                        worldWidth: GAME_WIDTH,
+                        worldHeight: GAME_HEIGHT,
+                        nowMs: fxOrchestrator.gameTime,
+                        ownership,
+                        geometrySource:
+                            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+                            "power_voronoi_0319",
+                    }),
+            );
+            transitionDiagnosticPrevKey = key;
+            transitionDiagnosticPrevGeometry = geometry;
+            transitionDiagnosticPrevOwnership = ownership;
+        }
+        return {
+            key,
+            geometry: transitionDiagnosticPrevGeometry,
+            ownership: transitionDiagnosticPrevOwnership,
+        };
+    }
+
+    function buildTransitionDiagnosticSelection(mode: string) {
+        return {
+            ownershipMode: "star_ownership_snapshot" as const,
+            geometryMode: "unified_vector" as const,
+            fillTransitionMode: "active_front" as const,
+            borderTransitionMode: "off" as const,
+            styleMode:
+                mode === "distance_field"
+                    ? ("distance_field" as const)
+                    : mode === "pixel"
+                      ? ("pixel" as const)
+                      : ("canonical" as const),
+        };
+    }
+
+    function getTransitionDiagnosticModeDebugSnapshot(
+        mode: string,
+    ): Record<string, unknown> | null {
+        if (mode === "metaball_grid") {
+            const family = getRenderFamily("metaball_grid");
+            if (family instanceof MetaballGridFamily) {
+                return cloneTransitionDiagnosticSnapshot(
+                    family.getDebugSnapshot(),
+                );
+            }
+        }
+        return null;
+    }
+
+    function captureTransitionDiagnosticLiveFrame(params: {
+        target: PIXI.Container;
+        geometry: CanonicalGeometrySnapshot;
+        ownership: OwnershipSnapshot;
+        mode: string;
+        debugSnapshot?: Record<string, unknown> | null;
+    }): TransitionDiagnosticCapturedFrame | null {
+        if (!app?.renderer) return null;
+        const extracted = app.renderer.extract.canvas({
+            target: params.target,
+            frame: new PIXI.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+            clearColor: "#000000",
+        }) as HTMLCanvasElement;
+        return {
+            geometry: params.geometry,
+            ownership: params.ownership,
+            canvas: cloneCanvasFrame(extracted),
+            mode: params.mode,
+            debugSnapshot: cloneTransitionDiagnosticSnapshot(
+                params.debugSnapshot ?? null,
+            ),
+        };
+    }
+
+    function recordTransitionDiagnosticFrame(
+        session: TransitionDiagnosticCaptureSession,
+        progress: number,
+        frame: TransitionDiagnosticCapturedFrame,
+    ): void {
+        session.frames.push({
+            frameIndex: session.frames.length + 1,
+            progress,
+            canvas: cloneCanvasFrame(frame.canvas),
+            debugSnapshot: cloneTransitionDiagnosticSnapshot(
+                frame.debugSnapshot,
+            ),
+        });
+    }
+
+    function syncTransitionDiagnosticCapture(params: {
+        activeMode: string;
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        lanes: ReadonlyArray<StarConnection>;
+        geometry?: CanonicalGeometrySnapshot | null;
+        ownership?: OwnershipSnapshot | null;
+        debugSnapshot?: Record<string, unknown> | null;
+    }): void {
+        if (!transitionSnapshotRecorder.isEnabled()) {
+            resetTransitionDiagnosticCaptureState();
+            transitionDiagnosticPrevKey = null;
+            transitionDiagnosticPrevGeometry = null;
+            transitionDiagnosticPrevOwnership = null;
+            return;
+        }
+        if (!voronoiContainer || !app?.renderer) {
+            transitionDiagnosticCaptureState = {
+                status: "blocked",
+                reason: "renderer_unavailable",
+                activeMode: params.activeMode,
+            };
+            return;
+        }
+
+        const transitionKey = buildTransitionDiagnosticCaptureKey(
+            params.activeTransition,
+        );
+        const prevFrame = getTransitionDiagnosticPrevFrame({
+            activeTransition: params.activeTransition,
+            stars: params.stars,
+            lanes: params.lanes,
+        });
+        const ownership =
+            params.ownership ??
+            buildRenderFamilyOwnershipSnapshot(
+                params.stars,
+                params.activeTransition,
+            );
+        const geometry =
+            params.geometry ??
+            measurePerf("game.renderFrame.tickEvents.capture.geometry", () =>
+                getCurrentRenderFamilyGeometry(params.stars, params.lanes),
+            );
+        const liveFrame = measurePerf(
+            "game.renderFrame.tickEvents.capture.extract",
+            () =>
+                captureTransitionDiagnosticLiveFrame({
+                    target: voronoiContainer,
+                    geometry,
+                    ownership,
+                    mode: params.activeMode,
+                    debugSnapshot:
+                        params.debugSnapshot ??
+                        getTransitionDiagnosticModeDebugSnapshot(
+                            params.activeMode,
+                        ),
+                }),
+        );
+        if (!liveFrame) {
+            transitionDiagnosticCaptureState = {
+                status: "blocked",
+                reason: "frame_capture_failed",
+                activeMode: params.activeMode,
+                transitionKey,
+            };
+            return;
+        }
+
+        if (!transitionKey || !params.activeTransition) {
+            if (transitionDiagnosticCaptureSession) {
+                const session = transitionDiagnosticCaptureSession;
+                measurePerf(
+                    "game.renderFrame.tickEvents.capture.finalize",
+                    () => {
+                        transitionSnapshotRecorder.capturePreRendered({
+                            ctx: {
+                                conquestEvents: session.conquestEvents,
+                                previousGeometry:
+                                    session.previousFrame.geometry,
+                                nextGeometry: liveFrame.geometry,
+                                previousOwnership:
+                                    session.previousFrame.ownership,
+                                nextOwnership: liveFrame.ownership,
+                                transition: {
+                                    envelope: null as any,
+                                    fillFrame: null as any,
+                                    borderFrame: null as any,
+                                    geometryVersion: liveFrame.geometry.version,
+                                },
+                                fillPlan: null,
+                                activeFrontPlan: null,
+                                prevFrontierTopology:
+                                    session.previousFrame.geometry
+                                        .frontierTopology ?? null,
+                                nextFrontierTopology:
+                                    liveFrame.geometry.frontierTopology ?? null,
+                                selection: buildTransitionDiagnosticSelection(
+                                    session.mode,
+                                ),
+                                nowMs: fxOrchestrator.gameTime,
+                                starPositions: buildStarPositionsMap(
+                                    params.stars,
+                                ),
+                                worldWidth: GAME_WIDTH,
+                                worldHeight: GAME_HEIGHT,
+                            },
+                            prevCanvas: session.previousFrame.canvas,
+                            nextCanvas: liveFrame.canvas,
+                            transitionFrames: session.frames.map((entry) => ({
+                                progress: entry.progress,
+                                canvas: entry.canvas,
+                            })),
+                            extraDiagnostics: {
+                                kind: "territory_live_capture",
+                                mode: session.mode,
+                                previousFrame: session.previousFrame.debugSnapshot,
+                                nextFrame: liveFrame.debugSnapshot,
+                                transitionFrames: session.frames.map(
+                                    (entry) => ({
+                                        frameIndex: entry.frameIndex,
+                                        progress: entry.progress,
+                                        snapshot: entry.debugSnapshot,
+                                    }),
+                                ),
+                            },
+                        });
+                    },
+                );
+                transitionDiagnosticCaptureState = {
+                    status: "finalized",
+                    activeMode: session.mode,
+                    transitionKey: session.key,
+                    frameCount: session.frames.length,
+                    previousGeometryVersion:
+                        session.previousFrame.geometry.version,
+                    nextGeometryVersion: liveFrame.geometry.version,
+                    bundleCount: transitionSnapshotRecorder.count,
+                };
+                transitionDiagnosticCaptureSession = null;
+            } else {
+                transitionDiagnosticCaptureState = {
+                    status: "stable",
+                    activeMode: params.activeMode,
+                    geometryVersion: liveFrame.geometry.version,
+                };
+            }
+            transitionDiagnosticStableFrame = liveFrame;
+            return;
+        }
+
+        const conquestEvents = buildTransitionDiagnosticConquestEvents(
+            params.activeTransition,
+        );
+        if (
+            !transitionDiagnosticCaptureSession ||
+            transitionDiagnosticCaptureSession.key !== transitionKey
+        ) {
+            const previousFrame = transitionDiagnosticStableFrame
+                ? {
+                      ...transitionDiagnosticStableFrame,
+                      geometry: prevFrame?.geometry ?? liveFrame.geometry,
+                      ownership: prevFrame?.ownership ?? liveFrame.ownership,
+                      mode: params.activeMode,
+                  }
+                : {
+                      ...liveFrame,
+                      geometry: prevFrame?.geometry ?? liveFrame.geometry,
+                      ownership: prevFrame?.ownership ?? liveFrame.ownership,
+                      mode: params.activeMode,
+                  };
+            transitionDiagnosticCaptureSession = {
+                key: transitionKey,
+                mode: params.activeMode,
+                conquestEvents,
+                previousFrame,
+                frames: [],
+            };
+        } else {
+            transitionDiagnosticCaptureSession.conquestEvents = conquestEvents;
+        }
+
+        const session = transitionDiagnosticCaptureSession;
+        const quantizedProgress =
+            Math.round((params.activeTransition.progress ?? 0) * 1000) / 1000;
+        const lastProgress =
+            session.frames[session.frames.length - 1]?.progress ?? -1;
+        if (quantizedProgress > lastProgress) {
+            recordTransitionDiagnosticFrame(
+                session,
+                quantizedProgress,
+                liveFrame,
+            );
+        }
+        transitionDiagnosticCaptureState = {
+            status: "capturing",
+            activeMode: params.activeMode,
+            transitionKey,
+            conquestCount: session.conquestEvents.length,
+            frameCount: session.frames.length,
+            progress: quantizedProgress,
+            hasStableFrame: Boolean(transitionDiagnosticStableFrame),
+            previousGeometryVersion:
+                session.previousFrame.geometry.version,
+            nextGeometryVersion: liveFrame.geometry.version,
+        };
     }
 
     // React to animation speed changes from the UI slider
@@ -4648,6 +5054,12 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball",
                             () =>
@@ -4670,6 +5082,8 @@
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
                                     geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     tunableKeys: mf.tunableKeys,
@@ -4697,6 +5111,12 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball_grid",
                             () =>
@@ -4719,6 +5139,8 @@
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
                                     geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     tunableKeys: mg.tunableKeys,
@@ -4746,6 +5168,12 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const captureTransition =
                             buildActiveRenderFamilyTransition(
                                 fxOrchestrator.gameTime,
@@ -4773,6 +5201,8 @@
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
                                     geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     tunableKeys: pf.tunableKeys,
@@ -5187,83 +5617,33 @@
                 },
             );
 
-            // Export local rendering states if snapshot recording is enabled
-            const willCapture =
+            if (
                 activeTerritoryMode !== "perimeter_field" &&
-                tickEvents.conquests.length > 0 &&
-                transitionSnapshotRecorder.isEnabled();
-            if (willCapture) {
+                transitionSnapshotRecorder.isEnabled()
+            ) {
+                const captureTransition = buildActiveRenderFamilyTransition(
+                    fxOrchestrator.gameTime,
+                    activeGameStore.effectiveTickMs,
+                    pendingTickEvents?.conquests ?? [],
+                );
                 measurePerf("game.renderFrame.tickEvents.capture", () => {
-                    const prevGeometry = exportPowerVoronoiGeometrySnapshot(
-                        "previous",
-                        "dy4:prev",
-                        "dy4:prev",
-                    );
-                    const nextGeometry = exportPowerVoronoiGeometrySnapshot(
-                        "current",
-                        "dy4:next",
-                        "dy4:next",
-                    );
-                    log.state("GameCanvas", "DY4 snapshot attempt", {
-                        conquestCount: tickEvents.conquests.length,
-                        hasPreviousGeometry: Boolean(prevGeometry),
-                        hasNextGeometry: Boolean(nextGeometry),
+                    syncTransitionDiagnosticCapture({
+                        activeMode: activeTerritoryMode,
+                        activeTransition: captureTransition,
+                        stars,
+                        lanes,
                     });
-
-                    if (prevGeometry && nextGeometry) {
-                        const owners = new Map();
-                        stars.forEach((s) => owners.set(s.id, s.ownerId));
-                        const starPos = new Map();
-                        stars.forEach((s) => starPos.set(s.id, { x: s.x, y: s.y }));
-
-                        const conquestsMap = tickEvents.conquests.map((c) => ({
-                            ...c,
-                            atMs: fxOrchestrator.gameTime,
-                        }));
-
-                        transitionSnapshotRecorder.setColorResolver(
-                            (ownerId: string) =>
-                                colorUtils.getPlayerColor(ownerId),
-                        );
-                        transitionSnapshotRecorder.capture({
-                            conquestEvents: conquestsMap,
-                            previousGeometry: prevGeometry,
-                            nextGeometry: nextGeometry,
-                            previousOwnership: {
-                                version: "1",
-                                starOwners: owners,
-                                contestedLaneIds: [],
-                                conquestEvents: conquestsMap,
-                                virtualStars: [],
-                            },
-                            nextOwnership: {
-                                version: "2",
-                                starOwners: owners,
-                                contestedLaneIds: [],
-                                conquestEvents: conquestsMap,
-                                virtualStars: [],
-                            },
-                            transition: {
-                                envelope: null as any,
-                                fillFrame: null as any,
-                                borderFrame: null as any,
-                                geometryVersion: "1",
-                            },
-                            fillPlan: null,
-                            selection: {
-                                geometryMode: "unified_vector",
-                                fillTransitionMode: "active_front",
-                                borderTransitionMode: "off",
-                                ownershipMode: "star_ownership_snapshot",
-                                styleMode: "canonical",
-                            },
-                            nowMs: fxOrchestrator.gameTime,
-                            starPositions: starPos,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                        });
-                    }
                 });
+            } else if (
+                transitionDiagnosticStableFrame ||
+                transitionDiagnosticCaptureSession ||
+                transitionDiagnosticPrevGeometry ||
+                transitionDiagnosticPrevOwnership
+            ) {
+                resetTransitionDiagnosticCaptureState();
+                transitionDiagnosticPrevKey = null;
+                transitionDiagnosticPrevGeometry = null;
+                transitionDiagnosticPrevOwnership = null;
             }
 
             // Record game-time at tick boundary for tickProgress computation
@@ -5597,7 +5977,21 @@
             territoryPresentationPendingAgeMs: territoryPresentationPendingRequest
                 ? performance.now() - territoryPresentationPendingRequest.enqueuedAtMs
                 : 0,
+            transitionDiagnosticCaptureState,
         };
+    }
+
+    export function getTransitionDiagnosticCaptureState():
+        | Record<string, unknown>
+        | null {
+        return transitionDiagnosticCaptureState;
+    }
+
+    export function resetTransitionDiagnosticCapture(): void {
+        resetTransitionDiagnosticCaptureState();
+        transitionDiagnosticPrevKey = null;
+        transitionDiagnosticPrevGeometry = null;
+        transitionDiagnosticPrevOwnership = null;
     }
 
     function transposePoint(x: number, y: number): { x: number; y: number } {

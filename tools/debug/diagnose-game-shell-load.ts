@@ -35,6 +35,7 @@ const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const LOGS_DIR = path.join(ROOT, ".agent-harness", "logs");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
 const HOST = "127.0.0.1";
+const BUN_EXECUTABLE = process.execPath;
 const DIAG_ROUTE = process.env.PAX_DIAG_ROUTE?.trim() || "/";
 const DIAG_APP_URL = process.env.PAX_DIAG_APP_URL?.trim() || null;
 const DIAG_TERRITORY_MODE =
@@ -67,6 +68,43 @@ async function cleanupStaleHarnessBrowsers(
         Where-Object {
             $_.CommandLine -like '*${escapedPrefix}*' -and
             ($_.Name -ieq 'chrome.exe' -or $_.Name -ieq 'msedge.exe')
+        } |
+        ForEach-Object {
+            try {
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
+            } catch {}
+        }
+    `;
+    const cleanup = Bun.spawn(
+        ["powershell.exe", "-NoProfile", "-Command", command],
+        {
+            stdout: "ignore",
+            stderr: "ignore",
+        },
+    );
+    await cleanup.exited;
+}
+
+async function killProcessTree(pid: number | undefined | null): Promise<void> {
+    if (!pid) return;
+    const killer = Bun.spawn(
+        ["taskkill.exe", "/PID", String(pid), "/T", "/F"],
+        {
+            stdout: "ignore",
+            stderr: "ignore",
+        },
+    );
+    await killer.exited;
+}
+
+async function cleanupStaleHarnessDevServer(port: number): Promise<void> {
+    const escapedClientDir = CLIENT_DIR.replace(/'/g, "''");
+    const command = `
+        Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.CommandLine -like '*vite*dev*--host ${HOST}*--port ${port}*' -and
+            $_.CommandLine -like '*${escapedClientDir}*' -and
+            ($_.Name -ieq 'node.exe' -or $_.Name -ieq 'bun.exe' -or $_.Name -ieq 'cmd.exe')
         } |
         ForEach-Object {
             try {
@@ -629,10 +667,9 @@ async function main(): Promise<void> {
         appPort == null
             ? null
             : spawnChildProcess(
-                  "cmd.exe",
+                  BUN_EXECUTABLE,
                   [
-                      "/c",
-                      "bunx",
+                      "x",
                       "vite",
                       "dev",
                       "--host",
@@ -950,6 +987,20 @@ async function main(): Promise<void> {
     } finally {
         browser.kill();
         devServer?.kill();
+        await Promise.allSettled([
+            browser.exited,
+            killProcessTree(browser.pid),
+            devServer
+                ? new Promise<void>((resolve) => {
+                      devServer.once("exit", () => resolve());
+                      setTimeout(resolve, 1000);
+                  })
+                : Promise.resolve(),
+            killProcessTree(devServer?.pid),
+        ]);
+        if (appPort != null) {
+            await cleanupStaleHarnessDevServer(appPort);
+        }
         await sleep(500);
         if (devServerStdoutFd != null) {
             closeSync(devServerStdoutFd);

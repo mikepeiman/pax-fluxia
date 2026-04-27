@@ -37,6 +37,8 @@ interface BenchmarkCanvasApi {
         starId: string,
     ) => BenchmarkStarClientPoint | null;
     getBenchmarkTerritorySchedulerSnapshot?: () => Record<string, unknown> | null;
+    getTransitionDiagnosticCaptureState?: () => Record<string, unknown> | null;
+    resetTransitionDiagnosticCapture?: () => void;
 }
 
 type RuntimeDeps = {
@@ -118,6 +120,7 @@ interface BenchmarkBridgeApi {
     setTransitionRecorderEnabled: (enabled: boolean) => Promise<boolean>;
     clearTransitionRecorderBundles: () => Promise<void>;
     getTransitionRecorderSummary: () => Promise<Record<string, unknown>>;
+    getTransitionDiagnosticCaptureState: () => Promise<Record<string, unknown> | null>;
     getLatestTransitionDiagnosticBundle: () => Promise<Record<string, unknown> | null>;
     waitForTransitionBundle: (
         previousCount: number,
@@ -170,6 +173,7 @@ function waitMs(ms: number): Promise<void> {
 function summarizeTransitionRecorder(): Record<string, unknown> {
     const bundles = transitionSnapshotRecorder.getBundles();
     const latest = bundles[bundles.length - 1] ?? null;
+    const canvasApi = window.__PAX_GAME_CANVAS__ ?? null;
     return {
         enabled: transitionSnapshotRecorder.isEnabled(),
         bundleCount: bundles.length,
@@ -178,6 +182,8 @@ function summarizeTransitionRecorder(): Record<string, unknown> {
         latestTimestamp: latest?.timestamp ?? null,
         latestFrameCount: latest?.transitionFrames?.length ?? 0,
         latestConquestCount: latest?.conquestEvents.length ?? 0,
+        captureState:
+            canvasApi?.getTransitionDiagnosticCaptureState?.() ?? null,
     };
 }
 
@@ -688,13 +694,24 @@ export function installBenchmarkBridge(params: {
         },
         setTransitionRecorderEnabled: async (enabled) => {
             transitionSnapshotRecorder.setEnabled(enabled);
+            const canvasApi =
+                params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
+            canvasApi?.resetTransitionDiagnosticCapture?.();
             return transitionSnapshotRecorder.isEnabled();
         },
         clearTransitionRecorderBundles: async () => {
             transitionSnapshotRecorder.clear();
+            const canvasApi =
+                params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
+            canvasApi?.resetTransitionDiagnosticCapture?.();
         },
         getTransitionRecorderSummary: async () => {
             return summarizeTransitionRecorder();
+        },
+        getTransitionDiagnosticCaptureState: async () => {
+            const canvasApi =
+                params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
+            return canvasApi?.getTransitionDiagnosticCaptureState?.() ?? null;
         },
         getLatestTransitionDiagnosticBundle: async () => {
             const bundles = transitionSnapshotRecorder.getBundles();
