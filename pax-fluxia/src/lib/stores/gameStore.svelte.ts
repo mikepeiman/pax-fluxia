@@ -1994,6 +1994,8 @@ async function startGame(): Promise<void> {
             },
         });
         destroyGame();
+        hasStarted = false;
+        pausedElapsed = 0;
         (globalThis as any).__territoryRenderedWhilePaused = false;
         measurePerf('game.startGame.clearCombatLog', () => {
             combatLog.clear();

@@ -1,4 +1,11 @@
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+    existsSync,
+    mkdtempSync,
+    mkdirSync,
+    readFileSync,
+    rmSync,
+    writeFileSync,
+} from "node:fs";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -53,6 +60,28 @@ const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
 const TRACE_DIR = path.join(METRICS_DIR, "browser-traces");
 const HOST = "127.0.0.1";
+const CONQUEST_DIAGNOSTIC_MAP = JSON.parse(
+    existsSync(
+        path.join(
+            ROOT,
+            "common",
+            "resources",
+            "fixture-maps",
+            "metaball_conquest_lane_push.json",
+        ),
+    )
+        ? readFileSync(
+              path.join(
+                  ROOT,
+                  "common",
+                  "resources",
+                  "fixture-maps",
+                  "metaball_conquest_lane_push.json",
+              ),
+              "utf8",
+          )
+        : "{}",
+) as Record<string, JsonValue>;
 const WRITE_TRACE_ARTIFACTS = /^(1|true|yes)$/i.test(
     process.env.PAX_WRITE_TRACE ?? "",
 );
@@ -109,7 +138,11 @@ function buildScenarioPrepStatements(
             await window.__PAX_BENCH__.restartSinglePlayerGame();
         }
         const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode(${modeLiteral});
-        ${beginGameplay ? "await window.__PAX_BENCH__.beginGameplay();" : ""}
+        const gameplayPrep = ${
+            beginGameplay
+                ? `await window.__PAX_BENCH__.beginGameplay(6000, 1); if (!gameplayPrep?.started) { throw new Error("Gameplay did not start for mode ${mode}: " + JSON.stringify(gameplayPrep)); }`
+                : "null"
+        };
     `;
 }
 
@@ -2909,21 +2942,31 @@ async function captureTransitionDiagnosticScenario(
     _mapName: string | null,
 ): Promise<JsonValue> {
     const modeLiteral = JSON.stringify(mode);
+    const conquestMapLiteral = JSON.stringify(CONQUEST_DIAGNOSTIC_MAP);
     const prepScript = `
         (async () => {
             window.__PAX_BENCH__.resetPerfCapture();
             const loadedMap =
-                await window.__PAX_BENCH__.loadSavedMapByName("lane_margin_ruler_2p");
+                await window.__PAX_BENCH__.loadMapDefinition(${conquestMapLiteral});
             if (!loadedMap) {
-                throw new Error("Could not load conquest diagnostic saved map");
+                throw new Error("Could not load conquest diagnostic fixture map");
             }
             const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode(${modeLiteral});
+            const gameplayPrep = await window.__PAX_BENCH__.beginGameplay(6000, 1);
+            if (!gameplayPrep?.started) {
+                throw new Error(
+                    "Conquest diagnostic gameplay did not start: " +
+                        JSON.stringify(gameplayPrep),
+                );
+            }
             await window.__PAX_BENCH__.clearTransitionRecorderBundles();
             await window.__PAX_BENCH__.setTransitionRecorderEnabled(true);
-            await new Promise((resolve) => setTimeout(resolve, 1200));
+            await new Promise((resolve) => setTimeout(resolve, 600));
             return {
                 modePrep,
+                gameplayPrep,
                 recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                stateBeforePrepOrder: await window.__PAX_BENCH__.getStateSummary(),
                 sampleOrder:
                     await window.__PAX_BENCH__.prepareConquestDiagnosticOrder(),
             };
@@ -2959,6 +3002,30 @@ async function captureTransitionDiagnosticScenario(
     const bundleWait = await client.evaluate<Record<string, JsonValue>>(
         "window.__PAX_BENCH__.waitForTransitionBundle(0, 25000)",
     );
+    const sourceIdLiteral = JSON.stringify(String(sampleOrder.sourceId));
+    const targetIdLiteral = JSON.stringify(String(sampleOrder.targetId));
+    const starTimeline = await client.evaluate<Array<Record<string, JsonValue>>>(
+        `
+            (async () => {
+                const samples = [];
+                for (let index = 0; index < 10; index += 1) {
+                    samples.push({
+                        sampleIndex: index,
+                        state: await window.__PAX_BENCH__.getStateSummary(),
+                        source: await window.__PAX_BENCH__.getStarState(${sourceIdLiteral}),
+                        target: await window.__PAX_BENCH__.getStarState(${targetIdLiteral}),
+                        sourceOrder: await window.__PAX_BENCH__.getOrderStatus(${sourceIdLiteral}),
+                        recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                    });
+                    await new Promise((resolve) => setTimeout(resolve, 250));
+                }
+                return samples;
+            })()
+        `,
+    );
+    const stateAfterIssue = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.getStateSummary()",
+    );
     const recorderSummary = await client.evaluate<Record<string, JsonValue>>(
         "window.__PAX_BENCH__.getTransitionRecorderSummary()",
     );
@@ -2972,6 +3039,8 @@ async function captureTransitionDiagnosticScenario(
         issued,
         sampleOrder,
         bundleWait,
+        starTimeline,
+        stateAfterIssue,
         recorderSummary,
         diagnosticBundle,
         diagnosticStepSummary: Array.isArray(diagnosticBundle?.steps)
@@ -3266,6 +3335,7 @@ async function main(): Promise<void> {
                             await new Promise((resolve) => setTimeout(resolve, 1200));
                             return {
                                 modePrep,
+                                gameplayPrep,
                                 frames: await window.__PAX_BENCH__.collectFrameStats(2600),
                             };
                         })()
@@ -3302,7 +3372,7 @@ async function main(): Promise<void> {
                             (async () => {
                                 ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
                                 await new Promise((resolve) => setTimeout(resolve, 1200));
-                                return modePrep;
+                                return { modePrep, gameplayPrep };
                             })()
                         `);
                         const pointerSamples = await executePointerOrderLoop(
@@ -3332,7 +3402,7 @@ async function main(): Promise<void> {
                             (async () => {
                                 ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
                                 await new Promise((resolve) => setTimeout(resolve, 1200));
-                                return modePrep;
+                                return { modePrep, gameplayPrep };
                             })()
                         `);
                         const pointerSamples = await executePointerOrderLoop(

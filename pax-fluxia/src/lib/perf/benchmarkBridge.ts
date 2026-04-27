@@ -64,6 +64,7 @@ interface BenchmarkBridgeApi {
     setLogFlags: (flags: Partial<typeof logFlags>) => void;
     getLogFlags: () => Record<string, boolean>;
     restartSinglePlayerGame: () => Promise<void>;
+    loadMapDefinition: (mapDefinition: Record<string, unknown>) => Promise<boolean>;
     loadSavedMapByName: (mapName: string) => Promise<boolean>;
     listSavedMaps: () => Promise<
         Array<{
@@ -78,9 +79,16 @@ interface BenchmarkBridgeApi {
         minCount?: number,
         timeoutMs?: number,
     ) => Promise<Record<string, unknown>>;
-    beginGameplay: () => Promise<void>;
+    beginGameplay: (
+        timeoutMs?: number,
+        minimumTickAdvance?: number,
+    ) => Promise<Record<string, unknown>>;
     pauseGameplay: () => Promise<void>;
     getStateSummary: () => Promise<Record<string, unknown>>;
+    waitForGameplayStart: (
+        timeoutMs?: number,
+        minimumTickAdvance?: number,
+    ) => Promise<Record<string, unknown>>;
     resolveSampleOrder: () => Promise<Record<string, unknown> | null>;
     prepareConquestDiagnosticOrder: () => Promise<Record<string, unknown> | null>;
     issueSampleOrder: () => Promise<Record<string, unknown> | null>;
@@ -104,6 +112,7 @@ interface BenchmarkBridgeApi {
     getStarClientPoint: (
         starId: string,
     ) => Promise<BenchmarkStarClientPoint | null>;
+    getStarState: (starId: string) => Promise<Record<string, unknown> | null>;
     getOrderStatus: (sourceId: string) => Promise<Record<string, unknown> | null>;
     getTerritorySchedulerSnapshot: () => Promise<Record<string, unknown> | null>;
     setTransitionRecorderEnabled: (enabled: boolean) => Promise<boolean>;
@@ -385,6 +394,57 @@ export function installBenchmarkBridge(params: {
         };
     };
 
+    const waitForGameplayStart = async (
+        timeoutMs = 6_000,
+        minimumTickAdvance = 1,
+    ): Promise<Record<string, unknown>> => {
+        await openGameShell();
+        const initialState = await getStateSummary();
+        const initialTick = Number(initialState.tick ?? 0);
+        const requiredTick = initialTick + Math.max(0, minimumTickAdvance);
+        const startedAt = performance.now();
+        let attempts = 0;
+        let state = initialState;
+
+        while (performance.now() - startedAt < timeoutMs) {
+            const phase = String(state.phase ?? "");
+            const currentView = String(state.currentView ?? "");
+            const hasStarted = state.hasStarted === true;
+            const paused = state.paused === true;
+            const tick = Number(state.tick ?? 0);
+            const tickAdvanced = tick >= requiredTick;
+            if (
+                phase === "playing" &&
+                currentView === "game" &&
+                hasStarted &&
+                !paused &&
+                tickAdvanced
+            ) {
+                return {
+                    started: true,
+                    attempts,
+                    elapsedMs: performance.now() - startedAt,
+                    initialTick,
+                    requiredTick,
+                    state,
+                };
+            }
+            attempts += 1;
+            await settleFrames(2);
+            await waitMs(40);
+            state = await getStateSummary();
+        }
+
+        return {
+            started: false,
+            attempts,
+            elapsedMs: performance.now() - startedAt,
+            initialTick,
+            requiredTick,
+            state,
+        };
+    };
+
     window.__PAX_BENCH__ = {
         openGameShell,
         enablePerfCapture,
@@ -437,6 +497,21 @@ export function installBenchmarkBridge(params: {
             await gameStore.restart();
             await settleAfterShellOpen();
         },
+        loadMapDefinition: async (mapDefinition) => {
+            await openGameShell();
+            if (
+                !mapDefinition ||
+                !Array.isArray(mapDefinition.stars) ||
+                !Array.isArray(mapDefinition.connections)
+            ) {
+                return false;
+            }
+            const { gameStore } = await loadRuntimeDeps();
+            gameStore.loadSavedMap(mapDefinition as never);
+            await gameStore.startGame();
+            await settleAfterShellOpen();
+            return true;
+        },
         loadSavedMapByName: async (mapName) => {
             await openGameShell();
             await waitForSavedMaps(1, 8_000);
@@ -483,11 +558,11 @@ export function installBenchmarkBridge(params: {
                 );
         },
         waitForSavedMaps,
-        beginGameplay: async () => {
+        beginGameplay: async (timeoutMs = 6_000, minimumTickAdvance = 1) => {
             await openGameShell();
             const { activeGameStore } = await loadRuntimeDeps();
             activeGameStore.startGame();
-            await settleAfterShellOpen();
+            return await waitForGameplayStart(timeoutMs, minimumTickAdvance);
         },
         pauseGameplay: async () => {
             const { activeGameStore } = await loadRuntimeDeps();
@@ -495,6 +570,7 @@ export function installBenchmarkBridge(params: {
             await settleAfterShellOpen();
         },
         getStateSummary,
+        waitForGameplayStart,
         resolveSampleOrder: async () => {
             return await findSampleOrder();
         },
@@ -571,6 +647,25 @@ export function installBenchmarkBridge(params: {
             const canvasApi =
                 params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
             return canvasApi?.getBenchmarkStarClientPoint?.(starId) ?? null;
+        },
+        getStarState: async (starId) => {
+            const { activeGameStore } = await loadRuntimeDeps();
+            const star = (activeGameStore.stars ?? []).find(
+                (entry: { id: string }) => entry.id === starId,
+            );
+            if (!star) return null;
+            return {
+                id: star.id,
+                ownerId: star.ownerId ?? null,
+                activeShips: star.activeShips ?? 0,
+                damagedShips: star.damagedShips ?? 0,
+                targetId: star.targetId ?? null,
+                queuedOrderTargetId: star.queuedOrderTargetId ?? null,
+                starType: star.starType ?? null,
+                productionRate: star.productionRate ?? null,
+                repairRate: star.repairRate ?? null,
+                transferRate: star.transferRate ?? null,
+            };
         },
         getOrderStatus: async (sourceId) => {
             const { activeGameStore } = await loadRuntimeDeps();

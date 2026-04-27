@@ -257,6 +257,12 @@ function printScenario(name: string, scenario: any): void {
             );
         }
     }
+    if (scenario?.actionResult?.gameplayPrep) {
+        console.log("gameplay prep:");
+        console.log(
+            `  - started=${String(scenario.actionResult.gameplayPrep?.started ?? false)} attempts=${Number(scenario.actionResult.gameplayPrep?.attempts ?? 0)} elapsedMs=${round(Number(scenario.actionResult.gameplayPrep?.elapsedMs ?? 0))} initialTick=${Number(scenario.actionResult.gameplayPrep?.initialTick ?? 0)} requiredTick=${Number(scenario.actionResult.gameplayPrep?.requiredTick ?? 0)}`,
+        );
+    }
     const diagnosticAction = scenario?.actionResult;
     const diagnosticBundle = scenario?.actionResult?.diagnosticBundle;
     if (diagnosticBundle) {
