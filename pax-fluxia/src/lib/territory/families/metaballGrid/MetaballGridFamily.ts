@@ -1230,7 +1230,8 @@ export class MetaballGridFamily implements RenderFamily {
             palBorderSig,
         ].join('|');
 
-        if (!rebuiltPlan && this.lastPaintSig === paintSig) {
+        const allowPaintSkip = !input.activeTransition;
+        if (allowPaintSkip && !rebuiltPlan && this.lastPaintSig === paintSig) {
             this.frameCount += 1;
             this.skippedFrameCount += 1;
             const elapsed = performance.now() - startMs;

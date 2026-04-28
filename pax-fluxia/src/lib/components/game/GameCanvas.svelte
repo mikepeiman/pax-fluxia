@@ -245,6 +245,7 @@
     const STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 320;
     const RENDER_INPUT_PENDING_MIN_BUDGET_MS = 4;
     const RENDER_INPUT_PENDING_SOFT_BUDGET_MS = 8;
+    const PRESENTATION_SMOOTHNESS_FIRST = true;
     let territoryInputPriorityUntilMs = 0;
     let lastTerritoryUpdateStartedAtMs = 0;
     let lastTerritoryUpdateCostMs = 0;
@@ -907,6 +908,9 @@
         frameStartedAtMs: number,
         stage: string,
     ): boolean {
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            return false;
+        }
         const yieldState = getRenderFrameInputYieldState(frameStartedAtMs);
         if (!yieldState.shouldYield) return false;
         renderFrameInputYieldCount += 1;
@@ -1183,6 +1187,14 @@
             params.lastPresentedAtMs > 0
                 ? params.nowMs - params.lastPresentedAtMs
                 : Number.POSITIVE_INFINITY;
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            return {
+                defer: false,
+                reason: "smoothness_first",
+                cadenceMs: 0,
+                staleMs,
+            };
+        }
         if (params.isPaused || params.lastPresentedAtMs === 0) {
             return {
                 defer: false,
@@ -1307,11 +1319,19 @@
         activeMode: string;
         pendingConquests: number;
     }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
-        const cadenceMs = computeTerritoryCadenceMs(params.nowMs);
         const staleMs =
             lastTerritoryPresentedAtMs > 0
                 ? params.nowMs - lastTerritoryPresentedAtMs
                 : Number.POSITIVE_INFINITY;
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            return {
+                defer: false,
+                reason: "smoothness_first",
+                cadenceMs: 0,
+                staleMs,
+            };
+        }
+        const cadenceMs = computeTerritoryCadenceMs(params.nowMs);
         const forceFresh =
             params.isPaused ||
             params.configChanged ||
@@ -1369,15 +1389,23 @@
         isPaused: boolean;
         travelingShips: number;
     }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
+        const staleMs =
+            lastShipRenderPresentedAtMs > 0
+                ? params.nowMs - lastShipRenderPresentedAtMs
+                : Number.POSITIVE_INFINITY;
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            return {
+                defer: false,
+                reason: "smoothness_first",
+                cadenceMs: 0,
+                staleMs,
+            };
+        }
         const prioritizeTravelCadence = params.travelingShips > 0;
         const cadenceMs = computeShipRenderCadenceMs(
             params.nowMs,
             params.travelingShips,
         );
-        const staleMs =
-            lastShipRenderPresentedAtMs > 0
-                ? params.nowMs - lastShipRenderPresentedAtMs
-                : Number.POSITIVE_INFINITY;
         if (params.isPaused || lastShipRenderPresentedAtMs === 0) {
             return {
                 defer: false,
@@ -4244,6 +4272,11 @@
     function scheduleTerritoryPresentationQueue(): void {
         if (territoryPresentationScheduled || territoryPresentationRunning) return;
         if (!territoryPresentationPendingRequest) return;
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            territoryPresentationLastScheduleMode = "immediate";
+            void flushTerritoryPresentationQueue();
+            return;
+        }
         territoryPresentationScheduled = true;
         territoryPresentationPostedCount += 1;
         const scheduler = getTaskScheduler();
@@ -4282,6 +4315,11 @@
 
     function scheduleTerritoryPresentationQueueDelay(delayMs: number): void {
         if (territoryPresentationDelayTimer || !territoryPresentationPendingRequest) {
+            return;
+        }
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            territoryPresentationLastScheduleMode = "immediate-delay-bypass";
+            void flushTerritoryPresentationQueue();
             return;
         }
         territoryPresentationScheduled = true;
@@ -4327,6 +4365,14 @@
         forced: boolean;
     } {
         const requestAgeMs = nowMs - request.enqueuedAtMs;
+        if (PRESENTATION_SMOOTHNESS_FIRST) {
+            return {
+                yield: false,
+                requestAgeMs,
+                reason: "smoothness_first",
+                forced: true,
+            };
+        }
         if (request.isPaused) {
             return {
                 yield: false,
