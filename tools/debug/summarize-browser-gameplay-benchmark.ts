@@ -32,6 +32,18 @@ function printScenario(name: string, scenario: any): void {
     console.log(
         `elapsed=${round(Number(scenario?.elapsedMs ?? 0))}ms mode=${String(scenario?.requestedMode ?? "n/a")}`,
     );
+    const frames = scenario?.actionResult?.frames ?? scenario?.frames ?? null;
+    if (frames) {
+        console.log(
+            `frames count=${Number(frames.frameCount ?? 0)} avg=${round(Number(frames.avgFrameMs ?? 0))}ms p95=${round(Number(frames.p95FrameMs ?? 0))}ms max=${round(Number(frames.maxFrameMs ?? 0))}ms duration=${round(Number(frames.durationMs ?? 0))}ms`,
+        );
+        console.log(
+            `warmup duration=${round(Number(frames.warmupDurationMs ?? 0))}ms frames=${Number(frames.warmupFrameCount ?? 0)} max=${round(Number(frames.warmupMaxFrameMs ?? 0))}ms over20=${Number(frames.warmupOver20MsCount ?? 0)}`,
+        );
+        console.log(
+            `frameBudget=${round(Number(frames.frameBudgetMs ?? 0))}ms overBudget=${Number(frames.overBudgetCount ?? 0)} over20=${Number(frames.over20MsCount ?? 0)} over33=${Number(frames.over33MsCount ?? 0)}`,
+        );
+    }
     const longTasks = scenario?.perf?.longTasks;
     if (longTasks) {
         console.log(
@@ -43,6 +55,34 @@ function printScenario(name: string, scenario: any): void {
         console.log(
             `longAnimationFrames count=${Number(longAnimationFrames.count ?? 0)} blockingMax=${round(Number(longAnimationFrames?.blockingDuration?.maxMs ?? 0))}ms durationMax=${round(Number(longAnimationFrames?.duration?.maxMs ?? 0))}ms`,
         );
+    }
+    const frameSpikeDiagnostics =
+        scenario?.perf?.frameSpikeDiagnostics
+        ?? scenario?.analysis?.frameSpikeDiagnostics
+        ?? null;
+    const spikes = (frameSpikeDiagnostics?.spikes ?? []).slice(0, 4);
+    if (spikes.length > 0) {
+        console.log("frame spikes:");
+        console.log(
+            `  - unattributed avg=${round(Number(scenario?.perf?.frameSpikeDiagnostics?.avgUnattributedGapMs ?? 0))}ms max=${round(Number(scenario?.perf?.frameSpikeDiagnostics?.maxUnattributedGapMs ?? 0))}ms fullMisses=${Number(scenario?.perf?.frameSpikeDiagnostics?.fullyUnattributedSpikeCount ?? 0)}`,
+        );
+        for (const spike of spikes) {
+            console.log(
+                `  - #${Number(spike?.index ?? 0)} frame=${round(Number(spike?.frameMs ?? 0))}ms measured=${round(Number(spike?.measuredWorkMs ?? 0))}ms gap=${round(Number(spike?.unattributedGapMs ?? 0))}ms attribution=${String(spike?.attribution ?? "unknown")} window=${round(Number(spike?.startAtMs ?? 0))}-${round(Number(spike?.endAtMs ?? 0))}ms`,
+            );
+            const overlapMeasures = (spike?.overlappingMeasures ?? []).slice(0, 4);
+            for (const measure of overlapMeasures) {
+                console.log(
+                    `    measure ${String(measure?.name ?? "unknown")} duration=${round(Number(measure?.durationMs ?? 0))}ms`,
+                );
+            }
+            const overlapEvents = (spike?.overlappingBrowserEvents ?? []).slice(0, 3);
+            for (const event of overlapEvents) {
+                console.log(
+                    `    event ${String(event?.name ?? "unknown")} duration=${round(Number(event?.durationMs ?? 0))}ms`,
+                );
+            }
+        }
     }
     const frameMeasures = (scenario?.perf?.frameMeasures ?? []).slice(0, 10);
     if (frameMeasures.length > 0) {
@@ -81,6 +121,28 @@ function printScenario(name: string, scenario: any): void {
         for (const measure of renderLineItems) {
             console.log(`  - ${formatMeasure(measure)}`);
         }
+    }
+    const shipDiagnostics = scenario?.perf?.shipDiagnostics ?? scenario?.shipDiagnostics ?? null;
+    if (shipDiagnostics) {
+        console.log("ship diagnostics:");
+        console.log(
+            `  - lod=${String(shipDiagnostics?.lodLevel ?? "unknown")} orbitScale=${round(Number(shipDiagnostics?.orbitScale ?? 0))} damagedScale=${round(Number(shipDiagnostics?.damagedScale ?? 0))} particles=${Number(shipDiagnostics?.usedParticles ?? 0)}`,
+        );
+        console.log(
+            `  - active=${Number(shipDiagnostics?.totalActiveOrbitShips ?? 0)} travel=${Number(shipDiagnostics?.totalTravelingShips ?? 0)} damaged=${Number(shipDiagnostics?.totalDamagedShips ?? 0)} pressure=${Number(shipDiagnostics?.totalVisualPressure ?? 0)}`,
+        );
+        console.log(
+            `  - orbit base=${Number(shipDiagnostics?.baseOrbitVisuals ?? 0)} budget=${Number(shipDiagnostics?.orbitVisualBudget ?? 0)} capPerStar=${Number(shipDiagnostics?.maxOrbitVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedOrbitVisuals ?? 0)}`,
+        );
+        console.log(
+            `  - damaged base=${Number(shipDiagnostics?.baseDamagedVisuals ?? 0)} budget=${Number(shipDiagnostics?.damagedVisualBudget ?? 0)} capPerStar=${Number(shipDiagnostics?.maxDamagedVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedDamagedVisuals ?? 0)}`,
+        );
+        console.log(
+            `  - travel rendered=${Number(shipDiagnostics?.renderedTravelVisuals ?? 0)} groupedShips=${Number(shipDiagnostics?.groupedTravelShips ?? 0)} orbGroups=${Number(shipDiagnostics?.travelOrbGroupCount ?? 0)} totalRendered=${Number(shipDiagnostics?.totalRenderedVisuals ?? 0)}`,
+        );
+        console.log(
+            `  - outline=${Boolean(shipDiagnostics?.effectiveOutlineOn)} glow=${Boolean(shipDiagnostics?.effectiveGlowOn)}`,
+        );
     }
     const inputGroups = (scenario?.perf?.inputLatency?.groups ?? []).slice(0, 8);
     if (inputGroups.length > 0) {
@@ -263,6 +325,9 @@ function printScenario(name: string, scenario: any): void {
             `  - started=${String(scenario.actionResult.gameplayPrep?.started ?? false)} attempts=${Number(scenario.actionResult.gameplayPrep?.attempts ?? 0)} elapsedMs=${round(Number(scenario.actionResult.gameplayPrep?.elapsedMs ?? 0))} initialTick=${Number(scenario.actionResult.gameplayPrep?.initialTick ?? 0)} requiredTick=${Number(scenario.actionResult.gameplayPrep?.requiredTick ?? 0)}`,
         );
     }
+    if (typeof scenario?.screenshotPath === "string" && scenario.screenshotPath.length > 0) {
+        console.log(`screenshot=${scenario.screenshotPath}`);
+    }
     const diagnosticAction = scenario?.actionResult;
     const diagnosticBundle = scenario?.actionResult?.diagnosticBundle;
     if (diagnosticBundle) {
@@ -314,6 +379,14 @@ function main(): void {
         console.log(
             `benchmarkTarget map=${String(report.benchmarkTarget?.resolvedMapName ?? "none")} stars=${Number(report.benchmarkTarget?.starCount ?? 0)} lanes=${Number(report.benchmarkTarget?.laneCount ?? 0)} runtimeConnections=${Number(report.benchmarkTarget?.runtimeConnectionCount ?? 0)} reason=${String(report.benchmarkTarget?.selectionReason ?? "unknown")}`,
         );
+    }
+    if (report?.captureConfig) {
+        console.log(
+            `captureConfig trace=${String(report.captureConfig?.trace ?? false)} cpu=${String(report.captureConfig?.cpu ?? false)} warmupMs=${round(Number(report.captureConfig?.frameWarmupMs ?? 0))} gameplayFrameMs=${round(Number(report.captureConfig?.gameplayFrameMs ?? 0))}`,
+        );
+    }
+    if (typeof report?.scenarioScreenshotDir === "string" && report.scenarioScreenshotDir.length > 0) {
+        console.log(`scenarioScreenshotDir=${report.scenarioScreenshotDir}`);
     }
 
     const scenarios = report?.scenarios ?? {};

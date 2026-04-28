@@ -27,13 +27,19 @@ declare global {
         | boolean
         | undefined;
     // eslint-disable-next-line no-var
+    var __PAX_PERF_USER_TIMING__:
+        | boolean
+        | undefined;
+    // eslint-disable-next-line no-var
     var __PAX_PERF_STATE__:
         | PerfCaptureSnapshot
         | undefined;
 }
 
 const MAX_MEASURE_SAMPLES = 64;
-const MAX_EVENT_SAMPLES = 8192;
+// Long benchmark soaks need enough retained focus events to keep the
+// worst late-run frame spikes attributable when we summarize afterward.
+const MAX_EVENT_SAMPLES = 65536;
 let browserObserversInstalled = false;
 
 function perfNow(): number {
@@ -42,6 +48,14 @@ function perfNow(): number {
 
 export function isPerfCaptureEnabled(): boolean {
     return Boolean(globalThis.__PAX_PERF_CAPTURE__);
+}
+
+export function isPerfUserTimingEnabled(): boolean {
+    return Boolean(globalThis.__PAX_PERF_USER_TIMING__);
+}
+
+export function setPerfUserTimingEnabled(enabled: boolean): void {
+    globalThis.__PAX_PERF_USER_TIMING__ = enabled;
 }
 
 export function enablePerfCapture(): void {
@@ -79,12 +93,15 @@ export function snapshotPerfCapture(): PerfCaptureSnapshot | null {
         : null;
 }
 
-export function recordPerfEvent(name: string, detail?: PerfDetail): void {
-    if (!isPerfCaptureEnabled()) return;
-    const state = ensurePerfState();
+function pushPerfEventSample(
+    state: PerfCaptureSnapshot,
+    name: string,
+    atMs: number,
+    detail?: PerfDetail,
+): void {
     state.events.push({
         name,
-        atMs: perfNow(),
+        atMs,
         detail,
     });
     if (state.events.length > MAX_EVENT_SAMPLES) {
@@ -92,13 +109,26 @@ export function recordPerfEvent(name: string, detail?: PerfDetail): void {
     }
 }
 
+export function recordPerfEvent(name: string, detail?: PerfDetail): void {
+    if (!isPerfCaptureEnabled()) return;
+    const state = ensurePerfState();
+    pushPerfEventSample(
+        state,
+        name,
+        perfNow(),
+        sanitizePerfDetail(detail),
+    );
+}
+
 export function recordPerfDuration(
     name: string,
     durationMs: number,
     detail?: PerfDetail,
+    startedAtMs?: number,
 ): void {
     if (!isPerfCaptureEnabled()) return;
     const state = ensurePerfState();
+    const sanitizedDetail = sanitizePerfDetail(detail);
     const aggregate = state.measures[name] ?? {
         count: 0,
         totalMs: 0,
@@ -106,19 +136,30 @@ export function recordPerfDuration(
         minMs: Number.POSITIVE_INFINITY,
         lastMs: 0,
         samples: [],
-        detail,
+        detail: sanitizedDetail,
     };
     aggregate.count += 1;
     aggregate.totalMs += durationMs;
     aggregate.maxMs = Math.max(aggregate.maxMs, durationMs);
     aggregate.minMs = Math.min(aggregate.minMs, durationMs);
     aggregate.lastMs = durationMs;
-    aggregate.detail = detail ?? aggregate.detail;
+    aggregate.detail = sanitizedDetail ?? aggregate.detail;
     aggregate.samples.push(durationMs);
     if (aggregate.samples.length > MAX_MEASURE_SAMPLES) {
         aggregate.samples.splice(0, aggregate.samples.length - MAX_MEASURE_SAMPLES);
     }
     state.measures[name] = aggregate;
+    const eventStartedAtMs =
+        typeof startedAtMs === "number" && Number.isFinite(startedAtMs)
+            ? startedAtMs
+            : perfNow() - durationMs;
+    pushPerfEventSample(state, name, eventStartedAtMs, {
+        ...(sanitizedDetail ?? {}),
+        kind: "measure",
+        durationMs,
+        startTimeMs: eventStartedAtMs,
+        endTimeMs: eventStartedAtMs + durationMs,
+    });
 }
 
 function sanitizePerfDetail(value: unknown): PerfDetail {
@@ -291,18 +332,24 @@ export function measurePerf<T>(
     const startLabel = `${id}:start`;
     const endLabel = `${id}:end`;
     const startedAt = perfNow();
-    mark(startLabel);
+    const captureUserTiming = isPerfUserTimingEnabled();
+    if (captureUserTiming) {
+        mark(startLabel);
+    }
     try {
         return fn();
     } finally {
-        mark(endLabel);
-        measure(name, startLabel, endLabel);
-        clearMark(startLabel);
-        clearMark(endLabel);
+        if (captureUserTiming) {
+            mark(endLabel);
+            measure(name, startLabel, endLabel);
+            clearMark(startLabel);
+            clearMark(endLabel);
+        }
         recordPerfDuration(
             name,
             perfNow() - startedAt,
-            sanitizePerfDetail(detail),
+            detail,
+            startedAt,
         );
     }
 }
@@ -319,18 +366,24 @@ export async function measurePerfAsync<T>(
     const startLabel = `${id}:start`;
     const endLabel = `${id}:end`;
     const startedAt = perfNow();
-    mark(startLabel);
+    const captureUserTiming = isPerfUserTimingEnabled();
+    if (captureUserTiming) {
+        mark(startLabel);
+    }
     try {
         return await fn();
     } finally {
-        mark(endLabel);
-        measure(name, startLabel, endLabel);
-        clearMark(startLabel);
-        clearMark(endLabel);
+        if (captureUserTiming) {
+            mark(endLabel);
+            measure(name, startLabel, endLabel);
+            clearMark(startLabel);
+            clearMark(endLabel);
+        }
         recordPerfDuration(
             name,
             perfNow() - startedAt,
-            sanitizePerfDetail(detail),
+            detail,
+            startedAt,
         );
     }
 }

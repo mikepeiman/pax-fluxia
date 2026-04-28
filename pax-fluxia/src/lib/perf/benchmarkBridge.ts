@@ -1,7 +1,9 @@
 import {
     disablePerfCapture,
     enablePerfCapture,
+    isPerfUserTimingEnabled,
     resetPerfCapture,
+    setPerfUserTimingEnabled,
     snapshotPerfCapture,
 } from "$lib/perf/perfProbe";
 import { buildDiagnosticBundleForInspection } from "$lib/territory/devtools/TransitionBundleSerializer";
@@ -14,6 +16,22 @@ interface FrameStats {
     p95FrameMs: number;
     maxFrameMs: number;
     durationMs: number;
+    startedAtMs: number;
+    endedAtMs: number;
+    frameBudgetMs: number;
+    overBudgetCount: number;
+    over20MsCount: number;
+    over33MsCount: number;
+    warmupDurationMs: number;
+    warmupFrameCount: number;
+    warmupMaxFrameMs: number;
+    warmupOver20MsCount: number;
+    slowFrames: Array<{
+        index: number;
+        frameMs: number;
+        startAtMs: number;
+        endAtMs: number;
+    }>;
 }
 
 interface BenchmarkOrderPointerPath {
@@ -51,6 +69,8 @@ interface BenchmarkBridgeApi {
     openGameShell: () => Promise<void>;
     enablePerfCapture: () => void;
     disablePerfCapture: () => void;
+    setPerfUserTimingEnabled: (enabled: boolean) => void;
+    isPerfUserTimingEnabled: () => boolean;
     resetPerfCapture: () => void;
     snapshotPerfCapture: () => ReturnType<typeof snapshotPerfCapture>;
     getPerfEventCursor: () => number;
@@ -101,7 +121,7 @@ interface BenchmarkBridgeApi {
         persistAfterConquest?: boolean,
     ) => Promise<boolean>;
     cancelOrderDirect: (starId: string) => Promise<void>;
-    collectFrameStats: (durationMs?: number) => Promise<FrameStats>;
+    collectFrameStats: (durationMs?: number, warmupMs?: number) => Promise<FrameStats>;
     setTerritoryMode: (mode: string) => Promise<string>;
     waitForRenderMode: (
         mode: string,
@@ -306,28 +326,80 @@ async function prepareConquestDiagnosticOrder(): Promise<{
     };
 }
 
-async function collectFrameStats(durationMs = 2000): Promise<FrameStats> {
-    const samples: number[] = [];
+async function collectFrameStats(
+    durationMs = 2000,
+    warmupMs = 0,
+): Promise<FrameStats> {
+    const samples: Array<{
+        index: number;
+        frameMs: number;
+        startAtMs: number;
+        endAtMs: number;
+    }> = [];
     const startedAt = performance.now();
     let previousFrameAt = startedAt;
+    const frameBudgetMs = 1000 / 60;
+    const warmupDeadlineAt = startedAt + Math.max(0, warmupMs);
+    const measuredDeadlineAt = warmupDeadlineAt + Math.max(0, durationMs);
 
     return await new Promise<FrameStats>((resolve) => {
         const step = (now: number) => {
-            samples.push(now - previousFrameAt);
+            samples.push({
+                index: samples.length,
+                frameMs: now - previousFrameAt,
+                startAtMs: previousFrameAt,
+                endAtMs: now,
+            });
             previousFrameAt = now;
-            if (now - startedAt < durationMs) {
+            if (now < measuredDeadlineAt) {
                 requestAnimationFrame(step);
                 return;
             }
 
-            const measured = samples.slice(1);
-            const total = measured.reduce((sum, value) => sum + value, 0);
+            const postFirstSample = samples.slice(1);
+            const warmupSamples = postFirstSample.filter(
+                (sample) => sample.endAtMs <= warmupDeadlineAt,
+            );
+            const measured = postFirstSample.filter(
+                (sample) => sample.endAtMs > warmupDeadlineAt,
+            );
+            const frameDurations = measured.map((sample) => sample.frameMs);
+            const total = frameDurations.reduce((sum, value) => sum + value, 0);
+            const measuredStartedAtMs =
+                measured[0]?.startAtMs ?? warmupDeadlineAt;
             resolve({
                 frameCount: measured.length,
                 avgFrameMs: measured.length > 0 ? total / measured.length : 0,
-                p95FrameMs: sampleQuantile(measured, 0.95),
-                maxFrameMs: measured.length > 0 ? Math.max(...measured) : 0,
-                durationMs: performance.now() - startedAt,
+                p95FrameMs: sampleQuantile(frameDurations, 0.95),
+                maxFrameMs:
+                    frameDurations.length > 0 ? Math.max(...frameDurations) : 0,
+                durationMs: previousFrameAt - measuredStartedAtMs,
+                startedAtMs: measuredStartedAtMs,
+                endedAtMs: previousFrameAt,
+                frameBudgetMs,
+                overBudgetCount: measured.filter(
+                    (sample) => sample.frameMs > frameBudgetMs,
+                ).length,
+                over20MsCount: measured.filter((sample) => sample.frameMs > 20).length,
+                over33MsCount: measured.filter((sample) => sample.frameMs > 33).length,
+                warmupDurationMs: Math.max(0, measuredStartedAtMs - startedAt),
+                warmupFrameCount: warmupSamples.length,
+                warmupMaxFrameMs:
+                    warmupSamples.length > 0
+                        ? Math.max(...warmupSamples.map((sample) => sample.frameMs))
+                        : 0,
+                warmupOver20MsCount: warmupSamples.filter(
+                    (sample) => sample.frameMs > 20,
+                ).length,
+                slowFrames: [...measured]
+                    .sort((a, b) => b.frameMs - a.frameMs)
+                    .slice(0, 10)
+                    .map((sample) => ({
+                        index: measured.indexOf(sample),
+                        frameMs: Number(sample.frameMs.toFixed(3)),
+                        startAtMs: Number(sample.startAtMs.toFixed(3)),
+                        endAtMs: Number(sample.endAtMs.toFixed(3)),
+                    })),
             });
         };
 
@@ -455,6 +527,8 @@ export function installBenchmarkBridge(params: {
         openGameShell,
         enablePerfCapture,
         disablePerfCapture,
+        setPerfUserTimingEnabled,
+        isPerfUserTimingEnabled,
         resetPerfCapture,
         snapshotPerfCapture,
         getPerfEventCursor: () =>

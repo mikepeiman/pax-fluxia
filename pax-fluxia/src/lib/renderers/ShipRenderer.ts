@@ -41,6 +41,11 @@ import { trimLanePolylineToStarRims } from '$lib/lanes/laneGeometry';
 import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
 import type { ColorUtils, PlayerHSL } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
+import {
+    resolveScaledVisualCount,
+    resolveShipLodPlan,
+    type ShipLodPlan,
+} from './shipLod';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
@@ -120,6 +125,13 @@ interface ShipFrameContext {
     readonly incomingByStarId: ReadonlyMap<string, IncomingTravelStats>;
     readonly ownerColorById: Map<string, number>;
     readonly ownerHslById: Map<string, PlayerHSL>;
+    readonly lod: ShipLodPlan;
+}
+
+interface TravelRenderSummary {
+    renderedTravelVisuals: number;
+    groupedTravelShips: number;
+    travelOrbGroupCount: number;
 }
 
 interface CachedAttackHeading {
@@ -160,12 +172,37 @@ function buildIncomingTravelStats(travelingShips: readonly VisualShipState[]): M
     return incomingByStarId;
 }
 
-function createShipFrameContext(state: ShipRenderState): ShipFrameContext {
+function createShipFrameContext(
+    styleOrState: ShipFrameStyle | ShipRenderState,
+    incomingByStarId?: ReadonlyMap<string, IncomingTravelStats>,
+    lod?: ShipLodPlan,
+): ShipFrameContext {
+    if (incomingByStarId && lod) {
+        return {
+            style: styleOrState as ShipFrameStyle,
+            incomingByStarId,
+            ownerColorById: new Map<string, number>(),
+            ownerHslById: new Map<string, PlayerHSL>(),
+            lod,
+        };
+    }
+    const state = styleOrState as ShipRenderState;
+    const style = resolveShipFrameStyle();
+    const fallbackIncomingByStarId = buildIncomingTravelStats(state.travelingShips);
+    const fallbackLod = resolveShipLodPlan({
+        stars: [],
+        incomingByStarId: fallbackIncomingByStarId,
+        totalTravelingShips: state.travelingShips.length,
+        maxVisualPerStar: GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100,
+        outlineOn: style.outlineOn,
+        glowRadius: style.glowRadius,
+    });
     return {
-        style: resolveShipFrameStyle(),
-        incomingByStarId: buildIncomingTravelStats(state.travelingShips),
+        style,
+        incomingByStarId: fallbackIncomingByStarId,
         ownerColorById: new Map<string, number>(),
         ownerHslById: new Map<string, PlayerHSL>(),
+        lod: fallbackLod,
     };
 }
 
@@ -250,6 +287,7 @@ export function drawShip(
     if (!shipParticleContainer || !shipCircleTexture) return;
 
     const style = frame?.style ?? resolveShipFrameStyle();
+    const lod = frame?.lod;
     const pixelSize = style.visualRadius * scale * style.globalScale;
     const spriteScale = (pixelSize * 2) / 128;
 
@@ -264,8 +302,8 @@ export function drawShip(
     }
 
     // === Radial glow sprite (F-75 Option 3) ===
-    const glowRadius = style.glowRadius;
-    const glowIntensity = style.glowIntensity;
+    const glowRadius = lod?.glowOn === false ? 0 : style.glowRadius;
+    const glowIntensity = glowRadius > 0 ? style.glowIntensity : 0;
     if (glowRadius > 0 && glowIntensity > 0) {
         const glowPixels = pixelSize * glowRadius * 0.5;
         const glowScale = (glowPixels * 2) / 128;
@@ -292,7 +330,7 @@ export function drawShip(
     }
 
     // === Outline: backing circle (F-75 Option 2: brightened outline) ===
-    if (style.outlineOn) {
+    if (style.outlineOn && lod?.outlineOn !== false) {
         const outlinePx = style.outlinePx;
         const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
         // F-75: Lighten outline color by SHIP_GLOW_INTENSITY
@@ -379,10 +417,17 @@ export function renderTravelingShips(
     res: ShipRenderResources,
     colorUtils: ColorUtils,
     frame: ShipFrameContext,
-): void {
-    if (!res.shipParticleContainer) return;
+): TravelRenderSummary {
+    if (!res.shipParticleContainer) {
+        return {
+            renderedTravelVisuals: 0,
+            groupedTravelShips: 0,
+            travelOrbGroupCount: 0,
+        };
+    }
 
     const now = state.gameNowMs;
+    let renderedTravelVisuals = 0;
 
     const stillTraveling: VisualShipState[] = [];
     state._arrivalBatchCount = 0; // Reset per-frame batch counter
@@ -426,6 +471,7 @@ export function renderTravelingShips(
             stillTraveling.push(ship);
             const color = getCachedOwnerColor(frame, colorUtils, ship.ownerId);
             drawShip(res, colorUtils, frame, ship.x, ship.y, color, ship.scale, ship.alpha, false, 1, ship.ownerId);
+            renderedTravelVisuals += 1;
             continue;
         }
 
@@ -478,6 +524,7 @@ export function renderTravelingShips(
                 const drawAlpha = Math.min(1, ship.alpha * cfs);
                 const drawScale = ship.scale * (1 + (cfs - 1) * 0.3); // subtle size boost
                 drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                renderedTravelVisuals += 1;
                 stillTraveling.push(ship);
             }
         } else if (ship.state === 'traveling') {
@@ -592,6 +639,7 @@ export function renderTravelingShips(
                     const drawAlpha = Math.min(1, ship.alpha * cfs);
                     const drawScale = ship.scale * (1 + (cfs - 1) * 0.3);
                     drawShip(res, colorUtils, frame, ship.x, ship.y, color, drawScale, drawAlpha, false, cfs, ship.ownerId);
+                    renderedTravelVisuals += 1;
                 }
                 stillTraveling.push(ship);
             }
@@ -631,6 +679,15 @@ export function renderTravelingShips(
     }
 
     state.travelingShips = stillTraveling;
+    let groupedTravelShips = 0;
+    for (const group of orbGroups.values()) {
+        groupedTravelShips += group.count;
+    }
+    return {
+        renderedTravelVisuals,
+        groupedTravelShips,
+        travelOrbGroupCount: orbGroups.size,
+    };
 }
 
 // ── renderShips — Main per-star orbit + spawn/despawn ───────────────────────
@@ -646,9 +703,46 @@ export function renderShips(
     colorUtils: ColorUtils,
 ): void {
     if (!res.shipParticleContainer) return;
-    const frame = measurePerf('game.renderFrame.ships.context', () =>
-        createShipFrameContext(state),
-    );
+    renderShipsOptimized(stars, starsById, state, res, colorUtils);
+    return;
+    const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
+    const frame = measurePerf('game.renderFrame.ships.context', () => {
+        const style = resolveShipFrameStyle();
+        const incomingByStarId = buildIncomingTravelStats(state.travelingShips);
+        const lod = resolveShipLodPlan({
+            stars,
+            incomingByStarId,
+            totalTravelingShips: state.travelingShips.length,
+            maxVisualPerStar: maxVisual,
+            outlineOn: style.outlineOn,
+            glowRadius: style.glowRadius,
+        });
+        return createShipFrameContext(style, incomingByStarId, lod);
+    });
+
+    const orbitalDetail: Record<string, unknown> = {
+        lodLevel: frame.lod.level,
+        orbitScale: frame.lod.orbitScale,
+        damagedScale: frame.lod.damagedScale,
+        orbitVisualBudget: frame.lod.orbitVisualBudget,
+        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
+        damagedVisualBudget: frame.lod.damagedVisualBudget,
+        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
+        totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
+        totalTravelingShips: frame.lod.stats.totalTravelingShips,
+        totalDamagedShips: frame.lod.stats.totalDamagedShips,
+        baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
+        baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
+        totalVisualPressure: frame.lod.stats.totalVisualPressure,
+        starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
+        starsWithDamaged: frame.lod.stats.starsWithDamaged,
+        effectiveOutlineOn: frame.lod.outlineOn,
+        effectiveGlowOn: frame.lod.glowOn,
+        renderedOrbitVisuals: 0,
+        renderedDamagedVisuals: 0,
+    };
+    let renderedOrbitVisuals = 0;
+    let renderedDamagedVisuals = 0;
 
     measurePerf('game.renderFrame.ships.orbitals', () => {
         stars.forEach((star) => {
@@ -670,8 +764,12 @@ export function renderShips(
         const incomingTravelStats = frame.incomingByStarId.get(star.id);
         const inFlightToStar = incomingTravelStats?.count ?? 0;
         const actualCount = Math.max(0, star.activeShips - inFlightToStar);
-        const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
-        const targetCount = Math.min(actualCount, maxVisual);
+        const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
+        const targetCount = resolveScaledVisualCount(
+            actualCount,
+            baseOrbitVisualCount,
+            frame.lod.orbitScale,
+        );
         const starMultiplier = targetCount > 0 ? actualCount / targetCount : 1;
 
         // SPAWN
@@ -742,15 +840,79 @@ export function renderShips(
 
         // 2. Physics & Render Loop for Active Ships
         if (ships.length > 0) {
-            const hasTarget = star.targetId !== null;
-            const targetStar = hasTarget && star.targetId ? (starsById.get(star.targetId) ?? null) : null;
-            const isAttack = hasTarget && targetStar && targetStar.ownerId !== star.ownerId;
+            const now = state.gameNowMs;
+            const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0 : now / 1000;
+            const speedScale =
+                (state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS) /
+                GAME_CONFIG.BASE_TICK_MS;
+            const targetStar =
+                star.targetId != null
+                    ? (starsById.get(star.targetId) ?? null)
+                    : null;
+            const isAttack =
+                Boolean(targetStar) && targetStar!.ownerId !== star.ownerId;
+            const biasAngle = targetStar
+                ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
+                : undefined;
 
-            let dirX = 0, dirY = 0;
+            let biasStrength = 0;
             if (targetStar) {
-                const heading = getCachedAttackHeading(star, targetStar);
-                dirX = heading.ndx;
-                dirY = heading.ndy;
+                if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
+                    const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
+                    const effectiveTick = state.effectiveTickMs;
+                    const phase = Math.sin(
+                        (orbitTime / effectiveTick) * freq * Math.PI * 2,
+                    );
+                    const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
+                    const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
+                    biasStrength = min + (max - min) * (phase * 0.5 + 0.5);
+                } else {
+                    biasStrength = GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6;
+                }
+            }
+
+            const surge = state.activeSurges.get(star.id);
+            let surgePulse = 0;
+            let surgeRampFactor = 1;
+            let surgeMax = 0;
+            let surgeDirX = 0;
+            let surgeDirY = 0;
+            let clearCompletedSurge = false;
+            if (surge && isAttack && targetStar) {
+                const surgeDur =
+                    (GAME_CONFIG.SURGE_PULSE_DURATION_MS ||
+                        GAME_CONFIG.BASE_TICK_MS) * speedScale;
+                const surgeElapsed = now - surge.startTime;
+                const progress = Math.min(1, surgeElapsed / surgeDur);
+                const rampMs =
+                    (GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300) * speedScale;
+                surgeRampFactor =
+                    rampMs > 0
+                        ? 1 -
+                          Math.pow(
+                              1 - Math.min(1, surgeElapsed / rampMs),
+                              3,
+                          )
+                        : 1;
+                const rawPulse = Math.sin(progress * Math.PI);
+                const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
+                surgePulse =
+                    surgeShape === 1
+                        ? rawPulse
+                        : Math.pow(rawPulse, surgeShape);
+                surgeDirX = surge.dirX;
+                surgeDirY = surge.dirY;
+                surgeMax = star.radius * (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
+                if (GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL) {
+                    const ratio =
+                        (star.activeShips || 1) / (targetStar.activeShips || 1);
+                    const cofactor =
+                        GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
+                    const forceBoost =
+                        1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
+                    surgeMax *= Math.max(0.2, forceBoost);
+                }
+                clearCompletedSurge = progress >= 1;
             }
 
             ships.forEach((ship, i) => {
@@ -763,35 +925,12 @@ export function renderShips(
 
                 const shipPhase = (ship.id % 17) / 17;
 
-                // Orbit slot
-                const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0
-                    : (state.gameNowMs / 1000);
-                const biasAngle = targetStar
-                    ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
-                    : undefined;
-
-                let biasStrength: number;
-                if (!targetStar) {
-                    biasStrength = 0;
-                } else if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
-                    const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
-                    const effectiveTick = state.effectiveTickMs;
-                    const orbitFxTime = GAME_CONFIG.STATIC_ORBITS ? 0
-                        : (state.gameNowMs / 1000);
-                    const phase = Math.sin((orbitFxTime / effectiveTick) * freq * Math.PI * 2);
-                    const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
-                    const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
-                    biasStrength = min + (max - min) * (phase * 0.5 + 0.5);
-                } else {
-                    biasStrength = GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6;
-                }
-
                 const slot = getOrbitSlot(
                     ship.targetIndex, star.x, star.y, star.radius,
                     orbitTime, biasAngle, biasStrength,
                 );
-                let targetX = slot.x;
-                let targetY = slot.y;
+                const targetX = slot.x;
+                const targetY = slot.y;
                 const shipMultiplier = slot.multiplier * starMultiplier;
 
                 // ATTACK SURGE V2 — per-tick event-driven discrete pulse
@@ -1014,6 +1153,570 @@ export function renderShips(
 /**
  * Render legacy fleet sprites (cluster of ships interpolated along lane).
  */
+function renderShipsOptimized(
+    stars: StarState[],
+    starsById: Map<string, StarState>,
+    state: ShipRenderState,
+    res: ShipRenderResources,
+    colorUtils: ColorUtils,
+): void {
+    const maxVisual = GAME_CONFIG.MAX_VISUAL_SHIPS ?? 100;
+    const frame = measurePerf('game.renderFrame.ships.context', () => {
+        const style = resolveShipFrameStyle();
+        const incomingByStarId = buildIncomingTravelStats(state.travelingShips);
+        const lod = resolveShipLodPlan({
+            stars,
+            incomingByStarId,
+            totalTravelingShips: state.travelingShips.length,
+            maxVisualPerStar: maxVisual,
+            outlineOn: style.outlineOn,
+            glowRadius: style.glowRadius,
+        });
+        return createShipFrameContext(style, incomingByStarId, lod);
+    });
+
+    const orbitalDetail: Record<string, unknown> = {
+        lodLevel: frame.lod.level,
+        orbitScale: frame.lod.orbitScale,
+        damagedScale: frame.lod.damagedScale,
+        orbitVisualBudget: frame.lod.orbitVisualBudget,
+        damagedVisualBudget: frame.lod.damagedVisualBudget,
+        totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
+        totalTravelingShips: frame.lod.stats.totalTravelingShips,
+        totalDamagedShips: frame.lod.stats.totalDamagedShips,
+        baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
+        baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
+        totalVisualPressure: frame.lod.stats.totalVisualPressure,
+        starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
+        starsWithDamaged: frame.lod.stats.starsWithDamaged,
+        effectiveOutlineOn: frame.lod.outlineOn,
+        effectiveGlowOn: frame.lod.glowOn,
+        renderedOrbitVisuals: 0,
+        renderedDamagedVisuals: 0,
+    };
+    let renderedOrbitVisuals = 0;
+    let renderedDamagedVisuals = 0;
+
+    measurePerf(
+        'game.renderFrame.ships.orbitals',
+        () => {
+            const now = state.gameNowMs;
+            const orbitTime = GAME_CONFIG.STATIC_ORBITS ? 0 : now / 1000;
+            const speedScale =
+                (state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS) /
+                GAME_CONFIG.BASE_TICK_MS;
+
+            for (const star of stars) {
+                let effectiveOwner = star.ownerId;
+                const pending = state.pendingConquests.get(star.id);
+                if (pending) {
+                    if (now < pending.transitionTime) {
+                        effectiveOwner = pending.previousOwner;
+                    } else {
+                        state.pendingConquests.delete(star.id);
+                    }
+                }
+                const color = getCachedOwnerColor(frame, colorUtils, effectiveOwner);
+                const incomingTravelStats = frame.incomingByStarId.get(star.id);
+                const inFlightToStar = incomingTravelStats?.count ?? 0;
+                const actualCount = Math.max(0, star.activeShips - inFlightToStar);
+                const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
+                const targetCount = Math.min(
+                    frame.lod.maxOrbitVisualsPerStar,
+                    resolveScaledVisualCount(
+                        actualCount,
+                        baseOrbitVisualCount,
+                        frame.lod.orbitScale,
+                    ),
+                );
+                const starMultiplier =
+                    targetCount > 0 ? actualCount / targetCount : 1;
+
+                let ships = state.visualShips.get(star.id) || [];
+                if (ships.length < targetCount) {
+                    const diff = targetCount - ships.length;
+                    for (let i = 0; i < diff; i += 1) {
+                        const spawnIndex = ships.length;
+                        const spawnAngle = Math.random() * Math.PI * 2;
+                        const spawnR = star.radius + 8;
+                        ships.push({
+                            id: state.nextShipId++,
+                            x: star.x + Math.cos(spawnAngle) * spawnR,
+                            y: star.y + Math.sin(spawnAngle) * spawnR,
+                            vx: 0,
+                            vy: 0,
+                            targetIndex: spawnIndex,
+                            scale: 0.3,
+                            alpha: 0.5,
+                            spawnTime: now,
+                            state: 'orbiting' as const,
+                            fromStarId: null,
+                            toStarId: null,
+                            departTime: 0,
+                            travelDuration: 0,
+                            departDuration: 0,
+                            laneStartX: 0,
+                            laneStartY: 0,
+                            laneEndX: 0,
+                            laneEndY: 0,
+                            departFromX: 0,
+                            departFromY: 0,
+                            arriveToX: 0,
+                            arriveToY: 0,
+                            arriveStarId: null,
+                            laneOffset: 0,
+                            staggerDelay: 0,
+                            ownerId: star.ownerId,
+                            settleStartTime: -1e9,
+                            settleStartAngle: spawnAngle,
+                            settleStartRadius: spawnR,
+                        });
+                    }
+                } else if (ships.length > targetCount) {
+                    ships.length = targetCount;
+                }
+                state.visualShips.set(star.id, ships);
+
+                if (
+                    GAME_CONFIG.STAR_GLOW_ON &&
+                    res.glowTexture &&
+                    res.glowContainer &&
+                    star.ownerId &&
+                    ships.length > 0
+                ) {
+                    let glowSprite = res.glowSprites.get(star.id);
+                    if (!glowSprite) {
+                        glowSprite = new PIXI.Sprite(res.glowTexture);
+                        glowSprite.anchor.set(0.5, 0.5);
+                        res.glowContainer.addChild(glowSprite);
+                        res.glowSprites.set(star.id, glowSprite);
+                    }
+                    const outerR = getOuterOrbitRadius(star.radius, targetCount);
+                    const glowR = outerR * (GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3);
+                    const glowDiameter = glowR * 2;
+                    const spriteScale = glowDiameter / 256;
+                    glowSprite.x = star.x;
+                    glowSprite.y = star.y;
+                    glowSprite.scale.set(spriteScale);
+                    glowSprite.tint = color;
+                    glowSprite.alpha = GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25;
+                    glowSprite.visible = true;
+                } else {
+                    const glowSprite = res.glowSprites.get(star.id);
+                    if (glowSprite) glowSprite.visible = false;
+                }
+
+                if (ships.length > 0) {
+                    const targetStar =
+                        star.targetId != null
+                            ? (starsById.get(star.targetId) ?? null)
+                            : null;
+                    const isAttack =
+                        Boolean(targetStar) && targetStar!.ownerId !== star.ownerId;
+                    const biasAngle = targetStar
+                        ? Math.atan2(targetStar.y - star.y, targetStar.x - star.x)
+                        : undefined;
+                    let biasStrength = 0;
+                    if (targetStar) {
+                        if (GAME_CONFIG.ORBIT_BIAS_OSCILLATE) {
+                            const freq = GAME_CONFIG.ORBIT_BIAS_FREQ ?? 1.0;
+                            const effectiveTick = state.effectiveTickMs;
+                            const phase = Math.sin(
+                                (orbitTime / effectiveTick) * freq * Math.PI * 2,
+                            );
+                            const min = GAME_CONFIG.ORBIT_BIAS_MIN ?? 0;
+                            const max = GAME_CONFIG.ORBIT_BIAS_MAX ?? 1;
+                            biasStrength =
+                                min + (max - min) * (phase * 0.5 + 0.5);
+                        } else {
+                            biasStrength = GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0.6;
+                        }
+                    }
+
+                    const surge = state.activeSurges.get(star.id);
+                    let surgePulse = 0;
+                    let surgeRampFactor = 1;
+                    let surgeMax = 0;
+                    let surgeDirX = 0;
+                    let surgeDirY = 0;
+                    let clearCompletedSurge = false;
+                    if (surge && isAttack && targetStar) {
+                        const surgeDur =
+                            (GAME_CONFIG.SURGE_PULSE_DURATION_MS ||
+                                GAME_CONFIG.BASE_TICK_MS) * speedScale;
+                        const surgeElapsed = now - surge.startTime;
+                        const progress = Math.min(1, surgeElapsed / surgeDur);
+                        const rampMs =
+                            (GAME_CONFIG.ATTACK_SURGE_RAMP_MS ?? 300) *
+                            speedScale;
+                        surgeRampFactor =
+                            rampMs > 0
+                                ? 1 -
+                                  Math.pow(
+                                      1 - Math.min(1, surgeElapsed / rampMs),
+                                      3,
+                                  )
+                                : 1;
+                        const rawPulse = Math.sin(progress * Math.PI);
+                        const surgeShape = GAME_CONFIG.ATTACK_SURGE_SHAPE ?? 1;
+                        surgePulse =
+                            surgeShape === 1
+                                ? rawPulse
+                                : Math.pow(rawPulse, surgeShape);
+                        surgeDirX = surge.dirX;
+                        surgeDirY = surge.dirY;
+                        surgeMax =
+                            star.radius * (GAME_CONFIG.ATTACK_SURGE_MULT ?? 0.4);
+                        if (GAME_CONFIG.ATTACK_SURGE_PROPORTIONAL) {
+                            const ratio =
+                                (star.activeShips || 1) /
+                                (targetStar.activeShips || 1);
+                            const cofactor =
+                                GAME_CONFIG.ATTACK_SURGE_FORCE_COFACTOR ?? 0.5;
+                            const forceBoost =
+                                1 + Math.log2(Math.max(0.25, ratio)) * cofactor;
+                            surgeMax *= Math.max(0.2, forceBoost);
+                        }
+                        clearCompletedSurge = progress >= 1;
+                    }
+
+                    for (let i = 0; i < ships.length; i += 1) {
+                        const ship = ships[i];
+                        if (ship.targetIndex !== i) {
+                            ship.settleStartTime = now;
+                            ship.settleStartAngle = Math.atan2(
+                                ship.y - star.y,
+                                ship.x - star.x,
+                            );
+                            ship.settleStartRadius = Math.sqrt(
+                                (ship.x - star.x) ** 2 +
+                                    (ship.y - star.y) ** 2,
+                            );
+                        }
+                        ship.targetIndex = i;
+
+                        const shipPhase = (ship.id % 17) / 17;
+                        const slot = getOrbitSlot(
+                            ship.targetIndex,
+                            star.x,
+                            star.y,
+                            star.radius,
+                            orbitTime,
+                            biasAngle,
+                            biasStrength,
+                        );
+                        const targetX = slot.x;
+                        const targetY = slot.y;
+                        const shipMultiplier = slot.multiplier * starMultiplier;
+
+                        let surgeOffsetX = 0;
+                        let surgeOffsetY = 0;
+                        if (surgePulse > 0) {
+                            const shipDx = slot.x - star.x;
+                            const shipDy = slot.y - star.y;
+                            const shipDist =
+                                Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
+                            const facingFactor =
+                                (shipDx / shipDist) * surgeDirX +
+                                (shipDy / shipDist) * surgeDirY;
+                            const surgeFactor = Math.max(0, facingFactor) ** 1.5;
+                            const phaseAmplitude =
+                                0.75 +
+                                0.25 * Math.sin(shipPhase * Math.PI * 2);
+                            surgeOffsetX =
+                                surgeDirX *
+                                surgePulse *
+                                phaseAmplitude *
+                                surgeMax *
+                                surgeFactor *
+                                surgeRampFactor;
+                            surgeOffsetY =
+                                surgeDirY *
+                                surgePulse *
+                                phaseAmplitude *
+                                surgeMax *
+                                surgeFactor *
+                                surgeRampFactor;
+                        }
+
+                        const elapsed = now - ship.settleStartTime;
+                        const isArrowSettle =
+                            ship.arrowSpiralDeg !== undefined &&
+                            ship.arrowSpiralDeg !== 0;
+                        const settleDur =
+                            (isArrowSettle
+                                ? (GAME_CONFIG.ARROW_SPIRAL_DURATION_MS ?? 800)
+                                : (ship as any).conquestSettle
+                                    ? (GAME_CONFIG.CONQUEST_SETTLE_MS ?? 500)
+                                    : GAME_CONFIG.SETTLE_DURATION_MS || 150) *
+                            speedScale;
+
+                        if (settleDur <= 0) {
+                            ship.x = targetX;
+                            ship.y = targetY;
+                            ship.scale = 0.8;
+                            ship.alpha = 1;
+                            if (isArrowSettle) {
+                                ship.arrowSpiralDeg = undefined;
+                                ship.arrowWedgeOffset = undefined;
+                            }
+                        } else {
+                            const t = Math.max(0, Math.min(1, elapsed / settleDur));
+                            const ease = 1 - Math.pow(1 - t, 3);
+
+                            if (t < 1) {
+                                const targetAngle = Math.atan2(
+                                    targetY - star.y,
+                                    targetX - star.x,
+                                );
+                                const targetRadius = Math.sqrt(
+                                    (targetX - star.x) ** 2 +
+                                        (targetY - star.y) ** 2,
+                                );
+                                const curRadius =
+                                    ship.settleStartRadius +
+                                    (targetRadius - ship.settleStartRadius) * ease;
+                                let angleDelta =
+                                    targetAngle - ship.settleStartAngle;
+                                while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                                while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+
+                                if (isArrowSettle) {
+                                    const extraRad =
+                                        (ship.arrowSpiralDeg! * Math.PI) / 180;
+                                    angleDelta += extraRad;
+                                }
+
+                                const curAngle =
+                                    ship.settleStartAngle + angleDelta * ease;
+
+                                ship.x = star.x + Math.cos(curAngle) * curRadius;
+                                ship.y = star.y + Math.sin(curAngle) * curRadius;
+                                if (isTrackedShip(ship.id)) {
+                                    traceSettleFrame(
+                                        ship.id,
+                                        elapsed,
+                                        t,
+                                        ship.x,
+                                        ship.y,
+                                        targetX,
+                                        targetY,
+                                    );
+                                }
+                                ship.scale = 0.8;
+                                ship.alpha = 1.0;
+                            } else {
+                                ship.x = targetX;
+                                ship.y = targetY;
+                                ship.scale = 0.8;
+                                ship.alpha = 1;
+                                if (isArrowSettle) {
+                                    ship.arrowSpiralDeg = undefined;
+                                    ship.arrowWedgeOffset = undefined;
+                                }
+                            }
+                        }
+
+                        const baseTier =
+                            shipMultiplier > 1
+                                ? Math.floor(Math.log2(shipMultiplier))
+                                : 0;
+                        const ringTier = Math.max(0, baseTier - slot.layer);
+
+                        drawShip(
+                            res,
+                            colorUtils,
+                            frame,
+                            ship.x + surgeOffsetX,
+                            ship.y + surgeOffsetY,
+                            color,
+                            ship.scale,
+                            ship.alpha,
+                            false,
+                            shipMultiplier,
+                            effectiveOwner,
+                            ringTier,
+                            i,
+                        );
+                        renderedOrbitVisuals += 1;
+                    }
+
+                    if (clearCompletedSurge) {
+                        state.activeSurges.delete(star.id);
+                    }
+                }
+
+                let damagedShips = state.visualDamagedShips.get(star.id) || [];
+                const damageCount = star.damagedShips;
+                const damageTargetCount = Math.min(
+                    frame.lod.maxDamagedVisualsPerStar,
+                    resolveScaledVisualCount(
+                        damageCount,
+                        damageCount,
+                        frame.lod.damagedScale,
+                    ),
+                );
+
+                if (damagedShips.length < damageTargetCount) {
+                    const diff = damageTargetCount - damagedShips.length;
+                    for (let i = 0; i < diff; i += 1) {
+                        const spawnAngle = Math.random() * Math.PI * 2;
+                        const spawnR = star.radius + 6;
+                        damagedShips.push({
+                            id: state.nextShipId++,
+                            x: star.x + Math.cos(spawnAngle) * spawnR,
+                            y: star.y + Math.sin(spawnAngle) * spawnR,
+                            vx: 0,
+                            vy: 0,
+                            targetIndex: i,
+                            scale: 0.1,
+                            alpha: 0,
+                            spawnTime: now,
+                            state: 'orbiting' as const,
+                            fromStarId: null,
+                            toStarId: null,
+                            departTime: 0,
+                            travelDuration: 0,
+                            departDuration: 0,
+                            laneStartX: 0,
+                            laneStartY: 0,
+                            laneEndX: 0,
+                            laneEndY: 0,
+                            departFromX: 0,
+                            departFromY: 0,
+                            arriveToX: 0,
+                            arriveToY: 0,
+                            arriveStarId: null,
+                            laneOffset: 0,
+                            staggerDelay: 0,
+                            ownerId: star.ownerId,
+                            settleStartTime: now,
+                            settleStartAngle: spawnAngle,
+                            settleStartRadius: spawnR,
+                        });
+                    }
+                } else if (damagedShips.length > damageTargetCount) {
+                    damagedShips.length = damageTargetCount;
+                }
+                state.visualDamagedShips.set(star.id, damagedShips);
+
+                let dangerDx = 0;
+                let dangerDy = 0;
+                if (GAME_CONFIG.DAMAGED_ORBIT_EVADE) {
+                    if (star.targetId !== null) {
+                        const targetStar = starsById.get(star.targetId);
+                        if (targetStar) {
+                            dangerDx += targetStar.x - star.x;
+                            dangerDy += targetStar.y - star.y;
+                        }
+                    }
+                    if (incomingTravelStats) {
+                        dangerDx +=
+                            incomingTravelStats.sumLaneStartX -
+                            star.x * incomingTravelStats.count;
+                        dangerDy +=
+                            incomingTravelStats.sumLaneStartY -
+                            star.y * incomingTravelStats.count;
+                    }
+                }
+
+                const hasDanger = dangerDx !== 0 || dangerDy !== 0;
+                const safeAngle = hasDanger
+                    ? Math.atan2(-dangerDy, -dangerDx)
+                    : 0;
+                const damageTime = GAME_CONFIG.STATIC_ORBITS ? 0 : now / 1000;
+
+                for (let i = 0; i < damagedShips.length; i += 1) {
+                    const ship = damagedShips[i];
+                    let angle = 0;
+                    if (GAME_CONFIG.DAMAGED_ORBIT_EVADE && hasDanger) {
+                        const spread = Math.PI * 0.8;
+                        const offset =
+                            (i / Math.max(damagedShips.length - 1, 1) - 0.5) *
+                            spread;
+                        const waver = Math.sin(damageTime * 2 + i) * 0.15;
+                        angle = safeAngle + offset + waver;
+                    } else {
+                        angle =
+                            damageTime * 0.5 +
+                            (i * Math.PI * 2) /
+                                Math.max(damagedShips.length, 1);
+                    }
+
+                    const radius = GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15;
+                    const tx = star.x + Math.cos(angle) * radius;
+                    const ty = star.y + Math.sin(angle) * radius;
+
+                    ship.x = lerp(ship.x, tx, 0.05);
+                    ship.y = lerp(ship.y, ty, 0.05);
+                    ship.scale = lerp(
+                        ship.scale,
+                        GAME_CONFIG.DAMAGED_SHIP_SCALE ?? 0.7,
+                        0.1,
+                    );
+                    ship.alpha = lerp(ship.alpha, 0.8, 0.1);
+
+                    drawShip(
+                        res,
+                        colorUtils,
+                        frame,
+                        ship.x,
+                        ship.y,
+                        color,
+                        ship.scale,
+                        ship.alpha,
+                        true,
+                        1,
+                        effectiveOwner,
+                    );
+                    renderedDamagedVisuals += 1;
+                }
+            }
+
+            orbitalDetail.renderedOrbitVisuals = renderedOrbitVisuals;
+            orbitalDetail.renderedDamagedVisuals = renderedDamagedVisuals;
+        },
+        orbitalDetail,
+    );
+
+    const travelDetail: Record<string, unknown> = {
+        lodLevel: frame.lod.level,
+        totalTravelingShips: frame.lod.stats.totalTravelingShips,
+        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
+        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
+        renderedTravelVisuals: 0,
+        groupedTravelShips: 0,
+        travelOrbGroupCount: 0,
+        usedParticles: 0,
+        totalRenderedVisuals: 0,
+    };
+
+    measurePerf(
+        'game.renderFrame.ships.travel',
+        () => {
+            const travelSummary = renderTravelingShips(
+                stars,
+                starsById,
+                state,
+                res,
+                colorUtils,
+                frame,
+            );
+            travelDetail.renderedTravelVisuals =
+                travelSummary.renderedTravelVisuals;
+            travelDetail.groupedTravelShips = travelSummary.groupedTravelShips;
+            travelDetail.travelOrbGroupCount =
+                travelSummary.travelOrbGroupCount;
+            travelDetail.usedParticles = res.shipParticleIndex;
+            travelDetail.totalRenderedVisuals =
+                renderedOrbitVisuals +
+                renderedDamagedVisuals +
+                travelSummary.renderedTravelVisuals;
+        },
+        travelDetail,
+    );
+}
+
 export function renderFleets(
     stars: StarState[],
     fleets: FleetState[],

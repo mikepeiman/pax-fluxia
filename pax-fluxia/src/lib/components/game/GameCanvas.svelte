@@ -167,6 +167,7 @@
     let app: PIXI.Application | null = null;
     let interactionOverlayCtx: CanvasRenderingContext2D | null = null;
     let interactionOverlayAnimationFrameId: number | null = null;
+    let lastInteractionOverlayRenderKey: string | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -1176,6 +1177,7 @@
         idleMinCadenceMs: number;
         maxStaleMs: number;
         inputHoldMaxStaleMs: number;
+        allowIdleCadence?: boolean;
     }): { defer: boolean; reason: string; cadenceMs: number; staleMs: number } {
         const staleMs =
             params.lastPresentedAtMs > 0
@@ -1224,7 +1226,11 @@
                       params.maxStaleMs,
                       Math.max(baseCadenceMs, Math.round(params.lastCostMs * 3)),
                   );
-        if (!pressureActive && params.lastCostMs < params.heavyUpdateMs) {
+        if (
+            !pressureActive &&
+            params.lastCostMs < params.heavyUpdateMs &&
+            !params.allowIdleCadence
+        ) {
             return {
                 defer: false,
                 reason: "idle",
@@ -1234,7 +1240,12 @@
         }
         return {
             defer: staleMs < cadenceMs,
-            reason: pressureActive ? "interactive_pressure" : "cadence_budget",
+            reason:
+                pressureActive
+                    ? "interactive_pressure"
+                    : params.allowIdleCadence
+                        ? "idle_cadence_budget"
+                        : "cadence_budget",
             cadenceMs,
             staleMs,
         };
@@ -1620,6 +1631,62 @@
         return { width, height };
     }
 
+    function buildInteractionOverlayOrderKey(
+        stars: readonly StarState[],
+    ): string {
+        let key = "";
+        for (const star of stars) {
+            if (star.targetId) {
+                key += `s:${star.id}>${star.targetId}|`;
+            }
+            if (star.queuedOrderTargetId) {
+                key += `q:${star.id}>${star.queuedOrderTargetId}|`;
+            }
+        }
+        return key;
+    }
+
+    function buildInteractionOverlaySetKey(values: ReadonlySet<string>): string {
+        if (values.size === 0) return "";
+        return [...values].sort().join(",");
+    }
+
+    function buildInteractionOverlayRenderKey(params: {
+        stars: readonly StarState[];
+        surface: { width: number; height: number };
+    }): string | null {
+        if (!app) return null;
+        const transform = {
+            scaleX: app.stage.scale.x,
+            scaleY: app.stage.scale.y,
+            offsetX: app.stage.x,
+            offsetY: app.stage.y,
+        };
+        const dragCurrentWorld =
+            isDragging && dragSourceId
+                ? screenToWorld(dragCurrentX, dragCurrentY)
+                : null;
+        return [
+            params.surface.width,
+            params.surface.height,
+            transform.scaleX.toFixed(3),
+            transform.scaleY.toFixed(3),
+            transform.offsetX.toFixed(1),
+            transform.offsetY.toFixed(1),
+            activeStarId ?? "",
+            dragSourceId ?? "",
+            dragHoverTargetId ?? "",
+            isDragging ? "1" : "0",
+            dragSourceCenterX.toFixed(1),
+            dragSourceCenterY.toFixed(1),
+            dragCurrentWorld ? dragCurrentWorld.x.toFixed(1) : "",
+            dragCurrentWorld ? dragCurrentWorld.y.toFixed(1) : "",
+            buildInteractionOverlaySetKey(pendingOrders),
+            buildInteractionOverlaySetKey(deferredOrders),
+            buildInteractionOverlayOrderKey(params.stars),
+        ].join("::");
+    }
+
     function renderInteractionOverlayNow(): boolean {
         if (interactionOverlayAnimationFrameId !== null) {
             cancelAnimationFrame(interactionOverlayAnimationFrameId);
@@ -1629,6 +1696,13 @@
         const surface = syncInteractionOverlaySurface();
         if (!surface || !interactionOverlayCtx) return false;
         const { stars } = ensureInteractionCaches();
+        const renderKey = buildInteractionOverlayRenderKey({
+            stars: stars as StarState[],
+            surface,
+        });
+        if (renderKey && renderKey === lastInteractionOverlayRenderKey) {
+            return false;
+        }
         renderInteractionOverlay({
             ctx: interactionOverlayCtx,
             canvasWidth: surface.width,
@@ -1659,6 +1733,7 @@
             isLocalPlayerStar,
             colorUtils,
         });
+        lastInteractionOverlayRenderKey = renderKey;
         setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" });
         return true;
     }
@@ -1873,6 +1948,16 @@
         frames: TransitionDiagnosticCapturedTransitionFrame[];
     };
 
+    type TransitionDiagnosticFrameInput = {
+        activeMode: string;
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        lanes: ReadonlyArray<StarConnection>;
+        geometry?: CanonicalGeometrySnapshot | null;
+        ownership?: OwnershipSnapshot | null;
+        debugSnapshot?: Record<string, unknown> | null;
+    };
+
     let perimeterFieldStableFrame: PerimeterFieldCapturedFrame | null = null;
     let perimeterFieldCaptureSession: PerimeterFieldCaptureSession | null =
         null;
@@ -1935,7 +2020,9 @@
     function resetTransitionDiagnosticCaptureState(): void {
         transitionDiagnosticStableFrame = null;
         transitionDiagnosticCaptureSession = null;
-        transitionDiagnosticCaptureState = null;
+        transitionDiagnosticCaptureState = {
+            status: "idle",
+        };
     }
 
     function buildTransitionDiagnosticCaptureKey(
@@ -2696,6 +2783,22 @@
         if (!transitionKey || !params.activeTransition) {
             if (transitionDiagnosticCaptureSession) {
                 const session = transitionDiagnosticCaptureSession;
+                const finalizedTransitionFrames = [
+                    ...session.frames.map((entry) => ({
+                        progress: entry.progress,
+                        canvas: entry.canvas,
+                        frameIndex: entry.frameIndex,
+                        debugSnapshot: entry.debugSnapshot,
+                    })),
+                    {
+                        progress: 1,
+                        canvas: cloneCanvasFrame(liveFrame.canvas),
+                        frameIndex: session.frames.length + 1,
+                        debugSnapshot: cloneTransitionDiagnosticSnapshot(
+                            liveFrame.debugSnapshot,
+                        ),
+                    },
+                ];
                 measurePerf(
                     "game.renderFrame.tickEvents.capture.finalize",
                     () => {
@@ -2733,16 +2836,18 @@
                             },
                             prevCanvas: session.previousFrame.canvas,
                             nextCanvas: liveFrame.canvas,
-                            transitionFrames: session.frames.map((entry) => ({
-                                progress: entry.progress,
-                                canvas: entry.canvas,
-                            })),
+                            transitionFrames: finalizedTransitionFrames.map(
+                                (entry) => ({
+                                    progress: entry.progress,
+                                    canvas: entry.canvas,
+                                }),
+                            ),
                             extraDiagnostics: {
                                 kind: "territory_live_capture",
                                 mode: session.mode,
                                 previousFrame: session.previousFrame.debugSnapshot,
                                 nextFrame: liveFrame.debugSnapshot,
-                                transitionFrames: session.frames.map(
+                                transitionFrames: finalizedTransitionFrames.map(
                                     (entry) => ({
                                         frameIndex: entry.frameIndex,
                                         progress: entry.progress,
@@ -2757,7 +2862,7 @@
                     status: "finalized",
                     activeMode: session.mode,
                     transitionKey: session.key,
-                    frameCount: session.frames.length,
+                    frameCount: finalizedTransitionFrames.length,
                     previousGeometryVersion:
                         session.previousFrame.geometry.version,
                     nextGeometryVersion: liveFrame.geometry.version,
@@ -3357,6 +3462,7 @@
         }
         interactionOverlayCtx = null;
         interactionOverlayCanvas = null;
+        lastInteractionOverlayRenderKey = null;
 
         if (app) {
             app.destroy(true, { children: true });
@@ -4517,10 +4623,10 @@
     }
 
     function presentInteractionOverlayFrame(stars: StarState[]): void {
-        measurePerf(
+        const rendered = measurePerf(
             "game.renderFrame.interactionOverlay",
             () => {
-                renderInteractionOverlayNow();
+                return renderInteractionOverlayNow();
             },
             {
                 pendingOrders: pendingOrders.size,
@@ -4529,6 +4635,9 @@
                 dragSourceId,
             },
         );
+        if (!rendered) {
+            return;
+        }
         logPipelineStage({
             channel: "renderer",
             context: "GameCanvas",
@@ -4586,6 +4695,7 @@
             deferredOrders.clear();
             lastEnemyPassthrough = null;
             activeStarId = null;
+            lastInteractionOverlayRenderKey = null;
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
@@ -4881,6 +4991,9 @@
                     geometryReady = true;
                     return geometry;
                 };
+                let transitionDiagnosticFrameInput:
+                    | TransitionDiagnosticFrameInput
+                    | null = null;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -4941,6 +5054,12 @@
                         });
                         break;
                     case "vs_pvv3": {
+                        const activeTransition =
+                            buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            );
                         const pvv3Invalidation = inspectPVV3Invalidation(stars);
                         const fg2Artifacts = pvv3Invalidation.shapeChanged
                             ? measurePerf(
@@ -4970,6 +5089,12 @@
                                 : undefined,
                             pvv3Invalidation,
                         );
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                        };
                         break;
                     }
                     case "power_voronoi": {
@@ -5008,6 +5133,16 @@
                             activeGameStore.connections as StarConnection[],
                             app?.renderer ?? undefined,
                         );
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition: buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            ),
+                            stars,
+                            lanes,
+                        };
                         break;
                     case "modified_voronoi":
                         renderModifiedVoronoiModule(
@@ -5094,6 +5229,14 @@
                             voronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            ownership,
+                        };
                         break;
                     }
                     case "metaball_grid": {
@@ -5151,6 +5294,14 @@
                             voronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            ownership,
+                        };
                         break;
                     }
                     case "perimeter_field": {
@@ -5213,6 +5364,17 @@
                             voronoiContainer.addChild(pf.displayRoot);
                         }
                         pf.displayRoot.visible = true;
+                        if (
+                            transitionDiagnosticStableFrame ||
+                            transitionDiagnosticCaptureSession ||
+                            transitionDiagnosticPrevGeometry ||
+                            transitionDiagnosticPrevOwnership
+                        ) {
+                            resetTransitionDiagnosticCaptureState();
+                            transitionDiagnosticPrevKey = null;
+                            transitionDiagnosticPrevGeometry = null;
+                            transitionDiagnosticPrevOwnership = null;
+                        }
                         syncPerimeterFieldDiagnosticCapture({
                             family: pf,
                             input: pfInput,
@@ -5235,6 +5397,16 @@
                             GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
                         );
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition: buildActiveRenderFamilyTransition(
+                                fxOrchestrator.gameTime,
+                                activeGameStore.effectiveTickMs,
+                                pendingTickEvents?.conquests ?? [],
+                            ),
+                            stars,
+                            lanes,
+                        };
                         break;
                     case "graph":
                         renderLaneTerritoryModule(
@@ -5410,6 +5582,7 @@
                         break;
                     }
                     // 'none' or unrecognized — no territory rendering
+                }
                     if (activeModeNeedsGeometry && geometryReady !== true) {
                         lastRenderFailure =
                             `${activeMode} requires canonical geometry, but none was supplied`;
@@ -5421,7 +5594,26 @@
                         arrowRenderer: "overlay_canvas",
                         lastRenderFailure,
                     });
-                }
+                    if (transitionDiagnosticFrameInput) {
+                        measurePerf(
+                            "game.renderFrame.territory.transitionDiagnosticSync",
+                            () => {
+                                syncTransitionDiagnosticCapture(
+                                    transitionDiagnosticFrameInput,
+                                );
+                            },
+                        );
+                    } else if (
+                        transitionDiagnosticStableFrame ||
+                        transitionDiagnosticCaptureSession ||
+                        transitionDiagnosticPrevGeometry ||
+                        transitionDiagnosticPrevOwnership
+                    ) {
+                        resetTransitionDiagnosticCaptureState();
+                        transitionDiagnosticPrevKey = null;
+                        transitionDiagnosticPrevGeometry = null;
+                        transitionDiagnosticPrevOwnership = null;
+                    }
                 }
                     },
                 });
@@ -5454,6 +5646,11 @@
             idleMinCadenceMs: STARS_PRESENT_IDLE_MIN_CADENCE_MS,
             maxStaleMs: STARS_PRESENT_MAX_STALE_MS,
             inputHoldMaxStaleMs: STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS,
+            allowIdleCadence:
+                !activeStarId &&
+                !dragSourceId &&
+                pendingConquests.size === 0 &&
+                conquestFlashes.size === 0,
         });
         if (!starsScheduler.defer) {
             runStarsPresentation("game.renderFrame.stars", () => {
@@ -5616,35 +5813,6 @@
                     combatCount: tickEvents.combats.length,
                 },
             );
-
-            if (
-                activeTerritoryMode !== "perimeter_field" &&
-                transitionSnapshotRecorder.isEnabled()
-            ) {
-                const captureTransition = buildActiveRenderFamilyTransition(
-                    fxOrchestrator.gameTime,
-                    activeGameStore.effectiveTickMs,
-                    pendingTickEvents?.conquests ?? [],
-                );
-                measurePerf("game.renderFrame.tickEvents.capture", () => {
-                    syncTransitionDiagnosticCapture({
-                        activeMode: activeTerritoryMode,
-                        activeTransition: captureTransition,
-                        stars,
-                        lanes,
-                    });
-                });
-            } else if (
-                transitionDiagnosticStableFrame ||
-                transitionDiagnosticCaptureSession ||
-                transitionDiagnosticPrevGeometry ||
-                transitionDiagnosticPrevOwnership
-            ) {
-                resetTransitionDiagnosticCaptureState();
-                transitionDiagnosticPrevKey = null;
-                transitionDiagnosticPrevGeometry = null;
-                transitionDiagnosticPrevOwnership = null;
-            }
 
             // Record game-time at tick boundary for tickProgress computation
             lastTickGameTimeMs = fxOrchestrator.gameTime;

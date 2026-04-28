@@ -21,7 +21,7 @@ import { STAR_TYPE_STATS } from '@pax/common';
 import type { StarType } from '@pax/common';
 import type { ColorUtils } from './RenderContext';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { measurePerf } from '$lib/perf/perfProbe';
+import { measurePerf, recordPerfDuration } from '$lib/perf/perfProbe';
 import { getPortalGroupHexColor } from '$lib/utils/portalStyling';
 
 // ── Star Type → Polygon Sides ───────────────────────────────────────────────
@@ -253,9 +253,16 @@ export interface StarLabelView {
     lastStyleKey?: string;
     lastLayoutKey?: string;
     lastBackgroundKey?: string;
-    lastPositionKey?: string;
     lastLeashKey?: string;
     lastVisibilityKey?: string;
+    lastAlphaKey?: string;
+    lastPositionX?: number;
+    lastPositionY?: number;
+    idWidth: number;
+    sepWidth: number;
+    activeWidth: number;
+    slashWidth: number;
+    damagedWidth: number;
 }
 
 // Per-star interpolation cache for smooth number transitions
@@ -292,6 +299,7 @@ export interface StarRenderState {
 const STAR_LABEL_HIDE_SCALE = 0.42;
 const STAR_LABEL_COMPACT_SCALE = 0.68;
 const STAR_LABEL_COMPACT_SCALE_FACTOR = 0.82;
+const STAR_LABEL_CACHE_RESOLUTION = 2;
 
 function resolveStarLabelMode(
     stageScale: number,
@@ -323,6 +331,69 @@ export function renderStars(
     const starVisualKeys = caches.starVisualKeys;
     const globalAnimationBucket = Math.floor(state.gameNowMs / STAR_VISUAL_BUCKET_MS);
     const visualConfigKey = resolveStarVisualConfigKey();
+    const ownerColorCache = new Map<string | null, number>();
+    const labelAngle = (GAME_CONFIG.STAR_LABEL_ANGLE ?? 35) * Math.PI / 180;
+    const labelDirectionX = Math.cos(labelAngle);
+    const labelDirectionY = Math.sin(labelAngle);
+    const baseLabelDist = GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55;
+    const labelScaleBase = GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0;
+    const fullLabelScale = labelScaleBase;
+    const compactLabelScale = labelScaleBase * STAR_LABEL_COMPACT_SCALE_FACTOR;
+    const fontFamily = GAME_CONFIG.STAR_LABEL_FONT_FAMILY ?? 'JetBrains Mono, monospace';
+    const idFontSizeBase = GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13;
+    const activeFontSizeBase = GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14;
+    const damagedFontSizeBase = GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12;
+    const separatorFontSizeBase = 12;
+    const slashFontSizeBase = 11;
+    const padBase = GAME_CONFIG.STAR_LABEL_PAD_X ?? 4;
+    const padYBase = GAME_CONFIG.STAR_LABEL_PAD_Y ?? 2;
+    const gapBase = GAME_CONFIG.STAR_LABEL_GAP ?? 2;
+    const fullPad = padBase;
+    const fullPadY = padYBase;
+    const fullGap = gapBase;
+    const compactPad = Math.max(2, padBase * 0.75);
+    const compactPadY = Math.max(1, padYBase * 0.75);
+    const compactGap = Math.max(1, gapBase * 0.5);
+    const fullLayout = GAME_CONFIG.STAR_LABEL_LAYOUT ?? 'horizontal';
+    const lineHeight = GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18;
+    const showIdBase = GAME_CONFIG.STAR_LABEL_SHOW_ID ?? true;
+    const showActiveBase = GAME_CONFIG.STAR_LABEL_SHOW_ACTIVE ?? true;
+    const showDamagedBase = GAME_CONFIG.STAR_LABEL_SHOW_DAMAGED ?? true;
+    const transMs = GAME_CONFIG.NUMBER_TRANSITION_MS ?? 120;
+    const animMode = GAME_CONFIG.LABEL_ANIM_MODE ?? 'rolling';
+    const labelLeashEnabled = Boolean(GAME_CONFIG.STAR_LABEL_LEASH);
+    const bgAlpha = GAME_CONFIG.STAR_LABEL_BG_ALPHA ?? 0.75;
+    const borderAlpha = GAME_CONFIG.STAR_LABEL_BORDER_ALPHA ?? 0.5;
+    const borderWidth = GAME_CONFIG.STAR_LABEL_BORDER_WIDTH ?? 1;
+    const colorMode = GAME_CONFIG.STAR_LABEL_COLOR_MODE ?? 'player';
+    const universalFillAlpha = GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75;
+    const universalLabelPalette =
+        colorMode === 'player'
+            ? null
+            : {
+                  fillCol: colorUtils.hslToHex(
+                      GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220,
+                      (GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30) / 100,
+                      (GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25) / 100,
+                  ),
+                  borderCol: colorUtils.hslToHex(
+                      GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220,
+                      (GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30) / 100,
+                      Math.min(
+                          1,
+                          ((GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25) / 100) + 0.2,
+                      ),
+                  ),
+                  fillAlpha: universalFillAlpha,
+              };
+    const playerLabelPaletteCache = new Map<number, { fillCol: number; borderCol: number }>();
+    let starVisualRedrawCount = 0;
+    let starVisualDurationMs = 0;
+    let labelPassCount = 0;
+    let labelDurationMs = 0;
+    let labelDirtyCount = 0;
+    let labelCacheRefreshCount = 0;
+    let labelCacheRefreshDurationMs = 0;
     stars.forEach((star) => {
         let graphics = caches.starGraphics.get(star.id);
 
@@ -343,7 +414,11 @@ export function renderStars(
                 state.pendingConquests.delete(star.id);
             }
         }
-        const color = colorUtils.getPlayerColor(effectiveOwner);
+        let color = ownerColorCache.get(effectiveOwner);
+        if (color == null) {
+            color = colorUtils.getPlayerColor(effectiveOwner ?? '');
+            ownerColorCache.set(effectiveOwner, color);
+        }
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
         const isPortalStar = star.starType === 'portal';
@@ -376,7 +451,8 @@ export function renderStars(
         const shouldRedrawVisuals = starVisualKeys?.get(star.id) !== visualKey;
 
         if (shouldRedrawVisuals) {
-            measurePerf('game.renderFrame.stars.visuals', () => {
+            const visualStartedAt = performance.now();
+            try {
                 graphics.clear();
 
         // Determine shape properties
@@ -498,12 +574,17 @@ export function renderStars(
         }
 
                 starVisualKeys?.set(star.id, visualKey);
-            });
+            } finally {
+                starVisualRedrawCount += 1;
+                starVisualDurationMs += performance.now() - visualStartedAt;
+            }
         }
 
         if (labelMode === 'hidden') {
             if (labelView) {
-                labelView.container.visible = false;
+                if (labelView.container.visible) {
+                    labelView.container.visible = false;
+                }
                 labelView.lastMode = labelMode;
             }
             const hiddenLerp = labelLerps.get(star.id);
@@ -523,8 +604,13 @@ export function renderStars(
         }
 
         const label = labelView.container;
-        measurePerf('game.renderFrame.stars.labels', () => {
-            label.visible = true;
+        const labelStartedAt = performance.now();
+        let labelContentDirty = false;
+        try {
+            labelPassCount += 1;
+            if (!label.visible) {
+                label.visible = true;
+            }
             const pillBg = labelView.pillBg;
             const idText2 = labelView.idText;
             const sepText = labelView.sepText;
@@ -534,8 +620,6 @@ export function renderStars(
             const leashGraphics = labelView.leashGraphics;
 
         // --- Smooth number transitions (mode-aware) ---
-        const transMs = GAME_CONFIG.NUMBER_TRANSITION_MS ?? 120;
-        const animMode = GAME_CONFIG.LABEL_ANIM_MODE ?? 'rolling';
         const active = star.activeShips;
         const damaged = star.damagedShips;
 
@@ -590,9 +674,6 @@ export function renderStars(
         }
         lerp.lastUpdateMs = state.gameNowMs;
 
-        const showIdBase = GAME_CONFIG.STAR_LABEL_SHOW_ID ?? true;
-        const showActiveBase = GAME_CONFIG.STAR_LABEL_SHOW_ACTIVE ?? true;
-        const showDamagedBase = GAME_CONFIG.STAR_LABEL_SHOW_DAMAGED ?? true;
         const showId =
             labelMode === 'full'
                 ? showIdBase
@@ -626,164 +707,251 @@ export function renderStars(
             slashText.visible = showSlash;
             damagedText.visible = showDamaged;
             labelView.lastVisibilityKey = visibilityKey;
+            labelContentDirty = true;
         }
 
         const activeTextValue = String(Math.round(lerp.activeDisplay));
         const damagedTextValue = String(Math.round(lerp.damagedDisplay));
-        const textKey = [
-            activeTextValue,
-            damagedTextValue,
-            lerp.fadeAlpha.toFixed(3),
-        ].join('|');
-        if (labelView.lastTextKey !== textKey) {
+        const textKey = `${activeTextValue}|${damagedTextValue}`;
+        const alphaKey = lerp.fadeAlpha.toFixed(3);
+        const textMetricsDirty = labelView.lastTextKey !== textKey;
+        if (textMetricsDirty) {
             activeText.text = activeTextValue;
-            activeText.alpha = lerp.fadeAlpha;
             damagedText.text = damagedTextValue;
-            damagedText.alpha = lerp.fadeAlpha;
             labelView.lastTextKey = textKey;
+            labelView.activeWidth = activeText.width;
+            labelView.damagedWidth = damagedText.width;
+            labelContentDirty = true;
+        }
+        if (labelView.lastAlphaKey !== alphaKey) {
+            activeText.alpha = lerp.fadeAlpha;
+            damagedText.alpha = lerp.fadeAlpha;
+            labelView.lastAlphaKey = alphaKey;
+            labelContentDirty = true;
         }
 
         // Label position from angle + distance (polar → cartesian)
-        const labelAngle = (GAME_CONFIG.STAR_LABEL_ANGLE ?? 35) * Math.PI / 180;
-        const baseLabelDist = GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55;
         const labelDist =
             labelMode === 'compact'
                 ? Math.max(radius + 18, baseLabelDist * 0.72)
                 : baseLabelDist;
-        const labelOffsetX = Math.cos(labelAngle) * labelDist;
-        const labelOffsetY = Math.sin(labelAngle) * labelDist;
-        const positionKey = [
-            star.x,
-            star.y,
-            labelOffsetX.toFixed(2),
-            labelOffsetY.toFixed(2),
-        ].join('|');
-        if (labelView.lastPositionKey !== positionKey) {
-            label.x = star.x + labelOffsetX;
-            label.y = star.y + labelOffsetY;
-            labelView.lastPositionKey = positionKey;
+        const labelOffsetX = labelDirectionX * labelDist;
+        const labelOffsetY = labelDirectionY * labelDist;
+        const nextLabelX = star.x + labelOffsetX;
+        const nextLabelY = star.y + labelOffsetY;
+        if (
+            labelView.lastPositionX !== nextLabelX ||
+            labelView.lastPositionY !== nextLabelY
+        ) {
+            label.x = nextLabelX;
+            label.y = nextLabelY;
+            labelView.lastPositionX = nextLabelX;
+            labelView.lastPositionY = nextLabelY;
         }
 
         const labelScale =
-            (GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0) *
-            (labelMode === 'compact' ? STAR_LABEL_COMPACT_SCALE_FACTOR : 1);
-        const fontFamily = GAME_CONFIG.STAR_LABEL_FONT_FAMILY ?? 'JetBrains Mono, monospace';
+            labelMode === 'compact' ? compactLabelScale : fullLabelScale;
 
         // Apply font sizes + family
         const styleKey = [
             labelMode,
             fontFamily,
-            (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * labelScale,
-            (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * labelScale,
-            (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * labelScale,
-            12 * labelScale,
-            11 * labelScale,
+            idFontSizeBase * labelScale,
+            activeFontSizeBase * labelScale,
+            damagedFontSizeBase * labelScale,
+            separatorFontSizeBase * labelScale,
+            slashFontSizeBase * labelScale,
         ].join('|');
         if (labelView.lastStyleKey !== styleKey) {
             applyTextStyle(
                 idText2,
                 fontFamily,
-                (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * labelScale,
+                idFontSizeBase * labelScale,
             );
             applyTextStyle(
                 activeText,
                 fontFamily,
-                (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * labelScale,
+                activeFontSizeBase * labelScale,
             );
             applyTextStyle(
                 damagedText,
                 fontFamily,
-                (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * labelScale,
+                damagedFontSizeBase * labelScale,
             );
-            applyTextStyle(sepText, fontFamily, 12 * labelScale);
-            applyTextStyle(slashText, fontFamily, 11 * labelScale);
+            applyTextStyle(sepText, fontFamily, separatorFontSizeBase * labelScale);
+            applyTextStyle(slashText, fontFamily, slashFontSizeBase * labelScale);
+            labelView.idWidth = idText2.width;
+            labelView.sepWidth = sepText.width;
+            labelView.activeWidth = activeText.width;
+            labelView.slashWidth = slashText.width;
+            labelView.damagedWidth = damagedText.width;
             labelView.lastStyleKey = styleKey;
+            labelContentDirty = true;
         }
 
         // ── Layout ──
         const pad =
             labelMode === 'compact'
-                ? Math.max(2, (GAME_CONFIG.STAR_LABEL_PAD_X ?? 4) * 0.75)
-                : (GAME_CONFIG.STAR_LABEL_PAD_X ?? 4);
+                ? compactPad
+                : fullPad;
         const padY =
             labelMode === 'compact'
-                ? Math.max(1, (GAME_CONFIG.STAR_LABEL_PAD_Y ?? 2) * 0.75)
-                : (GAME_CONFIG.STAR_LABEL_PAD_Y ?? 2);
+                ? compactPadY
+                : fullPadY;
         const gap =
             labelMode === 'compact'
-                ? Math.max(1, (GAME_CONFIG.STAR_LABEL_GAP ?? 2) * 0.5)
-                : (GAME_CONFIG.STAR_LABEL_GAP ?? 2);
+                ? compactGap
+                : fullGap;
         const layout =
             labelMode === 'compact'
                 ? 'horizontal'
-                : (GAME_CONFIG.STAR_LABEL_LAYOUT ?? 'horizontal');
+                : fullLayout;
 
         if (layout === 'horizontal') {
-            // Pill mode: [#N] [│] [active/damaged] in one row
-            let cx = 0;
-            if (idText2 && idText2.visible) { idText2.anchor.set(0, 0.5); idText2.position.set(cx, 0); cx += idText2.width + gap; }
-            if (sepText && sepText.visible) { sepText.anchor.set(0, 0.5); sepText.position.set(cx, 0); cx += sepText.width + gap; }
-            if (activeText && activeText.visible) { activeText.anchor.set(0, 0.5); activeText.position.set(cx, 0); cx += activeText.width; }
-            if (slashText && slashText.visible) { slashText.anchor.set(0, 0.5); slashText.position.set(cx, 0); cx += slashText.width; }
-            if (damagedText && damagedText.visible) { damagedText.anchor.set(0, 0.5); damagedText.position.set(cx, 0); cx += damagedText.width; }
-
-            const totalW = cx;
+            const totalW =
+                (idText2.visible ? labelView.idWidth + gap : 0) +
+                (sepText.visible ? labelView.sepWidth + gap : 0) +
+                (activeText.visible ? labelView.activeWidth : 0) +
+                (slashText.visible ? labelView.slashWidth : 0) +
+                (damagedText.visible ? labelView.damagedWidth : 0);
             const pillH = 18 * labelScale;
-
-            // Color mode: 'player' = owner-colored, 'universal' = fixed HSLA
-            const bgAlpha = GAME_CONFIG.STAR_LABEL_BG_ALPHA ?? 0.75;
-            const borderAlpha = GAME_CONFIG.STAR_LABEL_BORDER_ALPHA ?? 0.5;
-            const borderWidth = GAME_CONFIG.STAR_LABEL_BORDER_WIDTH ?? 1;
-            const colorMode = GAME_CONFIG.STAR_LABEL_COLOR_MODE ?? 'player';
+            const layoutKey = [
+                layout,
+                labelMode,
+                totalW.toFixed(2),
+                pillH.toFixed(2),
+                gap.toFixed(2),
+                idText2.visible ? 1 : 0,
+                sepText.visible ? 1 : 0,
+                activeText.visible ? 1 : 0,
+                slashText.visible ? 1 : 0,
+                damagedText.visible ? 1 : 0,
+            ].join('|');
+            if (labelView.lastLayoutKey !== layoutKey) {
+                idText2.visible = showId;
+                sepText.visible = showSep;
+                activeText.visible = showActive;
+                slashText.visible = showSlash;
+                damagedText.visible = showDamaged;
+                let cx = 0;
+                if (idText2.visible) {
+                    idText2.anchor.set(0, 0.5);
+                    idText2.position.set(cx, 0);
+                    cx += labelView.idWidth + gap;
+                }
+                if (sepText.visible) {
+                    sepText.anchor.set(0, 0.5);
+                    sepText.position.set(cx, 0);
+                    cx += labelView.sepWidth + gap;
+                }
+                if (activeText.visible) {
+                    activeText.anchor.set(0, 0.5);
+                    activeText.position.set(cx, 0);
+                    cx += labelView.activeWidth;
+                }
+                if (slashText.visible) {
+                    slashText.anchor.set(0, 0.5);
+                    slashText.position.set(cx, 0);
+                    cx += labelView.slashWidth;
+                }
+                if (damagedText.visible) {
+                    damagedText.anchor.set(0, 0.5);
+                    damagedText.position.set(cx, 0);
+                }
+                label.pivot.set(totalW / 2, 0);
+                labelView.lastLayoutKey = layoutKey;
+                labelContentDirty = true;
+            }
 
             let borderCol: number;
             let fillCol: number;
             let fillAlpha = bgAlpha;
 
             if (colorMode === 'player') {
-                borderCol = color;
-                // Darken the fill: preserve hue, reduce saturation and lightness
-                const hsl = colorUtils.hexToHSL(color);
-                fillCol = colorUtils.hslToHex(hsl.h, hsl.s * 0.4, hsl.l * 0.15);
+                const cachedPalette = playerLabelPaletteCache.get(color);
+                if (cachedPalette) {
+                    borderCol = cachedPalette.borderCol;
+                    fillCol = cachedPalette.fillCol;
+                } else {
+                    borderCol = color;
+                    const hsl = colorUtils.hexToHSL(color);
+                    fillCol = colorUtils.hslToHex(hsl.h, hsl.s * 0.4, hsl.l * 0.15);
+                    playerLabelPaletteCache.set(color, { borderCol, fillCol });
+                }
             } else {
-                // Universal: use HSLA config values
-                const uH = GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220;
-                const uS = (GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30) / 100;
-                const uL = (GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25) / 100;
-                fillAlpha = GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75;
-                fillCol = colorUtils.hslToHex(uH, uS, uL);
-                // Border: slightly brighter version of the universal color
-                borderCol = colorUtils.hslToHex(uH, uS, Math.min(1, uL + 0.2));
+                fillCol = universalLabelPalette?.fillCol ?? color;
+                borderCol = universalLabelPalette?.borderCol ?? color;
+                fillAlpha = universalLabelPalette?.fillAlpha ?? fillAlpha;
             }
 
-            if (pillBg) {
+            const backgroundKey = [
+                layout,
+                totalW.toFixed(2),
+                pillH.toFixed(2),
+                pad.toFixed(2),
+                padY.toFixed(2),
+                fillCol,
+                fillAlpha.toFixed(3),
+                borderCol,
+                borderAlpha.toFixed(3),
+                borderWidth.toFixed(2),
+            ].join('|');
+            if (pillBg && labelView.lastBackgroundKey !== backgroundKey) {
                 pillBg.clear();
                 pillBg.roundRect(-pad, -pillH / 2 - padY, totalW + pad * 2, pillH + padY * 2, 4);
                 pillBg.fill({ color: fillCol, alpha: fillAlpha });
-                if (borderWidth > 0) pillBg.stroke({ color: borderCol, width: borderWidth, alpha: borderAlpha });
+                if (borderWidth > 0) {
+                    pillBg.stroke({ color: borderCol, width: borderWidth, alpha: borderAlpha });
+                }
+                labelView.lastBackgroundKey = backgroundKey;
+                labelContentDirty = true;
             }
-            label.pivot.set(totalW / 2, 0);
         } else {
             // Vertical stacked mode (legacy)
-            if (sepText) sepText.visible = false;
-            if (slashText) slashText.visible = false;
-            const lineH = GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18;
-
-            if (idText2) { idText2.anchor.set(0.5, 0.5); idText2.position.set(0, 0); }
-            if (activeText) { activeText.anchor.set(0.5, 0.5); activeText.position.set(0, lineH); }
-            if (damagedText) { damagedText.anchor.set(0.5, 0.5); damagedText.position.set(0, lineH * 2); }
-
-            if (pillBg) {
-                pillBg.clear();
-                // No pill bg in vertical mode
+            const layoutKey = [
+                layout,
+                lineH.toFixed(2),
+                idText2.visible ? 1 : 0,
+                activeText.visible ? 1 : 0,
+                damagedText.visible ? 1 : 0,
+            ].join('|');
+            if (labelView.lastLayoutKey !== layoutKey) {
+                idText2.visible = showId;
+                activeText.visible = showActive;
+                damagedText.visible = showDamaged;
+                sepText.visible = false;
+                slashText.visible = false;
+                idText2.anchor.set(0.5, 0.5);
+                idText2.position.set(0, 0);
+                activeText.anchor.set(0.5, 0.5);
+                activeText.position.set(0, lineH);
+                damagedText.anchor.set(0.5, 0.5);
+                damagedText.position.set(0, lineH * 2);
+                label.pivot.set(0, lineH);
+                labelView.lastLayoutKey = layoutKey;
+                labelContentDirty = true;
             }
-            label.pivot.set(0, lineH);
+
+            const backgroundKey = `${layout}|none`;
+            if (pillBg && labelView.lastBackgroundKey !== backgroundKey) {
+                pillBg.clear();
+                labelView.lastBackgroundKey = backgroundKey;
+                labelContentDirty = true;
+            }
         }
 
-            // Draw leash line from star edge to label (toggled by config)
-            if (leashGraphics) {
+            const leashKey = [
+                layout,
+                labelMode,
+                labelLeashEnabled ? 1 : 0,
+                labelOffsetX.toFixed(2),
+                labelOffsetY.toFixed(2),
+                radius.toFixed(2),
+                pad.toFixed(2),
+            ].join('|');
+            if (leashGraphics && labelView.lastLeashKey !== leashKey) {
                 leashGraphics.clear();
-                if (GAME_CONFIG.STAR_LABEL_LEASH && labelMode === 'full') {
+                if (labelLeashEnabled && labelMode === 'full') {
                     leashGraphics.beginPath();
                     const starEdgeX = -labelOffsetX + radius * 0.7;
                     const starEdgeY = -labelOffsetY + radius * 0.7;
@@ -791,10 +959,48 @@ export function renderStars(
                     leashGraphics.lineTo(-pad, 0);
                     leashGraphics.stroke({ color: 0x666688, width: 1, alpha: 0.4 });
                 }
+                labelView.lastLeashKey = leashKey;
+                labelContentDirty = true;
+            }
+            if (labelContentDirty) {
+                const cacheRefreshStartedAt = performance.now();
+                label.updateCacheTexture();
+                labelCacheRefreshCount += 1;
+                labelCacheRefreshDurationMs += performance.now() - cacheRefreshStartedAt;
             }
             labelView.lastMode = labelMode;
-        });
+        } finally {
+            labelDurationMs += performance.now() - labelStartedAt;
+            if (labelContentDirty) {
+                labelDirtyCount += 1;
+            }
+        }
     });
+
+    if (starVisualRedrawCount > 0) {
+        recordPerfDuration('game.renderFrame.stars.visuals', starVisualDurationMs, {
+            redrawCount: starVisualRedrawCount,
+            starCount: stars.length,
+        });
+    }
+    if (labelPassCount > 0) {
+        recordPerfDuration('game.renderFrame.stars.labels', labelDurationMs, {
+            labelCount: labelPassCount,
+            dirtyLabelCount: labelDirtyCount,
+            starCount: stars.length,
+        });
+    }
+    if (labelCacheRefreshCount > 0) {
+        recordPerfDuration(
+            'game.renderFrame.stars.labelCacheRefresh',
+            labelCacheRefreshDurationMs,
+            {
+                refreshCount: labelCacheRefreshCount,
+                dirtyLabelCount: labelDirtyCount,
+                starCount: stars.length,
+            },
+        );
+    }
 }
 
 /**
@@ -827,6 +1033,7 @@ export function cleanupStaleStars(
 
 function createStarLabel(star: StarState): StarLabelView {
     const label = new PIXI.Container();
+    label.cacheAsTexture({ resolution: STAR_LABEL_CACHE_RESOLUTION });
 
     // Leash line graphics (drawn first, behind text)
     const leashGraphics = new PIXI.Graphics();
@@ -925,6 +1132,11 @@ function createStarLabel(star: StarState): StarLabelView {
         activeText,
         slashText,
         damagedText,
+        idWidth: idText.width,
+        sepWidth: sepText.width,
+        activeWidth: activeText.width,
+        slashWidth: slashText.width,
+        damagedWidth: damagedText.width,
     };
 }
 

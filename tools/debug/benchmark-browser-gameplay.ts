@@ -59,6 +59,7 @@ const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const METRICS_DIR = path.join(ROOT, ".agent-harness", "metrics");
 const TRACE_DIR = path.join(METRICS_DIR, "browser-traces");
+const SCREENSHOT_DIR = path.join(METRICS_DIR, "browser-screenshots");
 const HOST = "127.0.0.1";
 const CONQUEST_DIAGNOSTIC_MAP = JSON.parse(
     existsSync(
@@ -85,6 +86,12 @@ const CONQUEST_DIAGNOSTIC_MAP = JSON.parse(
 const WRITE_TRACE_ARTIFACTS = /^(1|true|yes)$/i.test(
     process.env.PAX_WRITE_TRACE ?? "",
 );
+const CAPTURE_TRACE = !/^(0|false|no)$/i.test(
+    process.env.PAX_BENCH_CAPTURE_TRACE ?? "",
+);
+const CAPTURE_CPU = !/^(0|false|no)$/i.test(
+    process.env.PAX_BENCH_CAPTURE_CPU ?? "",
+);
 const BENCH_MAP_NAME = process.env.PAX_BENCH_MAP_NAME?.trim() || "";
 const BENCH_TERRITORY_MODE = process.env.PAX_BENCH_TERRITORY_MODE?.trim() || "";
 const INCLUDE_LEGACY_SCENARIOS = /^(1|true|yes)$/i.test(
@@ -95,6 +102,30 @@ const SELECTED_SCENARIOS = new Set(
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean),
+);
+const MAIN_MENU_FRAME_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_MAIN_MENU_FRAME_MS,
+    2200,
+);
+const LOAD_FRAME_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_LOAD_FRAME_MS,
+    1600,
+);
+const GAMEPLAY_FRAME_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_GAMEPLAY_FRAME_MS,
+    2600,
+);
+const ORDERS_FRAME_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_ORDERS_FRAME_MS,
+    1800,
+);
+const FRAME_WARMUP_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_FRAME_WARMUP_MS,
+    250,
+);
+const DEFAULT_SCENARIO_TIMEOUT_MS = resolvePositiveMs(
+    process.env.PAX_BENCH_TIMEOUT_MS,
+    90_000,
 );
 const BUN_EXECUTABLE = process.execPath;
 const DEFAULT_TERRITORY_SCENARIO_SPECS = [
@@ -114,6 +145,7 @@ const TERRITORY_SCENARIO_SPECS = BENCH_TERRITORY_MODE
           },
       ]
     : DEFAULT_TERRITORY_SCENARIO_SPECS;
+let activeScenarioScreenshotDir: string | null = null;
 
 function shouldRunScenario(name: string): boolean {
     return SELECTED_SCENARIOS.size === 0 || SELECTED_SCENARIOS.has(name);
@@ -302,8 +334,58 @@ function round(value: number, digits = 3): number {
     return Math.round(value * factor) / factor;
 }
 
+function resolvePositiveMs(
+    value: string | undefined,
+    fallbackMs: number,
+): number {
+    const parsed = Number(value ?? "");
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMs;
+}
+
+function resolveScenarioTimeoutMs(
+    minimumExpectedMs: number,
+    extraBufferMs = 30_000,
+): number {
+    return Math.max(
+        DEFAULT_SCENARIO_TIMEOUT_MS,
+        minimumExpectedMs + extraBufferMs,
+    );
+}
+
 function sanitizeLabelForPath(label: string): string {
     return label.replace(/[^a-z0-9_-]+/gi, "-").replace(/-+/g, "-");
+}
+
+function sanitizeTimestampForPath(isoTimestamp: string): string {
+    return isoTimestamp.replace(/[:.]/g, "-");
+}
+
+async function captureScreenshotBase64(client: CdpClient): Promise<string | null> {
+    try {
+        const result = await client.send("Page.captureScreenshot", {
+            format: "png",
+            fromSurface: true,
+        });
+        return typeof result.data === "string" ? result.data : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeScenarioScreenshotArtifact(
+    screenshotBase64: string | null,
+    label: string,
+): string | null {
+    if (!screenshotBase64 || !activeScenarioScreenshotDir) {
+        return null;
+    }
+    mkdirSync(activeScenarioScreenshotDir, { recursive: true });
+    const screenshotPath = path.join(
+        activeScenarioScreenshotDir,
+        `${sanitizeLabelForPath(label)}.png`,
+    );
+    writeFileSync(screenshotPath, Buffer.from(screenshotBase64, "base64"));
+    return screenshotPath;
 }
 
 function resolveBrowserPath(): string {
@@ -750,6 +832,135 @@ function summarizeLongAnimationFrames(snapshot: any): Record<string, JsonValue> 
     };
 }
 
+function resolveEventWindow(
+    event: Record<string, any>,
+): { startAtMs: number; endAtMs: number; durationMs: number } {
+    const detail = (event?.detail as Record<string, JsonValue> | undefined) ?? {};
+    const startAtMs = Number(detail.startTimeMs ?? event?.atMs ?? 0);
+    const durationMs = Number(detail.durationMs ?? 0);
+    const endAtMs = Number(detail.endTimeMs ?? startAtMs + Math.max(0, durationMs));
+    return {
+        startAtMs,
+        endAtMs,
+        durationMs,
+    };
+}
+
+function eventOverlapsFrameWindow(
+    event: Record<string, any>,
+    frameStartAtMs: number,
+    frameEndAtMs: number,
+): boolean {
+    const window = resolveEventWindow(event);
+    return window.endAtMs >= frameStartAtMs && window.startAtMs <= frameEndAtMs;
+}
+
+function summarizeFrameSpikeDiagnostics(
+    snapshot: any,
+    frames: Record<string, any> | null | undefined,
+): Record<string, JsonValue> | null {
+    const slowFrames = Array.isArray(frames?.slowFrames) ? frames.slowFrames : [];
+    if (slowFrames.length === 0) {
+        return null;
+    }
+    const focusEvents = (snapshot?.events ?? []).filter((event: Record<string, any>) => {
+        const name = String(event?.name ?? "");
+        return (
+            name.startsWith("game.renderFrame.") ||
+            name.startsWith("territory.") ||
+            name.startsWith("browser.long") ||
+            name.startsWith("input.")
+        );
+    });
+    const spikes = slowFrames.map((frame: Record<string, any>) => {
+        const frameStartAtMs = Number(frame.startAtMs ?? 0);
+        const frameEndAtMs = Number(frame.endAtMs ?? frameStartAtMs);
+        const overlappingEvents = focusEvents.filter((event: Record<string, any>) =>
+            eventOverlapsFrameWindow(event, frameStartAtMs, frameEndAtMs),
+        );
+        const overlappingMeasures = overlappingEvents
+            .filter(
+                (event: Record<string, any>) => event?.detail?.kind === "measure",
+            )
+            .map((event: Record<string, any>) => {
+                const window = resolveEventWindow(event);
+                return {
+                    name: String(event?.name ?? "unknown"),
+                    durationMs: round(window.durationMs),
+                    startAtMs: round(window.startAtMs),
+                    endAtMs: round(window.endAtMs),
+                };
+            })
+            .sort((a, b) => Number(b.durationMs ?? 0) - Number(a.durationMs ?? 0))
+            .slice(0, 8);
+        const overlappingBrowserEvents = overlappingEvents
+            .filter(
+                (event: Record<string, any>) => event?.detail?.kind !== "measure",
+            )
+            .map((event: Record<string, any>) => {
+                const window = resolveEventWindow(event);
+                return {
+                    name: String(event?.name ?? "unknown"),
+                    durationMs: round(window.durationMs),
+                    startAtMs: round(window.startAtMs),
+                    endAtMs: round(window.endAtMs),
+                };
+            })
+            .sort((a, b) => Number(b.durationMs ?? 0) - Number(a.durationMs ?? 0))
+            .slice(0, 6);
+        const measuredWorkMs = round(
+            overlappingMeasures.reduce(
+                (sum, event) => sum + Number(event.durationMs ?? 0),
+                0,
+            ),
+        );
+        const frameMs = round(Number(frame.frameMs ?? 0));
+        const unattributedGapMs = round(
+            Math.max(0, frameMs - measuredWorkMs),
+        );
+        return {
+            index: Number(frame.index ?? 0),
+            frameMs,
+            startAtMs: round(frameStartAtMs),
+            endAtMs: round(frameEndAtMs),
+            measuredWorkMs,
+            unattributedGapMs,
+            attribution:
+                measuredWorkMs > 0
+                    ? "measured"
+                    : overlappingBrowserEvents.length > 0
+                        ? "browser"
+                        : "unattributed",
+            overlappingMeasures,
+            overlappingBrowserEvents,
+        };
+    });
+    const unattributedGaps = spikes.map((spike) =>
+        Number(spike.unattributedGapMs ?? 0),
+    );
+    const fullyUnattributedSpikes = spikes.filter(
+        (spike) => String(spike.attribution ?? "") === "unattributed",
+    );
+
+    return {
+        frameBudgetMs: round(Number(frames?.frameBudgetMs ?? 0)),
+        overBudgetCount: Number(frames?.overBudgetCount ?? 0),
+        over20MsCount: Number(frames?.over20MsCount ?? 0),
+        over33MsCount: Number(frames?.over33MsCount ?? 0),
+        maxUnattributedGapMs: round(
+            unattributedGaps.length > 0 ? Math.max(...unattributedGaps) : 0,
+        ),
+        avgUnattributedGapMs: round(
+            unattributedGaps.length > 0
+                ? unattributedGaps.reduce((sum, value) => sum + value, 0) /
+                      unattributedGaps.length
+                : 0,
+        ),
+        fullyUnattributedSpikeCount: fullyUnattributedSpikes.length,
+        spikes,
+    };
+}
+
 function summarizePerfEventGroups(
     snapshot: any,
     prefixes: readonly string[],
@@ -897,6 +1108,10 @@ function summarizeTerritorySchedulerSnapshot(
             lastLocalAck: scheduler.lastInteractionLocalAck ?? null,
             lastVisualAck: scheduler.lastInteractionVisualAck ?? null,
         },
+        transitionDiagnostics: {
+            captureState:
+                (scheduler.transitionDiagnosticCaptureState as JsonValue) ?? null,
+        },
     };
 }
 
@@ -912,7 +1127,68 @@ function summarizeFocusMeasures(
         .slice(0, 30);
 }
 
-function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
+function summarizeShipDiagnostics(
+    snapshot: any,
+): Record<string, JsonValue> | null {
+    const orbitalDetail =
+        snapshot?.measures?.["game.renderFrame.ships.orbitals"]?.detail ?? null;
+    const travelDetail =
+        snapshot?.measures?.["game.renderFrame.ships.travel"]?.detail ?? null;
+    if (!orbitalDetail && !travelDetail) {
+        return null;
+    }
+    return {
+        lodLevel: String(
+            travelDetail?.lodLevel ?? orbitalDetail?.lodLevel ?? "unknown",
+        ),
+        orbitScale: round(Number(orbitalDetail?.orbitScale ?? 0)),
+        damagedScale: round(Number(orbitalDetail?.damagedScale ?? 0)),
+        orbitVisualBudget: Number(orbitalDetail?.orbitVisualBudget ?? 0),
+        maxOrbitVisualsPerStar: Number(
+            orbitalDetail?.maxOrbitVisualsPerStar ??
+                travelDetail?.maxOrbitVisualsPerStar ??
+                0,
+        ),
+        damagedVisualBudget: Number(orbitalDetail?.damagedVisualBudget ?? 0),
+        maxDamagedVisualsPerStar: Number(
+            orbitalDetail?.maxDamagedVisualsPerStar ??
+                travelDetail?.maxDamagedVisualsPerStar ??
+                0,
+        ),
+        totalActiveOrbitShips: Number(
+            orbitalDetail?.totalActiveOrbitShips ?? 0,
+        ),
+        totalTravelingShips: Number(
+            orbitalDetail?.totalTravelingShips ??
+                travelDetail?.totalTravelingShips ??
+                0,
+        ),
+        totalDamagedShips: Number(orbitalDetail?.totalDamagedShips ?? 0),
+        baseOrbitVisuals: Number(orbitalDetail?.baseOrbitVisuals ?? 0),
+        baseDamagedVisuals: Number(orbitalDetail?.baseDamagedVisuals ?? 0),
+        totalVisualPressure: Number(orbitalDetail?.totalVisualPressure ?? 0),
+        renderedOrbitVisuals: Number(
+            orbitalDetail?.renderedOrbitVisuals ?? 0,
+        ),
+        renderedDamagedVisuals: Number(
+            orbitalDetail?.renderedDamagedVisuals ?? 0,
+        ),
+        renderedTravelVisuals: Number(
+            travelDetail?.renderedTravelVisuals ?? 0,
+        ),
+        groupedTravelShips: Number(travelDetail?.groupedTravelShips ?? 0),
+        travelOrbGroupCount: Number(travelDetail?.travelOrbGroupCount ?? 0),
+        usedParticles: Number(travelDetail?.usedParticles ?? 0),
+        totalRenderedVisuals: Number(travelDetail?.totalRenderedVisuals ?? 0),
+        effectiveOutlineOn: Boolean(orbitalDetail?.effectiveOutlineOn),
+        effectiveGlowOn: Boolean(orbitalDetail?.effectiveGlowOn),
+    };
+}
+
+function summarizePerfSnapshot(
+    snapshot: any,
+    frames: Record<string, any> | null | undefined,
+): Record<string, JsonValue> {
     const measures = Object.entries(snapshot?.measures ?? {})
         .map(([name, aggregate]: [string, any]) => ({
             name,
@@ -991,6 +1267,8 @@ function summarizePerfSnapshot(snapshot: any): Record<string, JsonValue> {
         ]),
         interactionEvents: summarizePerfEventGroups(snapshot, ["input."]),
         browserEvents: summarizePerfEventGroups(snapshot, ["browser."]),
+        shipDiagnostics: summarizeShipDiagnostics(snapshot),
+        frameSpikeDiagnostics: summarizeFrameSpikeDiagnostics(snapshot, frames),
         longTasks: summarizeLongTasks(snapshot),
         longAnimationFrames: summarizeLongAnimationFrames(snapshot),
         eventTiming: summarizeEventTiming(snapshot),
@@ -1611,12 +1889,15 @@ function summarizeScenarioCollection(
         name,
         requestedMode: scenario?.requestedMode ?? null,
         elapsedMs: round(Number(scenario?.elapsedMs ?? 0)),
+        frames: scenario?.actionResult?.frames ?? null,
         longTasks: scenario?.perf?.longTasks ?? null,
         longAnimationFrames: scenario?.perf?.longAnimationFrames ?? null,
+        frameSpikeDiagnostics: scenario?.perf?.frameSpikeDiagnostics ?? null,
         frameMeasures: scenario?.perf?.frameMeasures ?? [],
         focusMeasures: scenario?.perf?.focusMeasures ?? [],
         highlightMeasures: scenario?.perf?.highlightMeasures ?? [],
         inputLatency: scenario?.perf?.inputLatency ?? null,
+        shipDiagnostics: scenario?.perf?.shipDiagnostics ?? null,
         renderLineItems: scenario?.perf?.renderLineItems ?? [],
         interactionEvents: scenario?.perf?.interactionEvents ?? [],
         pipelineEvents: scenario?.perf?.pipelineEvents ?? [],
@@ -1629,6 +1910,7 @@ function summarizeScenarioCollection(
         traceCategories: scenario?.trace?.mainThreadCategoriesTopByTotalMs ?? [],
         traceFocusBuckets: scenario?.traceFocusBuckets ?? [],
         devtoolsMetricsDelta: scenario?.devtoolsMetricsDelta ?? null,
+        screenshotPath: scenario?.screenshotPath ?? null,
         perfEventTail: scenario?.perfEventTail ?? [],
     }));
     return {
@@ -1720,6 +2002,18 @@ function summarizeTrace(traceEvents: readonly any[]): Record<string, JsonValue> 
             summary.mainThread,
         ),
         largestSlices: summary.largestSlices,
+    };
+}
+
+function emptyTraceSummary(): Record<string, JsonValue> {
+    return {
+        eventCount: 0,
+        mainThreadCount: 0,
+        topByTotalMs: [],
+        mainThreadTopByTotalMs: [],
+        categoriesTopByTotalMs: [],
+        mainThreadCategoriesTopByTotalMs: [],
+        largestSlices: [],
     };
 }
 
@@ -2941,6 +3235,32 @@ async function captureTransitionDiagnosticScenario(
     mode: string,
     _mapName: string | null,
 ): Promise<JsonValue> {
+    const canvasApiSummaryExpression = `(() => {
+        const canvas = window.__PAX_GAME_CANVAS__ ?? null;
+        const scheduler =
+            canvas?.getBenchmarkTerritorySchedulerSnapshot?.() ?? null;
+        return {
+            hasCanvas: Boolean(canvas),
+            keys: canvas
+                ? Object.keys(canvas)
+                      .filter((key) => !key.startsWith("$$"))
+                      .sort()
+                : [],
+            getTransitionDiagnosticCaptureStateType: canvas
+                ? typeof canvas.getTransitionDiagnosticCaptureState
+                : "missing",
+            resetTransitionDiagnosticCaptureType: canvas
+                ? typeof canvas.resetTransitionDiagnosticCapture
+                : "missing",
+            getBenchmarkTerritorySchedulerSnapshotType: canvas
+                ? typeof canvas.getBenchmarkTerritorySchedulerSnapshot
+                : "missing",
+            directCaptureState:
+                canvas?.getTransitionDiagnosticCaptureState?.() ?? null,
+            schedulerCaptureState:
+                scheduler?.transitionDiagnosticCaptureState ?? null,
+        };
+    })()`;
     const modeLiteral = JSON.stringify(mode);
     const conquestMapLiteral = JSON.stringify(CONQUEST_DIAGNOSTIC_MAP);
     const prepScript = `
@@ -2968,6 +3288,7 @@ async function captureTransitionDiagnosticScenario(
                 recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
                 captureStateBeforePrepOrder:
                     await window.__PAX_BENCH__.getTransitionDiagnosticCaptureState(),
+                canvasApiBeforePrepOrder: ${canvasApiSummaryExpression},
                 stateBeforePrepOrder: await window.__PAX_BENCH__.getStateSummary(),
                 sampleOrder:
                     await window.__PAX_BENCH__.prepareConquestDiagnosticOrder(),
@@ -3034,6 +3355,9 @@ async function captureTransitionDiagnosticScenario(
         await client.evaluate<Record<string, JsonValue> | null>(
             "window.__PAX_BENCH__.getTransitionDiagnosticCaptureState()",
         );
+    const canvasApiAfterIssue = await client.evaluate<Record<string, JsonValue>>(
+        canvasApiSummaryExpression,
+    );
     const recorderSummary = await client.evaluate<Record<string, JsonValue>>(
         "window.__PAX_BENCH__.getTransitionRecorderSummary()",
     );
@@ -3041,6 +3365,9 @@ async function captureTransitionDiagnosticScenario(
         await client.evaluate<Record<string, JsonValue> | null>(
             "window.__PAX_BENCH__.getTransitionDiagnosticCaptureState()",
         );
+    const canvasApiAfterWait = await client.evaluate<Record<string, JsonValue>>(
+        canvasApiSummaryExpression,
+    );
     const diagnosticBundle =
         await client.evaluate<Record<string, JsonValue> | null>(
             "window.__PAX_BENCH__.getLatestTransitionDiagnosticBundle()",
@@ -3054,8 +3381,10 @@ async function captureTransitionDiagnosticScenario(
         starTimeline,
         stateAfterIssue,
         captureStateAfterIssue,
+        canvasApiAfterIssue,
         recorderSummary,
         captureStateAfterWait,
+        canvasApiAfterWait,
         diagnosticBundle,
         diagnosticStepSummary: Array.isArray(diagnosticBundle?.steps)
             ? (diagnosticBundle?.steps as Array<Record<string, JsonValue>>).map(
@@ -3087,18 +3416,20 @@ async function profileScenario(
         expectedMode?: string;
     },
 ): Promise<Record<string, JsonValue>> {
-    const timeoutMs = options?.timeoutMs ?? 90_000;
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_SCENARIO_TIMEOUT_MS;
     console.log(JSON.stringify({ stage: "scenario_start", label }));
-    await client.send("Profiler.enable");
-    await client.send("Profiler.setSamplingInterval", { interval: 1000 });
-    await client.send("Profiler.start");
+    if (CAPTURE_CPU) {
+        await client.send("Profiler.enable");
+        await client.send("Profiler.setSamplingInterval", { interval: 1000 });
+        await client.send("Profiler.start");
+    }
     const devtoolsMetricsBefore = await client.send("Performance.getMetrics");
     const scenarioStartedAt = Date.now();
     const scenarioEventCursor = await client.evaluate<number>(
         "window.__PAX_BENCH__.getPerfEventCursor()",
     );
-    const traced = await collectTraceDuring(client, async () => {
-        return await Promise.race([
+    const runAction = async (): Promise<JsonValue> =>
+        await Promise.race([
             (typeof action === "string"
                 ? client.evaluate<JsonValue>(action)
                 : action(client)),
@@ -3106,14 +3437,22 @@ async function profileScenario(
                 throw new Error(`Scenario timed out after ${timeoutMs}ms: ${label}`);
             }),
         ]);
-    });
+    const traced = CAPTURE_TRACE
+        ? await collectTraceDuring(client, runAction)
+        : {
+              actionResult: await runAction(),
+              traceSummary: emptyTraceSummary(),
+              rawTraceEvents: [] as any[],
+          };
     const modeWait =
         options?.expectedMode == null
             ? null
             : await client.evaluate<Record<string, JsonValue>>(
                   `window.__PAX_BENCH__.waitForRenderMode(${JSON.stringify(options.expectedMode)}, 6000)`,
               );
-    const profileResult = await client.send("Profiler.stop");
+    const profileResult = CAPTURE_CPU
+        ? await client.send("Profiler.stop")
+        : null;
     const snapshot = await client.evaluate<any>(
         "window.__PAX_BENCH__.snapshotPerfCapture()",
     );
@@ -3128,7 +3467,14 @@ async function profileScenario(
     );
     const browserRuntime = await collectBrowserRuntimeStats(client);
     const devtoolsMetricsAfter = await client.send("Performance.getMetrics");
-    const cpuHotspots = summarizeCpuProfile(profileResult.profile);
+    const cpuHotspots = profileResult?.profile
+        ? summarizeCpuProfile(profileResult.profile)
+        : [];
+    const screenshotBase64 = await captureScreenshotBase64(client);
+    const screenshotPath = writeScenarioScreenshotArtifact(
+        screenshotBase64,
+        label,
+    );
     const perfEventTailStartIndex =
         Number(snapshot?.events?.length ?? 0) < scenarioEventCursor
             ? 0
@@ -3154,7 +3500,11 @@ async function profileScenario(
         stateSummary,
         modeWait,
         requestedMode: options?.expectedMode ?? null,
-        perf: summarizePerfSnapshot(snapshot),
+        perf: summarizePerfSnapshot(
+            snapshot,
+            (traced.actionResult as Record<string, JsonValue> | null | undefined)
+                ?.frames as Record<string, any> | null | undefined,
+        ),
         trace: traced.traceSummary,
         traceFocusBuckets: summarizeFocusTraceBuckets(
             (traced.traceSummary.mainThreadTopByTotalMs ?? []) as Record<
@@ -3176,8 +3526,9 @@ async function profileScenario(
         cpuHotspots,
         cpuFocusHotspots: summarizeFocusCpuHotspots(cpuHotspots),
         networkFailures: summarizeNetworkFailures(client),
+        screenshotPath,
     };
-    if (WRITE_TRACE_ARTIFACTS) {
+    if (WRITE_TRACE_ARTIFACTS && CAPTURE_TRACE) {
         mkdirSync(TRACE_DIR, { recursive: true });
         const tracePath = path.join(
             TRACE_DIR,
@@ -3270,6 +3621,7 @@ async function main(): Promise<void> {
                 const bench = window.__PAX_BENCH__;
                 if (!bench) return false;
                 bench.enablePerfCapture();
+                bench.setPerfUserTimingEnabled(false);
                 bench.setLogFlags({
                     data: false,
                     state: false,
@@ -3282,6 +3634,10 @@ async function main(): Promise<void> {
                 return true;
             })()
         `);
+        activeScenarioScreenshotDir = path.join(
+            SCREENSHOT_DIR,
+            sanitizeTimestampForPath(new Date().toISOString()),
+        );
 
         const savedMapWait = await client.evaluate<Record<string, JsonValue>>(
             "window.__PAX_BENCH__.waitForSavedMaps(1, 8000)",
@@ -3312,10 +3668,15 @@ async function main(): Promise<void> {
                         await new Promise((resolve) => setTimeout(resolve, 1200));
                         return {
                             state: await window.__PAX_BENCH__.getStateSummary(),
-                            frames: await window.__PAX_BENCH__.collectFrameStats(2200),
+                            frames: await window.__PAX_BENCH__.collectFrameStats(${MAIN_MENU_FRAME_MS}, ${FRAME_WARMUP_MS}),
                         };
                     })()
                 `,
+                {
+                    timeoutMs: resolveScenarioTimeoutMs(
+                        MAIN_MENU_FRAME_MS + FRAME_WARMUP_MS,
+                    ),
+                },
             );
         }
         for (const spec of TERRITORY_SCENARIO_SPECS) {
@@ -3330,31 +3691,60 @@ async function main(): Promise<void> {
                             return {
                                 modePrep,
                                 state: await window.__PAX_BENCH__.getStateSummary(),
-                                frames: await window.__PAX_BENCH__.collectFrameStats(1600),
+                                frames: await window.__PAX_BENCH__.collectFrameStats(${LOAD_FRAME_MS}, ${FRAME_WARMUP_MS}),
                             };
                         })()
                     `,
-                    { expectedMode: spec.mode },
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: resolveScenarioTimeoutMs(
+                            LOAD_FRAME_MS + FRAME_WARMUP_MS,
+                        ),
+                    },
                 );
             }
 
             const gameplayScenarioName = `${spec.scenarioKey}Gameplay`;
             if (shouldRunScenario(gameplayScenarioName)) {
+                const gameplayPrepResult =
+                    await client.evaluate<Record<string, JsonValue>>(
+                        `
+                            (async () => {
+                                ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
+                                await new Promise((resolve) => setTimeout(resolve, 1200));
+                                return {
+                                    modePrep,
+                                    gameplayPrep,
+                                    preProfileState:
+                                        await window.__PAX_BENCH__.getStateSummary(),
+                                };
+                            })()
+                        `,
+                    );
                 scenarios[gameplayScenarioName] = await profileScenario(
                     client,
                     gameplayScenarioName,
-                    `
-                        (async () => {
-                            ${buildScenarioPrepStatements(spec.mode, benchmarkTarget.resolvedMapName, true)}
-                            await new Promise((resolve) => setTimeout(resolve, 1200));
-                            return {
-                                modePrep,
-                                gameplayPrep,
-                                frames: await window.__PAX_BENCH__.collectFrameStats(2600),
-                            };
-                        })()
-                    `,
-                    { expectedMode: spec.mode },
+                    async (scenarioClient) => {
+                        const frames = await scenarioClient.evaluate<JsonValue>(
+                            `
+                                (async () => {
+                                    window.__PAX_BENCH__.resetPerfCapture();
+                                    return await window.__PAX_BENCH__.collectFrameStats(${GAMEPLAY_FRAME_MS}, ${FRAME_WARMUP_MS});
+                                })()
+                            `,
+                        );
+                        return {
+                            ...gameplayPrepResult,
+                            frames,
+                        };
+                    },
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: resolveScenarioTimeoutMs(
+                            GAMEPLAY_FRAME_MS + FRAME_WARMUP_MS,
+                            60_000,
+                        ),
+                    },
                 );
             }
 
@@ -3398,11 +3788,16 @@ async function main(): Promise<void> {
                             4,
                         );
                         const frames = await scenarioClient.evaluate<JsonValue>(
-                            "window.__PAX_BENCH__.collectFrameStats(1800)",
+                            `window.__PAX_BENCH__.collectFrameStats(${ORDERS_FRAME_MS}, ${FRAME_WARMUP_MS})`,
                         );
                         return { pointerSamples, directSamples, frames };
                     },
-                    { expectedMode: spec.mode },
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: resolveScenarioTimeoutMs(
+                            ORDERS_FRAME_MS + FRAME_WARMUP_MS,
+                        ),
+                    },
                 );
             }
 
@@ -3429,11 +3824,16 @@ async function main(): Promise<void> {
                             4,
                         );
                         const frames = await scenarioClient.evaluate<JsonValue>(
-                            "window.__PAX_BENCH__.collectFrameStats(1800)",
+                            `window.__PAX_BENCH__.collectFrameStats(${ORDERS_FRAME_MS}, ${FRAME_WARMUP_MS})`,
                         );
                         return { pointerSamples, directSamples, frames };
                     },
-                    { expectedMode: spec.mode },
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: resolveScenarioTimeoutMs(
+                            ORDERS_FRAME_MS + FRAME_WARMUP_MS,
+                        ),
+                    },
                 );
             }
         }
@@ -3442,6 +3842,16 @@ async function main(): Promise<void> {
             generatedAt: new Date().toISOString(),
             browserPath,
             appUrl,
+            captureConfig: {
+                trace: CAPTURE_TRACE,
+                cpu: CAPTURE_CPU,
+                traceArtifacts: WRITE_TRACE_ARTIFACTS,
+                frameWarmupMs: FRAME_WARMUP_MS,
+                mainMenuFrameMs: MAIN_MENU_FRAME_MS,
+                loadFrameMs: LOAD_FRAME_MS,
+                gameplayFrameMs: GAMEPLAY_FRAME_MS,
+                ordersFrameMs: ORDERS_FRAME_MS,
+            },
             savedMapWait,
             benchmarkTarget,
             savedMaps,
@@ -3449,6 +3859,7 @@ async function main(): Promise<void> {
                 appPort,
                 cdpPort,
             },
+            scenarioScreenshotDir: activeScenarioScreenshotDir,
             scenarios,
             analysis: summarizeScenarioCollection(scenarios),
         };
@@ -3458,10 +3869,28 @@ async function main(): Promise<void> {
             METRICS_DIR,
             "browser-gameplay-benchmark-latest.json",
         );
-        writeFileSync(outputPath, JSON.stringify(results, null, 2), "utf8");
-        console.log(JSON.stringify({ ok: true, outputPath, results }, null, 2));
+        const timestampedOutputPath = path.join(
+            METRICS_DIR,
+            `browser-gameplay-benchmark-${sanitizeTimestampForPath(results.generatedAt)}.json`,
+        );
+        const serializedResults = JSON.stringify(results, null, 2);
+        writeFileSync(outputPath, serializedResults, "utf8");
+        writeFileSync(timestampedOutputPath, serializedResults, "utf8");
+        console.log(
+            JSON.stringify(
+                {
+                    ok: true,
+                    outputPath,
+                    timestampedOutputPath,
+                    results,
+                },
+                null,
+                2,
+            ),
+        );
         client.close();
     } finally {
+        activeScenarioScreenshotDir = null;
         browser.kill();
         devServer.kill();
         await Promise.allSettled([

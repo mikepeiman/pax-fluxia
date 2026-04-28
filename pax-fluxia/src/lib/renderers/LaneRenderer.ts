@@ -29,37 +29,69 @@ import {
 
 let cachedConnectionFingerprint = '';
 let cachedConnectionGraphics: PIXI.Graphics | null = null;
+type ConnectionFingerprintCacheEntry = {
+    styleFingerprint: string;
+    connectionCount: number;
+    fingerprint: string;
+};
+const connectionFingerprintCache = new WeakMap<
+    ReadonlyArray<StarConnection>,
+    ConnectionFingerprintCacheEntry
+>();
 
-function buildConnectionFingerprint(
-    connections: StarConnection[],
-    starsById: Map<string, StarState>,
-): string {
-    const styleFingerprint = [
+function resolveConnectionStyleFingerprint(): string {
+    return [
         GAME_CONFIG.CONNECTION_WIDTH ?? '',
         GAME_CONFIG.CONNECTION_SHADOW_WIDTH ?? '',
         GAME_CONFIG.CONNECTION_SHADOW_ALPHA ?? '',
         GAME_CONFIG.CONNECTION_COLOR ?? '',
         GAME_CONFIG.CONNECTION_ALPHA ?? '',
     ].join('|');
-    const connectionFingerprint = connections
-        .map((conn) => {
-            const source = starsById.get(conn.sourceId);
-            const target = starsById.get(conn.targetId);
-            const waypoints = conn.laneWaypoints?.length
-                ? conn.laneWaypoints
-                      .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
-                      .join(';')
-                : `${source?.x ?? 0},${source?.y ?? 0}>${target?.x ?? 0},${target?.y ?? 0}`;
-            const [a, b] =
-                conn.sourceId <= conn.targetId
-                    ? [conn.sourceId, conn.targetId]
-                    : [conn.targetId, conn.sourceId];
-            return `${a}|${b}|${waypoints}`;
-        })
-        .sort()
-        .join('||');
+}
 
-    return `${styleFingerprint}::${connectionFingerprint}`;
+function buildConnectionFingerprint(
+    connections: StarConnection[],
+    starsById: Map<string, StarState>,
+): string {
+    const styleFingerprint = resolveConnectionStyleFingerprint();
+    const cached = connectionFingerprintCache.get(connections);
+    if (
+        cached &&
+        cached.styleFingerprint === styleFingerprint &&
+        cached.connectionCount === connections.length
+    ) {
+        return cached.fingerprint;
+    }
+
+    const fingerprint = measurePerf('game.renderFrame.connections.fingerprint', () => {
+        const connectionFingerprint = connections
+            .map((conn) => {
+                const source = starsById.get(conn.sourceId);
+                const target = starsById.get(conn.targetId);
+                const waypoints = conn.laneWaypoints?.length
+                    ? conn.laneWaypoints
+                          .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
+                          .join(';')
+                    : `${source?.x ?? 0},${source?.y ?? 0}>${target?.x ?? 0},${target?.y ?? 0}`;
+                const [a, b] =
+                    conn.sourceId <= conn.targetId
+                        ? [conn.sourceId, conn.targetId]
+                        : [conn.targetId, conn.sourceId];
+                return `${a}|${b}|${waypoints}`;
+            })
+            .sort()
+            .join('||');
+
+        return `${styleFingerprint}::${connectionFingerprint}`;
+    });
+
+    connectionFingerprintCache.set(connections, {
+        styleFingerprint,
+        connectionCount: connections.length,
+        fingerprint,
+    });
+
+    return fingerprint;
 }
 
 // ── Connection Lanes ────────────────────────────────────────────────────────
