@@ -2,6 +2,10 @@
 
 **Terminology:** In this document, **reference** means "primary agreed design for agents and implementers." It does **not** refer to the Svelte/render mode name `territory_canonical` or any identifier containing "canonical" in code — always disambiguate in prose.
 
+> [!WARNING]
+> This file is stale for current-state reasoning.
+> Use [TERRITORY_RENDER_SYSTEM_CURRENT.md](./TERRITORY_RENDER_SYSTEM_CURRENT.md) for the live mixed-runtime architecture, current naming/status, and 2026-04-27 / 2026-04-28 perf-corrected view.
+
 **Date:** 2026-03-19 (architecture); **2026-04-07** (transition unification + terminology); **2026-04-07** (full reconciliation with 2026-04-04 design + codebase audit)  
 **Status:** ACTIVE — single territory-system design reference.  
 **Ref:** D-83
