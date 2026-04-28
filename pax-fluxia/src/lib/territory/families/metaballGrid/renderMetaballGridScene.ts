@@ -114,6 +114,8 @@ function emitForVStar(args: {
             if (colorIdx === null) return;
             out.push({
                 vId: v.id,
+                ix: v.ix,
+                iy: v.iy,
                 x: v.x,
                 y: v.y,
                 colorIdx,
@@ -206,6 +208,8 @@ function emitHard(args: {
     if (activeColor === null) return;
     out.push({
         vId: v.id,
+        ix: v.ix,
+        iy: v.iy,
         x: v.x,
         y: v.y,
         colorIdx: activeColor,
@@ -236,19 +240,19 @@ function emitLerpPerCell(args: {
     if (progress <= lo) {
         // Fully PREV.
         if (emitPrev && prevColor !== null) {
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: gain, strength, pass: 'single', role: v.role });
+            out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: prevColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitNext && nextColor !== null) {
             // Only NEXT allowed (emergent) — hard-present under role rule.
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: 0, strength, pass: 'single', role: v.role });
+            out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: nextColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
     }
     if (progress >= hi) {
         if (emitNext && nextColor !== null) {
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: nextColor, alpha: gain, strength, pass: 'single', role: v.role });
+            out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: nextColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitPrev && prevColor !== null) {
             // Only PREV allowed (vacating) — faded out after window.
-            out.push({ vId: v.id, x: v.x, y: v.y, colorIdx: prevColor, alpha: 0, strength, pass: 'single', role: v.role });
+            out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: prevColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
     }
@@ -261,6 +265,8 @@ function emitLerpPerCell(args: {
     if (emitPrev && prevColor !== null) {
         out.push({
             vId: v.id,
+            ix: v.ix,
+            iy: v.iy,
             x: v.x,
             y: v.y,
             colorIdx: prevColor,
@@ -273,6 +279,8 @@ function emitLerpPerCell(args: {
     if (emitNext && nextColor !== null) {
         out.push({
             vId: v.id,
+            ix: v.ix,
+            iy: v.iy,
             x: v.x,
             y: v.y,
             colorIdx: nextColor,
@@ -307,6 +315,8 @@ function emitDualPass(args: {
     if (emitPrev && prevColor !== null) {
         out.push({
             vId: v.id,
+            ix: v.ix,
+            iy: v.iy,
             x: v.x,
             y: v.y,
             colorIdx: prevColor,
@@ -319,6 +329,8 @@ function emitDualPass(args: {
     if (emitNext && nextColor !== null) {
         out.push({
             vId: v.id,
+            ix: v.ix,
+            iy: v.iy,
             x: v.x,
             y: v.y,
             colorIdx: nextColor,

@@ -1373,11 +1373,8 @@ export class MetaballGridFamily implements RenderFamily {
             for (let i = 0; i < scene.cells.length; i++) {
                 const c = scene.cells[i];
                 if (c.alpha <= 0) continue;
-                const parts = c.vId.split(':');
-                if (parts.length !== 3) continue;
-                const ix = Number(parts[1]);
-                const iy = Number(parts[2]);
-                if (!Number.isFinite(ix) || !Number.isFinite(iy)) continue;
+                const ix = c.ix;
+                const iy = c.iy;
                 if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) continue;
                 effectiveColorIdxByGridIdx[iy * cols + ix] = c.colorIdx;
             }
@@ -1392,17 +1389,10 @@ export class MetaballGridFamily implements RenderFamily {
             const alpha = c.alpha * fillAlphaMult;
             if (alpha <= 0) continue;
 
-            // Parse grid indices once — used by the territory_edge per-cell
-            // stroke gate.
-            const vIdParts = c.vId.split(':');
-            let ix = -1;
-            let iy = -1;
-            if (vIdParts.length === 3) {
-                const pix = Number(vIdParts[1]);
-                const piy = Number(vIdParts[2]);
-                if (Number.isFinite(pix)) ix = pix;
-                if (Number.isFinite(piy)) iy = piy;
-            }
+            // Numeric grid indices are carried directly on the scene cell so
+            // the hot paint loop does not need to parse `g:${ix}:${iy}` ids.
+            const ix = c.ix;
+            const iy = c.iy;
 
             // Trust the scene cell's (x, y) — classification already applied
             // any distribution-driven row shift (hex_offset) or jitter. A

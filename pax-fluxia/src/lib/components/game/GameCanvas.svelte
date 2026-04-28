@@ -2519,6 +2519,9 @@
     let canonicalRenderer: TerritoryRenderer | null = null;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
+    let renderFamilyStableGeometryKey: string | null = null;
+    let renderFamilyStableGeometry: CanonicalGeometrySnapshot | null = null;
+    let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
     let transitionDiagnosticPrevKey: string | null = null;
     let transitionDiagnosticPrevGeometry: CanonicalGeometrySnapshot | null =
         null;
@@ -2601,6 +2604,31 @@
         return renderFamilyGeometryCache;
     }
 
+    // Freeze the last non-transition territory frame so active transitions can
+    // animate from the real previously presented shape instead of rebuilding a
+    // synthetic rollback frame on the hot path.
+    function syncLiveRenderFamilyStableFrame(params: {
+        activeTransition: RenderFamilyActiveTransition | null;
+        stars: ReadonlyArray<StarState>;
+        lanes: ReadonlyArray<StarConnection>;
+        geometry: CanonicalGeometrySnapshot;
+    }): void {
+        if (params.activeTransition) return;
+        const key = buildRenderFamilyGeometryCacheKey(params.stars, params.lanes);
+        if (
+            renderFamilyStableGeometryKey === key &&
+            renderFamilyStableGeometry === params.geometry &&
+            renderFamilyStableOwnership
+        ) {
+            return;
+        }
+        renderFamilyStableGeometryKey = key;
+        renderFamilyStableGeometry = params.geometry;
+        renderFamilyStableOwnership = buildOwnershipSnapshotFromStars(
+            params.stars,
+        );
+    }
+
     function revertStarsForTransitionDiagnostic(
         activeTransition: RenderFamilyActiveTransition,
         stars: ReadonlyArray<StarState>,
@@ -2640,29 +2668,47 @@
             !transitionDiagnosticPrevGeometry ||
             !transitionDiagnosticPrevOwnership
         ) {
-            const revertedStars = revertStarsForTransitionDiagnostic(
-                params.activeTransition,
-                params.stars,
-            );
-            const ownership = buildOwnershipSnapshotFromStars(revertedStars);
-            const geometry = measurePerf(
-                "game.renderFrame.tickEvents.capture.prevGeometry",
-                () =>
-                    buildPerimeterFieldRenderFamilyGeometry({
-                        stars: revertedStars,
-                        lanes: params.lanes,
-                        worldWidth: GAME_WIDTH,
-                        worldHeight: GAME_HEIGHT,
-                        nowMs: fxOrchestrator.gameTime,
-                        ownership,
-                        geometrySource:
-                            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
-                            "power_voronoi_0319",
-                    }),
-            );
-            transitionDiagnosticPrevKey = key;
-            transitionDiagnosticPrevGeometry = geometry;
-            transitionDiagnosticPrevOwnership = ownership;
+            if (renderFamilyStableGeometry && renderFamilyStableOwnership) {
+                transitionDiagnosticPrevKey = key;
+                transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
+                transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
+                recordPerfEvent("territory.renderFamily.prevFrame", {
+                    source: "live_stable_cache",
+                    transitionKey: key,
+                    geometryVersion: renderFamilyStableGeometry.version,
+                    ownershipVersion: renderFamilyStableOwnership.version,
+                });
+            } else {
+                const revertedStars = revertStarsForTransitionDiagnostic(
+                    params.activeTransition,
+                    params.stars,
+                );
+                const ownership = buildOwnershipSnapshotFromStars(revertedStars);
+                const geometry = measurePerf(
+                    "game.renderFrame.tickEvents.capture.prevGeometry",
+                    () =>
+                        buildPerimeterFieldRenderFamilyGeometry({
+                            stars: revertedStars,
+                            lanes: params.lanes,
+                            worldWidth: GAME_WIDTH,
+                            worldHeight: GAME_HEIGHT,
+                            nowMs: fxOrchestrator.gameTime,
+                            ownership,
+                            geometrySource:
+                                GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+                                "power_voronoi_0319",
+                        }),
+                );
+                transitionDiagnosticPrevKey = key;
+                transitionDiagnosticPrevGeometry = geometry;
+                transitionDiagnosticPrevOwnership = ownership;
+                recordPerfEvent("territory.renderFamily.prevFrame", {
+                    source: "transition_rebuild",
+                    transitionKey: key,
+                    geometryVersion: geometry.version,
+                    ownershipVersion: ownership.version,
+                });
+            }
         }
         return {
             key,
@@ -5235,12 +5281,6 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
-                        const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball",
                             () =>
@@ -5250,6 +5290,18 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const mfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball",
                             () =>
@@ -5300,12 +5352,6 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
-                        const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball_grid",
                             () =>
@@ -5315,6 +5361,18 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const mgInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball_grid",
                             () =>
@@ -5365,12 +5423,6 @@
                                 activeGameStore.effectiveTickMs,
                                 pendingTickEvents?.conquests ?? [],
                             );
-                        const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
                         const captureTransition =
                             buildActiveRenderFamilyTransition(
                                 fxOrchestrator.gameTime,
@@ -5385,6 +5437,18 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
                         const pfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.perimeter_field",
                             () =>

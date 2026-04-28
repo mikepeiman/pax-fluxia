@@ -211,6 +211,10 @@ export interface GridMetaballTransitionTruth {
 export interface GridRenderCell {
     /** Source vstar id. */
     readonly vId: string;
+    /** Source grid column index. */
+    readonly ix: number;
+    /** Source grid row index. */
+    readonly iy: number;
     /** World-space x. */
     readonly x: number;
     /** World-space y. */
