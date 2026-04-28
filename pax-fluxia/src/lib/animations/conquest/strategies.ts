@@ -175,15 +175,8 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
     // Step 6: Animate from exact present coordinates
     // Lane convergence
     const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
-    const convergencePointFrac = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100;
-
     const baseLaneStartX = attackerStar.x + ndx * (attackerStar.radius + 5);
     const baseLaneStartY = attackerStar.y + ndy * (attackerStar.radius + 5);
-    const convStartX = attackerStar.x + (conqueredStar.x - attackerStar.x) * convergencePointFrac;
-    const convStartY = attackerStar.y + (conqueredStar.y - attackerStar.y) * convergencePointFrac;
-    const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePointFrac;
-    const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePointFrac;
-
     const halfTick = effectiveTickMs / 2;
     const departFraction = GAME_CONFIG.DEPART_FRACTION ?? 0.3;
     const departDuration = halfTick * departFraction;
@@ -231,11 +224,11 @@ function conquestTravel(ctx: ConquestTransferContext): ConquestTransferResult {
 
         if (!ship.lanePolyline || ship.lanePolyline.length < 2) {
             if (convergence >= 1) {
-                ship.laneStartX = effectiveLaneStartX;
-                ship.laneStartY = effectiveLaneStartY;
+                ship.laneStartX = baseLaneStartX;
+                ship.laneStartY = baseLaneStartY;
             } else {
-                ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
-                ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
+                ship.laneStartX = baseLaneStartX * convergence + ship.departFromX * (1 - convergence);
+                ship.laneStartY = baseLaneStartY * convergence + ship.departFromY * (1 - convergence);
             }
 
             // Lane end depends on engulf mode

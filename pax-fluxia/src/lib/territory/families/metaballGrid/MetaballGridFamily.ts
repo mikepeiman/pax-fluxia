@@ -1059,12 +1059,12 @@ export class MetaballGridFamily implements RenderFamily {
         const flipTransition = readTunableString<GridFlipTransition>(
             input,
             'METABALL_GRID_FLIP_TRANSITION',
-            (GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION as GridFlipTransition | undefined) ?? 'hard',
+            (GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION as GridFlipTransition | undefined) ?? 'dual_pass_blend',
             ['hard', 'lerp_per_cell', 'dual_pass_blend'],
         );
         const flipWindow = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_GRID_FLIP_WINDOW', GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06),
+            readTunableNumber(input, 'METABALL_GRID_FLIP_WINDOW', GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.14),
         );
         const strength = 1.0;
         const inwardOffsetPx = readTunableNumber(
@@ -1075,7 +1075,7 @@ export class MetaballGridFamily implements RenderFamily {
         const waveEase = readTunableString<GridWaveEase>(
             input,
             'METABALL_GRID_WAVE_EASE',
-            (GAME_CONFIG.METABALL_GRID_WAVE_EASE as GridWaveEase | undefined) ?? 'linear',
+            (GAME_CONFIG.METABALL_GRID_WAVE_EASE as GridWaveEase | undefined) ?? 'ease_in_out',
             ['linear', 'ease_in', 'ease_out', 'ease_in_out', 'back_out', 'elastic_out'],
         );
         const flipTimeJitter = Math.max(
@@ -1085,7 +1085,7 @@ export class MetaballGridFamily implements RenderFamily {
                 readTunableNumber(
                     input,
                     'METABALL_GRID_FLIP_WINDOW_JITTER',
-                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0,
+                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0.02,
                 ),
             ),
         );

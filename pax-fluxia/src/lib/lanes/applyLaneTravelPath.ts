@@ -5,7 +5,7 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { VisualShipState } from '$lib/utils/render.utils';
 import { getDirectedLanePolyline } from './lanePolylineCache';
-import { pointAtArcFraction, trimLanePolylineToStarRims } from './laneGeometry';
+import { trimLanePolylineToStarRims } from './laneGeometry';
 
 function resolveTrimmedPolyline(
     source: StarLaneRef,
@@ -61,8 +61,6 @@ export function assignShipLaneGeometry(
     ndy: number;
 } {
     const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
-    const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100;
-
     const trimmed = resolveTrimmedPolyline(source, target, pretrimmed);
 
     const { ndx, ndy } = computeLaneHeadingForNearside(source, target, trimmed);
@@ -80,9 +78,12 @@ export function assignShipLaneGeometry(
         baseLaneStartY = trimmed[0][1];
         baseLaneEndX = trimmed[trimmed.length - 1][0];
         baseLaneEndY = trimmed[trimmed.length - 1][1];
-        const arc = pointAtArcFraction(trimmed, convergencePoint);
-        effectiveLaneStartX = arc.x;
-        effectiveLaneStartY = arc.y;
+        // Converge onto the actual lane start, then travel the full trimmed
+        // source->target polyline. Starting deep inside the lane made depart
+        // motion skip most of the path and triggered false "backward" geometry
+        // diagnostics even when the polyline direction itself was correct.
+        effectiveLaneStartX = baseLaneStartX;
+        effectiveLaneStartY = baseLaneStartY;
     } else {
         ship.lanePolyline = undefined;
         const dx = target.x - source.x;
@@ -94,10 +95,8 @@ export function assignShipLaneGeometry(
         baseLaneStartY = source.y + ndy0 * (source.radius + 5);
         baseLaneEndX = target.x - ndx0 * (target.radius + 5);
         baseLaneEndY = target.y - ndy0 * (target.radius + 5);
-        const convStartX = source.x + (target.x - source.x) * convergencePoint;
-        const convStartY = source.y + (target.y - source.y) * convergencePoint;
-        effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
-        effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
+        effectiveLaneStartX = baseLaneStartX;
+        effectiveLaneStartY = baseLaneStartY;
     }
 
     if (convergence >= 1) {
