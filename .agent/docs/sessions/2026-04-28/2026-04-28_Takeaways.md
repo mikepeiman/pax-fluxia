@@ -10,3 +10,21 @@
 - Star presentation remains the cleanest next measured scene-layer candidate once the current ship pass is checkpointed:
   - `game.renderFrame.stars`: `0.968ms avg`
   - `game.renderFrame.stars.labels`: `0.630ms avg`
+- The `settings-live/current-settings.json` file is not a live input. The real startup path for `metaball_grid` tunables is persisted panel settings plus `GAME_CONFIG`.
+- The smoothness-first correction pass now migrates the old coarse `metaball_grid` defaults on startup:
+  - spacing `48 -> 32`
+  - flip transition `hard -> dual_pass_blend`
+  - flip window `0.06 -> 0.14`
+  - timing scatter `0.02 -> 0`
+- The remaining `shipLod` semantics were naming debt, not active adaptive throttling. The runtime now exposes a fixed visual-cap plan in `pax-fluxia/src/lib/renderers/shipVisualCapPlan.ts`.
+- Focused `metaball_grid` validation now needs two separate interpretations:
+  - gameplay and orders scenarios for shipping smoothness
+  - conquest diagnostic scenario for correctness and artifact integrity
+- The conquest diagnostic path currently measures heavy capture/export work in-band:
+  - `game.renderFrame.territory.transitionDiagnosticSync`: `11.325ms avg`
+  - CPU hotspots: `readPixels`, `putImageData`, `drawImage`, `generateCanvas`
+  - do not treat that scenario as the shipping conquest-animation performance number
+- The focused gameplay artifact still shows the same remaining short-path issue:
+  - `metaball_gridGameplay`: `16.773ms avg`, one `33.3ms` spike
+  - `metaball_gridOrders`: `16.665ms avg`, no `>33ms` spikes
+  - next durable win is still likely star presentation or better browser-phase attribution around the remaining spikes

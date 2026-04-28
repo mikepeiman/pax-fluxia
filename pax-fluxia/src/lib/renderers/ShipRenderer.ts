@@ -42,9 +42,9 @@ import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
 import type { ColorUtils, PlayerHSL } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 import {
-    resolveShipLodPlan,
-    type ShipLodPlan,
-} from './shipLod';
+    resolveShipVisualCapPlan,
+    type ShipVisualCapPlan,
+} from './shipVisualCapPlan';
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ interface ShipFrameContext {
     readonly incomingByStarId: ReadonlyMap<string, IncomingTravelStats>;
     readonly ownerColorById: Map<string, number>;
     readonly ownerHslById: Map<string, PlayerHSL>;
-    readonly lod: ShipLodPlan;
+    readonly visualCapPlan: ShipVisualCapPlan;
 }
 
 interface TravelRenderSummary {
@@ -178,21 +178,21 @@ function buildIncomingTravelStats(travelingShips: readonly VisualShipState[]): M
 function createShipFrameContext(
     styleOrState: ShipFrameStyle | ShipRenderState,
     incomingByStarId?: ReadonlyMap<string, IncomingTravelStats>,
-    lod?: ShipLodPlan,
+    visualCapPlan?: ShipVisualCapPlan,
 ): ShipFrameContext {
-    if (incomingByStarId && lod) {
+    if (incomingByStarId && visualCapPlan) {
         return {
             style: styleOrState as ShipFrameStyle,
             incomingByStarId,
             ownerColorById: new Map<string, number>(),
             ownerHslById: new Map<string, PlayerHSL>(),
-            lod,
+            visualCapPlan,
         };
     }
     const state = styleOrState as ShipRenderState;
     const style = resolveShipFrameStyle();
     const fallbackIncomingByStarId = buildIncomingTravelStats(state.travelingShips);
-    const fallbackLod = resolveShipLodPlan({
+    const fallbackVisualCapPlan = resolveShipVisualCapPlan({
         stars: [],
         incomingByStarId: fallbackIncomingByStarId,
         totalTravelingShips: state.travelingShips.length,
@@ -205,7 +205,7 @@ function createShipFrameContext(
         incomingByStarId: fallbackIncomingByStarId,
         ownerColorById: new Map<string, number>(),
         ownerHslById: new Map<string, PlayerHSL>(),
-        lod: fallbackLod,
+        visualCapPlan: fallbackVisualCapPlan,
     };
 }
 
@@ -290,7 +290,7 @@ export function drawShip(
     if (!shipParticleContainer || !shipCircleTexture) return;
 
     const style = frame?.style ?? resolveShipFrameStyle();
-    const lod = frame?.lod;
+    const visualCapPlan = frame?.visualCapPlan;
     const pixelSize = style.visualRadius * scale * style.globalScale;
     const spriteScale = (pixelSize * 2) / 128;
 
@@ -305,7 +305,7 @@ export function drawShip(
     }
 
     // === Radial glow sprite (F-75 Option 3) ===
-    const glowRadius = lod?.glowOn === false ? 0 : style.glowRadius;
+    const glowRadius = visualCapPlan?.glowOn === false ? 0 : style.glowRadius;
     const glowIntensity = glowRadius > 0 ? style.glowIntensity : 0;
     if (glowRadius > 0 && glowIntensity > 0) {
         const glowPixels = pixelSize * glowRadius * 0.5;
@@ -333,7 +333,7 @@ export function drawShip(
     }
 
     // === Outline: backing circle (F-75 Option 2: brightened outline) ===
-    if (style.outlineOn && lod?.outlineOn !== false) {
+    if (style.outlineOn && visualCapPlan?.outlineOn !== false) {
         const outlinePx = style.outlinePx;
         const outlineScale = ((pixelSize + outlinePx) * 2) / 128;
         // F-75: Lighten outline color by SHIP_GLOW_INTENSITY
@@ -712,7 +712,7 @@ export function renderShips(
     const frame = measurePerf('game.renderFrame.ships.context', () => {
         const style = resolveShipFrameStyle();
         const incomingByStarId = buildIncomingTravelStats(state.travelingShips);
-        const lod = resolveShipLodPlan({
+        const visualCapPlan = resolveShipVisualCapPlan({
             stars,
             incomingByStarId,
             totalTravelingShips: state.travelingShips.length,
@@ -720,23 +720,23 @@ export function renderShips(
             outlineOn: style.outlineOn,
             glowRadius: style.glowRadius,
         });
-        return createShipFrameContext(style, incomingByStarId, lod);
+        return createShipFrameContext(style, incomingByStarId, visualCapPlan);
     });
 
     const orbitalDetail: Record<string, unknown> = {
-        visualPolicy: frame.lod.level,
-        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
-        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
-        totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
-        totalTravelingShips: frame.lod.stats.totalTravelingShips,
-        totalDamagedShips: frame.lod.stats.totalDamagedShips,
-        baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
-        baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
-        totalPotentialVisuals: frame.lod.stats.totalPotentialVisuals,
-        starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
-        starsWithDamaged: frame.lod.stats.starsWithDamaged,
-        outlineOn: frame.lod.outlineOn,
-        glowOn: frame.lod.glowOn,
+        visualCapPolicy: frame.visualCapPlan.policyId,
+        maxOrbitVisualsPerStar: frame.visualCapPlan.maxOrbitVisualsPerStar,
+        maxDamagedVisualsPerStar: frame.visualCapPlan.maxDamagedVisualsPerStar,
+        totalActiveOrbitShips: frame.visualCapPlan.stats.totalActiveOrbitShips,
+        totalTravelingShips: frame.visualCapPlan.stats.totalTravelingShips,
+        totalDamagedShips: frame.visualCapPlan.stats.totalDamagedShips,
+        baseOrbitVisuals: frame.visualCapPlan.stats.baseOrbitVisuals,
+        baseDamagedVisuals: frame.visualCapPlan.stats.baseDamagedVisuals,
+        totalPotentialVisuals: frame.visualCapPlan.stats.totalPotentialVisuals,
+        starsWithOrbitals: frame.visualCapPlan.stats.starsWithOrbitals,
+        starsWithDamaged: frame.visualCapPlan.stats.starsWithDamaged,
+        outlineOn: frame.visualCapPlan.outlineOn,
+        glowOn: frame.visualCapPlan.glowOn,
         renderedOrbitVisuals: 0,
         renderedDamagedVisuals: 0,
     };
@@ -765,7 +765,7 @@ export function renderShips(
         const actualCount = Math.max(0, star.activeShips - inFlightToStar);
         const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
         const targetCount = Math.min(
-            frame.lod.maxOrbitVisualsPerStar,
+            frame.visualCapPlan.maxOrbitVisualsPerStar,
             baseOrbitVisualCount,
         );
         const starMultiplier = targetCount > 0 ? actualCount / targetCount : 1;
@@ -1162,7 +1162,7 @@ function renderShipsOptimized(
     const frame = measurePerf('game.renderFrame.ships.context', () => {
         const style = resolveShipFrameStyle();
         const incomingByStarId = buildIncomingTravelStats(state.travelingShips);
-        const lod = resolveShipLodPlan({
+        const visualCapPlan = resolveShipVisualCapPlan({
             stars,
             incomingByStarId,
             totalTravelingShips: state.travelingShips.length,
@@ -1170,23 +1170,23 @@ function renderShipsOptimized(
             outlineOn: style.outlineOn,
             glowRadius: style.glowRadius,
         });
-        return createShipFrameContext(style, incomingByStarId, lod);
+        return createShipFrameContext(style, incomingByStarId, visualCapPlan);
     });
 
     const orbitalDetail: Record<string, unknown> = {
-        visualPolicy: frame.lod.level,
-        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
-        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
-        totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
-        totalTravelingShips: frame.lod.stats.totalTravelingShips,
-        totalDamagedShips: frame.lod.stats.totalDamagedShips,
-        baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
-        baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
-        totalPotentialVisuals: frame.lod.stats.totalPotentialVisuals,
-        starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
-        starsWithDamaged: frame.lod.stats.starsWithDamaged,
-        outlineOn: frame.lod.outlineOn,
-        glowOn: frame.lod.glowOn,
+        visualCapPolicy: frame.visualCapPlan.policyId,
+        maxOrbitVisualsPerStar: frame.visualCapPlan.maxOrbitVisualsPerStar,
+        maxDamagedVisualsPerStar: frame.visualCapPlan.maxDamagedVisualsPerStar,
+        totalActiveOrbitShips: frame.visualCapPlan.stats.totalActiveOrbitShips,
+        totalTravelingShips: frame.visualCapPlan.stats.totalTravelingShips,
+        totalDamagedShips: frame.visualCapPlan.stats.totalDamagedShips,
+        baseOrbitVisuals: frame.visualCapPlan.stats.baseOrbitVisuals,
+        baseDamagedVisuals: frame.visualCapPlan.stats.baseDamagedVisuals,
+        totalPotentialVisuals: frame.visualCapPlan.stats.totalPotentialVisuals,
+        starsWithOrbitals: frame.visualCapPlan.stats.starsWithOrbitals,
+        starsWithDamaged: frame.visualCapPlan.stats.starsWithDamaged,
+        outlineOn: frame.visualCapPlan.outlineOn,
+        glowOn: frame.visualCapPlan.glowOn,
         renderedOrbitVisuals: 0,
         renderedDamagedVisuals: 0,
     };
@@ -1218,7 +1218,7 @@ function renderShipsOptimized(
                 const actualCount = Math.max(0, star.activeShips - inFlightToStar);
                 const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
                 const targetCount = Math.min(
-                    frame.lod.maxOrbitVisualsPerStar,
+                        frame.visualCapPlan.maxOrbitVisualsPerStar,
                     baseOrbitVisualCount,
                 );
                 const starMultiplier =
@@ -1526,7 +1526,7 @@ function renderShipsOptimized(
                 let damagedShips = state.visualDamagedShips.get(star.id) || [];
                 const damageCount = star.damagedShips;
                 const damageTargetCount = Math.min(
-                    frame.lod.maxDamagedVisualsPerStar,
+                    frame.visualCapPlan.maxDamagedVisualsPerStar,
                     damageCount,
                 );
 
@@ -1653,10 +1653,10 @@ function renderShipsOptimized(
     );
 
     const travelDetail: Record<string, unknown> = {
-        visualPolicy: frame.lod.level,
-        totalTravelingShips: frame.lod.stats.totalTravelingShips,
-        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
-        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
+        visualCapPolicy: frame.visualCapPlan.policyId,
+        totalTravelingShips: frame.visualCapPlan.stats.totalTravelingShips,
+        maxOrbitVisualsPerStar: frame.visualCapPlan.maxOrbitVisualsPerStar,
+        maxDamagedVisualsPerStar: frame.visualCapPlan.maxDamagedVisualsPerStar,
         renderedTravelVisuals: 0,
         groupedTravelShips: 0,
         travelOrbGroupCount: 0,

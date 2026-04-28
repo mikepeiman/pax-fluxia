@@ -23,7 +23,7 @@ export function validateTerritoryModeSelection(
         selection.styleMode === 'pixel' &&
         selection.fillTransitionMode === 'legacy_fill_crossfade'
     ) {
-        warnings.push('pixel style + crossfade may look blurred at low resolutions.');
+        warnings.push('pixel style + legacy alpha crossfade fill path may look blurred at low resolutions.');
     }
 
     return {

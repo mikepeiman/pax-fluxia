@@ -97,6 +97,34 @@ The screenshots show that some of the remaining pain is in:
 - browser main-thread render phases
 - Pixi immediate-mode / upload paths
 
+## Progress Update - 2026-04-28 Evening
+
+Completed corrections since this plan was written:
+
+1. Confirmed `common/resources/settings-live/current-settings.json` is output only, not an input source for runtime tuning.
+2. Confirmed the actual startup tunable path is persisted UI settings plus `GAME_CONFIG`, then added a startup migration for the coarse legacy `metaball_grid` defaults:
+   - spacing `48 -> 32`
+   - flip transition `hard -> dual_pass_blend`
+   - flip window `0.06 -> 0.14`
+   - timing scatter `0.02 -> 0`
+3. Updated the render-family defaults in `pax-fluxia/src/lib/territory/families/metaballGrid/config.ts` to the same smoothness-first values.
+4. Renamed the ship visual runtime from stale `shipLod` semantics to fixed-cap `shipVisualCapPlan` semantics. The active path is no longer framed as adaptive throttling.
+5. Renamed the territory control surface from vague fill-transition wording to more precise fill-path wording and clarified the legacy fill-only fallback paths.
+6. Revalidated focused `metaball_grid` scenarios with trace and CPU capture:
+   - artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+   - `metaball_gridGameplay`: `16.773ms avg`, `16.7ms p95`, one `33.3ms` spike
+   - `metaball_gridOrders`: `16.665ms avg`, `16.8ms p95`, no `>33ms` spikes
+
+Important correction from that artifact:
+
+- The automated conquest diagnostic scenario is correctness-heavy, not shipping-gameplay-heavy.
+- Its dominant costs are diagnostic capture work:
+  - `game.renderFrame.territory.transitionDiagnosticSync`
+  - `readPixels`
+  - `putImageData`
+  - `drawImage`
+- That means conquest-diagnostic traces are now a correctness resource first and a raw animation-performance number only second.
+
 That moves the next wave of work away from summary averages alone and toward explicit browser trace analysis.
 
 ## Non-Negotiables

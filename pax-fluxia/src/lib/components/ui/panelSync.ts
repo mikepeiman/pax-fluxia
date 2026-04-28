@@ -22,6 +22,14 @@ export const PANEL_STORAGE_KEY = 'pax-fluxia-panel-settings';
 export const VISUALS_STORAGE_KEY = 'pax-fluxia-visuals';
 export const ANIM_LOCK_STORAGE_KEY = 'pax-anim-lock-ratios';
 export const TIER_STORAGE_KEY = 'pax-fluxia-settings-tier';
+const LEGACY_METABALL_GRID_SPACING_PX = 48;
+const SMOOTH_METABALL_GRID_SPACING_PX = 32;
+const LEGACY_METABALL_GRID_FLIP_TRANSITION = 'hard';
+const SMOOTH_METABALL_GRID_FLIP_TRANSITION = 'dual_pass_blend';
+const LEGACY_METABALL_GRID_FLIP_WINDOW = 0.06;
+const SMOOTH_METABALL_GRID_FLIP_WINDOW = 0.14;
+const LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER = 0.02;
+const SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER = 0;
 
 // ── Combat Tuning Persistence ───────────────────────────────────────────────
 
@@ -115,6 +123,43 @@ const PANEL_KEY_RENAMES: Record<string, string> = {
     transferAnimMs:    'transferAnimationMs',
 };
 
+function migrateLegacyMetaballGridPanelSettings(
+    stored: Record<string, any>,
+): boolean {
+    let changed = false;
+    if (stored.metaballGridSpacingPx === LEGACY_METABALL_GRID_SPACING_PX) {
+        stored.metaballGridSpacingPx = SMOOTH_METABALL_GRID_SPACING_PX;
+        changed = true;
+    }
+    if (
+        stored.metaballGridFlipTransition ===
+        LEGACY_METABALL_GRID_FLIP_TRANSITION
+    ) {
+        stored.metaballGridFlipTransition =
+            SMOOTH_METABALL_GRID_FLIP_TRANSITION;
+        changed = true;
+    }
+    if (stored.metaballGridFlipWindow === LEGACY_METABALL_GRID_FLIP_WINDOW) {
+        stored.metaballGridFlipWindow = SMOOTH_METABALL_GRID_FLIP_WINDOW;
+        changed = true;
+    }
+    if (
+        stored.metaballGridFlipWindowJitter ===
+        LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER
+    ) {
+        stored.metaballGridFlipWindowJitter =
+            SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER;
+        changed = true;
+    }
+    return changed;
+}
+
+function normalizeMetaballGridSmoothnessDefaults(
+    panel: Record<string, any>,
+): boolean {
+    return migrateLegacyMetaballGridPanelSettings(panel);
+}
+
 export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T {
     if (typeof window === 'undefined') return { ...defaults };
     try {
@@ -139,6 +184,9 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
                           : 45;
                 stored.mapgenLaneMarginPx = starM + buf;
                 delete stored.mapgenLaneBufferPx;
+            }
+            if (migrateLegacyMetaballGridPanelSettings(stored)) {
+                localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(stored));
             }
             return { ...defaults, ...stored };
         }
@@ -203,6 +251,12 @@ export function hydrateConfigFromPersistedUiSettings(): {
     visuals: typeof VISUAL_DEFAULTS;
 } {
     const panel = loadPanelSettings(panelDefaultsFromConfig());
+    if (
+        typeof window !== 'undefined' &&
+        normalizeMetaballGridSmoothnessDefaults(panel)
+    ) {
+        savePanelSettings(panel);
+    }
     applyPanelToConfig(panel);
 
     const tickInterval =

@@ -75,7 +75,7 @@
     | "geometry"
     | "render-mode"
     | "architecture"
-    | "fill-transition";
+    | "fill-path";
   type TerritoryRendererModuleId =
     | "all"
     | "none"
@@ -104,7 +104,7 @@
     { id: "geometry", label: "Geometry", icon: "◫" },
     { id: "render-mode", label: "Mode", icon: "◎" },
     { id: "architecture", label: "Architecture", icon: "⬢" },
-    { id: "fill-transition", label: "Fill", icon: "◌" },
+    { id: "fill-path", label: "Fill Path", icon: "◌" },
   ];
 
   const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
@@ -382,10 +382,10 @@
   ] as const;
 
   const FILL_TRANSITION_OPTIONS = [
-    { id: "off", label: "Snap" },
+    { id: "off", label: "Snap To Target Fill" },
     { id: "topology_fill_rebuild", label: "Topology Fill Rebuild" },
-    { id: "legacy_fill_active_front", label: "Legacy Fill Active Front" },
-    { id: "legacy_fill_crossfade", label: "Legacy Fill Crossfade" },
+    { id: "legacy_fill_active_front", label: "Legacy Active-Front Fill Only" },
+    { id: "legacy_fill_crossfade", label: "Legacy Alpha Crossfade Fill Only" },
   ] as const;
 
   const GEOMETRY_OPTIONS = [
@@ -800,19 +800,21 @@
       </div>
     {/if}
 
-    {#if showSystemModule("fill-transition")}
+    {#if showSystemModule("fill-path")}
       <div class="axis-card territory-module-card">
         <div class="territory-card__header">
-          <h4 class="axis-card-title">Fill Transition</h4>
+          <h4 class="axis-card-title">Fill Path</h4>
           <p class="territory-card__intro">
-            Decide how ownership fills interpolate through conquest and front
-            changes.
+            Choose the exact fill-only runtime path. The topology rebuild path
+            uses topology snapshots plus active-front planning; the legacy
+            paths are fill-only fallbacks and do not produce border transition
+            frames.
           </p>
         </div>
         <div
           class="axis-row"
           style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)">
-          <span class="axis-label">Fill Transition</span>
+          <span class="axis-label">Fill path</span>
           <div class="axis-buttons">
             {#each FILL_TRANSITION_OPTIONS as opt}
               <button
@@ -821,6 +823,14 @@
                 onclick={() => selectFillTransition(opt.id)}>{opt.label}</button>
             {/each}
           </div>
+        </div>
+        <div class="axis-note">
+          <code>topology_fill_rebuild</code>
+          routes through the topology planner and fill resampling path.
+          <code>legacy_fill_active_front</code>
+          and
+          <code>legacy_fill_crossfade</code>
+          route only through the legacy fill-mode registry.
         </div>
       </div>
     {/if}

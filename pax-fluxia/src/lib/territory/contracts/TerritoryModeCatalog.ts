@@ -37,7 +37,7 @@ export const FILL_TRANSITION_MODE_CATALOG: Readonly<
 > = {
     legacy_fill_active_front: {
         id: 'legacy_fill_active_front',
-        name: 'Legacy Fill Active Front',
+        name: 'Legacy Active-Front Fill Only',
         summary:
             'Legacy fill-only fallback that interpolates changed frontier spans, but does not provide unified border output.',
     },
@@ -45,18 +45,18 @@ export const FILL_TRANSITION_MODE_CATALOG: Readonly<
         id: 'topology_fill_rebuild',
         name: 'Topology Fill Rebuild',
         summary:
-            'Selects the topology-driven fill rebuild path that plans active fronts from topology snapshots and rebuilds fills from that transition.',
+            'Routes through topology snapshots plus active-front planning, then rebuilds fills from the sampled topology transition without border transition output.',
     },
     legacy_fill_crossfade: {
         id: 'legacy_fill_crossfade',
-        name: 'Legacy Fill Crossfade',
+        name: 'Legacy Alpha Crossfade Fill Only',
         summary:
             'Legacy fill-only alpha crossfade fallback with no unified border output.',
     },
     off: {
         id: 'off',
-        name: 'Snap',
-        summary: 'Disables fill interpolation and snaps to target geometry each frame.',
+        name: 'Snap To Target Fill',
+        summary: 'Disables fill interpolation and snaps directly to the target fill geometry each frame.',
     },
 };
 

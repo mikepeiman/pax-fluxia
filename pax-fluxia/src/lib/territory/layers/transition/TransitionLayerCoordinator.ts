@@ -68,7 +68,7 @@ export class TransitionLayerCoordinator {
         // ── Unified active-front path — frontier-chain transitions ───────
         // Fills are reconstructed from interpolated active-front geometry.
         // Activated when user selects the topology-driven fill rebuild path.
-        const TOPOLOGY_PATH_ENABLED =
+        const topologyFillRebuildSelected =
             input.selection.fillTransitionMode === 'topology_fill_rebuild';
         const nextTopo = input.geometry.frontierTopology;
 
@@ -80,8 +80,8 @@ export class TransitionLayerCoordinator {
         let transitionPrevTopology = input.transitionPrevTopology ?? null;
         const samplePrevTopo = transitionPrevTopology ?? planPrevTopo;
 
-        const canPlanTopologyPath = TOPOLOGY_PATH_ENABLED && !!(planPrevTopo && nextTopo);
-        const canSampleTopologyPath = TOPOLOGY_PATH_ENABLED && !!(samplePrevTopo && nextTopo);
+        const canPlanTopologyPath = topologyFillRebuildSelected && !!(planPrevTopo && nextTopo);
+        const canSampleTopologyPath = topologyFillRebuildSelected && !!(samplePrevTopo && nextTopo);
 
         if (hasNewConquests && hasGeometryDelta) {
             envelope = this.clock.buildEnvelope(
@@ -98,7 +98,7 @@ export class TransitionLayerCoordinator {
                 // Snapshot the prev topology so it survives the state overwrite
                 transitionPrevTopology = planPrevTopo!;
                 log.renderer('TransitionCoordinator',
-                    `Using unified active-front path: ${activeFrontPlan.fronts.length} fronts` +
+                    `Using topology fill rebuild path: ${activeFrontPlan.fronts.length} fronts` +
                     ` | prevTopo v=${planPrevTopo!.version.slice(0, 20)} nextTopo v=${nextTopo!.version.slice(0, 20)}`,
                 );
             } else {
@@ -106,14 +106,14 @@ export class TransitionLayerCoordinator {
                 activeFrontPlan = null;
                 transitionPrevTopology = null;
 
-                if (TOPOLOGY_PATH_ENABLED) {
+                if (topologyFillRebuildSelected) {
                     log.renderer('TransitionCoordinator',
                         `Topology fill rebuild selected but topology data unavailable ` +
                         `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
                     );
                 }
 
-                if (input.selection.fillTransitionMode !== 'off' && !TOPOLOGY_PATH_ENABLED) {
+                if (input.selection.fillTransitionMode !== 'off' && !topologyFillRebuildSelected) {
                     const fillMode = FILL_TRANSITION_MODE_BY_ID.get(
                         input.selection.fillTransitionMode,
                     );
@@ -188,7 +188,7 @@ export class TransitionLayerCoordinator {
                 borderCount: borderFrame.frontiers.length,
                 hasNewConquests,
                 hasGeometryDelta,
-                topologyPathEnabled: TOPOLOGY_PATH_ENABLED,
+                topologyPathEnabled: topologyFillRebuildSelected,
             }));
         }
 

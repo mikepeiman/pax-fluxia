@@ -83,11 +83,10 @@ The export path had useful data, but not the fixed `ownership -> geometry -> tra
 - Added an interaction-overlay render key so overlay redraws are skipped when the visible selection and order state are unchanged.
 
 ### Long-run ship-pressure work
-- Added an adaptive ship LOD planner in `pax-fluxia/src/lib/renderers/shipLod.ts`.
-- Added late-game ship diagnostics to the live perf surface and benchmark summaries.
-- Tightened orbital and damaged-ship budgets under balanced, reduced, and critical pressure.
-- Added per-star caps so dense stars cannot dominate the entire orbital budget.
-- Disabled outline and ship-glow effects under reduced and critical pressure through the LOD plan.
+- Earlier late-game ship work introduced ship-count diagnostics and per-star visual caps so extremely dense stars do not multiply visible orbit work without bound.
+- The adaptive-throttling framing from that pass has since been removed from the active runtime.
+- The current ship runtime now exposes a fixed visual-cap plan in `pax-fluxia/src/lib/renderers/shipVisualCapPlan.ts`.
+- Ship diagnostics in the live perf surface and benchmark summaries now reflect that fixed-cap plan rather than adaptive LOD semantics.
 - Extended `getOrbitSlot(...)` so the active orbital ship loop can reuse cached slot `angle`, `radius`, and normalized direction vectors instead of recomputing them per ship.
 - Replaced per-ship steady-state phase trig with a fixed `SHIP_PHASE_AMPLITUDES` lookup table inside the active optimized ship renderer.
 - Reduced late-game steady-state ship cost substantially in the first long soak comparison:
@@ -256,6 +255,54 @@ Interpretation:
   - previous fully unattributed spike count: `9`
   - latest fully unattributed spike count: `10`
 - That means the next lane should either improve attribution around those browser stalls or pivot to the next cleanly measured steady-state scene costs, with star presentation still the clearest measured target.
+
+### Smoothness-first correction pass
+Commands:
+
+- `bun test pax-fluxia/src/lib/territory/integration/TerritorySettingsBridge.test.ts pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.test.ts pax-fluxia/src/lib/lanes/lanePolylineCache.test.ts pax-fluxia/src/lib/lanes/applyLaneTravelPath.test.ts pax-fluxia/src/lib/lanes/laneConnectionSync.test.ts`
+- `bun run build` in `pax-fluxia/`
+- `$env:PAX_BENCH_ONLY='metaball_gridGameplay,metaball_gridConquestDiagnostic,metaball_gridOrders'; $env:PAX_BENCH_TERRITORY_MODE='metaball_grid'; $env:PAX_BENCH_MAP_NAME='First Symmetry-6_April 17b'; $env:PAX_WRITE_TRACE='1'; bun tools/debug/benchmark-browser-gameplay.ts`
+- `bun tools/debug/summarize-browser-gameplay-benchmark.ts .agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+
+Artifacts:
+
+- Focused benchmark artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+- Screenshot directory: `.agent-harness/metrics/browser-screenshots/2026-04-28T21-12-09-657Z`
+
+Implementation corrections in this pass:
+
+- Verified that `common/resources/settings-live/current-settings.json` is output only and not a runtime input path.
+- Confirmed the real startup tunable path is `pax-fluxia-panel-settings` plus `pax-fluxia-game-config`, then added a startup migration in `panelSync.ts` for the coarse legacy `metaball_grid` defaults:
+  - spacing `48 -> 32`
+  - flip transition `hard -> dual_pass_blend`
+  - flip window `0.06 -> 0.14`
+  - timing scatter `0.02 -> 0`
+- Updated the family defaults in `metaballGrid/config.ts` to the same smoothness-first values.
+- Kept the retained-sprite fast path in `MetaballGridFamily.ts` as the active low-overhead square-cell gameplay path.
+- Renamed the surviving ship-cap runtime from `shipLod.ts` semantics to the fixed-cap `shipVisualCapPlan.ts` semantics.
+- Renamed the territory UI surface from a vague fill-transition framing to a more precise fill-path framing and clarified which options are legacy fill-only fallbacks.
+
+Focused benchmark results:
+
+| Scenario | Avg frame | P95 frame | Max frame | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `metaball_gridGameplay` | `16.773ms` | `16.7ms` | `33.3ms` | short steady-state path remains near budget; territory present avg `0.554ms`, stars avg `0.815ms` |
+| `metaball_gridOrders` | `16.665ms` | `16.8ms` | `16.8ms` | orders path stays inside the frame ceiling with no `>33ms` spikes |
+| `metaball_gridConquestDiagnostic` | diagnostic-heavy | diagnostic-heavy | diagnostic-heavy | not representative of shipping gameplay because capture/export work dominates |
+
+Key distinction from the focused conquest diagnostic:
+
+- The conquest diagnostic path is currently dominated by the diagnostic capture itself, not normal gameplay presentation.
+- Evidence from `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`:
+  - `game.renderFrame.territory.transitionDiagnosticSync`: `11.325ms avg`, `27ms max`
+  - CPU hotspots: `readPixels`, `putImageData`, `drawImage`, `generateCanvas`
+  - transition diagnostic result: `schema=pv-transition-diagnostics-v1`, `steps=19`, `failing=none`, `finalCompare withinTolerance=true`
+
+Current interpretation after the smoothness-first correction:
+
+- `metaball_grid` gameplay is no longer being misread through the stale `settings-live` file path.
+- The retained-sprite path plus smoother defaults keep steady-state territory cost low without relying on the old coarse defaults.
+- The automated conquest diagnostic scenario is useful for correctness, but its timing numbers must not be treated as the shipping conquest-animation performance number while `transitionDiagnosticSync` is enabled in-band.
 
 ## Status Against Acceptance Targets
 - `metaball_grid`

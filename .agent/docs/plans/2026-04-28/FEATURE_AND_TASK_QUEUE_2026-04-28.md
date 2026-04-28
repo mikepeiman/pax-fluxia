@@ -45,10 +45,19 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
   - `17.127ms avg`, `16.8ms p95`, `1862` frames over `33ms`
 
 ## Next Queue
-- Commit the ship-path cache pass and today's docs as the next gameplay-performance checkpoint.
-- Decide whether the next autonomous lane should be:
-  - targeted browser-attribution capture for the remaining fully unattributed `50ms - 83ms` stalls
-  - star presentation cost reduction, since stars plus labels now sit around `1.598ms avg`
+- Commit the smoothness-first correction pass and today's docs as the next gameplay-performance checkpoint.
+- Keep the focused artifact front and center:
+  - `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+- Split the next lane cleanly:
+  - shipping smoothness lane:
+    - investigate the remaining `metaball_gridGameplay` `33.3ms` spike
+    - reduce star presentation and browser-phase spikes without reintroducing visual undersampling
+  - diagnostic lane:
+    - keep conquest bundle correctness validation live
+    - do not treat `metaball_gridConquestDiagnostic` timing as shipping gameplay because `transitionDiagnosticSync` capture work dominates it
+- Verify whether the next autonomous code target should be:
+  - star presentation cost reduction
+  - browser/Pixi present-path attribution around the remaining gameplay spike
 - Keep the conquest diagnostic-bundle validation task live:
   - export a real bundle
   - inspect `debug/diagnostic.json`
@@ -57,3 +66,6 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
 ## Diagnostics Follow-Up
 - Export a real conquest diagnostic bundle and inspect `debug/diagnostic.json`.
 - Verify the `172 stars / 214 lanes / 428 runtime connections` mismatch directly in code.
+- Preserve the distinction between:
+  - normal gameplay perf scenarios
+  - correctness-heavy conquest diagnostic scenarios with in-band readback and export work

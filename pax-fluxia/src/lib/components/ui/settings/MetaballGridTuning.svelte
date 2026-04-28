@@ -97,7 +97,7 @@
         const raw =
             panel.metaballGridFlipTransition ??
             GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION ??
-            'hard';
+            'dual_pass_blend';
         if (raw === 'lerp_per_cell') return 'lerp_per_cell';
         if (raw === 'dual_pass_blend') return 'dual_pass_blend';
         return 'hard';
@@ -134,7 +134,7 @@
         const raw =
             panel.metaballGridWaveEase ??
             GAME_CONFIG.METABALL_GRID_WAVE_EASE ??
-            'linear';
+            'ease_in_out';
         if (
             raw === 'ease_in' ||
             raw === 'ease_out' ||
@@ -143,10 +143,10 @@
             raw === 'elastic_out'
         )
             return raw;
-        return 'linear';
+        return 'ease_in_out';
     }
 
-    const METABALL_GRID_BASELINE_SPACING_PX = 48;
+    const METABALL_GRID_BASELINE_SPACING_PX = 32;
 
     function currentSpacingPx(): number {
         return panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? METABALL_GRID_BASELINE_SPACING_PX;
@@ -248,7 +248,7 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
+        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 32 px spacing.">
             Grid Density
         </span>
         <span class="val">
@@ -634,11 +634,11 @@
 <div class="module-block">
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="How each grid cell blends ownership when the conquest wave reaches it. Hard = instant owner swap. Lerp per cell = local crossfade inside a window. Dual pass = always render both owners and crossfade between them.">
+        <span class="var-name" title="How each grid cell blends ownership when the conquest wave reaches it. Debug instant switch = abrupt owner swap. Local crossfade = blend only inside the local window. Continuous dual-pass blend = always render both owners and crossfade between them.">
             Cell Ownership Transition
         </span>
         <span class="val">
-            {#if currentFlipTransition() === 'hard'}Instant switch
+            {#if currentFlipTransition() === 'hard'}Debug instant switch
             {:else if currentFlipTransition() === 'lerp_per_cell'}Local crossfade
             {:else}Continuous dual-pass blend{/if}
         </span>
@@ -654,7 +654,7 @@
             writeConfig('METABALL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', value);
         }}
     >
-        <option value="hard">Instant switch</option>
+        <option value="hard">Debug: instant switch</option>
         <option value="lerp_per_cell">Local crossfade</option>
         <option value="dual_pass_blend">Continuous dual-pass blend</option>
     </select>
@@ -722,7 +722,7 @@
         <span class="var-name" title="Per-cell deterministic shift applied to flipTime, in progress units. 0.05 = each cell flips up to ±5 percent earlier/later than the wave rank would dictate. Breaks up rigid fronts for a more organic feel.">
             Timing Scatter
         </span>
-        <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0.02).toFixed(3)}</span>
+        <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
     </div>
     <div class="var-desc">
         Deterministic per-cell scatter of flip-time (seeded by cell id, stable across runs). Great for softening straight wave fronts.
@@ -732,7 +732,7 @@
         min="0"
         max="0.5"
         step="0.005"
-        value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0.02}
+        value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_FLIP_WINDOW_JITTER', 'metaballGridFlipWindowJitter', value);

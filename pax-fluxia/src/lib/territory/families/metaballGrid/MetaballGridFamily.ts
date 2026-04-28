@@ -344,6 +344,52 @@ function quantProgress(t: number): number {
     return Math.round(t * PROGRESS_QUANT_STEPS);
 }
 
+function drawFilledGridCell(
+    graphics: PIXI.Graphics,
+    cellShape: GridCellShape,
+    x: number,
+    y: number,
+    half: number,
+    size: number,
+    cornerR: number,
+    hexR: number,
+    fillHex: number,
+    alpha: number,
+): void {
+    if (cellShape === 'circle') {
+        graphics.circle(x, y, half).fill({ color: fillHex, alpha });
+        return;
+    }
+    if (cellShape === 'diamond') {
+        graphics
+            .poly([x, y - half, x + half, y, x, y + half, x - half, y])
+            .fill({
+                color: fillHex,
+                alpha,
+            });
+        return;
+    }
+    if (cellShape === 'hex') {
+        const pts: number[] = [];
+        for (let k = 0; k < 6; k++) {
+            pts.push(
+                x + HEX_VERTICES_POINTY[k][0] * hexR,
+                y + HEX_VERTICES_POINTY[k][1] * hexR,
+            );
+        }
+        graphics.poly(pts).fill({ color: fillHex, alpha });
+        return;
+    }
+    if (cornerR > 0) {
+        graphics.roundRect(x - half, y - half, size, size, cornerR).fill({
+            color: fillHex,
+            alpha,
+        });
+        return;
+    }
+    graphics.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
+}
+
 /**
  * RenderFamily implementation for metaball-grid.
  */
@@ -354,6 +400,10 @@ export class MetaballGridFamily implements RenderFamily {
 
     private readonly root = new PIXI.Container();
     private readonly graphics = new PIXI.Graphics();
+    private readonly nativeSpriteLayer = new PIXI.Container();
+    private readonly transitionSpriteLayer = new PIXI.Container();
+    private readonly nativeSprites: PIXI.Sprite[] = [];
+    private readonly transitionSprites: PIXI.Sprite[] = [];
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
@@ -372,6 +422,7 @@ export class MetaballGridFamily implements RenderFamily {
      * until the next conquest).
      */
     private lastPlanParamsKey: string | null = null;
+    private lastSplitNativeSig: string | null = null;
     /** EMA of per-update wall-clock time (ms). Seeded lazily. */
     private emaUpdateMs = 0;
     private frameCount = 0;
@@ -392,6 +443,10 @@ export class MetaballGridFamily implements RenderFamily {
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
         this.root.addChild(this.graphics);
+        this.nativeSpriteLayer.visible = false;
+        this.transitionSpriteLayer.visible = false;
+        this.root.addChild(this.nativeSpriteLayer);
+        this.root.addChild(this.transitionSpriteLayer);
     }
 
     /** PIXI root used by the canvas to mount/unmount this family's output. */
@@ -407,6 +462,7 @@ export class MetaballGridFamily implements RenderFamily {
         this.cachedPlan = null;
         this.lastPaintSig = null;
         this.lastPlanParamsKey = null;
+        this.lastSplitNativeSig = null;
         this.emaUpdateMs = 0;
         this.frameCount = 0;
         this.skippedFrameCount = 0;
@@ -416,6 +472,42 @@ export class MetaballGridFamily implements RenderFamily {
         this.activePlanWorkerMeta = null;
         this.queuedPlanWorker = null;
         resetMetaballGridStats();
+    }
+
+    private ensureSpritePool(
+        layer: PIXI.Container,
+        pool: PIXI.Sprite[],
+        required: number,
+    ): void {
+        while (pool.length < required) {
+            const sprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+            sprite.anchor.set(0.5);
+            layer.addChild(sprite);
+            pool.push(sprite);
+        }
+    }
+
+    private hideUnusedSprites(pool: PIXI.Sprite[], fromIndex: number): void {
+        for (let i = fromIndex; i < pool.length; i++) {
+            pool[i].visible = false;
+        }
+    }
+
+    private writeSquareSprite(
+        sprite: PIXI.Sprite,
+        x: number,
+        y: number,
+        size: number,
+        tint: number,
+        alpha: number,
+    ): void {
+        sprite.visible = alpha > 0;
+        sprite.x = x;
+        sprite.y = y;
+        sprite.width = size;
+        sprite.height = size;
+        sprite.tint = tint;
+        sprite.alpha = alpha;
     }
 
     private ensurePlanWorker(): Worker | null {
@@ -1085,7 +1177,7 @@ export class MetaballGridFamily implements RenderFamily {
                 readTunableNumber(
                     input,
                     'METABALL_GRID_FLIP_WINDOW_JITTER',
-                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0.02,
+                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0,
                 ),
             ),
         );
@@ -1335,6 +1427,12 @@ export class MetaballGridFamily implements RenderFamily {
         const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        const canUseSplitFillOnlyFastPath =
+            !drawBorders &&
+            inwardOffsetPx === 0 &&
+            cellShape === 'square' &&
+            cellInsetPx === 0 &&
+            cellCornerPx === 0;
         // Blended-edge polyline assumes a regular square vertex lattice
         // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
         // and jittered distributions break that assumption, so fall back to
@@ -1354,7 +1452,10 @@ export class MetaballGridFamily implements RenderFamily {
         const rows = cached.classification.rows;
         const vstarCount = cached.classification.vstars.length;
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
-        if (inwardOffsetPx > 0 || (drawBorders && drawTerritoryEdgeOnly)) {
+        if (
+            !canUseSplitFillOnlyFastPath &&
+            (inwardOffsetPx > 0 || (drawBorders && drawTerritoryEdgeOnly))
+        ) {
             effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
             effectiveColorIdxByGridIdx.fill(-1);
             // Seed with NEXT owner as the baseline, so cells whose scene
@@ -1381,109 +1482,188 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
-        for (let i = 0; i < scene.cells.length; i++) {
-            const c = scene.cells[i];
-            if (c.alpha <= 0) continue;
-            const fillHex = fillHexByColorIdx[c.colorIdx];
-            if (fillHex === undefined) continue;
-            const alpha = c.alpha * fillAlphaMult;
-            if (alpha <= 0) continue;
+        const nativeLayerSig = [
+            this.sessionKey ?? '',
+            cached.planKey,
+            territoryEpoch,
+            cellShape,
+            nativeSize.toFixed(2),
+            nativeCornerR.toFixed(2),
+            nativeHexR.toFixed(2),
+            fillAlphaMult.toFixed(4),
+            palFillSig,
+        ].join('|');
 
-            // Numeric grid indices are carried directly on the scene cell so
-            // the hot paint loop does not need to parse `g:${ix}:${iy}` ids.
-            const ix = c.ix;
-            const iy = c.iy;
+        g.visible = !canUseSplitFillOnlyFastPath;
+        this.nativeSpriteLayer.visible = canUseSplitFillOnlyFastPath;
+        this.transitionSpriteLayer.visible = canUseSplitFillOnlyFastPath;
 
-            // Trust the scene cell's (x, y) — classification already applied
-            // any distribution-driven row shift (hex_offset) or jitter. A
-            // previous revision double-shifted odd rows here when cellShape
-            // was 'hex', which misaligned fill vs. border polylines.
-            const x = c.x;
-            const y = c.y;
-
-            // Boundary cells (anything but 'native') get the inward-offset
-            // inset so the visible territory edge recedes from its classified
-            // extent. Pointy-top hex "radius" is vertex-to-center distance;
-            // honeycomb interlock for hex cells is produced by the
-            // `hex_offset` distribution (row shift applied in classification).
-            const isBoundary = c.role !== 'native';
-            const half = isBoundary ? boundaryHalf : nativeHalf;
-            const size = isBoundary ? boundarySize : nativeSize;
-            const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
-            const hexR = isBoundary ? boundaryHexR : nativeHexR;
-
-            // Fill primitive
-            if (cellShape === 'circle') {
-                g.circle(x, y, half).fill({ color: fillHex, alpha });
-            } else if (cellShape === 'diamond') {
-                g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).fill({
-                    color: fillHex,
-                    alpha,
-                });
-            } else if (cellShape === 'hex') {
-                const pts: number[] = [];
-                for (let k = 0; k < 6; k++) {
-                    pts.push(
-                        x + HEX_VERTICES_POINTY[k][0] * hexR,
-                        y + HEX_VERTICES_POINTY[k][1] * hexR,
+        if (canUseSplitFillOnlyFastPath) {
+            if (this.lastSplitNativeSig !== nativeLayerSig) {
+                let nativeCount = 0;
+                for (let i = 0; i < cached.classification.vstars.length; i++) {
+                    if (cached.classification.vstars[i].role === 'native') {
+                        nativeCount += 1;
+                    }
+                }
+                this.ensureSpritePool(
+                    this.nativeSpriteLayer,
+                    this.nativeSprites,
+                    nativeCount,
+                );
+                let nativeWriteIndex = 0;
+                for (let i = 0; i < cached.classification.vstars.length; i++) {
+                    const v = cached.classification.vstars[i];
+                    if (v.role !== 'native') continue;
+                    const ownerId = v.nextOwnerId ?? v.prevOwnerId;
+                    if (!ownerId) continue;
+                    const colorIdx = ownerColorIdx.get(ownerId);
+                    if (colorIdx === undefined) continue;
+                    const fillHex = fillHexByColorIdx[colorIdx];
+                    if (fillHex === undefined) continue;
+                    this.writeSquareSprite(
+                        this.nativeSprites[nativeWriteIndex],
+                        v.x,
+                        v.y,
+                        nativeSize,
+                        fillHex,
+                        fillAlphaMult,
                     );
+                    nativeWriteIndex += 1;
                 }
-                g.poly(pts).fill({ color: fillHex, alpha });
-            } else if (cornerR > 0) {
-                g.roundRect(x - half, y - half, size, size, cornerR).fill({
-                    color: fillHex,
+                this.hideUnusedSprites(this.nativeSprites, nativeWriteIndex);
+                this.lastSplitNativeSig = nativeLayerSig;
+            }
+            let transitionCount = 0;
+            for (let i = 0; i < scene.cells.length; i++) {
+                const c = scene.cells[i];
+                if (c.role === 'native' || c.alpha <= 0) continue;
+                const fillHex = fillHexByColorIdx[c.colorIdx];
+                if (fillHex === undefined) continue;
+                if (c.alpha * fillAlphaMult <= 0) continue;
+                transitionCount += 1;
+            }
+            this.ensureSpritePool(
+                this.transitionSpriteLayer,
+                this.transitionSprites,
+                transitionCount,
+            );
+            let transitionWriteIndex = 0;
+            for (let i = 0; i < scene.cells.length; i++) {
+                const c = scene.cells[i];
+                if (c.role === 'native' || c.alpha <= 0) continue;
+                const fillHex = fillHexByColorIdx[c.colorIdx];
+                if (fillHex === undefined) continue;
+                const alpha = c.alpha * fillAlphaMult;
+                if (alpha <= 0) continue;
+                this.writeSquareSprite(
+                    this.transitionSprites[transitionWriteIndex],
+                    c.x,
+                    c.y,
+                    nativeSize,
+                    fillHex,
                     alpha,
-                });
-            } else {
-                g.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
+                );
+                transitionWriteIndex += 1;
             }
+            this.hideUnusedSprites(this.transitionSprites, transitionWriteIndex);
+            g.clear();
+        } else {
+            this.lastSplitNativeSig = null;
+            this.hideUnusedSprites(this.nativeSprites, 0);
+            this.hideUnusedSprites(this.transitionSprites, 0);
+            g.clear();
+            for (let i = 0; i < scene.cells.length; i++) {
+                const c = scene.cells[i];
+                if (c.alpha <= 0) continue;
+                const fillHex = fillHexByColorIdx[c.colorIdx];
+                if (fillHex === undefined) continue;
+                const alpha = c.alpha * fillAlphaMult;
+                if (alpha <= 0) continue;
 
-            // Per-cell border stroke: skipped for blended-edge path (drawn
-            // once per shared edge below instead) and for any cell whose
-            // neighbours all share its owner under territory_edge mode.
-            if (!drawBorders) continue;
-            if (drawBlendedEdges) continue; // handled by the edge pass below
-            if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
-                if (ix >= 0 && iy >= 0) {
-                    const self = c.colorIdx;
-                    const neighbourDiffers = (nx: number, ny: number): boolean => {
-                        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
-                        return effectiveColorIdxByGridIdx![ny * cols + nx] !== self;
-                    };
-                    const isEdge =
-                        neighbourDiffers(ix - 1, iy) ||
-                        neighbourDiffers(ix + 1, iy) ||
-                        neighbourDiffers(ix, iy - 1) ||
-                        neighbourDiffers(ix, iy + 1);
-                    if (!isEdge) continue;
+                // Numeric grid indices are carried directly on the scene cell so
+                // the hot paint loop does not need to parse `g:${ix}:${iy}` ids.
+                const ix = c.ix;
+                const iy = c.iy;
+
+                // Trust the scene cell's (x, y) — classification already applied
+                // any distribution-driven row shift (hex_offset) or jitter. A
+                // previous revision double-shifted odd rows here when cellShape
+                // was 'hex', which misaligned fill vs. border polylines.
+                const x = c.x;
+                const y = c.y;
+
+                // Boundary cells (anything but 'native') get the inward-offset
+                // inset so the visible territory edge recedes from its classified
+                // extent. Pointy-top hex "radius" is vertex-to-center distance;
+                // honeycomb interlock for hex cells is produced by the
+                // `hex_offset` distribution (row shift applied in classification).
+                const isBoundary = c.role !== 'native';
+                const half = isBoundary ? boundaryHalf : nativeHalf;
+                const size = isBoundary ? boundarySize : nativeSize;
+                const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
+                const hexR = isBoundary ? boundaryHexR : nativeHexR;
+
+                drawFilledGridCell(
+                    g,
+                    cellShape,
+                    x,
+                    y,
+                    half,
+                    size,
+                    cornerR,
+                    hexR,
+                    fillHex,
+                    alpha,
+                );
+
+                // Per-cell border stroke: skipped for blended-edge path (drawn
+                // once per shared edge below instead) and for any cell whose
+                // neighbours all share its owner under territory_edge mode.
+                if (!drawBorders) continue;
+                if (drawBlendedEdges) continue; // handled by the edge pass below
+                if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
+                    if (ix >= 0 && iy >= 0) {
+                        const self = c.colorIdx;
+                        const neighbourDiffers = (nx: number, ny: number): boolean => {
+                            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
+                            return effectiveColorIdxByGridIdx![ny * cols + nx] !== self;
+                        };
+                        const isEdge =
+                            neighbourDiffers(ix - 1, iy) ||
+                            neighbourDiffers(ix + 1, iy) ||
+                            neighbourDiffers(ix, iy - 1) ||
+                            neighbourDiffers(ix, iy + 1);
+                        if (!isEdge) continue;
+                    }
                 }
-            }
-            const borderHex = borderHexByColorIdx[c.colorIdx];
-            if (borderHex === undefined) continue;
-            const strokeOpts = {
-                color: borderHex,
-                alpha: borderAlpha,
-                width: borderWidth,
-                cap: 'round' as const,
-                join: 'round' as const,
-            };
-            if (cellShape === 'circle') {
-                g.circle(x, y, half).stroke(strokeOpts);
-            } else if (cellShape === 'diamond') {
-                g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).stroke(strokeOpts);
-            } else if (cellShape === 'hex') {
-                const pts: number[] = [];
-                for (let k = 0; k < 6; k++) {
-                    pts.push(
-                        x + HEX_VERTICES_POINTY[k][0] * hexR,
-                        y + HEX_VERTICES_POINTY[k][1] * hexR,
-                    );
+                const borderHex = borderHexByColorIdx[c.colorIdx];
+                if (borderHex === undefined) continue;
+                const strokeOpts = {
+                    color: borderHex,
+                    alpha: borderAlpha,
+                    width: borderWidth,
+                    cap: 'round' as const,
+                    join: 'round' as const,
+                };
+                if (cellShape === 'circle') {
+                    g.circle(x, y, half).stroke(strokeOpts);
+                } else if (cellShape === 'diamond') {
+                    g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).stroke(strokeOpts);
+                } else if (cellShape === 'hex') {
+                    const pts: number[] = [];
+                    for (let k = 0; k < 6; k++) {
+                        pts.push(
+                            x + HEX_VERTICES_POINTY[k][0] * hexR,
+                            y + HEX_VERTICES_POINTY[k][1] * hexR,
+                        );
+                    }
+                    g.poly(pts).stroke(strokeOpts);
+                } else if (cornerR > 0) {
+                    g.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
+                } else {
+                    g.rect(x - half, y - half, size, size).stroke(strokeOpts);
                 }
-                g.poly(pts).stroke(strokeOpts);
-            } else if (cornerR > 0) {
-                g.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
-            } else {
-                g.rect(x - half, y - half, size, size).stroke(strokeOpts);
             }
         }
 
@@ -1498,7 +1678,7 @@ export class MetaballGridFamily implements RenderFamily {
         //   5. stroke each polyline once with round caps + round joins.
         // The result is continuous, corner-joined boundaries in the 50/50
         // blended colour of the two owners' border hexes.
-        if (drawBlendedEdges && effectiveColorIdxByGridIdx) {
+        if (!canUseSplitFillOnlyFastPath && drawBlendedEdges && effectiveColorIdxByGridIdx) {
             const originOffset = cached.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
             const trueHalf = spacingPx * 0.5;
             // Vertex grid is (cols+1) × (rows+1); vertex id = ivy * vCols + ivx.
@@ -1746,8 +1926,12 @@ export class MetaballGridFamily implements RenderFamily {
         this.planWorker?.terminate();
         this.planWorker = null;
         this.graphics.clear();
+        this.hideUnusedSprites(this.nativeSprites, 0);
+        this.hideUnusedSprites(this.transitionSprites, 0);
         this.root.removeChildren();
         this.root.addChild(this.graphics);
+        this.root.addChild(this.nativeSpriteLayer);
+        this.root.addChild(this.transitionSpriteLayer);
     }
 }
 

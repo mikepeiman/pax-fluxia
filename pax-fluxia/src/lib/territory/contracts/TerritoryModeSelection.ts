@@ -5,9 +5,9 @@ export type GeometryModeId =
 
 export type FillTransitionModeId =
     | 'legacy_fill_active_front' // Legacy fill-only active-front interpolation fallback
-    | 'topology_fill_rebuild' // Topology-driven fill rebuild path (current topology selection)
+    | 'topology_fill_rebuild' // Topology planner + fill resampling path; does not currently emit border transition frames
     | 'legacy_fill_crossfade' // Legacy fill-only alpha crossfade fallback
-    | 'off';
+    | 'off'; // Snap directly to the target fill
 
 export type BorderTransitionModeId =
     | 'optimal_transport' // Optimal-Transport Correspondence Border

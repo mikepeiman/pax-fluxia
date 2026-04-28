@@ -1,11 +1,8 @@
 import type { StarState } from '$lib/types/game.types';
 
-// Historical filename retained for import stability. The adaptive ship LOD
-// system has been removed; this module now resolves a fixed-cap visual plan.
+export type ShipVisualCapPolicyId = 'fixed_cap';
 
-export type ShipLodLevel = 'fixed_cap';
-
-export interface ShipLodStats {
+export interface ShipVisualCapStats {
     totalActiveOrbitShips: number;
     totalTravelingShips: number;
     totalDamagedShips: number;
@@ -16,9 +13,9 @@ export interface ShipLodStats {
     starsWithDamaged: number;
 }
 
-export interface ShipLodPlan {
-    level: ShipLodLevel;
-    stats: ShipLodStats;
+export interface ShipVisualCapPlan {
+    policyId: ShipVisualCapPolicyId;
+    stats: ShipVisualCapStats;
     orbitVisualCount: number;
     maxOrbitVisualsPerStar: number;
     damagedVisualCount: number;
@@ -27,7 +24,7 @@ export interface ShipLodPlan {
     glowOn: boolean;
 }
 
-interface ShipLodInputs {
+interface ShipVisualCapInputs {
     stars: readonly StarState[];
     incomingByStarId: ReadonlyMap<string, { count: number }>;
     totalTravelingShips: number;
@@ -36,15 +33,15 @@ interface ShipLodInputs {
     glowRadius: number;
 }
 
-export function resolveShipLodPlan({
+export function resolveShipVisualCapPlan({
     stars,
     incomingByStarId,
     totalTravelingShips,
     maxVisualPerStar,
     outlineOn,
     glowRadius,
-}: ShipLodInputs): ShipLodPlan {
-    const stats = collectShipLodStats(
+}: ShipVisualCapInputs): ShipVisualCapPlan {
+    const stats = collectShipVisualCapStats(
         stars,
         incomingByStarId,
         totalTravelingShips,
@@ -52,7 +49,7 @@ export function resolveShipLodPlan({
     );
 
     return {
-        level: 'fixed_cap',
+        policyId: 'fixed_cap',
         stats,
         orbitVisualCount: stats.baseOrbitVisuals,
         maxOrbitVisualsPerStar: Math.max(1, maxVisualPerStar),
@@ -63,12 +60,12 @@ export function resolveShipLodPlan({
     };
 }
 
-function collectShipLodStats(
+function collectShipVisualCapStats(
     stars: readonly StarState[],
     incomingByStarId: ReadonlyMap<string, { count: number }>,
     totalTravelingShips: number,
     maxVisualPerStar: number,
-): ShipLodStats {
+): ShipVisualCapStats {
     let totalActiveOrbitShips = 0;
     let totalDamagedShips = 0;
     let baseOrbitVisuals = 0;
