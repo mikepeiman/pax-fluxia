@@ -24,7 +24,16 @@
   - `game.renderFrame.territory.transitionDiagnosticSync`: `11.325ms avg`
   - CPU hotspots: `readPixels`, `putImageData`, `drawImage`, `generateCanvas`
   - do not treat that scenario as the shipping conquest-animation performance number
+- The benchmark harness now has a separate shipping-path conquest scenario:
+  - `metaball_gridConquestAnimation`
+  - artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-32-09-183Z.json`
+  - result: `16.667ms avg`, `16.7ms p95`, `16.8ms max`, `0` sampled frames over `20ms`
+- The same split artifact confirms the diagnostic path is correctness-valid but timing-heavy:
+  - `game.renderFrame.territory.metaball_grid`: `7.248ms avg`
+  - `game.renderFrame.territory.present.metaball_grid`: `7.244ms avg`
+  - `game.renderFrame.territory.transitionDiagnosticSync`: `6.86ms avg`
+  - CPU hotspots: `getPixels`, `putImageData`, `drawImage`, `generateCanvas`
 - The focused gameplay artifact still shows the same remaining short-path issue:
   - `metaball_gridGameplay`: `16.773ms avg`, one `33.3ms` spike
   - `metaball_gridOrders`: `16.665ms avg`, no `>33ms` spikes
-  - next durable win is still likely star presentation or better browser-phase attribution around the remaining spikes
+  - next durable win is still likely star presentation, browser-phase attribution around the remaining spikes, or direct investigation of the live lane-geometry reversal bug

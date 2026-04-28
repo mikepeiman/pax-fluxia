@@ -263,11 +263,15 @@ Commands:
 - `bun run build` in `pax-fluxia/`
 - `$env:PAX_BENCH_ONLY='metaball_gridGameplay,metaball_gridConquestDiagnostic,metaball_gridOrders'; $env:PAX_BENCH_TERRITORY_MODE='metaball_grid'; $env:PAX_BENCH_MAP_NAME='First Symmetry-6_April 17b'; $env:PAX_WRITE_TRACE='1'; bun tools/debug/benchmark-browser-gameplay.ts`
 - `bun tools/debug/summarize-browser-gameplay-benchmark.ts .agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+- `$env:PAX_BENCH_ONLY='metaball_gridConquestAnimation,metaball_gridConquestDiagnostic'; $env:PAX_BENCH_TERRITORY_MODE='metaball_grid'; $env:PAX_BENCH_MAP_NAME='First Symmetry-6_April 17b'; $env:PAX_WRITE_TRACE='1'; bun tools/debug/benchmark-browser-gameplay.ts`
+- `bun tools/debug/summarize-browser-gameplay-benchmark.ts .agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-32-09-183Z.json`
 
 Artifacts:
 
 - Focused benchmark artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
 - Screenshot directory: `.agent-harness/metrics/browser-screenshots/2026-04-28T21-12-09-657Z`
+- Conquest split benchmark artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-32-09-183Z.json`
+- Conquest split screenshot directory: `.agent-harness/metrics/browser-screenshots/2026-04-28T21-31-51-607Z`
 
 Implementation corrections in this pass:
 
@@ -290,19 +294,34 @@ Focused benchmark results:
 | `metaball_gridOrders` | `16.665ms` | `16.8ms` | `16.8ms` | orders path stays inside the frame ceiling with no `>33ms` spikes |
 | `metaball_gridConquestDiagnostic` | diagnostic-heavy | diagnostic-heavy | diagnostic-heavy | not representative of shipping gameplay because capture/export work dominates |
 
+Separated conquest results after adding a shipping-path animation scenario:
+
+| Scenario | Avg frame | P95 frame | Max frame | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `metaball_gridConquestAnimation` | `16.667ms` | `16.7ms` | `16.8ms` | shipping conquest animation on the fixture map stays inside the frame ceiling with no `>20ms` or `>33ms` sampled frames |
+| `metaball_gridConquestDiagnostic` | diagnostic-heavy | diagnostic-heavy | diagnostic-heavy | correctness path is still valid, but in-band capture/export dominates the timing |
+
 Key distinction from the focused conquest diagnostic:
 
-- The conquest diagnostic path is currently dominated by the diagnostic capture itself, not normal gameplay presentation.
-- Evidence from `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`:
-  - `game.renderFrame.territory.transitionDiagnosticSync`: `11.325ms avg`, `27ms max`
-  - CPU hotspots: `readPixels`, `putImageData`, `drawImage`, `generateCanvas`
-  - transition diagnostic result: `schema=pv-transition-diagnostics-v1`, `steps=19`, `failing=none`, `finalCompare withinTolerance=true`
+- The benchmark harness now separates shipping conquest animation from correctness-heavy capture/export.
+- Evidence from `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-32-09-183Z.json`:
+  - `metaball_gridConquestAnimation`:
+    - `16.667ms avg`, `16.7ms p95`, `16.8ms max`
+    - `0` sampled frames over `20ms`
+    - main measured work: `ships 0.798ms avg`, `territory.metaball_grid 0.354ms avg`, `territory.present.metaball_grid 0.349ms avg`
+  - `metaball_gridConquestDiagnostic`:
+    - `game.renderFrame.territory.metaball_grid`: `7.248ms avg`
+    - `game.renderFrame.territory.present.metaball_grid`: `7.244ms avg`
+    - `game.renderFrame.territory.transitionDiagnosticSync`: `6.86ms avg`
+    - CPU hotspots: `getPixels`, `putImageData`, `drawImage`, `generateCanvas`
+    - transition diagnostic result: `schema=pv-transition-diagnostics-v1`, `steps=19`, `failing=none`, `finalCompare withinTolerance=true`
 
 Current interpretation after the smoothness-first correction:
 
 - `metaball_grid` gameplay is no longer being misread through the stale `settings-live` file path.
 - The retained-sprite path plus smoother defaults keep steady-state territory cost low without relying on the old coarse defaults.
 - The automated conquest diagnostic scenario is useful for correctness, but its timing numbers must not be treated as the shipping conquest-animation performance number while `transitionDiagnosticSync` is enabled in-band.
+- The new `metaball_gridConquestAnimation` scenario is the shipping-path conquest smoothness number and should be the benchmark reference for conquest feel unless recorder-enabled correctness capture is explicitly under test.
 
 ## Status Against Acceptance Targets
 - `metaball_grid`
@@ -322,16 +341,18 @@ Current interpretation after the smoothness-first correction:
 Net result: the short canonical benchmark is now close to shipping in three modes and only barely above target in `metaball_grid`, but the late-game soak still fails. The next work should stay focused on durable long-run ship and browser-stall behavior rather than reopening the territory architecture.
 
 ## Remaining Execution Order
-### 1. Rerun the 20-minute soak on the newest code
-- The overlay render-key cache landed after the last soak artifact.
-- A fresh 20-minute `distanceFieldGameplay` soak is still required to measure whether overlay churn dropped meaningfully in the late-game case.
+### 1. Investigate the remaining short-path gameplay spike
+- `metaball_gridGameplay` is still the short-suite miss that matters most for shipping feel.
+- The next targeted capture should explain the remaining `33.3ms` burst without regressing smoothness-first presentation.
+- The clean follow-up candidates are:
+  - star presentation cost reduction
+  - browser/Pixi present-path attribution on the spike frame
+  - live lane-geometry bug investigation if the jank is motion-path related rather than frame-time related
 
-### 2. Take the next ship-side win
-The next likely ship-side follow-up identified during analysis is:
-
-- hoist any remaining attack-surge timing envelope work fully to the per-star level if the active path still repeats it per ship
-- decide whether star-glow behavior should participate in the pressure LOD path and instrument it explicitly if so
-- only continue ship work if a trace-enabled targeted capture can attribute the remaining misses to measured ship work instead of browser stalls
+### 2. Keep conquest benchmarking split by purpose
+- Use `metaball_gridConquestAnimation` for shipping conquest smoothness.
+- Use `metaball_gridConquestDiagnostic` for correctness and artifact integrity only.
+- Do not collapse those back into one number in docs or acceptance decisions.
 
 ### 3. Validate a real conquest diagnostic bundle
 - Export at least one real conquest package.

@@ -3413,6 +3413,162 @@ async function captureTransitionDiagnosticScenario(
     };
 }
 
+async function captureConquestAnimationScenario(
+    client: CdpClient,
+    mode: string,
+    _mapName: string | null,
+): Promise<JsonValue> {
+    const canvasApiSummaryExpression = `(() => {
+        const canvas = window.__PAX_GAME_CANVAS__ ?? null;
+        const scheduler =
+            canvas?.getBenchmarkTerritorySchedulerSnapshot?.() ?? null;
+        return {
+            hasCanvas: Boolean(canvas),
+            keys: canvas
+                ? Object.keys(canvas)
+                      .filter((key) => !key.startsWith("$$"))
+                      .sort()
+                : [],
+            getTransitionDiagnosticCaptureStateType: canvas
+                ? typeof canvas.getTransitionDiagnosticCaptureState
+                : "missing",
+            resetTransitionDiagnosticCaptureType: canvas
+                ? typeof canvas.resetTransitionDiagnosticCapture
+                : "missing",
+            getBenchmarkTerritorySchedulerSnapshotType: canvas
+                ? typeof canvas.getBenchmarkTerritorySchedulerSnapshot
+                : "missing",
+            directCaptureState:
+                canvas?.getTransitionDiagnosticCaptureState?.() ?? null,
+            schedulerCaptureState:
+                scheduler?.transitionDiagnosticCaptureState ?? null,
+        };
+    })()`;
+    const modeLiteral = JSON.stringify(mode);
+    const conquestMapLiteral = JSON.stringify(CONQUEST_DIAGNOSTIC_MAP);
+    const prepScript = `
+        (async () => {
+            window.__PAX_BENCH__.resetPerfCapture();
+            const loadedMap =
+                await window.__PAX_BENCH__.loadMapDefinition(${conquestMapLiteral});
+            if (!loadedMap) {
+                throw new Error("Could not load conquest animation fixture map");
+            }
+            const modePrep = await window.__PAX_BENCH__.ensureTerritoryMode(${modeLiteral});
+            const gameplayPrep = await window.__PAX_BENCH__.beginGameplay(6000, 1);
+            if (!gameplayPrep?.started) {
+                throw new Error(
+                    "Conquest animation gameplay did not start: " +
+                        JSON.stringify(gameplayPrep),
+                );
+            }
+            await window.__PAX_BENCH__.clearTransitionRecorderBundles();
+            await window.__PAX_BENCH__.setTransitionRecorderEnabled(false);
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            return {
+                modePrep,
+                gameplayPrep,
+                recorder: await window.__PAX_BENCH__.getTransitionRecorderSummary(),
+                captureStateBeforePrepOrder:
+                    await window.__PAX_BENCH__.getTransitionDiagnosticCaptureState(),
+                canvasApiBeforePrepOrder: ${canvasApiSummaryExpression},
+                stateBeforePrepOrder: await window.__PAX_BENCH__.getStateSummary(),
+                sampleOrder:
+                    await window.__PAX_BENCH__.prepareConquestDiagnosticOrder(),
+            };
+        })()
+    `;
+    const prep = await client.evaluate<Record<string, JsonValue>>(prepScript);
+    const sampleOrder = prep.sampleOrder as Record<string, JsonValue> | null;
+    if (!sampleOrder?.sourceId || !sampleOrder?.targetId) {
+        return {
+            ok: false,
+            reason: "missing_conquest_order",
+            prep,
+        };
+    }
+
+    const sourceId = String(sampleOrder.sourceId);
+    const targetId = String(sampleOrder.targetId);
+    const sourceIdLiteral = JSON.stringify(sourceId);
+    const targetIdLiteral = JSON.stringify(targetId);
+    const issued = await client.evaluate<boolean>(
+        `window.__PAX_BENCH__.issueOrderDirect(${sourceIdLiteral}, ${targetIdLiteral}, true)`,
+    );
+    if (!issued) {
+        return {
+            ok: false,
+            reason: "issue_order_rejected",
+            prep,
+            sampleOrder,
+        };
+    }
+
+    const frames = await client.evaluate<JsonValue>(
+        `window.__PAX_BENCH__.collectFrameStats(${GAMEPLAY_FRAME_MS}, 0)`,
+    );
+    const stateAfterFrames = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.getStateSummary()",
+    );
+    const sourceAfterFrames =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            `window.__PAX_BENCH__.getStarState(${sourceIdLiteral})`,
+        );
+    const targetAfterFrames =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            `window.__PAX_BENCH__.getStarState(${targetIdLiteral})`,
+        );
+    const orderAfterFrames =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            `window.__PAX_BENCH__.getOrderStatus(${sourceIdLiteral})`,
+        );
+    const captureStateAfterFrames =
+        await client.evaluate<Record<string, JsonValue> | null>(
+            "window.__PAX_BENCH__.getTransitionDiagnosticCaptureState()",
+        );
+    const canvasApiAfterFrames = await client.evaluate<Record<string, JsonValue>>(
+        canvasApiSummaryExpression,
+    );
+    const recorderSummary = await client.evaluate<Record<string, JsonValue>>(
+        "window.__PAX_BENCH__.getTransitionRecorderSummary()",
+    );
+    const timeline = await client.evaluate<Array<Record<string, JsonValue>>>(
+        `
+            (async () => {
+                const samples = [];
+                for (let index = 0; index < 8; index += 1) {
+                    samples.push({
+                        sampleIndex: index,
+                        state: await window.__PAX_BENCH__.getStateSummary(),
+                        source: await window.__PAX_BENCH__.getStarState(${sourceIdLiteral}),
+                        target: await window.__PAX_BENCH__.getStarState(${targetIdLiteral}),
+                        sourceOrder: await window.__PAX_BENCH__.getOrderStatus(${sourceIdLiteral}),
+                        captureState:
+                            await window.__PAX_BENCH__.getTransitionDiagnosticCaptureState(),
+                    });
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                }
+                return samples;
+            })()
+        `,
+    );
+    return {
+        ok: true,
+        issued,
+        sampleOrder,
+        prep,
+        frames,
+        stateAfterFrames,
+        sourceAfterFrames,
+        targetAfterFrames,
+        orderAfterFrames,
+        captureStateAfterFrames,
+        canvasApiAfterFrames,
+        recorderSummary,
+        timeline,
+    };
+}
+
 type ScenarioAction = string | ((client: CdpClient) => Promise<JsonValue>);
 
 async function profileScenario(
@@ -3770,6 +3926,27 @@ async function main(): Promise<void> {
                     {
                         expectedMode: spec.mode,
                         timeoutMs: 40_000,
+                    },
+                );
+            }
+
+            const conquestAnimationScenarioName = `${spec.scenarioKey}ConquestAnimation`;
+            if (shouldRunScenario(conquestAnimationScenarioName)) {
+                scenarios[conquestAnimationScenarioName] = await profileScenario(
+                    client,
+                    conquestAnimationScenarioName,
+                    async (scenarioClient) =>
+                        await captureConquestAnimationScenario(
+                            scenarioClient,
+                            spec.mode,
+                            benchmarkTarget.resolvedMapName,
+                        ),
+                    {
+                        expectedMode: spec.mode,
+                        timeoutMs: resolveScenarioTimeoutMs(
+                            GAMEPLAY_FRAME_MS,
+                            40_000,
+                        ),
                     },
                 );
             }

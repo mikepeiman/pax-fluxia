@@ -225,13 +225,16 @@ For each meaningful performance step:
 1. Keep `tools/debug/benchmark-browser-gameplay.ts` as the automation surface.
 2. Change the default targeted perf workflow so trace and CPU capture are on for short diagnostic scenarios.
 3. Write trace artifacts by default for targeted scenario runs.
-4. Add summary output for:
+4. Keep conquest benchmark surfaces split by purpose:
+   - `*ConquestAnimation` = shipping conquest smoothness with the recorder disabled
+   - `*ConquestDiagnostic` = correctness and artifact integrity with recorder/readback enabled
+5. Add summary output for:
    - Layout
    - Paint
    - Layerize
    - Commit
    - upload / buffer / batch buckets
-5. Add an artifact checklist section to the report after each run.
+6. Add an artifact checklist section to the report after each run.
 
 ## D. `metaball_grid` Rework
 

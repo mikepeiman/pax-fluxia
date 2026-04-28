@@ -45,12 +45,14 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
   - `17.127ms avg`, `16.8ms p95`, `1862` frames over `33ms`
 
 ## Next Queue
-- Commit the smoothness-first correction pass and today's docs as the next gameplay-performance checkpoint.
 - Keep the focused artifact front and center:
   - `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
+- Keep the conquest split artifact beside it:
+  - `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-32-09-183Z.json`
 - Split the next lane cleanly:
   - shipping smoothness lane:
     - investigate the remaining `metaball_gridGameplay` `33.3ms` spike
+    - keep `metaball_gridConquestAnimation` as the conquest smoothness reference
     - reduce star presentation and browser-phase spikes without reintroducing visual undersampling
   - diagnostic lane:
     - keep conquest bundle correctness validation live
@@ -58,6 +60,7 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
 - Verify whether the next autonomous code target should be:
   - star presentation cost reduction
   - browser/Pixi present-path attribution around the remaining gameplay spike
+  - live investigation of the `BACKWARD ship-geometry assignment` lane-geometry bug
 - Keep the conquest diagnostic-bundle validation task live:
   - export a real bundle
   - inspect `debug/diagnostic.json`
