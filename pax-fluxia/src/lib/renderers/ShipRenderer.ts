@@ -144,6 +144,10 @@ const attackHeadingCache = new WeakMap<
     Map<string, CachedAttackHeading>
 >();
 
+const SHIP_PHASE_AMPLITUDES = Array.from({ length: 17 }, (_, index) => {
+    return 0.75 + 0.25 * Math.sin((index / 17) * Math.PI * 2);
+});
+
 function resolveShipFrameStyle(): ShipFrameStyle {
     return {
         globalScale: GAME_CONFIG.SHIP_SCALE_MULT ?? 1.0,
@@ -1395,7 +1399,6 @@ function renderShipsOptimized(
                         }
                         ship.targetIndex = i;
 
-                        const shipPhase = (ship.id % 17) / 17;
                         const slot = getOrbitSlot(
                             ship.targetIndex,
                             star.x,
@@ -1412,17 +1415,11 @@ function renderShipsOptimized(
                         let surgeOffsetX = 0;
                         let surgeOffsetY = 0;
                         if (surgePulse > 0) {
-                            const shipDx = slot.x - star.x;
-                            const shipDy = slot.y - star.y;
-                            const shipDist =
-                                Math.sqrt(shipDx * shipDx + shipDy * shipDy) || 1;
                             const facingFactor =
-                                (shipDx / shipDist) * surgeDirX +
-                                (shipDy / shipDist) * surgeDirY;
+                                slot.ndx * surgeDirX + slot.ndy * surgeDirY;
                             const surgeFactor = Math.max(0, facingFactor) ** 1.5;
                             const phaseAmplitude =
-                                0.75 +
-                                0.25 * Math.sin(shipPhase * Math.PI * 2);
+                                SHIP_PHASE_AMPLITUDES[ship.id % SHIP_PHASE_AMPLITUDES.length];
                             surgeOffsetX =
                                 surgeDirX *
                                 surgePulse *
@@ -1465,19 +1462,11 @@ function renderShipsOptimized(
                             const ease = 1 - Math.pow(1 - t, 3);
 
                             if (t < 1) {
-                                const targetAngle = Math.atan2(
-                                    targetY - star.y,
-                                    targetX - star.x,
-                                );
-                                const targetRadius = Math.sqrt(
-                                    (targetX - star.x) ** 2 +
-                                        (targetY - star.y) ** 2,
-                                );
                                 const curRadius =
                                     ship.settleStartRadius +
-                                    (targetRadius - ship.settleStartRadius) * ease;
+                                    (slot.radius - ship.settleStartRadius) * ease;
                                 let angleDelta =
-                                    targetAngle - ship.settleStartAngle;
+                                    slot.angle - ship.settleStartAngle;
                                 while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
                                 while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
 

@@ -88,6 +88,8 @@ The export path had useful data, but not the fixed `ownership -> geometry -> tra
 - Tightened orbital and damaged-ship budgets under balanced, reduced, and critical pressure.
 - Added per-star caps so dense stars cannot dominate the entire orbital budget.
 - Disabled outline and ship-glow effects under reduced and critical pressure through the LOD plan.
+- Extended `getOrbitSlot(...)` so the active orbital ship loop can reuse cached slot `angle`, `radius`, and normalized direction vectors instead of recomputing them per ship.
+- Replaced per-ship steady-state phase trig with a fixed `SHIP_PHASE_AMPLITUDES` lookup table inside the active optimized ship renderer.
 - Reduced late-game steady-state ship cost substantially in the first long soak comparison:
   - earlier soak `ships avg`: `4.536ms`
   - later soak `ships avg`: `2.254ms`
@@ -209,6 +211,52 @@ Interpretation:
   - a smaller set of fully unattributed misses
 - This soak was captured before the later interaction-overlay render-key cache landed, so one more 20-minute soak is still required on the newest code.
 
+### Follow-up 20-minute soak on the newest code
+Commands:
+
+- `bun run build` in `pax-fluxia/`
+- `$env:PAX_BENCH_ONLY='distanceFieldGameplay'; $env:PAX_BENCH_CAPTURE_TRACE='0'; $env:PAX_BENCH_CAPTURE_CPU='0'; $env:PAX_BENCH_GAMEPLAY_FRAME_MS='1200000'; $env:PAX_BENCH_TIMEOUT_MS='1500000'; bun run debug:browser-gameplay-perf`
+
+Artifacts:
+
+- Pre-patch latest soak: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T12-29-39-403Z.json`
+- Post-patch latest soak: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T12-56-54-746Z.json`
+- Post-patch screenshot directory: `.agent-harness/metrics/browser-screenshots/2026-04-28T12-36-45-498Z`
+
+Post-patch results from `distanceFieldGameplay`:
+
+- Average frame: `17.127ms`
+- P95 frame: `16.8ms`
+- Max frame: `83.4ms`
+- Long-task max: `0ms`
+- Frames over `20ms`: `1862`
+- Frames over `33ms`: `1862`
+- `game.renderFrame.ships`: `2.316ms avg`, `29.3ms max`
+- `game.renderFrame.ships.orbitals`: `2.063ms avg`, `26.7ms max`
+- `game.renderFrame.shipParticleUpdate`: `0.348ms avg`, `10.3ms max`
+- `game.renderFrame.stars`: `0.968ms avg`
+- `game.renderFrame.stars.labels`: `0.630ms avg`
+- `game.renderFrame.interactionOverlay`: `0.025ms avg`
+- `game.renderFrame.territory.distance_field`: `0.156ms avg`
+
+Comparison against the immediately preceding fresh soak:
+
+| Artifact | Avg frame | P95 frame | Max frame | `over33MsCount` | `ships avg` | `stars avg` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `2026-04-28T12-29-39-403Z` | `17.516ms` | `16.8ms` | `66.8ms` | `3388` | `2.330ms` | `1.098ms` |
+| `2026-04-28T12-56-54-746Z` | `17.127ms` | `16.8ms` | `83.4ms` | `1862` | `2.316ms` | `0.968ms` |
+
+Interpretation:
+
+- The ship-path cache pass produced another meaningful late-game gain without regressing measured steady-state render costs.
+- The soak still misses the `avgFrameMs < 16.7` target, but it no longer fails on `p95`, long tasks, or long animation frames.
+- The remaining worst misses are still primarily fully unattributed browser stalls:
+  - previous average unattributed gap on spikes: `57.78ms`
+  - latest average unattributed gap on spikes: `65.01ms`
+  - previous fully unattributed spike count: `9`
+  - latest fully unattributed spike count: `10`
+- That means the next lane should either improve attribution around those browser stalls or pivot to the next cleanly measured steady-state scene costs, with star presentation still the clearest measured target.
+
 ## Status Against Acceptance Targets
 - `metaball_grid`
   - Passes the family-local `territory + geometry < 11ms` target
@@ -232,10 +280,11 @@ Net result: the short canonical benchmark is now close to shipping in three mode
 - A fresh 20-minute `distanceFieldGameplay` soak is still required to measure whether overlay churn dropped meaningfully in the late-game case.
 
 ### 2. Take the next ship-side win
-The next likely code win identified during analysis but not yet landed is:
+The next likely ship-side follow-up identified during analysis is:
 
-- hoist attack-surge timing math fully to the per-star level instead of recomputing the same timing envelope per ship
+- hoist any remaining attack-surge timing envelope work fully to the per-star level if the active path still repeats it per ship
 - decide whether star-glow behavior should participate in the pressure LOD path and instrument it explicitly if so
+- only continue ship work if a trace-enabled targeted capture can attribute the remaining misses to measured ship work instead of browser stalls
 
 ### 3. Validate a real conquest diagnostic bundle
 - Export at least one real conquest package.
@@ -256,6 +305,9 @@ The next likely code win identified during analysis but not yet landed is:
   - `BitmapText`
   - density LOD
   - reduced redraw frequency
+- The latest 20-minute soak keeps this candidate live:
+  - `game.renderFrame.stars`: `0.968ms avg`
+  - `game.renderFrame.stars.labels`: `0.630ms avg`
 
 ## Validation Plan
 - `bun run build`

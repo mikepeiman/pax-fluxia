@@ -270,7 +270,7 @@
   "TERRITORY_PIXEL": false,
   "TERRITORY_CLUSTER_SPLIT": false,
   "TERRITORY_MODE": "metaball",
-  "TERRITORY_RENDER_MODE": "territory_canonical",
+  "TERRITORY_RENDER_MODE": "distance_field",
   "USE_RENDER_FAMILIES": false,
   "TERRITORY_ARCHITECTURE_PATH": "clean",
   "SHOW_VORONOI": false,

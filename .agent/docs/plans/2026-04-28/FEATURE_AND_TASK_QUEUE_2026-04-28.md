@@ -31,6 +31,29 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
 - `pax-fluxia/src/lib/renderers/ShipRenderer.ts`
 - Hoist attack-surge timing math fully to the per-star level if the new soak still fails.
 
+## Completed This Morning
+- Refreshed the canonical benchmark pointer with `bun run debug:browser-gameplay-summary`.
+- Confirmed the repo-root workspace build still fails outside this lane in `pax-server`; used `pax-fluxia/` for build validation instead.
+- Captured a fresh 20-minute pre-patch soak:
+  - `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T12-29-39-403Z.json`
+  - `17.516ms avg`, `16.8ms p95`, `3388` frames over `33ms`
+- Landed the ship-path cache pass in:
+  - `pax-fluxia/src/lib/renderers/ShipRenderer.ts`
+  - `pax-fluxia/src/lib/utils/render.utils.ts`
+- Captured a fresh 20-minute post-patch soak:
+  - `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T12-56-54-746Z.json`
+  - `17.127ms avg`, `16.8ms p95`, `1862` frames over `33ms`
+
+## Next Queue
+- Commit the ship-path cache pass and today's docs as the next gameplay-performance checkpoint.
+- Decide whether the next autonomous lane should be:
+  - targeted browser-attribution capture for the remaining fully unattributed `50ms - 83ms` stalls
+  - star presentation cost reduction, since stars plus labels now sit around `1.598ms avg`
+- Keep the conquest diagnostic-bundle validation task live:
+  - export a real bundle
+  - inspect `debug/diagnostic.json`
+  - verify `O01` through `R04` on live capture output
+
 ## Diagnostics Follow-Up
 - Export a real conquest diagnostic bundle and inspect `debug/diagnostic.json`.
 - Verify the `172 stars / 214 lanes / 428 runtime connections` mismatch directly in code.

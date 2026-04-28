@@ -203,7 +203,16 @@ export function getOrbitSlot(
     biasAngle?: number,
     biasStrength: number = 0,
     totalShips?: number
-): { x: number, y: number, multiplier: number, layer: number } {
+): {
+    x: number;
+    y: number;
+    multiplier: number;
+    layer: number;
+    angle: number;
+    radius: number;
+    ndx: number;
+    ndy: number;
+} {
     // Orbit starts at ownership-ring edge (visual radius), not game-logic starRadius
     const orbitBase = GAME_CONFIG.STAR_RING_RADIUS ?? starRadius;
 
@@ -256,11 +265,17 @@ export function getOrbitSlot(
                 angle = biasAngle + compressed;
             }
 
+            const ndx = Math.cos(angle);
+            const ndy = Math.sin(angle);
             return {
-                x: cx + Math.cos(angle) * currentRadius,
-                y: cy + Math.sin(angle) * currentRadius,
+                x: cx + ndx * currentRadius,
+                y: cy + ndy * currentRadius,
                 multiplier,
-                layer
+                layer,
+                angle,
+                radius: currentRadius,
+                ndx,
+                ndy,
             };
         }
 
@@ -269,11 +284,18 @@ export function getOrbitSlot(
     }
 
     // Fallback (shouldn't reach here due to modulo)
+    const angle = effectiveIndex;
+    const ndx = Math.cos(angle);
+    const ndy = Math.sin(angle);
     return {
-        x: cx + Math.cos(effectiveIndex) * currentRadius,
-        y: cy + Math.sin(effectiveIndex) * currentRadius,
+        x: cx + ndx * currentRadius,
+        y: cy + ndy * currentRadius,
         multiplier,
-        layer: MAX_ORBIT_LAYERS - 1
+        layer: MAX_ORBIT_LAYERS - 1,
+        angle,
+        radius: currentRadius,
+        ndx,
+        ndy,
     };
 }
 
