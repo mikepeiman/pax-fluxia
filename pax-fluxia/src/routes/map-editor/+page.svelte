@@ -9,15 +9,17 @@
   } from "@pax/common/maps";
   import type { StarType } from "@pax/common";
   import "../../app.css";
-  import MapEditorCanvas from "$lib/components/editor/MapEditorCanvas.svelte";
-  import MapEditorBoardHud from "$lib/components/editor/MapEditorBoardHud.svelte";
-  import MapEditorCommandDock from "$lib/components/editor/MapEditorCommandDock.svelte";
-  import MapEditorConfirmDialog from "$lib/components/editor/MapEditorConfirmDialog.svelte";
-  import MapEditorDuplicateDialog from "$lib/components/editor/MapEditorDuplicateDialog.svelte";
-  import MapEditorLibrarySheet from "$lib/components/editor/MapEditorLibrarySheet.svelte";
-  import MapEditorSelectionPanel from "$lib/components/editor/MapEditorSelectionPanel.svelte";
-  import MapEditorToolRail from "$lib/components/editor/MapEditorToolRail.svelte";
-  import MapEditorValidationPanel from "$lib/components/editor/MapEditorValidationPanel.svelte";
+  import {
+    MapEditorBoardHud,
+    MapEditorCanvas,
+    MapEditorCommandDock,
+    MapEditorConfirmDialog,
+    MapEditorDuplicateDialog,
+    MapEditorLibrarySheet,
+    MapEditorSelectionPanel,
+    MapEditorToolRail,
+    MapEditorValidationPanel,
+  } from "$lib/components/map-editor";
   import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
   import { type MapEditorSymmetryFold } from "$lib/editor/mapEditorSymmetry";
   import { mapEditorStore, type MapEditorTool } from "$lib/editor/mapEditorStore.svelte";

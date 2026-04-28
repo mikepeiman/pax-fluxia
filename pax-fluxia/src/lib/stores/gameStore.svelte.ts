@@ -54,6 +54,8 @@ import {
     rebuildLanePolylineCache,
     canonicalUniConnections,
     clearLanePolylineCache,
+    canonicalizeLaneWaypointsForStorage,
+    waypointsNeedReverseForEndpoints,
 } from '$lib/lanes/lanePolylineCache';
 import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
 import type {
@@ -1757,15 +1759,48 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
     );
     if (savedConnectionsWithWaypoints.length === map.connections.length) {
         measurePerf('game.initSavedMap.seedLanePolylineCache', () => {
+            let correctedLegacyLaneCount = 0;
             seedLanePolylineCacheFromMapGen(
                 savedConnectionsWithWaypoints.map((conn) => ({
                     sourceId: conn.sourceId,
                     targetId: conn.targetId,
-                    laneWaypoints: (conn.laneWaypoints ?? []).map(
-                        ([x, y]) => [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number],
+                    laneWaypoints: canonicalizeLaneWaypointsForStorage(
+                        conn.sourceId,
+                        conn.targetId,
+                        (conn.laneWaypoints ?? []).map(
+                            ([x, y]) =>
+                                [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number],
+                        ),
+                        (() => {
+                            const sourceStar = state!.stars.get(conn.sourceId);
+                            const targetStar = state!.stars.get(conn.targetId);
+                            if (!sourceStar || !targetStar) {
+                                return undefined;
+                            }
+                            const scaledWaypoints = (conn.laneWaypoints ?? []).map(
+                                ([x, y]) =>
+                                    [x * scaleX + offsetX, y * scaleY + offsetY] as [number, number],
+                            );
+                            if (
+                                waypointsNeedReverseForEndpoints(scaledWaypoints, sourceStar, targetStar)
+                            ) {
+                                correctedLegacyLaneCount += 1;
+                            }
+                            return {
+                                source: sourceStar,
+                                target: targetStar,
+                            };
+                        })(),
                     ),
                 })),
             );
+            if (correctedLegacyLaneCount > 0) {
+                log.sys('GameStore', 'Corrected saved-map lane waypoint direction', {
+                    mapName: map.metadata.name,
+                    correctedLegacyLaneCount,
+                    totalConnections: savedConnectionsWithWaypoints.length,
+                });
+            }
         });
     } else {
         const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PORTAL_GROUP_IDS, type StarType } from "@pax/common";
-  import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
+  import EditorSliderField from "./EditorSliderField.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";

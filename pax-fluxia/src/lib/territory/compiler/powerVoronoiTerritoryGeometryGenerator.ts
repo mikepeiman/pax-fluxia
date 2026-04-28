@@ -87,6 +87,8 @@ export interface SharedPolyline {
 }
 
 const LOOP_CLOSURE_TOLERANCE_PX = 6;
+const EDGE_KEY_SCALE = 100;
+const CELL_NEIGHBOR_EDGE_KEY_SCALE = 10000;
 
 interface DirectedEdgeArc extends DirectedPlanarArc {
     x1: number;
@@ -185,15 +187,31 @@ export interface TerritoryGeneratorSettings {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-export function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
-    const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
-    const bx = +x2.toFixed(2), by = +y2.toFixed(2);
+function quantizeKeyCoord(value: number, scale: number): number {
+    return Math.round(value * scale);
+}
+
+function buildNormalizedSegmentKey(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    scale: number,
+): string {
+    const ax = quantizeKeyCoord(x1, scale);
+    const ay = quantizeKeyCoord(y1, scale);
+    const bx = quantizeKeyCoord(x2, scale);
+    const by = quantizeKeyCoord(y2, scale);
     if (ax < bx || (ax === bx && ay < by)) return `${ax},${ay}-${bx},${by}`;
     return `${bx},${by}-${ax},${ay}`;
 }
 
+export function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
+    return buildNormalizedSegmentKey(x1, y1, x2, y2, EDGE_KEY_SCALE);
+}
+
 export function ptKey(x: number, y: number): string {
-    return `${+x.toFixed(2)},${+y.toFixed(2)}`;
+    return `${quantizeKeyCoord(x, EDGE_KEY_SCALE)},${quantizeKeyCoord(y, EDGE_KEY_SCALE)}`;
 }
 
 /**
@@ -709,9 +727,13 @@ export function constructFillsFromFrontierChain(
             const pts = cell.points;
             for (let i = 0; i < pts.length - 1; i++) {
                 // Normalize edge key: smaller coord first
-                const a = `${pts[i][0].toFixed(4)},${pts[i][1].toFixed(4)}`;
-                const b = `${pts[i + 1][0].toFixed(4)},${pts[i + 1][1].toFixed(4)}`;
-                const ek = a < b ? `${a}|${b}` : `${b}|${a}`;
+                const ek = buildNormalizedSegmentKey(
+                    pts[i][0],
+                    pts[i][1],
+                    pts[i + 1][0],
+                    pts[i + 1][1],
+                    CELL_NEIGHBOR_EDGE_KEY_SCALE,
+                );
                 const arr = edgeToCell.get(ek) ?? [];
                 arr.push(cell.siteId);
                 edgeToCell.set(ek, arr);

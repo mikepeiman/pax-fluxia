@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import "../app.css";
-  import LandingPage from "$lib/components/landing/LandingPage.svelte";
+import LandingPage from "$lib/components/landing-site";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { log } from "$lib/utils/logger";
   import {

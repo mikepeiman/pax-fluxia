@@ -280,3 +280,8 @@ The territory system already has excellent separation infrastructure:
 - `territory/families/` — each family is internally cohesive (metaballGrid: 13 files, perimeterField: 9 files) ✅
 
 These patterns should be extended, not replaced.
+
+---
+
+Addendum pointer:
+- See `../2026-04-26/WORKTREE_SEPARATION_ARCHITECTURAL_AUDIT_ADDENDUM_2026-04-26.md` for 2026-04-26 execution clarifications and first-slice guidance.

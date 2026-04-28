@@ -5,7 +5,7 @@
         getMenuThemeCssVars,
         getMenuThemeDefinition,
         type MenuTheme,
-    } from "$lib/components/ui/menuTheme";
+} from "./menuTheme";
 
     interface Props {
         visible: boolean;

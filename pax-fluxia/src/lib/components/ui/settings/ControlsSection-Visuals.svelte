@@ -51,6 +51,14 @@
         }),
     );
 
+    function rebuildLaneTopology(): void {
+        gameStore.rebuildConnectionsFromLaneClearance();
+    }
+
+    function refreshLanePaths(): void {
+        gameStore.refreshLanePolylinesFromConfig();
+    }
+
     // ── Background Image Picker ──
     let bgImages = $state<string[]>(BG_IMAGES);
 
@@ -215,7 +223,7 @@
             updatePanel("starMargin", v);
             bumpTerritoryVisualConfig();
             if (!laneMarginEnabled) {
-                gameStore.rebuildLaneConstraintsFromConfig();
+                rebuildLaneTopology();
             }
         }}
     />
@@ -228,7 +236,7 @@
             const v = (e.target as HTMLInputElement).checked;
             GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED = v;
             updatePanel("mapgenLaneMarginEnabled", v);
-            gameStore.rebuildLaneConstraintsFromConfig();
+            rebuildLaneTopology();
         }}
     />
     <span
@@ -264,7 +272,7 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
             updatePanel("mapgenLaneMarginPx", v);
-            gameStore.rebuildLaneConstraintsFromConfig();
+            rebuildLaneTopology();
         }}
     />
 </div>
@@ -291,7 +299,7 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
             updatePanel("mapgenLaneCurveVsPruneBias", v);
-            gameStore.rebuildLaneConstraintsFromConfig();
+            rebuildLaneTopology();
         }}
     />
 </div>
@@ -305,7 +313,11 @@
             const v = (e.target as HTMLInputElement).checked;
             GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
             updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", v);
-            gameStore.rebuildLaneConstraintsFromConfig();
+            if (v) {
+                rebuildLaneTopology();
+            } else {
+                refreshLanePaths();
+            }
         }}
     />
     <span class="var-name">Recompute connectivity</span><span
@@ -334,7 +346,7 @@
                 aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "straight");
-                    gameStore.rebuildLaneConstraintsFromConfig();
+                    refreshLanePaths();
                 }}>Straight</button
             >
             <button
@@ -345,7 +357,7 @@
                 aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "curved");
-                    gameStore.rebuildLaneConstraintsFromConfig();
+                    refreshLanePaths();
                 }}>Curve if needed</button
             >
         </div>

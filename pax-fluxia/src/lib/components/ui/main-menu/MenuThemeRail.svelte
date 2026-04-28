@@ -4,7 +4,7 @@
         getMenuThemeDefinition,
         MENU_THEME_OPTIONS,
         type MenuTheme,
-    } from "$lib/components/ui/menuTheme";
+} from "./menuTheme";
 
     interface Props {
         menuTheme: MenuTheme;

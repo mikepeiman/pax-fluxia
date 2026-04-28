@@ -15,7 +15,8 @@ This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 - Package/tooling: Bun only. Use `bun install`, `bun run`, `bunx`. Never `npm`, `npx`, or `yarn`.
 - Shell: PowerShell on Windows. Never chain commands with `&&`.
 - MCP Atlas-harness: read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at session start.
-- Live settings: `common/resources/settings-live/current-settings.json`
+- Live settings: `common/resources/settings-live/current-settings.json` (***IMPORTANT: IGNORE this for git commits, or commit, it DOES NOT MATTER, just ensure you DO NOT waste time or attention on it, ever)
+- Multi-lane/worktree operating guide: `.agent/MULTI_LANE_WORKTREE_GUIDE.md`
 
 ## 2. Core Behavior
 

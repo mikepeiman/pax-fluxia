@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fly, fade } from "svelte/transition";
   import { PORTAL_GROUP_IDS, type StarType } from "@pax/common";
-  import EditorSliderField from "$lib/components/editor/EditorSliderField.svelte";
+  import EditorSliderField from "./EditorSliderField.svelte";
   import { mapEditorStore, type MapEditorTool } from "$lib/editor/mapEditorStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";
   import {

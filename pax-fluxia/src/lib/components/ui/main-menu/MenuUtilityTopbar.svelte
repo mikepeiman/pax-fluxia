@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { MenuTheme } from "$lib/components/ui/menuTheme";
+import type { MenuTheme } from "./menuTheme";
     import BackgroundSelectModal from "./BackgroundSelectModal.svelte";
     import MenuThemeRail from "./MenuThemeRail.svelte";
 

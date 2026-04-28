@@ -262,9 +262,15 @@
         const affectsAuthoredConnectivityPolicy =
             'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in configPatch;
         if (affectsLaneTopology) {
-            gameStore.rebuildLaneConstraintsFromConfig();
+            gameStore.rebuildConnectionsFromLaneClearance();
         } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
-            gameStore.rebuildLaneConstraintsFromConfig();
+            if (affectsLanePaths) {
+                gameStore.refreshLanePolylinesFromConfig();
+            } else if (GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS) {
+                gameStore.rebuildConnectionsFromLaneClearance();
+            } else {
+                gameStore.refreshLanePolylinesFromConfig();
+            }
         }
         if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
             window.dispatchEvent(

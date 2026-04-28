@@ -149,8 +149,16 @@ function applyThemeValuesFallback(
         || 'MAPGEN_LANE_MODE' in valuesPatch;
     const affectsAuthoredConnectivityPolicy =
         'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in valuesPatch;
-    if (affectsLaneTopology || affectsLanePaths || affectsAuthoredConnectivityPolicy) {
-        (gameStore as any).rebuildLaneConstraintsFromConfig?.();
+    if (affectsLaneTopology) {
+        gameStore.rebuildConnectionsFromLaneClearance();
+    } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
+        if (affectsLanePaths) {
+            gameStore.refreshLanePolylinesFromConfig();
+        } else if (GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS) {
+            gameStore.rebuildConnectionsFromLaneClearance();
+        } else {
+            gameStore.refreshLanePolylinesFromConfig();
+        }
     }
 
     bumpTerritoryVisualConfig();

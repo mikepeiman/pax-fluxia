@@ -7,7 +7,7 @@
     type AuthoredMapCategory,
   } from "@pax/common/maps";
   import type { MapDefinition } from "$lib/types/map.types";
-  import MapEditorMapPreviewDialog from "$lib/components/editor/MapEditorMapPreviewDialog.svelte";
+  import MapEditorMapPreviewDialog from "./MapEditorMapPreviewDialog.svelte";
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
   import { generateMapThumbnail } from "$lib/utils/mapThumbnail";

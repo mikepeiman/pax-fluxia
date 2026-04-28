@@ -30,6 +30,15 @@ interface CdpMessage {
     error?: { code: number; message: string };
 }
 
+interface CdpRemoteObject {
+    type?: string;
+    subtype?: string;
+    value?: JsonValue;
+    unserializableValue?: string;
+    description?: string;
+    objectId?: string;
+}
+
 const ROOT = path.resolve(import.meta.dir, "..", "..");
 const CLIENT_DIR = path.join(ROOT, "pax-fluxia");
 const LOGS_DIR = path.join(ROOT, ".agent-harness", "logs");
@@ -290,6 +299,116 @@ class CdpClient {
     close(): void {
         this.socket.close();
     }
+}
+
+async function resolveRemoteObjectValue(
+    client: CdpClient,
+    remoteObject: CdpRemoteObject | undefined,
+    depth = 2,
+    seen = new Set<string>(),
+): Promise<JsonValue> {
+    if (!remoteObject) return null;
+    if ("value" in remoteObject && remoteObject.value !== undefined) {
+        return remoteObject.value;
+    }
+    if (typeof remoteObject.unserializableValue === "string") {
+        return remoteObject.unserializableValue;
+    }
+    if (!remoteObject.objectId || depth <= 0) {
+        return remoteObject.description ?? null;
+    }
+    if (seen.has(remoteObject.objectId)) {
+        return `[circular:${remoteObject.description ?? remoteObject.objectId}]`;
+    }
+    seen.add(remoteObject.objectId);
+    const response = await client.send("Runtime.getProperties", {
+        objectId: remoteObject.objectId,
+        ownProperties: true,
+        accessorPropertiesOnly: false,
+        generatePreview: false,
+    });
+    const props = Array.isArray(response.result)
+        ? (response.result as Record<string, JsonValue>[])
+        : [];
+    const enumerableProps = props.filter(
+        (entry) =>
+            entry &&
+            entry.enumerable !== false &&
+            typeof entry.name === "string" &&
+            entry.value,
+    );
+    const isArray = remoteObject.subtype === "array";
+    if (isArray) {
+        const indexed = enumerableProps
+            .filter((entry) => /^\d+$/.test(String(entry.name)))
+            .sort((left, right) => Number(left.name) - Number(right.name));
+        const out: JsonValue[] = [];
+        for (const entry of indexed) {
+            out.push(
+                await resolveRemoteObjectValue(
+                    client,
+                    entry.value as CdpRemoteObject,
+                    depth - 1,
+                    seen,
+                ),
+            );
+        }
+        return out;
+    }
+    const out: Record<string, JsonValue> = {};
+    for (const entry of enumerableProps) {
+        out[String(entry.name)] = await resolveRemoteObjectValue(
+            client,
+            entry.value as CdpRemoteObject,
+            depth - 1,
+            seen,
+        );
+    }
+    return out;
+}
+
+async function enrichNotification(
+    client: CdpClient,
+    notification: CdpMessage,
+): Promise<Record<string, JsonValue>> {
+    const base: Record<string, JsonValue> = {
+        method: notification.method ?? null,
+        params: notification.params ?? {},
+    };
+    if (
+        notification.method !== "Runtime.consoleAPICalled" ||
+        !notification.params
+    ) {
+        return base;
+    }
+    const args = Array.isArray(notification.params.args)
+        ? (notification.params.args as Record<string, JsonValue>[])
+        : [];
+    const resolvedArgs: JsonValue[] = [];
+    for (const arg of args) {
+        resolvedArgs.push(
+            await resolveRemoteObjectValue(
+                client,
+                arg as unknown as CdpRemoteObject,
+                3,
+            ),
+        );
+    }
+    return {
+        ...base,
+        resolvedArgs,
+    };
+}
+
+async function enrichNotifications(
+    client: CdpClient,
+    notifications: CdpMessage[],
+): Promise<Record<string, JsonValue>[]> {
+    const out: Record<string, JsonValue>[] = [];
+    for (const notification of notifications) {
+        out.push(await enrichNotification(client, notification));
+    }
+    return out;
 }
 
 async function waitForBenchBridge(client: CdpClient, timeoutMs: number): Promise<void> {
@@ -946,6 +1065,10 @@ async function main(): Promise<void> {
             "Log.entryAdded",
             "Network.loadingFailed",
         ]);
+        const enrichedNotifications = await enrichNotifications(
+            client,
+            notifications,
+        );
         mkdirSync(METRICS_DIR, { recursive: true });
         const outputPath = buildDiagOutputPath();
         const screenshotBase64 =
@@ -970,7 +1093,7 @@ async function main(): Promise<void> {
             diagRoute: DIAG_ROUTE,
             diagAction: DIAG_ACTION,
             result,
-            notifications,
+            notifications: enrichedNotifications,
             devServerLogs:
                 appPort == null
                     ? null
