@@ -30,6 +30,7 @@ const LEGACY_METABALL_GRID_FLIP_WINDOW = 0.06;
 const SMOOTH_METABALL_GRID_FLIP_WINDOW = 0.14;
 const LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER = 0.02;
 const SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER = 0;
+const LEGACY_TERRITORY_TRANSITION_MS = 400;
 
 // ── Combat Tuning Persistence ───────────────────────────────────────────────
 
@@ -149,6 +150,25 @@ function migrateLegacyMetaballGridPanelSettings(
     ) {
         stored.metaballGridFlipWindowJitter =
             SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER;
+        changed = true;
+    }
+    const transitionBindUnset =
+        stored.territoryTransitionBindToTick === undefined ||
+        stored.territoryTransitionBindToTick === null;
+    const transitionDurationIsLegacy =
+        stored.territoryTransitionMs === undefined ||
+        stored.territoryTransitionMs === null ||
+        stored.territoryTransitionMs === LEGACY_TERRITORY_TRANSITION_MS;
+    if (
+        (transitionBindUnset || stored.territoryTransitionBindToTick === false) &&
+        transitionDurationIsLegacy
+    ) {
+        const tickInterval =
+            typeof stored.tickInterval === 'number' && Number.isFinite(stored.tickInterval)
+                ? stored.tickInterval
+                : GAME_CONFIG.BASE_TICK_MS;
+        stored.territoryTransitionBindToTick = true;
+        stored.territoryTransitionMs = tickInterval;
         changed = true;
     }
     return changed;

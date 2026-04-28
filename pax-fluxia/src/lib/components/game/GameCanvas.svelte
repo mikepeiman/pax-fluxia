@@ -29,7 +29,6 @@
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         territoryTransitions,
-        resolveTerritoryTransitionDurationMs,
     } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
@@ -122,6 +121,7 @@
         buildOwnershipSnapshotFromStars,
     } from "$lib/territory/families/buildFamilyGeometry";
     import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
+    import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import type {
@@ -246,6 +246,7 @@
     const RENDER_INPUT_PENDING_MIN_BUDGET_MS = 4;
     const RENDER_INPUT_PENDING_SOFT_BUDGET_MS = 8;
     const PRESENTATION_SMOOTHNESS_FIRST = true;
+    const CONQUEST_PRESENT_TARGET_FRAME_MS = 1000 / 60;
     let territoryInputPriorityUntilMs = 0;
     let lastTerritoryUpdateStartedAtMs = 0;
     let lastTerritoryUpdateCostMs = 0;
@@ -1566,10 +1567,6 @@
         return null;
     }
 
-    function clampUnitInterval(value: number): number {
-        return Math.max(0, Math.min(1, value));
-    }
-
     function projectInteractionWorldPoint(point: { x: number; y: number }): {
         x: number;
         y: number;
@@ -1802,6 +1799,7 @@
         currentTick: number | null | undefined;
         territoryConfigFp: string;
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
+        transitionPresentationSignature: string;
     }): string {
         const pendingConquestSig =
             params.pendingConquests.length > 0
@@ -1815,73 +1813,59 @@
             params.isPaused ? 1 : 0,
             params.currentTick ?? -1,
             pendingConquestSig,
+            params.transitionPresentationSignature,
             params.territoryConfigFp,
         ].join("::");
     }
 
-    function buildActiveRenderFamilyTransition(
+    function buildRenderFamilyTransitionState(
         nowMs: number,
         effectiveTickMs: number,
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
-    ): RenderFamilyActiveTransition | null {
-        const eventsByKey = new Map<string, RenderFamilyTransitionEvent>();
-
-        for (const entry of territoryTransitions.getActiveEntries()) {
-            const durationMs = Math.max(1, entry.durationMs);
-            const rawProgress = (nowMs - entry.startTimeMs) / durationMs;
-            if (rawProgress >= 1) continue;
-            eventsByKey.set(transitionIdentityKey(entry.event), {
-                event: entry.event,
-                startedAtMs: entry.startTimeMs,
-                durationMs,
-                rawProgress,
-                progress: clampUnitInterval(rawProgress),
-            });
-        }
-
-        const previewDurationMs = resolveTerritoryTransitionDurationMs(
+    ): {
+        activeTransition: RenderFamilyActiveTransition | null;
+        transitionPresentationSignature: string;
+    } {
+        const lifecycle = buildRenderFamilyTransitionLifecycle({
+            nowMs,
             effectiveTickMs,
-        );
-        if (previewDurationMs > 0) {
-            for (const conquest of pendingConquests) {
-                const key = transitionIdentityKey(conquest);
-                if (eventsByKey.has(key)) continue;
-                eventsByKey.set(key, {
-                    event: conquest,
-                    startedAtMs: nowMs,
-                    durationMs: previewDurationMs,
-                    rawProgress: 0,
-                    progress: 0,
-                });
-            }
+            activeEntries: territoryTransitions.getActiveEntries(),
+            pendingConquests,
+        });
+        if (lifecycle.terminalFrameStarIds.length > 0) {
+            territoryTransitions.markTerminalFrameRendered(
+                lifecycle.terminalFrameStarIds,
+            );
         }
-
-        const events = [...eventsByKey.values()]
-            .map((entry) => {
-                const durationMs = Math.max(1, entry.durationMs);
-                return {
-                    event: entry.event,
-                    startedAtMs: entry.startedAtMs,
-                    durationMs,
-                    rawProgress: entry.rawProgress,
-                    progress: clampUnitInterval(entry.rawProgress),
-                };
-            })
-            .sort((a, b) => a.startedAtMs - b.startedAtMs);
-
-        if (events.length === 0) return null;
-
-        const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
-        const durationMs = Math.max(...events.map((event) => event.durationMs));
-        const rawProgress = Math.max(...events.map((event) => event.rawProgress));
-
+        const activeTransition = lifecycle.activeTransition;
+        if (!activeTransition) {
+            return {
+                activeTransition: null,
+                transitionPresentationSignature: "",
+            };
+        }
+        const frameSlot = Math.max(
+            0,
+            Math.floor(
+                Math.max(0, nowMs - activeTransition.startedAtMs) /
+                    CONQUEST_PRESENT_TARGET_FRAME_MS,
+            ),
+        );
+        const transitionPresentationSignature = [
+            activeTransition.events
+                .map((entry) =>
+                    [
+                        transitionIdentityKey(entry.event),
+                        Math.max(1, Math.round(entry.durationMs)),
+                    ].join("@"),
+                )
+                .sort()
+                .join("|"),
+            frameSlot,
+        ].join("::");
         return {
-            conquestEvents: events.map((event) => event.event),
-            events,
-            startedAtMs,
-            durationMs,
-            rawProgress,
-            progress: clampUnitInterval(rawProgress),
+            activeTransition,
+            transitionPresentationSignature,
         };
     }
 
@@ -5033,6 +5017,12 @@
                 if (!isPausedNow)
                     (globalThis as any).__territoryRenderedWhilePaused = false;
                 voronoiContainer.visible = true;
+                const renderFamilyTransitionState =
+                    buildRenderFamilyTransitionState(
+                        fxOrchestrator.gameTime,
+                        activeGameStore.effectiveTickMs,
+                        pendingTickEvents?.conquests ?? [],
+                    );
                 queueTerritoryPresentation({
                     signature: buildTerritoryPresentationRequestSignature({
                         activeMode: activeTerritoryMode,
@@ -5040,6 +5030,8 @@
                         currentTick: activeGameStore.currentTick,
                         territoryConfigFp,
                         pendingConquests: pendingTickEvents?.conquests ?? [],
+                        transitionPresentationSignature:
+                            renderFamilyTransitionState.transitionPresentationSignature,
                     }),
                     activeMode: activeTerritoryMode,
                     isPaused: isPausedNow,
@@ -5075,6 +5067,8 @@
                     : null;
                 let lastRenderFailure: string | null = null;
                 const lanes = activeGameStore.connections as StarConnection[];
+                const activeRenderFamilyTransition =
+                    renderFamilyTransitionState.activeTransition;
                 const readFamilyGeometry = (): CanonicalGeometrySnapshot => {
                     const geometry = measurePerf(
                         `game.renderFrame.geometry.${activeMode}`,
@@ -5146,12 +5140,7 @@
                         });
                         break;
                     case "vs_pvv3": {
-                        const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                        const activeTransition = activeRenderFamilyTransition;
                         const pvv3Invalidation = inspectPVV3Invalidation(stars);
                         const fg2Artifacts = pvv3Invalidation.shapeChanged
                             ? measurePerf(
@@ -5227,11 +5216,7 @@
                         );
                         transitionDiagnosticFrameInput = {
                             activeMode,
-                            activeTransition: buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            ),
+                            activeTransition: activeRenderFamilyTransition,
                             stars,
                             lanes,
                         };
@@ -5275,12 +5260,7 @@
                             fam = getRenderFamily("metaball")!;
                         }
                         const mf = fam as MetaballFamily;
-                        const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                        const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball",
                             () =>
@@ -5346,12 +5326,7 @@
                             fam = getRenderFamily("metaball_grid")!;
                         }
                         const mg = fam as MetaballGridFamily;
-                        const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                        const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball_grid",
                             () =>
@@ -5417,17 +5392,12 @@
                             fam = getRenderFamily("perimeter_field")!;
                         }
                         const pf = fam as PerimeterFieldFamily;
-                        const activeTransition =
-                            buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            );
+                        const activeTransition = activeRenderFamilyTransition;
                         const captureTransition =
-                            buildActiveRenderFamilyTransition(
+                            buildRenderFamilyTransitionState(
                                 fxOrchestrator.gameTime,
                                 activeGameStore.effectiveTickMs,
-                            );
+                            ).activeTransition;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.perimeter_field",
                             () =>
@@ -5509,11 +5479,7 @@
                         );
                         transitionDiagnosticFrameInput = {
                             activeMode,
-                            activeTransition: buildActiveRenderFamilyTransition(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                                pendingTickEvents?.conquests ?? [],
-                            ),
+                            activeTransition: activeRenderFamilyTransition,
                             stars,
                             lanes,
                         };

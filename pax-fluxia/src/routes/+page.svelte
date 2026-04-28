@@ -313,7 +313,8 @@ import LandingPage from "$lib/components/landing-site";
     refreshHomeRouteDiagnostics();
 
     const url = typeof window !== "undefined" ? new URL(window.location.href) : null;
-    const benchmarkEnabled = url?.searchParams.get("bench") === "1";
+    const benchmarkEnabled =
+      import.meta.env.DEV || url?.searchParams.get("bench") === "1";
     homeRouteDebugVisible =
       import.meta.env.DEV || url?.searchParams.get("diag") === "1";
 

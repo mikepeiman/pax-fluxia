@@ -9,6 +9,7 @@
         downloadDiagnosticPackage,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+    import PerfScenarioRunner from "./PerfScenarioRunner.svelte";
 
     interface Props {
         panel: Record<string, any>;
@@ -307,6 +308,8 @@
         Open Diagnostics
     </button>
 </div>
+
+<PerfScenarioRunner />
 
 <style>
     @import "./panel-shared.css";

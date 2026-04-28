@@ -322,6 +322,25 @@ Current interpretation after the smoothness-first correction:
 - The retained-sprite path plus smoother defaults keep steady-state territory cost low without relying on the old coarse defaults.
 - The automated conquest diagnostic scenario is useful for correctness, but its timing numbers must not be treated as the shipping conquest-animation performance number while `transitionDiagnosticSync` is enabled in-band.
 - The new `metaball_gridConquestAnimation` scenario is the shipping-path conquest smoothness number and should be the benchmark reference for conquest feel unless recorder-enabled correctness capture is explicitly under test.
+- A live conquest-frame defect was still present after the scenario split: queued territory presents were deduped by mode/tick/config without transition progress in the request signature, so moving `metaball_grid` conquest frames could collapse together during one tick. That request-signature bug is now fixed in `GameCanvas.svelte`.
+- The same pass switched render-family transition state onto the shared lifecycle helper so terminal conquest frames are carried and marked instead of disappearing at `rawProgress >= 1`.
+- There is now an in-app runner for the conquest benchmark paths at `pax-fluxia/src/lib/components/ui/settings/PerfScenarioRunner.svelte`, backed by `pax-fluxia/src/lib/perf/inAppConquestBench.ts`, so the shipping animation path and recorder-enabled diagnostic path can be launched from the settings UI.
+
+### 2026-04-28 Late Update: Conquest Smoothness Revalidation
+
+- Shipping animation artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T22-34-39-047Z.json`
+- Recorder diagnostic artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T22-37-44-863Z.json`
+
+| Scenario | Avg frame | P95 frame | Max frame | Notes |
+|---|---:|---:|---:|---|
+| `metaballConquestAnimation` | `16.774ms` | `16.7ms` | `33.3ms` | `155` sampled frames over `2600ms`; shipping conquest path stays at near-60fps pacing with one isolated long frame |
+| `metaballConquestDiagnostic` | diagnostic-heavy | diagnostic-heavy | diagnostic-heavy | recorder-enabled correctness path finalized a clean bundle with `52` captured transition frames |
+
+- The diagnostic bundle still finalized cleanly after the transition-state change:
+  - `version`: `pv-transition-diagnostics-v1`
+  - `latestBundleId`: `2026-04-28-183740_star-6_neutral_to_human-player`
+  - `latestFrameCount`: `52`
+  - `failing checks`: `0`
 
 ## Status Against Acceptance Targets
 - `metaball_grid`

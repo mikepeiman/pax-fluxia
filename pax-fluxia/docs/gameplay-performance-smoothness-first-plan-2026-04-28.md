@@ -114,6 +114,15 @@ Completed corrections since this plan was written:
    - artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T21-12-40-609Z.json`
    - `metaball_gridGameplay`: `16.773ms avg`, `16.7ms p95`, one `33.3ms` spike
    - `metaball_gridOrders`: `16.665ms avg`, `16.8ms p95`, no `>33ms` spikes
+7. Fixed a territory-presentation defect in `GameCanvas.svelte`: queued conquest presents were deduped without transition progress in the request signature, so moving `metaball_grid` conquest frames could collapse together during one tick.
+8. Switched render-family transition state in `GameCanvas.svelte` onto the shared lifecycle helper so terminal conquest frames are explicitly carried and marked instead of disappearing at `rawProgress >= 1`.
+9. Added an in-app debug runner for the conquest benchmark scenarios in `pax-fluxia/src/lib/components/ui/settings/PerfScenarioRunner.svelte`, backed by `pax-fluxia/src/lib/perf/inAppConquestBench.ts`.
+10. Enabled the benchmark bridge automatically in dev on the home route so the in-app runner can drive the same `window.__PAX_BENCH__` surface as the script harness.
+11. Revalidated the conquest paths after the queue fix:
+   - shipping animation artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T22-34-39-047Z.json`
+   - recorder diagnostic artifact: `.agent-harness/metrics/browser-gameplay-benchmark-2026-04-28T22-37-44-863Z.json`
+   - `metaballConquestAnimation`: `155` frames over `2600ms` (`16.774ms avg`, `16.7ms p95`, one `33.3ms` spike)
+   - `metaballConquestDiagnostic`: bundle finalized cleanly with `52` captured frames and no failing checks
 
 Important correction from that artifact:
 
