@@ -382,11 +382,10 @@
   ] as const;
 
   const FILL_TRANSITION_OPTIONS = [
-    { id: "off", label: "Off" },
-    { id: "unified_topology", label: "Unified Topology" },
-    { id: "active_front", label: "Active Front Interpolation" },
-    { id: "frontier_morph", label: "Frontier Topology Morph (legacy)" },
-    { id: "crossfade", label: "Alpha Crossfade Fill" },
+    { id: "off", label: "Snap" },
+    { id: "topology_fill_rebuild", label: "Topology Fill Rebuild" },
+    { id: "legacy_fill_active_front", label: "Legacy Fill Active Front" },
+    { id: "legacy_fill_crossfade", label: "Legacy Fill Crossfade" },
   ] as const;
 
   const GEOMETRY_OPTIONS = [
@@ -440,8 +439,13 @@
       panel.territoryFillTransition ??
       GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
       GAME_CONFIG.TERRITORY_FILL_MODE ??
-      "frontier_morph";
-    if (raw === "frontier") return "frontier_morph";
+      "topology_fill_rebuild";
+    if (raw === "frontier" || raw === "frontier_morph") {
+      return "topology_fill_rebuild";
+    }
+    if (raw === "active_front") return "legacy_fill_active_front";
+    if (raw === "crossfade") return "legacy_fill_crossfade";
+    if (raw === "unified_topology") return "topology_fill_rebuild";
     if (raw === "none") return "off";
     return raw;
   }

@@ -10,7 +10,7 @@ describe('buildTerritoryConfigFingerprint', () => {
             CHAIKIN_BOUNDARY_PAD: 50,
             CHAIKIN_BOUNDARY_EPS: 6,
             TERRITORY_FILL_MODE: 'frontier',
-            TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph',
+            TERRITORY_FILL_TRANSITION_MODE: 'topology_fill_rebuild',
             TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport',
             TERRITORY_STYLE_MODE: 'canonical',
         };
@@ -51,7 +51,7 @@ describe('buildTerritoryConfigFingerprint', () => {
             buildTerritoryConfigFingerprint(
                 {
                     ...base,
-                    TERRITORY_FILL_TRANSITION_MODE: 'active_front',
+                    TERRITORY_FILL_TRANSITION_MODE: 'legacy_fill_active_front',
                 },
                 { geometryRefreshToken: 0, visualEpoch: 0 },
             ),

@@ -21,7 +21,7 @@ export function validateTerritoryModeSelection(
 
     if (
         selection.styleMode === 'pixel' &&
-        selection.fillTransitionMode === 'crossfade'
+        selection.fillTransitionMode === 'legacy_fill_crossfade'
     ) {
         warnings.push('pixel style + crossfade may look blurred at low resolutions.');
     }

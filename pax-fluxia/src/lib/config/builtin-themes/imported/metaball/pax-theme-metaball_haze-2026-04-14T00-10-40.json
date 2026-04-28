@@ -239,7 +239,7 @@
     "TERRITORY_MORPH_CONTROL_POINTS": 68,
     "TERRITORY_BOUNDARY_MODE": "smooth",
     "TERRITORY_FILL_MODE": "frontier",
-    "TERRITORY_FILL_TRANSITION_MODE": "unified_topology",
+    "TERRITORY_FILL_TRANSITION_MODE": "topology_fill_rebuild",
     "TERRITORY_BORDER_TRANSITION_MODE": "optimal_transport",
     "TERRITORY_STYLE_MODE": "canonical",
     "DEBUG_MORPH_VERTICES": true,
@@ -464,7 +464,7 @@
     "AUDIO_OFFSET_CONQUEST_SCATTER": 0,
     "AUDIO_OFFSET_CONQUEST_COMPLETE": 0,
     "AUDIO_OFFSET_STARLOSS": 0,
-    "TERRITORY_FILL_TRANSITION": "frontier_morph",
+    "TERRITORY_FILL_TRANSITION": "topology_fill_rebuild",
     "__TERRITORY_VISUAL_EPOCH": 66
   }
 }

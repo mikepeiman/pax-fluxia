@@ -42,7 +42,6 @@ import { computeLaneHeadingForNearside } from '$lib/lanes/applyLaneTravelPath';
 import type { ColorUtils, PlayerHSL } from './RenderContext';
 import { ORB_DRAW_MODES, type OrbGroup } from './orbModes';
 import {
-    resolveScaledVisualCount,
     resolveShipLodPlan,
     type ShipLodPlan,
 } from './shipLod';
@@ -725,23 +724,19 @@ export function renderShips(
     });
 
     const orbitalDetail: Record<string, unknown> = {
-        lodLevel: frame.lod.level,
-        orbitScale: frame.lod.orbitScale,
-        damagedScale: frame.lod.damagedScale,
-        orbitVisualBudget: frame.lod.orbitVisualBudget,
+        visualPolicy: frame.lod.level,
         maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
-        damagedVisualBudget: frame.lod.damagedVisualBudget,
         maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
         totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
         totalTravelingShips: frame.lod.stats.totalTravelingShips,
         totalDamagedShips: frame.lod.stats.totalDamagedShips,
         baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
         baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
-        totalVisualPressure: frame.lod.stats.totalVisualPressure,
+        totalPotentialVisuals: frame.lod.stats.totalPotentialVisuals,
         starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
         starsWithDamaged: frame.lod.stats.starsWithDamaged,
-        effectiveOutlineOn: frame.lod.outlineOn,
-        effectiveGlowOn: frame.lod.glowOn,
+        outlineOn: frame.lod.outlineOn,
+        glowOn: frame.lod.glowOn,
         renderedOrbitVisuals: 0,
         renderedDamagedVisuals: 0,
     };
@@ -769,10 +764,9 @@ export function renderShips(
         const inFlightToStar = incomingTravelStats?.count ?? 0;
         const actualCount = Math.max(0, star.activeShips - inFlightToStar);
         const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
-        const targetCount = resolveScaledVisualCount(
-            actualCount,
+        const targetCount = Math.min(
+            frame.lod.maxOrbitVisualsPerStar,
             baseOrbitVisualCount,
-            frame.lod.orbitScale,
         );
         const starMultiplier = targetCount > 0 ? actualCount / targetCount : 1;
 
@@ -1180,21 +1174,19 @@ function renderShipsOptimized(
     });
 
     const orbitalDetail: Record<string, unknown> = {
-        lodLevel: frame.lod.level,
-        orbitScale: frame.lod.orbitScale,
-        damagedScale: frame.lod.damagedScale,
-        orbitVisualBudget: frame.lod.orbitVisualBudget,
-        damagedVisualBudget: frame.lod.damagedVisualBudget,
+        visualPolicy: frame.lod.level,
+        maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
+        maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,
         totalActiveOrbitShips: frame.lod.stats.totalActiveOrbitShips,
         totalTravelingShips: frame.lod.stats.totalTravelingShips,
         totalDamagedShips: frame.lod.stats.totalDamagedShips,
         baseOrbitVisuals: frame.lod.stats.baseOrbitVisuals,
         baseDamagedVisuals: frame.lod.stats.baseDamagedVisuals,
-        totalVisualPressure: frame.lod.stats.totalVisualPressure,
+        totalPotentialVisuals: frame.lod.stats.totalPotentialVisuals,
         starsWithOrbitals: frame.lod.stats.starsWithOrbitals,
         starsWithDamaged: frame.lod.stats.starsWithDamaged,
-        effectiveOutlineOn: frame.lod.outlineOn,
-        effectiveGlowOn: frame.lod.glowOn,
+        outlineOn: frame.lod.outlineOn,
+        glowOn: frame.lod.glowOn,
         renderedOrbitVisuals: 0,
         renderedDamagedVisuals: 0,
     };
@@ -1227,11 +1219,7 @@ function renderShipsOptimized(
                 const baseOrbitVisualCount = Math.min(actualCount, maxVisual);
                 const targetCount = Math.min(
                     frame.lod.maxOrbitVisualsPerStar,
-                    resolveScaledVisualCount(
-                        actualCount,
-                        baseOrbitVisualCount,
-                        frame.lod.orbitScale,
-                    ),
+                    baseOrbitVisualCount,
                 );
                 const starMultiplier =
                     targetCount > 0 ? actualCount / targetCount : 1;
@@ -1539,11 +1527,7 @@ function renderShipsOptimized(
                 const damageCount = star.damagedShips;
                 const damageTargetCount = Math.min(
                     frame.lod.maxDamagedVisualsPerStar,
-                    resolveScaledVisualCount(
-                        damageCount,
-                        damageCount,
-                        frame.lod.damagedScale,
-                    ),
+                    damageCount,
                 );
 
                 if (damagedShips.length < damageTargetCount) {
@@ -1669,7 +1653,7 @@ function renderShipsOptimized(
     );
 
     const travelDetail: Record<string, unknown> = {
-        lodLevel: frame.lod.level,
+        visualPolicy: frame.lod.level,
         totalTravelingShips: frame.lod.stats.totalTravelingShips,
         maxOrbitVisualsPerStar: frame.lod.maxOrbitVisualsPerStar,
         maxDamagedVisualsPerStar: frame.lod.maxDamagedVisualsPerStar,

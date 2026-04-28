@@ -67,8 +67,9 @@ export class TransitionLayerCoordinator {
 
         // ── Unified active-front path — frontier-chain transitions ───────
         // Fills are reconstructed from interpolated active-front geometry.
-        // Activated when user selects 'unified_topology' fill transition mode.
-        const TOPOLOGY_PATH_ENABLED = input.selection.fillTransitionMode === 'unified_topology';
+        // Activated when user selects the topology-driven fill rebuild path.
+        const TOPOLOGY_PATH_ENABLED =
+            input.selection.fillTransitionMode === 'topology_fill_rebuild';
         const nextTopo = input.geometry.frontierTopology;
 
         // For planning (conquest frame): use previousGeometry's topology
@@ -107,7 +108,7 @@ export class TransitionLayerCoordinator {
 
                 if (TOPOLOGY_PATH_ENABLED) {
                     log.renderer('TransitionCoordinator',
-                        `Unified topology selected but topology data unavailable ` +
+                        `Topology fill rebuild selected but topology data unavailable ` +
                         `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
                     );
                 }
@@ -177,7 +178,7 @@ export class TransitionLayerCoordinator {
         }
 
         // ── CLR per-frame transition trace ───────────────────────────────
-        const pathUsed = activeFrontPlan ? 'active_front'
+        const pathUsed = activeFrontPlan ? 'topology_fill_rebuild'
             : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
         if (envelope) {
             log.renderer('CLR:TRACE', JSON.stringify({

@@ -11,12 +11,12 @@ interface CrossfadeFillPlan extends FillTransitionPlan {
 }
 
 export class CrossfadeFillMode implements FillTransitionMode {
-    readonly id = 'crossfade' as const;
-    readonly label = 'Alpha Crossfade Fill';
+    readonly id = 'legacy_fill_crossfade' as const;
+    readonly label = 'Legacy Fill Crossfade';
 
     plan(input: FillTransitionPlanInput): FillTransitionPlan {
         const plan: CrossfadeFillPlan = {
-            planId: `fill:crossfade:${input.nowMs}`,
+            planId: `fill:legacy_fill_crossfade:${input.nowMs}`,
             sourceMode: this.id,
             startGeometryVersion: input.previousGeometry?.version ?? input.nextGeometry.version,
             endGeometryVersion: input.nextGeometry.version,

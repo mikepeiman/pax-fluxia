@@ -126,22 +126,22 @@ function printScenario(name: string, scenario: any): void {
     if (shipDiagnostics) {
         console.log("ship diagnostics:");
         console.log(
-            `  - lod=${String(shipDiagnostics?.lodLevel ?? "unknown")} orbitScale=${round(Number(shipDiagnostics?.orbitScale ?? 0))} damagedScale=${round(Number(shipDiagnostics?.damagedScale ?? 0))} particles=${Number(shipDiagnostics?.usedParticles ?? 0)}`,
+            `  - policy=${String(shipDiagnostics?.visualPolicy ?? shipDiagnostics?.lodLevel ?? "unknown")} particles=${Number(shipDiagnostics?.usedParticles ?? 0)}`,
         );
         console.log(
-            `  - active=${Number(shipDiagnostics?.totalActiveOrbitShips ?? 0)} travel=${Number(shipDiagnostics?.totalTravelingShips ?? 0)} damaged=${Number(shipDiagnostics?.totalDamagedShips ?? 0)} pressure=${Number(shipDiagnostics?.totalVisualPressure ?? 0)}`,
+            `  - active=${Number(shipDiagnostics?.totalActiveOrbitShips ?? 0)} travel=${Number(shipDiagnostics?.totalTravelingShips ?? 0)} damaged=${Number(shipDiagnostics?.totalDamagedShips ?? 0)} potentialVisuals=${Number(shipDiagnostics?.totalPotentialVisuals ?? shipDiagnostics?.totalVisualPressure ?? 0)}`,
         );
         console.log(
-            `  - orbit base=${Number(shipDiagnostics?.baseOrbitVisuals ?? 0)} budget=${Number(shipDiagnostics?.orbitVisualBudget ?? 0)} capPerStar=${Number(shipDiagnostics?.maxOrbitVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedOrbitVisuals ?? 0)}`,
+            `  - orbit base=${Number(shipDiagnostics?.baseOrbitVisuals ?? 0)} capPerStar=${Number(shipDiagnostics?.maxOrbitVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedOrbitVisuals ?? 0)}`,
         );
         console.log(
-            `  - damaged base=${Number(shipDiagnostics?.baseDamagedVisuals ?? 0)} budget=${Number(shipDiagnostics?.damagedVisualBudget ?? 0)} capPerStar=${Number(shipDiagnostics?.maxDamagedVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedDamagedVisuals ?? 0)}`,
+            `  - damaged base=${Number(shipDiagnostics?.baseDamagedVisuals ?? 0)} capPerStar=${Number(shipDiagnostics?.maxDamagedVisualsPerStar ?? 0)} rendered=${Number(shipDiagnostics?.renderedDamagedVisuals ?? 0)}`,
         );
         console.log(
             `  - travel rendered=${Number(shipDiagnostics?.renderedTravelVisuals ?? 0)} groupedShips=${Number(shipDiagnostics?.groupedTravelShips ?? 0)} orbGroups=${Number(shipDiagnostics?.travelOrbGroupCount ?? 0)} totalRendered=${Number(shipDiagnostics?.totalRenderedVisuals ?? 0)}`,
         );
         console.log(
-            `  - outline=${Boolean(shipDiagnostics?.effectiveOutlineOn)} glow=${Boolean(shipDiagnostics?.effectiveGlowOn)}`,
+            `  - outline=${Boolean(shipDiagnostics?.outlineOn ?? shipDiagnostics?.effectiveOutlineOn)} glow=${Boolean(shipDiagnostics?.glowOn ?? shipDiagnostics?.effectiveGlowOn)}`,
         );
     }
     const inputGroups = (scenario?.perf?.inputLatency?.groups ?? []).slice(0, 8);

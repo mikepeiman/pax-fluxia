@@ -15,8 +15,26 @@ describe('readTerritoryRuntimeSettings', () => {
             TERRITORY_BORDER_TRANSITION: 'pixi_mesh_rope',
         });
 
-        expect(settings.selection.fillTransitionMode).toBe('frontier_morph');
+        expect(settings.selection.fillTransitionMode).toBe('topology_fill_rebuild');
         expect(settings.selection.borderTransitionMode).toBe('rope_morph');
+    });
+
+    it('normalizes legacy fill transition ids onto precise current ids', () => {
+        expect(
+            readTerritoryRuntimeSettings({
+                TERRITORY_FILL_TRANSITION_MODE: 'active_front',
+            }).selection.fillTransitionMode,
+        ).toBe('legacy_fill_active_front');
+        expect(
+            readTerritoryRuntimeSettings({
+                TERRITORY_FILL_TRANSITION_MODE: 'crossfade',
+            }).selection.fillTransitionMode,
+        ).toBe('legacy_fill_crossfade');
+        expect(
+            readTerritoryRuntimeSettings({
+                TERRITORY_FILL_TRANSITION_MODE: 'unified_topology',
+            }).selection.fillTransitionMode,
+        ).toBe('topology_fill_rebuild');
     });
 
     it('maps render-mode aliases to clean style ids', () => {

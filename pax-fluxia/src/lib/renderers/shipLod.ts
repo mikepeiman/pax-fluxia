@@ -1,6 +1,9 @@
 import type { StarState } from '$lib/types/game.types';
 
-export type ShipLodLevel = 'full' | 'balanced' | 'reduced' | 'critical';
+// Historical filename retained for import stability. The adaptive ship LOD
+// system has been removed; this module now resolves a fixed-cap visual plan.
+
+export type ShipLodLevel = 'fixed_cap';
 
 export interface ShipLodStats {
     totalActiveOrbitShips: number;
@@ -8,7 +11,7 @@ export interface ShipLodStats {
     totalDamagedShips: number;
     baseOrbitVisuals: number;
     baseDamagedVisuals: number;
-    totalVisualPressure: number;
+    totalPotentialVisuals: number;
     starsWithOrbitals: number;
     starsWithDamaged: number;
 }
@@ -16,11 +19,9 @@ export interface ShipLodStats {
 export interface ShipLodPlan {
     level: ShipLodLevel;
     stats: ShipLodStats;
-    orbitVisualBudget: number;
-    orbitScale: number;
+    orbitVisualCount: number;
     maxOrbitVisualsPerStar: number;
-    damagedVisualBudget: number;
-    damagedScale: number;
+    damagedVisualCount: number;
     maxDamagedVisualsPerStar: number;
     outlineOn: boolean;
     glowOn: boolean;
@@ -34,16 +35,6 @@ interface ShipLodInputs {
     outlineOn: boolean;
     glowRadius: number;
 }
-
-const BALANCED_PRESSURE_THRESHOLD = 9_000;
-const REDUCED_PRESSURE_THRESHOLD = 18_000;
-const CRITICAL_PRESSURE_THRESHOLD = 36_000;
-const BALANCED_ORBIT_CAP_PER_STAR = 48;
-const REDUCED_ORBIT_CAP_PER_STAR = 24;
-const CRITICAL_ORBIT_CAP_PER_STAR = 12;
-const BALANCED_DAMAGED_CAP_PER_STAR = 6;
-const REDUCED_DAMAGED_CAP_PER_STAR = 4;
-const CRITICAL_DAMAGED_CAP_PER_STAR = 2;
 
 export function resolveShipLodPlan({
     stars,
@@ -60,91 +51,16 @@ export function resolveShipLodPlan({
         maxVisualPerStar,
     );
 
-    const requestedGlowOn = glowRadius > 0;
-    const requestedOutlineOn = outlineOn !== false;
-
-    let level: ShipLodLevel = 'full';
-    let orbitVisualBudget = stats.baseOrbitVisuals;
-    let damagedVisualBudget = stats.baseDamagedVisuals;
-    let maxOrbitVisualsPerStar = Math.max(1, maxVisualPerStar);
-    let maxDamagedVisualsPerStar = Math.max(1, stats.totalDamagedShips);
-    let effectiveOutlineOn = requestedOutlineOn;
-    let effectiveGlowOn = requestedGlowOn;
-
-    if (stats.totalVisualPressure >= CRITICAL_PRESSURE_THRESHOLD) {
-        level = 'critical';
-        orbitVisualBudget = Math.max(2_048, stats.starsWithOrbitals * 10);
-        damagedVisualBudget = Math.max(192, stats.starsWithDamaged);
-        maxOrbitVisualsPerStar = Math.min(
-            maxOrbitVisualsPerStar,
-            CRITICAL_ORBIT_CAP_PER_STAR,
-        );
-        maxDamagedVisualsPerStar = CRITICAL_DAMAGED_CAP_PER_STAR;
-        effectiveOutlineOn = false;
-        effectiveGlowOn = false;
-    } else if (stats.totalVisualPressure >= REDUCED_PRESSURE_THRESHOLD) {
-        level = 'reduced';
-        orbitVisualBudget = Math.max(3_072, stats.starsWithOrbitals * 16);
-        damagedVisualBudget = Math.max(256, stats.starsWithDamaged * 2);
-        maxOrbitVisualsPerStar = Math.min(
-            maxOrbitVisualsPerStar,
-            REDUCED_ORBIT_CAP_PER_STAR,
-        );
-        maxDamagedVisualsPerStar = REDUCED_DAMAGED_CAP_PER_STAR;
-        effectiveOutlineOn = false;
-        effectiveGlowOn = false;
-    } else if (stats.totalVisualPressure >= BALANCED_PRESSURE_THRESHOLD) {
-        level = 'balanced';
-        orbitVisualBudget = Math.max(4_096, stats.starsWithOrbitals * 24);
-        damagedVisualBudget = Math.max(384, stats.starsWithDamaged * 3);
-        maxOrbitVisualsPerStar = Math.min(
-            maxOrbitVisualsPerStar,
-            BALANCED_ORBIT_CAP_PER_STAR,
-        );
-        maxDamagedVisualsPerStar = BALANCED_DAMAGED_CAP_PER_STAR;
-        effectiveOutlineOn = requestedOutlineOn;
-        effectiveGlowOn = false;
-    }
-
-    orbitVisualBudget = Math.min(stats.baseOrbitVisuals, orbitVisualBudget);
-    damagedVisualBudget = Math.min(
-        stats.baseDamagedVisuals,
-        damagedVisualBudget,
-    );
-
     return {
-        level,
+        level: 'fixed_cap',
         stats,
-        orbitVisualBudget,
-        orbitScale:
-            stats.baseOrbitVisuals > 0
-                ? Math.min(1, orbitVisualBudget / stats.baseOrbitVisuals)
-                : 1,
-        maxOrbitVisualsPerStar,
-        damagedVisualBudget,
-        damagedScale:
-            stats.baseDamagedVisuals > 0
-                ? Math.min(1, damagedVisualBudget / stats.baseDamagedVisuals)
-                : 1,
-        maxDamagedVisualsPerStar,
-        outlineOn: effectiveOutlineOn,
-        glowOn: effectiveGlowOn,
+        orbitVisualCount: stats.baseOrbitVisuals,
+        maxOrbitVisualsPerStar: Math.max(1, maxVisualPerStar),
+        damagedVisualCount: stats.baseDamagedVisuals,
+        maxDamagedVisualsPerStar: Math.max(1, maxVisualPerStar),
+        outlineOn: outlineOn !== false,
+        glowOn: glowRadius > 0,
     };
-}
-
-export function resolveScaledVisualCount(
-    actualCount: number,
-    baseVisualCount: number,
-    scale: number,
-): number {
-    if (actualCount <= 0 || baseVisualCount <= 0) return 0;
-    if (!Number.isFinite(scale) || scale >= 0.999) {
-        return Math.min(actualCount, baseVisualCount);
-    }
-    return Math.max(
-        1,
-        Math.min(actualCount, Math.floor(baseVisualCount * scale)),
-    );
 }
 
 function collectShipLodStats(
@@ -156,6 +72,7 @@ function collectShipLodStats(
     let totalActiveOrbitShips = 0;
     let totalDamagedShips = 0;
     let baseOrbitVisuals = 0;
+    let baseDamagedVisuals = 0;
     let starsWithOrbitals = 0;
     let starsWithDamaged = 0;
 
@@ -172,6 +89,7 @@ function collectShipLodStats(
         totalActiveOrbitShips += actualOrbitShips;
         totalDamagedShips += damagedShips;
         baseOrbitVisuals += Math.min(actualOrbitShips, maxVisualPerStar);
+        baseDamagedVisuals += Math.min(damagedShips, maxVisualPerStar);
     }
 
     return {
@@ -179,9 +97,9 @@ function collectShipLodStats(
         totalTravelingShips,
         totalDamagedShips,
         baseOrbitVisuals,
-        baseDamagedVisuals: totalDamagedShips,
-        totalVisualPressure:
-            baseOrbitVisuals + totalTravelingShips + totalDamagedShips,
+        baseDamagedVisuals,
+        totalPotentialVisuals:
+            baseOrbitVisuals + totalTravelingShips + baseDamagedVisuals,
         starsWithOrbitals,
         starsWithDamaged,
     };

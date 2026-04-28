@@ -2355,7 +2355,7 @@
                     params.frame.geometry.frontierTopology ?? null,
                 selection: {
                     geometryMode: "unified_vector",
-                    fillTransitionMode: "active_front",
+                    fillTransitionMode: "topology_fill_rebuild",
                     borderTransitionMode: "off",
                     ownershipMode: "star_ownership_snapshot",
                     styleMode: "canonical",
@@ -2647,7 +2647,7 @@
         return {
             ownershipMode: "star_ownership_snapshot" as const,
             geometryMode: "unified_vector" as const,
-            fillTransitionMode: "active_front" as const,
+            fillTransitionMode: "topology_fill_rebuild" as const,
             borderTransitionMode: "off" as const,
             styleMode:
                 mode === "distance_field"

@@ -4,10 +4,9 @@ export type GeometryModeId =
     | 'unified_vector'; // Unified Vector Geometry — sole canonical mode
 
 export type FillTransitionModeId =
-    | 'frontier_morph' // Frontier Topology Morph Fill (legacy OT — broken)
-    | 'active_front'   // Active Front Interpolation (gap-free frontier-graph surgery)
-    | 'unified_topology' // Unified Topology — fills + borders derived from same interpolated frontier sections
-    | 'crossfade' // Alpha Crossfade Fill
+    | 'legacy_fill_active_front' // Legacy fill-only active-front interpolation fallback
+    | 'topology_fill_rebuild' // Topology-driven fill rebuild path (current topology selection)
+    | 'legacy_fill_crossfade' // Legacy fill-only alpha crossfade fallback
     | 'off';
 
 export type BorderTransitionModeId =
@@ -31,7 +30,7 @@ export interface TerritoryModeSelection {
 export const DEFAULT_TERRITORY_MODE_SELECTION: TerritoryModeSelection = {
     ownershipMode: 'star_ownership_snapshot',
     geometryMode: 'unified_vector',
-    fillTransitionMode: 'frontier_morph',
+    fillTransitionMode: 'topology_fill_rebuild',
     borderTransitionMode: 'optimal_transport',
     styleMode: 'canonical',
 };

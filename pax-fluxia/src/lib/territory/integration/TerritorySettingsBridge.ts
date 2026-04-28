@@ -29,10 +29,19 @@ function resolveFillTransitionMode(config: Record<string, unknown>): TerritoryMo
         DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode,
     );
     if (raw === 'none' || raw === 'off') return 'off';
-    if (raw === 'active_front') return 'active_front';
-    if (raw === 'unified_topology') return 'unified_topology';
-    if (raw === 'crossfade') return 'crossfade';
-    if (raw === 'frontier' || raw === 'frontier_morph') return 'frontier_morph';
+    if (raw === 'legacy_fill_active_front' || raw === 'active_front') {
+        return 'legacy_fill_active_front';
+    }
+    if (raw === 'topology_fill_rebuild' || raw === 'unified_topology') {
+        return 'topology_fill_rebuild';
+    }
+    if (raw === 'legacy_fill_crossfade' || raw === 'crossfade') {
+        return 'legacy_fill_crossfade';
+    }
+    // Broken legacy frontier morph configs migrate to the topology-driven path.
+    if (raw === 'frontier' || raw === 'frontier_morph') {
+        return 'topology_fill_rebuild';
+    }
     return DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode;
 }
 

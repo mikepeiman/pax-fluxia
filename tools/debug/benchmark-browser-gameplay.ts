@@ -1138,18 +1138,18 @@ function summarizeShipDiagnostics(
         return null;
     }
     return {
-        lodLevel: String(
-            travelDetail?.lodLevel ?? orbitalDetail?.lodLevel ?? "unknown",
+        visualPolicy: String(
+            travelDetail?.visualPolicy ??
+                orbitalDetail?.visualPolicy ??
+                travelDetail?.lodLevel ??
+                orbitalDetail?.lodLevel ??
+                "unknown",
         ),
-        orbitScale: round(Number(orbitalDetail?.orbitScale ?? 0)),
-        damagedScale: round(Number(orbitalDetail?.damagedScale ?? 0)),
-        orbitVisualBudget: Number(orbitalDetail?.orbitVisualBudget ?? 0),
         maxOrbitVisualsPerStar: Number(
             orbitalDetail?.maxOrbitVisualsPerStar ??
                 travelDetail?.maxOrbitVisualsPerStar ??
                 0,
         ),
-        damagedVisualBudget: Number(orbitalDetail?.damagedVisualBudget ?? 0),
         maxDamagedVisualsPerStar: Number(
             orbitalDetail?.maxDamagedVisualsPerStar ??
                 travelDetail?.maxDamagedVisualsPerStar ??
@@ -1166,7 +1166,11 @@ function summarizeShipDiagnostics(
         totalDamagedShips: Number(orbitalDetail?.totalDamagedShips ?? 0),
         baseOrbitVisuals: Number(orbitalDetail?.baseOrbitVisuals ?? 0),
         baseDamagedVisuals: Number(orbitalDetail?.baseDamagedVisuals ?? 0),
-        totalVisualPressure: Number(orbitalDetail?.totalVisualPressure ?? 0),
+        totalPotentialVisuals: Number(
+            orbitalDetail?.totalPotentialVisuals ??
+                orbitalDetail?.totalVisualPressure ??
+                0,
+        ),
         renderedOrbitVisuals: Number(
             orbitalDetail?.renderedOrbitVisuals ?? 0,
         ),
@@ -1180,8 +1184,12 @@ function summarizeShipDiagnostics(
         travelOrbGroupCount: Number(travelDetail?.travelOrbGroupCount ?? 0),
         usedParticles: Number(travelDetail?.usedParticles ?? 0),
         totalRenderedVisuals: Number(travelDetail?.totalRenderedVisuals ?? 0),
-        effectiveOutlineOn: Boolean(orbitalDetail?.effectiveOutlineOn),
-        effectiveGlowOn: Boolean(orbitalDetail?.effectiveGlowOn),
+        outlineOn: Boolean(
+            orbitalDetail?.outlineOn ?? orbitalDetail?.effectiveOutlineOn,
+        ),
+        glowOn: Boolean(
+            orbitalDetail?.glowOn ?? orbitalDetail?.effectiveGlowOn,
+        ),
     };
 }
 

@@ -67,8 +67,9 @@ export type TerritoryStyleId =
 
 /** How fills animate during conquest */
 export type FillTransitionId =
-    | 'frontier_morph'
-    | 'crossfade'
+    | 'legacy_fill_active_front'
+    | 'topology_fill_rebuild'
+    | 'legacy_fill_crossfade'
     | 'tile_flip'
     | 'none';
 

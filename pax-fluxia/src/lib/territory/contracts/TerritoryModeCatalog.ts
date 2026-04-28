@@ -35,33 +35,27 @@ export const GEOMETRY_MODE_CATALOG: Readonly<Record<GeometryModeId, ModeDescript
 export const FILL_TRANSITION_MODE_CATALOG: Readonly<
     Record<FillTransitionModeId, ModeDescriptor>
 > = {
-    frontier_morph: {
-        id: 'frontier_morph',
-        name: 'Frontier Topology Morph Fill',
+    legacy_fill_active_front: {
+        id: 'legacy_fill_active_front',
+        name: 'Legacy Fill Active Front',
         summary:
-            'Morphs fill geometry along frontier topology progression during ownership changes.',
+            'Legacy fill-only fallback that interpolates changed frontier spans, but does not provide unified border output.',
     },
-    active_front: {
-        id: 'active_front',
-        name: 'Active Front Interpolation',
+    topology_fill_rebuild: {
+        id: 'topology_fill_rebuild',
+        name: 'Topology Fill Rebuild',
         summary:
-            'Gap-free transitions by interpolating only changed frontier spans in the shared frontier graph, then rebuilding region loops from frozen + interpolated sections.',
+            'Selects the topology-driven fill rebuild path that plans active fronts from topology snapshots and rebuilds fills from that transition.',
     },
-    unified_topology: {
-        id: 'unified_topology',
-        name: 'Unified Topology',
+    legacy_fill_crossfade: {
+        id: 'legacy_fill_crossfade',
+        name: 'Legacy Fill Crossfade',
         summary:
-            'Fills and borders derived from the same interpolated frontier sections. Eliminates fill/border divergence by construction.',
-    },
-    crossfade: {
-        id: 'crossfade',
-        name: 'Alpha Crossfade Fill',
-        summary:
-            'Blends from previous to next fill geometry with alpha-weighted interpolation.',
+            'Legacy fill-only alpha crossfade fallback with no unified border output.',
     },
     off: {
         id: 'off',
-        name: 'Fill Transition Disabled',
+        name: 'Snap',
         summary: 'Disables fill interpolation and snaps to target geometry each frame.',
     },
 };
