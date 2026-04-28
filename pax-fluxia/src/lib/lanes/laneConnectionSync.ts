@@ -1,6 +1,9 @@
 import type { Connection } from '@pax/common';
 import type { LaneConstraintStatus, LanePathKind } from '@pax/common/mapgen';
-import { seedLanePolylineCacheFromMapGen } from '$lib/lanes/lanePolylineCache';
+import {
+    canonicalizeLaneWaypointsForStorage,
+    seedLanePolylineCacheFromMapGen,
+} from '$lib/lanes/lanePolylineCache';
 
 type LanePointLike = [number, number] | { x: number; y: number };
 
@@ -11,6 +14,12 @@ export interface LaneConnectionLike {
     laneWaypoints?: unknown;
     lanePathKind?: unknown;
     laneConstraintStatus?: unknown;
+}
+
+export interface LaneEndpointLike {
+    id: string;
+    x: number;
+    y: number;
 }
 
 export function normalizeLanePathKind(value?: unknown): LanePathKind | undefined {
@@ -73,8 +82,44 @@ export function toLaneAwareConnections(connections: Iterable<LaneConnectionLike>
     return Array.from(connections, toLaneAwareConnection);
 }
 
-export function seedLaneCacheFromConnections(connections: Iterable<LaneConnectionLike>): Connection[] {
+function buildLaneEndpointMap(
+    endpoints?: Iterable<LaneEndpointLike>,
+): Map<string, { x: number; y: number }> | null {
+    if (!endpoints) return null;
+    const entries = Array.from(endpoints, (endpoint) => [
+        endpoint.id,
+        { x: endpoint.x, y: endpoint.y },
+    ] as const);
+    return entries.length > 0 ? new Map(entries) : null;
+}
+
+export function seedLaneCacheFromConnections(
+    connections: Iterable<LaneConnectionLike>,
+    endpoints?: Iterable<LaneEndpointLike>,
+): Connection[] {
     const normalized = toLaneAwareConnections(connections);
-    seedLanePolylineCacheFromMapGen(normalized);
+    const endpointMap = buildLaneEndpointMap(endpoints);
+    const cacheSeedConnections = endpointMap
+        ? normalized.map((connection) => {
+              if (!connection.laneWaypoints || connection.laneWaypoints.length < 2) {
+                  return connection;
+              }
+              const source = endpointMap.get(connection.sourceId);
+              const target = endpointMap.get(connection.targetId);
+              if (!source || !target) {
+                  return connection;
+              }
+              return {
+                  ...connection,
+                  laneWaypoints: canonicalizeLaneWaypointsForStorage(
+                      connection.sourceId,
+                      connection.targetId,
+                      connection.laneWaypoints,
+                      { source, target },
+                  ),
+              };
+          })
+        : normalized;
+    seedLanePolylineCacheFromMapGen(cacheSeedConnections);
     return normalized;
 }

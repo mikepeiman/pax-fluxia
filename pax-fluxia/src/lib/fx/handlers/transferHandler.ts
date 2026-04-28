@@ -72,10 +72,10 @@ function diagnoseLanePolylineDirection(
 }
 
 // ── Diagnostic #2: detect backward ship-geometry assignment ────────────────
-// Fires AFTER assignShipLaneGeometry. If ship.laneStart is closer to target
-// than source (or laneEnd closer to source than target, or ship.lanePolyline
-// runs backwards), we caught the bug at the geometry-assignment stage rather
-// than the cache stage.
+// Fires AFTER assignShipLaneGeometry. Only lane-end / polyline reversal count
+// as true backward geometry. The depart-phase merge point can legitimately sit
+// away from the source center because ships depart from their live orbit slot,
+// so "laneStart nearer target than source" by itself is not a reversed path.
 let __geomDiagLogCount = 0;
 const __GEOM_DIAG_CAP = 5;
 const __geomDiagSeen = new Set<string>();
@@ -95,6 +95,18 @@ function diagnoseShipGeometry(
     const endToTgt = Math.hypot(ship.laneEndX - tgt.x, ship.laneEndY - tgt.y);
     const startBackward = startToTgt < startToSrc;
     const endBackward = endToSrc < endToTgt;
+    const chordDx = tgt.x - src.x;
+    const chordDy = tgt.y - src.y;
+    const chordDist = Math.hypot(chordDx, chordDy) || 1;
+    const chordNdx = chordDx / chordDist;
+    const chordNdy = chordDy / chordDist;
+    const expectedLaneStartX = src.x + chordNdx * (src.radius + 5);
+    const expectedLaneStartY = src.y + chordNdy * (src.radius + 5);
+    const expectedLaneEndX = tgt.x - chordNdx * (tgt.radius + 5);
+    const expectedLaneEndY = tgt.y - chordNdy * (tgt.radius + 5);
+    const expectedFreeTravelAlongChord =
+        (expectedLaneEndX - expectedLaneStartX) * chordNdx +
+        (expectedLaneEndY - expectedLaneStartY) * chordNdy;
     let polyBackward = false;
     let polyFirstToSrc = NaN, polyLastToTgt = NaN;
     if (ship.lanePolyline && ship.lanePolyline.length >= 2) {
@@ -106,7 +118,7 @@ function diagnoseShipGeometry(
         const polyLastToSrc = Math.hypot(l[0] - src.x, l[1] - src.y);
         polyBackward = polyFirstToTgt < polyFirstToSrc || polyLastToSrc < polyLastToTgt;
     }
-    if (!startBackward && !endBackward && !polyBackward) return;
+    if (!endBackward && !polyBackward) return;
     __geomDiagSeen.add(key);
     __geomDiagLogCount++;
     log.error('ShipLane', 'BACKWARD ship-geometry assignment', {
@@ -121,6 +133,17 @@ function diagnoseShipGeometry(
         startToTgt: startToTgt.toFixed(1),
         endToSrc: endToSrc.toFixed(1),
         endToTgt: endToTgt.toFixed(1),
+        sourceRadius: src.radius.toFixed(1),
+        targetRadius: tgt.radius.toFixed(1),
+        expectedLaneStart: {
+            x: expectedLaneStartX.toFixed(1),
+            y: expectedLaneStartY.toFixed(1),
+        },
+        expectedLaneEnd: {
+            x: expectedLaneEndX.toFixed(1),
+            y: expectedLaneEndY.toFixed(1),
+        },
+        expectedFreeTravelAlongChord: expectedFreeTravelAlongChord.toFixed(1),
         polyLen: ship.lanePolyline?.length ?? 0,
         polyFirstToSrc: polyFirstToSrc.toFixed(1),
         polyLastToTgt: polyLastToTgt.toFixed(1),

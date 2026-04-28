@@ -37,3 +37,9 @@
   - `metaball_gridGameplay`: `16.773ms avg`, one `33.3ms` spike
   - `metaball_gridOrders`: `16.665ms avg`, no `>33ms` spikes
   - next durable win is still likely star presentation, browser-phase attribution around the remaining spikes, or direct investigation of the live lane-geometry reversal bug
+- The lane-geometry bug is now narrowed more precisely:
+  - short-link fallback travel was blending away from the actual lane and could collapse into a backward hop
+  - live connection sync could still seed reversed canonical waypoint payloads into the runtime cache when star endpoints were not consulted
+- The active fix now covers both sides:
+  - `applyLaneTravelPath.ts` keeps fallback travel on the actual lane and collapses overlapping rim crossings to a seam point
+  - `laneConnectionSync.ts` plus `multiplayerStore.svelte.ts` correct live reversed waypoint payloads before cache seeding using current star positions

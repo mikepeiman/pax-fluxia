@@ -597,7 +597,7 @@ function syncStateFromRoom(state: any): void {
 
     // Convert connections array
     connections = state.connections
-        ? seedLaneCacheFromConnections(state.connections) as StarConnection[]
+        ? seedLaneCacheFromConnections(state.connections, starArray) as StarConnection[]
         : [];
 }
 

@@ -60,7 +60,7 @@ Carry forward the gameplay-performance lane from 2026-04-27 and continue the lat
 - Verify whether the next autonomous code target should be:
   - star presentation cost reduction
   - browser/Pixi present-path attribution around the remaining gameplay spike
-  - live investigation of the `BACKWARD ship-geometry assignment` lane-geometry bug
+  - verify in live play that the `BACKWARD ship-geometry assignment` lane-geometry bug no longer reproduces after the cache-seeding and fallback-travel fixes
 - Keep the conquest diagnostic-bundle validation task live:
   - export a real bundle
   - inspect `debug/diagnostic.json`

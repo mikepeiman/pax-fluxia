@@ -9,6 +9,11 @@ import { log } from '$lib/utils/logger';
 
 const cache = new Map<string, [number, number][]>();
 
+interface LaneEndpointPoint {
+    x: number;
+    y: number;
+}
+
 // Fix-engagement diagnostic: proves at runtime whether the storage-canonicalization
 // fix is loaded AND actually reversing non-canonical input. Fires once per process.
 // If nothing logs, the fix never sees non-canonical input (map is too small or
@@ -29,6 +34,41 @@ function logStorageFixEngagement(sourceId: string, targetId: string, reversed: b
 
 export function edgeKey(a: string, b: string): string {
     return a <= b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+export function waypointsNeedReverseForEndpoints(
+    waypoints: ReadonlyArray<readonly [number, number]>,
+    source: LaneEndpointPoint,
+    target: LaneEndpointPoint,
+): boolean {
+    if (waypoints.length < 2) return false;
+    const first = waypoints[0];
+    const last = waypoints[waypoints.length - 1];
+    const firstToSource = Math.hypot(first[0] - source.x, first[1] - source.y);
+    const firstToTarget = Math.hypot(first[0] - target.x, first[1] - target.y);
+    const lastToSource = Math.hypot(last[0] - source.x, last[1] - source.y);
+    const lastToTarget = Math.hypot(last[0] - target.x, last[1] - target.y);
+    return firstToTarget < firstToSource || lastToSource < lastToTarget;
+}
+
+export function canonicalizeLaneWaypointsForStorage(
+    sourceId: string,
+    targetId: string,
+    waypoints: ReadonlyArray<readonly [number, number]>,
+    endpoints?: {
+        source: LaneEndpointPoint;
+        target: LaneEndpointPoint;
+    },
+): [number, number][] {
+    const sourceOrdered = waypoints.map((point) => [point[0], point[1]] as [number, number]);
+    const correctedSourceOrdered =
+        endpoints && waypointsNeedReverseForEndpoints(sourceOrdered, endpoints.source, endpoints.target)
+            ? sourceOrdered.slice().reverse()
+            : sourceOrdered;
+    if (sourceId <= targetId) {
+        return correctedSourceOrdered;
+    }
+    return correctedSourceOrdered.slice().reverse();
 }
 
 export function clearLanePolylineCache(): void {
@@ -61,10 +101,13 @@ export function seedLanePolylineCacheFromMapGen(
             // Storage contract: waypoints are always kept in canonical (sourceId <= targetId)
             // direction so `getDirectedLanePolyline` can rely on storage-direction == key-direction.
             // Mapgen (`buildLaneAwareConnections`) can emit non-canonical sourceId>targetId pairs
-            // because it iterates node pairs by array index, not id. Reverse here to normalize.
-            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            // because it iterates node pairs by array index, not id. Normalize here to canonical storage.
+            const waypoints = canonicalizeLaneWaypointsForStorage(
+                c.sourceId,
+                c.targetId,
+                c.laneWaypoints,
+            );
             const reversed = c.sourceId > c.targetId;
-            if (reversed) waypoints.reverse();
             logStorageFixEngagement(c.sourceId, c.targetId, reversed);
             cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }
@@ -91,9 +134,12 @@ export function rebuildLanePolylineCache(
         if (c.laneWaypoints && c.laneWaypoints.length >= 2) {
             // See seedLanePolylineCacheFromMapGen: normalize waypoint direction to the canonical
             // edge key so downstream directed readers behave correctly regardless of solver order.
-            const waypoints = c.laneWaypoints.map((p) => [p[0], p[1]] as [number, number]);
+            const waypoints = canonicalizeLaneWaypointsForStorage(
+                c.sourceId,
+                c.targetId,
+                c.laneWaypoints,
+            );
             const reversed = c.sourceId > c.targetId;
-            if (reversed) waypoints.reverse();
             logStorageFixEngagement(c.sourceId, c.targetId, reversed);
             cache.set(edgeKey(c.sourceId, c.targetId), waypoints);
         }

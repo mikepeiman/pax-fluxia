@@ -158,5 +158,63 @@ describe('assignShipLaneGeometry', () => {
         expect(distanceTo({ x: ship.laneStartX, y: ship.laneStartY }, source)).toBeLessThan(
             distanceTo({ x: ship.laneStartX, y: ship.laneStartY }, target),
         );
+        expect(distanceTo({ x: ship.laneEndX, y: ship.laneEndY }, target)).toBeLessThan(
+            distanceTo({ x: ship.laneEndX, y: ship.laneEndY }, source),
+        );
+    });
+
+    it('keeps short-link fallback lane ends anchored to the target rim under convergence blending', () => {
+        GAME_CONFIG.LANE_CONVERGENCE = 0.5;
+        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
+
+        const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 7 };
+        const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 7 };
+        const ship = makeShip();
+        ship.id = 7;
+        ship.departFromX = 252;
+        ship.departFromY = 168;
+
+        assignShipLaneGeometry(ship, source, target);
+
+        expect(ship.lanePolyline).toBeUndefined();
+        expect(distanceTo({ x: ship.laneEndX, y: ship.laneEndY }, target)).toBeLessThan(
+            distanceTo({ x: ship.laneEndX, y: ship.laneEndY }, source),
+        );
+    });
+
+    it('does not let convergence blending push laneStart past laneEnd on short links', () => {
+        GAME_CONFIG.LANE_CONVERGENCE = 0.45;
+        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
+
+        const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 10 };
+        const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 25 };
+        const ship = makeShip();
+        ship.departFromX = 252;
+        ship.departFromY = 182;
+
+        assignShipLaneGeometry(ship, source, target);
+
+        expect(ship.laneStartY).toBeLessThan(ship.laneEndY);
+        expect(distanceTo({ x: ship.laneStartX, y: ship.laneStartY }, source)).toBeLessThan(
+            distanceTo({ x: ship.laneStartX, y: ship.laneStartY }, target),
+        );
+    });
+
+    it('collapses overlapping straight-line rim crossings onto a shared seam point', () => {
+        GAME_CONFIG.LANE_CONVERGENCE = 0.45;
+        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
+
+        const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 25 };
+        const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 25 };
+        const ship = makeShip();
+        ship.departFromX = 253;
+        ship.departFromY = 167;
+
+        assignShipLaneGeometry(ship, source, target);
+
+        expect(ship.lanePolyline).toBeUndefined();
+        expect(ship.laneStartX).toBeCloseTo(ship.laneEndX, 6);
+        expect(ship.laneStartY).toBeCloseTo(ship.laneEndY, 6);
+        expect(ship.laneStartY).toBeCloseTo(167, 6);
     });
 });

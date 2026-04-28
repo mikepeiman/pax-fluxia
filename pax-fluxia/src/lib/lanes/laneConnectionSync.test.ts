@@ -126,4 +126,49 @@ describe('laneConnectionSync', () => {
             [0, 0],
         ]);
     });
+
+    it('uses live star endpoints to correct reversed canonical waypoint payloads before seeding the cache', () => {
+        const normalized = seedLaneCacheFromConnections(
+            [
+                {
+                    sourceId: 'star-a',
+                    targetId: 'star-b',
+                    distance: 100,
+                    lanePathKind: 'curved',
+                    laneWaypoints: [
+                        { x: 100, y: 0 },
+                        { x: 50, y: 25 },
+                        { x: 0, y: 0 },
+                    ],
+                },
+            ],
+            [
+                { id: 'star-a', x: 0, y: 0 },
+                { id: 'star-b', x: 100, y: 0 },
+            ],
+        );
+
+        // Keep the normalized connection payload faithful to the room state;
+        // only the runtime cache is corrected for directed lookup.
+        expect(normalized[0]?.laneWaypoints).toEqual([
+            [100, 0],
+            [50, 25],
+            [0, 0],
+        ]);
+        expect(getLanePolyline('star-a', 'star-b')).toEqual([
+            [0, 0],
+            [50, 25],
+            [100, 0],
+        ]);
+        expect(getDirectedLanePolyline('star-a', 'star-b')).toEqual([
+            [0, 0],
+            [50, 25],
+            [100, 0],
+        ]);
+        expect(getDirectedLanePolyline('star-b', 'star-a')).toEqual([
+            [100, 0],
+            [50, 25],
+            [0, 0],
+        ]);
+    });
 });

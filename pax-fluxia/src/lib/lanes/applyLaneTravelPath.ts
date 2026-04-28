@@ -95,6 +95,17 @@ export function assignShipLaneGeometry(
         baseLaneStartY = source.y + ndy0 * (source.radius + 5);
         baseLaneEndX = target.x - ndx0 * (target.radius + 5);
         baseLaneEndY = target.y - ndy0 * (target.radius + 5);
+        const freeTravelAlongChord =
+            (baseLaneEndX - baseLaneStartX) * ndx0 +
+            (baseLaneEndY - baseLaneStartY) * ndy0;
+        if (freeTravelAlongChord <= 0) {
+            const seamX = (baseLaneStartX + baseLaneEndX) * 0.5;
+            const seamY = (baseLaneStartY + baseLaneEndY) * 0.5;
+            baseLaneStartX = seamX;
+            baseLaneStartY = seamY;
+            baseLaneEndX = seamX;
+            baseLaneEndY = seamY;
+        }
         effectiveLaneStartX = baseLaneStartX;
         effectiveLaneStartY = baseLaneStartY;
     }
@@ -105,13 +116,15 @@ export function assignShipLaneGeometry(
         ship.laneEndX = baseLaneEndX;
         ship.laneEndY = baseLaneEndY;
     } else {
-        const spreadAngle = ((ship.id % 12) / 12) * Math.PI * 2;
-        const spreadEndX = target.x + Math.cos(spreadAngle) * (target.radius + 5);
-        const spreadEndY = target.y + Math.sin(spreadAngle) * (target.radius + 5);
-        ship.laneStartX = effectiveLaneStartX * convergence + ship.departFromX * (1 - convergence);
-        ship.laneStartY = effectiveLaneStartY * convergence + ship.departFromY * (1 - convergence);
-        ship.laneEndX = baseLaneEndX * convergence + spreadEndX * (1 - convergence);
-        ship.laneEndY = baseLaneEndY * convergence + spreadEndY * (1 - convergence);
+        // Keep the travel geometry on the actual lane even when the old
+        // convergence knob is below 1. Blending start/end toward per-ship
+        // departure or spread points shortens the travel segment and can push
+        // laneStart past laneEnd on short links, which shows up as a visible
+        // backward hop during the travel phase.
+        ship.laneStartX = effectiveLaneStartX;
+        ship.laneStartY = effectiveLaneStartY;
+        ship.laneEndX = baseLaneEndX;
+        ship.laneEndY = baseLaneEndY;
     }
 
     return { ndx, ndy };
