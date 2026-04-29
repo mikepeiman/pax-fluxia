@@ -30,6 +30,7 @@
     import {
         territoryTransitions,
     } from "$lib/fx/handlers/territoryTransitionHandler";
+    import { territoryTransitionClock } from "$lib/territory/transitions/territoryTransitionClock";
     import {
         createContainers,
         initShipRendering,
@@ -1819,7 +1820,7 @@
     }
 
     function buildRenderFamilyTransitionState(
-        nowMs: number,
+        transitionNowMs: number,
         effectiveTickMs: number,
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
     ): {
@@ -1827,7 +1828,7 @@
         transitionPresentationSignature: string;
     } {
         const lifecycle = buildRenderFamilyTransitionLifecycle({
-            nowMs,
+            nowMs: transitionNowMs,
             effectiveTickMs,
             activeEntries: territoryTransitions.getActiveEntries(),
             pendingConquests,
@@ -1847,7 +1848,7 @@
         const frameSlot = Math.max(
             0,
             Math.floor(
-                Math.max(0, nowMs - activeTransition.startedAtMs) /
+                Math.max(0, transitionNowMs - activeTransition.startedAtMs) /
                     CONQUEST_PRESENT_TARGET_FRAME_MS,
             ),
         );
@@ -3513,6 +3514,7 @@
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
         }
+        territoryTransitionClock.reset();
         if (interactionOverlayAnimationFrameId !== null) {
             cancelAnimationFrame(interactionOverlayAnimationFrameId);
             interactionOverlayAnimationFrameId = null;
@@ -3571,6 +3573,7 @@
 
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
             const isPaused = activeGameStore.isPaused;
+            territoryTransitionClock.tick(currentTime, isPaused);
 
             // Initialize lastTickGameTimeMs on first frame so tickProgress starts at 0
             if (lastTickGameTimeMs === 0)
@@ -4774,6 +4777,7 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
+            territoryTransitionClock.reset();
             resetTerritoryRenderCaches();
             activeSurges.clear();
             nextShipId = 0;
@@ -5018,7 +5022,7 @@
                 voronoiContainer.visible = true;
                 const renderFamilyTransitionState =
                     buildRenderFamilyTransitionState(
-                        fxOrchestrator.gameTime,
+                        territoryTransitionClock.now,
                         activeGameStore.effectiveTickMs,
                         pendingTickEvents?.conquests ?? [],
                     );
@@ -5394,7 +5398,7 @@
                         const activeTransition = activeRenderFamilyTransition;
                         const captureTransition =
                             buildRenderFamilyTransitionState(
-                                fxOrchestrator.gameTime,
+                                territoryTransitionClock.now,
                                 activeGameStore.effectiveTickMs,
                             ).activeTransition;
                         const ownership = measurePerf(

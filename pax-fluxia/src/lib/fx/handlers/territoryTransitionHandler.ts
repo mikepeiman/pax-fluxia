@@ -24,6 +24,7 @@ import type { FXContext } from '../types';
 import type { ConquestEvent } from '@pax/common';
 import type { FXHandler } from '../FXRegistry';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { territoryTransitionClock } from '$lib/territory/transitions/territoryTransitionClock';
 
 // ── Transition State ─────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ export interface TerritoryTransitionEntry {
     previousOwner: string;
     /** New territory owner */
     newOwner: string;
-    /** Game time when transition started (ms) */
+    /** Wall-clock time when transition started (ms, performance.now base) */
     startTimeMs: number;
     /** Duration of this transition (ms) */
     durationMs: number;
@@ -100,10 +101,10 @@ export class TerritoryTransitionState {
     }
 
     /** Remove expired transitions */
-    cleanup(gameTimeMs: number): void {
+    cleanup(nowMs: number): void {
         for (const [starId, entry] of this._pending) {
             if (
-                gameTimeMs >= entry.startTimeMs + entry.durationMs &&
+                nowMs >= entry.startTimeMs + entry.durationMs &&
                 (entry.terminalFrameRendered || entry.consumed)
             ) {
                 this._pending.delete(starId);
@@ -160,19 +161,20 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
             attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],
             previousOwner: event.previousOwner,
             newOwner: event.newOwner,
-            startTimeMs: ctx.gameTime,
+            startTimeMs: territoryTransitionClock.now,
             durationMs: transitionMs,
             consumed: false,
             terminalFrameRendered: false,
         });
     },
 
-    update(ctx: FXContext): void {
+    update(_ctx: FXContext): void {
         // Clean up expired transitions each frame
-        territoryTransitions.cleanup(ctx.gameTime);
+        territoryTransitions.cleanup(territoryTransitionClock.now);
     },
 
     destroy(): void {
         territoryTransitions.reset();
+        territoryTransitionClock.reset();
     },
 };
