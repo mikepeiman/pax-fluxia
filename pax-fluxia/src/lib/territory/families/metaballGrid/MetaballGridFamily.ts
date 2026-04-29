@@ -570,6 +570,22 @@ export class MetaballGridFamily implements RenderFamily {
         this.hideUnusedSprites(this.activeNextSprites, 0);
     }
 
+    private hasVisibleSprites(sprites: readonly PIXI.Sprite[]): boolean {
+        for (let i = 0; i < sprites.length; i++) {
+            if (sprites[i].visible) return true;
+        }
+        return false;
+    }
+
+    private hasLingeringTransitionPresentation(): boolean {
+        return this.activeFrontierState !== null
+            || this.hasVisibleSprites(this.transitionSprites)
+            || this.hasVisibleSprites(this.settledPrevSprites)
+            || this.hasVisibleSprites(this.activePrevSprites)
+            || this.hasVisibleSprites(this.settledNextSprites)
+            || this.hasVisibleSprites(this.activeNextSprites);
+    }
+
     private buildActiveFrontierEntries(params: {
         cached: CachedPlan;
         ownerColorIdx: ReadonlyMap<string, number>;
@@ -1653,7 +1669,8 @@ export class MetaballGridFamily implements RenderFamily {
             palBorderSig,
         ].join('|');
 
-        const allowPaintSkip = !input.activeTransition;
+        const allowPaintSkip =
+            !input.activeTransition && !this.hasLingeringTransitionPresentation();
         if (allowPaintSkip && !rebuiltPlan && this.lastPaintSig === paintSig) {
             this.frameCount += 1;
             this.skippedFrameCount += 1;

@@ -162,6 +162,63 @@ function makeInput(progress: number): RenderFamilyInput {
     };
 }
 
+function makeSteadyInput(): RenderFamilyInput {
+    const geometry = makeSnapshot([rect('B', 'all', 0, 0, 100, 40)]);
+    return {
+        ownership: null,
+        geometry,
+        prevGeometry: geometry,
+        nowMs: 2_500,
+        gameTick: 2,
+        world: { width: 100, height: 40 },
+        stars: [
+            {
+                id: 'attacker',
+                x: 80,
+                y: 20,
+                ownerId: 'B',
+                activeShips: 24,
+                damagedShips: 0,
+                radius: 20,
+                starType: 'blue',
+            },
+            {
+                id: 'target',
+                x: 25,
+                y: 20,
+                ownerId: 'B',
+                activeShips: 18,
+                damagedShips: 0,
+                radius: 20,
+                starType: 'blue',
+            },
+        ],
+        lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 55 }],
+        tunables: new Map([
+            ['METABALL_GRID_ENABLED', true],
+            ['METABALL_GRID_SPACING_PX', 10],
+            ['METABALL_GRID_ORIGIN_MODE', 'centered'],
+            ['METABALL_GRID_DISTRIBUTION', 'square'],
+            ['METABALL_GRID_POSITION_JITTER', 0],
+            ['METABALL_GRID_MAX_CELLS', 0],
+            ['METABALL_GRID_ADJACENCY', '4'],
+            ['METABALL_GRID_WAVE_GEOMETRY', 'grid_bfs'],
+            ['METABALL_GRID_WAVE_SEEDING', 'conquered_star_center'],
+            ['METABALL_GRID_FLIP_TRANSITION', 'dual_pass_blend'],
+            ['METABALL_GRID_FLIP_WINDOW', 0.08],
+            ['METABALL_GRID_FLIP_WINDOW_JITTER', 0],
+            ['METABALL_GRID_CELL_SHAPE', 'square'],
+            ['METABALL_GRID_CELL_INSET_PX', 0],
+            ['METABALL_GRID_CELL_CORNER_PX', 0],
+            ['METABALL_GRID_BORDER_MODE', 'off'],
+            ['METABALL_BORDER_ALPHA', 0],
+            ['METABALL_ALPHA', 1],
+            ['METABALL_SATURATION', 1],
+            ['METABALL_LIGHTNESS', 0.5],
+        ]),
+    };
+}
+
 describe('MetaballGridFamily active frontier fast path', () => {
     it('uses retained frontier layers for square dual-pass conquest frames', () => {
         const family = createMetaballGridFamily({
@@ -187,6 +244,61 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(nextStats.transitionSpriteWrites).toBeLessThan(
             nextStats.transitionTotalCount * 2,
         );
+
+        family.dispose();
+    });
+
+    it('forces one cleanup repaint after conquest ends so retained frontier layers do not leak', () => {
+        const family = createMetaballGridFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(makeInput(1));
+        const transitionStats = get(metaballGridStats);
+        expect(transitionStats.fastPathUsed).toBe(true);
+        expect(transitionStats.lastFrameSkipped).toBe(false);
+
+        const internalAfterTransition = family as unknown as {
+            activeFrontierState: unknown;
+            settledNextSprites: Array<{ visible: boolean }>;
+            activeNextSprites: Array<{ visible: boolean }>;
+            transitionSprites: Array<{ visible: boolean }>;
+        };
+        expect(internalAfterTransition.activeFrontierState).not.toBeNull();
+        expect(
+            internalAfterTransition.settledNextSprites.some((sprite) => sprite.visible),
+        ).toBe(true);
+
+        family.update(makeSteadyInput());
+        const steadyStats = get(metaballGridStats);
+        expect(steadyStats.lastFrameSkipped).toBe(false);
+
+        const internalAfterCleanup = family as unknown as {
+            activeFrontierState: unknown;
+            settledPrevSprites: Array<{ visible: boolean }>;
+            activePrevSprites: Array<{ visible: boolean }>;
+            settledNextSprites: Array<{ visible: boolean }>;
+            activeNextSprites: Array<{ visible: boolean }>;
+            transitionSprites: Array<{ visible: boolean }>;
+        };
+        expect(internalAfterCleanup.activeFrontierState).toBeNull();
+        expect(
+            internalAfterCleanup.transitionSprites.some((sprite) => sprite.visible),
+        ).toBe(false);
+        expect(
+            internalAfterCleanup.settledPrevSprites.some((sprite) => sprite.visible),
+        ).toBe(false);
+        expect(
+            internalAfterCleanup.activePrevSprites.some((sprite) => sprite.visible),
+        ).toBe(false);
+        expect(
+            internalAfterCleanup.settledNextSprites.some((sprite) => sprite.visible),
+        ).toBe(false);
+        expect(
+            internalAfterCleanup.activeNextSprites.some((sprite) => sprite.visible),
+        ).toBe(false);
 
         family.dispose();
     });
