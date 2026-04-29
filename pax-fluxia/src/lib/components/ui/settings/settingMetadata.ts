@@ -379,11 +379,17 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
+        'Shared Edge Smoothing': {
+            key: 'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+        },
+        'Shared Edge Trim (px)': {
+            key: 'METABALL_GRID_EDGE_TRIM_PX',
+        },
         'Border Chaikin Passes': {
             key: 'METABALL_GRID_BORDER_CHAIKIN_PASSES',
         },
         Adjacency: { key: 'METABALL_GRID_ADJACENCY' },
-        'Wave Geometry': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
+        'Phase Geometry': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
         'Wave Seeding': { key: 'METABALL_GRID_WAVE_SEEDING' },
         'Flip Transition': { key: 'METABALL_GRID_FLIP_TRANSITION' },
         'Flip Window': { key: 'METABALL_GRID_FLIP_WINDOW' },

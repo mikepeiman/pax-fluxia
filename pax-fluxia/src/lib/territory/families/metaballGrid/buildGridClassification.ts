@@ -319,14 +319,16 @@ function attributeEvent(
     events: ReadonlyArray<ConquestEvent>,
     resolveStarPosition?: (starId: string) => { x: number; y: number } | null,
 ): string {
-    if (prev === null || next === null || prev === next) return DEFAULT_EVENT_ID;
+    if ((prev === null && next === null) || prev === next) return DEFAULT_EVENT_ID;
 
-    // For emergent/vacating, we only have one non-null side. Match against
-    // whichever side we have.
+    // For emergent/vacating, match on the non-null ownership side we have and
+    // then tiebreak spatially if several conquest events share that owner.
     const matches: number[] = [];
     for (let i = 0; i < events.length; i++) {
         const e = events[i];
-        if (e.previousOwner === prev && e.newOwner === next) {
+        const prevMatches = prev === null || e.previousOwner === prev;
+        const nextMatches = next === null || e.newOwner === next;
+        if (prevMatches && nextMatches) {
             matches.push(i);
         }
     }

@@ -22,6 +22,10 @@ import type {
     TerritoryGeometryData,
     TerritoryGeneratorSettings,
 } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
+import {
+    buildTerritoryGeneratorSettingsFromTunables,
+    readTerritoryGeometryTunables,
+} from '../geometry/geometryTuning';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
@@ -322,31 +326,22 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     ownershipVersion: string;
     sourceStyle: CanonicalGeometrySnapshot['sourceStyle'];
 }): CanonicalGeometrySnapshot | null {
-    const settings: TerritoryGeneratorSettings = {
-        starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        corridorEnabled:
-            Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) &&
-            params.lanes.length > 0,
-        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-        cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
-        cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-        disconnectEnabled:
-            Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) &&
-            params.lanes.length > 0,
-        disconnectDistance:
-            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-        dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
-        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-        chaikinPasses: Math.max(
-            0,
-            Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)),
-        ),
-        frontierResolution: 0,
-        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
-        worldWidth: params.worldWidth,
-        worldHeight: params.worldHeight,
-    };
+    const tunables = readTerritoryGeometryTunables(
+        GAME_CONFIG as unknown as Record<string, unknown>,
+    );
+    const settings: TerritoryGeneratorSettings =
+        buildTerritoryGeneratorSettingsFromTunables({
+            world: {
+                width: params.worldWidth,
+                height: params.worldHeight,
+            },
+            tunables: {
+                ...tunables,
+                corridorEnabled: tunables.corridorEnabled && params.lanes.length > 0,
+                disconnectEnabled:
+                    tunables.disconnectEnabled && params.lanes.length > 0,
+            },
+        });
 
     const result = computeGeometry0319(
         [...params.stars],

@@ -92,6 +92,7 @@ function makeConquestTransition(params?: {
     const startedAtMs = params?.startedAtMs ?? 500;
 
     return {
+        sessionKey: `tick:${conquestEvent.tick}:${conquestEvent.starId}`,
         conquestEvents: [conquestEvent],
         events: [
             {

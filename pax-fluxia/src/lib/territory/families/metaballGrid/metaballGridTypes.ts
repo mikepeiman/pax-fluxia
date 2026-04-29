@@ -37,8 +37,12 @@ export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
 /** BFS connectivity used by `grid_bfs` wave geometry. */
 export type GridAdjacency = '4' | '8';
 
-/** Rank source for flip-time assignment. */
-export type GridWaveGeometry = 'grid_bfs' | 'euclidean_band';
+/** Phase-field generator used to assign per-cell flip times. */
+export type GridWaveGeometry =
+    | 'grid_bfs'
+    | 'euclidean_band'
+    | 'conquered_star_radial'
+    | 'pre_to_post_frontier';
 
 /** Which cells seed the wave for an event. */
 export type GridWaveSeeding =
@@ -338,4 +342,8 @@ export interface RenderMetaballGridSceneParams {
     readonly inwardOffsetPx: number;
     /** Owner id → palette color index. */
     readonly ownerColorIdx: ReadonlyMap<string, number>;
+    /** When false, omit static native cells and emit only active transition cells. */
+    readonly includeNativeCells?: boolean;
+    /** VStar ids to suppress from this pass so another overlay can own the color. */
+    readonly omitVIds?: ReadonlySet<string>;
 }

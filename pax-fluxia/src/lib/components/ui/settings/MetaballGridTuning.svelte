@@ -72,12 +72,22 @@
         return raw === '4' ? '4' : '8';
     }
 
-    function currentWaveGeometry(): 'grid_bfs' | 'euclidean_band' {
+    function currentWaveGeometry():
+        | 'grid_bfs'
+        | 'euclidean_band'
+        | 'conquered_star_radial'
+        | 'pre_to_post_frontier' {
         const raw =
             panel.metaballGridWaveGeometry ??
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
-            'grid_bfs';
-        return raw === 'euclidean_band' ? 'euclidean_band' : 'grid_bfs';
+            'pre_to_post_frontier';
+        if (
+            raw === 'euclidean_band' ||
+            raw === 'conquered_star_radial' ||
+            raw === 'pre_to_post_frontier'
+        )
+            return raw;
+        return 'grid_bfs';
     }
 
     function currentWaveSeeding():
@@ -101,6 +111,27 @@
         if (raw === 'lerp_per_cell') return 'lerp_per_cell';
         if (raw === 'dual_pass_blend') return 'dual_pass_blend';
         return 'hard';
+    }
+
+    function waveGeometryLabel(
+        geometry: ReturnType<typeof currentWaveGeometry> = currentWaveGeometry(),
+    ): string {
+        if (geometry === 'euclidean_band') return 'Euclidean band';
+        if (geometry === 'conquered_star_radial') return 'Conquered-star radial';
+        if (geometry === 'pre_to_post_frontier') return 'Pre->post frontier';
+        return 'Grid BFS';
+    }
+
+    function waveGeometryUsesSeeding(
+        geometry: ReturnType<typeof currentWaveGeometry> = currentWaveGeometry(),
+    ): boolean {
+        return geometry === 'grid_bfs' || geometry === 'euclidean_band';
+    }
+
+    function waveGeometryUsesAdjacency(
+        geometry: ReturnType<typeof currentWaveGeometry> = currentWaveGeometry(),
+    ): boolean {
+        return geometry !== 'conquered_star_radial';
     }
 
     function currentCellShape(): 'square' | 'circle' | 'diamond' | 'hex' {
@@ -529,13 +560,59 @@
 
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name" title="Shared edge-rounding passes applied to the boundary fill treatment and, when using blended territory edges, the border polyline itself. Higher values soften the frontier silhouette.">
+            Shared Edge Smoothing
+        </span>
+        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+    </div>
+    <div class="var-desc">
+        Unified fill-border smoothing. Square boundary cells gain extra corner rounding from this knob, and centered-blended territory edges reuse the same pass count before any extra border-only Chaikin smoothing.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="4"
+        step="1"
+        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Additional shared trim applied to boundary/in-transition fill cells. In per-cell border modes the stroke follows the trimmed geometry; in centered-blended edge mode the blended border stays centered in the resulting gap.">
+            Shared Edge Trim (px)
+        </span>
+        <span class="val">{panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}px</span>
+    </div>
+    <div class="var-desc">
+        Unified geometric trimming for the frontier band. Raises the boundary fill inset without disturbing interior cells, which creates a cleaner shared gap for borders and future edge VFX.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="24"
+        step="0.5"
+        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
             Border Chaikin Passes
         </span>
         <span class="val">{panel.metaballGridBorderChaikinPasses ?? GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0}</span>
     </div>
     <div class="var-desc">
-        Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
+        Extra border-only smoothing on top of Shared Edge Smoothing. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
     </div>
     <input
         type="range"
@@ -556,17 +633,30 @@
 <div class="module-block">
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Neighborhood used when a grid_bfs wave expands over the grid.">
+        <span
+            class="var-name"
+            title="Neighborhood used when the active phase geometry walks the grid. Radial mode ignores this and measures direct distance from the conquered star.">
             Adjacency
         </span>
-        <span class="val">{currentAdjacency() === '4' ? '4-connected' : '8-connected'}</span>
+        <span class="val">
+            {#if waveGeometryUsesAdjacency()}
+                {currentAdjacency() === '4' ? '4-connected' : '8-connected'}
+            {:else}
+                Not used
+            {/if}
+        </span>
     </div>
     <div class="var-desc">
-        4-connected produces square-fronted waves; 8-connected produces more diagonal/rounded fronts.
+        {#if waveGeometryUsesAdjacency()}
+            4-connected produces square-fronted waves; 8-connected produces more diagonal/rounded fronts.
+        {:else}
+            Conquered-star radial mode uses pure star distance instead of grid-neighbor traversal.
+        {/if}
     </div>
     <select
         class="mode-select"
         value={currentAdjacency()}
+        disabled={!waveGeometryUsesAdjacency()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_ADJACENCY', 'metaballGridAdjacency', value);
@@ -580,12 +670,12 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="How the wave's rank (ordering) is derived — BFS over grid steps or a Euclidean band around the seed set.">
-            Wave Geometry
+            Phase Geometry
         </span>
-        <span class="val">{currentWaveGeometry() === 'grid_bfs' ? 'Grid BFS' : 'Euclidean band'}</span>
+        <span class="val">{waveGeometryLabel()}</span>
     </div>
     <div class="var-desc">
-        Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed.
+        Grid BFS follows grid neighbors step-by-step. Euclidean band bins cells by distance to the nearest seed. Conquered-star radial expands from the captured star. Pre->post frontier drives the flip front from the old border to the new border.
     </div>
     <select
         class="mode-select"
@@ -597,6 +687,8 @@
     >
         <option value="grid_bfs">Grid BFS (step-by-step)</option>
         <option value="euclidean_band">Euclidean band (distance buckets)</option>
+        <option value="conquered_star_radial">Conquered-star radial</option>
+        <option value="pre_to_post_frontier">Pre->post frontier</option>
     </select>
 </div>
 
@@ -606,17 +698,23 @@
             Wave Seeding
         </span>
         <span class="val">
-            {#if currentWaveSeeding() === 'winner_natives'}Winner natives
+            {#if !waveGeometryUsesSeeding()}Ignored by current geometry
+            {:else if currentWaveSeeding() === 'winner_natives'}Winner natives
             {:else if currentWaveSeeding() === 'conquered_star_center'}Conquered star
             {:else}Winner nearest edge{/if}
         </span>
     </div>
     <div class="var-desc">
-        Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
+        {#if waveGeometryUsesSeeding()}
+            Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
+        {:else}
+            Radial and frontier phase geometries derive flip timing directly, so they do not read the seed selector.
+        {/if}
     </div>
     <select
         class="mode-select"
         value={currentWaveSeeding()}
+        disabled={!waveGeometryUsesSeeding()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_WAVE_SEEDING', 'metaballGridWaveSeeding', value);

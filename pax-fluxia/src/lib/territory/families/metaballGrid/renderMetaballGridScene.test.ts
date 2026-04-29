@@ -384,6 +384,45 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
+    it('can omit native cells when rendering transition overlays', () => {
+        const { classification, plan } = mixedFixture();
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.5,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+            includeNativeCells: false,
+        });
+
+        const nativeIds = new Set(classification.byRole.native);
+        expect(scene.cells.some((cell) => nativeIds.has(cell.vId))).toBe(false);
+        expect(scene.cells.length).toBeGreaterThan(0);
+    });
+
+    it('can omit explicit vstars so the base pass does not repaint them under overlays', () => {
+        const { classification, plan } = mixedFixture();
+        const omittedId = classification.byRole.dispossessed[0];
+        expect(omittedId).toBeDefined();
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 1,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+            omitVIds: new Set([omittedId]),
+        });
+
+        expect(scene.cells.some((cell) => cell.vId === omittedId)).toBe(false);
+        expect(scene.cells.length).toBeGreaterThan(0);
+    });
+
     it('emergent cells omit PREV side (one cell only, NEXT color)', () => {
         // Empty PREV + full NEXT → every cell emergent.
         const world = { width: 40, height: 40 };

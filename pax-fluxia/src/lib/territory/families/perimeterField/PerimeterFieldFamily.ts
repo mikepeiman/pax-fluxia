@@ -66,19 +66,7 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
 ] as const;
 
 function buildTransitionKey(input: RenderFamilyInput): string | null {
-    const events = input.activeTransition?.events;
-    if (!events?.length) return null;
-    return events
-        .map((entry) =>
-            [
-                entry.event.tick,
-                entry.event.starId,
-                entry.event.previousOwner,
-                entry.event.newOwner,
-                entry.startedAtMs,
-            ].join(':'),
-        )
-        .join('|');
+    return input.activeTransition?.sessionKey ?? null;
 }
 
 function buildSessionKey(input: RenderFamilyInput): string {

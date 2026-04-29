@@ -62,6 +62,8 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
         flipWindow,
         strength,
         ownerColorIdx,
+        includeNativeCells = true,
+        omitVIds,
     } = params;
 
     // Optional inward offset would modify cell position for edge cells; this is
@@ -76,6 +78,7 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
     // PERF: iterate only emittable vstars (native + dispossessed + emergent
     // + vacating). Outside cells would early-return anyway.
     for (const v of classification.emittableVstars) {
+        if (omitVIds?.has(v.id)) continue;
         emitForVStar({
             v,
             progress: progressClamped,
@@ -84,6 +87,7 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
             strength,
             flipTimeByVId: wavePlan.flipTimeByVId,
             ownerColorIdx,
+            includeNativeCells,
             out: cells,
         });
     }
@@ -99,15 +103,27 @@ function emitForVStar(args: {
     strength: number;
     flipTimeByVId: ReadonlyMap<string, number>;
     ownerColorIdx: ReadonlyMap<string, number>;
+    includeNativeCells: boolean;
     out: GridRenderCell[];
 }): void {
-    const { v, progress, flipTransition, flipWindow, strength, flipTimeByVId, ownerColorIdx, out } = args;
+    const {
+        v,
+        progress,
+        flipTransition,
+        flipWindow,
+        strength,
+        flipTimeByVId,
+        ownerColorIdx,
+        includeNativeCells,
+        out,
+    } = args;
 
     switch (v.role) {
         case 'outside':
             return;
 
         case 'native': {
+            if (!includeNativeCells) return;
             // Native cells ARE the primary fill for grid mode. Emit one
             // cell per native vstar at NEXT color with full alpha.
             const colorIdx = resolveColorIdx(v.nextOwnerId, ownerColorIdx);

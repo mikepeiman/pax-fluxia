@@ -188,20 +188,33 @@ describe('buildGridClassification', () => {
             conquestEvents: [event],
         });
         expect(result.byRole.emergent.length).toBe(result.vstars.length);
+        const eid = makeEventId(event);
+        expect(result.dispossessedByEventId[eid].length).toBe(result.vstars.length);
+        for (const id of result.byRole.emergent) {
+            const v = result.vstars.find((cell) => cell.id === id);
+            expect(v?.eventId).toBe(eid);
+        }
     });
 
     it('classifies vacating when PREV is set and NEXT is null', () => {
         const prev = makeSnapshot([rect('A', 'rA', 0, 0, 100, 100)]);
         const next = makeSnapshot([]);
+        const event = makeEvent({ starId: 's:1', prev: 'A', next: 'B' });
         const result = buildGridClassification({
             world: WORLD,
             spacingPx: SPACING,
             originMode: ORIGIN,
             prevGeometry: prev,
             nextGeometry: next,
-            conquestEvents: [],
+            conquestEvents: [event],
         });
         expect(result.byRole.vacating.length).toBe(result.vstars.length);
+        const eid = makeEventId(event);
+        expect(result.dispossessedByEventId[eid].length).toBe(result.vstars.length);
+        for (const id of result.byRole.vacating) {
+            const v = result.vstars.find((cell) => cell.id === id);
+            expect(v?.eventId).toBe(eid);
+        }
     });
 
     it('classifies outside when both PREV and NEXT are null', () => {

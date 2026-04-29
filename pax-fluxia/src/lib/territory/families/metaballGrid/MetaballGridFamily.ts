@@ -37,6 +37,7 @@ import type {
     RenderFamily,
     RenderFamilyInput,
     RenderFamilyOutput,
+    RenderFamilyTransitionSession,
 } from '../RenderFamilyTypes';
 import { buildGridClassification } from './buildGridClassification';
 import type {
@@ -60,6 +61,10 @@ import type {
 } from './metaballGridPlanWorkerTypes';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
+import {
+    computeSharedBoundaryCornerRadius,
+    trimOpenPolylineEndpoints,
+} from './edgeShaping';
 import {
     resetMetaballGridStats,
     updateMetaballGridStats,
@@ -193,6 +198,8 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_CELL_CORNER_PX',
     'METABALL_GRID_BORDER_MODE',
     'METABALL_GRID_BORDER_BLEND',
+    'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+    'METABALL_GRID_EDGE_TRIM_PX',
     'METABALL_GRID_BORDER_CHAIKIN_PASSES',
     'METABALL_GRID_WAVE_EASE',
     'METABALL_GRID_FLIP_WINDOW_JITTER',
@@ -248,15 +255,23 @@ function shouldCaptureMetaballGridDebug(): boolean {
 }
 
 /** Reverted star set: star ownership reset to each event's `previousOwner`. */
-function revertStarsForTransition(input: RenderFamilyInput): StarState[] {
+function revertStarsWithEvents(
+    stars: ReadonlyArray<StarState>,
+    events: ReadonlyArray<{ event: { starId: string; previousOwner: string } }>,
+): StarState[] {
     const overrides = new Map<string, string>();
-    for (const entry of input.activeTransition?.events ?? []) {
+    for (const entry of events) {
         overrides.set(entry.event.starId, entry.event.previousOwner);
     }
-    return input.stars.map((star) => {
+    return stars.map((star) => {
         const ownerId = overrides.get(star.id);
         return ownerId === undefined ? { ...star } : { ...star, ownerId };
     });
+}
+
+/** Reverted star set: star ownership reset to each event's `previousOwner`. */
+function revertStarsForTransition(input: RenderFamilyInput): StarState[] {
+    return revertStarsWithEvents(input.stars, input.activeTransition?.events ?? []);
 }
 
 /** Filter + project stars that have a non-null owner — for the nearest-star fallback. */
@@ -271,19 +286,7 @@ function toOwnedStars(stars: ReadonlyArray<StarState>): GridOwnedStar[] {
 }
 
 function buildTransitionKey(input: RenderFamilyInput): string | null {
-    const events = input.activeTransition?.events;
-    if (!events?.length) return null;
-    return events
-        .map((entry) =>
-            [
-                entry.event.tick,
-                entry.event.starId,
-                entry.event.previousOwner,
-                entry.event.newOwner,
-                entry.startedAtMs,
-            ].join(':'),
-        )
-        .join('|');
+    return input.activeTransition?.sessionKey ?? null;
 }
 
 function buildSessionKey(input: RenderFamilyInput): string {
@@ -330,6 +333,13 @@ interface MetaballGridPlanWorkerRequestMeta {
     readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
 
+interface CapturedTransitionSession extends RenderFamilyTransitionSession {
+    readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly nextGeometry: CanonicalGeometrySnapshot;
+    readonly prevOwnedStars: readonly GridOwnedStar[];
+    readonly nextOwnedStars: readonly GridOwnedStar[];
+}
+
 /**
  * Quantize progress to a 1/2048 grid so visually-identical frames reuse the
  * same paint signature. 2048 steps over one transition ≈ sub-pixel fidelity
@@ -342,6 +352,25 @@ function quantProgress(t: number): number {
     if (t <= 0) return 0;
     if (t >= 1) return PROGRESS_QUANT_STEPS;
     return Math.round(t * PROGRESS_QUANT_STEPS);
+}
+
+function applyFlipTimeJitter(
+    wavePlan: GridWavePlan,
+    jitterAmount: number,
+): GridWavePlan {
+    if (jitterAmount <= 0 || wavePlan.flipTimeByVId.size === 0) {
+        return wavePlan;
+    }
+    const shifted = new Map<string, number>();
+    for (const [vId, t] of wavePlan.flipTimeByVId) {
+        const jitter = (hash01(vId) * 2 - 1) * jitterAmount;
+        const next = t + jitter;
+        shifted.set(vId, next < 0 ? 0 : next > 1 ? 1 : next);
+    }
+    return {
+        perEvent: wavePlan.perEvent,
+        flipTimeByVId: shifted,
+    };
 }
 
 function drawFilledGridCell(
@@ -407,6 +436,13 @@ export class MetaballGridFamily implements RenderFamily {
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    private readonly transitionPlanCache = new Map<string, CachedPlan>();
+    private readonly capturedTransitionSessions = new Map<
+        string,
+        CapturedTransitionSession
+    >();
+    private committedGeometry: CanonicalGeometrySnapshot | null = null;
+    private committedOwnedStars: GridOwnedStar[] = [];
     /**
      * Last paint-output signature. When the next update() computes the same
      * signature, the scene build + paint is short-circuited — the existing
@@ -460,6 +496,10 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.transitionPlanCache.clear();
+        this.capturedTransitionSessions.clear();
+        this.committedGeometry = null;
+        this.committedOwnedStars = [];
         this.lastPaintSig = null;
         this.lastPlanParamsKey = null;
         this.lastSplitNativeSig = null;
@@ -654,9 +694,6 @@ export class MetaballGridFamily implements RenderFamily {
         settings: MetaballGridPlanSettings;
     }): CanonicalGeometrySnapshot {
         const { input, settings } = params;
-        if (input.prevGeometry) {
-            return input.prevGeometry;
-        }
         const revertedStars = revertStarsForTransition(input);
         return buildPerimeterFieldRenderFamilyGeometry({
             stars: revertedStars,
@@ -666,6 +703,142 @@ export class MetaballGridFamily implements RenderFamily {
             nowMs: input.nowMs,
             geometrySource: settings.geometrySource,
         });
+    }
+
+    private syncCapturedTransitionSessions(params: {
+        input: RenderFamilyInput;
+        settings: MetaballGridPlanSettings;
+        currentGeometry: CanonicalGeometrySnapshot;
+    }): readonly CapturedTransitionSession[] {
+        const { input } = params;
+        const sessions = input.transitionSessions ?? [];
+        const activeKeys = new Set<string>();
+        const nextOwnedStars = toOwnedStars(input.stars);
+        const captured: CapturedTransitionSession[] = [];
+        let capturePrevGeometry = this.committedGeometry ?? input.prevGeometry ?? null;
+        let capturePrevOwnedStars =
+            this.committedOwnedStars.length > 0
+                ? this.committedOwnedStars.map((star) => ({ ...star }))
+                : null;
+
+        for (const session of sessions) {
+            activeKeys.add(session.sessionKey);
+            const existing = this.capturedTransitionSessions.get(session.sessionKey);
+            if (existing) {
+                const updated: CapturedTransitionSession = {
+                    ...existing,
+                    ...session,
+                };
+                this.capturedTransitionSessions.set(session.sessionKey, updated);
+                captured.push(updated);
+                capturePrevGeometry = updated.nextGeometry;
+                capturePrevOwnedStars = updated.nextOwnedStars.map((star) => ({
+                    ...star,
+                }));
+                continue;
+            }
+
+            const fallbackRevertedStars = revertStarsWithEvents(
+                input.stars,
+                session.events,
+            );
+            const prevOwnedStars =
+                capturePrevOwnedStars && capturePrevOwnedStars.length > 0
+                    ? capturePrevOwnedStars.map((star) => ({ ...star }))
+                    : toOwnedStars(fallbackRevertedStars);
+            const prevGeometry = capturePrevGeometry
+                ?? buildPerimeterFieldRenderFamilyGeometry({
+                    stars: fallbackRevertedStars,
+                    lanes: input.lanes,
+                    worldWidth: input.world.width,
+                    worldHeight: input.world.height,
+                    nowMs: input.nowMs,
+                    geometrySource: params.settings.geometrySource,
+                });
+            const truth: CapturedTransitionSession = {
+                ...session,
+                prevGeometry,
+                nextGeometry: params.currentGeometry,
+                prevOwnedStars,
+                nextOwnedStars: nextOwnedStars.map((star) => ({ ...star })),
+            };
+            this.capturedTransitionSessions.set(session.sessionKey, truth);
+            captured.push(truth);
+            capturePrevGeometry = truth.nextGeometry;
+            capturePrevOwnedStars = truth.nextOwnedStars.map((star) => ({
+                ...star,
+            }));
+        }
+
+        for (const key of [...this.capturedTransitionSessions.keys()]) {
+            if (!activeKeys.has(key)) {
+                this.capturedTransitionSessions.delete(key);
+            }
+        }
+        for (const key of [...this.transitionPlanCache.keys()]) {
+            if (!activeKeys.has(key)) {
+                this.transitionPlanCache.delete(key);
+            }
+        }
+
+        this.committedGeometry = params.currentGeometry;
+        this.committedOwnedStars = nextOwnedStars.map((star) => ({ ...star }));
+
+        return captured;
+    }
+
+    private buildPlanForCapturedSession(params: {
+        input: RenderFamilyInput;
+        planKey: string;
+        settings: MetaballGridPlanSettings;
+        session: CapturedTransitionSession;
+    }): CachedPlan {
+        const { input, planKey, settings, session } = params;
+        const conquestEvents = session.conquestEvents;
+        const starById = new Map<string, StarState>();
+        for (const s of input.stars) starById.set(s.id, s);
+        const resolveStarPosition = (starId: string) => {
+            const s = starById.get(starId);
+            return s ? { x: s.x, y: s.y } : null;
+        };
+
+        const classificationStartMs = performance.now();
+        const classification = buildGridClassification({
+            world: { width: input.world.width, height: input.world.height },
+            spacingPx: settings.spacingPx,
+            originMode: settings.originMode,
+            prevGeometry: session.prevGeometry,
+            nextGeometry: session.nextGeometry,
+            conquestEvents,
+            resolveStarPosition,
+            prevOwnedStars: session.prevOwnedStars,
+            nextOwnedStars: session.nextOwnedStars,
+            maxCells: settings.maxCells,
+            distribution: settings.distribution,
+            positionJitter: settings.positionJitter,
+        });
+        const classificationBuildMs = performance.now() - classificationStartMs;
+        const wavePlanStartMs = performance.now();
+        const wavePlan = planGridWave({
+            classification,
+            seeding: settings.waveSeeding,
+            geometry: settings.waveGeometry,
+            adjacency: settings.adjacency,
+            conquestEvents,
+            resolveStarPosition,
+        });
+        const wavePlanBuildMs = performance.now() - wavePlanStartMs;
+
+        return {
+            planKey,
+            classification,
+            wavePlan,
+            prevGeometry: session.prevGeometry,
+            classificationBuildMs,
+            wavePlanBuildMs,
+            planBuildMs: classificationBuildMs + wavePlanBuildMs,
+            nextGeometryRef: session.nextGeometry,
+        };
     }
 
     private buildDebugSnapshot(params: {
@@ -988,6 +1161,7 @@ export class MetaballGridFamily implements RenderFamily {
             `${requestedSpacingPx}|${originModeHoisted}|${distributionHoisted}|${positionJitterHoisted}|${maxCellsHoisted}`;
         if (this.cachedPlan && this.lastPlanParamsKey !== planParamsKey) {
             this.cachedPlan = null;
+            this.transitionPlanCache.clear();
         }
         this.lastPlanParamsKey = planParamsKey;
 
@@ -1039,8 +1213,13 @@ export class MetaballGridFamily implements RenderFamily {
                 input,
                 'METABALL_GRID_WAVE_GEOMETRY',
                 (GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ??
+                    'pre_to_post_frontier',
+                [
                     'grid_bfs',
-                ['grid_bfs', 'euclidean_band'],
+                    'euclidean_band',
+                    'conquered_star_radial',
+                    'pre_to_post_frontier',
+                ],
             ),
             waveSeeding: readTunableString<GridWaveSeeding>(
                 input,
@@ -1058,8 +1237,13 @@ export class MetaballGridFamily implements RenderFamily {
                     | string
                     | undefined) ?? null,
         };
-        const planKey = buildMetaballGridPlanKey({
-            transitionKey: transitionKey ?? 'steady',
+        const transitionSessions = this.syncCapturedTransitionSessions({
+            input,
+            settings,
+            currentGeometry,
+        });
+        const steadyPlanKey = buildMetaballGridPlanKey({
+            transitionKey: 'steady',
             geometryVersion: currentGeometry.version,
             geometrySource: settings.geometrySource,
             spacingPx: settings.spacingPx,
@@ -1067,17 +1251,81 @@ export class MetaballGridFamily implements RenderFamily {
             distribution: settings.distribution,
             positionJitter: settings.positionJitter,
             maxCells: settings.maxCells,
-            adjacency: transitionKey ? settings.adjacency : undefined,
-            waveGeometry: transitionKey ? settings.waveGeometry : undefined,
-            waveSeeding: transitionKey ? settings.waveSeeding : undefined,
         });
+        const activeSessionPlans: Array<{
+            session: CapturedTransitionSession;
+            plan: CachedPlan;
+        }> = [];
 
         // Rebuild the plan when the plan key or input geometry reference changes.
         // The extra geometry-reference checks preserve the Phase C behavior:
         // if GameCanvas invalidates and recomputes PREV/NEXT geometry without a
         // new conquest key, this family still rebuilds against the new truth.
-        const prevGeoRef = input.prevGeometry ?? null;
-        if (transitionKey) {
+        const prevGeoRef = null;
+        if (transitionSessions.length > 0) {
+            if (
+                !this.cachedPlan
+                || this.cachedPlan.planKey !== steadyPlanKey
+                || this.cachedPlan.nextGeometryRef !== currentGeometry
+            ) {
+                this.cachedPlan = this.buildSteadyStatePlan({
+                    input,
+                    currentGeometry,
+                    planKey: steadyPlanKey,
+                    settings,
+                });
+                rebuiltPlan = true;
+            }
+
+            for (const session of transitionSessions) {
+                const sessionPlanKey = buildMetaballGridPlanKey({
+                    transitionKey: session.sessionKey,
+                    geometryVersion: `${session.prevGeometry.version}->${session.nextGeometry.version}`,
+                    geometrySource: settings.geometrySource,
+                    spacingPx: settings.spacingPx,
+                    originMode: settings.originMode,
+                    distribution: settings.distribution,
+                    positionJitter: settings.positionJitter,
+                    maxCells: settings.maxCells,
+                    adjacency: settings.adjacency,
+                    waveGeometry: settings.waveGeometry,
+                    waveSeeding: settings.waveSeeding,
+                });
+                let sessionPlan = this.transitionPlanCache.get(session.sessionKey) ?? null;
+                if (
+                    !sessionPlan
+                    || sessionPlan.planKey !== sessionPlanKey
+                    || sessionPlan.prevGeometry !== session.prevGeometry
+                    || sessionPlan.nextGeometryRef !== session.nextGeometry
+                ) {
+                    sessionPlan = this.buildPlanForCapturedSession({
+                        input,
+                        planKey: sessionPlanKey,
+                        settings,
+                        session,
+                    });
+                    this.transitionPlanCache.set(session.sessionKey, sessionPlan);
+                    rebuiltPlan = true;
+                }
+                activeSessionPlans.push({
+                    session,
+                    plan: sessionPlan,
+                });
+            }
+        } else if (transitionKey) {
+            const planKey = buildMetaballGridPlanKey({
+                transitionKey,
+                geometryVersion: currentGeometry.version,
+                geometrySource: settings.geometrySource,
+                spacingPx: settings.spacingPx,
+                originMode: settings.originMode,
+                distribution: settings.distribution,
+                positionJitter: settings.positionJitter,
+                maxCells: settings.maxCells,
+                adjacency: settings.adjacency,
+                waveGeometry: settings.waveGeometry,
+                waveSeeding: settings.waveSeeding,
+            });
             if (
                 !this.cachedPlan
                 || this.cachedPlan.planKey !== planKey
@@ -1115,15 +1363,16 @@ export class MetaballGridFamily implements RenderFamily {
                 }
             }
         } else {
+            this.transitionPlanCache.clear();
             if (
                 !this.cachedPlan
-                || this.cachedPlan.planKey !== planKey
+                || this.cachedPlan.planKey !== steadyPlanKey
                 || this.cachedPlan.nextGeometryRef !== currentGeometry
             ) {
                 const ownedStars = toOwnedStars(input.stars);
                 const workerRequest = this.buildWorkerRequest({
                     input,
-                    planKey,
+                    planKey: steadyPlanKey,
                     settings,
                     prevGeometry: currentGeometry,
                     nextGeometryRef: currentGeometry,
@@ -1136,7 +1385,7 @@ export class MetaballGridFamily implements RenderFamily {
                     this.cachedPlan = this.buildSteadyStatePlan({
                         input,
                         currentGeometry,
-                        planKey,
+                        planKey: steadyPlanKey,
                         settings,
                     });
                     rebuiltPlan = true;
@@ -1145,6 +1394,11 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         const cached = this.cachedPlan;
+        if (!cached) {
+            this.root.visible = false;
+            resetMetaballGridStats();
+            return { container: this.root };
+        }
         const rawProgress = input.activeTransition?.progress ?? 1;
 
         // ── Transition / flip knobs ──────────────────────────────────────────
@@ -1208,6 +1462,27 @@ export class MetaballGridFamily implements RenderFamily {
             'METABALL_GRID_BORDER_BLEND',
             GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true,
         );
+        const sharedEdgeSmoothingPasses = Math.max(
+            0,
+            Math.min(
+                4,
+                Math.round(
+                    readTunableNumber(
+                        input,
+                        'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0,
+                    ),
+                ),
+            ),
+        );
+        const edgeTrimPx = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_EDGE_TRIM_PX',
+                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0,
+            ),
+        );
         const borderChaikinPasses = Math.max(
             0,
             Math.min(
@@ -1220,6 +1495,10 @@ export class MetaballGridFamily implements RenderFamily {
                     ),
                 ),
             ),
+        );
+        const totalBorderChaikinPasses = Math.max(
+            0,
+            Math.min(6, sharedEdgeSmoothingPasses + borderChaikinPasses),
         );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
@@ -1262,14 +1541,37 @@ export class MetaballGridFamily implements RenderFamily {
             borderHexByColorIdx.push(adjustColorHSL(base, borderSat, borderLight));
         };
         for (const s of input.stars) ensureOwner(s.ownerId);
-        for (const entry of input.activeTransition?.events ?? []) {
-            ensureOwner(entry.event.previousOwner);
-            ensureOwner(entry.event.newOwner);
+        for (const sessionPlan of activeSessionPlans) {
+            for (const entry of sessionPlan.session.events) {
+                ensureOwner(entry.event.previousOwner);
+                ensureOwner(entry.event.newOwner);
+            }
+        }
+        if (activeSessionPlans.length === 0) {
+            for (const entry of input.activeTransition?.events ?? []) {
+                ensureOwner(entry.event.previousOwner);
+                ensureOwner(entry.event.newOwner);
+            }
         }
         const ownerIdByColorIdx = new Array<string>(fillHexByColorIdx.length);
         for (const [ownerId, idx] of ownerColorIdx.entries()) {
             ownerIdByColorIdx[idx] = ownerId;
         }
+        const suppressedBaseVIds = new Set<string>();
+        for (const { plan } of activeSessionPlans) {
+            for (const vId of plan.classification.byRole.dispossessed) {
+                suppressedBaseVIds.add(vId);
+            }
+            for (const vId of plan.classification.byRole.emergent) {
+                suppressedBaseVIds.add(vId);
+            }
+            for (const vId of plan.classification.byRole.vacating) {
+                suppressedBaseVIds.add(vId);
+            }
+        }
+        const suppressedBaseSig = activeSessionPlans
+            .map(({ plan }) => plan.planKey)
+            .join('||');
         const captureDebug = shouldCaptureMetaballGridDebug();
 
         // ── Dirty-flag paint gate (MG-PERF Phase A) ─────────────────────────
@@ -1286,9 +1588,16 @@ export class MetaballGridFamily implements RenderFamily {
         // reshaped — previously the gate could short-circuit paint even after
         // the plan rebuilt against a fresh snapshot, hiding visible changes.
         const territoryEpoch = getTerritoryVisualEpoch();
+        const activeSessionPaintSig = activeSessionPlans
+            .map(
+                ({ session, plan }) =>
+                    `${plan.planKey}@${quantProgress(session.rawProgress)}`,
+            )
+            .join('||');
         const paintSig = [
             this.sessionKey ?? '',
             cached.planKey,
+            activeSessionPaintSig,
             territoryEpoch,
             quantProgress(rawProgress),
             flipTransition,
@@ -1302,6 +1611,8 @@ export class MetaballGridFamily implements RenderFamily {
             cellCornerPx.toFixed(2),
             borderMode,
             borderBlend ? '1' : '0',
+            sharedEdgeSmoothingPasses,
+            edgeTrimPx.toFixed(2),
             borderChaikinPasses,
             fillSat.toFixed(4),
             fillLight.toFixed(4),
@@ -1375,32 +1686,38 @@ export class MetaballGridFamily implements RenderFamily {
         // For transitions only — steady state has no dispossessed cells. We
         // build a shadow map when jitter > 0; the scene builder reads through
         // the same ReadonlyMap contract.
-        let jitteredFlipTimeByVId = cached.wavePlan.flipTimeByVId;
-        if (flipTimeJitter > 0 && cached.wavePlan.flipTimeByVId.size > 0) {
-            const shifted = new Map<string, number>();
-            for (const [vId, t] of cached.wavePlan.flipTimeByVId) {
-                const jitter = (hash01(vId) * 2 - 1) * flipTimeJitter;
-                const next = t + jitter;
-                shifted.set(vId, next < 0 ? 0 : next > 1 ? 1 : next);
-            }
-            jitteredFlipTimeByVId = shifted;
-        }
-
-        const wavePlanForScene: GridWavePlan = jitteredFlipTimeByVId === cached.wavePlan.flipTimeByVId
-            ? cached.wavePlan
-            : { perEvent: cached.wavePlan.perEvent, flipTimeByVId: jitteredFlipTimeByVId };
-
         const sceneStartMs = performance.now();
-        const scene = renderMetaballGridScene({
+        const sceneCells = renderMetaballGridScene({
             classification: cached.classification,
-            wavePlan: wavePlanForScene,
-            progress,
+            wavePlan: applyFlipTimeJitter(cached.wavePlan, flipTimeJitter),
+            progress: activeSessionPlans.length > 0 ? 1 : progress,
             flipTransition,
             flipWindow,
             strength,
             inwardOffsetPx,
             ownerColorIdx,
-        });
+            omitVIds: suppressedBaseVIds.size > 0 ? suppressedBaseVIds : undefined,
+        }).cells.slice();
+        for (const { session, plan } of activeSessionPlans) {
+            const sessionProgress = easeProgress(waveEase, session.rawProgress);
+            const overlay = renderMetaballGridScene({
+                classification: plan.classification,
+                wavePlan: applyFlipTimeJitter(plan.wavePlan, flipTimeJitter),
+                progress: sessionProgress,
+                flipTransition,
+                flipWindow,
+                strength,
+                inwardOffsetPx,
+                ownerColorIdx,
+                includeNativeCells: false,
+            });
+            sceneCells.push(...overlay.cells);
+        }
+        const scene: GridMetaballScene = {
+            progress,
+            cells: sceneCells,
+            flipTransition,
+        };
         const sceneBuildMs = performance.now() - sceneStartMs;
 
         // ── Paint: one shape per scene cell. O(N). ──────────────────────────
@@ -1414,7 +1731,10 @@ export class MetaballGridFamily implements RenderFamily {
         // the semantic the "Inward Offset" knob advertises.
         const insetMax = spacingPx * 0.45;
         const nativeInset = Math.min(cellInsetPx, insetMax);
-        const boundaryInset = Math.min(cellInsetPx + Math.max(0, inwardOffsetPx), insetMax);
+        const boundaryInset = Math.min(
+            cellInsetPx + Math.max(0, inwardOffsetPx) + edgeTrimPx,
+            insetMax,
+        );
         // Defaults for square shape at native inset — reused inside the loop
         // when a cell is native. Boundary cells recompute.
         const nativeSize = spacingPx - nativeInset * 2;
@@ -1423,16 +1743,23 @@ export class MetaballGridFamily implements RenderFamily {
         const nativeHexR = nativeSize / SQRT3;
         const boundarySize = spacingPx - boundaryInset * 2;
         const boundaryHalf = boundarySize * 0.5;
-        const boundaryCornerR = cellShape === 'square' ? Math.min(cellCornerPx, boundaryHalf) : 0;
+        const boundaryCornerR = computeSharedBoundaryCornerRadius({
+            cellShape,
+            baseCornerPx: cellCornerPx,
+            halfSizePx: boundaryHalf,
+            smoothingPasses: sharedEdgeSmoothingPasses,
+        });
         const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
         const canUseSplitFillOnlyFastPath =
             !drawBorders &&
             inwardOffsetPx === 0 &&
+            edgeTrimPx === 0 &&
             cellShape === 'square' &&
             cellInsetPx === 0 &&
-            cellCornerPx === 0;
+            cellCornerPx === 0 &&
+            sharedEdgeSmoothingPasses === 0;
         // Blended-edge polyline assumes a regular square vertex lattice
         // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
         // and jittered distributions break that assumption, so fall back to
@@ -1491,6 +1818,7 @@ export class MetaballGridFamily implements RenderFamily {
             nativeCornerR.toFixed(2),
             nativeHexR.toFixed(2),
             fillAlphaMult.toFixed(4),
+            suppressedBaseSig,
             palFillSig,
         ].join('|');
 
@@ -1502,7 +1830,8 @@ export class MetaballGridFamily implements RenderFamily {
             if (this.lastSplitNativeSig !== nativeLayerSig) {
                 let nativeCount = 0;
                 for (let i = 0; i < cached.classification.vstars.length; i++) {
-                    if (cached.classification.vstars[i].role === 'native') {
+                    const v = cached.classification.vstars[i];
+                    if (v.role === 'native' && !suppressedBaseVIds.has(v.id)) {
                         nativeCount += 1;
                     }
                 }
@@ -1514,7 +1843,7 @@ export class MetaballGridFamily implements RenderFamily {
                 let nativeWriteIndex = 0;
                 for (let i = 0; i < cached.classification.vstars.length; i++) {
                     const v = cached.classification.vstars[i];
-                    if (v.role !== 'native') continue;
+                    if (v.role !== 'native' || suppressedBaseVIds.has(v.id)) continue;
                     const ownerId = v.nextOwnerId ?? v.prevOwnerId;
                     if (!ownerId) continue;
                     const colorIdx = ownerColorIdx.get(ownerId);
@@ -1788,8 +2117,11 @@ export class MetaballGridFamily implements RenderFamily {
                     for (const vid of vertexChain) {
                         pts.push(vertexX(vid), vertexY(vid));
                     }
-                    if (borderChaikinPasses > 0) {
-                        pts = chaikinSmooth(pts, borderChaikinPasses, closed);
+                    if (totalBorderChaikinPasses > 0) {
+                        pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
+                    }
+                    if (!closed && edgeTrimPx > 0) {
+                        pts = trimOpenPolylineEndpoints(pts, edgeTrimPx);
                     }
                     g.moveTo(pts[0], pts[1]);
                     for (let k = 2; k < pts.length; k += 2) {

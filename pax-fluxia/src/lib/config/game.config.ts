@@ -408,9 +408,15 @@ interface GameConfigType {
     METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
     METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
     METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: number; // Shared smoothing applied to boundary fill + border shaping
+    METABALL_GRID_EDGE_TRIM_PX: number; // Shared boundary trim applied before border/fill presentation
     METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
     METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
-    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' | 'euclidean_band'; // Flip-time rank geometry
+    METABALL_GRID_WAVE_GEOMETRY:
+        | 'grid_bfs'
+        | 'euclidean_band'
+        | 'conquered_star_radial'
+        | 'pre_to_post_frontier'; // Per-cell phase-field geometry
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Seed selection mode
     METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell ownership transition style
     METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time

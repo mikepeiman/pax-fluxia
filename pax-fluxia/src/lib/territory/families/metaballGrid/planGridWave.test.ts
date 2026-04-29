@@ -108,6 +108,41 @@ function makeHalfFlipFixture(opts: { seeding: GridWaveSeeding; geometry: GridWav
     return { classification, plan, event };
 }
 
+function makeFrontierShiftFixture(opts: {
+    seeding: GridWaveSeeding;
+    geometry: GridWaveGeometry;
+    adjacency: GridAdjacency;
+}) {
+    const world = { width: 100, height: 100 };
+    const spacingPx = 10;
+    const prev = makeSnapshot([
+        rect('A', 'rA', 0, 0, 70, 100),
+        rect('B', 'rB', 70, 0, 100, 100),
+    ]);
+    const next = makeSnapshot([
+        rect('A', 'rA_next', 0, 0, 30, 100),
+        rect('B', 'rB_next', 30, 0, 100, 100),
+    ]);
+    const event = makeEvent({ starId: 's:shift', prev: 'A', next: 'B' });
+    const classification = buildGridClassification({
+        world,
+        spacingPx,
+        originMode: 'centered',
+        prevGeometry: prev,
+        nextGeometry: next,
+        conquestEvents: [event],
+    });
+    const plan = planGridWave({
+        classification,
+        seeding: opts.seeding,
+        geometry: opts.geometry,
+        adjacency: opts.adjacency,
+        conquestEvents: [event],
+        resolveStarPosition: (id) => (id === 's:shift' ? { x: 65, y: 55 } : null),
+    });
+    return { classification, plan, event };
+}
+
 describe('planGridWave', () => {
     it('assigns flipTime ∈ [0, 1] to every dispossessed cell', () => {
         const { classification, plan } = makeHalfFlipFixture({
@@ -251,6 +286,49 @@ describe('planGridWave', () => {
         expect(tFar).toBeGreaterThan(tNear);
     });
 
+    it('conquered_star_radial assigns earlier flip times nearer the captured star', () => {
+        const world = { width: 100, height: 100 };
+        const spacingPx = 10;
+        const prev = makeSnapshot([rect('A', 'rA', 0, 0, 100, 100)]);
+        const next = makeSnapshot([rect('B', 'rB', 0, 0, 100, 100)]);
+        const event = makeEvent({ starId: 's:radial', prev: 'A', next: 'B' });
+        const classification = buildGridClassification({
+            world,
+            spacingPx,
+            originMode: 'centered',
+            prevGeometry: prev,
+            nextGeometry: next,
+            conquestEvents: [event],
+        });
+        const plan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'conquered_star_radial',
+            adjacency: '8',
+            conquestEvents: [event],
+            resolveStarPosition: (id) => (id === 's:radial' ? { x: 15, y: 15 } : null),
+        });
+        expect(plan.perEvent[0].seedVIds).toEqual(['g:1:1']);
+        expect(plan.flipTimeByVId.get('g:1:1')).toBe(0);
+        expect(plan.flipTimeByVId.get('g:9:9')!).toBeGreaterThan(
+            plan.flipTimeByVId.get('g:2:2')!,
+        );
+    });
+
+    it('pre_to_post_frontier moves the flip front from the old border toward the new border', () => {
+        const { plan } = makeFrontierShiftFixture({
+            seeding: 'winner_natives',
+            geometry: 'pre_to_post_frontier',
+            adjacency: '4',
+        });
+        expect(plan.flipTimeByVId.get('g:6:0')!).toBeLessThan(
+            plan.flipTimeByVId.get('g:3:0')!,
+        );
+        expect(plan.flipTimeByVId.get('g:6:5')!).toBeLessThan(
+            plan.flipTimeByVId.get('g:3:5')!,
+        );
+    });
+
     it('ties broken deterministically by (iy, ix)', () => {
         // Two events with identical structure → identical plans.
         const { plan: a } = makeHalfFlipFixture({
@@ -362,7 +440,12 @@ describe('planGridWave', () => {
             'conquered_star_center',
             'winner_nearest_edge',
         ];
-        const geometries: GridWaveGeometry[] = ['grid_bfs', 'euclidean_band'];
+        const geometries: GridWaveGeometry[] = [
+            'grid_bfs',
+            'euclidean_band',
+            'conquered_star_radial',
+            'pre_to_post_frontier',
+        ];
         const adjacencies: GridAdjacency[] = ['4', '8'];
         for (const s of seedings) {
             for (const g of geometries) {

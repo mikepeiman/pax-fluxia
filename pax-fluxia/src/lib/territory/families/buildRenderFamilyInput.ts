@@ -56,6 +56,7 @@ export function buildRenderFamilyInput(params: {
     prevGeometry?: CanonicalGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
+    transitionSessions?: RenderFamilyInput['transitionSessions'];
     tunableKeys?: readonly string[];
     configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
@@ -76,6 +77,7 @@ export function buildRenderFamilyInput(params: {
         tunables,
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
+        transitionSessions: params.transitionSessions ?? null,
     };
     logPipelineStage({
         channel: 'renderer',
@@ -95,6 +97,7 @@ export function buildRenderFamilyInput(params: {
             paused: input.paused,
             gameTick: input.gameTick ?? null,
             activeTransitionEvents: input.activeTransition?.events.length ?? 0,
+            activeTransitionSessions: input.transitionSessions?.length ?? 0,
         },
         logDetail: {
             nowMs: input.nowMs,
@@ -109,6 +112,7 @@ export function buildRenderFamilyInput(params: {
             tunables: Object.fromEntries(tunables.entries()),
             renderer: input.renderer,
             activeTransition: input.activeTransition,
+            transitionSessions: input.transitionSessions,
         },
     });
     return input;

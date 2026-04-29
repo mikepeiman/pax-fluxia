@@ -11,9 +11,11 @@ export const metaballGridFamilyConfigDefaults = {
     METABALL_GRID_CELL_CORNER_PX: 0,
     METABALL_GRID_BORDER_MODE: 'off' as const,
     METABALL_GRID_BORDER_BLEND: false,
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
+    METABALL_GRID_EDGE_TRIM_PX: 0,
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
     METABALL_GRID_ADJACENCY: '8' as const,
-    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
+    METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' as const,
     // Smooth gameplay default: always crossfade ownership during conquest
     // instead of hard-flipping cells frame-by-frame.

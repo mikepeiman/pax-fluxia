@@ -6,6 +6,7 @@ import {
 import type {
     RenderFamilyActiveTransition,
     RenderFamilyTransitionEvent,
+    RenderFamilyTransitionSession,
 } from '$lib/territory/families/RenderFamilyTypes';
 
 function clamp01(value: number): number {
@@ -27,7 +28,52 @@ interface LifecycleEvent extends RenderFamilyTransitionEvent {
 
 export interface RenderFamilyTransitionLifecycleResult {
     activeTransition: RenderFamilyActiveTransition | null;
+    activeSessions: readonly RenderFamilyTransitionSession[];
     terminalFrameStarIds: readonly string[];
+}
+
+function buildSessionKey(events: ReadonlyArray<LifecycleEvent>): string {
+    const tick = events[0]?.event.tick ?? -1;
+    const conquestSig = events
+        .map((event) => transitionIdentityKey(event.event))
+        .sort()
+        .join('|');
+    return `tick:${tick}:${conquestSig}`;
+}
+
+function buildSession(
+    events: ReadonlyArray<LifecycleEvent>,
+): RenderFamilyTransitionSession {
+    const sessionEvents = [...events].sort((a, b) => {
+        if (a.startedAtMs !== b.startedAtMs) {
+            return a.startedAtMs - b.startedAtMs;
+        }
+        return transitionIdentityKey(a.event).localeCompare(
+            transitionIdentityKey(b.event),
+        );
+    });
+    const normalizedEvents: RenderFamilyTransitionEvent[] = sessionEvents.map(
+        ({ starIdToMark: _starIdToMark, ...event }) => event,
+    );
+    const startedAtMs = Math.min(
+        ...normalizedEvents.map((event) => event.startedAtMs),
+    );
+    const durationMs = Math.max(
+        ...normalizedEvents.map((event) => event.durationMs),
+    );
+    const rawProgress = Math.max(
+        ...normalizedEvents.map((event) => event.rawProgress),
+    );
+
+    return {
+        sessionKey: buildSessionKey(sessionEvents),
+        conquestEvents: normalizedEvents.map((event) => event.event),
+        events: normalizedEvents,
+        startedAtMs,
+        durationMs,
+        rawProgress,
+        progress: clamp01(rawProgress),
+    };
 }
 
 export function buildRenderFamilyTransitionLifecycle(params: {
@@ -79,6 +125,7 @@ export function buildRenderFamilyTransitionLifecycle(params: {
     if (lifecycleEvents.length === 0) {
         return {
             activeTransition: null,
+            activeSessions: [],
             terminalFrameStarIds: [],
         };
     }
@@ -91,22 +138,36 @@ export function buildRenderFamilyTransitionLifecycle(params: {
         ),
     ];
 
-    const events: RenderFamilyTransitionEvent[] = lifecycleEvents.map(
-        ({ starIdToMark: _starIdToMark, ...event }) => event,
-    );
-    const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));
-    const durationMs = Math.max(...events.map((event) => event.durationMs));
-    const rawProgress = Math.max(...events.map((event) => event.rawProgress));
+    const eventsByTick = new Map<number, LifecycleEvent[]>();
+    for (const event of lifecycleEvents) {
+        const bucket = eventsByTick.get(event.event.tick);
+        if (bucket) {
+            bucket.push(event);
+        } else {
+            eventsByTick.set(event.event.tick, [event]);
+        }
+    }
+
+    const activeSessions = [...eventsByTick.entries()]
+        .sort((a, b) => {
+            if (a[0] !== b[0]) return a[0] - b[0];
+            const aStartedAtMs = Math.min(
+                ...a[1].map((event) => event.startedAtMs),
+            );
+            const bStartedAtMs = Math.min(
+                ...b[1].map((event) => event.startedAtMs),
+            );
+            return aStartedAtMs - bStartedAtMs;
+        })
+        .map(([, events]) => buildSession(events));
+    const activeTransition =
+        activeSessions.length > 0
+            ? activeSessions[activeSessions.length - 1]
+            : null;
 
     return {
-        activeTransition: {
-            conquestEvents: events.map((event) => event.event),
-            events,
-            startedAtMs,
-            durationMs,
-            rawProgress,
-            progress: clamp01(rawProgress),
-        },
+        activeTransition,
+        activeSessions,
         terminalFrameStarIds,
     };
 }

@@ -918,10 +918,16 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
     fp += `:csp${config.corridorSpacing}`;
     fp += `:cxN${config.cxCount}`;
     fp += `:cxW${config.cxWeight}`;
+    fp += `:cxM${config.cxContestMidpointVstars ? 1 : 0}`;
+    fp += `:cxPN${config.cxContestPairCount}`;
+    fp += `:cxPW${config.cxContestPairWeight}`;
     fp += `:de${config.disconnectEnabled ? 1 : 0}`;
     fp += `:dd${config.disconnectDistance}`;
     fp += `:dxW${config.dxWeight}`;
     fp += `:ch${config.chaikinPasses}`;
+    fp += `:fr${config.frontierResolution}`;
+    fp += `:bp${config.boundaryPad}`;
+    fp += `:be${config.boundaryEps}`;
     return fp;
 }
 

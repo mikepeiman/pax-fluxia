@@ -592,6 +592,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_CELL_CORNER_PX' },
     { configKey: 'METABALL_GRID_BORDER_MODE' },
     { configKey: 'METABALL_GRID_BORDER_BLEND' },
+    { configKey: 'METABALL_GRID_EDGE_SMOOTHING_PASSES' },
+    { configKey: 'METABALL_GRID_EDGE_TRIM_PX' },
     { configKey: 'METABALL_GRID_BORDER_CHAIKIN_PASSES' },
     { configKey: 'METABALL_GRID_ADJACENCY' },
     { configKey: 'METABALL_GRID_WAVE_GEOMETRY' },

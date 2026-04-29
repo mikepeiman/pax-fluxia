@@ -120,7 +120,10 @@
         buildPerimeterFieldRenderFamilyGeometry,
         buildOwnershipSnapshotFromStars,
     } from "$lib/territory/families/buildFamilyGeometry";
-    import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
+    import type {
+        RenderFamilyActiveTransition,
+        RenderFamilyTransitionSession,
+    } from "$lib/territory/families/RenderFamilyTypes";
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
@@ -1824,6 +1827,7 @@
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
     ): {
         activeTransition: RenderFamilyActiveTransition | null;
+        transitionSessions: readonly RenderFamilyTransitionSession[];
         transitionPresentationSignature: string;
     } {
         const lifecycle = buildRenderFamilyTransitionLifecycle({
@@ -1841,30 +1845,37 @@
         if (!activeTransition) {
             return {
                 activeTransition: null,
+                transitionSessions: [],
                 transitionPresentationSignature: "",
             };
         }
-        const frameSlot = Math.max(
-            0,
-            Math.floor(
-                Math.max(0, nowMs - activeTransition.startedAtMs) /
-                    CONQUEST_PRESENT_TARGET_FRAME_MS,
-            ),
-        );
-        const transitionPresentationSignature = [
-            activeTransition.events
-                .map((entry) =>
-                    [
-                        transitionIdentityKey(entry.event),
-                        Math.max(1, Math.round(entry.durationMs)),
-                    ].join("@"),
-                )
-                .sort()
-                .join("|"),
-            frameSlot,
-        ].join("::");
+        const transitionPresentationSignature = lifecycle.activeSessions
+            .map((session) => {
+                const frameSlot = Math.max(
+                    0,
+                    Math.floor(
+                        Math.max(0, nowMs - session.startedAtMs) /
+                            CONQUEST_PRESENT_TARGET_FRAME_MS,
+                    ),
+                );
+                return [
+                    session.sessionKey,
+                    session.events
+                        .map((entry) =>
+                            [
+                                transitionIdentityKey(entry.event),
+                                Math.max(1, Math.round(entry.durationMs)),
+                            ].join("@"),
+                        )
+                        .sort()
+                        .join("|"),
+                    frameSlot,
+                ].join("::");
+            })
+            .join("||");
         return {
             activeTransition,
+            transitionSessions: lifecycle.activeSessions,
             transitionPresentationSignature,
         };
     }
@@ -2049,7 +2060,6 @@
                     entry.event.starId,
                     entry.event.previousOwner,
                     entry.event.newOwner,
-                    entry.startedAtMs,
                 ].join(":"),
             )
             .join("|");
@@ -3483,6 +3493,9 @@
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
+        transitionDiagnosticPrevKey = null;
+        transitionDiagnosticPrevGeometry = null;
+        transitionDiagnosticPrevOwnership = null;
 
         window.removeEventListener("resize", handleResize);
         window.removeEventListener(
@@ -5299,6 +5312,8 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.transitionSessions,
                                     tunableKeys: mf.tunableKeys,
                                 }),
                         );
@@ -5365,6 +5380,8 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.transitionSessions,
                                     tunableKeys: mg.tunableKeys,
                                 }),
                         );
@@ -5436,6 +5453,8 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.transitionSessions,
                                     tunableKeys: pf.tunableKeys,
                                 }),
                         );
