@@ -33,3 +33,15 @@
 - Verify in-app that `pre_to_post_frontier` visually pushes the conquest front from old border to new border on representative maps.
 - Compare the new default against `conquered_star_radial`, `grid_bfs`, and `euclidean_band` for feel, readability, and performance.
 - If visual parity with the external concept still needs stronger locality, consider a later local-bounds/static-underlay split instead of reintroducing full-map per-frame work.
+- Merge handoff note for `master` is recorded at:
+  - `.agent/docs/plans/2026-04-29/MERGE_HANDOFF_2026-04-29_metaball-grid-transition-edge-shaping.md`
+- Merge agent must explicitly set shipped `metaball_grid` defaults for borders and DX:
+  - `METABALL_GRID_BORDER_MODE = 'territory_edge'`
+  - `METABALL_GRID_BORDER_BLEND = true`
+  - `METABALL_GRID_BORDER_CHAIKIN_PASSES = 4`
+  - `MODIFIED_VORONOI_DISCONNECT_ENABLED = true`
+  - `MODIFIED_VORONOI_DISCONNECT_DISTANCE = 295`
+- Known caveats to carry into merge:
+  - `METABALL_GRID_EDGE_TRIM_PX` is unfinished and should stay `0`
+  - the territory fill toggle currently appears broken and needs a small audit before ship
+  - superseding Settings Panels ontology/refactor + custom dropdown work should absorb the new variables coherently instead of copying the current panel verbatim
