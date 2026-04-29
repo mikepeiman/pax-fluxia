@@ -42,6 +42,20 @@ export interface MetaballGridStats {
     readonly lastSceneBuildMs: number;
     /** Paint time for the last update (ms). */
     readonly lastPaintMs: number;
+    /** Transition cells currently inside the active blend window. */
+    readonly activeWindowCount: number;
+    /** Total non-native transition cells in the ordered frontier. */
+    readonly transitionTotalCount: number;
+    /** Cells entering the active frontier on the last update. */
+    readonly promotedToActiveCount: number;
+    /** Cells leaving the active frontier on the last update. */
+    readonly demotedToSettledCount: number;
+    /** Transition sprite writes performed on the last update. */
+    readonly transitionSpriteWrites: number;
+    /** True when the retained active-frontier fast path handled the last update. */
+    readonly fastPathUsed: boolean;
+    /** If the retained fast path was not used, records the first blocking reason. */
+    readonly fallbackReason: string | null;
 }
 
 const INITIAL: MetaballGridStats = {
@@ -62,6 +76,13 @@ const INITIAL: MetaballGridStats = {
     lastPlanBuildMs: 0,
     lastSceneBuildMs: 0,
     lastPaintMs: 0,
+    activeWindowCount: 0,
+    transitionTotalCount: 0,
+    promotedToActiveCount: 0,
+    demotedToSettledCount: 0,
+    transitionSpriteWrites: 0,
+    fastPathUsed: false,
+    fallbackReason: null,
 };
 
 export const metaballGridStats = writable<MetaballGridStats>(INITIAL);

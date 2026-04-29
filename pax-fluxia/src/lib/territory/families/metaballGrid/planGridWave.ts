@@ -21,6 +21,7 @@ import type {
     GridWaveSeeding,
     PlanGridWaveParams,
 } from './metaballGridTypes';
+import { buildOrderedTransitionFrontier } from './metaballGridActiveFrontier';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Grid helpers.
@@ -418,5 +419,15 @@ export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
         });
     }
 
-    return { perEvent, flipTimeByVId: flat };
+    const ordered = buildOrderedTransitionFrontier({
+        classification,
+        flipTimeByVId: flat,
+    });
+
+    return {
+        perEvent,
+        flipTimeByVId: flat,
+        orderedTransitionVIds: ordered.orderedTransitionVIds,
+        orderedFlipTimes: ordered.orderedFlipTimes,
+    };
 }
