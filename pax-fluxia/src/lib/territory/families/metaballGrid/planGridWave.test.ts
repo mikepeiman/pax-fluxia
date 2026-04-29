@@ -268,8 +268,9 @@ describe('planGridWave', () => {
         }
     });
 
-    it('covers the default event bucket when present', () => {
-        // No matching event: every dispossessed cell goes to the default bucket.
+    it('does not animate the synthetic default event bucket', () => {
+        // No matching event: cells still classify as changed, but none should
+        // enter a conquest wave.
         const world = { width: 100, height: 100 };
         const spacingPx = 20;
         const prev = makeSnapshot([rect('X', 'rX', 0, 0, 100, 100)]);
@@ -289,9 +290,11 @@ describe('planGridWave', () => {
             adjacency: '4',
             conquestEvents: [],
         });
-        expect(plan.perEvent.length).toBe(1);
-        expect(plan.perEvent[0].eventId).toBe(classification.defaultEventId);
-        expect(plan.flipTimeByVId.size).toBe(classification.byRole.dispossessed.length);
+        expect(classification.byRole.dispossessed.length).toBeGreaterThan(0);
+        expect(plan.perEvent.length).toBe(0);
+        expect(plan.flipTimeByVId.size).toBe(0);
+        expect(plan.orderedTransitionVIds).toEqual([]);
+        expect(plan.orderedFlipTimes).toEqual([]);
     });
 
     it('maxRank = 0 yields all flipTime = 0 (degenerate wave)', () => {

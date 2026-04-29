@@ -35,10 +35,10 @@ export function buildOrderedTransitionFrontier(params: {
     const entries: Array<{ readonly vId: string; readonly flipTime: number; readonly vstar: GridVStar }> = [];
     for (let i = 0; i < classification.emittableVstars.length; i++) {
         const vstar = classification.emittableVstars[i];
-        if (vstar.role === 'native') continue;
+        if (vstar.role === 'native' || !flipTimeByVId.has(vstar.id)) continue;
         entries.push({
             vId: vstar.id,
-            flipTime: flipTimeByVId.get(vstar.id) ?? 0,
+            flipTime: flipTimeByVId.get(vstar.id)!,
             vstar,
         });
     }

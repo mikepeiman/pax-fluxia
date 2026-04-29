@@ -358,11 +358,6 @@ export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
         eventId: makeEventId(e),
         event: e,
     }));
-    // Include default bucket if present.
-    if (classification.dispossessedByEventId[classification.defaultEventId]) {
-        eventOrder.push({ eventId: classification.defaultEventId, event: undefined });
-    }
-
     const perEvent: GridWavePlanEvent[] = [];
     const flat = new Map<string, number>();
 

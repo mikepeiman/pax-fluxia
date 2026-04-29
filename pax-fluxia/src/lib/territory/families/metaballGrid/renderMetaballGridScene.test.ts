@@ -384,8 +384,8 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
-    it('emergent cells omit PREV side (one cell only, NEXT color)', () => {
-        // Empty PREV + full NEXT → every cell emergent.
+    it('unattributed emergent cells snap directly to settled NEXT fill', () => {
+        // Empty PREV + full NEXT with no conquest event should not animate.
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
         const classification = buildGridClassification({
@@ -413,16 +413,16 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
-        // With dual_pass_blend, emergent should emit only the 'next' pass (alpha=s).
         for (const id of classification.byRole.emergent) {
             const cells = scene.cells.filter((c) => c.vId === id);
             expect(cells.length).toBe(1);
-            expect(cells[0].pass).toBe('next');
+            expect(cells[0].pass).toBe('single');
             expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('B'));
+            expect(cells[0].alpha).toBe(1);
         }
     });
 
-    it('vacating cells omit NEXT side (one cell only, PREV color)', () => {
+    it('unattributed vacating cells disappear instead of animating', () => {
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
         const classification = buildGridClassification({
@@ -452,9 +452,45 @@ describe('renderMetaballGridScene', () => {
         });
         for (const id of classification.byRole.vacating) {
             const cells = scene.cells.filter((c) => c.vId === id);
+            expect(cells.length).toBe(0);
+        }
+    });
+
+    it('unattributed dispossessed cells snap directly to NEXT ownership', () => {
+        const world = { width: 40, height: 40 };
+        const spacingPx = 20;
+        const classification = buildGridClassification({
+            world,
+            spacingPx,
+            originMode: 'centered',
+            prevGeometry: makeSnapshot([rect('A', 'rA', 0, 0, 40, 40)]),
+            nextGeometry: makeSnapshot([rect('B', 'rB', 0, 0, 40, 40)]),
+            conquestEvents: [],
+        });
+        const plan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'grid_bfs',
+            adjacency: '4',
+            conquestEvents: [],
+        });
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.5,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+        });
+        expect(plan.flipTimeByVId.size).toBe(0);
+        for (const id of classification.byRole.dispossessed) {
+            const cells = scene.cells.filter((c) => c.vId === id);
             expect(cells.length).toBe(1);
-            expect(cells[0].pass).toBe('prev');
-            expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('A'));
+            expect(cells[0].pass).toBe('single');
+            expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('B'));
+            expect(cells[0].alpha).toBe(1);
         }
     });
 

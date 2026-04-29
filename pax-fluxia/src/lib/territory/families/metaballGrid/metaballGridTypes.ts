@@ -167,14 +167,11 @@ export interface GridWavePlanEvent {
 export interface GridWavePlan {
     /** Per-event sub-plans, ordered by input event order. */
     readonly perEvent: readonly GridWavePlanEvent[];
-    /** Flat lookup: `gridVStar.id → flipTime ∈ [0, 1]`. Natives absent. */
+    /** Flat lookup: `gridVStar.id → flipTime ∈ [0, 1]` for conquest-attributed cells only. */
     readonly flipTimeByVId: ReadonlyMap<string, number>;
     /**
-     * All transition-capable cells (`dispossessed`, `emergent`, `vacating`)
-     * sorted by effective flip time, then `(iy, ix)` for deterministic ties.
-     *
-     * `emergent` / `vacating` cells default to flipTime `0` because they do
-     * not participate in the dispossessed event-wave planner.
+     * All conquest-attributed transition cells sorted by effective flip time,
+     * then `(iy, ix)` for deterministic ties.
      */
     readonly orderedTransitionVIds: readonly string[];
     /** Flip times aligned 1:1 with `orderedTransitionVIds`. */

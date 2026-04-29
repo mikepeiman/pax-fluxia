@@ -2588,16 +2588,15 @@
         return renderFamilyGeometryCache;
     }
 
-    // Freeze the last non-transition territory frame so active transitions can
-    // animate from the real previously presented shape instead of rebuilding a
-    // synthetic rollback frame on the hot path.
+    // Cache the last presented authoritative render-family frame so a new
+    // conquest can diff against what was just on screen instead of falling back
+    // to the last fully idle frame.
     function syncLiveRenderFamilyStableFrame(params: {
         activeTransition: RenderFamilyActiveTransition | null;
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
         geometry: CanonicalGeometrySnapshot;
     }): void {
-        if (params.activeTransition) return;
         const key = buildRenderFamilyGeometryCacheKey(params.stars, params.lanes);
         if (
             renderFamilyStableGeometryKey === key &&
@@ -2657,7 +2656,7 @@
                 transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
                 transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
                 recordPerfEvent("territory.renderFamily.prevFrame", {
-                    source: "live_stable_cache",
+                    source: "presented_frame_cache",
                     transitionKey: key,
                     geometryVersion: renderFamilyStableGeometry.version,
                     ownershipVersion: renderFamilyStableOwnership.version,
@@ -5270,12 +5269,6 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                        });
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
                                 activeTransition,
@@ -5307,6 +5300,12 @@
                             voronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
                         transitionDiagnosticFrameInput = {
                             activeMode,
                             activeTransition,
@@ -5336,12 +5335,6 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                        });
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
                                 activeTransition,
@@ -5373,6 +5366,12 @@
                             voronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
                         transitionDiagnosticFrameInput = {
                             activeMode,
                             activeTransition,
@@ -5407,12 +5406,6 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                        });
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
                                 activeTransition,
@@ -5444,6 +5437,12 @@
                             voronoiContainer.addChild(pf.displayRoot);
                         }
                         pf.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
                         if (
                             transitionDiagnosticStableFrame ||
                             transitionDiagnosticCaptureSession ||

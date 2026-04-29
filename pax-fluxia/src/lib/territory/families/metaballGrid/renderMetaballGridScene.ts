@@ -130,7 +130,16 @@ function emitForVStar(args: {
         case 'dispossessed':
         case 'emergent':
         case 'vacating': {
-            const flipTime = flipTimeByVId.get(v.id) ?? 0;
+            if (!flipTimeByVId.has(v.id)) {
+                emitSettledNextState({
+                    v,
+                    ownerColorIdx,
+                    strength,
+                    out,
+                });
+                return;
+            }
+            const flipTime = flipTimeByVId.get(v.id)!;
             const prevColor = resolveColorIdx(v.prevOwnerId, ownerColorIdx);
             const nextColor = resolveColorIdx(v.nextOwnerId, ownerColorIdx);
 
@@ -189,6 +198,28 @@ function emitForVStar(args: {
             return;
         }
     }
+}
+
+function emitSettledNextState(args: {
+    v: GridVStar;
+    ownerColorIdx: ReadonlyMap<string, number>;
+    strength: number;
+    out: GridRenderCell[];
+}): void {
+    const colorIdx = resolveColorIdx(args.v.nextOwnerId, args.ownerColorIdx);
+    if (colorIdx === null) return;
+    args.out.push({
+        vId: args.v.id,
+        ix: args.v.ix,
+        iy: args.v.iy,
+        x: args.v.x,
+        y: args.v.y,
+        colorIdx,
+        alpha: clamp01(args.strength),
+        strength: args.strength,
+        pass: 'single',
+        role: args.v.role,
+    });
 }
 
 function emitHard(args: {
