@@ -53,13 +53,19 @@ import type {
 } from './metaballGridTypes';
 import {
     buildMetaballGridPlanKey,
+    resolveMetaballGridDisplayProgress,
 } from './metaballGridRuntime';
+import type { MetaballGridVisualTransitionTiming } from './metaballGridRuntime';
 import type {
     MetaballGridPlanWorkerRequest,
     MetaballGridPlanWorkerResponse,
 } from './metaballGridPlanWorkerTypes';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
+import {
+    computeSharedBoundaryCornerRadius,
+    trimOpenPolylineEndpoints,
+} from './edgeShaping';
 import {
     resetMetaballGridStats,
     updateMetaballGridStats,
@@ -68,6 +74,7 @@ import {
     computeDualPassBlendAlphas,
     findActiveFrontierRange,
 } from './metaballGridActiveFrontier';
+import { metaballGridPhaseEdgesModeDefaults } from './config';
 
 // ─── Tunable option unions (mirror METABALL_GRID_* keys) ──────────────────────
 
@@ -197,6 +204,8 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_CELL_CORNER_PX',
     'METABALL_GRID_BORDER_MODE',
     'METABALL_GRID_BORDER_BLEND',
+    'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+    'METABALL_GRID_EDGE_TRIM_PX',
     'METABALL_GRID_BORDER_CHAIKIN_PASSES',
     'METABALL_GRID_WAVE_EASE',
     'METABALL_GRID_FLIP_WINDOW_JITTER',
@@ -213,6 +222,45 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_BORDER_LIGHTNESS',
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
 ] as const;
+
+interface MetaballGridFamilyVariant {
+    readonly id: string;
+    readonly label: string;
+    readonly defaultWaveGeometry: GridWaveGeometry;
+    readonly defaultBorderMode: GridBorderMode;
+    readonly defaultBorderBlend: boolean;
+    readonly defaultEdgeSmoothingPasses: number;
+    readonly defaultEdgeTrimPx: number;
+    readonly defaultBorderChaikinPasses: number;
+}
+
+const DEFAULT_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
+    id: 'metaball_grid',
+    label: 'Metaball Grid',
+    defaultWaveGeometry: 'grid_bfs',
+    defaultBorderMode: 'off',
+    defaultBorderBlend: false,
+    defaultEdgeSmoothingPasses: 0,
+    defaultEdgeTrimPx: 0,
+    defaultBorderChaikinPasses: 0,
+};
+
+const PHASE_EDGE_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
+    id: 'metaball_grid_phase_edges',
+    label: 'Metaball Grid Phase Edges',
+    defaultWaveGeometry:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY,
+    defaultBorderMode:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE,
+    defaultBorderBlend:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
+    defaultEdgeSmoothingPasses:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+    defaultEdgeTrimPx:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX,
+    defaultBorderChaikinPasses:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+};
 
 function readTunableNumber(input: RenderFamilyInput, key: string, fallback: number): number {
     const v = input.tunables.get(key);
@@ -334,6 +382,23 @@ interface MetaballGridPlanWorkerRequestMeta {
     readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
 
+interface PendingMetaballGridTransitionPlan {
+    readonly planKey: string;
+    readonly durationMs: number;
+}
+
+type MetaballGridVisibleFrameState =
+    | 'steady'
+    | 'holding_pre'
+    | 'requested_plan'
+    | 'fallback_plan';
+
+interface MetaballGridPerfTransitionState {
+    readonly requestedPlanPending: boolean;
+    readonly visibleFrameState: MetaballGridVisibleFrameState;
+    readonly clockSource: 'none' | 'scheduler' | 'local';
+}
+
 interface ActiveFrontierEntry {
     readonly vId: string;
     readonly x: number;
@@ -424,8 +489,8 @@ function drawFilledGridCell(
  * RenderFamily implementation for metaball-grid.
  */
 export class MetaballGridFamily implements RenderFamily {
-    readonly id = 'metaball_grid';
-    readonly label = 'Metaball Grid';
+    readonly id: string;
+    readonly label: string;
     readonly tunableKeys: readonly string[] = METABALL_GRID_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
@@ -461,6 +526,8 @@ export class MetaballGridFamily implements RenderFamily {
      */
     private lastPlanParamsKey: string | null = null;
     private lastSplitNativeSig: string | null = null;
+    private steadyTextureCacheActive = false;
+    private steadyTextureCacheSig: string | null = null;
     /** EMA of per-update wall-clock time (ms). Seeded lazily. */
     private emaUpdateMs = 0;
     private frameCount = 0;
@@ -477,10 +544,19 @@ export class MetaballGridFamily implements RenderFamily {
         | null = null;
     private latestPlanWorkerResponse: MetaballGridPlanWorkerResponse | null = null;
     private latestPlanWorkerMeta: MetaballGridPlanWorkerRequestMeta | null = null;
+    private activeVisualTransition: MetaballGridVisualTransitionTiming | null = null;
+    private pendingTransitionPlan: PendingMetaballGridTransitionPlan | null = null;
     private activeFrontierState: ActiveFrontierState | null = null;
+    private readonly variant: MetaballGridFamilyVariant;
 
-    constructor(colorUtils: ColorUtils) {
+    constructor(
+        colorUtils: ColorUtils,
+        variant: MetaballGridFamilyVariant = DEFAULT_METABALL_GRID_VARIANT,
+    ) {
         this.colorUtils = colorUtils;
+        this.variant = variant;
+        this.id = variant.id;
+        this.label = variant.label;
         this.root.addChild(this.graphics);
         this.nativeSpriteLayer.visible = false;
         this.transitionSpriteLayer.visible = false;
@@ -506,6 +582,7 @@ export class MetaballGridFamily implements RenderFamily {
     }
 
     private resetState(): void {
+        this.disableSteadyTextureCache();
         this.cachedPlan = null;
         this.lastPaintSig = null;
         this.lastPlanParamsKey = null;
@@ -518,8 +595,131 @@ export class MetaballGridFamily implements RenderFamily {
         this.latestPlanWorkerMeta = null;
         this.activePlanWorkerMeta = null;
         this.queuedPlanWorker = null;
+        this.activeVisualTransition = null;
+        this.pendingTransitionPlan = null;
         this.resetActiveFrontierState();
         resetMetaballGridStats();
+    }
+
+    private disableSteadyTextureCache(): void {
+        if (!this.steadyTextureCacheActive) return;
+        this.root.cacheAsTexture(false);
+        this.steadyTextureCacheActive = false;
+        this.steadyTextureCacheSig = null;
+    }
+
+    private ensureSteadyTextureCache(paintSig: string): void {
+        if (
+            this.steadyTextureCacheActive
+            && this.steadyTextureCacheSig === paintSig
+        ) {
+            return;
+        }
+        this.root.cacheAsTexture({
+            antialias: false,
+            resolution: 1,
+        });
+        this.steadyTextureCacheActive = true;
+        this.steadyTextureCacheSig = paintSig;
+    }
+
+    private shouldUseSteadyTextureCache(params: {
+        requestedPlanPending: boolean;
+        holdingForPlan: boolean;
+        usingVisualTransition: boolean;
+        visibleFrameState: MetaballGridVisibleFrameState;
+        clockSource: 'none' | 'scheduler' | 'local';
+    }): boolean {
+        return (
+            !params.requestedPlanPending
+            && !params.holdingForPlan
+            && !params.usingVisualTransition
+            && params.visibleFrameState === 'steady'
+            && params.clockSource === 'none'
+        );
+    }
+
+    private hasPendingPlanRequest(planKey: string): boolean {
+        return (
+            this.activePlanWorkerMeta?.planKey === planKey
+            || this.queuedPlanWorker?.meta.planKey === planKey
+        );
+    }
+
+    private isRequestedPlanPending(planKey: string | null): boolean {
+        if (!planKey) return false;
+        return (
+            this.pendingTransitionPlan?.planKey === planKey
+            || this.activePlanWorkerMeta?.planKey === planKey
+            || this.queuedPlanWorker?.meta.planKey === planKey
+            || this.latestPlanWorkerMeta?.planKey === planKey
+        );
+    }
+
+    private resolvePerfTransitionState(params: {
+        transitionKey: string | null;
+        requestedPlanKey: string | null;
+        cachedPlanKey: string | null;
+        progressState: {
+            holdingForPlan: boolean;
+            usingVisualTransition: boolean;
+        };
+    }): MetaballGridPerfTransitionState {
+        const requestedPlanPending = this.isRequestedPlanPending(
+            params.requestedPlanKey,
+        );
+        if (params.progressState.usingVisualTransition) {
+            return {
+                requestedPlanPending,
+                visibleFrameState: 'requested_plan',
+                clockSource: 'local',
+            };
+        }
+        if (!params.transitionKey) {
+            return {
+                requestedPlanPending,
+                visibleFrameState: 'steady',
+                clockSource: 'none',
+            };
+        }
+        if (params.progressState.holdingForPlan) {
+            return {
+                requestedPlanPending,
+                visibleFrameState: 'holding_pre',
+                clockSource: 'none',
+            };
+        }
+        return {
+            requestedPlanPending,
+            visibleFrameState:
+                params.cachedPlanKey === params.requestedPlanKey
+                    ? 'requested_plan'
+                    : 'fallback_plan',
+            clockSource: 'scheduler',
+        };
+    }
+
+    private beginVisualTransition(
+        planKey: string,
+        nowMs: number,
+        durationMs: number,
+    ): void {
+        this.activeVisualTransition = {
+            planKey,
+            startedAtMs: nowMs,
+            durationMs: Math.max(1, durationMs),
+        };
+        this.pendingTransitionPlan = null;
+        this.lastPaintSig = null;
+    }
+
+    private expireVisualTransition(nowMs: number): void {
+        const active = this.activeVisualTransition;
+        if (!active) return;
+        if (nowMs - active.startedAtMs < Math.max(1, active.durationMs)) {
+            return;
+        }
+        this.activeVisualTransition = null;
     }
 
     private ensureSpritePool(
@@ -806,6 +1006,17 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         const state = this.activeFrontierState;
+        if (!state) {
+            return {
+                activeWindowCount: 0,
+                transitionTotalCount: 0,
+                promotedToActiveCount: 0,
+                demotedToSettledCount: 0,
+                transitionSpriteWrites: 0,
+                fastPathUsed: false,
+                fallbackReason: 'frontier_state_missing',
+            };
+        }
         const previousStartIndex = state.startIndex;
         const previousEndIndex = state.endIndex;
         let writes = 0;
@@ -895,7 +1106,7 @@ export class MetaballGridFamily implements RenderFamily {
         return worker;
     }
 
-    private commitPendingWorkerPlan(): boolean {
+    private commitPendingWorkerPlan(nowMs: number): boolean {
         const response = this.latestPlanWorkerResponse;
         const meta = this.latestPlanWorkerMeta;
         if (!response || !meta) return false;
@@ -913,6 +1124,13 @@ export class MetaballGridFamily implements RenderFamily {
             planBuildMs: response.planBuildMs,
             nextGeometryRef: meta.nextGeometryRef,
         };
+        if (this.pendingTransitionPlan?.planKey === response.planKey) {
+            this.beginVisualTransition(
+                response.planKey,
+                nowMs,
+                this.pendingTransitionPlan.durationMs,
+            );
+        }
         return true;
     }
 
@@ -1020,24 +1238,36 @@ export class MetaballGridFamily implements RenderFamily {
         cached: CachedPlan;
         ownerIdByColorIdx: ReadonlyArray<string>;
         scene: GridMetaballScene;
+        schedulerRawProgress: number | null;
         rawProgress: number;
         progress: number;
         flipTransition: GridFlipTransition;
         flipWindow: number;
         skipped: boolean;
         rebuiltPlan: boolean;
+        holdingForPlan: boolean;
+        usingVisualTransition: boolean;
+        visibleFrameState: MetaballGridVisibleFrameState;
+        clockSource: 'none' | 'scheduler' | 'local';
+        requestedPlanPending: boolean;
     }): Record<string, unknown> {
         const {
             input,
             cached,
             ownerIdByColorIdx,
             scene,
+            schedulerRawProgress,
             rawProgress,
             progress,
             flipTransition,
             flipWindow,
             skipped,
             rebuiltPlan,
+            holdingForPlan,
+            usingVisualTransition,
+            visibleFrameState,
+            clockSource,
+            requestedPlanPending,
         } = params;
         const classificationByOwner: Record<
             string,
@@ -1122,12 +1352,18 @@ export class MetaballGridFamily implements RenderFamily {
             tick: input.gameTick ?? null,
             paused: input.paused ?? false,
             activeTransitionEventCount: input.activeTransition?.events.length ?? 0,
+            schedulerRawProgress,
             rawProgress,
             progress,
             flipTransition,
             flipWindow,
             rebuiltPlan,
             skipped,
+            holdingForPlan,
+            usingVisualTransition,
+            visibleFrameState,
+            clockSource,
+            requestedPlanPending,
             classification: {
                 cols: cached.classification.cols,
                 rows: cached.classification.rows,
@@ -1275,10 +1511,12 @@ export class MetaballGridFamily implements RenderFamily {
             this.sessionKey = nextSessionKey;
             this.resetState();
         }
-        let rebuiltPlan = this.commitPendingWorkerPlan();
+        let rebuiltPlan = this.commitPendingWorkerPlan(input.nowMs);
+        this.expireVisualTransition(input.nowMs);
 
         const currentGeometry = input.geometry;
         if (!currentGeometry) {
+            this.disableSteadyTextureCache();
             this.root.visible = false;
             resetMetaballGridStats();
             return { container: this.root };
@@ -1288,9 +1526,10 @@ export class MetaballGridFamily implements RenderFamily {
             input,
             'METABALL_GRID_ENABLED',
             GAME_CONFIG.METABALL_GRID_ENABLED ??
-                (GAME_CONFIG.TERRITORY_RENDER_MODE === 'metaball_grid'),
+                (GAME_CONFIG.TERRITORY_RENDER_MODE === this.id),
         );
         if (!enabled) {
+            this.disableSteadyTextureCache();
             this.graphics.clear();
             this.root.visible = false;
             resetMetaballGridStats();
@@ -1339,6 +1578,10 @@ export class MetaballGridFamily implements RenderFamily {
         this.lastPlanParamsKey = planParamsKey;
 
         const transitionKey = buildTransitionKey(input);
+        const transitionDurationMs = Math.max(
+            1,
+            input.activeTransition?.durationMs ?? 1,
+        );
         const settings: MetaballGridPlanSettings = {
             spacingPx: Math.max(
                 2,
@@ -1386,8 +1629,13 @@ export class MetaballGridFamily implements RenderFamily {
                 input,
                 'METABALL_GRID_WAVE_GEOMETRY',
                 (GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ??
+                    this.variant.defaultWaveGeometry,
+                [
                     'grid_bfs',
-                ['grid_bfs', 'euclidean_band'],
+                    'euclidean_band',
+                    'conquered_star_radial',
+                    'pre_to_post_frontier',
+                ],
             ),
             waveSeeding: readTunableString<GridWaveSeeding>(
                 input,
@@ -1431,41 +1679,60 @@ export class MetaballGridFamily implements RenderFamily {
                 || this.cachedPlan.nextGeometryRef !== currentGeometry
                 || (prevGeoRef !== null && this.cachedPlan.prevGeometry !== prevGeoRef)
             ) {
-                const prevGeometry = this.resolvePrevGeometryForTransition({
-                    input,
-                    settings,
-                });
-                const revertedOwnedStars = toOwnedStars(
-                    revertStarsForTransition(input),
-                );
-                const currentOwnedStars = toOwnedStars(input.stars);
-                const workerRequest = this.buildWorkerRequest({
-                    input,
-                    planKey,
-                    settings,
-                    prevGeometry,
-                    nextGeometryRef: currentGeometry,
-                    conquestEvents:
-                        input.activeTransition?.conquestEvents ?? [],
-                    prevOwnedStars: revertedOwnedStars,
-                    nextOwnedStars: currentOwnedStars,
-                });
-                const scheduled = this.enqueuePlanWorkerRequest(workerRequest);
-                if (!scheduled || !this.cachedPlan) {
-                    this.cachedPlan = this.buildPlanForTransition({
+                if (!this.hasPendingPlanRequest(planKey)) {
+                    const prevGeometry = this.resolvePrevGeometryForTransition({
                         input,
-                        currentGeometry,
-                        planKey,
                         settings,
                     });
-                    rebuiltPlan = true;
+                    const revertedOwnedStars = toOwnedStars(
+                        revertStarsForTransition(input),
+                    );
+                    const currentOwnedStars = toOwnedStars(input.stars);
+                    const workerRequest = this.buildWorkerRequest({
+                        input,
+                        planKey,
+                        settings,
+                        prevGeometry,
+                        nextGeometryRef: currentGeometry,
+                        conquestEvents:
+                            input.activeTransition?.conquestEvents ?? [],
+                        prevOwnedStars: revertedOwnedStars,
+                        nextOwnedStars: currentOwnedStars,
+                    });
+                    const scheduled = this.enqueuePlanWorkerRequest(workerRequest);
+                    if (scheduled) {
+                        this.pendingTransitionPlan = {
+                            planKey,
+                            durationMs: transitionDurationMs,
+                        };
+                    }
+                    if (!scheduled || !this.cachedPlan) {
+                        this.cachedPlan = this.buildPlanForTransition({
+                            input,
+                            currentGeometry,
+                            planKey,
+                            settings,
+                        });
+                        this.beginVisualTransition(
+                            planKey,
+                            input.nowMs,
+                            transitionDurationMs,
+                        );
+                        rebuiltPlan = true;
+                    }
                 }
             }
         } else {
+            const visualTransitionStillActive =
+                this.activeVisualTransition !== null
+                && this.cachedPlan?.planKey === this.activeVisualTransition.planKey;
             if (
-                !this.cachedPlan
-                || this.cachedPlan.planKey !== planKey
-                || this.cachedPlan.nextGeometryRef !== currentGeometry
+                !visualTransitionStillActive
+                && (
+                    !this.cachedPlan
+                    || this.cachedPlan.planKey !== planKey
+                    || this.cachedPlan.nextGeometryRef !== currentGeometry
+                )
             ) {
                 const ownedStars = toOwnedStars(input.stars);
                 const workerRequest = this.buildWorkerRequest({
@@ -1492,7 +1759,32 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         const cached = this.cachedPlan;
-        const rawProgress = input.activeTransition?.progress ?? 1;
+        const progressState = resolveMetaballGridDisplayProgress({
+            schedulerRawProgress: input.activeTransition?.progress ?? null,
+            requestedPlanKey: transitionKey ? planKey : null,
+            cachedPlanKey: cached?.planKey ?? null,
+            activeVisualTransition: this.activeVisualTransition,
+            nowMs: input.nowMs,
+        });
+        const perfTransitionState = this.resolvePerfTransitionState({
+            transitionKey,
+            requestedPlanKey: transitionKey ? planKey : null,
+            cachedPlanKey: cached?.planKey ?? null,
+            progressState,
+        });
+        if (!cached) {
+            this.disableSteadyTextureCache();
+            updateMetaballGridStats({
+                planWorkerPending: perfTransitionState.requestedPlanPending,
+                holdingForPlan: progressState.holdingForPlan,
+                visualTransitionActive: progressState.usingVisualTransition,
+                visibleFrameState: perfTransitionState.visibleFrameState,
+                clockSource: perfTransitionState.clockSource,
+                renderCacheMode: 'live_vectors',
+            });
+            return { container: this.root };
+        }
+        const rawProgress = progressState.rawProgress;
 
         // ── Transition / flip knobs ──────────────────────────────────────────
         const flipTransition = readTunableString<GridFlipTransition>(
@@ -1547,13 +1839,38 @@ export class MetaballGridFamily implements RenderFamily {
         const borderMode = readTunableString<GridBorderMode>(
             input,
             'METABALL_GRID_BORDER_MODE',
-            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ?? 'off',
+            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ??
+                this.variant.defaultBorderMode,
             ['off', 'per_cell', 'territory_edge'],
         );
         const borderBlend = readTunableBoolean(
             input,
             'METABALL_GRID_BORDER_BLEND',
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true,
+            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ??
+                this.variant.defaultBorderBlend,
+        );
+        const sharedEdgeSmoothingPasses = Math.max(
+            0,
+            Math.min(
+                4,
+                Math.round(
+                    readTunableNumber(
+                        input,
+                        'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ??
+                            this.variant.defaultEdgeSmoothingPasses,
+                    ),
+                ),
+            ),
+        );
+        const edgeTrimPx = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_EDGE_TRIM_PX',
+                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ??
+                    this.variant.defaultEdgeTrimPx,
+            ),
         );
         const borderChaikinPasses = Math.max(
             0,
@@ -1563,10 +1880,15 @@ export class MetaballGridFamily implements RenderFamily {
                     readTunableNumber(
                         input,
                         'METABALL_GRID_BORDER_CHAIKIN_PASSES',
-                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0,
+                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
+                            this.variant.defaultBorderChaikinPasses,
                     ),
                 ),
             ),
+        );
+        const totalBorderChaikinPasses = Math.max(
+            0,
+            Math.min(6, sharedEdgeSmoothingPasses + borderChaikinPasses),
         );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
@@ -1649,6 +1971,8 @@ export class MetaballGridFamily implements RenderFamily {
             cellCornerPx.toFixed(2),
             borderMode,
             borderBlend ? '1' : '0',
+            sharedEdgeSmoothingPasses,
+            edgeTrimPx.toFixed(2),
             borderChaikinPasses,
             fillSat.toFixed(4),
             fillLight.toFixed(4),
@@ -1669,9 +1993,19 @@ export class MetaballGridFamily implements RenderFamily {
             palBorderSig,
         ].join('|');
 
-        const allowPaintSkip =
-            !input.activeTransition && !this.hasLingeringTransitionPresentation();
-        if (allowPaintSkip && !rebuiltPlan && this.lastPaintSig === paintSig) {
+        const shouldUseSteadyTextureCache = this.shouldUseSteadyTextureCache({
+            requestedPlanPending: perfTransitionState.requestedPlanPending,
+            holdingForPlan: progressState.holdingForPlan,
+            usingVisualTransition: progressState.usingVisualTransition,
+            visibleFrameState: perfTransitionState.visibleFrameState,
+            clockSource: perfTransitionState.clockSource,
+        });
+        if (!rebuiltPlan && this.lastPaintSig === paintSig) {
+            if (shouldUseSteadyTextureCache) {
+                this.ensureSteadyTextureCache(paintSig);
+            } else {
+                this.disableSteadyTextureCache();
+            }
             this.frameCount += 1;
             this.skippedFrameCount += 1;
             const elapsed = performance.now() - startMs;
@@ -1706,18 +2040,34 @@ export class MetaballGridFamily implements RenderFamily {
                 transitionSpriteWrites: 0,
                 fastPathUsed: false,
                 fallbackReason: 'steady_state',
+                planWorkerPending: perfTransitionState.requestedPlanPending,
+                holdingForPlan: progressState.holdingForPlan,
+                visualTransitionActive: progressState.usingVisualTransition,
+                visibleFrameState: perfTransitionState.visibleFrameState,
+                clockSource: perfTransitionState.clockSource,
+                renderCacheMode: this.steadyTextureCacheActive
+                    ? 'steady_texture'
+                    : 'live_vectors',
             });
             if (captureDebug && this.lastDebugSnapshot) {
                 this.lastDebugSnapshot = {
                     ...this.lastDebugSnapshot,
                     tick: input.gameTick ?? null,
                     paused: input.paused ?? false,
+                    schedulerRawProgress:
+                        input.activeTransition?.progress ?? null,
                     rawProgress,
                     progress: easeProgress(waveEase, rawProgress),
                     flipTransition,
                     flipWindow,
                     rebuiltPlan: false,
                     skipped: true,
+                    holdingForPlan: progressState.holdingForPlan,
+                    usingVisualTransition: progressState.usingVisualTransition,
+                    visibleFrameState: perfTransitionState.visibleFrameState,
+                    clockSource: perfTransitionState.clockSource,
+                    requestedPlanPending:
+                        perfTransitionState.requestedPlanPending,
                 };
             }
             return { container: this.root };
@@ -1753,6 +2103,7 @@ export class MetaballGridFamily implements RenderFamily {
 
         // ── Paint: one shape per scene cell. O(N). ──────────────────────────
         const paintStartMs = performance.now();
+        this.disableSteadyTextureCache();
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
@@ -1762,7 +2113,10 @@ export class MetaballGridFamily implements RenderFamily {
         // the semantic the "Inward Offset" knob advertises.
         const insetMax = spacingPx * 0.45;
         const nativeInset = Math.min(cellInsetPx, insetMax);
-        const boundaryInset = Math.min(cellInsetPx + Math.max(0, inwardOffsetPx), insetMax);
+        const boundaryInset = Math.min(
+            cellInsetPx + Math.max(0, inwardOffsetPx) + edgeTrimPx,
+            insetMax,
+        );
         // Defaults for square shape at native inset — reused inside the loop
         // when a cell is native. Boundary cells recompute.
         const nativeSize = spacingPx - nativeInset * 2;
@@ -1771,16 +2125,23 @@ export class MetaballGridFamily implements RenderFamily {
         const nativeHexR = nativeSize / SQRT3;
         const boundarySize = spacingPx - boundaryInset * 2;
         const boundaryHalf = boundarySize * 0.5;
-        const boundaryCornerR = cellShape === 'square' ? Math.min(cellCornerPx, boundaryHalf) : 0;
+        const boundaryCornerR = computeSharedBoundaryCornerRadius({
+            cellShape,
+            baseCornerPx: cellCornerPx,
+            halfSizePx: boundaryHalf,
+            smoothingPasses: sharedEdgeSmoothingPasses,
+        });
         const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
         const canUseSplitFillOnlyFastPath =
             !drawBorders &&
             inwardOffsetPx === 0 &&
+            edgeTrimPx === 0 &&
             cellShape === 'square' &&
             cellInsetPx === 0 &&
-            cellCornerPx === 0;
+            cellCornerPx === 0 &&
+            sharedEdgeSmoothingPasses === 0;
         // Blended-edge polyline assumes a regular square vertex lattice
         // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
         // and jittered distributions break that assumption, so fall back to
@@ -2213,8 +2574,11 @@ export class MetaballGridFamily implements RenderFamily {
                     for (const vid of vertexChain) {
                         pts.push(vertexX(vid), vertexY(vid));
                     }
-                    if (borderChaikinPasses > 0) {
-                        pts = chaikinSmooth(pts, borderChaikinPasses, closed);
+                    if (totalBorderChaikinPasses > 0) {
+                        pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
+                    }
+                    if (!closed && edgeTrimPx > 0) {
+                        pts = trimOpenPolylineEndpoints(pts, edgeTrimPx);
                     }
                     g.moveTo(pts[0], pts[1]);
                     for (let k = 2; k < pts.length; k += 2) {
@@ -2294,6 +2658,9 @@ export class MetaballGridFamily implements RenderFamily {
 
         // ── Record paint-sig + stats (MG-PERF Phase A) ──────────────────────
         this.lastPaintSig = paintSig;
+        if (shouldUseSteadyTextureCache) {
+            this.ensureSteadyTextureCache(paintSig);
+        }
         this.frameCount += 1;
         let paintedCells = 0;
         if (scene) {
@@ -2326,12 +2693,18 @@ export class MetaballGridFamily implements RenderFamily {
                 cached,
                 ownerIdByColorIdx,
                 scene,
+                schedulerRawProgress: input.activeTransition?.progress ?? null,
                 rawProgress,
                 progress,
                 flipTransition,
                 flipWindow,
                 skipped: false,
                 rebuiltPlan,
+                holdingForPlan: progressState.holdingForPlan,
+                usingVisualTransition: progressState.usingVisualTransition,
+                visibleFrameState: perfTransitionState.visibleFrameState,
+                clockSource: perfTransitionState.clockSource,
+                requestedPlanPending: perfTransitionState.requestedPlanPending,
             });
         }
         updateMetaballGridStats({
@@ -2365,6 +2738,14 @@ export class MetaballGridFamily implements RenderFamily {
             transitionSpriteWrites: activeFrontierMetrics.transitionSpriteWrites,
             fastPathUsed: activeFrontierMetrics.fastPathUsed,
             fallbackReason: activeFrontierMetrics.fallbackReason,
+            planWorkerPending: perfTransitionState.requestedPlanPending,
+            holdingForPlan: progressState.holdingForPlan,
+            visualTransitionActive: progressState.usingVisualTransition,
+            visibleFrameState: perfTransitionState.visibleFrameState,
+            clockSource: perfTransitionState.clockSource,
+            renderCacheMode: this.steadyTextureCacheActive
+                ? 'steady_texture'
+                : 'live_vectors',
         });
 
         return { container: this.root };
@@ -2394,5 +2775,14 @@ export class MetaballGridFamily implements RenderFamily {
 }
 
 export function createMetaballGridFamily(colorUtils: ColorUtils): MetaballGridFamily {
-    return new MetaballGridFamily(colorUtils);
+    return new MetaballGridFamily(colorUtils, DEFAULT_METABALL_GRID_VARIANT);
+}
+
+export function createMetaballGridPhaseEdgesFamily(
+    colorUtils: ColorUtils,
+): MetaballGridFamily {
+    return new MetaballGridFamily(
+        colorUtils,
+        PHASE_EDGE_METABALL_GRID_VARIANT,
+    );
 }

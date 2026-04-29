@@ -62,6 +62,8 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
         flipWindow,
         strength,
         ownerColorIdx,
+        includeNativeCells = true,
+        omitVIds,
     } = params;
 
     // Optional inward offset would modify cell position for edge cells; this is
@@ -76,6 +78,7 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
     // PERF: iterate only emittable vstars (native + dispossessed + emergent
     // + vacating). Outside cells would early-return anyway.
     for (const v of classification.emittableVstars) {
+        if (omitVIds?.has(v.id)) continue;
         emitForVStar({
             v,
             progress: progressClamped,
@@ -84,6 +87,7 @@ export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): 
             strength,
             flipTimeByVId: wavePlan.flipTimeByVId,
             ownerColorIdx,
+            includeNativeCells,
             out: cells,
         });
     }
@@ -99,15 +103,27 @@ function emitForVStar(args: {
     strength: number;
     flipTimeByVId: ReadonlyMap<string, number>;
     ownerColorIdx: ReadonlyMap<string, number>;
+    includeNativeCells: boolean;
     out: GridRenderCell[];
 }): void {
-    const { v, progress, flipTransition, flipWindow, strength, flipTimeByVId, ownerColorIdx, out } = args;
+    const {
+        v,
+        progress,
+        flipTransition,
+        flipWindow,
+        strength,
+        flipTimeByVId,
+        ownerColorIdx,
+        includeNativeCells,
+        out,
+    } = args;
 
     switch (v.role) {
         case 'outside':
             return;
 
         case 'native': {
+            if (!includeNativeCells) return;
             // Native cells ARE the primary fill for grid mode. Emit one
             // cell per native vstar at NEXT color with full alpha.
             const colorIdx = resolveColorIdx(v.nextOwnerId, ownerColorIdx);
@@ -130,16 +146,7 @@ function emitForVStar(args: {
         case 'dispossessed':
         case 'emergent':
         case 'vacating': {
-            if (!flipTimeByVId.has(v.id)) {
-                emitSettledNextState({
-                    v,
-                    ownerColorIdx,
-                    strength,
-                    out,
-                });
-                return;
-            }
-            const flipTime = flipTimeByVId.get(v.id)!;
+            const flipTime = flipTimeByVId.get(v.id) ?? 0;
             const prevColor = resolveColorIdx(v.prevOwnerId, ownerColorIdx);
             const nextColor = resolveColorIdx(v.nextOwnerId, ownerColorIdx);
 
@@ -198,28 +205,6 @@ function emitForVStar(args: {
             return;
         }
     }
-}
-
-function emitSettledNextState(args: {
-    v: GridVStar;
-    ownerColorIdx: ReadonlyMap<string, number>;
-    strength: number;
-    out: GridRenderCell[];
-}): void {
-    const colorIdx = resolveColorIdx(args.v.nextOwnerId, args.ownerColorIdx);
-    if (colorIdx === null) return;
-    args.out.push({
-        vId: args.v.id,
-        ix: args.v.ix,
-        iy: args.v.iy,
-        x: args.v.x,
-        y: args.v.y,
-        colorIdx,
-        alpha: clamp01(args.strength),
-        strength: args.strength,
-        pass: 'single',
-        role: args.v.role,
-    });
 }
 
 function emitHard(args: {

@@ -7,12 +7,12 @@ import type { EngineConfig } from '@pax/common';
 import type {
     MetaballBurstBoundaryBasis,
     VsTransitionModeId,
-} from '$lib/territory/transitions/territoryTransitionModes';
-import { aiConfigDefaults } from '$lib/config/ai.config';
-import { audioConfigDefaults } from '$lib/config/audio.config';
-import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
-import { rendererConfigDefaults } from '$lib/config/renderer.config';
-import { territoryConfigDefaults } from '$lib/config/territory.config';
+} from '../territory/transitions/territoryTransitionModes';
+import { aiConfigDefaults } from './ai.config';
+import { audioConfigDefaults } from './audio.config';
+import { gameplayConfigDefaults } from './gameplay.config';
+import { rendererConfigDefaults } from './renderer.config';
+import { territoryConfigDefaults } from './territory.config';
 
 /**
  * Build an EngineConfig from the current GAME_CONFIG values.
@@ -408,9 +408,15 @@ interface GameConfigType {
     METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
     METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
     METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: number; // Extra smoothing applied to shared boundary corners
+    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim and boundary inset for shared edges
     METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
     METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
-    METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' | 'euclidean_band'; // Flip-time rank geometry
+    METABALL_GRID_WAVE_GEOMETRY:
+        | 'grid_bfs'
+        | 'euclidean_band'
+        | 'conquered_star_radial'
+        | 'pre_to_post_frontier'; // Flip-time rank geometry
     METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Seed selection mode
     METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell ownership transition style
     METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time

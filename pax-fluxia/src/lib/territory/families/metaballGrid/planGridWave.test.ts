@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
 import type { CanonicalGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
-import { buildGridClassification, makeEventId } from './buildGridClassification';
+import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
 import type { GridAdjacency, GridWaveGeometry, GridWaveSeeding } from './metaballGridTypes';
 
@@ -108,6 +108,41 @@ function makeHalfFlipFixture(opts: { seeding: GridWaveSeeding; geometry: GridWav
     return { classification, plan, event };
 }
 
+function makeFrontierShiftFixture(opts: {
+    seeding: GridWaveSeeding;
+    geometry: GridWaveGeometry;
+    adjacency: GridAdjacency;
+}) {
+    const world = { width: 100, height: 100 };
+    const spacingPx = 10;
+    const prev = makeSnapshot([
+        rect('A', 'rA', 0, 0, 70, 100),
+        rect('B', 'rB', 70, 0, 100, 100),
+    ]);
+    const next = makeSnapshot([
+        rect('A', 'rA_next', 0, 0, 30, 100),
+        rect('B', 'rB_next', 30, 0, 100, 100),
+    ]);
+    const event = makeEvent({ starId: 's:shift', prev: 'A', next: 'B' });
+    const classification = buildGridClassification({
+        world,
+        spacingPx,
+        originMode: 'centered',
+        prevGeometry: prev,
+        nextGeometry: next,
+        conquestEvents: [event],
+    });
+    const plan = planGridWave({
+        classification,
+        seeding: opts.seeding,
+        geometry: opts.geometry,
+        adjacency: opts.adjacency,
+        conquestEvents: [event],
+        resolveStarPosition: (id) => (id === 's:shift' ? { x: 65, y: 55 } : null),
+    });
+    return { classification, plan, event };
+}
+
 describe('planGridWave', () => {
     it('assigns flipTime ∈ [0, 1] to every dispossessed cell', () => {
         const { classification, plan } = makeHalfFlipFixture({
@@ -155,15 +190,12 @@ describe('planGridWave', () => {
     });
 
     it('grid_bfs with 4-adjacency produces monotone rank from the winner front', () => {
-        // Winner is right half → seed column is the rightmost A-column (ix=4 when A spans ix=0..4).
-        // BFS outward over A-cells: rank increases as ix decreases.
         const { classification, plan } = makeHalfFlipFixture({
             seeding: 'winner_natives',
             geometry: 'grid_bfs',
             adjacency: '4',
         });
         const byId = new Map(classification.vstars.map((v) => [v.id, v]));
-        // Check row iy=0: rank(ix=4) < rank(ix=3) < ... < rank(ix=0)
         let prevRank = -1;
         for (let ix = 4; ix >= 0; ix--) {
             const id = `g:${ix}:0`;
@@ -199,8 +231,6 @@ describe('planGridWave', () => {
             resolveStarPosition: (id) => (id === 's:center' ? { x: 55, y: 55 } : null),
         });
         const ev = plan.perEvent[0];
-        // Seed cell should be the closest cell to (55,55) — which is (55,55)-centered at ix=5, iy=5 (cell at x=55,y=55).
-        // With centered origin and spacing 10, that's g:5:5.
         expect(ev.seedVIds).toEqual(['g:5:5']);
         expect(plan.flipTimeByVId.get('g:5:5')).toBe(0);
     });
@@ -216,8 +246,6 @@ describe('planGridWave', () => {
             geometry: 'grid_bfs',
             adjacency: '8',
         });
-        // winner_nearest_edge (always 4-adj) selects the rightmost column of B (one seed per row = 10).
-        // winner_natives with 8-adj also selects diagonals, so its seed set is a superset.
         expect(plan4.perEvent[0].seedVIds.length).toBeLessThanOrEqual(
             planNatives.perEvent[0].seedVIds.length,
         );
@@ -243,16 +271,57 @@ describe('planGridWave', () => {
             geometry: 'euclidean_band',
             adjacency: '4',
             conquestEvents: [event],
-            resolveStarPosition: () => ({ x: 5, y: 5 }), // top-left corner
+            resolveStarPosition: () => ({ x: 5, y: 5 }),
         });
-        // Cell at (95, 95) is ~diagonal-farthest — its rank should be strictly > cell at (15, 15).
         const tNear = plan.flipTimeByVId.get('g:1:1')!;
         const tFar = plan.flipTimeByVId.get('g:9:9')!;
         expect(tFar).toBeGreaterThan(tNear);
     });
 
+    it('conquered_star_radial assigns earlier flip times nearer the captured star', () => {
+        const world = { width: 100, height: 100 };
+        const spacingPx = 10;
+        const prev = makeSnapshot([rect('A', 'rA', 0, 0, 100, 100)]);
+        const next = makeSnapshot([rect('B', 'rB', 0, 0, 100, 100)]);
+        const event = makeEvent({ starId: 's:radial', prev: 'A', next: 'B' });
+        const classification = buildGridClassification({
+            world,
+            spacingPx,
+            originMode: 'centered',
+            prevGeometry: prev,
+            nextGeometry: next,
+            conquestEvents: [event],
+        });
+        const plan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'conquered_star_radial',
+            adjacency: '8',
+            conquestEvents: [event],
+            resolveStarPosition: (id) => (id === 's:radial' ? { x: 15, y: 15 } : null),
+        });
+        expect(plan.perEvent[0].seedVIds).toEqual(['g:1:1']);
+        expect(plan.flipTimeByVId.get('g:1:1')).toBe(0);
+        expect(plan.flipTimeByVId.get('g:9:9')!).toBeGreaterThan(
+            plan.flipTimeByVId.get('g:2:2')!,
+        );
+    });
+
+    it('pre_to_post_frontier moves the flip front from the old border toward the new border', () => {
+        const { plan } = makeFrontierShiftFixture({
+            seeding: 'winner_natives',
+            geometry: 'pre_to_post_frontier',
+            adjacency: '4',
+        });
+        expect(plan.flipTimeByVId.get('g:6:0')!).toBeLessThan(
+            plan.flipTimeByVId.get('g:3:0')!,
+        );
+        expect(plan.flipTimeByVId.get('g:6:5')!).toBeLessThan(
+            plan.flipTimeByVId.get('g:3:5')!,
+        );
+    });
+
     it('ties broken deterministically by (iy, ix)', () => {
-        // Two events with identical structure → identical plans.
         const { plan: a } = makeHalfFlipFixture({
             seeding: 'winner_natives',
             geometry: 'grid_bfs',
@@ -268,9 +337,7 @@ describe('planGridWave', () => {
         }
     });
 
-    it('does not animate the synthetic default event bucket', () => {
-        // No matching event: cells still classify as changed, but none should
-        // enter a conquest wave.
+    it('covers the default event bucket when present', () => {
         const world = { width: 100, height: 100 };
         const spacingPx = 20;
         const prev = makeSnapshot([rect('X', 'rX', 0, 0, 100, 100)]);
@@ -290,24 +357,16 @@ describe('planGridWave', () => {
             adjacency: '4',
             conquestEvents: [],
         });
-        expect(classification.byRole.dispossessed.length).toBeGreaterThan(0);
-        expect(plan.perEvent.length).toBe(0);
-        expect(plan.flipTimeByVId.size).toBe(0);
-        expect(plan.orderedTransitionVIds).toEqual([]);
-        expect(plan.orderedFlipTimes).toEqual([]);
+        expect(plan.perEvent.length).toBe(1);
+        expect(plan.perEvent[0].eventId).toBe(classification.defaultEventId);
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.dispossessed.length);
     });
 
     it('maxRank = 0 yields all flipTime = 0 (degenerate wave)', () => {
-        // Single dispossessed cell → BFS has only rank 0.
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
-        // tiny region at (10, 10) only
         const prev = makeSnapshot([rect('A', 'rA', 0, 0, 40, 40)]);
-        const next = makeSnapshot([
-            // B covers only top-left quadrant, so only cell g:0:0 flips A→B.
-            // Other cells are null under NEXT (outside B region) → vacating, not dispossessed.
-            rect('B', 'rB', 0, 0, 20, 20),
-        ]);
+        const next = makeSnapshot([rect('B', 'rB', 0, 0, 20, 20)]);
         const event = makeEvent({ starId: 's:1', prev: 'A', next: 'B' });
         const classification = buildGridClassification({
             world,
@@ -317,7 +376,6 @@ describe('planGridWave', () => {
             nextGeometry: next,
             conquestEvents: [event],
         });
-        // Only g:0:0 is dispossessed (prev=A, next=B). Others are vacating (prev=A, next=null).
         expect(classification.byRole.dispossessed).toEqual(['g:0:0']);
         const plan = planGridWave({
             classification,
@@ -331,8 +389,6 @@ describe('planGridWave', () => {
     });
 
     it('winner_natives falls back gracefully when winner has no foothold', () => {
-        // Whole world flips A→B but there are no existing B regions in PREV.
-        // winner_natives cannot find an adjacent winner-native → fallback path.
         const world = { width: 100, height: 100 };
         const spacingPx = 20;
         const prev = makeSnapshot([rect('A', 'rA', 0, 0, 100, 100)]);
@@ -354,7 +410,6 @@ describe('planGridWave', () => {
             conquestEvents: [event],
             resolveStarPosition: () => ({ x: 50, y: 50 }),
         });
-        // Expect exactly one seed, chosen from the dispossessed set.
         expect(plan.perEvent[0].seedVIds.length).toBe(1);
         expect(plan.flipTimeByVId.size).toBe(classification.byRole.dispossessed.length);
     });
@@ -365,7 +420,12 @@ describe('planGridWave', () => {
             'conquered_star_center',
             'winner_nearest_edge',
         ];
-        const geometries: GridWaveGeometry[] = ['grid_bfs', 'euclidean_band'];
+        const geometries: GridWaveGeometry[] = [
+            'grid_bfs',
+            'euclidean_band',
+            'conquered_star_radial',
+            'pre_to_post_frontier',
+        ];
         const adjacencies: GridAdjacency[] = ['4', '8'];
         for (const s of seedings) {
             for (const g of geometries) {
@@ -375,7 +435,6 @@ describe('planGridWave', () => {
                         geometry: g,
                         adjacency: a,
                     });
-                    // Every dispossessed cell has a defined flipTime in [0,1].
                     for (const id of classification.byRole.dispossessed) {
                         const t = plan.flipTimeByVId.get(id);
                         expect(t, `missing flipTime for ${id} under ${s}/${g}/${a}`).toBeDefined();

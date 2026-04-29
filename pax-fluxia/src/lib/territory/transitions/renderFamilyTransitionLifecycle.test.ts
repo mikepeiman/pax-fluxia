@@ -6,7 +6,9 @@ import {
 } from '$lib/fx/handlers/territoryTransitionHandler';
 import { buildRenderFamilyTransitionLifecycle } from './renderFamilyTransitionLifecycle';
 
-function makeConquestEvent(): ConquestEvent {
+function makeConquestEvent(
+    overrides: Partial<ConquestEvent> = {},
+): ConquestEvent {
     return {
         tick: 10,
         starId: 'target',
@@ -20,17 +22,7 @@ function makeConquestEvent(): ConquestEvent {
         shipsDestroyed: 0,
         shipsTransferred: 5,
         conquestType: 'complete',
-    };
-}
-
-function makeConquestEventForTick(
-    tick: number,
-    starId: string,
-): ConquestEvent {
-    return {
-        ...makeConquestEvent(),
-        tick,
-        starId,
+        ...overrides,
     };
 }
 
@@ -105,61 +97,117 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
         expect(state.activeCount).toBe(0);
     });
 
-    it('drives the active family transition from the newest conquest tick', () => {
-        const olderEvent = makeConquestEventForTick(10, 'older-target');
-        const newerEvent = makeConquestEventForTick(11, 'newer-target');
+    it('keeps one stable session per conquest tick while exposing the newest session as activeTransition', () => {
+        const older = makeEntry({
+            event: makeConquestEvent({
+                tick: 10,
+                starId: 'target-a',
+                previousOwner: 'red',
+                newOwner: 'blue',
+            }),
+            starId: 'target-a',
+            startTimeMs: 1000,
+            durationMs: 400,
+        });
+        const newer = makeEntry({
+            event: makeConquestEvent({
+                tick: 11,
+                starId: 'target-b',
+                previousOwner: 'blue',
+                newOwner: 'green',
+            }),
+            starId: 'target-b',
+            startTimeMs: 1200,
+            durationMs: 400,
+        });
+
         const result = buildRenderFamilyTransitionLifecycle({
-            nowMs: 1300,
-            effectiveTickMs: 1400,
-            activeEntries: [
-                makeEntry({
-                    event: olderEvent,
-                    starId: olderEvent.starId,
-                    startTimeMs: 1000,
-                    durationMs: 1400,
+            nowMs: 1410,
+            effectiveTickMs: 1000,
+            activeEntries: [older, newer],
+        });
+
+        expect(result.activeTransition).not.toBeNull();
+        expect(result.activeTransition?.startedAtMs).toBe(1200);
+        expect(result.activeTransition?.events.map((entry) => entry.event.starId)).toEqual([
+            'target-b',
+        ]);
+        expect(result.activeTransition?.progress).toBeCloseTo(0.525);
+        expect(result.activeSessions.map((session) => session.events.map((entry) => entry.event.starId))).toEqual([
+            ['target-a'],
+            ['target-b'],
+        ]);
+        expect(result.terminalFrameStarIds).toEqual(['target-a']);
+    });
+
+    it('keeps same-start-time conquests batched into one render-family transition', () => {
+        const left = makeEntry({
+            event: makeConquestEvent({
+                tick: 12,
+                starId: 'left',
+                previousOwner: 'red',
+                newOwner: 'blue',
+            }),
+            starId: 'left',
+            startTimeMs: 1600,
+        });
+        const right = makeEntry({
+            event: makeConquestEvent({
+                tick: 12,
+                starId: 'right',
+                previousOwner: 'yellow',
+                newOwner: 'green',
+            }),
+            starId: 'right',
+            startTimeMs: 1600,
+        });
+
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1700,
+            effectiveTickMs: 1000,
+            activeEntries: [left, right],
+        });
+
+        expect(result.activeTransition).not.toBeNull();
+        expect(result.activeTransition?.startedAtMs).toBe(1600);
+        expect(result.activeTransition?.events.map((entry) => entry.event.starId)).toEqual([
+            'left',
+            'right',
+        ]);
+        expect(result.activeSessions).toHaveLength(1);
+        expect(result.activeSessions[0]?.sessionKey).toContain('tick:12:');
+    });
+
+    it('keeps pending conquest previews separated by tick and still marks the newest as activeTransition', () => {
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 2000,
+            effectiveTickMs: 1000,
+            activeEntries: [],
+            pendingConquests: [
+                makeConquestEvent({
+                    tick: 20,
+                    starId: 'older',
+                    previousOwner: 'red',
+                    newOwner: 'blue',
                 }),
-                makeEntry({
-                    event: newerEvent,
-                    starId: newerEvent.starId,
-                    startTimeMs: 1250,
-                    durationMs: 1400,
+                makeConquestEvent({
+                    tick: 21,
+                    starId: 'newer',
+                    previousOwner: 'blue',
+                    newOwner: 'green',
                 }),
             ],
         });
 
         expect(result.activeTransition).not.toBeNull();
-        expect(result.activeTransition?.events).toHaveLength(1);
-        expect(result.activeTransition?.events[0]?.event.starId).toBe(
-            'newer-target',
-        );
-        expect(result.activeTransition?.progress).toBeCloseTo(50 / 1400, 6);
-    });
-
-    it('still marks terminal frames for older ticks so cleanup can retire them', () => {
-        const olderEvent = makeConquestEventForTick(10, 'older-target');
-        const newerEvent = makeConquestEventForTick(11, 'newer-target');
-        const result = buildRenderFamilyTransitionLifecycle({
-            nowMs: 1410,
-            effectiveTickMs: 1400,
-            activeEntries: [
-                makeEntry({
-                    event: olderEvent,
-                    starId: olderEvent.starId,
-                    startTimeMs: 1000,
-                    durationMs: 400,
-                }),
-                makeEntry({
-                    event: newerEvent,
-                    starId: newerEvent.starId,
-                    startTimeMs: 1380,
-                    durationMs: 1400,
-                }),
-            ],
-        });
-
-        expect(result.terminalFrameStarIds).toContain('older-target');
-        expect(result.activeTransition?.events[0]?.event.starId).toBe(
-            'newer-target',
-        );
+        expect(result.activeTransition?.events.map((entry) => entry.event.starId)).toEqual([
+            'newer',
+        ]);
+        expect(result.activeSessions.map((session) => session.events.map((entry) => entry.event.starId))).toEqual([
+            ['older'],
+            ['newer'],
+        ]);
+        expect(result.activeTransition?.events[0]?.progress).toBe(0);
+        expect(result.terminalFrameStarIds).toEqual([]);
     });
 });

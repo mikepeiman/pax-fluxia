@@ -384,7 +384,46 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
-    it('unattributed emergent cells snap directly to settled NEXT fill', () => {
+    it('can suppress native cells for overlay-only transition passes', () => {
+        const { classification, plan } = mixedFixture();
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.5,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+            includeNativeCells: false,
+        });
+
+        const nativeIds = new Set(classification.byRole.native);
+        expect(scene.cells.some((cell) => nativeIds.has(cell.vId))).toBe(false);
+        expect(scene.cells.length).toBeGreaterThan(0);
+    });
+
+    it('can omit explicit vstars so the base pass does not repaint them under overlays', () => {
+        const { classification, plan } = mixedFixture();
+        const omittedId = classification.byRole.dispossessed[0];
+        expect(omittedId).toBeDefined();
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.5,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+            omitVIds: new Set([omittedId]),
+        });
+
+        expect(scene.cells.some((cell) => cell.vId === omittedId)).toBe(false);
+        expect(scene.cells.length).toBeGreaterThan(0);
+    });
+
+    it('unattributed emergent cells participate in the synthetic default wave', () => {
         // Empty PREV + full NEXT with no conquest event should not animate.
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
@@ -413,16 +452,18 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.emergent.length);
         for (const id of classification.byRole.emergent) {
             const cells = scene.cells.filter((c) => c.vId === id);
             expect(cells.length).toBe(1);
-            expect(cells[0].pass).toBe('single');
+            expect(cells[0].pass).toBe('next');
             expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('B'));
-            expect(cells[0].alpha).toBe(1);
+            expect(cells[0].alpha).toBeGreaterThanOrEqual(0);
+            expect(cells[0].alpha).toBeLessThanOrEqual(1);
         }
     });
 
-    it('unattributed vacating cells disappear instead of animating', () => {
+    it('unattributed vacating cells participate in the synthetic default wave', () => {
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
         const classification = buildGridClassification({
@@ -450,9 +491,14 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.vacating.length);
         for (const id of classification.byRole.vacating) {
             const cells = scene.cells.filter((c) => c.vId === id);
-            expect(cells.length).toBe(0);
+            expect(cells.length).toBe(1);
+            expect(cells[0].pass).toBe('prev');
+            expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('A'));
+            expect(cells[0].alpha).toBeGreaterThanOrEqual(0);
+            expect(cells[0].alpha).toBeLessThanOrEqual(1);
         }
     });
 
@@ -531,7 +577,7 @@ describe('renderMetaballGridScene', () => {
         expect(alphas.some((alpha) => alpha < 1)).toBe(true);
     });
 
-    it('unattributed dispossessed cells snap directly to NEXT ownership', () => {
+    it('unattributed dispossessed cells participate in the synthetic default wave', () => {
         const world = { width: 40, height: 40 };
         const spacingPx = 20;
         const classification = buildGridClassification({
@@ -559,13 +605,15 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
-        expect(plan.flipTimeByVId.size).toBe(0);
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.dispossessed.length);
         for (const id of classification.byRole.dispossessed) {
             const cells = scene.cells.filter((c) => c.vId === id);
-            expect(cells.length).toBe(1);
-            expect(cells[0].pass).toBe('single');
-            expect(cells[0].colorIdx).toBe(OWNER_COLORS.get('B'));
-            expect(cells[0].alpha).toBe(1);
+            expect(cells.length).toBe(2);
+            const prev = cells.find((cell) => cell.pass === 'prev');
+            const next = cells.find((cell) => cell.pass === 'next');
+            expect(prev?.colorIdx).toBe(OWNER_COLORS.get('A'));
+            expect(next?.colorIdx).toBe(OWNER_COLORS.get('B'));
+            expect((prev?.alpha ?? 0) + (next?.alpha ?? 0)).toBeCloseTo(1, 5);
         }
     });
 

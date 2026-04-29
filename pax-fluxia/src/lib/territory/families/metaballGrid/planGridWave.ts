@@ -1,10 +1,10 @@
 /**
- * metaball-grid — wave planner (MG3)
+ * metaball-grid - wave planner (MG3)
  *
- * For each conquest event, compute a `flipTime ∈ [0, 1]` for every dispossessed
- * grid vstar attributed to that event. The wave cascades out from seed cells
- * under the selected `GridWaveSeeding`, with rank determined by the selected
- * `GridWaveGeometry`. Ties are broken deterministically by `(gridIy, gridIx)`.
+ * For each conquest event, compute a `flipTime in [0, 1]` for every changed
+ * grid vstar attributed to that event. Legacy modes build the field from seed
+ * cells plus a rank geometry; the newer phase-field modes assign continuous
+ * flip times directly from conquest-local spatial relationships.
  *
  * Pure function. Deterministic for fixed inputs.
  */
@@ -23,14 +23,16 @@ import type {
 } from './metaballGridTypes';
 import { buildOrderedTransitionFrontier } from './metaballGridActiveFrontier';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Grid helpers.
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface GridIndex {
     readonly cols: number;
     readonly rows: number;
     readonly byId: ReadonlyMap<string, GridVStar>;
+}
+
+interface DirectFlipPlan {
+    readonly flipTimeByVId: ReadonlyMap<string, number>;
+    readonly maxRank: number;
+    readonly seedVIds: readonly string[];
 }
 
 function buildIndex(classification: GridClassification): GridIndex {
@@ -41,6 +43,23 @@ function buildIndex(classification: GridClassification): GridIndex {
 
 function idAt(ix: number, iy: number): string {
     return `g:${ix}:${iy}`;
+}
+
+function clamp01(value: number): number {
+    if (value <= 0) return 0;
+    if (value >= 1) return 1;
+    return value;
+}
+
+function sortIdsByGrid(ids: readonly string[], index: GridIndex): string[] {
+    return [...ids].sort((a, b) => {
+        const va = index.byId.get(a);
+        const vb = index.byId.get(b);
+        if (!va || !vb) return a.localeCompare(b);
+        if (va.iy !== vb.iy) return va.iy - vb.iy;
+        if (va.ix !== vb.ix) return va.ix - vb.ix;
+        return a.localeCompare(b);
+    });
 }
 
 /** Neighbor offsets for 4/8 adjacency. */
@@ -65,75 +84,61 @@ function neighborOffsets(adj: GridAdjacency): ReadonlyArray<readonly [number, nu
     ];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Seed selection.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * Resolve the seed cells for one event under the selected seeding mode.
  *
- * - `winner_natives`     — native cells of `event.newOwner` that are adjacent
- *                          (under `adjacency`) to any dispossessed cell of the event.
- * - `conquered_star_center` — the single cell closest to the conquered star's
- *                          world position (from `resolveStarPosition`).
- * - `winner_nearest_edge` — native cells of `event.newOwner` that share a 4-edge
- *                          (always 4-connected) with a dispossessed cell of
- *                          the event. Stricter subset of `winner_natives`.
+ * - `winner_natives` - native cells of `event.newOwner` adjacent to any
+ *   changed cell of the event.
+ * - `conquered_star_center` - the single changed cell closest to the conquered
+ *   star's world position.
+ * - `winner_nearest_edge` - winner-native cells that share a 4-edge with the
+ *   changed zone.
  */
 function resolveSeeds(params: {
     event: ConquestEvent;
-    dispossessedIds: readonly string[];
+    changedIds: readonly string[];
     index: GridIndex;
-    classification: GridClassification;
     seeding: GridWaveSeeding;
     adjacency: GridAdjacency;
     resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
 }): string[] {
-    const { event, dispossessedIds, index, classification, seeding, adjacency, resolveStarPosition } = params;
+    const { event, changedIds, index, seeding, adjacency, resolveStarPosition } = params;
 
-    if (dispossessedIds.length === 0) return [];
+    if (changedIds.length === 0) return [];
 
     if (seeding === 'conquered_star_center') {
         const pos = resolveStarPosition?.(event.starId);
-        if (!pos) {
-            // Fallback: centroid of dispossessed cells, picking the closest cell to centroid.
-            return [pickCentroidSeed(dispossessedIds, index)];
-        }
-        return [pickNearestCell(pos.x, pos.y, dispossessedIds, index)];
+        if (!pos) return [pickCentroidSeed(changedIds, index)];
+        return [pickNearestCell(pos.x, pos.y, changedIds, index)];
     }
 
-    const dispossessedSet = new Set(dispossessedIds);
+    const changedSet = new Set(changedIds);
     const winnerOwner = event.newOwner;
     const adjFor = seeding === 'winner_nearest_edge' ? '4' : adjacency;
     const offsets = neighborOffsets(adjFor);
-
     const seeds = new Set<string>();
-    for (const did of dispossessedIds) {
-        const v = index.byId.get(did);
+
+    for (const changedId of changedIds) {
+        const v = index.byId.get(changedId);
         if (!v) continue;
         for (const [dx, dy] of offsets) {
             const nx = v.ix + dx;
             const ny = v.iy + dy;
             if (nx < 0 || ny < 0 || nx >= index.cols || ny >= index.rows) continue;
-            const nid = idAt(nx, ny);
-            if (dispossessedSet.has(nid)) continue;
-            const nv = index.byId.get(nid);
-            if (!nv) continue;
-            if (nv.role === 'native' && nv.nextOwnerId === winnerOwner) {
-                seeds.add(nid);
+            const neighborId = idAt(nx, ny);
+            if (changedSet.has(neighborId)) continue;
+            const neighbor = index.byId.get(neighborId);
+            if (!neighbor) continue;
+            if (neighbor.role === 'native' && neighbor.nextOwnerId === winnerOwner) {
+                seeds.add(neighborId);
             }
         }
     }
 
-    // If no adjacent winner-native exists (e.g. winner had no foothold), fall back
-    // to the nearest dispossessed cell to the conquered star if we can resolve it,
-    // else the first dispossessed cell in deterministic order.
     if (seeds.size === 0) {
         const pos = resolveStarPosition?.(event.starId);
-        if (pos) {
-            return [pickNearestCell(pos.x, pos.y, dispossessedIds, index)];
-        }
-        return [dispossessedIds[0]];
+        if (pos) return [pickNearestCell(pos.x, pos.y, changedIds, index)];
+        return [changedIds[0]];
     }
 
     return Array.from(seeds).sort();
@@ -156,7 +161,7 @@ function pickNearestCell(x: number, y: number, ids: readonly string[], index: Gr
     return bestId;
 }
 
-function pickCentroidSeed(ids: readonly string[], index: GridIndex): string {
+function resolveCentroid(ids: readonly string[], index: GridIndex): { x: number; y: number } {
     let sx = 0;
     let sy = 0;
     let n = 0;
@@ -165,80 +170,81 @@ function pickCentroidSeed(ids: readonly string[], index: GridIndex): string {
         if (!v) continue;
         sx += v.x;
         sy += v.y;
-        n++;
+        n += 1;
     }
-    if (n === 0) return ids[0];
-    return pickNearestCell(sx / n, sy / n, ids, index);
+    if (n === 0) {
+        const fallback = index.byId.get(ids[0]);
+        return fallback ? { x: fallback.x, y: fallback.y } : { x: 0, y: 0 };
+    }
+    return { x: sx / n, y: sy / n };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rank geometries.
-// ─────────────────────────────────────────────────────────────────────────────
+function pickCentroidSeed(ids: readonly string[], index: GridIndex): string {
+    const centroid = resolveCentroid(ids, index);
+    return pickNearestCell(centroid.x, centroid.y, ids, index);
+}
 
 /**
- * Multi-source BFS rank across dispossessed cells, starting from seeds.
+ * Multi-source BFS rank across changed cells, starting from seeds.
  * Rank for a seed = 0. Rank for its frontier = 1, etc. Cells unreachable
- * within the dispossessed subgraph get rank = maxRank + 1 (placed at end).
+ * within the changed subgraph get rank = maxRank + 1 and therefore flip last.
  */
 function rankByGridBfs(params: {
     seeds: readonly string[];
-    dispossessedIds: readonly string[];
+    changedIds: readonly string[];
     index: GridIndex;
     adjacency: GridAdjacency;
 }): { rank: Map<string, number>; maxRank: number } {
-    const { seeds, dispossessedIds, index, adjacency } = params;
-    const dispossessedSet = new Set(dispossessedIds);
+    const { seeds, changedIds, index, adjacency } = params;
+    const changedSet = new Set(changedIds);
     const offsets = neighborOffsets(adjacency);
     const rank = new Map<string, number>();
     const queue: string[] = [];
 
-    // Seeds are rank 0 if they are themselves dispossessed; otherwise their
-    // dispossessed neighbors are rank 0.
-    for (const s of seeds) {
-        if (dispossessedSet.has(s)) {
-            rank.set(s, 0);
-            queue.push(s);
-        } else {
-            const v = index.byId.get(s);
-            if (!v) continue;
-            for (const [dx, dy] of offsets) {
-                const nx = v.ix + dx;
-                const ny = v.iy + dy;
-                const nid = idAt(nx, ny);
-                if (dispossessedSet.has(nid) && !rank.has(nid)) {
-                    rank.set(nid, 0);
-                    queue.push(nid);
-                }
+    for (const seed of seeds) {
+        if (changedSet.has(seed)) {
+            rank.set(seed, 0);
+            queue.push(seed);
+            continue;
+        }
+
+        const v = index.byId.get(seed);
+        if (!v) continue;
+        for (const [dx, dy] of offsets) {
+            const nx = v.ix + dx;
+            const ny = v.iy + dy;
+            const neighborId = idAt(nx, ny);
+            if (changedSet.has(neighborId) && !rank.has(neighborId)) {
+                rank.set(neighborId, 0);
+                queue.push(neighborId);
             }
         }
     }
 
-    // Standard BFS.
     let head = 0;
     while (head < queue.length) {
-        const cur = queue[head++];
-        const cv = index.byId.get(cur);
-        if (!cv) continue;
-        const curRank = rank.get(cur) ?? 0;
+        const currentId = queue[head++];
+        const current = index.byId.get(currentId);
+        if (!current) continue;
+        const currentRank = rank.get(currentId) ?? 0;
         for (const [dx, dy] of offsets) {
-            const nx = cv.ix + dx;
-            const ny = cv.iy + dy;
-            const nid = idAt(nx, ny);
-            if (!dispossessedSet.has(nid)) continue;
-            if (rank.has(nid)) continue;
-            rank.set(nid, curRank + 1);
-            queue.push(nid);
+            const nx = current.ix + dx;
+            const ny = current.iy + dy;
+            const neighborId = idAt(nx, ny);
+            if (!changedSet.has(neighborId) || rank.has(neighborId)) continue;
+            rank.set(neighborId, currentRank + 1);
+            queue.push(neighborId);
         }
     }
 
-    // Compute maxRank over reachable cells.
     let maxRank = 0;
-    for (const r of rank.values()) if (r > maxRank) maxRank = r;
+    for (const value of rank.values()) {
+        if (value > maxRank) maxRank = value;
+    }
 
-    // Unreachable dispossessed cells (if any) go one past maxRank.
     const unreachableRank = maxRank + 1;
     let hasUnreachable = false;
-    for (const id of dispossessedIds) {
+    for (const id of changedIds) {
         if (!rank.has(id)) {
             rank.set(id, unreachableRank);
             hasUnreachable = true;
@@ -250,82 +256,70 @@ function rankByGridBfs(params: {
 }
 
 /**
- * Rank by min Euclidean distance from any seed cell centre. Ranks are discrete
- * bucket indices of the normalized distance, yielding smooth banded waves.
+ * Rank by min Euclidean distance from any seed cell center.
  *
- * Buckets: `rank = round(d / spacing)`. This keeps ranks comparable to grid_bfs
- * depths.
+ * Buckets: `rank = round(distance / spacingPx)`. This keeps the legacy
+ * distance-band mode comparable to BFS depths for diagnostics and tuning.
  */
 function rankByEuclideanBand(params: {
     seeds: readonly string[];
-    dispossessedIds: readonly string[];
+    changedIds: readonly string[];
     index: GridIndex;
     spacingPx: number;
 }): { rank: Map<string, number>; maxRank: number } {
-    const { seeds, dispossessedIds, index, spacingPx } = params;
+    const { seeds, changedIds, index, spacingPx } = params;
 
     const seedPositions: Array<{ x: number; y: number }> = [];
-    for (const s of seeds) {
-        const v = index.byId.get(s);
+    for (const seed of seeds) {
+        const v = index.byId.get(seed);
         if (v) seedPositions.push({ x: v.x, y: v.y });
     }
     if (seedPositions.length === 0) {
-        // Fall back to first dispossessed as seed.
-        const first = index.byId.get(dispossessedIds[0]);
+        const first = index.byId.get(changedIds[0]);
         if (first) seedPositions.push({ x: first.x, y: first.y });
     }
 
     const rank = new Map<string, number>();
     let maxRank = 0;
-    for (const id of dispossessedIds) {
+    for (const id of changedIds) {
         const v = index.byId.get(id);
         if (!v) continue;
         let minD = Infinity;
-        for (const s of seedPositions) {
-            const dx = v.x - s.x;
-            const dy = v.y - s.y;
-            const d = Math.sqrt(dx * dx + dy * dy);
-            if (d < minD) minD = d;
+        for (const seed of seedPositions) {
+            const dx = v.x - seed.x;
+            const dy = v.y - seed.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < minD) minD = distance;
         }
-        const r = Math.round(minD / spacingPx);
-        rank.set(id, r);
-        if (r > maxRank) maxRank = r;
+        const value = Math.round(minD / spacingPx);
+        rank.set(id, value);
+        if (value > maxRank) maxRank = value;
     }
     return { rank, maxRank };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Flip-time assignment.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
- * Convert ranks to flip times in [0, 1]. Ties broken deterministically by
- * `(gridIy, gridIx)` per the plan.
- *
- * Special case: when `maxRank === 0` (all seeds are themselves the full
- * dispossessed set, or only one rank present), every cell gets `flipTime = 0`.
- * This is a degenerate wave — everything flips at progress 0 — and is
- * preferable to dividing by zero.
+ * Convert ranks to flip times in [0, 1]. Ties are broken deterministically by
+ * `(gridIy, gridIx)`.
  */
 function assignFlipTimes(params: {
     rank: ReadonlyMap<string, number>;
     maxRank: number;
-    dispossessedIds: readonly string[];
+    changedIds: readonly string[];
     index: GridIndex;
 }): Map<string, number> {
-    const { rank, maxRank, dispossessedIds, index } = params;
+    const { rank, maxRank, changedIds, index } = params;
     const flip = new Map<string, number>();
-
-    // Sort dispossessed ids by (rank, iy, ix) for deterministic tiebreak.
-    const sorted = [...dispossessedIds].sort((a, b) => {
+    const sorted = [...changedIds].sort((a, b) => {
         const ra = rank.get(a) ?? 0;
         const rb = rank.get(b) ?? 0;
         if (ra !== rb) return ra - rb;
         const va = index.byId.get(a);
         const vb = index.byId.get(b);
-        if (!va || !vb) return a < b ? -1 : 1;
+        if (!va || !vb) return a.localeCompare(b);
         if (va.iy !== vb.iy) return va.iy - vb.iy;
-        return va.ix - vb.ix;
+        if (va.ix !== vb.ix) return va.ix - vb.ix;
+        return a.localeCompare(b);
     });
 
     if (maxRank <= 0) {
@@ -334,83 +328,254 @@ function assignFlipTimes(params: {
     }
 
     for (const id of sorted) {
-        const r = rank.get(id) ?? 0;
-        flip.set(id, r / maxRank);
+        const value = rank.get(id) ?? 0;
+        flip.set(id, value / maxRank);
     }
     return flip;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public entry.
-// ─────────────────────────────────────────────────────────────────────────────
+function assignConqueredStarRadialFlipTimes(params: {
+    event?: ConquestEvent;
+    changedIds: readonly string[];
+    index: GridIndex;
+    spacingPx: number;
+    resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
+}): DirectFlipPlan {
+    const { event, changedIds, index, spacingPx, resolveStarPosition } = params;
+    const origin =
+        (event ? resolveStarPosition?.(event.starId) ?? null : null)
+        ?? resolveCentroid(changedIds, index);
+    const seedId = pickNearestCell(origin.x, origin.y, changedIds, index);
+    const sortedIds = sortIdsByGrid(changedIds, index);
+    const flipTimeByVId = new Map<string, number>();
+
+    let maxDistance = 0;
+    const distanceById = new Map<string, number>();
+    for (const id of sortedIds) {
+        const v = index.byId.get(id);
+        if (!v) continue;
+        const dx = v.x - origin.x;
+        const dy = v.y - origin.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        distanceById.set(id, distance);
+        if (distance > maxDistance) maxDistance = distance;
+    }
+
+    if (maxDistance <= 0) {
+        for (const id of sortedIds) flipTimeByVId.set(id, 0);
+        return { flipTimeByVId, maxRank: 0, seedVIds: [seedId] };
+    }
+
+    for (const id of sortedIds) {
+        flipTimeByVId.set(id, clamp01((distanceById.get(id) ?? 0) / maxDistance));
+    }
+
+    return {
+        flipTimeByVId,
+        maxRank: maxDistance / Math.max(1, spacingPx),
+        seedVIds: [seedId],
+    };
+}
+
+function resolvePreAndPostFrontierSeeds(params: {
+    changedIds: readonly string[];
+    index: GridIndex;
+    adjacency: GridAdjacency;
+}): { preSeedVIds: string[]; postSeedVIds: string[] } {
+    const { changedIds, index, adjacency } = params;
+    const changedSet = new Set(changedIds);
+    const offsets = neighborOffsets(adjacency);
+    const preSeeds = new Set<string>();
+    const postSeeds = new Set<string>();
+
+    for (const id of changedIds) {
+        const v = index.byId.get(id);
+        if (!v) continue;
+        for (const [dx, dy] of offsets) {
+            const nx = v.ix + dx;
+            const ny = v.iy + dy;
+            if (nx < 0 || ny < 0 || nx >= index.cols || ny >= index.rows) continue;
+            const neighborId = idAt(nx, ny);
+            if (changedSet.has(neighborId)) continue;
+            const neighbor = index.byId.get(neighborId);
+            if (!neighbor) continue;
+
+            if (neighbor.prevOwnerId === v.nextOwnerId) preSeeds.add(id);
+            if (neighbor.nextOwnerId === v.prevOwnerId) postSeeds.add(id);
+        }
+    }
+
+    return {
+        preSeedVIds: sortIdsByGrid([...preSeeds], index),
+        postSeedVIds: sortIdsByGrid([...postSeeds], index),
+    };
+}
+
+function assignPreToPostFrontierFlipTimes(params: {
+    event?: ConquestEvent;
+    changedIds: readonly string[];
+    index: GridIndex;
+    spacingPx: number;
+    adjacency: GridAdjacency;
+    resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
+}): DirectFlipPlan {
+    const { changedIds, index, spacingPx, adjacency, event, resolveStarPosition } = params;
+    const { preSeedVIds, postSeedVIds } = resolvePreAndPostFrontierSeeds({
+        changedIds,
+        index,
+        adjacency,
+    });
+
+    // Some ownership deltas collapse to a map edge or a fully engulfed island,
+    // which leaves one frontier side unobservable from the grid. Fall back to
+    // the star-centered radial field in those degenerate cases.
+    if (preSeedVIds.length === 0 || postSeedVIds.length === 0) {
+        return assignConqueredStarRadialFlipTimes({
+            event,
+            changedIds,
+            index,
+            spacingPx,
+            resolveStarPosition,
+        });
+    }
+
+    const preDistance = rankByGridBfs({
+        seeds: preSeedVIds,
+        changedIds,
+        index,
+        adjacency,
+    });
+    const postDistance = rankByGridBfs({
+        seeds: postSeedVIds,
+        changedIds,
+        index,
+        adjacency,
+    });
+
+    const preSeedSet = new Set(preSeedVIds);
+    const postSeedSet = new Set(postSeedVIds);
+    const flipTimeByVId = new Map<string, number>();
+    let maxRank = 0;
+
+    for (const id of sortIdsByGrid(changedIds, index)) {
+        const dPre = preDistance.rank.get(id) ?? 0;
+        const dPost = postDistance.rank.get(id) ?? 0;
+        const denom = dPre + dPost;
+
+        let flipTime = 0.5;
+        if (denom > 0) {
+            flipTime = dPre / denom;
+        } else if (preSeedSet.has(id) && !postSeedSet.has(id)) {
+            flipTime = 0;
+        } else if (postSeedSet.has(id) && !preSeedSet.has(id)) {
+            flipTime = 1;
+        }
+
+        flipTimeByVId.set(id, clamp01(flipTime));
+        if (denom > maxRank) maxRank = denom;
+    }
+
+    return {
+        flipTimeByVId,
+        maxRank,
+        seedVIds: preSeedVIds,
+    };
+}
 
 /**
- * Build a full wave plan covering every dispossessed cell. Iterates events in
- * input order. Cells attributed to the synthetic default event are grouped
- * under a single synthetic plan entry.
+ * Build a full wave plan covering every changed cell. Iterates events in input
+ * order. Cells attributed to the synthetic default event are grouped under a
+ * single synthetic plan entry.
  */
 export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
     const { classification, seeding, geometry, adjacency, conquestEvents, resolveStarPosition } = params;
     const index = buildIndex(classification);
 
-    // Build event-id → cells lookup, then iterate in event order plus the default bucket.
-    const eventOrder: Array<{ eventId: string; event?: ConquestEvent }> = conquestEvents.map((e) => ({
-        eventId: makeEventId(e),
-        event: e,
+    const eventOrder: Array<{ eventId: string; event?: ConquestEvent }> = conquestEvents.map((event) => ({
+        eventId: makeEventId(event),
+        event,
     }));
+    if (classification.dispossessedByEventId[classification.defaultEventId]) {
+        eventOrder.push({ eventId: classification.defaultEventId, event: undefined });
+    }
+
     const perEvent: GridWavePlanEvent[] = [];
     const flat = new Map<string, number>();
 
     for (const { eventId, event } of eventOrder) {
-        const dispossessedIds = classification.dispossessedByEventId[eventId];
-        if (!dispossessedIds || dispossessedIds.length === 0) continue;
+        const changedIds = classification.dispossessedByEventId[eventId];
+        if (!changedIds || changedIds.length === 0) continue;
 
-        // Seeds: seeding mode requires a concrete event for winner_natives /
-        // winner_nearest_edge / conquered_star_center. For the default bucket
-        // (no event), fall back to centroid seed.
-        let seeds: string[];
-        if (event) {
-            seeds = resolveSeeds({
+        let flipPlan: DirectFlipPlan;
+
+        if (geometry === 'conquered_star_radial') {
+            flipPlan = assignConqueredStarRadialFlipTimes({
                 event,
-                dispossessedIds,
+                changedIds,
                 index,
-                classification,
-                seeding,
+                spacingPx: classification.spacingPx,
+                resolveStarPosition,
+            });
+        } else if (geometry === 'pre_to_post_frontier') {
+            flipPlan = assignPreToPostFrontierFlipTimes({
+                event,
+                changedIds,
+                index,
+                spacingPx: classification.spacingPx,
                 adjacency,
                 resolveStarPosition,
             });
         } else {
-            seeds = [pickCentroidSeed(dispossessedIds, index)];
+            const seeds = event
+                ? resolveSeeds({
+                      event,
+                      changedIds,
+                      index,
+                      seeding,
+                      adjacency,
+                      resolveStarPosition,
+                  })
+                : [pickCentroidSeed(changedIds, index)];
+
+            const ranked =
+                geometry === 'grid_bfs'
+                    ? rankByGridBfs({
+                          seeds,
+                          changedIds,
+                          index,
+                          adjacency,
+                      })
+                    : rankByEuclideanBand({
+                          seeds,
+                          changedIds,
+                          index,
+                          spacingPx: classification.spacingPx,
+                      });
+
+            flipPlan = {
+                flipTimeByVId: assignFlipTimes({
+                    rank: ranked.rank,
+                    maxRank: ranked.maxRank,
+                    changedIds,
+                    index,
+                }),
+                maxRank: ranked.maxRank,
+                seedVIds: seeds,
+            };
         }
 
-        // Rank.
-        const ranked =
-            geometry === 'grid_bfs'
-                ? rankByGridBfs({ seeds, dispossessedIds, index, adjacency })
-                : rankByEuclideanBand({
-                      seeds,
-                      dispossessedIds,
-                      index,
-                      spacingPx: classification.spacingPx,
-                  });
-
-        const flipTimeByVId = assignFlipTimes({
-            rank: ranked.rank,
-            maxRank: ranked.maxRank,
-            dispossessedIds,
-            index,
-        });
-
-        for (const [id, t] of flipTimeByVId) flat.set(id, t);
+        for (const [id, flipTime] of flipPlan.flipTimeByVId) {
+            flat.set(id, flipTime);
+        }
 
         perEvent.push({
             eventId,
             seeding,
             geometry,
             adjacency,
-            maxRank: ranked.maxRank,
-            flipTimeByVId,
-            seedVIds: seeds,
+            maxRank: flipPlan.maxRank,
+            flipTimeByVId: flipPlan.flipTimeByVId,
+            seedVIds: flipPlan.seedVIds,
         });
     }
 

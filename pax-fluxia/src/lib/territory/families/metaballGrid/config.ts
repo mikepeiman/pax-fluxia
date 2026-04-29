@@ -11,6 +11,8 @@ export const metaballGridFamilyConfigDefaults = {
     METABALL_GRID_CELL_CORNER_PX: 0,
     METABALL_GRID_BORDER_MODE: 'off' as const,
     METABALL_GRID_BORDER_BLEND: false,
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
+    METABALL_GRID_EDGE_TRIM_PX: 0,
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 0,
     METABALL_GRID_ADJACENCY: '8' as const,
     METABALL_GRID_WAVE_GEOMETRY: 'grid_bfs' as const,
@@ -21,4 +23,13 @@ export const metaballGridFamilyConfigDefaults = {
     METABALL_GRID_FLIP_WINDOW: 0.14,
     METABALL_GRID_WAVE_EASE: 'ease_in_out' as const,
     METABALL_GRID_FLIP_WINDOW_JITTER: 0,
+} as const;
+
+export const metaballGridPhaseEdgesModeDefaults = {
+    METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
+    METABALL_GRID_BORDER_MODE: 'territory_edge' as const,
+    METABALL_GRID_BORDER_BLEND: true,
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
+    METABALL_GRID_EDGE_TRIM_PX: 0,
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
 } as const;

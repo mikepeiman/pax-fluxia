@@ -1,6 +1,7 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+    import { metaballGridPhaseEdgesModeDefaults } from '$lib/territory/families/metaballGrid/config';
     import { metaballGridStats } from '$lib/territory/families/metaballGrid/metaballGridStats';
 
     interface Props {
@@ -47,6 +48,13 @@
         bumpTerritoryVisualConfig();
     }
 
+    function isPhaseEdgesMode(): boolean {
+        return (
+            (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) ===
+            'metaball_grid_phase_edges'
+        );
+    }
+
     // Resolved values.
     function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
         const raw =
@@ -72,11 +80,20 @@
         return raw === '4' ? '4' : '8';
     }
 
-    function currentWaveGeometry(): 'grid_bfs' | 'euclidean_band' {
+    function currentWaveGeometry():
+        | 'grid_bfs'
+        | 'euclidean_band'
+        | 'conquered_star_radial'
+        | 'pre_to_post_frontier' {
+        if (isPhaseEdgesMode()) {
+            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY;
+        }
         const raw =
             panel.metaballGridWaveGeometry ??
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
             'grid_bfs';
+        if (raw === 'conquered_star_radial') return 'conquered_star_radial';
+        if (raw === 'pre_to_post_frontier') return 'pre_to_post_frontier';
         return raw === 'euclidean_band' ? 'euclidean_band' : 'grid_bfs';
     }
 
@@ -97,7 +114,7 @@
         const raw =
             panel.metaballGridFlipTransition ??
             GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION ??
-            'dual_pass_blend';
+            'hard';
         if (raw === 'lerp_per_cell') return 'lerp_per_cell';
         if (raw === 'dual_pass_blend') return 'dual_pass_blend';
         return 'hard';
@@ -115,6 +132,9 @@
     }
 
     function currentBorderMode(): 'off' | 'per_cell' | 'territory_edge' {
+        if (isPhaseEdgesMode()) {
+            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE;
+        }
         const raw =
             panel.metaballGridBorderMode ??
             GAME_CONFIG.METABALL_GRID_BORDER_MODE ??
@@ -122,6 +142,24 @@
         if (raw === 'per_cell') return 'per_cell';
         if (raw === 'territory_edge') return 'territory_edge';
         return 'off';
+    }
+
+    function currentBorderBlend(): boolean {
+        if (isPhaseEdgesMode()) {
+            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND;
+        }
+        return panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true;
+    }
+
+    function currentBorderChaikinPasses(): number {
+        if (isPhaseEdgesMode()) {
+            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES;
+        }
+        return (
+            panel.metaballGridBorderChaikinPasses ??
+            GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
+            0
+        );
     }
 
     function currentWaveEase():
@@ -134,7 +172,7 @@
         const raw =
             panel.metaballGridWaveEase ??
             GAME_CONFIG.METABALL_GRID_WAVE_EASE ??
-            'ease_in_out';
+            'linear';
         if (
             raw === 'ease_in' ||
             raw === 'ease_out' ||
@@ -143,10 +181,10 @@
             raw === 'elastic_out'
         )
             return raw;
-        return 'ease_in_out';
+        return 'linear';
     }
 
-    const METABALL_GRID_BASELINE_SPACING_PX = 32;
+    const METABALL_GRID_BASELINE_SPACING_PX = 48;
 
     function currentSpacingPx(): number {
         return panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? METABALL_GRID_BASELINE_SPACING_PX;
@@ -185,6 +223,12 @@
             onclick={() => setActiveModule('none')}>None</button>
     </div>
 </div>
+
+{#if isPhaseEdgesMode()}
+    <div class="mode-lock-note">
+        Phase Edges locks its frontier-shaped wave geometry and territory-edge border defaults so it remains distinct from base Metaball Grid.
+    </div>
+{/if}
 
 <div class="module-nav">
     {#each METABALL_GRID_MODULES as module}
@@ -248,7 +292,7 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 32 px spacing.">
+        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
             Grid Density
         </span>
         <span class="val">
@@ -495,6 +539,7 @@
     <select
         class="mode-select"
         value={currentBorderMode()}
+        disabled={isPhaseEdgesMode()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
@@ -506,11 +551,11 @@
     </select>
 </div>
 
-<label class="toggle-row" class:disabled={currentBorderMode() !== 'territory_edge'}>
+<label class="toggle-row" class:disabled={isPhaseEdgesMode() || currentBorderMode() !== 'territory_edge'}>
     <input
         type="checkbox"
-        disabled={currentBorderMode() !== 'territory_edge'}
-        checked={panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true}
+        disabled={isPhaseEdgesMode() || currentBorderMode() !== 'territory_edge'}
+        checked={currentBorderBlend()}
         onchange={(event) => {
             const value = (event.target as HTMLInputElement).checked;
             writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
@@ -520,7 +565,7 @@
         Centered-blended borders
     </span>
     <span class="val">
-        {(panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true) ? 'On' : 'Off'}
+        {currentBorderBlend() ? 'On' : 'Off'}
     </span>
 </label>
 <div class="var-desc">
@@ -532,7 +577,7 @@
         <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
             Border Chaikin Passes
         </span>
-        <span class="val">{panel.metaballGridBorderChaikinPasses ?? GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0}</span>
+        <span class="val">{currentBorderChaikinPasses()}</span>
     </div>
     <div class="var-desc">
         Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
@@ -542,10 +587,57 @@
         min="0"
         max="4"
         step="1"
-        value={panel.metaballGridBorderChaikinPasses ?? GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0}
+        disabled={isPhaseEdgesMode()}
+        value={currentBorderChaikinPasses()}
         oninput={(event) => {
             const value = parseInt((event.target as HTMLInputElement).value, 10);
             writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
+            Shared Edge Smoothing
+        </span>
+        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+    </div>
+    <div class="var-desc">
+        Additional shared-edge softening for the separate phase-edge mode. This affects square-cell boundary corners before the centered-blended edge stroke is drawn.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="4"
+        step="1"
+        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
+            Shared Edge Trim
+        </span>
+        <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+    </div>
+    <div class="var-desc">
+        Endpoint trim for open shared-edge chains. The handoff keeps this at 0 by default because the trim path is still exploratory.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="12"
+        step="0.5"
+        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
         }}
     />
 </div>
@@ -582,14 +674,20 @@
         <span class="var-name" title="How the wave's rank (ordering) is derived — BFS over grid steps or a Euclidean band around the seed set.">
             Wave Geometry
         </span>
-        <span class="val">{currentWaveGeometry() === 'grid_bfs' ? 'Grid BFS' : 'Euclidean band'}</span>
+        <span class="val">
+            {#if currentWaveGeometry() === 'grid_bfs'}Grid BFS
+            {:else if currentWaveGeometry() === 'euclidean_band'}Euclidean band
+            {:else if currentWaveGeometry() === 'conquered_star_radial'}Conquered star radial
+            {:else}Pre → post frontier{/if}
+        </span>
     </div>
     <div class="var-desc">
-        Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed.
+        Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships.
     </div>
     <select
         class="mode-select"
         value={currentWaveGeometry()}
+        disabled={isPhaseEdgesMode()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
@@ -597,6 +695,8 @@
     >
         <option value="grid_bfs">Grid BFS (step-by-step)</option>
         <option value="euclidean_band">Euclidean band (distance buckets)</option>
+        <option value="conquered_star_radial">Conquered star radial</option>
+        <option value="pre_to_post_frontier">Pre → post frontier</option>
     </select>
 </div>
 
@@ -634,13 +734,13 @@
 <div class="module-block">
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="How each grid cell blends ownership when the conquest wave reaches it. Debug instant switch = abrupt owner swap. Local crossfade = blend only inside the local window. Continuous dual-pass blend = always render both owners and crossfade between them.">
-            Cell Ownership Transition
+        <span class="var-name" title="How each cell visually transitions at its flipTime. Hard = instant flip. Lerp per cell = local crossfade inside a window. Dual pass = always two passes crossfading.">
+            Flip Transition
         </span>
         <span class="val">
-            {#if currentFlipTransition() === 'hard'}Debug instant switch
-            {:else if currentFlipTransition() === 'lerp_per_cell'}Local crossfade
-            {:else}Continuous dual-pass blend{/if}
+            {#if currentFlipTransition() === 'hard'}Hard
+            {:else if currentFlipTransition() === 'lerp_per_cell'}Lerp per cell
+            {:else}Dual pass blend{/if}
         </span>
     </div>
     <div class="var-desc">
@@ -654,18 +754,18 @@
             writeConfig('METABALL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', value);
         }}
     >
-        <option value="hard">Debug: instant switch</option>
-        <option value="lerp_per_cell">Local crossfade</option>
-        <option value="dual_pass_blend">Continuous dual-pass blend</option>
+        <option value="hard">Hard (instant)</option>
+        <option value="lerp_per_cell">Lerp per cell (local window)</option>
+        <option value="dual_pass_blend">Dual pass blend (always two)</option>
     </select>
 </div>
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Half-width of the ownership blend window around each cell's transition time (as a fraction of total transition progress 0..1).">
-            Ownership Blend Window
+        <span class="var-name" title="Half-width of the crossfade window around each cell's flipTime (as a fraction of transition progress 0..1).">
+            Flip Window
         </span>
-        <span class="val">{(panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.14).toFixed(3)}</span>
+        <span class="val">{(panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}</span>
     </div>
     <div class="var-desc">
         Crossfade half-width for lerp_per_cell and dual_pass_blend. Larger values soften flips; 0 collapses to hard behavior.
@@ -675,7 +775,7 @@
         min="0"
         max="1"
         step="0.005"
-        value={panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.14}
+        value={panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', value);
@@ -720,7 +820,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Per-cell deterministic shift applied to flipTime, in progress units. 0.05 = each cell flips up to ±5 percent earlier/later than the wave rank would dictate. Breaks up rigid fronts for a more organic feel.">
-            Timing Scatter
+            FlipTime Jitter
         </span>
         <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
     </div>
@@ -783,10 +883,55 @@
         <span class="perf-sub">/ {$metaballGridStats.emaUpdateMs.toFixed(2)} ms</span>
     </div>
 
+    <div class="perf-label">Plan build (classify / wave / total)</div>
+    <div class="perf-value">
+        {$metaballGridStats.lastClassificationBuildMs.toFixed(2)} ms
+        <span class="perf-sub">
+            / {$metaballGridStats.lastWavePlanBuildMs.toFixed(2)} ms
+            / {$metaballGridStats.lastPlanBuildMs.toFixed(2)} ms
+        </span>
+    </div>
+
     <div class="perf-label">Frames</div>
     <div class="perf-value">
         {$metaballGridStats.frameCount.toLocaleString()}
         <span class="perf-sub">skipped {$metaballGridStats.skippedFrameCount.toLocaleString()}</span>
+    </div>
+
+    <div class="perf-label">Render cache</div>
+    <div class="perf-value">
+        {$metaballGridStats.renderCacheMode === 'steady_texture'
+            ? 'steady texture'
+            : 'live vectors'}
+    </div>
+
+    <div class="perf-label">Requested plan</div>
+    <div class="perf-value">
+        {$metaballGridStats.planWorkerPending ? 'worker build pending' : 'worker ready'}
+    </div>
+
+    <div class="perf-label">Visible frame</div>
+    <div class="perf-value">
+        {#if $metaballGridStats.visibleFrameState === 'holding_pre'}
+            holding PRE
+        {:else if $metaballGridStats.visibleFrameState === 'requested_plan'}
+            requested transition plan
+        {:else if $metaballGridStats.visibleFrameState === 'fallback_plan'}
+            fallback plan
+        {:else}
+            steady-state plan
+        {/if}
+    </div>
+
+    <div class="perf-label">Transition clock</div>
+    <div class="perf-value">
+        {#if $metaballGridStats.clockSource === 'local'}
+            local visual clock
+        {:else if $metaballGridStats.clockSource === 'scheduler'}
+            scheduler clock
+        {:else}
+            none
+        {/if}
     </div>
 </div>
 </div>
@@ -799,6 +944,13 @@
         display: flex;
         justify-content: flex-end;
         margin: 0 0 8px;
+    }
+
+    .mode-lock-note {
+        margin: 0 0 10px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.72);
     }
 
     .module-scope-toggle {

@@ -3,18 +3,6 @@
  * `GameCanvas.svelte` territory style dispatch (`TERRITORY_RENDER_MODE`).
  */
 
-/** Modes that never require a RenderFamily adapter (canonical path or off). */
-const EXEMPT_FROM_FAMILY_GATE = new Set<string>([
-    'none',
-    'territory_canonical',
-    'perimeter_field',
-    // metaball_grid requires its family adapter (no legacy fallback), and the
-    // adapter registers itself on first dispatch. Exempting it from the gate
-    // avoids the chicken-and-egg where the mode would be non-selectable until
-    // it had already been selected at least once.
-    'metaball_grid',
-]);
-
 export interface TerritoryRenderModeDefinition {
     readonly id: string;
     readonly label: string;
@@ -32,8 +20,14 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     { id: 'none', label: 'Off', shortDescription: 'No territory overlay', legacyDispatch: true },
     {
         id: 'territory_canonical',
-        label: 'Canonical layered',
-        shortDescription: 'Clean architecture / engine controller',
+        label: 'Layered Runtime',
+        shortDescription: 'Direct-runtime territory route with comparison support',
+        legacyDispatch: true,
+    },
+    {
+        id: 'power_voronoi_canonical',
+        label: 'Power Voronoi 0427 (PVV4)',
+        shortDescription: 'Exact Power Voronoi direct-runtime path with full diagnostics',
         legacyDispatch: true,
     },
     {
@@ -53,7 +47,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         id: 'modified_voronoi',
         label: 'Modified Voronoi (deprecated)',
         shortDescription:
-            'Deprecated — seam model superseded by PVV / power Voronoi. Not shown in UI; migrate saved configs.',
+            'Deprecated - seam model superseded by PVV / power Voronoi. Not shown in UI; migrate saved configs.',
         legacyDispatch: true,
         uiHidden: true,
     },
@@ -84,6 +78,13 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
             'Ownership geometry underlayer + world-anchored grid of metaball cells; conquest waves flip cells cell-by-cell',
         legacyDispatch: true,
     },
+    {
+        id: 'metaball_grid_phase_edges',
+        label: 'Metaball grid phase edges',
+        shortDescription:
+            'Separate metaball-grid mode with phase-field wave geometry and territory-edge shaping controls',
+        legacyDispatch: true,
+    },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },
     { id: 'graph', label: 'Lane graph', shortDescription: 'Graph/lane influence', legacyDispatch: true },
     { id: 'contour', label: 'Contour', shortDescription: 'Marching squares worker', legacyDispatch: true },
@@ -94,20 +95,13 @@ export interface ResolvedTerritoryRenderModeOption extends TerritoryRenderModeDe
     disabledReason?: string;
 }
 
-/**
- * When `useRenderFamilies` is false, all legacy-dispatch modes are selectable.
- * When true, only exempt modes or modes listed in `familyAdapterReadyIds` are selectable.
- */
 /** True if this mode id is omitted from the settings Render mode row (may still run from config). */
 export function isTerritoryRenderModeUiHidden(modeId: string): boolean {
     const def = TERRITORY_RENDER_MODE_CATALOG.find((d) => d.id === modeId);
     return Boolean(def?.uiHidden);
 }
 
-export function resolveTerritoryRenderModeOptions(
-    useRenderFamilies: boolean,
-    familyAdapterReadyIds: ReadonlySet<string>,
-): ResolvedTerritoryRenderModeOption[] {
+export function resolveTerritoryRenderModeOptions(): ResolvedTerritoryRenderModeOption[] {
     return TERRITORY_RENDER_MODE_CATALOG.filter((def) => !def.uiHidden).map((def) => {
         if (!def.legacyDispatch) {
             return {
@@ -116,17 +110,11 @@ export function resolveTerritoryRenderModeOptions(
                 disabledReason: 'No GameCanvas dispatch',
             };
         }
-        if (!useRenderFamilies || EXEMPT_FROM_FAMILY_GATE.has(def.id)) {
-            return { ...def, selectable: true };
-        }
-        if (familyAdapterReadyIds.has(def.id)) {
-            return { ...def, selectable: true };
-        }
-        return {
-            ...def,
-            selectable: false,
-            disabledReason:
-                'Render Family gate on — no adapter registered yet (turn off USE_RENDER_FAMILIES for legacy path).',
-        };
+        return { ...def, selectable: true };
     });
+}
+
+export function getTerritoryRenderModeLabel(modeId: string | null | undefined): string {
+    if (!modeId) return 'Off';
+    return TERRITORY_RENDER_MODE_CATALOG.find((def) => def.id === modeId)?.label ?? modeId;
 }

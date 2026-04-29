@@ -13,6 +13,7 @@ export type SettingScope =
     | 'audio'
     | 'battle'
     | 'conquest'
+    | 'diagnostics'
     | 'debug'
     | 'economy'
     | 'logging'
@@ -109,7 +110,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Random Spiral': { key: 'ARROW_SPIRAL_RANDOM' },
         'Spiral Duration': { key: 'ARROW_SPIRAL_DURATION_MS' },
     },
-    debug: {
+    diagnostics: {
         'Morph Slow-Mo': {
             key: 'DEBUG_MORPH_SLOWMO',
             description:
@@ -166,6 +167,13 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'DEBUG_DY4_FORCE_TRANSITION_START',
             description:
                 'Overrides DY4 transition gating checks so the transition path always starts.',
+        },
+    },
+    debug: {
+        'Morph Slow-Mo': {
+            key: 'DEBUG_MORPH_SLOWMO',
+            description:
+                'Slows morph transitions by 10x so individual vertex behavior is easier to inspect.',
         },
     },
     economy: {
@@ -249,7 +257,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Icon Scale': { key: 'STAR_ICON_SCALE' },
         'Corner Radius': { key: 'STAR_CORNER_RADIUS' },
         'Ring Radius': { key: 'STAR_RING_RADIUS' },
-        'Ring Offset (Legacy)': { key: 'STAR_RING_OFFSET' },
+        'Ring Offset': { key: 'STAR_RING_OFFSET' },
         'Ring Width': { key: 'STAR_RING_WIDTH' },
         'Ring Alpha': { key: 'STAR_RING_ALPHA' },
         'Ring Saturation': { key: 'STAR_RING_SATURATION' },
@@ -304,26 +312,26 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
-        'Base Geometry Source': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
-        'Source MSR': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
-        'Source CX Corridors': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
-        'Source CX Lane Pairs': {
+        'Derived Geometry Input': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
+        'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Corridor Virtual Sites (CX)': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
+        'Lane Midpoint Pairs': {
             key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',
         },
-        'Source CX Lane-Pair Count': {
+        'Lane Midpoint Pair Count': {
             key: 'TERRITORY_CX_CONTEST_PAIR_COUNT',
         },
-        'Source CX Lane-Pair Weight': {
+        'Lane Midpoint Pair Weight': {
             key: 'TERRITORY_CX_CONTEST_PAIR_WEIGHT',
         },
-        'Source CX Count': { key: 'TERRITORY_CX_COUNT' },
-        'Source CX Weight': { key: 'TERRITORY_CX_WEIGHT' },
-        'Source CX Spacing': { key: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
-        'Source DX Disconnect': {
+        'Corridor Sample Count': { key: 'TERRITORY_CX_COUNT' },
+        'Corridor Weight': { key: 'TERRITORY_CX_WEIGHT' },
+        'Corridor Spacing': { key: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
+        'Disconnect Gaps (DX)': {
             key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED',
         },
-        'Source DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
-        'Source DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+        'Disconnect Weight': { key: 'TERRITORY_DX_WEIGHT' },
+        'Disconnect Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
         'Perimeter Vstar Spacing': { key: 'PERIMETER_FIELD_SAMPLE_SPACING' },
         'Perimeter Samples / Loop': {
             key: 'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP',
@@ -379,6 +387,12 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
+        'Shared Edge Smoothing': {
+            key: 'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+        },
+        'Shared Edge Trim (px)': {
+            key: 'METABALL_GRID_EDGE_TRIM_PX',
+        },
         'Border Chaikin Passes': {
             key: 'METABALL_GRID_BORDER_CHAIKIN_PASSES',
         },
@@ -588,16 +602,18 @@ function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
 
 export function enhanceSettingMetadata(
     node: HTMLElement,
-    options: { scope: SettingScope },
-): { update: (next: { scope: SettingScope }) => void; destroy: () => void } {
+    options: { scope: SettingScope | null },
+): { update: (next: { scope: SettingScope | null }) => void; destroy: () => void } {
     let scope = options.scope;
 
     const run = () => {
+        const activeScope = scope;
+        if (!activeScope) return;
         const targets = new Set<HTMLElement>();
         node.querySelectorAll<HTMLElement>(
             '.var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]',
         ).forEach((element) => targets.add(element));
-        targets.forEach((element) => enhanceTarget(element, scope));
+        targets.forEach((element) => enhanceTarget(element, activeScope));
     };
 
     const observer = new MutationObserver(() => run());

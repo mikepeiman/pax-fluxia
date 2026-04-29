@@ -4,7 +4,6 @@ import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
 import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { StarState, StarConnection } from '$lib/types/game.types';
-import type { PerimeterFieldTransitionTruth } from './perimeterField/perimeterFieldTransitionTypes';
 
 export interface RenderFamilyTransitionEvent {
     event: ConquestEvent;
@@ -14,13 +13,32 @@ export interface RenderFamilyTransitionEvent {
     rawProgress: number;
 }
 
-export interface RenderFamilyActiveTransition {
+export interface RenderFamilyTransitionSession {
+    sessionKey: string;
     conquestEvents: ReadonlyArray<ConquestEvent>;
     events: ReadonlyArray<RenderFamilyTransitionEvent>;
     startedAtMs: number;
     durationMs: number;
     progress: number;
     rawProgress: number;
+}
+
+export interface RenderFamilyActiveTransition
+    extends RenderFamilyTransitionSession {}
+
+export interface RenderFamilyOwnedStarSnapshot {
+    id: string;
+    ownerId: string;
+    x: number;
+    y: number;
+}
+
+export interface RenderFamilyCapturedTransitionSession
+    extends RenderFamilyTransitionSession {
+    prevGeometry: CanonicalGeometrySnapshot;
+    nextGeometry: CanonicalGeometrySnapshot;
+    prevOwnedStars: ReadonlyArray<RenderFamilyOwnedStarSnapshot>;
+    nextOwnedStars: ReadonlyArray<RenderFamilyOwnedStarSnapshot>;
 }
 
 export type RenderFamilyTunableValue =
@@ -52,7 +70,8 @@ export interface RenderFamilyInput {
     tunables: ReadonlyMap<string, RenderFamilyTunableValue>;
     renderer?: PIXI.Renderer;
     activeTransition?: RenderFamilyActiveTransition | null;
-    transitionTruth?: PerimeterFieldTransitionTruth | null;
+    transitionSessions?: ReadonlyArray<RenderFamilyTransitionSession> | null;
+    transitionTruth?: unknown | null;
 }
 
 export interface RenderFamilyOutput {

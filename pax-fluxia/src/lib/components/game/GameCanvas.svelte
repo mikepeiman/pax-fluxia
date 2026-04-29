@@ -102,13 +102,19 @@
     } from "$lib/territory/orchestrator";
     // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import {
         getRenderFamily,
         registerRenderFamily,
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
-    import { MetaballGridFamily, createMetaballGridFamily } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
+    import {
+        MetaballGridFamily,
+        createMetaballGridFamily,
+        createMetaballGridPhaseEdgesFamily,
+    } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
+    import { metaballGridPhaseEdgesModeDefaults } from "$lib/territory/families/metaballGrid/config";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -121,7 +127,10 @@
         buildPerimeterFieldRenderFamilyGeometry,
         buildOwnershipSnapshotFromStars,
     } from "$lib/territory/families/buildFamilyGeometry";
-    import type { RenderFamilyActiveTransition } from "$lib/territory/families/RenderFamilyTypes";
+    import type {
+        RenderFamilyActiveTransition,
+        RenderFamilyTransitionSession,
+    } from "$lib/territory/families/RenderFamilyTypes";
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
@@ -1825,6 +1834,7 @@
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent> = [],
     ): {
         activeTransition: RenderFamilyActiveTransition | null;
+        activeSessions: readonly RenderFamilyTransitionSession[];
         transitionPresentationSignature: string;
     } {
         const lifecycle = buildRenderFamilyTransitionLifecycle({
@@ -1842,6 +1852,7 @@
         if (!activeTransition) {
             return {
                 activeTransition: null,
+                activeSessions: lifecycle.activeSessions,
                 transitionPresentationSignature: "",
             };
         }
@@ -1866,7 +1877,15 @@
         ].join("::");
         return {
             activeTransition,
+            activeSessions: lifecycle.activeSessions,
             transitionPresentationSignature,
+        };
+    }
+
+    function buildPhaseEdgesRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseEdgesModeDefaults,
         };
     }
 
@@ -2368,7 +2387,7 @@
                     params.frame.geometry.frontierTopology ?? null,
                 selection: {
                     geometryMode: "unified_vector",
-                    fillTransitionMode: "topology_fill_rebuild",
+                    fillTransitionMode: "unified_topology",
                     borderTransitionMode: "off",
                     ownershipMode: "star_ownership_snapshot",
                     styleMode: "canonical",
@@ -2430,7 +2449,7 @@
             return;
         }
 
-        if (!params.input.geometry) return;
+        if (!params.input.geometry || !params.input.ownership) return;
         const liveFrame = capturePerimeterFieldLiveFrame({
             family: params.family,
             geometry: params.input.geometry,
@@ -2515,7 +2534,18 @@
     function buildCanonicalBridgeInput(
         stars: StarState[],
         runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
+        activeMode: string,
     ): TerritoryFrameInput {
+        const selection: TerritoryModeSelection =
+            activeMode === "power_voronoi_canonical"
+                ? {
+                      ownershipMode: "star_ownership_snapshot",
+                      geometryMode: "canonical_power_voronoi",
+                      fillTransitionMode: "pv_frontline",
+                      borderTransitionMode: "off",
+                      styleMode: "canonical",
+                  }
+                : runtimeSettings.selection;
         return {
             tickId: activeGameStore.currentTick ?? 0,
             nowMs: fxOrchestrator.gameTime,
@@ -2529,7 +2559,7 @@
                 width: GAME_WIDTH,
                 height: GAME_HEIGHT,
             },
-            selection: runtimeSettings.selection,
+            selection,
             tunables: runtimeSettings.tunables,
         };
     }
@@ -2705,7 +2735,7 @@
         return {
             ownershipMode: "star_ownership_snapshot" as const,
             geometryMode: "unified_vector" as const,
-            fillTransitionMode: "topology_fill_rebuild" as const,
+            fillTransitionMode: "unified_topology" as const,
             borderTransitionMode: "off" as const,
             styleMode:
                 mode === "distance_field"
@@ -2719,8 +2749,11 @@
     function getTransitionDiagnosticModeDebugSnapshot(
         mode: string,
     ): Record<string, unknown> | null {
-        if (mode === "metaball_grid") {
-            const family = getRenderFamily("metaball_grid");
+        if (
+            mode === "metaball_grid" ||
+            mode === "metaball_grid_phase_edges"
+        ) {
+            const family = getRenderFamily(mode);
             if (family instanceof MetaballGridFamily) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
@@ -2785,7 +2818,8 @@
             transitionDiagnosticPrevOwnership = null;
             return;
         }
-        if (!voronoiContainer || !app?.renderer) {
+        const activeVoronoiContainer = voronoiContainer;
+        if (!activeVoronoiContainer || !app?.renderer) {
             transitionDiagnosticCaptureState = {
                 status: "blocked",
                 reason: "renderer_unavailable",
@@ -2817,7 +2851,7 @@
             "game.renderFrame.tickEvents.capture.extract",
             () =>
                 captureTransitionDiagnosticLiveFrame({
-                    target: voronoiContainer,
+                    target: activeVoronoiContainer,
                     geometry,
                     ownership,
                     mode: params.activeMode,
@@ -5051,7 +5085,8 @@
             });
 
             // Hide all children first — only the active renderer will re-show its own
-            for (const child of voronoiContainer.children) {
+            const activeVoronoiContainer = voronoiContainer!;
+            for (const child of activeVoronoiContainer.children) {
                 child.visible = false;
             }
 
@@ -5064,6 +5099,7 @@
                 const activeModeNeedsGeometry =
                     activeMode === "metaball" ||
                     activeMode === "metaball_grid" ||
+                    activeMode === "metaball_grid_phase_edges" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
@@ -5093,46 +5129,58 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
-                if (voronoiContainer) {
-                    const metaballFamily = getRenderFamily("metaball");
-                    if (
-                        activeMode !== "metaball" &&
-                        metaballFamily instanceof MetaballFamily &&
-                        metaballFamily.displayRoot.parent === voronoiContainer
-                    ) {
-                        voronoiContainer.removeChild(metaballFamily.displayRoot);
-                    }
-                    const perimeterFieldFamily =
-                        getRenderFamily("perimeter_field");
-                    if (
-                        activeMode !== "perimeter_field" &&
-                        perimeterFieldFamily instanceof PerimeterFieldFamily &&
-                        perimeterFieldFamily.displayRoot.parent ===
-                            voronoiContainer
-                    ) {
-                        voronoiContainer.removeChild(
-                            perimeterFieldFamily.displayRoot,
-                        );
-                    }
-                    const metaballGridFamily =
-                        getRenderFamily("metaball_grid");
-                    if (
-                        activeMode !== "metaball_grid" &&
-                        metaballGridFamily instanceof MetaballGridFamily &&
-                        metaballGridFamily.displayRoot.parent ===
-                            voronoiContainer
-                    ) {
-                        voronoiContainer.removeChild(
-                            metaballGridFamily.displayRoot,
-                        );
-                    }
+                const metaballFamily = getRenderFamily("metaball");
+                if (
+                    activeMode !== "metaball" &&
+                    metaballFamily instanceof MetaballFamily &&
+                    metaballFamily.displayRoot.parent === activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        metaballFamily.displayRoot,
+                    );
+                }
+                const perimeterFieldFamily =
+                    getRenderFamily("perimeter_field");
+                if (
+                    activeMode !== "perimeter_field" &&
+                    perimeterFieldFamily instanceof PerimeterFieldFamily &&
+                    perimeterFieldFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        perimeterFieldFamily.displayRoot,
+                    );
+                }
+                const metaballGridFamily =
+                    getRenderFamily("metaball_grid");
+                if (
+                    activeMode !== "metaball_grid" &&
+                    metaballGridFamily instanceof MetaballGridFamily &&
+                    metaballGridFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        metaballGridFamily.displayRoot,
+                    );
+                }
+                const metaballGridPhaseEdgesFamily =
+                    getRenderFamily("metaball_grid_phase_edges");
+                if (
+                    activeMode !== "metaball_grid_phase_edges" &&
+                    metaballGridPhaseEdgesFamily instanceof MetaballGridFamily &&
+                    metaballGridPhaseEdgesFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        metaballGridPhaseEdgesFamily.displayRoot,
+                    );
                 }
 
                 switch (activeMode) {
                     case "territory_engine":
                         renderTerritoryEngine({
                             stars,
-                            container: voronoiContainer,
+                            container: activeVoronoiContainer,
                             colorUtils,
                             worldWidth: GAME_WIDTH,
                             worldHeight: GAME_HEIGHT,
@@ -5151,7 +5199,7 @@
                                   () =>
                                       runFG2DataPipeline({
                                           stars,
-                                          container: voronoiContainer,
+                                           container: activeVoronoiContainer,
                                           colorUtils,
                                           worldWidth: GAME_WIDTH,
                                           worldHeight: GAME_HEIGHT,
@@ -5163,7 +5211,7 @@
                             : null;
                         renderPVV3Module(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5187,7 +5235,7 @@
                             () =>
                                 runFG2DataPipeline({
                                     stars,
-                                    container: voronoiContainer,
+                                    container: activeVoronoiContainer,
                                     colorUtils,
                                     worldWidth: GAME_WIDTH,
                                     worldHeight: GAME_HEIGHT,
@@ -5198,7 +5246,7 @@
                         );
                         renderPowerVoronoiModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5210,7 +5258,7 @@
                     case "distance_field":
                         renderDistanceFieldTerritoryModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5227,7 +5275,7 @@
                     case "modified_voronoi":
                         renderModifiedVoronoiModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5237,7 +5285,7 @@
                     case "pvv2_dy4":
                         renderPVV2DY4Module(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5247,7 +5295,7 @@
                     case "voronoi":
                         renderVoronoiModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5296,12 +5344,14 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
                                     tunableKeys: mf.tunableKeys,
                                 }),
                         );
                         mf.update(mfInput);
-                        if (mf.displayRoot.parent !== voronoiContainer) {
-                            voronoiContainer.addChild(mf.displayRoot);
+                        if (mf.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(mf.displayRoot);
                         }
                         mf.displayRoot.visible = true;
                         syncLiveRenderFamilyStableFrame({
@@ -5362,12 +5412,84 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
                                     tunableKeys: mg.tunableKeys,
                                 }),
                         );
                         mg.update(mgInput);
-                        if (mg.displayRoot.parent !== voronoiContainer) {
-                            voronoiContainer.addChild(mg.displayRoot);
+                        if (mg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(mg.displayRoot);
+                        }
+                        mg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                        });
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            ownership,
+                        };
+                        break;
+                    }
+                    case "metaball_grid_phase_edges": {
+                        let fam = getRenderFamily("metaball_grid_phase_edges");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballGridPhaseEdgesFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("metaball_grid_phase_edges")!;
+                        }
+                        const mg = fam as MetaballGridFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball_grid_phase_edges",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = readFamilyGeometry();
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
+                        const mgInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball_grid_phase_edges",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: territoryTransitionClock.now,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
+                                    tunableKeys: mg.tunableKeys,
+                                    configSource:
+                                        buildPhaseEdgesRenderFamilyConfigSource(),
+                                }),
+                        );
+                        mg.update(mgInput);
+                        if (mg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
                         syncLiveRenderFamilyStableFrame({
@@ -5433,12 +5555,14 @@
                                         diagnosticPrevFrame?.geometry ?? null,
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
                                     tunableKeys: pf.tunableKeys,
                                 }),
                         );
                         pf.update(pfInput);
-                        if (pf.displayRoot.parent !== voronoiContainer) {
-                            voronoiContainer.addChild(pf.displayRoot);
+                        if (pf.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(pf.displayRoot);
                         }
                         pf.displayRoot.visible = true;
                         syncLiveRenderFamilyStableFrame({
@@ -5466,7 +5590,7 @@
                             nowMs: fxOrchestrator.gameTime,
                         });
                         applyPerimeterFieldReplayPresentation({
-                            container: voronoiContainer,
+                            container: activeVoronoiContainer,
                             liveRoot: pf.displayRoot,
                         });
                         break;
@@ -5474,7 +5598,7 @@
                     case "pixel":
                         renderPixelTerritoryModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5490,7 +5614,7 @@
                     case "graph":
                         renderLaneTerritoryModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
@@ -5500,13 +5624,34 @@
                     case "contour":
                         renderContourTerritoryModule(
                             stars,
-                            voronoiContainer,
+                            activeVoronoiContainer,
                             colorUtils,
                             GAME_WIDTH,
                             GAME_HEIGHT,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
+                    case "power_voronoi_canonical": {
+                        const runtimeSettings = readTerritoryRuntimeSettings(
+                            GAME_CONFIG as unknown as Record<string, unknown>,
+                        );
+                        if (!canonicalBridge) {
+                            canonicalBridge = new GameCanvasBridge(
+                                activeVoronoiContainer,
+                                (ownerId) =>
+                                    colorUtils.getPlayerColor(ownerId),
+                            );
+                        }
+                        canonicalBridge?.update(
+                            buildCanonicalBridgeInput(
+                                stars,
+                                runtimeSettings,
+                                activeMode,
+                            ),
+                        );
+                        canonicalBridge?.consumeVFXCommands();
+                        break;
+                    }
                     case "territory_canonical": {
                         // ── CANONICAL ARCHITECTURE DISPATCH ─────────────────────────
                         const runtimeSettings = readTerritoryRuntimeSettings(
@@ -5523,10 +5668,10 @@
                             "canonical_clean_bridge";
                         let renderedByCanonicalBridge = false;
 
-                        if (useCleanArchitecture && voronoiContainer) {
+                        if (useCleanArchitecture) {
                             if (!canonicalBridge) {
                                 canonicalBridge = new GameCanvasBridge(
-                                    voronoiContainer,
+                                    activeVoronoiContainer,
                                     (ownerId) =>
                                         colorUtils.getPlayerColor(ownerId),
                                 );
@@ -5538,6 +5683,7 @@
                                         buildCanonicalBridgeInput(
                                             stars,
                                             runtimeSettings,
+                                            activeMode,
                                         ),
                                     );
                                     canonicalBridge.consumeVFXCommands();
@@ -5580,10 +5726,9 @@
                             canonicalControllerTransitionDurationMs =
                                 runtimeSettings.tunables.transitionDurationMs;
                         }
-                        if (!canonicalRenderer || !voronoiContainer) {
-                            if (voronoiContainer) {
+                        if (!canonicalRenderer) {
                                 canonicalRenderer = new TerritoryRenderer(
-                                    voronoiContainer,
+                                    activeVoronoiContainer,
                                     (ownerIdx, playerIds) => {
                                         const ownerId = playerIds[ownerIdx];
                                         return ownerId
@@ -5594,13 +5739,11 @@
                                         (p: { id: string }) => p.id,
                                     ) ?? [],
                                 );
-                            }
                         }
 
                         if (
                             canonicalController &&
-                            canonicalRenderer &&
-                            voronoiContainer
+                            canonicalRenderer
                         ) {
                             const playerIds =
                                 activeGameStore.players?.map(
@@ -5662,7 +5805,7 @@
                     }
                     // 'none' or unrecognized — no territory rendering
                 }
-                    if (activeModeNeedsGeometry && geometryReady !== true) {
+                    if (activeModeNeedsGeometry && !geometryReady) {
                         lastRenderFailure =
                             `${activeMode} requires canonical geometry, but none was supplied`;
                         log.error("GameCanvas", lastRenderFailure);
@@ -6112,7 +6255,11 @@
             const ownerId = star.ownerId ?? "__unowned__";
             ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
         }
-        const metaballGridFamily = getRenderFamily("metaball_grid");
+        const metaballGridFamily = getRenderFamily(
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges"
+                ? "metaball_grid_phase_edges"
+                : "metaball_grid",
+        );
         const metaballGridDebug =
             metaballGridFamily instanceof MetaballGridFamily
                 ? metaballGridFamily.getDebugSnapshot()

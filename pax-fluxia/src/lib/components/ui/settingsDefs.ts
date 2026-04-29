@@ -112,7 +112,7 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
     { key: 'VS_POWER_LERP_START', label: 'Power Start', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Starting Voronoi weight of the loser\'s retreating virtual star. Higher = loser territory stays larger at the start of the transition. 0 = use default (starMargin²).' },
     { key: 'VS_POWER_LERP_END', label: 'Power End', min: 0, max: 500, step: 5, unit: '', group: 'VS Transition', desc: 'Ending Voronoi weight of the loser\'s retreating virtual star. 0 = territory dissolves completely. Higher = loser retains some territory area at transition end.' },
-    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the transition-vstar influence lerp. Metaball uses it for victor/loser weight timing; legacy VS uses it for loser fade. 0 = uses the active travel duration.' },
+    { key: 'VS_POWER_LERP_DURATION_MS', label: 'Power Lerp', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'Duration of the transition-vstar influence lerp. Metaball uses it for victor/loser weight timing; the Voronoi reference path uses it for loser fade. 0 = uses the active travel duration.' },
 ];
 
 // ── Star Label Slider Definitions ───────────────────────────────────────────
@@ -311,7 +311,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_MORPH_CONTROL_POINTS' },
     { configKey: 'TERRITORY_MODE' },
     { configKey: 'TERRITORY_RENDER_MODE' },
-    { configKey: 'USE_RENDER_FAMILIES' },
     { configKey: 'TERRITORY_FILL_TRANSITION' },
     { configKey: 'TERRITORY_BORDER_TRANSITION' },
     { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
@@ -592,6 +591,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_CELL_CORNER_PX' },
     { configKey: 'METABALL_GRID_BORDER_MODE' },
     { configKey: 'METABALL_GRID_BORDER_BLEND' },
+    { configKey: 'METABALL_GRID_EDGE_SMOOTHING_PASSES' },
+    { configKey: 'METABALL_GRID_EDGE_TRIM_PX' },
     { configKey: 'METABALL_GRID_BORDER_CHAIKIN_PASSES' },
     { configKey: 'METABALL_GRID_ADJACENCY' },
     { configKey: 'METABALL_GRID_WAVE_GEOMETRY' },
