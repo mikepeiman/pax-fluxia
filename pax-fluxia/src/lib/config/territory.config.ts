@@ -1,3 +1,4 @@
+import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { metaballFamilyConfigDefaults } from '$lib/territory/families/metaball/config';
 import { metaballGridFamilyConfigDefaults } from '$lib/territory/families/metaballGrid/config';
 import { perimeterFieldFamilyConfigDefaults } from '$lib/territory/families/perimeterField/config';
@@ -17,8 +18,8 @@ export const territoryConfigDefaults = {
     TERRITORY_ENGINE_HYBRID_PLAN: '' as const,
     TERRITORY_ENGINE_STEP_MODE: false,
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: 0,
-    TERRITORY_TRANSITION_MS: 400,
-    TERRITORY_TRANSITION_BIND_TO_TICK: true,
+    TERRITORY_TRANSITION_MS: gameplayConfigDefaults.BASE_TICK_MS,
+    TERRITORY_TRANSITION_BIND_TO_TICK: false,
     VS_VICTOR_TRAVEL_MS: 0,
     VS_LOSER_TRAVEL_MS: 0,
     VS_POWER_LERP_START: 0,
