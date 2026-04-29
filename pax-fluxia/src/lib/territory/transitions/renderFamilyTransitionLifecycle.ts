@@ -91,7 +91,14 @@ export function buildRenderFamilyTransitionLifecycle(params: {
         ),
     ];
 
-    const events: RenderFamilyTransitionEvent[] = lifecycleEvents.map(
+    const activeTick = Math.max(
+        ...lifecycleEvents.map((event) => event.event.tick),
+    );
+    const activeEvents = lifecycleEvents.filter(
+        (event) => event.event.tick === activeTick,
+    );
+
+    const events: RenderFamilyTransitionEvent[] = activeEvents.map(
         ({ starIdToMark: _starIdToMark, ...event }) => event,
     );
     const startedAtMs = Math.min(...events.map((event) => event.startedAtMs));

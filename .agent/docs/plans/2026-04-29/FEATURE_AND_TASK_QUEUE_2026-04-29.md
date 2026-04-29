@@ -11,7 +11,8 @@
 - Moved render-family PREV capture to the last presented authoritative frame.
 - Removed synthetic default-bucket animation from `metaball_grid`.
 - Added regression tests so unattributed changed cells render settled instead of animated.
+- Isolated and fixed overlapping conquest batch progress coupling in render-family lifecycle composition.
 
 ## Next
 - User verification in live `metaball_grid` play.
-- If any non-conquest cells still animate, inspect `territoryTransitions` entry lifetime and overlapping-event composition next.
+- If conquest timing still ignores the slider after this patch, inspect mounted runtime config state and panel lock/bind state next.

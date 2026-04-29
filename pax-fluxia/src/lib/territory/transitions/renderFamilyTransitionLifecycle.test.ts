@@ -23,6 +23,17 @@ function makeConquestEvent(): ConquestEvent {
     };
 }
 
+function makeConquestEventForTick(
+    tick: number,
+    starId: string,
+): ConquestEvent {
+    return {
+        ...makeConquestEvent(),
+        tick,
+        starId,
+    };
+}
+
 function makeEntry(overrides: Partial<TerritoryTransitionEntry> = {}): TerritoryTransitionEntry {
     const event = overrides.event ?? makeConquestEvent();
     return {
@@ -92,5 +103,63 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
 
         state.cleanup(1466);
         expect(state.activeCount).toBe(0);
+    });
+
+    it('drives the active family transition from the newest conquest tick', () => {
+        const olderEvent = makeConquestEventForTick(10, 'older-target');
+        const newerEvent = makeConquestEventForTick(11, 'newer-target');
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1300,
+            effectiveTickMs: 1400,
+            activeEntries: [
+                makeEntry({
+                    event: olderEvent,
+                    starId: olderEvent.starId,
+                    startTimeMs: 1000,
+                    durationMs: 1400,
+                }),
+                makeEntry({
+                    event: newerEvent,
+                    starId: newerEvent.starId,
+                    startTimeMs: 1250,
+                    durationMs: 1400,
+                }),
+            ],
+        });
+
+        expect(result.activeTransition).not.toBeNull();
+        expect(result.activeTransition?.events).toHaveLength(1);
+        expect(result.activeTransition?.events[0]?.event.starId).toBe(
+            'newer-target',
+        );
+        expect(result.activeTransition?.progress).toBeCloseTo(50 / 1400, 6);
+    });
+
+    it('still marks terminal frames for older ticks so cleanup can retire them', () => {
+        const olderEvent = makeConquestEventForTick(10, 'older-target');
+        const newerEvent = makeConquestEventForTick(11, 'newer-target');
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1410,
+            effectiveTickMs: 1400,
+            activeEntries: [
+                makeEntry({
+                    event: olderEvent,
+                    starId: olderEvent.starId,
+                    startTimeMs: 1000,
+                    durationMs: 400,
+                }),
+                makeEntry({
+                    event: newerEvent,
+                    starId: newerEvent.starId,
+                    startTimeMs: 1380,
+                    durationMs: 1400,
+                }),
+            ],
+        });
+
+        expect(result.terminalFrameStarIds).toContain('older-target');
+        expect(result.activeTransition?.events[0]?.event.starId).toBe(
+            'newer-target',
+        );
     });
 });
