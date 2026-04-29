@@ -71,6 +71,7 @@
   import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
   import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
   import ControlsSectionDebug from "./settings/ControlsSection-Debug.svelte";
+  import ThemeSelectDropdown from "./settings/ThemeSelectDropdown.svelte";
   import {
     ANIM_SLIDERS,
     CONFIG_TO_PANEL_KEY,
@@ -1307,24 +1308,11 @@
   <div class="full-theme-bar">
     <div class="full-top-row">
       <div class="full-action-buttons" class:hidden={showFullSaveInput}>
-        <select
-          class="full-theme-select full-action-half"
-          value={themeStore.selectedThemeName}
-          onchange={(e) => {
-            const v = (e.target as HTMLSelectElement).value;
-            if (v) handleApplyTheme(v);
-          }}>
-          <option value="">🎨 Select theme…</option>
-          {#each themeFamilyGroups as group}
-            <optgroup label={`${group.label} (${group.themes.length})`}>
-              {#each group.themes as theme}
-                <option value={theme.name}>
-                  {getThemeOptionLabel(theme)}
-                </option>
-              {/each}
-            </optgroup>
-          {/each}
-        </select>
+        <ThemeSelectDropdown
+          {themeFamilyGroups}
+          selectedThemeName={themeStore.selectedThemeName}
+          getThemeOptionLabel={getThemeOptionLabel}
+          onSelectTheme={handleApplyTheme} />
         {#if themeStore.selectedThemeName && themeStore.isUserTheme(themeStore.selectedThemeName)}
           <button
             class="full-action-btn full-update-btn"
@@ -2152,13 +2140,15 @@
   .full-top-row {
     position: relative;
     height: 36px;
-    overflow: hidden;
+    overflow: visible;
   }
   .full-action-buttons {
     position: absolute;
     inset: 0;
     display: flex;
+    align-items: stretch;
     gap: 5px;
+    min-width: 0;
     transition:
       transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
       opacity 0.25s;
@@ -2171,43 +2161,7 @@
   .full-action-half {
     flex: 1;
     height: 100%;
-  }
-  .full-theme-select {
-    background: rgba(255, 255, 255, 0.06);
-    color: #ccc;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    padding: 0 28px 0 12px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    transition:
-      border-color 0.2s,
-      background 0.2s;
-  }
-  .full-theme-select:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.25);
-  }
-  .full-theme-select:focus {
-    border-color: #4ade80;
-  }
-  .full-theme-select option {
-    background: #151a25;
-    color: #eee;
-  }
-  .full-theme-select optgroup {
-    background: #111520;
-    color: #7dd3fc;
-    font-style: normal;
-    font-weight: 700;
+    min-width: 0;
   }
   .full-action-btn {
     background: rgba(255, 255, 255, 0.04);
@@ -2252,7 +2206,7 @@
       opacity 0.25s;
     pointer-events: none;
     background: #111520;
-    z-index: 2;
+    z-index: 30;
   }
   .full-save-drawer.open {
     transform: translateX(0);

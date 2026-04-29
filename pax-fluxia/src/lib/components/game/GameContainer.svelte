@@ -22,6 +22,9 @@
   import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
   import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
+  import ThemeSelectDropdown from "$lib/components/ui/settings/ThemeSelectDropdown.svelte";
+  import { groupThemesByRenderFamily } from "$lib/config/themeRouting";
+  import type { GameTheme } from "$lib/config/themes";
   import type { PlayerState } from "$lib/types/game.types";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -75,6 +78,13 @@
   const isMobileAtLoad =
     typeof window !== "undefined" && window.innerWidth < 1024;
   let isMobileNow = $state(isMobileAtLoad);
+  let themeFamilyGroups = $derived(
+    groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
+  );
+
+  function getThemeOptionLabel(theme: GameTheme): string {
+    return theme.name;
+  }
 
   // Track mobile state reactively for FAB visibility
   if (typeof window !== "undefined") {
@@ -662,21 +672,16 @@
 
         <!-- 2. THEME SELECTOR (bold, prominent) -->
         <div class="sidebar-theme">
-          <label class="theme-label" for="theme-select">🎨 THEME</label>
-          <select
-            id="theme-select"
-            class="theme-select"
-            value={themeStore.selectedThemeName}
-            onchange={(e) => {
-              const v = (e.target as HTMLSelectElement).value;
-              if (v) themeStore.applyTheme(v);
-            }}
-          >
-            <option value="">Select Theme…</option>
-            {#each themeStore.allThemes as theme}
-              <option value={theme.name}>{theme.name}</option>
-            {/each}
-          </select>
+          <div class="theme-label" id="game-shell-theme-label">🎨 THEME</div>
+          <ThemeSelectDropdown
+            idBase="game-shell-theme"
+            labelledBy="game-shell-theme-label"
+            variant="shell"
+            {themeFamilyGroups}
+            selectedThemeName={themeStore.selectedThemeName}
+            placeholder="Select Theme..."
+            getThemeOptionLabel={getThemeOptionLabel}
+            onSelectTheme={(name) => themeStore.applyTheme(name)} />
         </div>
 
         <!-- 3. IN-GAME MENU -->
@@ -1041,20 +1046,14 @@
           </div>
           <div class="drawer-theme-row">
             <span class="drawer-theme-icon">🎨</span>
-            <select
-              id="mobile-theme-select"
-              class="drawer-theme-select"
-              value={themeStore.selectedThemeName}
-              onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value;
-                if (v) themeStore.applyTheme(v);
-              }}
-            >
-              <option value="">Theme…</option>
-              {#each themeStore.allThemes as theme}
-                <option value={theme.name}>{theme.name}</option>
-              {/each}
-            </select>
+            <ThemeSelectDropdown
+              idBase="mobile-game-shell-theme"
+              variant="shell"
+              {themeFamilyGroups}
+              selectedThemeName={themeStore.selectedThemeName}
+              placeholder="Theme..."
+              getThemeOptionLabel={getThemeOptionLabel}
+              onSelectTheme={(name) => themeStore.applyTheme(name)} />
           </div>
         </div>
       </div>
@@ -1362,7 +1361,7 @@
       height: 100%;
       padding: 56px 24px 24px; /* top padding clears close button */
       gap: 12px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     /* Leaderboard wrapper: takes only the space it needs */
@@ -1447,22 +1446,12 @@
       gap: 8px;
       width: 100%;
       max-width: 400px;
+      min-width: 0;
+      overflow: visible;
     }
     .drawer-theme-icon {
       font-size: 1rem;
       flex-shrink: 0;
-    }
-    .drawer-theme-select {
-      flex: 1;
-      padding: 6px 10px;
-      background: rgba(20, 20, 35, 0.9);
-      border: 1px solid rgba(255, 200, 60, 0.3);
-      border-radius: 6px;
-      color: #fff;
-      font-family: "Montserrat", sans-serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
     }
 
     /* Hide desktop-only elements on mobile */
@@ -1614,6 +1603,8 @@
     padding: 8px 4px;
     margin-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-width: 0;
+    overflow: visible;
   }
 
   .theme-label {
@@ -1625,25 +1616,6 @@
     color: rgba(255, 200, 60, 0.9);
     text-transform: uppercase;
     margin-bottom: 6px;
-  }
-
-  .theme-select {
-    width: 100%;
-    padding: 8px 10px;
-    background: rgba(20, 20, 35, 0.9);
-    border: 1px solid rgba(255, 200, 60, 0.3);
-    border-radius: 6px;
-    color: #fff;
-    font-family: "Montserrat", sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
-  .theme-select:hover,
-  .theme-select:focus {
-    border-color: rgba(255, 200, 60, 0.6);
-    outline: none;
   }
 
   /* In-game menu */
