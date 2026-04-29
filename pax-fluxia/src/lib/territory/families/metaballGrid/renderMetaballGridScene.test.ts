@@ -456,6 +456,81 @@ describe('renderMetaballGridScene', () => {
         }
     });
 
+    it('attributed emergent cells follow the conquest wave instead of snapping settled', () => {
+        const world = { width: 40, height: 40 };
+        const spacingPx = 20;
+        const classification = buildGridClassification({
+            world,
+            spacingPx,
+            originMode: 'centered',
+            prevGeometry: makeSnapshot([]),
+            nextGeometry: makeSnapshot([rect('B', 'rB', 0, 0, 40, 40)]),
+            conquestEvents: [makeEvent('s:1', 'A', 'B')],
+        });
+        const plan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'grid_bfs',
+            adjacency: '4',
+            conquestEvents: [makeEvent('s:1', 'A', 'B')],
+        });
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.25,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+        });
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.emergent.length);
+        const alphas = classification.byRole.emergent.map((id) => {
+            const cells = scene.cells.filter((c) => c.vId === id);
+            expect(cells.length).toBe(1);
+            return cells[0].alpha;
+        });
+        expect(alphas.some((alpha) => alpha < 1)).toBe(true);
+    });
+
+    it('attributed vacating cells fade with the conquest wave instead of disappearing instantly', () => {
+        const world = { width: 40, height: 40 };
+        const spacingPx = 20;
+        const classification = buildGridClassification({
+            world,
+            spacingPx,
+            originMode: 'centered',
+            prevGeometry: makeSnapshot([rect('A', 'rA', 0, 0, 40, 40)]),
+            nextGeometry: makeSnapshot([]),
+            conquestEvents: [makeEvent('s:1', 'A', 'B')],
+        });
+        const plan = planGridWave({
+            classification,
+            seeding: 'winner_natives',
+            geometry: 'grid_bfs',
+            adjacency: '4',
+            conquestEvents: [makeEvent('s:1', 'A', 'B')],
+        });
+        const scene = renderMetaballGridScene({
+            classification,
+            wavePlan: plan,
+            progress: 0.25,
+            flipTransition: 'dual_pass_blend',
+            flipWindow: 0.1,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: OWNER_COLORS,
+        });
+        expect(plan.flipTimeByVId.size).toBe(classification.byRole.vacating.length);
+        const alphas = classification.byRole.vacating.map((id) => {
+            const cells = scene.cells.filter((c) => c.vId === id);
+            expect(cells.length).toBe(1);
+            return cells[0].alpha;
+        });
+        expect(alphas.some((alpha) => alpha > 0)).toBe(true);
+        expect(alphas.some((alpha) => alpha < 1)).toBe(true);
+    });
+
     it('unattributed dispossessed cells snap directly to NEXT ownership', () => {
         const world = { width: 40, height: 40 };
         const spacingPx = 20;

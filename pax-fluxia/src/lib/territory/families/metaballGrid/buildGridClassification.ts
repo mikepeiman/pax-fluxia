@@ -319,14 +319,18 @@ function attributeEvent(
     events: ReadonlyArray<ConquestEvent>,
     resolveStarPosition?: (starId: string) => { x: number; y: number } | null,
 ): string {
-    if (prev === null || next === null || prev === next) return DEFAULT_EVENT_ID;
+    if ((prev === null && next === null) || prev === next) return DEFAULT_EVENT_ID;
 
-    // For emergent/vacating, we only have one non-null side. Match against
-    // whichever side we have.
     const matches: number[] = [];
     for (let i = 0; i < events.length; i++) {
         const e = events[i];
-        if (e.previousOwner === prev && e.newOwner === next) {
+        const matchesExactTransition =
+            prev !== null && next !== null
+                ? e.previousOwner === prev && e.newOwner === next
+                : prev === null
+                    ? e.newOwner === next
+                    : e.previousOwner === prev;
+        if (matchesExactTransition) {
             matches.push(i);
         }
     }
