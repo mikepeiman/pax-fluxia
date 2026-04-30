@@ -7,3 +7,4 @@
 - Detached-worktree development without immediate commits made it too easy to report progress that the user could not see in the checkout they were actually running.
 - The process failure mattered as much as the code defects: completion was reported before user-visible verification and before required daily docs/commits existed.
 - Parent panels and child panels must not both own subsection navigation. Duplicated navigation authority is the same class of defect as duplicated topology authority: two UI surfaces pretending to own one contract.
+- Ignore rules must not be broader than the artifact paths they intend to suppress. A naked `sessions/` rule was catching required `.agent/docs/sessions/...` records and directly contradicting the repo protocol.

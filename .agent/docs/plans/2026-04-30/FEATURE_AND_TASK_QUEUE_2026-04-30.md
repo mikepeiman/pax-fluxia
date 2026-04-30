@@ -19,6 +19,7 @@
 - Created branch `codex/2026-04-30-phase-edges-catchup` and checkpointed the code in:
 - `58efa694` - `Add phase-edges frontier matrix and runtime fixes`
 - `ab8cf80c` - `Re-home territory style controls and remove topology duplication`
+- Removed the top-level `.gitignore` rule `sessions/` because it was contradicting the documented session-log protocol by ignoring `.agent/docs/sessions/`.
 
 ## Next
 - Get live user confirmation on:
