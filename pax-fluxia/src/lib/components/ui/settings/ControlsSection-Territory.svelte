@@ -19,6 +19,10 @@
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import MetaballGridTuning from "./MetaballGridTuning.svelte";
+  import {
+    metaballGridFamilyConfigDefaults,
+    metaballGridPhaseEdgesModeDefaults,
+  } from "$lib/territory/families/metaballGrid/config";
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -44,6 +48,7 @@
     lockRatioToAnimSpeed: (key: string) => void;
     view?: "modes" | "tuning" | "styles" | "all";
     showCategoryThemeBar?: boolean;
+    activeSubsection?: string;
   }
 
   let {
@@ -60,6 +65,7 @@
     lockRatioToAnimSpeed,
     view = "all",
     showCategoryThemeBar = false,
+    activeSubsection = "all",
   }: Props = $props();
 
   const showModesView = $derived(view === "all" || view === "modes");
@@ -147,6 +153,64 @@
         ? { ...module, label: "Runtime" }
         : module,
     );
+  }
+
+  function supportsRuntimeSurfaceStyleCard(): boolean {
+    const activeStyle = resolveActiveStyleId();
+    return (
+      activeStyle === "territory_engine" ||
+      activeStyle === "territory_canonical" ||
+      activeStyle === "power_voronoi_canonical"
+    );
+  }
+
+  function supportsSharedSurfaceStyleCard(): boolean {
+    const activeStyle = resolveActiveStyleId();
+    return activeStyle === "perimeter_field" || isMetaballGridStyle();
+  }
+
+  function hasTerritoryStyleControls(): boolean {
+    return supportsRuntimeSurfaceStyleCard() || supportsSharedSurfaceStyleCard();
+  }
+
+  function resolvedStyleSubsection():
+    | "all"
+    | "fill"
+    | "border"
+    | "finish" {
+    if (isMetaballGridPhaseEdgesStyle() && activeSubsection === "finish") {
+      return "all";
+    }
+    return activeSubsection === "fill" ||
+      activeSubsection === "border" ||
+      activeSubsection === "finish"
+      ? activeSubsection
+      : "all";
+  }
+
+  function showStyleSection(id: "fill" | "border" | "finish"): boolean {
+    const active = resolvedStyleSubsection();
+    return active === "all" || active === id;
+  }
+
+  function sharedSurfaceStyleHeading(): string {
+    if (isMetaballGridPhaseEdgesStyle()) {
+      return "Metaball Grid Phase Edges Surface";
+    }
+    if (isMetaballGridStyle()) {
+      return "Metaball Grid Surface";
+    }
+    return "Perimeter Field Surface";
+  }
+
+  function sharedSurfaceStyleIntro(): string {
+    if (isMetaballGridPhaseEdgesStyle()) {
+      return "Visible fill, border, and edge-presentation controls for Phase Edges. Upstream geometry and frontier technique selection stay in Territory Tuning & Constraints; the live surface shape knobs are owned here.";
+    }
+    if (isMetaballGridStyle()) {
+      return "Visible fill and border presentation for Metaball Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
+    }
+    return "Visible fill, border, and finish presentation for Perimeter Field. Source geometry and topology live in Territory Tuning & Constraints.";
   }
 
   $effect(() => {
@@ -478,12 +542,87 @@
     territory_engine: "territoryEngine",
   };
 
+  const PHASE_EDGES_PRIMED_TUNABLES = [
+    {
+      configKey: "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
+      panelKey: "territoryFrontierBorderGeometryMode",
+      familyDefault: "shared_edge",
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE,
+    },
+    {
+      configKey: "METABALL_GRID_WAVE_GEOMETRY",
+      panelKey: "metaballGridWaveGeometry",
+      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_WAVE_GEOMETRY,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY,
+    },
+    {
+      configKey: "METABALL_GRID_BORDER_MODE",
+      panelKey: "metaballGridBorderMode",
+      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_MODE,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE,
+    },
+    {
+      configKey: "METABALL_GRID_BORDER_BLEND",
+      panelKey: "metaballGridBorderBlend",
+      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_BLEND,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
+    },
+    {
+      configKey: "METABALL_GRID_EDGE_SMOOTHING_PASSES",
+      panelKey: "metaballGridEdgeSmoothingPasses",
+      familyDefault:
+        metaballGridFamilyConfigDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+    },
+    {
+      configKey: "METABALL_GRID_EDGE_TRIM_PX",
+      panelKey: "metaballGridEdgeTrimPx",
+      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_EDGE_TRIM_PX,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX,
+    },
+    {
+      configKey: "METABALL_GRID_BORDER_CHAIKIN_PASSES",
+      panelKey: "metaballGridBorderChaikinPasses",
+      familyDefault:
+        metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+      phaseEdgesDefault:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+    },
+  ] as const;
+
+  function primeMetaballGridPhaseEdgesTunables(): void {
+    for (const entry of PHASE_EDGES_PRIMED_TUNABLES) {
+      const panelValue = panel[entry.panelKey];
+      const configValue = (GAME_CONFIG as any)[entry.configKey];
+      const panelHasExplicitValue = panelValue !== undefined;
+      const shouldPrime =
+        !panelHasExplicitValue &&
+        (configValue === undefined || configValue === entry.familyDefault);
+      if (shouldPrime) {
+        debouncedConfigUpdate(
+          entry.configKey,
+          entry.panelKey,
+          entry.phaseEdgesDefault,
+        );
+      }
+    }
+  }
+
   function selectTerritoryStyle(styleId: string) {
     debouncedConfigUpdate(
       "TERRITORY_RENDER_MODE",
       "territoryRenderMode",
       styleId,
     );
+    if (styleId === "metaball_grid_phase_edges") {
+      primeMetaballGridPhaseEdgesTunables();
+    }
     setActiveRendererModule("all");
     // Reset diagnostic so it logs on next render frame
     (globalThis as any).__RENDER_MODE_LOGGED = false;
@@ -536,12 +675,14 @@
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
   }
 
+  $effect(() => {
+    if (isMetaballGridPhaseEdgesStyle()) {
+      primeMetaballGridPhaseEdgesTunables();
+    }
+  });
+
   function showsDerivedGeometryInput(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "perimeter_field" ||
-      isMetaballGridStyle()
-    );
+    return isMetaballGridStyle();
   }
 
   function resolveActiveTransitionModeId(): string {
@@ -598,15 +739,7 @@
       resolveActiveStyleId() === "territory_canonical" ||
       resolveActiveStyleId() === "power_voronoi_canonical"
     ) {
-      modules.push({ id: "surface", label: "Surface", icon: "✦" });
-    }
-
-    if (view === "styles") {
-      return modules.filter((module) => module.id === "surface");
-    }
-
-    if (view === "tuning") {
-      return modules.filter((module) => module.id !== "surface");
+      modules.push({ id: "surface", label: "Runtime", icon: "✦" });
     }
 
     return modules;
@@ -668,7 +801,7 @@
   }
 </script>
 
-{#if showCategoryThemeBar}
+{#if showCategoryThemeBar && !showStylesView}
   <CategoryThemeBar category="territory" onApply={() => syncFromConfig?.()} />
 {/if}
 
@@ -935,12 +1068,10 @@
 </div>
 {/if}
 
-{#if showTuningView || showStylesView}
+{#if showTuningView}
 <div class="territory-section-shell territory-section-shell--renderer">
   <div class="territory-section-head">
-    <h4 class="sub-heading territory-section-title">
-      {showStylesView ? "Territory Styles" : "Territory Tuning &amp; Constraints"}
-    </h4>
+    <h4 class="sub-heading territory-section-title">Territory Tuning &amp; Constraints</h4>
     <div
       class="territory-scope-toggle"
       role="group"
@@ -981,19 +1112,13 @@
   </div>
   <div class="territory-module-grid">
 
-{#if showStylesView && rendererModules().length === 0}
-  <div class="axis-note">
-    This territory mode does not expose separate surface-style controls.
-  </div>
-{/if}
-
-{#if showTuningView && activeRendererModule !== "none" && showsDerivedGeometryInput()}
+{#if activeRendererModule !== "none" && showsDerivedGeometryInput()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
-      <h4 class="axis-card-title">Derived Geometry Input</h4>
+      <h4 class="axis-card-title">Geometry Source</h4>
       <p class="territory-card__intro">
-        Select the upstream geometry path used by render-family territory
-        modes that derive their visible output from another territory shape.
+        Select which compiled upstream territory geometry feeds the active
+        derived renderer. Topology ownership rules are defined separately.
       </p>
     </div>
     <TerritoryGeometrySourceTuning {panel} {updatePanel} />
@@ -1869,8 +1994,9 @@
             : "Layered Runtime Surface"}
       </h4>
       <p class="territory-card__intro">
-        Refine fill, border, and diagnostic behavior for the active
-        territory surface.
+        Runtime diagnostics and geometry-shape controls for the active
+        territory renderer. Visible fill and border styling now lives in
+        Territory Styles.
       </p>
     </div>
 
@@ -1960,6 +2086,7 @@
       </div>
     {/if}
 
+    {#if false}
     <h5 class="territory-inline-heading">Fill &amp; Borders</h5>
 
     <div class="var-row">
@@ -2098,6 +2225,7 @@
         debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
       }} />
   </div>
+    {/if}
     {#if resolveActiveStyleId() === "territory_engine"}
       <h5 class="territory-inline-heading">Trace Inspector</h5>
 
@@ -2272,13 +2400,6 @@
       is then driven only by derived perimeter samples.
     </div>
     <PerimeterFieldTuning {panel} {updatePanel} />
-    <TerritorySurfaceStyleTuning
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      sectionHeading="Style"
-      intro="Shared surface styling for perimeter-field output. These controls affect the displayed fill and border only; they do not change the ownership geometry source."
-      fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
   </div>
 {/if}
 
@@ -2319,24 +2440,245 @@
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin:10px 0 2px;">
-      <strong>Territory tuning inputs</strong> — corridor virtual sites along
-      lanes, lane midpoint pairs on contested lanes, disconnect virtual sites
-      between same-owner components, and minimum star margin. These shape the
-      underlying territory regions that Metaball Grid classifies against.
+      <strong>Geometry input lives above.</strong> Corridor virtual sites along
+      lanes, contested midpoint pairs, disconnect virtual sites, and minimum
+      star margin belong to Territory Tuning &amp; Constraints, not Territory
+      Styles.
     </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
-    <TerritorySurfaceStyleTuning
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      sectionHeading="Style"
-      intro="Shared surface styling for metaball-grid output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
-      fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
   </div>
 {/if}
 
 </div>
 </div>
+{/if}
+
+{#if showStylesView}
+  {#if !hasTerritoryStyleControls()}
+    <div class="axis-note">
+      This render mode does not expose a separate style surface.
+    </div>
+  {:else}
+    {#if supportsRuntimeSurfaceStyleCard() && resolvedStyleSubsection() === "finish"}
+      <div class="axis-note">
+        Finish controls are not exposed for this runtime surface mode. Use
+        `Fill` or `Border`, or switch to a shared-surface family such as
+        Metaball Grid or Perimeter Field for finish controls.
+      </div>
+    {/if}
+
+    {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("fill")}
+      <div class="engine-control-group territory-module-card" data-subsection-id="fill">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">
+            {resolveActiveStyleId() === "territory_engine"
+              ? "Engine Surface"
+              : resolveActiveStyleId() === "power_voronoi_canonical"
+                ? "Power Voronoi 0427 Surface"
+                : "Layered Runtime Surface"}
+          </h4>
+          <p class="territory-card__intro">
+            Visible fill and border styling for the active territory surface.
+            Runtime shape, diagnostics, and topology live elsewhere.
+          </p>
+        </div>
+
+        <h5 class="territory-inline-heading">Territory Fill</h5>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Fill Alpha</span><span class="val"
+              >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
+            }} />
+        </div>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Neutral Transparent</span>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={panel.neutralTerritoryTransparent ??
+                  GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
+                onchange={(e) => {
+                  const v = (e.target as HTMLInputElement).checked;
+                  debouncedConfigUpdate(
+                    "NEUTRAL_TERRITORY_TRANSPARENT",
+                    "neutralTerritoryTransparent",
+                    v,
+                  );
+                }} />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Saturation</span><span class="val"
+              >{(panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION).toFixed(
+                2,
+              )}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", v);
+            }} />
+        </div>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Lightness</span><span class="val"
+              >{(panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS).toFixed(
+                2,
+              )}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.05"
+            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
+            }} />
+        </div>
+      </div>
+    {/if}
+
+    {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("border")}
+      <div class="engine-control-group territory-module-card" data-subsection-id="border">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">
+            {resolveActiveStyleId() === "territory_engine"
+              ? "Engine Surface"
+              : resolveActiveStyleId() === "power_voronoi_canonical"
+                ? "Power Voronoi 0427 Surface"
+                : "Layered Runtime Surface"}
+          </h4>
+          <p class="territory-card__intro">
+            Visible fill and border styling for the active territory surface.
+            Runtime shape, diagnostics, and topology live elsewhere.
+          </p>
+        </div>
+
+        <h5 class="territory-inline-heading">Territory Border</h5>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Border Width</span><span class="val"
+              >{(
+                panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
+              ).toFixed(1)}px</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate("VORONOI_BORDER_WIDTH", "voronoiBorderWidth", v);
+            }} />
+        </div>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Border Alpha</span><span class="val"
+              >{(
+                panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
+              ).toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate("VORONOI_BORDER_ALPHA", "voronoiBorderAlpha", v);
+            }} />
+        </div>
+
+        <div class="var-row">
+          <div class="row-top">
+            <span class="var-name">Geometry Smooth Passes</span><span
+              class="val"
+              >{Math.round(
+                panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH,
+              )}</span>
+          </div>
+          <div class="row-hint">
+            Chaikin passes - modifies actual border and fill geometry coordinates.
+            0 = angular, 2 = smooth, 5 = very round.
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="5"
+            step="1"
+            value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+            oninput={(e) => {
+              const v = +(e.target as HTMLInputElement).value;
+              debouncedConfigUpdate(
+                "VORONOI_BORDER_SMOOTH",
+                "voronoiBorderSmooth",
+                v,
+              );
+            }} />
+        </div>
+      </div>
+    {/if}
+
+    {#if supportsSharedSurfaceStyleCard()}
+      <div class="engine-control-group territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">{sharedSurfaceStyleHeading()}</h4>
+          <p class="territory-card__intro">{sharedSurfaceStyleIntro()}</p>
+        </div>
+        <TerritorySurfaceStyleTuning
+          {panel}
+          onUpdate={debouncedConfigUpdate}
+          sectionHeading={null}
+          intro=""
+          activeSection={resolvedStyleSubsection()}
+          showFinishSection={resolveActiveStyleId() === "perimeter_field"}
+          styleFamily={isMetaballGridPhaseEdgesStyle()
+            ? "metaball_grid_phase_edges"
+            : isMetaballGridStyle()
+              ? "metaball_grid"
+              : "perimeter_field"}
+          fillHelp={isMetaballGridStyle()
+            ? isMetaballGridPhaseEdgesStyle()
+              ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
+              : "Fill visibility, color energy, cell paint, and boundary inset for the Metaball Grid surface."
+            : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
+          borderHelp={isMetaballGridStyle()
+            ? isMetaballGridPhaseEdgesStyle()
+              ? "Border visibility, width, color energy, geometry family, smoothing, and trim for the Phase Edges surface."
+              : "Border visibility, width, color energy, and paint strategy for the Metaball Grid surface."
+            : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
+      </div>
+    {/if}
+  {/if}
 {/if}
 
 <!-- Per-renderer settings removed — V3.1 uses three-concern architecture (Style + Fill Transition + Border Transition) -->

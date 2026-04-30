@@ -129,6 +129,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         color: "#93c5fd",
         tier: "basic",
         scope: "territory",
+        subsections: [
+            { id: "fill", label: "Fill", icon: "◌" },
+            { id: "border", label: "Border", icon: "◇" },
+            { id: "finish", label: "Finish", icon: "✦" },
+        ],
     },
     {
         id: "fleet_star_visuals",
