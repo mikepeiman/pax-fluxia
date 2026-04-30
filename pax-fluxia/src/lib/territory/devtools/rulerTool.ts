@@ -70,7 +70,17 @@ const initialState: RulerState = {
 const store = writable<RulerState>(initialState);
 
 function setEnabled(enabled: boolean): void {
-    store.update((state) => ({ ...state, enabled }));
+    store.update((state) => ({
+        ...state,
+        enabled,
+        ...(enabled
+            ? {}
+            : {
+                  start: null,
+                  end: null,
+                  measurements: [],
+              }),
+    }));
 }
 
 function toggle(): void {

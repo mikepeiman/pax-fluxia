@@ -18,6 +18,7 @@ import type { OwnerColorResolver, GeometryRenderOptions } from './TransitionGeom
 import { renderTransitionFrameSeries } from './TransitionFrontierFrameRenderer';
 import type { FrameRenderOptions } from './TransitionFrontierFrameRenderer';
 import { compactGeometrySnapshotForExport, filePrefixFromIsoTimestamp } from './snapshotExport';
+import { writable } from 'svelte/store';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,8 @@ export interface SnapshotCaptureContext {
     /** World dimensions for rendering */
     worldWidth: number;
     worldHeight: number;
+    /** Optional mode-specific diagnostics captured from the runtime. */
+    extraDiagnostics?: unknown;
 }
 
 /**
@@ -104,6 +107,18 @@ export interface TransitionDebugMeta {
     };
     files: string[];
 }
+
+export interface TransitionSnapshotRecorderState {
+    enabled: boolean;
+    bundles: readonly TransitionDebugBundle[];
+    version: number;
+}
+
+export const transitionSnapshotRecorderStore = writable<TransitionSnapshotRecorderState>({
+    enabled: false,
+    bundles: [],
+    version: 0,
+});
 
 // ── Frontier Diff — delegates to production GeometryTopologyDiff (D-91) ─────
 // The diagnostic MUST use the exact same diff as the production transition
@@ -170,6 +185,14 @@ export class TransitionSnapshotRecorder {
     private tickCounter = 0;
     private colorResolver: OwnerColorResolver | null = null;
 
+    private emitState(): void {
+        transitionSnapshotRecorderStore.set({
+            enabled: this.enabled,
+            bundles: [...this.bundles],
+            version: Date.now(),
+        });
+    }
+
     /** Enable/disable the recorder */
     setEnabled(enabled: boolean): void {
         this.enabled = enabled;
@@ -178,6 +201,7 @@ export class TransitionSnapshotRecorder {
         } else {
             console.log('[SnapshotRecorder] enabled — waiting for conquest events');
         }
+        this.emitState();
     }
 
     isEnabled(): boolean {
@@ -336,6 +360,7 @@ export class TransitionSnapshotRecorder {
             frontierDiff,
             starPositions: ctx.starPositions,
             transitionFrames,
+            extraDiagnostics: ctx.extraDiagnostics,
             meta,
         };
 
@@ -343,7 +368,7 @@ export class TransitionSnapshotRecorder {
         if (this.bundles.length > this.maxBundles) {
             this.bundles.shift();
         }
-
+        this.emitState();
 
         console.log(
             `[SnapshotRecorder] captured: ${bundleId}` +
@@ -441,6 +466,7 @@ export class TransitionSnapshotRecorder {
         if (this.bundles.length > this.maxBundles) {
             this.bundles.shift();
         }
+        this.emitState();
 
         console.log(
             `[SnapshotRecorder] captured pre-rendered: ${bundleId}` +
@@ -467,6 +493,7 @@ export class TransitionSnapshotRecorder {
     clear(): void {
         this.bundles = [];
         console.log('[SnapshotRecorder] cleared all bundles');
+        this.emitState();
     }
 }
 

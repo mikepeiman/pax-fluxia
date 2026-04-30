@@ -1,4 +1,8 @@
 import { writable } from "svelte/store";
+import {
+    completeTerritoryTuningCompile,
+    resetTerritoryTuningStatus,
+} from "./territoryTuningStatusStore";
 
 export type ArrowRendererMode = "overlay_canvas" | "pixi_link_graphics" | "none";
 
@@ -11,7 +15,7 @@ export interface TerritoryRenderStatus {
 }
 
 const initialStatus: TerritoryRenderStatus = {
-    territoryMode: "unknown",
+    territoryMode: "none",
     geometryReady: null,
     arrowRenderer: "overlay_canvas",
     lastRenderFailure: null,
@@ -30,6 +34,7 @@ export function setTerritoryRenderStatus(
         ...patch,
         updatedAtMs: Date.now(),
     }));
+    completeTerritoryTuningCompile();
 }
 
 export function resetTerritoryRenderStatus(): void {
@@ -37,4 +42,5 @@ export function resetTerritoryRenderStatus(): void {
         ...initialStatus,
         updatedAtMs: Date.now(),
     });
+    resetTerritoryTuningStatus();
 }
