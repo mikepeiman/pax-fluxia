@@ -30,7 +30,6 @@
     import {
         territoryTransitions,
     } from "$lib/fx/handlers/territoryTransitionHandler";
-    import { territoryTransitionClock } from "$lib/territory/transitions/territoryTransitionClock";
     import {
         createContainers,
         initShipRendering,
@@ -112,8 +111,11 @@
     import {
         MetaballGridFamily,
         createMetaballGridFamily,
-        createMetaballGridPhaseEdgesFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
+    import {
+        MetaballGridPhaseEdgesFamily,
+        createMetaballGridPhaseEdgesFamily,
+    } from "$lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily";
     import {
         metaballGridPhaseEdgesGeometryDefaults,
         metaballGridPhaseEdgesModeDefaults,
@@ -2680,7 +2682,11 @@
         lanes: ReadonlyArray<StarConnection>;
         geometry: CanonicalGeometrySnapshot;
         configSource?: Record<string, unknown> | null;
+        freezeDuringActiveTransition?: boolean;
     }): void {
+        if (params.freezeDuringActiveTransition && params.activeTransition) {
+            return;
+        }
         const key = buildRenderFamilyGeometryCacheKey(
             params.stars,
             params.lanes,
@@ -2819,7 +2825,10 @@
             mode === "metaball_grid_phase_edges"
         ) {
             const family = getRenderFamily(mode);
-            if (family instanceof MetaballGridFamily) {
+            if (
+                family instanceof MetaballGridFamily ||
+                family instanceof MetaballGridPhaseEdgesFamily
+            ) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
                 );
@@ -3618,7 +3627,6 @@
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
         }
-        territoryTransitionClock.reset();
         if (interactionOverlayAnimationFrameId !== null) {
             cancelAnimationFrame(interactionOverlayAnimationFrameId);
             interactionOverlayAnimationFrameId = null;
@@ -3677,8 +3685,6 @@
 
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
             const isPaused = activeGameStore.isPaused;
-            territoryTransitionClock.tick(currentTime, isPaused);
-
             // Initialize lastTickGameTimeMs on first frame so tickProgress starts at 0
             if (lastTickGameTimeMs === 0)
                 lastTickGameTimeMs = fxOrchestrator.gameTime;
@@ -4881,7 +4887,6 @@
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
-            territoryTransitionClock.reset();
             resetTerritoryRenderCaches();
             activeSurges.clear();
             nextShipId = 0;
@@ -5126,7 +5131,7 @@
                 voronoiContainer.visible = true;
                 const renderFamilyTransitionState =
                     buildRenderFamilyTransitionState(
-                        territoryTransitionClock.now,
+                        fxOrchestrator.gameTime,
                         activeGameStore.effectiveTickMs,
                         pendingTickEvents?.conquests ?? [],
                     );
@@ -5244,7 +5249,8 @@
                     getRenderFamily("metaball_grid_phase_edges");
                 if (
                     activeMode !== "metaball_grid_phase_edges" &&
-                    metaballGridPhaseEdgesFamily instanceof MetaballGridFamily &&
+                    metaballGridPhaseEdgesFamily instanceof
+                        MetaballGridPhaseEdgesFamily &&
                     metaballGridPhaseEdgesFamily.displayRoot.parent ===
                         activeVoronoiContainer
                 ) {
@@ -5413,7 +5419,7 @@
                                     lanes,
                                     worldWidth: GAME_WIDTH,
                                     worldHeight: GAME_HEIGHT,
-                                    nowMs: territoryTransitionClock.now,
+                                    nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
@@ -5483,7 +5489,7 @@
                                     lanes,
                                     worldWidth: GAME_WIDTH,
                                     worldHeight: GAME_HEIGHT,
-                                    nowMs: territoryTransitionClock.now,
+                                    nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
@@ -5531,7 +5537,7 @@
                             );
                             fam = getRenderFamily("metaball_grid_phase_edges")!;
                         }
-                        const mg = fam as MetaballGridFamily;
+                        const mg = fam as MetaballGridPhaseEdgesFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball_grid_phase_edges",
@@ -5557,7 +5563,7 @@
                                     lanes,
                                     worldWidth: GAME_WIDTH,
                                     worldHeight: GAME_HEIGHT,
-                                    nowMs: territoryTransitionClock.now,
+                                    nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
@@ -5587,6 +5593,7 @@
                             lanes,
                             geometry,
                             configSource: renderFamilyConfigSource,
+                            freezeDuringActiveTransition: true,
                         });
                         transitionDiagnosticFrameInput = {
                             activeMode,
@@ -5610,7 +5617,7 @@
                         const activeTransition = activeRenderFamilyTransition;
                         const captureTransition =
                             buildRenderFamilyTransitionState(
-                                territoryTransitionClock.now,
+                                fxOrchestrator.gameTime,
                                 activeGameStore.effectiveTickMs,
                             ).activeTransition;
                         const ownership = measurePerf(
@@ -5637,7 +5644,7 @@
                                     lanes,
                                     worldWidth: GAME_WIDTH,
                                     worldHeight: GAME_HEIGHT,
-                                    nowMs: territoryTransitionClock.now,
+                                    nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
@@ -6353,7 +6360,8 @@
                 : "metaball_grid",
         );
         const metaballGridDebug =
-            metaballGridFamily instanceof MetaballGridFamily
+            metaballGridFamily instanceof MetaballGridFamily ||
+            metaballGridFamily instanceof MetaballGridPhaseEdgesFamily
                 ? metaballGridFamily.getDebugSnapshot()
                 : null;
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]

@@ -68,12 +68,12 @@ export interface MetaballGridDisplayProgress {
     readonly usingVisualTransition: boolean;
 }
 
-export interface MetaballGridFlipTimeBins {
-    readonly '0-0.1': number;
-    readonly '0.1-0.25': number;
-    readonly '0.25-0.5': number;
-    readonly '0.5-0.75': number;
-    readonly '0.75-1': number;
+interface MetaballGridRuntimeFlipTimeBins {
+    '0-0.1': number;
+    '0.1-0.25': number;
+    '0.25-0.5': number;
+    '0.5-0.75': number;
+    '0.75-1': number;
 }
 
 export interface MetaballGridFrontierDiagnostics {
@@ -84,13 +84,13 @@ export interface MetaballGridFrontierDiagnostics {
     readonly p75: number | null;
     readonly p95: number | null;
     readonly max: number | null;
-    readonly bins: MetaballGridFlipTimeBins;
+    readonly bins: MetaballGridRuntimeFlipTimeBins;
     readonly visibleStartProgress: number | null;
     readonly visibleEndProgress: number | null;
     readonly visibleLifetimeProgress: number | null;
 }
 
-const EMPTY_FRONTIER_BINS: MetaballGridFlipTimeBins = {
+const EMPTY_FRONTIER_BINS: MetaballGridRuntimeFlipTimeBins = {
     '0-0.1': 0,
     '0.1-0.25': 0,
     '0.25-0.5': 0,
@@ -179,7 +179,7 @@ export function summarizeMetaballGridFrontier(params: {
         };
     }
 
-    const bins: MetaballGridFlipTimeBins = { ...EMPTY_FRONTIER_BINS };
+    const bins: MetaballGridRuntimeFlipTimeBins = { ...EMPTY_FRONTIER_BINS };
     for (const value of values) {
         if (value < 0.1) bins['0-0.1'] += 1;
         else if (value < 0.25) bins['0.1-0.25'] += 1;

@@ -259,7 +259,7 @@
     }
 
     function formatPhaseEdgesSemanticsNote(): string {
-        return "Phase Edges is currently a locked-defaults variant of Metaball Grid, not a distinct renderer. If shared live settings already match the edge defaults, the main visual difference should show up during conquest timing and wave propagation rather than idle frames.";
+        return "Phase Edges now runs as its own session-overlay renderer inside the metaball family. Idle frames can still look close to base Metaball Grid when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures and wave timing instead of collapsing into one retained frontier.";
     }
 </script>
 

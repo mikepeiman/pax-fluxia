@@ -24,7 +24,6 @@ import type { FXContext } from '../types';
 import type { ConquestEvent } from '@pax/common';
 import type { FXHandler } from '../FXRegistry';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { territoryTransitionClock } from '$lib/territory/transitions/territoryTransitionClock';
 
 // ── Transition State ─────────────────────────────────────────────────────────
 
@@ -39,7 +38,7 @@ export interface TerritoryTransitionEntry {
     previousOwner: string;
     /** New territory owner */
     newOwner: string;
-    /** Wall-clock time when transition started (ms, performance.now base) */
+    /** Game time when transition started (ms) */
     startTimeMs: number;
     /** Duration of this transition (ms) */
     durationMs: number;
@@ -161,20 +160,19 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
             attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],
             previousOwner: event.previousOwner,
             newOwner: event.newOwner,
-            startTimeMs: territoryTransitionClock.now,
+            startTimeMs: ctx.gameTime,
             durationMs: transitionMs,
             consumed: false,
             terminalFrameRendered: false,
         });
     },
 
-    update(_ctx: FXContext): void {
+    update(ctx: FXContext): void {
         // Clean up expired transitions each frame
-        territoryTransitions.cleanup(territoryTransitionClock.now);
+        territoryTransitions.cleanup(ctx.gameTime);
     },
 
     destroy(): void {
         territoryTransitions.reset();
-        territoryTransitionClock.reset();
     },
 };
