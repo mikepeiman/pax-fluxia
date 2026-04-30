@@ -55,6 +55,41 @@
         );
     }
 
+    function isPhaseFieldMode(): boolean {
+        return (
+            (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) ===
+            'metaball_grid_phase_field'
+        );
+    }
+
+    function currentModeLockNote(): string | null {
+        if (isPhaseEdgesMode()) {
+            return 'Phase Edges is built for edge-forward conquest. Choose how the takeover spreads, then tune the border character.';
+        }
+        if (isPhaseFieldMode()) {
+            return 'Phase Field is built for fill-first conquest. Choose how the takeover spreads, then tune the cell look, border feel, and finish timing.';
+        }
+        return null;
+    }
+
+    function currentBorderBlendLabel(): string {
+        return isPhaseFieldMode() ? 'Centered frontier highlight' : 'Centered-blended borders';
+    }
+
+    function currentBorderBlendTitle(): string {
+        if (isPhaseFieldMode()) {
+            return 'Phase Field only: add a centered winner-side highlight at the active frontier. Off keeps the frontier closer to the winner border color.';
+        }
+        return 'Centered-blended borders: a single stroke on each ownership-boundary edge, coloured as the 50/50 blend of the two players\' border colours. Off: each cell draws its own stroke in its own colour, so boundaries show two abutting strokes.';
+    }
+
+    function currentBorderBlendDescription(): string {
+        if (isPhaseFieldMode()) {
+            return 'Only applies when Border Mode = "Territory edge". On: lift the active frontier toward a lighter winner-side highlight. Off: keep the frontier accent closer to the winner border color.';
+        }
+        return 'Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).';
+    }
+
     // Resolved values.
     function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
         const raw =
@@ -85,9 +120,6 @@
         | 'euclidean_band'
         | 'conquered_star_radial'
         | 'pre_to_post_frontier' {
-        if (isPhaseEdgesMode()) {
-            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY;
-        }
         const raw =
             panel.metaballGridWaveGeometry ??
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
@@ -95,6 +127,36 @@
         if (raw === 'conquered_star_radial') return 'conquered_star_radial';
         if (raw === 'pre_to_post_frontier') return 'pre_to_post_frontier';
         return raw === 'euclidean_band' ? 'euclidean_band' : 'grid_bfs';
+    }
+
+    function currentWaveGeometryLabel(): string {
+        switch (currentWaveGeometry()) {
+            case 'grid_bfs':
+                return 'Grid flood';
+            case 'euclidean_band':
+                return 'Distance band';
+            case 'conquered_star_radial':
+                return 'Captured-star burst';
+            case 'pre_to_post_frontier':
+                return 'Captured border';
+        }
+    }
+
+    function currentWaveGeometryDescription(): string {
+        switch (currentWaveGeometry()) {
+            case 'grid_bfs':
+                return 'Floods cell-by-cell through grid neighbors. Reads as the most blocky and tactical spread.';
+            case 'euclidean_band':
+                return 'Expands in soft distance bands from the chosen seed set. Reads smoother than a grid flood.';
+            case 'conquered_star_radial':
+                return 'Bursts outward from the captured star. Good when you want conquest to read as an impact event.';
+            case 'pre_to_post_frontier':
+                return 'Advances from the actual contested border. Best when you want ownership to hand off locally along the real frontier.';
+        }
+    }
+
+    function waveGeometryUsesSeeding(): boolean {
+        return currentWaveGeometry() !== 'pre_to_post_frontier';
     }
 
     function currentWaveSeeding():
@@ -184,6 +246,62 @@
         return 'linear';
     }
 
+    function currentPhaseFieldFinishFadeStart(): number {
+        return (
+            panel.metaballGridPhaseFieldFinishFadeStart ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINISH_FADE_START ??
+            0.82
+        );
+    }
+
+    function currentPhaseFieldFinishFadeEnd(): number {
+        return (
+            panel.metaballGridPhaseFieldFinishFadeEnd ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINISH_FADE_END ??
+            1
+        );
+    }
+
+    function currentPhaseFieldSizeCollapseStart(): number {
+        return (
+            panel.metaballGridPhaseFieldSizeCollapseStart ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START ??
+            0.72
+        );
+    }
+
+    function currentPhaseFieldSizeCollapseEnd(): number {
+        return (
+            panel.metaballGridPhaseFieldSizeCollapseEnd ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END ??
+            1
+        );
+    }
+
+    function currentPhaseFieldFinalCellSizePx(): number {
+        return (
+            panel.metaballGridPhaseFieldFinalCellSizePx ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX ??
+            1
+        );
+    }
+
+    function currentPhaseFieldFrontierFadeStart(): number {
+        return (
+            panel.metaballGridPhaseFieldFrontierFadeStart ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START ??
+            0.8
+        );
+    }
+
+    function currentPhaseFieldFrontierFadeEnd(): number {
+        return (
+            panel.metaballGridPhaseFieldFrontierFadeEnd ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END ??
+            0.96
+        );
+    }
+
     const METABALL_GRID_BASELINE_SPACING_PX = 48;
 
     function currentSpacingPx(): number {
@@ -224,9 +342,9 @@
     </div>
 </div>
 
-{#if isPhaseEdgesMode()}
+{#if currentModeLockNote()}
     <div class="mode-lock-note">
-        Phase Edges locks its frontier-shaped wave geometry and territory-edge border defaults so it remains distinct from base Metaball Grid.
+        {currentModeLockNote()}
     </div>
 {/if}
 
@@ -247,26 +365,6 @@
 
 {#if showModule('grid')}
 <div class="module-block">
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('METABALL_GRID_ENABLED', 'metaballGridEnabled', value);
-        }}
-    />
-    <span class="var-name" title="Master enable flag for the metaball-grid mode. When off, the family short-circuits to no cells.">
-        Metaball Grid Enabled
-    </span>
-    <span class="val">
-        {(panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Master switch for the metaball-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Metaball grid".
-</div>
-
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
@@ -561,15 +659,15 @@
             writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
         }}
     />
-    <span class="var-name" title="Centered-blended borders: a single stroke on each ownership-boundary edge, coloured as the 50/50 blend of the two players' border colours. Off: each cell draws its own stroke in its own colour, so boundaries show two abutting strokes.">
-        Centered-blended borders
+    <span class="var-name" title={currentBorderBlendTitle()}>
+        {currentBorderBlendLabel()}
     </span>
     <span class="val">
         {currentBorderBlend() ? 'On' : 'Off'}
     </span>
 </label>
 <div class="var-desc">
-    Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).
+    {currentBorderBlendDescription()}
 </div>
 
 <div class="var-row">
@@ -671,52 +769,54 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="How the wave's rank (ordering) is derived — BFS over grid steps or a Euclidean band around the seed set.">
-            Wave Geometry
+        <span class="var-name" title="How conquest spreads across the changed territory. This is a visual design choice.">
+            Propagation Shape
         </span>
         <span class="val">
-            {#if currentWaveGeometry() === 'grid_bfs'}Grid BFS
-            {:else if currentWaveGeometry() === 'euclidean_band'}Euclidean band
-            {:else if currentWaveGeometry() === 'conquered_star_radial'}Conquered star radial
-            {:else}Pre → post frontier{/if}
+            {currentWaveGeometryLabel()}
         </span>
     </div>
     <div class="var-desc">
-        Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships.
+        {currentWaveGeometryDescription()}
     </div>
     <select
         class="mode-select"
         value={currentWaveGeometry()}
-        disabled={isPhaseEdgesMode()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
         }}
     >
-        <option value="grid_bfs">Grid BFS (step-by-step)</option>
-        <option value="euclidean_band">Euclidean band (distance buckets)</option>
-        <option value="conquered_star_radial">Conquered star radial</option>
-        <option value="pre_to_post_frontier">Pre → post frontier</option>
+        <option value="pre_to_post_frontier">Captured border</option>
+        <option value="grid_bfs">Grid flood</option>
+        <option value="euclidean_band">Distance band</option>
+        <option value="conquered_star_radial">Captured-star burst</option>
     </select>
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!waveGeometryUsesSeeding()}>
     <div class="row-top">
-        <span class="var-name" title="Where the wave starts. Winner natives = all winner-owned cells; conquered star center = a single seed at the conquered star; winner nearest edge = the winner cell(s) closest to the conquered star (forces 4-adjacency).">
-            Wave Seeding
+        <span class="var-name" title="Where propagation begins when the chosen shape uses seeds. Winner natives = all winner-owned cells; conquered star center = a single seed at the conquered star; winner nearest edge = the winner cell(s) closest to the conquered star.">
+            Propagation Source
         </span>
         <span class="val">
-            {#if currentWaveSeeding() === 'winner_natives'}Winner natives
+            {#if !waveGeometryUsesSeeding()}Frontier-derived
+            {:else if currentWaveSeeding() === 'winner_natives'}Winner natives
             {:else if currentWaveSeeding() === 'conquered_star_center'}Conquered star
             {:else}Winner nearest edge{/if}
         </span>
     </div>
     <div class="var-desc">
-        Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
+        {#if !waveGeometryUsesSeeding()}
+            Captured border derives directly from the contested frontier, so it does not use a separate seed choice.
+        {:else}
+            Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
+        {/if}
     </div>
     <select
         class="mode-select"
         value={currentWaveSeeding()}
+        disabled={!waveGeometryUsesSeeding()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_WAVE_SEEDING', 'metaballGridWaveSeeding', value);
@@ -839,6 +939,201 @@
         }}
     />
 </div>
+
+{#if isPhaseFieldMode()}
+<div class="var-desc" style="margin:14px 0 8px; opacity:0.92;">
+    Phase Field finish tail. These controls only affect how the PRE cell mask resolves into the smooth POST territory at the end of conquest.
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when the PRE cell overlay starts fading away. Lower starts the settle earlier; higher keeps the chunky mask visible longer.">
+            Finish Fade Start
+        </span>
+        <span class="val">{currentPhaseFieldFinishFadeStart().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        Start of the end-tail alpha fade for PRE-side cells, measured against the overall conquest clock before wave easing.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldFinishFadeStart()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
+                'metaballGridPhaseFieldFinishFadeStart',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when the PRE cell overlay finishes fading out. Set close to 1 for a late dissolve into steady POST territory.">
+            Finish Fade End
+        </span>
+        <span class="val">{currentPhaseFieldFinishFadeEnd().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        End of the end-tail alpha fade for PRE-side cells. The interval between start and end controls how gradual the settle feels.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldFinishFadeEnd()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
+                'metaballGridPhaseFieldFinishFadeEnd',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when transition cells begin shrinking toward their final cleanup size.">
+            Size Collapse Start
+        </span>
+        <span class="val">{currentPhaseFieldSizeCollapseStart().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        Start of the size-collapse tail. Earlier values make the grid read more like a dissolve into territory truth instead of holding chunk size until the end.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldSizeCollapseStart()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
+                'metaballGridPhaseFieldSizeCollapseStart',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when transition cells finish shrinking.">
+            Size Collapse End
+        </span>
+        <span class="val">{currentPhaseFieldSizeCollapseEnd().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        End of the size-collapse tail. A later end keeps the cell read visible almost to steady-state; an earlier end makes the POST geometry take over sooner.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldSizeCollapseEnd()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
+                'metaballGridPhaseFieldSizeCollapseEnd',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Smallest cell size the phase-field cleanup tail collapses toward. 1px gives the smoothest dissolve into POST territory.">
+            Final Cell Size
+        </span>
+        <span class="val">{currentPhaseFieldFinalCellSizePx().toFixed(1)}px</span>
+    </div>
+    <div class="var-desc">
+        Final cell size at the end of the completion tail. Lower values make the block mask melt into the POST shape instead of dropping away as large chunks.
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="32"
+        step="0.5"
+        value={currentPhaseFieldFinalCellSizePx()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+                'metaballGridPhaseFieldFinalCellSizePx',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when the phase-field frontier accent begins fading. This is the creative cleanup control for whether the edge lingers after the cells start settling.">
+            Frontier Fade Start
+        </span>
+        <span class="val">{currentPhaseFieldFrontierFadeStart().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        Start of the winner-side frontier-accent fade. Use this to keep a brief rim of motion even after the fill has begun settling.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldFrontierFadeStart()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
+                'metaballGridPhaseFieldFrontierFadeStart',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Normalized conquest time (0..1) when the phase-field frontier accent is fully gone.">
+            Frontier Fade End
+        </span>
+        <span class="val">{currentPhaseFieldFrontierFadeEnd().toFixed(3)}</span>
+    </div>
+    <div class="var-desc">
+        End of the winner-side frontier-accent fade. A slightly earlier value prevents the border highlight from hanging after the map has otherwise resolved.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.005"
+        value={currentPhaseFieldFrontierFadeEnd()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+                'metaballGridPhaseFieldFrontierFadeEnd',
+                value,
+            );
+        }}
+    />
+</div>
+{/if}
 </div>
 {/if}
 

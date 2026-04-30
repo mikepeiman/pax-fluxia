@@ -717,3 +717,61 @@ All four are upstream-geometry concerns. They mutate the site set that `computeG
 
 - MSR-as-weight and the new MSR-as-lane-filter may produce *different* visuals at the same numeric setting. Needs either (a) separation into two config keys or (b) a clear policy that the lane filter is the user-facing MSR and the weight is a downstream derivation.
 - Enabling CX/DX by default is a visual change; do not flip defaults without explicit user sign-off.
+
+---
+
+# Decision: Metaball-Grid Replacement Should Use A Local Conquest Phase Field, Not Metaballs
+
+**Date:** 2026-04-30
+**Status:** Prototype Implemented / Needs Visual QA
+**Ref:** D-MG-REPLACEMENT-2026-04-30
+
+## Context
+
+The current `metaball-grid` mode already has valuable deterministic transition structure:
+
+- `PREV/NEXT` ownership classification
+- conquest-local phase or wave planning
+- family-local transition lifecycle integration
+
+What it does not need to keep is the metaball presentation primitive itself. The user explicitly asked for a replacement that removes metaballs while preserving deterministic changed-region detection, smooth conquest motion, strong frontier emphasis, fills that follow borders, and low-end WebGL suitability.
+
+## Decision
+
+- Treat the grid as a **transition scheduling substrate**, not as a render primitive.
+- Replace metaball presentation with a **local conquest phase field** carrying:
+  - `prevOwner`
+  - `postOwner`
+  - `changed`
+  - `phase in [0,1]`
+- Prototype path:
+  - conquest-local `PRE/POST` RenderTexture composite
+  - conquest-local phase texture
+  - frontier band derived from `phase == progress`
+- Likely production path:
+  - same local phase substrate
+  - owner-index or palette-texture based presentation family
+  - optional geometry-driven VFX overlays only as polish
+
+## Rationale
+
+- This preserves the useful part of `metaball_grid` while deleting the wrong performance target.
+- A field-based scheduling model is more stable and debuggable than direct `PRE` border to `POST` border vertex correspondence.
+- Local textures plus simple fragment math fit PixiJS 8, browser WebGL, and integrated GPUs better than another blob-field renderer.
+
+## Artifact
+
+- Detailed implementation spec: `.agent/docs/plans/2026-04-30/METABALL_GRID_REPLACEMENT_ARCHITECTURE_SPEC_2026-04-30.md`
+
+## Implementation Note
+
+- The first landed runtime pass is additive, not a rewrite: new mode id `metaball_grid_phase_field`, new family file `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`.
+- It reuses the existing grid classification, conquest wave planning, and shared `METABALL_GRID_*` tunables instead of inventing a second config surface.
+- Runtime integration is through the existing `RenderFamily` contract and `GameCanvas.svelte` dispatch path, plus explicit settings/diagnostics exposure so the mode is testable without hidden flags.
+
+## Implementation Addendum - 2026-04-30 Follow-Up
+
+- The stable PRE cache for phase-family modes must track the actually presented truth during active conquests. Freezing it on active transition replays stale conquest history when a second capture starts before the first finishes.
+- If a visual choice is exposed in UI, mode defaults must not silently override it at runtime. `Propagation Shape` only became a valid tuning surface after removing the hidden phase-field wave-geometry override.
+- Completion quality is a first-class part of the conquest moment. The mode now owns dedicated finish-tail controls for PRE fade timing, cell-size collapse timing, final cell size, and frontier fade timing rather than ending on a hard grid-pop.
+- Starter values are part of UX, but they must not become fake locks. Recommended borders and frontier propagation belong in live starter settings, while the shared controls remain real user choices.

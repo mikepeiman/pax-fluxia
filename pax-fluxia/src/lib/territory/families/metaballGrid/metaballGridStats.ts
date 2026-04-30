@@ -16,7 +16,7 @@ export interface MetaballGridFlipTimeBins {
 }
 
 export interface MetaballGridStats {
-    /** Active family variant id (`metaball_grid` vs `metaball_grid_phase_edges`). */
+    /** Active family variant id (`metaball_grid`, `metaball_grid_phase_edges`, or `metaball_grid_phase_field`). */
     readonly familyId: string;
     /** Human label for the active family variant. */
     readonly familyLabel: string;

@@ -132,7 +132,6 @@ function makeInput(progress: number): RenderFamilyInput {
         ],
         lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 55 }],
         tunables: new Map([
-            ['METABALL_GRID_ENABLED', true],
             ['METABALL_GRID_SPACING_PX', 10],
             ['METABALL_GRID_ORIGIN_MODE', 'centered'],
             ['METABALL_GRID_DISTRIBUTION', 'square'],
@@ -227,7 +226,6 @@ function makeSteadyInput(): RenderFamilyInput {
         ],
         lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 55 }],
         tunables: new Map([
-            ['METABALL_GRID_ENABLED', true],
             ['METABALL_GRID_SPACING_PX', 10],
             ['METABALL_GRID_ORIGIN_MODE', 'centered'],
             ['METABALL_GRID_DISTRIBUTION', 'square'],
@@ -257,7 +255,6 @@ function makePhaseEdgesInput(
 ): RenderFamilyInput {
     const base = makeInput(progress);
     const configSource: Record<string, unknown> = {
-        METABALL_GRID_ENABLED: true,
         METABALL_GRID_SPACING_PX: 10,
         METABALL_GRID_ORIGIN_MODE: 'centered',
         METABALL_GRID_DISTRIBUTION: 'square',

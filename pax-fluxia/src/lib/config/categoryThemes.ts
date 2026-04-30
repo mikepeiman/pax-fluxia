@@ -257,7 +257,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'METABALL_COMBAT_BORDER_ALPHA_BOOST',
         'METABALL_BORDER_FORCE_RATIO',
         // Metaball grid
-        'METABALL_GRID_ENABLED',
         'METABALL_GRID_SPACING_PX',
         'METABALL_GRID_ORIGIN_MODE',
         'METABALL_GRID_DISTRIBUTION',

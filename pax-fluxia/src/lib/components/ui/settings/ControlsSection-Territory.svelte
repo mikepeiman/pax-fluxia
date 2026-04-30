@@ -19,7 +19,6 @@
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import MetaballGridTuning from "./MetaballGridTuning.svelte";
-  import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
@@ -92,7 +91,6 @@
     | "perimeter-field"
     | "metaball-grid"
     | "topology"
-    | "border-transition"
     | "surface";
 
   interface TerritoryModuleDef<T extends string> {
@@ -528,7 +526,8 @@
     const activeStyle = resolveActiveStyleId();
     return (
       activeStyle === "metaball_grid" ||
-      activeStyle === "metaball_grid_phase_edges"
+      activeStyle === "metaball_grid_phase_edges" ||
+      activeStyle === "metaball_grid_phase_field"
     );
   }
 
@@ -536,12 +535,8 @@
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
   }
 
-  function showsDerivedGeometryInput(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "perimeter_field" ||
-      isMetaballGridStyle()
-    );
+  function isMetaballGridPhaseFieldStyle(): boolean {
+    return resolveActiveStyleId() === "metaball_grid_phase_field";
   }
 
   function resolveActiveTransitionModeId(): string {
@@ -582,14 +577,6 @@
         id: "metaball-grid",
         label: "Grid",
         icon: "▦",
-      });
-    }
-
-    if (!isPowerVoronoi0427Mode()) {
-      modules.push({
-        id: "border-transition",
-        label: "Borders",
-        icon: "◇",
       });
     }
 
@@ -984,19 +971,6 @@
 {#if showStylesView && rendererModules().length === 0}
   <div class="axis-note">
     This territory mode does not expose separate surface-style controls.
-  </div>
-{/if}
-
-{#if showTuningView && activeRendererModule !== "none" && showsDerivedGeometryInput()}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Derived Geometry Input</h4>
-      <p class="territory-card__intro">
-        Select the upstream geometry path used by render-family territory
-        modes that derive their visible output from another territory shape.
-      </p>
-    </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
   </div>
 {/if}
 
@@ -1458,6 +1432,31 @@
         );
       }} />
   </div>
+  <div
+    class="var-row"
+    title="Sets the frontier vertex spacing used by the live geometry compilers. Lower values produce denser frontier samples and sharper ownership contours.">
+    <div class="row-top">
+      <span class="var-name">Frontier Resolution</span><span class="val"
+        >{panel.frontierResolution ??
+          GAME_CONFIG.FRONTIER_RESOLUTION ??
+          5}px</span>
+    </div>
+    <input
+      type="range"
+      min="1"
+      max="20"
+      step="1"
+      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
+      oninput={(e) => {
+        const v = +(e.target as HTMLInputElement).value;
+        queueTopologySliderUpdate(
+          "FRONTIER_RESOLUTION",
+          "frontierResolution",
+          v,
+          "Frontier Resolution",
+        );
+      }} />
+  </div>
 
   <h5 class="territory-inline-heading">Corridors</h5>
 
@@ -1747,112 +1746,6 @@
 </div>
 {/if}
 
-<!-- Border Transition Tuning -->
-{#if showRendererModule("border-transition")}
-<div class="engine-control-group territory-module-card">
-  <div class="territory-card__header">
-    <h4 class="axis-card-title">Border Transition</h4>
-    <p class="territory-card__intro">
-      Control how frontiers resample, ease, and overshoot while borders react
-      to ownership changes.
-    </p>
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Transition Easing</span>
-    </div>
-    <select
-      class="mode-select"
-      value={panel.borderTransEasing ??
-        GAME_CONFIG.BORDER_TRANS_EASING ??
-        "linear"}
-      onchange={(e) => {
-        debouncedConfigUpdate(
-          "BORDER_TRANS_EASING",
-          "borderTransEasing",
-          (e.target as HTMLSelectElement).value,
-        );
-      }}>
-      <option value="linear">1. Linear (constant speed)</option>
-      <option value="cubic">2. Cubic (smooth, no overshoot)</option>
-      <option value="ease-out">3. Ease-out (decelerate)</option>
-      <option value="ease-out-quad">4. Ease-out Quad (lighter)</option>
-      <option value="sine">5. Sine (gentle S-curve)</option>
-      <option value="back">6. Back (overshoot)</option>
-      <option value="elastic">7. Elastic (bouncy)</option>
-    </select>
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Resample Points</span><span class="val"
-        >{panel.borderTransResampleN ??
-          GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
-          32}</span>
-    </div>
-    <input
-      type="range"
-      min="8"
-      max="64"
-      step="4"
-      value={panel.borderTransResampleN ??
-        GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
-        32}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate(
-          "BORDER_TRANS_RESAMPLE_N",
-          "borderTransResampleN",
-          v,
-        );
-      }} />
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Frontier Resolution</span><span class="val"
-        >{panel.frontierResolution ??
-          GAME_CONFIG.FRONTIER_RESOLUTION ??
-          5}px</span>
-    </div>
-    <input
-      type="range"
-      min="1"
-      max="20"
-      step="1"
-      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("FRONTIER_RESOLUTION", "frontierResolution", v);
-      }} />
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Back Overshoot</span><span class="val"
-        >{(
-          panel.borderTransOvershoot ??
-          GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
-          0
-        ).toFixed(2)}</span>
-    </div>
-    <input
-      type="range"
-      min="0"
-      max="5"
-      step="0.1"
-      value={panel.borderTransOvershoot ??
-        GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
-        0}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate(
-          "BORDER_TRANS_OVERSHOOT",
-          "borderTransOvershoot",
-          v,
-        );
-      }} />
-  </div>
-</div>
-{/if}
-
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
 {#if showRendererModule("surface") &&
@@ -1879,7 +1772,7 @@
         class="row-bottom"
         style="font-size: 10px; opacity: 0.7; padding: 2px 4px;">
         This mode always runs exact Power Voronoi geometry with the PVV4
-        frontline transition and disables reference border-transition paths.
+        frontline transition with its own built-in border behavior.
       </div>
     {/if}
 
@@ -2269,7 +2162,8 @@
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
       Real star ownership still generates the base geometry. The displayed field
-      is then driven only by derived perimeter samples.
+      is then driven only by derived perimeter samples. Shared topology tuning
+      owns the upstream MSR, CX, and DX inputs.
     </div>
     <PerimeterFieldTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
@@ -2286,15 +2180,23 @@
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
-        {isMetaballGridPhaseEdgesStyle()
-          ? "Metaball Grid Phase Edges (Experimental)"
-          : "Metaball Grid (Experimental)"}
+        {#if isMetaballGridPhaseEdgesStyle()}
+          Metaball Grid Phase Edges (Experimental)
+        {:else if isMetaballGridPhaseFieldStyle()}
+          Metaball Grid Phase Field (Experimental)
+        {:else}
+          Metaball Grid (Experimental)
+        {/if}
       </h4>
       <p class="territory-card__intro">
         {#if isMetaballGridPhaseEdgesStyle()}
           Separate metaball-grid mode with a fixed frontier-shaped wave and
           territory-edge border treatment, so the base grid renderer stays
           intact.
+        {:else if isMetaballGridPhaseFieldStyle()}
+          Separate metaball-grid mode that keeps the deterministic cell planner
+          but replaces metaball presentation with conquest-local PRE/POST
+          territory compositing and a highlighted moving frontier.
         {:else}
           Ownership-geometry underlayer plus a world-anchored grid of
           metaball cells. Conquest transitions flip cells cell-by-cell in a
@@ -2309,6 +2211,11 @@
         Two-layer family: ownership geometry stays truth while the separate
         Phase Edges variant locks its defining wave and border defaults to keep
         it distinct from base Metaball Grid.
+      {:else if isMetaballGridPhaseFieldStyle()}
+        Two-layer family: ownership geometry stays truth while the separate
+        Phase Field variant locks frontier-derived wave timing and reveals the
+        NEXT geometry through a conquest-local cell mask instead of metaball
+        blending.
       {:else}
         Two-layer family: ownership geometry stays truth; the visible grid
         layer is re-composited per frame as the wave crosses each cell's
@@ -2322,16 +2229,16 @@
       <strong>Territory tuning inputs</strong> — corridor virtual sites along
       lanes, lane midpoint pairs on contested lanes, disconnect virtual sites
       between same-owner components, and minimum star margin. These shape the
-      underlying territory regions that Metaball Grid classifies against.
+      underlying territory regions that the Metaball Grid families classify
+      against.
     </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
-      intro="Shared surface styling for metaball-grid output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
-      fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
+      intro="Shared surface styling for metaball-grid family output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
+      fillHelp="Metaball Grid family variants use the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
+      borderHelp="Metaball Grid family variants render borders through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
   </div>
 {/if}
 

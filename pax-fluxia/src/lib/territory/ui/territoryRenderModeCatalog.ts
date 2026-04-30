@@ -82,7 +82,14 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         id: 'metaball_grid_phase_edges',
         label: 'Metaball grid phase edges',
         shortDescription:
-            'Separate metaball-grid mode with phase-field wave geometry and territory-edge shaping controls',
+            'Edge-forward conquest mode with adjustable propagation shape and territory-edge shaping controls',
+        legacyDispatch: true,
+    },
+    {
+        id: 'metaball_grid_phase_field',
+        label: 'Metaball grid phase field',
+        shortDescription:
+            'Fill-first conquest mode with adjustable propagation shape, conquest-local PRE/POST compositing, and frontier emphasis',
         legacyDispatch: true,
     },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },

@@ -52,7 +52,8 @@
     );
     const showMetaballGridDiagnostics = $derived(
         liveRenderMode === "metaball_grid" ||
-            liveRenderMode === "metaball_grid_phase_edges",
+            liveRenderMode === "metaball_grid_phase_edges" ||
+            liveRenderMode === "metaball_grid_phase_field",
     );
     const bundleList = $derived(
         [...$transitionSnapshotRecorderStore.bundles].reverse(),
@@ -260,6 +261,10 @@
 
     function formatPhaseEdgesSemanticsNote(): string {
         return "Phase Edges now runs as its own session-overlay renderer inside the metaball family. Idle frames can still look close to base Metaball Grid when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures and wave timing instead of collapsing into one retained frontier.";
+    }
+
+    function formatPhaseFieldSemanticsNote(): string {
+        return "Phase Field runs as its own metaball-grid family variant. It keeps the shared deterministic cell classifier and frontier timing, but replaces metaball presentation with conquest-local PRE/POST territory compositing plus a highlighted frontier pass.";
     }
 </script>
 
@@ -543,8 +548,14 @@
         {#if liveRenderMode === "metaball_grid_phase_edges"}
             <div class="readout">
                 {formatPhaseEdgesSemanticsNote()}
-                Expected locked defaults: <code>pre_to_post_frontier</code>,
-                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30.
+                Default visual starting point: <code>pre_to_post_frontier</code>,
+                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
+            </div>
+        {/if}
+        {#if liveRenderMode === "metaball_grid_phase_field"}
+            <div class="readout">
+                {formatPhaseFieldSemanticsNote()}
+                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, frontier highlight on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
     {/if}

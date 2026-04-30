@@ -3,6 +3,7 @@ import conquestFixtureMap from "../../../../common/resources/fixture-maps/metaba
 
 export type InAppConquestBenchmarkMode =
     | "metaball_grid"
+    | "metaball_grid_phase_field"
     | "distance_field"
     | "vs_pvv3"
     | "pixel";
@@ -27,6 +28,7 @@ export const IN_APP_CONQUEST_BENCHMARK_MODES: Array<{
     label: string;
 }> = [
     { id: "metaball_grid", label: "Metaball Grid" },
+    { id: "metaball_grid_phase_field", label: "Metaball Grid Phase Field" },
     { id: "distance_field", label: "Distance Field" },
     { id: "vs_pvv3", label: "VS PVV3" },
     { id: "pixel", label: "Pixel" },

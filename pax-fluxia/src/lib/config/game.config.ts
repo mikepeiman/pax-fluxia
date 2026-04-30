@@ -396,7 +396,6 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
-    METABALL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
     METABALL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
     METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
     METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
@@ -422,6 +421,13 @@ interface GameConfigType {
     METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time
     METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Easing applied to transition progress before cell flips
     METABALL_GRID_FLIP_WINDOW_JITTER: number; // Deterministic per-cell flip-time jitter
+    METABALL_GRID_PHASE_FIELD_FINISH_FADE_START: number; // Normalized conquest time when PRE-cell fade-out begins
+    METABALL_GRID_PHASE_FIELD_FINISH_FADE_END: number; // Normalized conquest time when PRE-cell fade-out finishes
+    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START: number; // Normalized conquest time when transition cells begin shrinking
+    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END: number; // Normalized conquest time when transition cells finish shrinking
+    METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX: number; // Final cell size in px at the end of the phase-field completion tail
+    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
+    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -448,7 +454,7 @@ interface GameConfigType {
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
-    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
+    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_phase_field' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
     USE_RENDER_FAMILIES: boolean;
     TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode

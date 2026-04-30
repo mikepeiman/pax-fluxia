@@ -117,8 +117,14 @@
         createMetaballGridPhaseEdgesFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily";
     import {
+        MetaballGridPhaseFieldFamily,
+        createMetaballGridPhaseFieldFamily,
+    } from "$lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily";
+    import {
         metaballGridPhaseEdgesGeometryDefaults,
         metaballGridPhaseEdgesModeDefaults,
+        metaballGridPhaseFieldGeometryDefaults,
+        metaballGridPhaseFieldModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
     import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
@@ -1896,12 +1902,24 @@
         };
     }
 
+    function buildPhaseFieldRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseFieldGeometryDefaults,
+            ...metaballGridPhaseFieldModeDefaults,
+        };
+    }
+
     function getRenderFamilyModeConfigSource(
         mode: string,
     ): Record<string, unknown> | undefined {
-        return mode === "metaball_grid_phase_edges"
-            ? buildPhaseEdgesRenderFamilyConfigSource()
-            : undefined;
+        if (mode === "metaball_grid_phase_edges") {
+            return buildPhaseEdgesRenderFamilyConfigSource();
+        }
+        if (mode === "metaball_grid_phase_field") {
+            return buildPhaseFieldRenderFamilyConfigSource();
+        }
+        return undefined;
     }
 
     function updateLiveMetaballGridTransitionDiagnostics(params: {
@@ -2822,12 +2840,14 @@
     ): Record<string, unknown> | null {
         if (
             mode === "metaball_grid" ||
-            mode === "metaball_grid_phase_edges"
+            mode === "metaball_grid_phase_edges" ||
+            mode === "metaball_grid_phase_field"
         ) {
             const family = getRenderFamily(mode);
             if (
                 family instanceof MetaballGridFamily ||
-                family instanceof MetaballGridPhaseEdgesFamily
+                family instanceof MetaballGridPhaseEdgesFamily ||
+                family instanceof MetaballGridPhaseFieldFamily
             ) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
@@ -5175,6 +5195,7 @@
                     activeMode === "metaball" ||
                     activeMode === "metaball_grid" ||
                     activeMode === "metaball_grid_phase_edges" ||
+                    activeMode === "metaball_grid_phase_field" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
@@ -5256,6 +5277,19 @@
                 ) {
                     activeVoronoiContainer.removeChild(
                         metaballGridPhaseEdgesFamily.displayRoot,
+                    );
+                }
+                const metaballGridPhaseFieldFamily =
+                    getRenderFamily("metaball_grid_phase_field");
+                if (
+                    activeMode !== "metaball_grid_phase_field" &&
+                    metaballGridPhaseFieldFamily instanceof
+                        MetaballGridPhaseFieldFamily &&
+                    metaballGridPhaseFieldFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        metaballGridPhaseFieldFamily.displayRoot,
                     );
                 }
 
@@ -5593,7 +5627,81 @@
                             lanes,
                             geometry,
                             configSource: renderFamilyConfigSource,
-                            freezeDuringActiveTransition: true,
+                        });
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            ownership,
+                        };
+                        break;
+                    }
+                    case "metaball_grid_phase_field": {
+                        let fam = getRenderFamily("metaball_grid_phase_field");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballGridPhaseFieldFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("metaball_grid_phase_field")!;
+                        }
+                        const mg = fam as MetaballGridPhaseFieldFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball_grid_phase_field",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = readFamilyGeometry();
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
+                        const mgInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball_grid_phase_field",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
+                                    tunableKeys: mg.tunableKeys,
+                                    configSource: renderFamilyConfigSource,
+                                }),
+                        );
+                        mg.update(mgInput);
+                        updateLiveMetaballGridTransitionDiagnostics({
+                            activeTransition,
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                        });
+                        if (mg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(mg.displayRoot);
+                        }
+                        mg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            configSource: renderFamilyConfigSource,
                         });
                         transitionDiagnosticFrameInput = {
                             activeMode,
@@ -6354,14 +6462,16 @@
             const ownerId = star.ownerId ?? "__unowned__";
             ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
         }
-        const metaballGridFamily = getRenderFamily(
-            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges"
-                ? "metaball_grid_phase_edges"
-                : "metaball_grid",
-        );
+        const benchmarkMetaballGridMode =
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges" ||
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_field"
+                ? GAME_CONFIG.TERRITORY_RENDER_MODE
+                : "metaball_grid";
+        const metaballGridFamily = getRenderFamily(benchmarkMetaballGridMode);
         const metaballGridDebug =
             metaballGridFamily instanceof MetaballGridFamily ||
-            metaballGridFamily instanceof MetaballGridPhaseEdgesFamily
+            metaballGridFamily instanceof MetaballGridPhaseEdgesFamily ||
+            metaballGridFamily instanceof MetaballGridPhaseFieldFamily
                 ? metaballGridFamily.getDebugSnapshot()
                 : null;
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]

@@ -309,10 +309,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
     territory: {
         'Transition Mode': { key: 'VS_TRANSITION_MODE' },
         'Frontier Resolution': { key: 'FRONTIER_RESOLUTION' },
-        'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
-        'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
-        'Derived Geometry Input': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
         'Corridor Virtual Sites (CX)': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
         'Lane Midpoint Pairs': {
@@ -375,7 +372,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Transition Scrub': {
             key: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
         },
-        'Metaball Grid Enabled': { key: 'METABALL_GRID_ENABLED' },
         'Cell Spacing': { key: 'METABALL_GRID_SPACING_PX' },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
@@ -387,6 +383,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
+        'Centered frontier highlight': { key: 'METABALL_GRID_BORDER_BLEND' },
         'Shared Edge Smoothing': {
             key: 'METABALL_GRID_EDGE_SMOOTHING_PASSES',
         },
@@ -399,10 +396,33 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         Adjacency: { key: 'METABALL_GRID_ADJACENCY' },
         'Wave Geometry': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
         'Wave Seeding': { key: 'METABALL_GRID_WAVE_SEEDING' },
+        'Propagation Shape': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
+        'Propagation Source': { key: 'METABALL_GRID_WAVE_SEEDING' },
         'Flip Transition': { key: 'METABALL_GRID_FLIP_TRANSITION' },
         'Flip Window': { key: 'METABALL_GRID_FLIP_WINDOW' },
         'Wave Easing': { key: 'METABALL_GRID_WAVE_EASE' },
         'FlipTime Jitter': { key: 'METABALL_GRID_FLIP_WINDOW_JITTER' },
+        'Finish Fade Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
+        },
+        'Finish Fade End': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
+        },
+        'Size Collapse Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
+        },
+        'Size Collapse End': {
+            key: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
+        },
+        'Final Cell Size (px)': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+        },
+        'Frontier Fade Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
+        },
+        'Frontier Fade End': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+        },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
@@ -434,7 +454,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'DX Disconnect': { key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
         'DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
         'DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
-        'Transition Easing': { key: 'BORDER_TRANS_EASING' },
         'Morph Control Points': { key: 'TERRITORY_MORPH_CONTROL_POINTS' },
         'Morph Easing': { key: 'DF_MORPH_EASING' },
         'Boundary Mode': { key: 'TERRITORY_BOUNDARY_MODE' },

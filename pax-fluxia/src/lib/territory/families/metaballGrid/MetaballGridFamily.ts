@@ -192,7 +192,6 @@ function hash01(id: string): number {
 }
 
 const METABALL_GRID_TUNABLE_KEYS = [
-    'METABALL_GRID_ENABLED',
     'METABALL_GRID_SPACING_PX',
     'METABALL_GRID_ORIGIN_MODE',
     'METABALL_GRID_ADJACENCY',
@@ -1589,19 +1588,6 @@ export class MetaballGridFamily implements RenderFamily {
             return { container: this.root };
         }
 
-        const enabled = readTunableBoolean(
-            input,
-            'METABALL_GRID_ENABLED',
-            GAME_CONFIG.METABALL_GRID_ENABLED ??
-                (GAME_CONFIG.TERRITORY_RENDER_MODE === this.id),
-        );
-        if (!enabled) {
-            this.disableSteadyTextureCache();
-            this.graphics.clear();
-            this.root.visible = false;
-            resetMetaballGridStats();
-            return { container: this.root };
-        }
         this.root.visible = true;
 
         // ── Classification-affecting tunables, hoisted so plan invalidation
