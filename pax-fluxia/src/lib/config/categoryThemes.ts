@@ -276,6 +276,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'METABALL_GRID_FLIP_WINDOW',
         'METABALL_GRID_WAVE_EASE',
         'METABALL_GRID_FLIP_WINDOW_JITTER',
+        'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
     ],
 
     ships: [

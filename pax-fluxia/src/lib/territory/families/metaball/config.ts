@@ -1,5 +1,6 @@
 export const metaballFamilyConfigDefaults = {
     METABALL_FILL_FOLLOWS_GEOM: false,
+    METABALL_FILL_ENABLED: true,
     METABALL_BURST_BOUNDARY_BASIS: 't0_region_contour' as const,
     METABALL_INFLUENCE_RADIUS: 90,
     METABALL_FALLOFF: 'gaussian' as const,
@@ -11,6 +12,7 @@ export const metaballFamilyConfigDefaults = {
     METABALL_EDGE_FADE: 0.5,
     METABALL_BLUR: 0,
     METABALL_BLUR_AFFECTS_BORDERS: false,
+    METABALL_BORDER_ENABLED: true,
     METABALL_BORDER_WIDTH: 3,
     METABALL_BORDER_ALPHA: 1,
     METABALL_COVERAGE: 0,

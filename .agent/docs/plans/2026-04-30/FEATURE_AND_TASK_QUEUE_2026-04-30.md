@@ -17,9 +17,11 @@
 - Removed the hidden phase-field propagation override so `Propagation Shape` is now a real runtime choice instead of a false UI surface.
 - Added phase-field finish-tail controls and runtime support for PRE fade timing, cell-size collapse timing, final cell size, and frontier fade timing.
 - Set the live tuning baseline to frontier propagation, territory-edge borders, frontier highlight on, and a 1px final cell-size collapse so the mode has a legible starter state without hard-locking those shared controls.
+- Restored real border semantics in phase field by splitting frontier highlight into its own dedicated toggle and adding a real border overlay layer that honors shared border width/alpha/HSL and grid-border tuning.
 
 ## Next
 - Run visual QA in-app against real conquest sessions, especially consecutive capture sessions and long chained frontiers.
 - Tune the new finish-tail controls in live conquest footage and decide whether the current starter border baseline should become a stronger authored default.
+- Tune the new phase-field border overlay in conquest and steady state, especially the distinction between `territory_edge`, `per_cell`, centered-blended borders, and the separate `Frontier Highlight` accent.
 - Decide whether the prototype should replace `metaball_grid` outright after user verification, or remain as a separate comparison mode for another iteration.
 - If the phase-field presentation is accepted, harden the composite path toward an owner/palette texture renderer and reduce the remaining vector fallback cost.

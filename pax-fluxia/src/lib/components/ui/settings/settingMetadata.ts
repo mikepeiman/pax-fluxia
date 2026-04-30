@@ -383,7 +383,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
-        'Centered frontier highlight': { key: 'METABALL_GRID_BORDER_BLEND' },
+        'Frontier Highlight': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+        },
         'Shared Edge Smoothing': {
             key: 'METABALL_GRID_EDGE_SMOOTHING_PASSES',
         },

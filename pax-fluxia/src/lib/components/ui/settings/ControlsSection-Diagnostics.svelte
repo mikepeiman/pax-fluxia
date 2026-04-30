@@ -555,7 +555,7 @@
         {#if liveRenderMode === "metaball_grid_phase_field"}
             <div class="readout">
                 {formatPhaseFieldSemanticsNote()}
-                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, frontier highlight on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
+                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
     {/if}

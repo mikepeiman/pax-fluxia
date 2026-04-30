@@ -426,6 +426,7 @@ interface GameConfigType {
     METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START: number; // Normalized conquest time when transition cells begin shrinking
     METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END: number; // Normalized conquest time when transition cells finish shrinking
     METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX: number; // Final cell size in px at the end of the phase-field completion tail
+    METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
@@ -553,6 +554,7 @@ interface GameConfigType {
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
+    METABALL_FILL_ENABLED: boolean;     // Master visibility toggle for the metaball-family fill surface
     METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
     METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
     /**
@@ -566,6 +568,7 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
+    METABALL_BORDER_ENABLED: boolean;   // Master visibility toggle for the metaball-family border surface
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)

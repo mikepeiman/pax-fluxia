@@ -19,6 +19,10 @@ import {
     findActiveFrontierRange,
 } from './metaballGridActiveFrontier';
 import {
+    computeSharedBoundaryCornerRadius,
+    trimOpenPolylineEndpoints,
+} from './edgeShaping';
+import {
     resetMetaballGridStats,
     updateMetaballGridStats,
 } from './metaballGridStats';
@@ -90,8 +94,11 @@ const METABALL_GRID_PHASE_FIELD_TUNABLE_KEYS = [
     'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
     'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
     'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+    'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
     'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
     'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+    'METABALL_BORDER_ENABLED',
+    'METABALL_BORDER_WIDTH',
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
     'METABALL_ALPHA',
@@ -354,6 +361,87 @@ function drawFilledGridCell(
     graphics.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
 }
 
+function drawStrokedGridCell(
+    graphics: PIXI.Graphics,
+    cellShape: GridCellShape,
+    x: number,
+    y: number,
+    half: number,
+    size: number,
+    cornerR: number,
+    hexR: number,
+    strokeHex: number,
+    alpha: number,
+    width: number,
+): void {
+    if (alpha <= 0 || width <= 0) return;
+    const strokeOpts = {
+        color: strokeHex,
+        alpha,
+        width,
+        cap: 'round' as const,
+        join: 'round' as const,
+    };
+    if (cellShape === 'circle') {
+        graphics.circle(x, y, half).stroke(strokeOpts);
+        return;
+    }
+    if (cellShape === 'diamond') {
+        graphics
+            .poly([x, y - half, x + half, y, x, y + half, x - half, y])
+            .stroke(strokeOpts);
+        return;
+    }
+    if (cellShape === 'hex') {
+        const pts: number[] = [];
+        for (let i = 0; i < 6; i++) {
+            pts.push(
+                x + HEX_VERTICES_POINTY[i][0] * hexR,
+                y + HEX_VERTICES_POINTY[i][1] * hexR,
+            );
+        }
+        graphics.poly(pts).stroke(strokeOpts);
+        return;
+    }
+    if (cornerR > 0) {
+        graphics.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
+        return;
+    }
+    graphics.rect(x - half, y - half, size, size).stroke(strokeOpts);
+}
+
+function chaikinOnce(pts: number[], closed: boolean): number[] {
+    const n = pts.length >> 1;
+    if (n < 3) return pts.slice();
+    const out: number[] = [];
+    const last = closed ? n : n - 1;
+    if (!closed) out.push(pts[0], pts[1]);
+    for (let i = 0; i < last; i++) {
+        const i0 = i * 2;
+        const i1 = ((i + 1) % n) * 2;
+        const x0 = pts[i0];
+        const y0 = pts[i0 + 1];
+        const x1 = pts[i1];
+        const y1 = pts[i1 + 1];
+        out.push(
+            x0 + 0.25 * (x1 - x0),
+            y0 + 0.25 * (y1 - y0),
+            x0 + 0.75 * (x1 - x0),
+            y0 + 0.75 * (y1 - y0),
+        );
+    }
+    if (!closed) out.push(pts[pts.length - 2], pts[pts.length - 1]);
+    return out;
+}
+
+function chaikinSmooth(pts: number[], passes: number, closed: boolean): number[] {
+    let current = pts;
+    for (let i = 0; i < passes; i++) {
+        current = chaikinOnce(current, closed);
+    }
+    return current;
+}
+
 function drawGeometryFill(params: {
     graphics: PIXI.Graphics;
     geometry: CanonicalGeometrySnapshot;
@@ -406,6 +494,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     private readonly root = new PIXI.Container();
     private readonly baseGraphics = new PIXI.Graphics();
     private readonly fallbackOverlayGraphics = new PIXI.Graphics();
+    private readonly borderGraphics = new PIXI.Graphics();
     private readonly frontierGraphics = new PIXI.Graphics();
     private readonly prevSourceContainer = new PIXI.Container();
     private readonly prevSourceGraphics = new PIXI.Graphics();
@@ -447,6 +536,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.root.addChild(this.nextSprite);
         this.root.addChild(this.prevSprite);
         this.root.addChild(this.maskSprite);
+        this.root.addChild(this.borderGraphics);
         this.root.addChild(this.frontierGraphics);
     }
 
@@ -752,6 +842,295 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         return painted;
     }
 
+    private drawBorderOverlay(params: {
+        classification: GridClassification;
+        sceneCells: readonly GridRenderCell[];
+        ownerColorIdx: ReadonlyMap<string, number>;
+        borderHexByColorIdx: readonly number[];
+        cellShape: GridCellShape;
+        borderMode: GridBorderMode;
+        borderBlend: boolean;
+        borderWidth: number;
+        borderAlpha: number;
+        cellInsetPx: number;
+        cellCornerPx: number;
+        inwardOffsetPx: number;
+        edgeTrimPx: number;
+        sharedEdgeSmoothingPasses: number;
+        borderChaikinPasses: number;
+    }): void {
+        const g = this.borderGraphics;
+        g.clear();
+
+        if (
+            params.borderMode === 'off' ||
+            params.borderWidth <= 0 ||
+            params.borderAlpha <= 0
+        ) {
+            return;
+        }
+
+        const spacingPx = params.classification.spacingPx;
+        const insetMax = spacingPx * 0.45;
+        const nativeInset = Math.min(params.cellInsetPx, insetMax);
+        const boundaryInset = Math.min(
+            params.cellInsetPx +
+                Math.max(0, params.inwardOffsetPx) +
+                params.edgeTrimPx,
+            insetMax,
+        );
+        const nativeSize = spacingPx - nativeInset * 2;
+        const nativeHalf = nativeSize * 0.5;
+        const nativeCornerR =
+            params.cellShape === 'square'
+                ? Math.min(params.cellCornerPx, nativeHalf)
+                : 0;
+        const nativeHexR = nativeSize / SQRT3;
+        const boundarySize = spacingPx - boundaryInset * 2;
+        const boundaryHalf = boundarySize * 0.5;
+        const boundaryCornerR = computeSharedBoundaryCornerRadius({
+            cellShape: params.cellShape,
+            baseCornerPx: params.cellCornerPx,
+            halfSizePx: boundaryHalf,
+            smoothingPasses: params.sharedEdgeSmoothingPasses,
+        });
+        const boundaryHexR = boundarySize / SQRT3;
+        const cols = params.classification.cols;
+        const rows = params.classification.rows;
+        const vstarCount = params.classification.vstars.length;
+        const effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
+        effectiveColorIdxByGridIdx.fill(-1);
+
+        for (let i = 0; i < vstarCount; i++) {
+            const vstar = params.classification.vstars[i];
+            const ownerId = vstar.nextOwnerId ?? vstar.prevOwnerId;
+            const idx = ownerId ? params.ownerColorIdx.get(ownerId) : undefined;
+            effectiveColorIdxByGridIdx[i] = idx === undefined ? -1 : idx;
+        }
+
+        for (const cell of params.sceneCells) {
+            if (cell.alpha <= 0) continue;
+            if (cell.ix < 0 || cell.ix >= cols || cell.iy < 0 || cell.iy >= rows) {
+                continue;
+            }
+            effectiveColorIdxByGridIdx[cell.iy * cols + cell.ix] = cell.colorIdx;
+        }
+
+        const drawTerritoryEdgeOnly = params.borderMode === 'territory_edge';
+        const drawBlendedEdges =
+            drawTerritoryEdgeOnly &&
+            params.borderBlend &&
+            params.classification.distribution === 'square';
+
+        for (const cell of params.sceneCells) {
+            if (cell.alpha <= 0) continue;
+            if (drawBlendedEdges) continue;
+            if (drawTerritoryEdgeOnly && cell.ix >= 0 && cell.iy >= 0) {
+                const self = cell.colorIdx;
+                const neighbourDiffers = (nx: number, ny: number): boolean => {
+                    if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
+                    return effectiveColorIdxByGridIdx[ny * cols + nx] !== self;
+                };
+                const isEdge =
+                    neighbourDiffers(cell.ix - 1, cell.iy) ||
+                    neighbourDiffers(cell.ix + 1, cell.iy) ||
+                    neighbourDiffers(cell.ix, cell.iy - 1) ||
+                    neighbourDiffers(cell.ix, cell.iy + 1);
+                if (!isEdge) continue;
+            }
+            const borderHex = params.borderHexByColorIdx[cell.colorIdx];
+            if (borderHex === undefined) continue;
+            const isBoundary = cell.role !== 'native';
+            drawStrokedGridCell(
+                g,
+                params.cellShape,
+                cell.x,
+                cell.y,
+                isBoundary ? boundaryHalf : nativeHalf,
+                isBoundary ? boundarySize : nativeSize,
+                isBoundary ? boundaryCornerR : nativeCornerR,
+                isBoundary ? boundaryHexR : nativeHexR,
+                borderHex,
+                params.borderAlpha,
+                params.borderWidth,
+            );
+        }
+
+        if (!drawBlendedEdges) {
+            return;
+        }
+
+        const originOffset =
+            params.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
+        const trueHalf = spacingPx * 0.5;
+        const vCols = cols + 1;
+        const vertexX = (vertexId: number): number => {
+            const ivx = vertexId % vCols;
+            return ivx * spacingPx + originOffset - trueHalf;
+        };
+        const vertexY = (vertexId: number): number => {
+            const ivx = vertexId % vCols;
+            const ivy = (vertexId - ivx) / vCols;
+            return ivy * spacingPx + originOffset - trueHalf;
+        };
+
+        interface BoundaryEdge {
+            readonly v0: number;
+            readonly v1: number;
+        }
+
+        const edgesByPair = new Map<string, BoundaryEdge[]>();
+        const pushEdge = (a: number, b: number, v0: number, v1: number): void => {
+            const lo = a < b ? a : b;
+            const hi = a < b ? b : a;
+            const key = `${lo}|${hi}`;
+            let list = edgesByPair.get(key);
+            if (!list) {
+                list = [];
+                edgesByPair.set(key, list);
+            }
+            list.push({ v0, v1 });
+        };
+
+        for (let iy = 0; iy < rows; iy++) {
+            for (let ix = 0; ix < cols; ix++) {
+                const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
+                if (selfIdx < 0) continue;
+                if (ix + 1 < cols) {
+                    const rightIdx = effectiveColorIdxByGridIdx[iy * cols + ix + 1];
+                    if (rightIdx >= 0 && rightIdx !== selfIdx) {
+                        pushEdge(
+                            selfIdx,
+                            rightIdx,
+                            iy * vCols + (ix + 1),
+                            (iy + 1) * vCols + (ix + 1),
+                        );
+                    }
+                }
+                if (iy + 1 < rows) {
+                    const downIdx = effectiveColorIdxByGridIdx[(iy + 1) * cols + ix];
+                    if (downIdx >= 0 && downIdx !== selfIdx) {
+                        pushEdge(
+                            selfIdx,
+                            downIdx,
+                            (iy + 1) * vCols + ix,
+                            (iy + 1) * vCols + (ix + 1),
+                        );
+                    }
+                }
+            }
+        }
+
+        const strokeOpts = {
+            color: 0xffffff,
+            alpha: params.borderAlpha,
+            width: params.borderWidth,
+            cap: 'round' as const,
+            join: 'round' as const,
+        };
+        const totalBorderChaikinPasses = Math.max(
+            0,
+            Math.min(
+                6,
+                params.sharedEdgeSmoothingPasses + params.borderChaikinPasses,
+            ),
+        );
+
+        for (const [key, edges] of edgesByPair) {
+            if (edges.length === 0) continue;
+            const separator = key.indexOf('|');
+            const aIdx = Number(key.slice(0, separator));
+            const bIdx = Number(key.slice(separator + 1));
+            const hexA = params.borderHexByColorIdx[aIdx];
+            const hexB = params.borderHexByColorIdx[bIdx];
+            if (hexA === undefined || hexB === undefined) continue;
+            strokeOpts.color = blendColors(hexA, hexB, 0.5);
+
+            const adjacency = new Map<number, Array<[number, number]>>();
+            for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+                const { v0, v1 } = edges[edgeIndex];
+                let listA = adjacency.get(v0);
+                if (!listA) {
+                    listA = [];
+                    adjacency.set(v0, listA);
+                }
+                listA.push([v1, edgeIndex]);
+                let listB = adjacency.get(v1);
+                if (!listB) {
+                    listB = [];
+                    adjacency.set(v1, listB);
+                }
+                listB.push([v0, edgeIndex]);
+            }
+
+            const usedEdge = new Uint8Array(edges.length);
+            const drawChain = (vertexChain: number[], closed: boolean): void => {
+                if (vertexChain.length < 2) return;
+                let points: number[] = [];
+                for (const vertexId of vertexChain) {
+                    points.push(vertexX(vertexId), vertexY(vertexId));
+                }
+                if (totalBorderChaikinPasses > 0) {
+                    points = chaikinSmooth(points, totalBorderChaikinPasses, closed);
+                }
+                if (!closed && params.edgeTrimPx > 0) {
+                    points = trimOpenPolylineEndpoints(points, params.edgeTrimPx);
+                }
+                g.moveTo(points[0], points[1]);
+                for (let i = 2; i < points.length; i += 2) {
+                    g.lineTo(points[i], points[i + 1]);
+                }
+                if (closed) {
+                    g.lineTo(points[0], points[1]);
+                }
+                g.stroke(strokeOpts);
+            };
+
+            const walkFrom = (startVertex: number): number[] => {
+                const chain: number[] = [startVertex];
+                let current = startVertex;
+                while (true) {
+                    const neighbours = adjacency.get(current);
+                    if (!neighbours) break;
+                    let nextVertex = -1;
+                    let nextEdge = -1;
+                    for (const [otherVertex, edgeIndex] of neighbours) {
+                        if (usedEdge[edgeIndex]) continue;
+                        nextVertex = otherVertex;
+                        nextEdge = edgeIndex;
+                        break;
+                    }
+                    if (nextEdge < 0) break;
+                    usedEdge[nextEdge] = 1;
+                    chain.push(nextVertex);
+                    current = nextVertex;
+                }
+                return chain;
+            };
+
+            for (const [vertexId, list] of adjacency) {
+                if (list.length === 2) continue;
+                while (list.some(([, edgeIndex]) => !usedEdge[edgeIndex])) {
+                    const chain = walkFrom(vertexId);
+                    if (chain.length < 2) break;
+                    drawChain(chain, false);
+                }
+            }
+
+            for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+                if (usedEdge[edgeIndex]) continue;
+                const { v0 } = edges[edgeIndex];
+                const chain = walkFrom(v0);
+                if (chain.length < 2) continue;
+                const closed = chain[chain.length - 1] === v0;
+                if (closed) {
+                    chain.pop();
+                }
+                drawChain(chain, closed);
+            }
+        }
+    }
+
     private updateDebugSnapshot(params: {
         input: RenderFamilyInput;
         cached: CachedPlan;
@@ -857,6 +1236,19 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6,
             ),
         );
+        const borderEnabled = readTunableBoolean(
+            input,
+            'METABALL_BORDER_ENABLED',
+            GAME_CONFIG.METABALL_BORDER_ENABLED ?? true,
+        );
+        const borderWidth = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'METABALL_BORDER_WIDTH',
+                GAME_CONFIG.METABALL_BORDER_WIDTH ?? 3,
+            ),
+        );
         const borderSatMult = Math.max(
             0,
             readTunableNumber(
@@ -913,6 +1305,40 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             input,
             'METABALL_GRID_BORDER_BLEND',
             GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? false,
+        );
+        const sharedEdgeSmoothingPasses = Math.max(
+            0,
+            Math.min(
+                4,
+                Math.round(
+                    readTunableNumber(
+                        input,
+                        'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0,
+                    ),
+                ),
+            ),
+        );
+        const edgeTrimPx = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_EDGE_TRIM_PX',
+                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0,
+            ),
+        );
+        const borderChaikinPasses = Math.max(
+            0,
+            Math.min(
+                4,
+                Math.round(
+                    readTunableNumber(
+                        input,
+                        'METABALL_GRID_BORDER_CHAIKIN_PASSES',
+                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0,
+                    ),
+                ),
+            ),
         );
         const waveEase = readTunableString<GridWaveEase>(
             input,
@@ -982,6 +1408,11 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
                 GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX ?? 1,
             ),
+        );
+        const phaseFieldFrontierHighlight = readTunableBoolean(
+            input,
+            'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT ?? true,
         );
         const phaseFieldFrontierFadeStart = clamp01(
             readTunableNumber(
@@ -1073,7 +1504,12 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             inwardOffsetPx.toFixed(2),
             borderMode,
             borderBlend ? '1' : '0',
+            borderEnabled ? '1' : '0',
+            borderWidth.toFixed(2),
             borderAlpha.toFixed(3),
+            sharedEdgeSmoothingPasses,
+            edgeTrimPx.toFixed(2),
+            borderChaikinPasses,
             satMult.toFixed(3),
             lightMult.toFixed(3),
             borderSatMult.toFixed(3),
@@ -1083,6 +1519,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             phaseFieldSizeCollapseStart.toFixed(3),
             phaseFieldSizeCollapseEnd.toFixed(3),
             phaseFieldFinalCellSizePx.toFixed(2),
+            phaseFieldFrontierHighlight ? '1' : '0',
             phaseFieldFrontierFadeStart.toFixed(3),
             phaseFieldFrontierFadeEnd.toFixed(3),
             input.renderer ? 'rt' : 'fallback',
@@ -1141,6 +1578,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.prevSprite.visible = false;
         this.nextSprite.visible = false;
         this.maskSprite.visible = false;
+        this.borderGraphics.clear();
         this.frontierGraphics.clear();
 
         let paintedCells = 0;
@@ -1148,6 +1586,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         let paintMs = 0;
         let compositeMode: 'render_texture_mask' | 'vector_fallback' | 'steady' =
             'steady';
+        let borderSceneCells: readonly GridRenderCell[] = [];
 
         if (hasTransition) {
             const sceneStartMs = performance.now();
@@ -1163,6 +1602,23 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 includeNativeCells: false,
             });
             sceneBuildMs = performance.now() - sceneStartMs;
+
+            if (borderEnabled && borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0) {
+                const borderSceneStartMs = performance.now();
+                const borderScene = renderMetaballGridScene({
+                    classification: cached.classification,
+                    wavePlan: effectiveWavePlan,
+                    progress: easedProgress,
+                    flipTransition,
+                    flipWindow,
+                    strength: 1,
+                    inwardOffsetPx,
+                    ownerColorIdx,
+                    includeNativeCells: true,
+                });
+                borderSceneCells = borderScene.cells;
+                sceneBuildMs += performance.now() - borderSceneStartMs;
+            }
 
             const spacingPx = cached.classification.spacingPx;
             const transitionInset = cellInsetPx + inwardOffsetPx;
@@ -1307,7 +1763,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 0,
                 activeRange.endIndex - activeRange.startIndex,
             );
-            if (activeWindowCount > 0) {
+            if (activeWindowCount > 0 && phaseFieldFrontierHighlight) {
                 const byId = new Map<string, GridVStar>();
                 for (const vstar of cached.classification.vstars) {
                     byId.set(vstar.id, vstar);
@@ -1378,9 +1834,45 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 alpha: fillAlpha,
             });
             this.baseGraphics.visible = true;
+            if (borderEnabled && borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0) {
+                const borderSceneStartMs = performance.now();
+                const borderScene = renderMetaballGridScene({
+                    classification: cached.classification,
+                    wavePlan: effectiveWavePlan,
+                    progress: easedProgress,
+                    flipTransition,
+                    flipWindow,
+                    strength: 1,
+                    inwardOffsetPx,
+                    ownerColorIdx,
+                    includeNativeCells: true,
+                });
+                borderSceneCells = borderScene.cells;
+                sceneBuildMs += performance.now() - borderSceneStartMs;
+            }
             paintMs = performance.now() - paintStartMs;
             compositeMode = 'steady';
             paintedCells = 0;
+        }
+
+        if (borderSceneCells.length > 0) {
+            this.drawBorderOverlay({
+                classification: cached.classification,
+                sceneCells: borderSceneCells,
+                ownerColorIdx,
+                borderHexByColorIdx: frontierHexByColorIdx,
+                cellShape,
+                borderMode,
+                borderBlend,
+                borderWidth,
+                borderAlpha,
+                cellInsetPx,
+                cellCornerPx,
+                inwardOffsetPx,
+                edgeTrimPx,
+                sharedEdgeSmoothingPasses,
+                borderChaikinPasses,
+            });
         }
 
         this.frameCount += 1;
@@ -1412,21 +1904,9 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             waveSeeding: settings.waveSeeding,
             borderMode,
             borderBlend,
-            edgeSmoothingPasses: readTunableNumber(
-                input,
-                'METABALL_GRID_EDGE_SMOOTHING_PASSES',
-                GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0,
-            ),
-            edgeTrimPx: readTunableNumber(
-                input,
-                'METABALL_GRID_EDGE_TRIM_PX',
-                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0,
-            ),
-            borderChaikinPasses: readTunableNumber(
-                input,
-                'METABALL_GRID_BORDER_CHAIKIN_PASSES',
-                GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0,
-            ),
+            edgeSmoothingPasses: sharedEdgeSmoothingPasses,
+            edgeTrimPx,
+            borderChaikinPasses,
             disconnectEnabled:
                 (input.configSource?.MODIFIED_VORONOI_DISCONNECT_ENABLED as boolean | undefined) ??
                 (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false),

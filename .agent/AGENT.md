@@ -662,3 +662,34 @@ Suggested structure:
   - phase-field should visibly start with borders in the current live settings state,
   - finish-tail controls should visibly affect end-of-conquest settling,
   - shrinking to `1px` plus a late fade should feel like a clean dissolve into POST territory rather than a chunk pop.
+
+### 2026-04-30 - Phase Field Border Overlay And Frontier-Highlight Split
+
+- Lane: `territory/phase-field-border-overlay`
+- User task: fix the remaining phase-field border failure now that fill/finish tuning is in good shape. The mode still showed no actual borders in practice, despite exposing border controls in UI.
+- Scope this pass: phase-field renderer border output, phase-field settings semantics, shared config plumbing, and tracked handoff updates.
+
+#### Pass Log
+
+1. Pass 1 - Audited the border path end-to-end before editing. Confirmed the user-facing problem was real: `MetaballGridPhaseFieldFamily.ts` read some border-related tunables and reused border color math for the frontier accent, but it never read `METABALL_BORDER_WIDTH`, never honored `METABALL_BORDER_ENABLED`, and never executed any border-stroke draw pass at all.
+2. Pass 2 - Identified a second UX failure intertwined with the rendering bug. The phase-field UI had repurposed shared `Centered-blended borders` semantics into `Centered frontier highlight`, which meant the mode no longer had a truthful border-blend control even before the missing-stroke bug was fixed.
+3. Pass 3 - Restored the shared control contract. In `MetaballGridTuning.svelte`, `METABALL_GRID_BORDER_BLEND` now goes back to meaning actual centered/blended ownership borders for all metaball-grid variants. Phase field receives a dedicated `Frontier Highlight` toggle instead of hijacking the shared border toggle.
+4. Pass 4 - Added the missing phase-field config plumbing for that split. Introduced `METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT` in `game.config.ts`, `metaballGrid/config.ts`, `settingsDefs.ts`, `settingMetadata.ts`, `categoryThemes.ts`, and the current live settings file so the new toggle is a real persisted control instead of a local UI-only switch.
+5. Pass 5 - Implemented a real border overlay layer inside `MetaballGridPhaseFieldFamily.ts`. The family now reads `METABALL_BORDER_ENABLED` and `METABALL_BORDER_WIDTH`, builds a border scene from the same live grid-classification truth as the other metaball-grid families, and paints an explicit stroke layer on top of the phase-field composite.
+6. Pass 6 - Wired the overlay to the existing tuning model instead of inventing a second border system. `Border Mode`, `Centered-blended borders`, `Border Chaikin Passes`, `Shared Edge Smoothing`, `Shared Edge Trim`, and the shared territory border SLA controls now all affect phase field in runtime. The border layer uses the current classified ownership state so it can follow the active front rather than sitting dead beneath the conquest.
+7. Pass 7 - Kept the conquest rim as its own authored effect. The winner-side frontier accent is still available, but now through the dedicated `Frontier Highlight` toggle plus the existing `Frontier Fade Start/End` tail controls, instead of being conflated with border blending.
+8. Pass 8 - Ran targeted verification. `git diff --check` remained clean except for existing LF→CRLF warnings. A filtered `svelte-check` pass on touched files showed only the long-standing pre-existing `game.config.ts` `TERRITORY_FILL_TRANSITION_MODE` mismatch plus existing `MetaballGridTuning.svelte` CSS warnings; no new phase-field-family or settings-surface error surfaced from this border pass. In-app visual QA is still required to validate the final look.
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`, `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`, `pax-fluxia/src/lib/components/ui/settings/settingMetadata.ts`, `pax-fluxia/src/lib/components/ui/settingsDefs.ts`, `pax-fluxia/src/lib/config/categoryThemes.ts`, `pax-fluxia/src/lib/config/game.config.ts`, `pax-fluxia/src/lib/territory/families/metaball/config.ts`, `pax-fluxia/src/lib/territory/families/metaballGrid/config.ts`, and `common/resources/settings-live/current-settings.json`.
+- Critical behavioral delta for merge/review:
+  - phase field now has a real border overlay layer,
+  - shared border controls mean borders again,
+  - frontier highlight is a separate phase-field-only choice,
+  - border width/alpha/HSL and grid-border shaping knobs are now live in this mode instead of being dead UI.
+- In-app verification still needed:
+  - confirm borders are now visibly present in steady state and during conquest,
+  - confirm `territory_edge` vs `per_cell` reads distinctly in phase field,
+  - confirm `Centered-blended borders` now affects border behavior rather than frontier highlight,
+  - confirm `Frontier Highlight` plus `Frontier Fade Start/End` behaves as a separate conquest-local accent.

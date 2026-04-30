@@ -73,20 +73,14 @@
     }
 
     function currentBorderBlendLabel(): string {
-        return isPhaseFieldMode() ? 'Centered frontier highlight' : 'Centered-blended borders';
+        return 'Centered-blended borders';
     }
 
     function currentBorderBlendTitle(): string {
-        if (isPhaseFieldMode()) {
-            return 'Phase Field only: add a centered winner-side highlight at the active frontier. Off keeps the frontier closer to the winner border color.';
-        }
         return 'Centered-blended borders: a single stroke on each ownership-boundary edge, coloured as the 50/50 blend of the two players\' border colours. Off: each cell draws its own stroke in its own colour, so boundaries show two abutting strokes.';
     }
 
     function currentBorderBlendDescription(): string {
-        if (isPhaseFieldMode()) {
-            return 'Only applies when Border Mode = "Territory edge". On: lift the active frontier toward a lighter winner-side highlight. Off: keep the frontier accent closer to the winner border color.';
-        }
         return 'Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).';
     }
 
@@ -283,6 +277,14 @@
             panel.metaballGridPhaseFieldFinalCellSizePx ??
             GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX ??
             1
+        );
+    }
+
+    function currentPhaseFieldFrontierHighlight(): boolean {
+        return (
+            panel.metaballGridPhaseFieldFrontierHighlight ??
+            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT ??
+            true
         );
     }
 
@@ -670,6 +672,35 @@
     {currentBorderBlendDescription()}
 </div>
 
+{#if isPhaseFieldMode()}
+<label class="toggle-row">
+    <input
+        type="checkbox"
+        checked={currentPhaseFieldFrontierHighlight()}
+        onchange={(event) => {
+            const value = (event.target as HTMLInputElement).checked;
+            writeConfig(
+                'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+                'metaballGridPhaseFieldFrontierHighlight',
+                value,
+            );
+        }}
+    />
+    <span
+        class="var-name"
+        title="Phase Field only: add a winner-side accent at the active conquest front. This is separate from the steady territory border stroke."
+    >
+        Frontier Highlight
+    </span>
+    <span class="val">
+        {currentPhaseFieldFrontierHighlight() ? 'On' : 'Off'}
+    </span>
+</label>
+<div class="var-desc">
+    Phase Field only. Adds a conquest-local winner-side rim at the active front. The Frontier Fade controls in Flip govern how this accent disappears near completion.
+</div>
+{/if}
+
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
@@ -702,7 +733,7 @@
         <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
     </div>
     <div class="var-desc">
-        Additional shared-edge softening for the separate phase-edge mode. This affects square-cell boundary corners before the centered-blended edge stroke is drawn.
+        Additional shared-edge softening for the centered-blended border path. In phase field, this rounds the dedicated border overlay. In phase edges, it still affects the edge-forward boundary pass.
     </div>
     <input
         type="range"
@@ -725,7 +756,7 @@
         <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
     </div>
     <div class="var-desc">
-        Endpoint trim for open shared-edge chains. The handoff keeps this at 0 by default because the trim path is still exploratory.
+        Endpoint trim for open shared-edge chains in the centered-blended border path. Higher values shorten exposed chain ends before the border stroke is drawn.
     </div>
     <input
         type="range"

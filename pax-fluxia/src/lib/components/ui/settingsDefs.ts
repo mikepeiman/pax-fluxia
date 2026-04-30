@@ -605,6 +605,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START' },
     { configKey: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END' },
     { configKey: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX' },
+    {
+        panelKey: 'metaballGridPhaseFieldFrontierHighlight',
+        configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+    },
     { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START' },
     { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END' },
     // Arrow appearance
