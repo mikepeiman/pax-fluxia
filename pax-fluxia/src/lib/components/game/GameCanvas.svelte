@@ -393,6 +393,7 @@
     let territoryPresentationLastYieldRequestId = 0;
     let territoryPresentationLastYieldReason = "";
     let territoryPresentationLastScheduleMode = "";
+    let territoryPresentationLastCommittedSignature = "";
     let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
         null;
     let territoryPresentationDelayTimer: ReturnType<typeof setTimeout> | null =
@@ -1892,7 +1893,6 @@
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesGeometryDefaults,
-            ...metaballGridPhaseEdgesModeDefaults,
         };
     }
 
@@ -4639,6 +4639,7 @@
                         );
                     },
                 );
+                territoryPresentationLastCommittedSignature = request.signature;
                 territoryPresentationLastFinishedAtMs = performance.now();
                 territoryPresentationLastCommitLagMs =
                     territoryPresentationLastFinishedAtMs - request.enqueuedAtMs;
@@ -4932,6 +4933,7 @@
             territoryPresentationLastYieldRequestId = 0;
             territoryPresentationLastYieldReason = "";
             territoryPresentationLastScheduleMode = "";
+            territoryPresentationLastCommittedSignature = "";
             if (territoryPresentationDelayTimer) {
                 clearTimeout(territoryPresentationDelayTimer);
                 territoryPresentationDelayTimer = null;
@@ -5025,9 +5027,8 @@
             }
         }
 
-        // Skip territory re-rendering when paused — nothing changes, saves
-        // 200-300 log lines/sec from the fingerprint checks and stage logs.
-        // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
+        // While paused, only skip territory presentation when the already
+        // committed or queued semantic scene signature is unchanged.
         const isPausedNow = activeGameStore.isPaused;
         const activeTerritoryMode = resolveActiveTerritoryMode();
         const territoryConfigFp =
@@ -5054,103 +5055,102 @@
             (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
         if (configChanged) resetTerritoryRenderCaches();
 
-        if (
-            isPausedNow &&
-            (globalThis as any).__territoryRenderedWhilePaused &&
-            !configChanged
-        ) {
-            // Territory already rendered once since pause and config unchanged — skip
-        } else if (voronoiContainer) {
-            const territoryScheduler = shouldThrottleTerritoryCadence({
-                nowMs: performance.now(),
-                isPaused: isPausedNow,
-                configChanged,
-                activeMode: activeTerritoryMode,
-                pendingConquests: pendingTickEvents?.conquests?.length ?? 0,
-            });
-            const deferTerritoryUpdate =
-                !isPausedNow && territoryScheduler.defer;
-            if (deferTerritoryUpdate) {
-                deferredTerritoryFrameCount += 1;
-                territoryCadenceSkipCount += 1;
-                if (!territoryDeferralActive) {
-                    territoryDeferralActive = true;
-                    deferredTerritoryReason = territoryScheduler.reason;
-                    recordPerfEvent("game.territory.defer.start", {
-                        lastTerritoryUpdateCostMs,
-                        reason: territoryScheduler.reason,
-                        cadenceMs: territoryScheduler.cadenceMs,
-                        staleMs: territoryScheduler.staleMs,
-                    });
-                    logPipelineStage({
-                        channel: "input",
-                        context: "GameCanvas",
-                        stage: "territory_defer_start",
-                        from: "Input pressure window",
-                        to: "Territory renderer scheduler",
-                        purpose: "Prioritize order input and camera interaction over heavy territory updates",
-                        summary:
-                            `reason=${territoryScheduler.reason} ` +
-                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
-                            `cadenceMs=${territoryScheduler.cadenceMs} ` +
-                            `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
-                    });
-                }
-            } else {
-                if (territoryDeferralActive) {
-                    recordPerfEvent("game.territory.defer.stop", {
-                        deferredFrames: deferredTerritoryFrameCount,
-                        cadenceSkips: territoryCadenceSkipCount,
-                        lastTerritoryUpdateCostMs,
-                        reason: deferredTerritoryReason,
-                        cadenceMs: territoryScheduler.cadenceMs,
-                        staleMs: territoryScheduler.staleMs,
-                    });
-                    logPipelineStage({
-                        channel: "input",
-                        context: "GameCanvas",
-                        stage: "territory_defer_stop",
-                        from: "Territory renderer scheduler",
-                        to: "Normal territory cadence",
-                        purpose: "Resume heavier territory updates after interactive pressure subsides",
-                        summary:
-                            `deferredFrames=${deferredTerritoryFrameCount} ` +
-                            `cadenceSkips=${territoryCadenceSkipCount} ` +
-                            `reason=${deferredTerritoryReason} ` +
-                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
-                    });
-                    territoryDeferralActive = false;
-                    deferredTerritoryFrameCount = 0;
-                    territoryCadenceSkipCount = 0;
-                    deferredTerritoryReason = "";
-                }
-                if (isPausedNow)
-                    (globalThis as any).__territoryRenderedWhilePaused = true;
-                if (!isPausedNow)
-                    (globalThis as any).__territoryRenderedWhilePaused = false;
-                voronoiContainer.visible = true;
-                const renderFamilyTransitionState =
-                    buildRenderFamilyTransitionState(
-                        fxOrchestrator.gameTime,
-                        activeGameStore.effectiveTickMs,
-                        pendingTickEvents?.conquests ?? [],
-                    );
-                queueTerritoryPresentation({
-                    signature: buildTerritoryPresentationRequestSignature({
-                        activeMode: activeTerritoryMode,
-                        isPaused: isPausedNow,
-                        currentTick: activeGameStore.currentTick,
-                        territoryConfigFp,
-                        pendingConquests: pendingTickEvents?.conquests ?? [],
-                        transitionPresentationSignature:
-                            renderFamilyTransitionState.transitionPresentationSignature,
-                    }),
+        if (voronoiContainer) {
+            const renderFamilyTransitionState =
+                buildRenderFamilyTransitionState(
+                    fxOrchestrator.gameTime,
+                    activeGameStore.effectiveTickMs,
+                    pendingTickEvents?.conquests ?? [],
+                );
+            const territoryPresentationSignature =
+                buildTerritoryPresentationRequestSignature({
                     activeMode: activeTerritoryMode,
                     isPaused: isPausedNow,
-                    stars,
+                    currentTick: activeGameStore.currentTick,
+                    territoryConfigFp,
                     pendingConquests: pendingTickEvents?.conquests ?? [],
-                    territoryScheduler,
-                    run: () => {
+                    transitionPresentationSignature:
+                        renderFamilyTransitionState.transitionPresentationSignature,
+                });
+            const pausedPresentationAlreadyCurrent =
+                isPausedNow &&
+                (territoryPresentationLastCommittedSignature ===
+                    territoryPresentationSignature ||
+                    territoryPresentationPendingRequest?.signature ===
+                        territoryPresentationSignature);
+            if (!pausedPresentationAlreadyCurrent) {
+                const territoryScheduler = shouldThrottleTerritoryCadence({
+                    nowMs: performance.now(),
+                    isPaused: isPausedNow,
+                    configChanged,
+                    activeMode: activeTerritoryMode,
+                    pendingConquests: pendingTickEvents?.conquests?.length ?? 0,
+                });
+                const deferTerritoryUpdate =
+                    !isPausedNow && territoryScheduler.defer;
+                if (deferTerritoryUpdate) {
+                    deferredTerritoryFrameCount += 1;
+                    territoryCadenceSkipCount += 1;
+                    if (!territoryDeferralActive) {
+                        territoryDeferralActive = true;
+                        deferredTerritoryReason = territoryScheduler.reason;
+                        recordPerfEvent("game.territory.defer.start", {
+                            lastTerritoryUpdateCostMs,
+                            reason: territoryScheduler.reason,
+                            cadenceMs: territoryScheduler.cadenceMs,
+                            staleMs: territoryScheduler.staleMs,
+                        });
+                        logPipelineStage({
+                            channel: "input",
+                            context: "GameCanvas",
+                            stage: "territory_defer_start",
+                            from: "Input pressure window",
+                            to: "Territory renderer scheduler",
+                            purpose: "Prioritize order input and camera interaction over heavy territory updates",
+                            summary:
+                                `reason=${territoryScheduler.reason} ` +
+                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
+                                `cadenceMs=${territoryScheduler.cadenceMs} ` +
+                                `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
+                        });
+                    }
+                } else {
+                    if (territoryDeferralActive) {
+                        recordPerfEvent("game.territory.defer.stop", {
+                            deferredFrames: deferredTerritoryFrameCount,
+                            cadenceSkips: territoryCadenceSkipCount,
+                            lastTerritoryUpdateCostMs,
+                            reason: deferredTerritoryReason,
+                            cadenceMs: territoryScheduler.cadenceMs,
+                            staleMs: territoryScheduler.staleMs,
+                        });
+                        logPipelineStage({
+                            channel: "input",
+                            context: "GameCanvas",
+                            stage: "territory_defer_stop",
+                            from: "Territory renderer scheduler",
+                            to: "Normal territory cadence",
+                            purpose: "Resume heavier territory updates after interactive pressure subsides",
+                            summary:
+                                `deferredFrames=${deferredTerritoryFrameCount} ` +
+                                `cadenceSkips=${territoryCadenceSkipCount} ` +
+                                `reason=${deferredTerritoryReason} ` +
+                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
+                        });
+                        territoryDeferralActive = false;
+                        deferredTerritoryFrameCount = 0;
+                        territoryCadenceSkipCount = 0;
+                        deferredTerritoryReason = "";
+                    }
+                    voronoiContainer.visible = true;
+                    queueTerritoryPresentation({
+                        signature: territoryPresentationSignature,
+                        activeMode: activeTerritoryMode,
+                        isPaused: isPausedNow,
+                        stars,
+                        pendingConquests: pendingTickEvents?.conquests ?? [],
+                        territoryScheduler,
+                        run: () => {
             territoryLastMode = activeTerritoryMode;
             recordPerfEvent("game.territory.schedule.run", {
                 mode: activeTerritoryMode,
@@ -6067,8 +6067,9 @@
                         cadenceMs: connectionsScheduler.cadenceMs,
                         staleMs: connectionsScheduler.staleMs,
                         reason: connectionsScheduler.reason,
-                    },
-                });
+                        },
+                    });
+                }
             }
         }
 
@@ -6125,7 +6126,7 @@
                     processTickEvents(
                         stars,
                         tickEvents,
-                        connections || [],
+                        (activeGameStore.connections as StarConnection[]) || [],
                         starsById,
                     );
                 },

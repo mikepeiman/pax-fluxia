@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
 import type { ConquestEvent } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { territoryFrontierConfigDefaults } from '$lib/territory/frontier/config';
+import type { StarConnection, StarState } from '$lib/types/game.types';
 import type {
     CanonicalGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '../buildRenderFamilyInput';
-import type { RenderFamilyInput } from '../RenderFamilyTypes';
+import type {
+    RenderFamilyActiveTransition,
+    RenderFamilyInput,
+    RenderFamilyTunableValue,
+} from '../RenderFamilyTypes';
 import {
     MetaballGridFamily,
     createMetaballGridFamily,
@@ -94,6 +100,74 @@ function makeEvent(previousOwner: string, newOwner: string): ConquestEvent {
     };
 }
 
+function makeStar(params: {
+    id: string;
+    x: number;
+    y: number;
+    ownerId: string;
+    activeShips: number;
+    damagedShips: number;
+    radius?: number;
+    starType?: string;
+}): StarState {
+    return {
+        id: params.id,
+        x: params.x,
+        y: params.y,
+        ownerId: params.ownerId,
+        activeShips: params.activeShips,
+        damagedShips: params.damagedShips,
+        radius: params.radius ?? 20,
+        starType: params.starType ?? 'blue',
+        productionOverflow: 0,
+        repairOverflow: 0,
+        lastCombatTick: 0,
+        lastAttackTick: 0,
+        targetId: null,
+        queuedOrderTargetId: null,
+        productionRate: 1,
+        repairRate: 0,
+        transferRate: 0.5,
+        activationRate: 1,
+        defensivePosture: 1,
+        defenseStrength: 1,
+    };
+}
+
+function makeLane(sourceId: string, targetId: string, distance: number): StarConnection {
+    return { sourceId, targetId, distance };
+}
+
+function makeTunables(
+    entries: ReadonlyArray<readonly [string, RenderFamilyTunableValue]>,
+): ReadonlyMap<string, RenderFamilyTunableValue> {
+    return new Map<string, RenderFamilyTunableValue>(entries);
+}
+
+function makeActiveTransition(
+    event: ConquestEvent,
+    progress: number,
+    durationMs: number,
+): RenderFamilyActiveTransition {
+    return {
+        sessionKey: `tick:${event.tick}:test`,
+        conquestEvents: [event],
+        events: [
+            {
+                event,
+                startedAtMs: 1_000,
+                durationMs,
+                progress,
+                rawProgress: progress,
+            },
+        ],
+        startedAtMs: 1_000,
+        durationMs,
+        progress,
+        rawProgress: progress,
+    };
+}
+
 function makeInput(progress: number): RenderFamilyInput {
     const prevGeometry = makeSnapshot([
         rect('A', 'left', 0, 0, 50, 40),
@@ -109,29 +183,25 @@ function makeInput(progress: number): RenderFamilyInput {
         gameTick: 1,
         world: { width: 100, height: 40 },
         stars: [
-            {
+            makeStar({
                 id: 'attacker',
                 x: 80,
                 y: 20,
                 ownerId: 'B',
                 activeShips: 24,
                 damagedShips: 0,
-                radius: 20,
-                starType: 'blue',
-            },
-            {
+            }),
+            makeStar({
                 id: 'target',
                 x: 25,
                 y: 20,
                 ownerId: 'B',
                 activeShips: 18,
                 damagedShips: 0,
-                radius: 20,
-                starType: 'blue',
-            },
+            }),
         ],
-        lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 55 }],
-        tunables: new Map([
+        lanes: [makeLane('attacker', 'target', 55)],
+        tunables: makeTunables([
             ['METABALL_GRID_ENABLED', true],
             ['METABALL_GRID_SPACING_PX', 10],
             ['METABALL_GRID_ORIGIN_MODE', 'centered'],
@@ -153,22 +223,7 @@ function makeInput(progress: number): RenderFamilyInput {
             ['METABALL_SATURATION', 1],
             ['METABALL_LIGHTNESS', 0.5],
         ]),
-        activeTransition: {
-            conquestEvents: [event],
-            events: [
-                {
-                    event,
-                    startedAtMs: 1_000,
-                    durationMs: 1_500,
-                    progress,
-                    rawProgress: progress,
-                },
-            ],
-            startedAtMs: 1_000,
-            durationMs: 1_500,
-            progress,
-            rawProgress: progress,
-        },
+        activeTransition: makeActiveTransition(event, progress, 1_500),
     };
 }
 
@@ -204,29 +259,25 @@ function makeSteadyInput(): RenderFamilyInput {
         gameTick: 2,
         world: { width: 100, height: 40 },
         stars: [
-            {
+            makeStar({
                 id: 'attacker',
                 x: 80,
                 y: 20,
                 ownerId: 'B',
                 activeShips: 24,
                 damagedShips: 0,
-                radius: 20,
-                starType: 'blue',
-            },
-            {
+            }),
+            makeStar({
                 id: 'target',
                 x: 25,
                 y: 20,
                 ownerId: 'B',
                 activeShips: 18,
                 damagedShips: 0,
-                radius: 20,
-                starType: 'blue',
-            },
+            }),
         ],
-        lanes: [{ sourceId: 'attacker', targetId: 'target', distance: 55 }],
-        tunables: new Map([
+        lanes: [makeLane('attacker', 'target', 55)],
+        tunables: makeTunables([
             ['METABALL_GRID_ENABLED', true],
             ['METABALL_GRID_SPACING_PX', 10],
             ['METABALL_GRID_ORIGIN_MODE', 'centered'],
@@ -254,6 +305,7 @@ function makeSteadyInput(): RenderFamilyInput {
 function makePhaseEdgesInput(
     family: MetaballGridFamily,
     progress: number,
+    overrides?: Record<string, unknown>,
 ): RenderFamilyInput {
     const base = makeInput(progress);
     const configSource: Record<string, unknown> = {
@@ -272,15 +324,19 @@ function makePhaseEdgesInput(
         METABALL_GRID_CELL_INSET_PX: 0,
         METABALL_GRID_CELL_CORNER_PX: 0,
         METABALL_BORDER_ALPHA: 1,
+        METABALL_FILL_ENABLED: true,
+        METABALL_BORDER_ENABLED: true,
         METABALL_ALPHA: 1,
         METABALL_SATURATION: 1,
         METABALL_LIGHTNESS: 0.5,
+        ...territoryFrontierConfigDefaults,
         ...metaballGridPhaseEdgesGeometryDefaults,
         ...metaballGridPhaseEdgesModeDefaults,
+        ...overrides,
     };
     return buildRenderFamilyInput({
-        stars: base.stars,
-        lanes: base.lanes,
+        stars: [...base.stars],
+        lanes: [...base.lanes],
         worldWidth: base.world.width,
         worldHeight: base.world.height,
         nowMs: base.nowMs,
@@ -382,6 +438,17 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(stats.disconnectEnabled).toBe(true);
         expect(stats.disconnectDistance).toBe(295);
         expect(stats.dxWeight).toBe(0.3);
+        expect(stats.frontierRequestedTechnique).toBe('control');
+        expect(stats.frontierTechnique).toBe('control');
+        expect(stats.frontierRequestedBorderGeometryMode).toBe('contour_matched');
+        expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
+        expect(stats.frontierBorderGeometryFallbackReason).toBe('renderer_unavailable');
+        expect(stats.frontierSurfaceGeometryFamily).toBe('shared_edge');
+        expect(stats.frontierStableGeometryFamily).toBe('shared_edge');
+        expect(stats.frontierTransitionGeometryFamily).toBe('shared_edge');
+        expect(stats.frontierSurfaceInvariantViolation).toBeNull();
+        expect(stats.frontierBlurPasses).toBe(0);
+        expect(stats.frontierPhaseSampling).toBe('nearest');
 
         family.dispose();
     });
@@ -423,6 +490,10 @@ describe('MetaballGridFamily active frontier fast path', () => {
             expect(stats.disconnectEnabled).toBe(true);
             expect(stats.disconnectDistance).toBe(295);
             expect(stats.dxWeight).toBe(0.3);
+            expect(stats.frontierTechnique).toBe('control');
+            expect(stats.frontierRequestedBorderGeometryMode).toBe('contour_matched');
+            expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
+            expect(stats.frontierBorderGeometryFallbackReason).toBe('renderer_unavailable');
         } finally {
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY = originalWaveGeometry;
             GAME_CONFIG.METABALL_GRID_BORDER_MODE = originalBorderMode;
@@ -458,6 +529,194 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(longStats.frontierVisibleLifetimeMs!).toBeGreaterThan(
             shortStats.frontierVisibleLifetimeMs! * 4,
         );
+
+        family.dispose();
+    });
+
+    it('allows toggling the control-path border geometry back to straight shared-edge mode', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+
+        const stats = get(metaballGridStats);
+        expect(stats.frontierTechnique).toBe('control');
+        expect(stats.frontierRequestedBorderGeometryMode).toBe('shared_edge');
+        expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
+        expect(stats.frontierBorderGeometryFallbackReason).toBeNull();
+        expect(stats.frontierSurfaceGeometryFamily).toBe('shared_edge');
+        expect(stats.frontierSurfaceInvariantViolation).toBeNull();
+
+        family.dispose();
+    });
+
+    it('keeps the selected surface geometry family stable across steady and transition frames', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        const transitionInput = makePhaseEdgesInput(family, 0.35, {
+            TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+        });
+        const steadyInput = {
+            ...transitionInput,
+            activeTransition: null,
+            transitionSessions: null,
+            prevGeometry: transitionInput.geometry,
+        };
+
+        family.update(steadyInput);
+        const steadyStats = get(metaballGridStats);
+
+        family.update(transitionInput);
+        const transitionStats = get(metaballGridStats);
+
+        expect(steadyStats.frontierSurfaceGeometryFamily).toBe('shared_edge');
+        expect(steadyStats.frontierStableGeometryFamily).toBe('shared_edge');
+        expect(steadyStats.frontierTransitionGeometryFamily).toBe('shared_edge');
+        expect(steadyStats.frontierSurfaceInvariantViolation).toBeNull();
+        expect(transitionStats.frontierSurfaceGeometryFamily).toBe(
+            steadyStats.frontierSurfaceGeometryFamily,
+        );
+        expect(transitionStats.frontierStableGeometryFamily).toBe(
+            steadyStats.frontierStableGeometryFamily,
+        );
+        expect(transitionStats.frontierTransitionGeometryFamily).toBe(
+            steadyStats.frontierTransitionGeometryFamily,
+        );
+        expect(transitionStats.frontierSurfaceInvariantViolation).toBeNull();
+
+        family.dispose();
+    });
+
+    it('gates contour frontier techniques to the square distribution', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_DISTRIBUTION: 'hex_offset',
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_squares_scalar',
+            }),
+        );
+
+        const stats = get(metaballGridStats);
+        expect(stats.frontierRequestedTechnique).toBe('marching_squares_scalar');
+        expect(stats.frontierTechnique).toBe('control');
+        expect(stats.frontierFallbackReason).toBe(
+            'requires_square_distribution',
+        );
+
+        family.dispose();
+    });
+
+    it('falls back to control when shader frontier band has no renderer', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                TERRITORY_FRONTIER_TECHNIQUE: 'shader_frontier_band',
+                TERRITORY_FRONTIER_PHASE_SAMPLING: 'linear',
+            }),
+        );
+
+        const stats = get(metaballGridStats);
+        expect(stats.frontierRequestedTechnique).toBe('shader_frontier_band');
+        expect(stats.frontierTechnique).toBe('control');
+        expect(stats.frontierFallbackReason).toBe('renderer_unavailable');
+
+        family.dispose();
+    });
+
+    it('populates frontier contour metrics for marching-squares evaluation rows', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_squares_scalar',
+                TERRITORY_FRONTIER_CHAIKIN_PASSES: 1,
+            }),
+        );
+
+        const stats = get(metaballGridStats);
+        expect(stats.frontierTechnique).toBe('marching_squares_scalar');
+        expect(stats.frontierPhaseLayerCount).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierPhaseGridCols).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierPhaseGridRows).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierContourExtractionMs).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierSmoothingMs).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierPolylineCount).toBeGreaterThanOrEqual(0);
+        expect(stats.frontierEmittedVertexCount).toBeGreaterThanOrEqual(0);
+
+        family.dispose();
+    });
+
+    it('honors shared fill and border visibility toggles in phase-edges presentation', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_FILL_ENABLED: false,
+                METABALL_BORDER_ENABLED: true,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+
+        const fillHiddenState = family as unknown as {
+            graphics: { visible: boolean };
+            nativeSpriteLayer: { visible: boolean };
+            transitionSpriteLayer: { visible: boolean };
+            frontierFillMeshLayer: { visible: boolean };
+            borderGraphics: { visible: boolean };
+        };
+
+        expect(fillHiddenState.graphics.visible).toBe(false);
+        expect(fillHiddenState.nativeSpriteLayer.visible).toBe(false);
+        expect(fillHiddenState.transitionSpriteLayer.visible).toBe(false);
+        expect(fillHiddenState.frontierFillMeshLayer.visible).toBe(false);
+        expect(fillHiddenState.borderGraphics.visible).toBe(true);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_FILL_ENABLED: true,
+                METABALL_BORDER_ENABLED: false,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+
+        const borderHiddenState = family as unknown as {
+            borderGraphics: { visible: boolean };
+            frontierGraphics: { visible: boolean };
+            frontierMeshLayer: { visible: boolean };
+        };
+
+        expect(borderHiddenState.borderGraphics.visible).toBe(false);
+        expect(borderHiddenState.frontierGraphics.visible).toBe(false);
+        expect(borderHiddenState.frontierMeshLayer.visible).toBe(false);
 
         family.dispose();
     });

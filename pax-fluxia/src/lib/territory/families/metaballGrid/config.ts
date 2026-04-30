@@ -32,6 +32,7 @@ export const metaballGridPhaseEdgesModeDefaults = {
     METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
     METABALL_GRID_EDGE_TRIM_PX: 0,
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
+    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'contour_matched' as const,
 } as const;
 
 export const metaballGridPhaseEdgesGeometryDefaults = {

@@ -26,8 +26,23 @@
  */
 
 import * as PIXI from 'pixi.js';
+import {
+    compileHighShaderGlProgram,
+    localUniformBitGl,
+} from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
+import {
+    buildTerritoryFrontierPresentation,
+    resolveTerritoryFrontierSurfaceRecipe,
+    TERRITORY_FRONTIER_TUNABLE_KEYS,
+    type TerritoryFrontierBorderGeometryMode,
+    type TerritoryFrontierContourLayerResult,
+    type TerritoryFrontierPhaseFieldLayer,
+    type TerritoryFrontierPhaseSamplingMode,
+    type TerritoryFrontierTechniqueId,
+    type TerritoryFrontierTriangleDiagonalPolicy,
+} from '$lib/territory/frontier';
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
@@ -214,11 +229,14 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
     'METABALL_ALPHA',
+    'METABALL_FILL_ENABLED',
     'METABALL_BORDER_WIDTH',
     'METABALL_BORDER_ALPHA',
+    'METABALL_BORDER_ENABLED',
     'METABALL_BORDER_SATURATION',
     'METABALL_BORDER_LIGHTNESS',
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
+    ...TERRITORY_FRONTIER_TUNABLE_KEYS,
 ] as const;
 
 function readTunableNumber(input: RenderFamilyInput, key: string, fallback: number): number {
@@ -344,6 +362,11 @@ interface CapturedTransitionSession extends RenderFamilyTransitionSession {
     readonly nextOwnedStars: readonly GridOwnedStar[];
 }
 
+interface ActiveSessionPlan {
+    readonly session: CapturedTransitionSession;
+    readonly plan: CachedPlan;
+}
+
 /**
  * Quantize progress to a 1/2048 grid so visually-identical frames reuse the
  * same paint signature. 2048 steps over one transition ≈ sub-pixel fidelity
@@ -365,6 +388,137 @@ const EMPTY_FLIP_TIME_BINS = {
     '0.5-0.75': 0,
     '0.75-1': 0,
 } as const;
+
+interface FrontierRenderLayerSource {
+    readonly id: string;
+    readonly label: string;
+    readonly plan: CachedPlan;
+    readonly eventIndex: number;
+    readonly previousOwnerId: string | null;
+    readonly nextOwnerId: string | null;
+    readonly threshold: number;
+}
+
+interface FrontierShaderLayerState {
+    readonly textureSource: PIXI.BufferImageSource;
+    readonly texture: PIXI.Texture;
+    readonly shader: PIXI.Shader;
+    readonly mesh: PIXI.Mesh;
+    buffer: Uint8Array;
+    cols: number;
+    rows: number;
+    originX: number;
+    originY: number;
+    cellSizePx: number;
+}
+
+const frontierFillBitGl = {
+    name: 'territory-frontier-fill-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vUV;
+        `,
+        main: /* glsl */ `
+            vUV = uv;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vUV;
+            uniform sampler2D uPhaseTexture;
+            uniform float uThreshold;
+            uniform float uSoftness;
+            uniform float uFillAlpha;
+            uniform vec3 uFillColor;
+        `,
+        main: /* glsl */ `
+            vec4 sampleColor = texture(uPhaseTexture, vUV);
+            if (sampleColor.a <= 0.001) {
+                discard;
+            }
+            float phase = sampleColor.r;
+            float reveal = uSoftness > 0.001
+                ? smoothstep(uThreshold - uSoftness, uThreshold + uSoftness, phase)
+                : step(uThreshold, phase);
+            float alpha = reveal * uFillAlpha;
+            if (alpha <= 0.001) {
+                discard;
+            }
+            outColor = vec4(uFillColor * alpha, alpha);
+        `,
+    },
+};
+
+const frontierBandBitGl = {
+    name: 'territory-frontier-band-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vUV;
+        `,
+        main: /* glsl */ `
+            vUV = uv;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `
+            #version 300 es
+            in vec2 vUV;
+            uniform sampler2D uPhaseTexture;
+            uniform float uThreshold;
+            uniform float uBandWidth;
+            uniform float uSoftness;
+            uniform float uFrontierAlpha;
+            uniform vec3 uFrontierColor;
+        `,
+        main: /* glsl */ `
+            vec4 sampleColor = texture(uPhaseTexture, vUV);
+            if (sampleColor.a <= 0.001) {
+                discard;
+            }
+            float phase = sampleColor.r;
+            float inner = max(0.0, uBandWidth - uSoftness);
+            float outer = max(inner + 0.0001, uBandWidth + uSoftness);
+            float band = 1.0 - smoothstep(inner, outer, abs(phase - uThreshold));
+            float alpha = band * uFrontierAlpha;
+            if (alpha <= 0.001) {
+                discard;
+            }
+            outColor = vec4(uFrontierColor * alpha, alpha);
+        `,
+    },
+};
+
+let cachedFrontierFillProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+let cachedFrontierBandProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+
+function getFrontierFillProgram() {
+    if (!cachedFrontierFillProgram) {
+        cachedFrontierFillProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, frontierFillBitGl],
+            name: 'territory-frontier-fill',
+        });
+    }
+    return cachedFrontierFillProgram;
+}
+
+function getFrontierBandProgram() {
+    if (!cachedFrontierBandProgram) {
+        cachedFrontierBandProgram = compileHighShaderGlProgram({
+            bits: [localUniformBitGl, frontierBandBitGl],
+            name: 'territory-frontier-band',
+        });
+    }
+    return cachedFrontierBandProgram;
+}
+
+function colorHexToVec3(hex: number): Float32Array {
+    return new Float32Array([
+        ((hex >> 16) & 0xff) / 255,
+        ((hex >> 8) & 0xff) / 255,
+        (hex & 0xff) / 255,
+    ]);
+}
 
 function applyFlipTimeJitter(
     wavePlan: GridWavePlan,
@@ -443,10 +597,16 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
     private readonly root = new PIXI.Container();
     private readonly graphics = new PIXI.Graphics();
+    private readonly frontierFillMeshLayer = new PIXI.Container();
+    private readonly borderGraphics = new PIXI.Graphics();
+    private readonly frontierGraphics = new PIXI.Graphics();
+    private readonly frontierMeshLayer = new PIXI.Container();
     private readonly nativeSpriteLayer = new PIXI.Container();
     private readonly transitionSpriteLayer = new PIXI.Container();
     private readonly nativeSprites: PIXI.Sprite[] = [];
     private readonly transitionSprites: PIXI.Sprite[] = [];
+    private readonly frontierFillShaderLayers: FrontierShaderLayerState[] = [];
+    private readonly frontierShaderLayers: FrontierShaderLayerState[] = [];
     private readonly colorUtils: ColorUtils;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
@@ -493,6 +653,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
         this.root.addChild(this.graphics);
+        this.frontierFillMeshLayer.visible = false;
+        this.borderGraphics.visible = false;
+        this.frontierGraphics.visible = false;
+        this.frontierMeshLayer.visible = false;
+        this.root.addChild(this.frontierFillMeshLayer);
+        this.root.addChild(this.borderGraphics);
+        this.root.addChild(this.frontierGraphics);
+        this.root.addChild(this.frontierMeshLayer);
         this.nativeSpriteLayer.visible = false;
         this.transitionSpriteLayer.visible = false;
         this.root.addChild(this.nativeSpriteLayer);
@@ -514,6 +682,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         this.capturedTransitionSessions.clear();
         this.committedGeometry = null;
         this.committedOwnedStars = [];
+        this.frontierFillMeshLayer.visible = false;
+        this.borderGraphics.clear();
+        this.borderGraphics.visible = false;
+        this.frontierGraphics.clear();
+        this.frontierGraphics.visible = false;
+        this.frontierMeshLayer.visible = false;
+        this.hideUnusedFrontierFillShaderLayers(0);
+        this.hideUnusedFrontierShaderLayers(0);
         this.lastPaintSig = null;
         this.lastPlanParamsKey = null;
         this.lastSplitNativeSig = null;
@@ -562,6 +738,200 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         sprite.height = size;
         sprite.tint = tint;
         sprite.alpha = alpha;
+    }
+
+    private hideUnusedFrontierShaderLayers(fromIndex: number): void {
+        for (let i = fromIndex; i < this.frontierShaderLayers.length; i++) {
+            this.frontierShaderLayers[i].mesh.visible = false;
+        }
+    }
+
+    private hideUnusedFrontierFillShaderLayers(fromIndex: number): void {
+        for (let i = fromIndex; i < this.frontierFillShaderLayers.length; i++) {
+            this.frontierFillShaderLayers[i].mesh.visible = false;
+        }
+    }
+
+    private ensureFrontierShaderLayer(
+        index: number,
+        cols: number,
+        rows: number,
+        originX: number,
+        originY: number,
+        cellSizePx: number,
+    ): FrontierShaderLayerState {
+        while (this.frontierShaderLayers.length <= index) {
+            const buffer = new Uint8Array(4);
+            const textureSource = new PIXI.BufferImageSource({
+                resource: buffer,
+                width: 1,
+                height: 1,
+                format: 'rgba8unorm',
+                alphaMode: 'no-premultiply-alpha',
+                scaleMode: 'nearest',
+                autoGarbageCollect: false,
+            });
+            const texture = new PIXI.Texture({ source: textureSource });
+            const shader = new PIXI.Shader({
+                glProgram: getFrontierBandProgram(),
+                resources: {
+                    frontierUniforms: {
+                        uThreshold: { value: 0.5, type: 'f32' },
+                        uBandWidth: { value: 0.18, type: 'f32' },
+                        uSoftness: { value: 0.75, type: 'f32' },
+                        uFrontierAlpha: { value: 0.5, type: 'f32' },
+                        uFrontierColor: {
+                            value: new Float32Array([1, 1, 1]),
+                            type: 'vec3<f32>',
+                        },
+                    },
+                    uPhaseTexture: texture.source,
+                },
+            });
+            const geometry = new PIXI.MeshGeometry({
+                positions: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+                uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+                indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+                topology: 'triangle-list',
+            });
+            const mesh = new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
+            mesh.visible = false;
+            this.frontierMeshLayer.addChild(mesh);
+            this.frontierShaderLayers.push({
+                textureSource,
+                texture,
+                shader,
+                mesh,
+                buffer,
+                cols: 1,
+                rows: 1,
+                originX: 0,
+                originY: 0,
+                cellSizePx: 1,
+            });
+        }
+
+        const layer = this.frontierShaderLayers[index];
+        const needsResize = layer.cols !== cols || layer.rows !== rows;
+        if (needsResize) {
+            const buffer = new Uint8Array(Math.max(1, cols * rows * 4));
+            layer.buffer = buffer;
+            layer.textureSource.resource = buffer;
+            layer.textureSource.width = Math.max(1, cols);
+            layer.textureSource.height = Math.max(1, rows);
+            layer.cols = cols;
+            layer.rows = rows;
+        }
+        layer.originX = originX;
+        layer.originY = originY;
+        layer.cellSizePx = cellSizePx;
+        return layer;
+    }
+
+    private ensureFrontierFillShaderLayer(
+        index: number,
+        cols: number,
+        rows: number,
+        originX: number,
+        originY: number,
+        cellSizePx: number,
+    ): FrontierShaderLayerState {
+        while (this.frontierFillShaderLayers.length <= index) {
+            const buffer = new Uint8Array(4);
+            const textureSource = new PIXI.BufferImageSource({
+                resource: buffer,
+                width: 1,
+                height: 1,
+                format: 'rgba8unorm',
+                alphaMode: 'no-premultiply-alpha',
+                scaleMode: 'nearest',
+                autoGarbageCollect: false,
+            });
+            const texture = new PIXI.Texture({ source: textureSource });
+            const shader = new PIXI.Shader({
+                glProgram: getFrontierFillProgram(),
+                resources: {
+                    frontierUniforms: {
+                        uThreshold: { value: 0.5, type: 'f32' },
+                        uSoftness: { value: 0, type: 'f32' },
+                        uFillAlpha: { value: 1, type: 'f32' },
+                        uFillColor: {
+                            value: new Float32Array([1, 1, 1]),
+                            type: 'vec3<f32>',
+                        },
+                    },
+                    uPhaseTexture: texture.source,
+                },
+            });
+            const geometry = new PIXI.MeshGeometry({
+                positions: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+                uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+                indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+                topology: 'triangle-list',
+            });
+            const mesh = new PIXI.Mesh({ geometry, shader }) as PIXI.Mesh;
+            mesh.visible = false;
+            this.frontierFillMeshLayer.addChild(mesh);
+            this.frontierFillShaderLayers.push({
+                textureSource,
+                texture,
+                shader,
+                mesh,
+                buffer,
+                cols: 1,
+                rows: 1,
+                originX: 0,
+                originY: 0,
+                cellSizePx: 1,
+            });
+        }
+
+        const layer = this.frontierFillShaderLayers[index];
+        const needsResize = layer.cols !== cols || layer.rows !== rows;
+        if (needsResize) {
+            const buffer = new Uint8Array(Math.max(1, cols * rows * 4));
+            layer.buffer = buffer;
+            layer.textureSource.resource = buffer;
+            layer.textureSource.width = Math.max(1, cols);
+            layer.textureSource.height = Math.max(1, rows);
+            layer.cols = cols;
+            layer.rows = rows;
+        }
+        layer.originX = originX;
+        layer.originY = originY;
+        layer.cellSizePx = cellSizePx;
+        return layer;
+    }
+
+    private writeFrontierPhaseTexture(
+        state: FrontierShaderLayerState,
+        phaseLayer: TerritoryFrontierPhaseFieldLayer,
+        samplingMode: TerritoryFrontierPhaseSamplingMode,
+    ): void {
+        state.textureSource.scaleMode = samplingMode;
+        const pixelCount = phaseLayer.cols * phaseLayer.rows;
+        if (state.buffer.length !== pixelCount * 4) {
+            state.buffer = new Uint8Array(pixelCount * 4);
+            state.textureSource.resource = state.buffer;
+        }
+        for (let i = 0; i < pixelCount; i++) {
+            const base = i * 4;
+            const value = Math.max(0, Math.min(1, phaseLayer.values[i]));
+            state.buffer[base] = Math.round(value * 255);
+            state.buffer[base + 1] = 0;
+            state.buffer[base + 2] = 0;
+            state.buffer[base + 3] =
+                phaseLayer.validMask && phaseLayer.validMask[i] === 0 ? 0 : 255;
+        }
+        state.textureSource.update();
+        state.mesh.position.set(
+            phaseLayer.originX - phaseLayer.cellSizePx * 0.5,
+            phaseLayer.originY - phaseLayer.cellSizePx * 0.5,
+        );
+        state.mesh.scale.set(
+            phaseLayer.cols * phaseLayer.cellSizePx,
+            phaseLayer.rows * phaseLayer.cellSizePx,
+        );
     }
 
     private ensurePlanWorker(): Worker | null {
@@ -985,6 +1355,749 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         };
     }
 
+    private readFrontierTechnique(input: RenderFamilyInput): TerritoryFrontierTechniqueId {
+        return readTunableString(
+            input,
+            'TERRITORY_FRONTIER_TECHNIQUE',
+            'control',
+            [
+                'control',
+                'shader_frontier_band',
+                'marching_squares_midpoint',
+                'marching_squares_scalar',
+                'marching_triangles_fixed',
+                'marching_triangles_checkerboard',
+                'marching_triangles_gradient',
+            ],
+        );
+    }
+
+    private readFrontierBorderGeometryMode(
+        input: RenderFamilyInput,
+    ): TerritoryFrontierBorderGeometryMode {
+        return readTunableString(
+            input,
+            'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',
+            metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE,
+            ['shared_edge', 'contour_matched'],
+        );
+    }
+
+    private readFrontierPhaseSampling(
+        input: RenderFamilyInput,
+    ): TerritoryFrontierPhaseSamplingMode {
+        return readTunableString(
+            input,
+            'TERRITORY_FRONTIER_PHASE_SAMPLING',
+            'nearest',
+            ['nearest', 'linear'],
+        );
+    }
+
+    private readFrontierTriangleDiagonalPolicy(
+        input: RenderFamilyInput,
+    ): TerritoryFrontierTriangleDiagonalPolicy {
+        return readTunableString(
+            input,
+            'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
+            'fixed',
+            ['fixed', 'checkerboard', 'gradient'],
+        );
+    }
+
+    private buildFrontierRenderLayerSources(params: {
+        input: RenderFamilyInput;
+        cached: CachedPlan;
+        activeSessionPlans: readonly ActiveSessionPlan[];
+        waveEase: GridWaveEase;
+    }): FrontierRenderLayerSource[] {
+        const sources: FrontierRenderLayerSource[] = [];
+        if (params.activeSessionPlans.length > 0) {
+            for (const { session, plan } of params.activeSessionPlans) {
+                const threshold = easeProgress(params.waveEase, session.rawProgress);
+                const eventCount = Math.min(
+                    plan.wavePlan.perEvent.length,
+                    session.events.length,
+                );
+                for (let eventIndex = 0; eventIndex < eventCount; eventIndex++) {
+                    const event = session.events[eventIndex]?.event;
+                    if (!event) continue;
+                    sources.push({
+                        id: `${session.sessionKey}:${eventIndex}`,
+                        label: `${event.previousOwner}->${event.newOwner}`,
+                        plan,
+                        eventIndex,
+                        previousOwnerId: event.previousOwner ?? null,
+                        nextOwnerId: event.newOwner ?? null,
+                        threshold,
+                    });
+                }
+            }
+            return sources;
+        }
+
+        const activeEvents = params.input.activeTransition?.events ?? [];
+        const eventCount = Math.min(
+            params.cached.wavePlan.perEvent.length,
+            activeEvents.length,
+        );
+        for (let eventIndex = 0; eventIndex < eventCount; eventIndex++) {
+            const event = activeEvents[eventIndex]?.event;
+            if (!event) continue;
+            sources.push({
+                id: `active:${eventIndex}`,
+                label: `${event.previousOwner}->${event.newOwner}`,
+                plan: params.cached,
+                eventIndex,
+                previousOwnerId: event.previousOwner ?? null,
+                nextOwnerId: event.newOwner ?? null,
+                threshold: easeProgress(
+                    params.waveEase,
+                    params.input.activeTransition?.rawProgress ?? 0,
+                ),
+            });
+        }
+        return sources;
+    }
+
+    private buildFrontierPhaseFieldLayers(params: {
+        sources: readonly FrontierRenderLayerSource[];
+        ownerColorIdx: ReadonlyMap<string, number>;
+        flipTimeJitter: number;
+    }): TerritoryFrontierPhaseFieldLayer[] {
+        const layers: TerritoryFrontierPhaseFieldLayer[] = [];
+        for (const source of params.sources) {
+            const classification = source.plan.classification;
+            const eventPlan = source.plan.wavePlan.perEvent[source.eventIndex];
+            if (!eventPlan || eventPlan.flipTimeByVId.size === 0) continue;
+            const nextOwnerIndex =
+                source.nextOwnerId === null
+                    ? undefined
+                    : params.ownerColorIdx.get(source.nextOwnerId);
+            const previousOwnerIndex =
+                source.previousOwnerId === null
+                    ? undefined
+                    : params.ownerColorIdx.get(source.previousOwnerId);
+            if (nextOwnerIndex === undefined || previousOwnerIndex === undefined) {
+                continue;
+            }
+
+            let minIx = classification.cols;
+            let minIy = classification.rows;
+            let maxIx = -1;
+            let maxIy = -1;
+            for (const vId of eventPlan.flipTimeByVId.keys()) {
+                const parts = vId.split(':');
+                const ix = Number(parts[1]);
+                const iy = Number(parts[2]);
+                if (!Number.isFinite(ix) || !Number.isFinite(iy)) continue;
+                if (ix < minIx) minIx = ix;
+                if (iy < minIy) minIy = iy;
+                if (ix > maxIx) maxIx = ix;
+                if (iy > maxIy) maxIy = iy;
+            }
+            if (maxIx < minIx || maxIy < minIy) continue;
+            minIx = Math.max(0, minIx - 1);
+            minIy = Math.max(0, minIy - 1);
+            maxIx = Math.min(classification.cols - 1, maxIx + 1);
+            maxIy = Math.min(classification.rows - 1, maxIy + 1);
+
+            const cols = maxIx - minIx + 1;
+            const rows = maxIy - minIy + 1;
+            const values = new Float32Array(cols * rows);
+            const ownerIndexByCell = new Int32Array(cols * rows);
+            ownerIndexByCell.fill(-1);
+            const validMask = new Uint8Array(cols * rows);
+
+            for (let iy = minIy; iy <= maxIy; iy++) {
+                for (let ix = minIx; ix <= maxIx; ix++) {
+                    const gridIndex = iy * classification.cols + ix;
+                    const localIndex = (iy - minIy) * cols + (ix - minIx);
+                    const vstar = classification.vstars[gridIndex];
+                    const flipTime = eventPlan.flipTimeByVId.get(vstar.id);
+                    if (flipTime !== undefined) {
+                        const jittered =
+                            params.flipTimeJitter > 0
+                                ? Math.max(
+                                      0,
+                                      Math.min(
+                                          1,
+                                          flipTime +
+                                              (hash01(vstar.id) * 2 - 1) *
+                                                  params.flipTimeJitter,
+                                      ),
+                                  )
+                                : flipTime;
+                        values[localIndex] = jittered;
+                        ownerIndexByCell[localIndex] =
+                            jittered >= source.threshold
+                                ? nextOwnerIndex
+                                : previousOwnerIndex;
+                        validMask[localIndex] = 1;
+                        continue;
+                    }
+
+                    const isPreviousNative =
+                        vstar.prevOwnerId === source.previousOwnerId &&
+                        vstar.nextOwnerId === source.previousOwnerId;
+                    const isNextNative =
+                        vstar.prevOwnerId === source.nextOwnerId &&
+                        vstar.nextOwnerId === source.nextOwnerId;
+                    if (isPreviousNative) {
+                        values[localIndex] = 0;
+                        ownerIndexByCell[localIndex] = previousOwnerIndex;
+                        validMask[localIndex] = 1;
+                    } else if (isNextNative) {
+                        values[localIndex] = 1;
+                        ownerIndexByCell[localIndex] = nextOwnerIndex;
+                        validMask[localIndex] = 1;
+                    }
+                }
+            }
+
+            let validCount = 0;
+            for (let i = 0; i < validMask.length; i++) {
+                if (validMask[i] > 0) validCount += 1;
+            }
+            if (validCount === 0) continue;
+            const originIndex = minIy * classification.cols + minIx;
+            const origin = classification.vstars[originIndex];
+            layers.push({
+                id: source.id,
+                label: source.label,
+                cols,
+                rows,
+                originX: origin.x,
+                originY: origin.y,
+                cellSizePx: classification.spacingPx,
+                threshold: source.threshold,
+                values,
+                ownerIndexByCell,
+                validMask,
+                ownerIndex: nextOwnerIndex,
+                opposingOwnerIndex: previousOwnerIndex,
+            });
+        }
+        return layers;
+    }
+
+    private buildSceneOwnerOccupancy(params: {
+        scene: GridMetaballScene;
+        classification: GridClassification;
+    }): Map<number, Float32Array> {
+        const occupancyByColor = new Map<number, Float32Array>();
+        for (const cell of params.scene.cells) {
+            if (cell.alpha <= 0) continue;
+            if (
+                cell.ix < 0 ||
+                cell.ix >= params.classification.cols ||
+                cell.iy < 0 ||
+                cell.iy >= params.classification.rows
+            ) {
+                continue;
+            }
+            let values = occupancyByColor.get(cell.colorIdx);
+            if (!values) {
+                values = new Float32Array(
+                    params.classification.cols * params.classification.rows,
+                );
+                occupancyByColor.set(cell.colorIdx, values);
+            }
+            const index = cell.iy * params.classification.cols + cell.ix;
+            values[index] = Math.max(values[index], cell.alpha);
+        }
+        return occupancyByColor;
+    }
+
+    private buildFrontierPhaseLayersFromOccupancy(params: {
+        classification: GridClassification;
+        occupancyByColor: ReadonlyMap<number, Float32Array>;
+    }): TerritoryFrontierPhaseFieldLayer[] {
+        const layers: TerritoryFrontierPhaseFieldLayer[] = [];
+        for (const [colorIdx, values] of params.occupancyByColor) {
+            let minIx = params.classification.cols;
+            let minIy = params.classification.rows;
+            let maxIx = -1;
+            let maxIy = -1;
+            for (let iy = 0; iy < params.classification.rows; iy++) {
+                for (let ix = 0; ix < params.classification.cols; ix++) {
+                    const index = iy * params.classification.cols + ix;
+                    if (values[index] <= 0) continue;
+                    if (ix < minIx) minIx = ix;
+                    if (iy < minIy) minIy = iy;
+                    if (ix > maxIx) maxIx = ix;
+                    if (iy > maxIy) maxIy = iy;
+                }
+            }
+            if (maxIx < minIx || maxIy < minIy) continue;
+            minIx = Math.max(0, minIx - 1);
+            minIy = Math.max(0, minIy - 1);
+            maxIx = Math.min(params.classification.cols - 1, maxIx + 1);
+            maxIy = Math.min(params.classification.rows - 1, maxIy + 1);
+
+            const cols = maxIx - minIx + 1;
+            const rows = maxIy - minIy + 1;
+            const localValues = new Float32Array(cols * rows);
+            const ownerIndexByCell = new Int32Array(cols * rows);
+            ownerIndexByCell.fill(colorIdx);
+            for (let iy = minIy; iy <= maxIy; iy++) {
+                for (let ix = minIx; ix <= maxIx; ix++) {
+                    const globalIndex = iy * params.classification.cols + ix;
+                    const localIndex = (iy - minIy) * cols + (ix - minIx);
+                    localValues[localIndex] = values[globalIndex];
+                }
+            }
+            const origin =
+                params.classification.vstars[minIy * params.classification.cols + minIx];
+            layers.push({
+                id: `scene:${colorIdx}`,
+                label: `scene:${colorIdx}`,
+                cols,
+                rows,
+                originX: origin.x,
+                originY: origin.y,
+                cellSizePx: params.classification.spacingPx,
+                threshold: 0.5,
+                values: localValues,
+                ownerIndexByCell,
+                ownerIndex: colorIdx,
+                opposingOwnerIndex: null,
+            });
+        }
+        return layers;
+    }
+
+    private buildSceneFallbackFrontierPhaseLayers(params: {
+        scene: GridMetaballScene;
+        classification: GridClassification;
+    }): TerritoryFrontierPhaseFieldLayer[] {
+        return this.buildFrontierPhaseLayersFromOccupancy({
+            classification: params.classification,
+            occupancyByColor: this.buildSceneOwnerOccupancy(params),
+        });
+    }
+
+    private buildScenePairFrontierPhaseLayers(params: {
+        classification: GridClassification;
+        occupancyByColor: ReadonlyMap<number, Float32Array>;
+        effectiveColorIdxByGridIdx: Int32Array;
+    }): TerritoryFrontierPhaseFieldLayer[] {
+        interface PairCells {
+            readonly ownerIndex: number;
+            readonly opposingOwnerIndex: number;
+            readonly indices: Set<number>;
+        }
+
+        const cols = params.classification.cols;
+        const rows = params.classification.rows;
+        const pairs = new Map<string, PairCells>();
+        const pushPairCell = (
+            aIndex: number,
+            bIndex: number,
+            cellIndex: number,
+            otherCellIndex: number,
+        ): void => {
+            if (aIndex < 0 || bIndex < 0 || aIndex === bIndex) return;
+            const ownerIndex = Math.min(aIndex, bIndex);
+            const opposingOwnerIndex = Math.max(aIndex, bIndex);
+            const key = `${ownerIndex}|${opposingOwnerIndex}`;
+            let pair = pairs.get(key);
+            if (!pair) {
+                pair = {
+                    ownerIndex,
+                    opposingOwnerIndex,
+                    indices: new Set<number>(),
+                };
+                pairs.set(key, pair);
+            }
+            pair.indices.add(cellIndex);
+            pair.indices.add(otherCellIndex);
+        };
+
+        for (let iy = 0; iy < rows; iy++) {
+            for (let ix = 0; ix < cols; ix++) {
+                const cellIndex = iy * cols + ix;
+                const selfIndex = params.effectiveColorIdxByGridIdx[cellIndex];
+                if (selfIndex < 0) continue;
+                if (ix + 1 < cols) {
+                    const rightIndex = params.effectiveColorIdxByGridIdx[cellIndex + 1];
+                    pushPairCell(selfIndex, rightIndex, cellIndex, cellIndex + 1);
+                }
+                if (iy + 1 < rows) {
+                    const downIndex = params.effectiveColorIdxByGridIdx[cellIndex + cols];
+                    pushPairCell(selfIndex, downIndex, cellIndex, cellIndex + cols);
+                }
+            }
+        }
+
+        const layers: TerritoryFrontierPhaseFieldLayer[] = [];
+        for (const pair of pairs.values()) {
+            const occupancy = params.occupancyByColor.get(pair.ownerIndex);
+            if (!occupancy) continue;
+            const opposingOccupancy =
+                params.occupancyByColor.get(pair.opposingOwnerIndex) ?? null;
+            const validGlobal = new Set<number>();
+            for (const cellIndex of pair.indices) {
+                const ix = cellIndex % cols;
+                const iy = (cellIndex - ix) / cols;
+                for (let ny = Math.max(0, iy - 1); ny <= Math.min(rows - 1, iy + 1); ny++) {
+                    for (let nx = Math.max(0, ix - 1); nx <= Math.min(cols - 1, ix + 1); nx++) {
+                        const globalIndex = ny * cols + nx;
+                        const dominantOwner = params.effectiveColorIdxByGridIdx[globalIndex];
+                        if (
+                            dominantOwner === pair.ownerIndex ||
+                            dominantOwner === pair.opposingOwnerIndex ||
+                            dominantOwner < 0 ||
+                            occupancy[globalIndex] > 0 ||
+                            (opposingOccupancy && opposingOccupancy[globalIndex] > 0)
+                        ) {
+                            validGlobal.add(globalIndex);
+                        }
+                    }
+                }
+            }
+            if (validGlobal.size === 0) continue;
+
+            let minIx = cols;
+            let minIy = rows;
+            let maxIx = -1;
+            let maxIy = -1;
+            for (const globalIndex of validGlobal) {
+                const ix = globalIndex % cols;
+                const iy = (globalIndex - ix) / cols;
+                if (ix < minIx) minIx = ix;
+                if (iy < minIy) minIy = iy;
+                if (ix > maxIx) maxIx = ix;
+                if (iy > maxIy) maxIy = iy;
+            }
+            if (maxIx < minIx || maxIy < minIy) continue;
+
+            const localCols = maxIx - minIx + 1;
+            const localRows = maxIy - minIy + 1;
+            const values = new Float32Array(localCols * localRows);
+            const ownerIndexByCell = new Int32Array(localCols * localRows);
+            const validMask = new Uint8Array(localCols * localRows);
+            for (let iy = minIy; iy <= maxIy; iy++) {
+                for (let ix = minIx; ix <= maxIx; ix++) {
+                    const globalIndex = iy * cols + ix;
+                    if (!validGlobal.has(globalIndex)) continue;
+                    const localIndex = (iy - minIy) * localCols + (ix - minIx);
+                    const value = occupancy[globalIndex];
+                    values[localIndex] = value;
+                    ownerIndexByCell[localIndex] =
+                        value >= 0.5 ? pair.ownerIndex : pair.opposingOwnerIndex;
+                    validMask[localIndex] = 1;
+                }
+            }
+            const origin = params.classification.vstars[minIy * cols + minIx];
+            layers.push({
+                id: `pair:${pair.ownerIndex}:${pair.opposingOwnerIndex}`,
+                label: `pair:${pair.ownerIndex}:${pair.opposingOwnerIndex}`,
+                cols: localCols,
+                rows: localRows,
+                originX: origin.x,
+                originY: origin.y,
+                cellSizePx: params.classification.spacingPx,
+                threshold: 0.5,
+                values,
+                ownerIndexByCell,
+                validMask,
+                ownerIndex: pair.ownerIndex,
+                opposingOwnerIndex: pair.opposingOwnerIndex,
+            });
+        }
+
+        return layers;
+    }
+
+    private mirrorFrontierPhaseLayer(
+        layer: TerritoryFrontierPhaseFieldLayer,
+    ): TerritoryFrontierPhaseFieldLayer | null {
+        if (layer.ownerIndex === undefined || layer.opposingOwnerIndex == null) {
+            return null;
+        }
+        const values = new Float32Array(layer.values.length);
+        const ownerIndexByCell = new Int32Array(layer.ownerIndexByCell.length);
+        ownerIndexByCell.fill(layer.opposingOwnerIndex);
+        for (let i = 0; i < layer.values.length; i++) {
+            if (layer.validMask && layer.validMask[i] === 0) {
+                values[i] = 0;
+                continue;
+            }
+            values[i] = 1 - layer.values[i];
+        }
+        return {
+            ...layer,
+            id: `${layer.id}:mirror`,
+            label: `${layer.label}:mirror`,
+            values,
+            ownerIndexByCell,
+            ownerIndex: layer.opposingOwnerIndex,
+            opposingOwnerIndex: layer.ownerIndex,
+        };
+    }
+
+    private buildSceneSurfacePhaseLayers(params: {
+        classification: GridClassification;
+        scene: GridMetaballScene;
+        effectiveColorIdxByGridIdx: Int32Array | null;
+    }): {
+        fillLayers: TerritoryFrontierPhaseFieldLayer[];
+        borderLayers: TerritoryFrontierPhaseFieldLayer[];
+        sourceKind: 'scene_pairs' | 'scene_owners' | 'none';
+    } {
+        const occupancyByColor = this.buildSceneOwnerOccupancy({
+            scene: params.scene,
+            classification: params.classification,
+        });
+        if (params.effectiveColorIdxByGridIdx) {
+            const pairLayers = this.buildScenePairFrontierPhaseLayers({
+                classification: params.classification,
+                occupancyByColor,
+                effectiveColorIdxByGridIdx: params.effectiveColorIdxByGridIdx,
+            });
+            if (pairLayers.length > 0) {
+                const mirroredLayers = pairLayers
+                    .map((layer) => this.mirrorFrontierPhaseLayer(layer))
+                    .filter(
+                        (layer): layer is TerritoryFrontierPhaseFieldLayer =>
+                            layer !== null,
+                    );
+                return {
+                    fillLayers: [...pairLayers, ...mirroredLayers],
+                    borderLayers: pairLayers,
+                    sourceKind: 'scene_pairs',
+                };
+            }
+        }
+
+        const ownerLayers = this.buildFrontierPhaseLayersFromOccupancy({
+            classification: params.classification,
+            occupancyByColor,
+        });
+        if (ownerLayers.length > 0) {
+            return {
+                fillLayers: ownerLayers,
+                borderLayers: ownerLayers,
+                sourceKind: 'scene_owners',
+            };
+        }
+
+        return {
+            fillLayers: [],
+            borderLayers: [],
+            sourceKind: 'none',
+        };
+    }
+
+    private renderFrontierContours(params: {
+        contourLayers: readonly TerritoryFrontierContourLayerResult[];
+        borderHexByColorIdx: readonly number[];
+        borderAlpha: number;
+        borderWidth: number;
+        trimPx?: number;
+    }): void {
+        this.frontierMeshLayer.visible = false;
+        this.hideUnusedFrontierShaderLayers(0);
+        const graphics = this.frontierGraphics;
+        graphics.clear();
+        if (params.borderWidth <= 0 || params.borderAlpha <= 0) {
+            graphics.visible = false;
+            return;
+        }
+
+        let drewPolyline = false;
+        for (const layer of params.contourLayers) {
+            let strokeColor = 0xffffff;
+            const opposingOwnerIndex = layer.opposingOwnerIndex;
+            if (
+                layer.ownerIndex !== undefined &&
+                opposingOwnerIndex != null &&
+                params.borderHexByColorIdx[layer.ownerIndex] !== undefined &&
+                params.borderHexByColorIdx[opposingOwnerIndex] !== undefined
+            ) {
+                strokeColor = blendColors(
+                    params.borderHexByColorIdx[layer.ownerIndex],
+                    params.borderHexByColorIdx[opposingOwnerIndex],
+                    0.5,
+                );
+            } else if (
+                layer.ownerIndex !== undefined &&
+                params.borderHexByColorIdx[layer.ownerIndex] !== undefined
+            ) {
+                strokeColor = params.borderHexByColorIdx[layer.ownerIndex];
+            }
+            const strokeOptions = {
+                color: strokeColor,
+                alpha: params.borderAlpha,
+                width: params.borderWidth,
+                cap: 'round' as const,
+                join: 'round' as const,
+            };
+            for (const polyline of layer.polylines) {
+                const points =
+                    !polyline.closed && (params.trimPx ?? 0) > 0
+                        ? trimOpenPolylineEndpoints(polyline.points, params.trimPx ?? 0)
+                        : polyline.points;
+                if (points.length < 4) continue;
+                drewPolyline = true;
+                graphics.moveTo(points[0], points[1]);
+                for (let i = 2; i < points.length; i += 2) {
+                    graphics.lineTo(points[i], points[i + 1]);
+                }
+                if (polyline.closed) {
+                    graphics.lineTo(points[0], points[1]);
+                }
+                graphics.stroke(strokeOptions);
+            }
+        }
+
+        graphics.visible = drewPolyline;
+    }
+
+    private renderFrontierFillFromPhase(params: {
+        layers: readonly TerritoryFrontierPhaseFieldLayer[];
+        samplingMode: TerritoryFrontierPhaseSamplingMode;
+        fillHexByColorIdx: readonly number[];
+        fillAlpha: number;
+        softnessPx: number;
+    }): void {
+        if (params.fillAlpha <= 0) {
+            this.hideUnusedFrontierFillShaderLayers(0);
+            this.frontierFillMeshLayer.visible = false;
+            return;
+        }
+        let writeIndex = 0;
+        for (const phaseLayer of params.layers) {
+            if (
+                phaseLayer.cols <= 0 ||
+                phaseLayer.rows <= 0 ||
+                phaseLayer.ownerIndex === undefined
+            ) {
+                continue;
+            }
+            const fillHex = params.fillHexByColorIdx[phaseLayer.ownerIndex];
+            if (fillHex === undefined) continue;
+            const state = this.ensureFrontierFillShaderLayer(
+                writeIndex,
+                phaseLayer.cols,
+                phaseLayer.rows,
+                phaseLayer.originX,
+                phaseLayer.originY,
+                phaseLayer.cellSizePx,
+            );
+            this.writeFrontierPhaseTexture(state, phaseLayer, params.samplingMode);
+            const uniforms = (state.shader.resources as any).frontierUniforms.uniforms;
+            uniforms.uThreshold = phaseLayer.threshold;
+            uniforms.uSoftness = Math.max(
+                0,
+                params.softnessPx / Math.max(1, phaseLayer.cellSizePx),
+            );
+            uniforms.uFillAlpha = params.fillAlpha;
+            uniforms.uFillColor = colorHexToVec3(fillHex);
+            state.mesh.visible = true;
+            writeIndex += 1;
+        }
+        this.hideUnusedFrontierFillShaderLayers(writeIndex);
+        this.frontierFillMeshLayer.visible = writeIndex > 0;
+    }
+
+    private renderFrontierBand(params: {
+        layers: readonly TerritoryFrontierPhaseFieldLayer[];
+        samplingMode: TerritoryFrontierPhaseSamplingMode;
+        borderHexByColorIdx: readonly number[];
+        borderAlpha: number;
+        bandWidth: number;
+        softness: number;
+    }): void {
+        this.frontierGraphics.clear();
+        this.frontierGraphics.visible = false;
+        if (params.borderAlpha <= 0 || params.bandWidth <= 0) {
+            this.hideUnusedFrontierShaderLayers(0);
+            this.frontierMeshLayer.visible = false;
+            return;
+        }
+        let writeIndex = 0;
+        for (const phaseLayer of params.layers) {
+            if (phaseLayer.cols <= 0 || phaseLayer.rows <= 0) continue;
+            const state = this.ensureFrontierShaderLayer(
+                writeIndex,
+                phaseLayer.cols,
+                phaseLayer.rows,
+                phaseLayer.originX,
+                phaseLayer.originY,
+                phaseLayer.cellSizePx,
+            );
+            this.writeFrontierPhaseTexture(state, phaseLayer, params.samplingMode);
+            const uniforms = (state.shader.resources as any).frontierUniforms.uniforms;
+            const phaseBandWidth = Math.max(
+                0.001,
+                params.bandWidth / Math.max(1, phaseLayer.cellSizePx),
+            );
+            const phaseSoftness = Math.max(
+                0.001,
+                params.softness / Math.max(1, phaseLayer.cellSizePx),
+            );
+            uniforms.uThreshold = phaseLayer.threshold;
+            uniforms.uBandWidth = phaseBandWidth;
+            uniforms.uSoftness = phaseSoftness;
+            uniforms.uFrontierAlpha = params.borderAlpha;
+            let colorHex = 0xffffff;
+            const opposingOwnerIndex = phaseLayer.opposingOwnerIndex;
+            if (
+                phaseLayer.ownerIndex !== undefined &&
+                opposingOwnerIndex != null &&
+                params.borderHexByColorIdx[phaseLayer.ownerIndex] !== undefined &&
+                params.borderHexByColorIdx[opposingOwnerIndex] !== undefined
+            ) {
+                colorHex = blendColors(
+                    params.borderHexByColorIdx[phaseLayer.ownerIndex],
+                    params.borderHexByColorIdx[opposingOwnerIndex],
+                    0.5,
+                );
+            } else if (
+                phaseLayer.ownerIndex !== undefined &&
+                params.borderHexByColorIdx[phaseLayer.ownerIndex] !== undefined
+            ) {
+                colorHex = params.borderHexByColorIdx[phaseLayer.ownerIndex];
+            }
+            uniforms.uFrontierColor = colorHexToVec3(colorHex);
+            state.mesh.visible = true;
+            writeIndex += 1;
+        }
+        this.hideUnusedFrontierShaderLayers(writeIndex);
+        this.frontierMeshLayer.visible = writeIndex > 0;
+    }
+
+    private shouldSuppressSceneCellForFrontierFill(
+        cell: GridMetaballScene['cells'][number],
+        phaseLayers: readonly TerritoryFrontierPhaseFieldLayer[],
+    ): boolean {
+        for (const layer of phaseLayers) {
+            if (layer.ownerIndex === undefined || cell.colorIdx !== layer.ownerIndex) {
+                continue;
+            }
+            const localX = Math.round((cell.x - layer.originX) / layer.cellSizePx);
+            const localY = Math.round((cell.y - layer.originY) / layer.cellSizePx);
+            if (
+                localX < 0 ||
+                localX >= layer.cols ||
+                localY < 0 ||
+                localY >= layer.rows
+            ) {
+                continue;
+            }
+            const localIndex = localY * layer.cols + localX;
+            if (layer.validMask && layer.validMask[localIndex] === 0) {
+                continue;
+            }
+        if (layer.opposingOwnerIndex != null) {
+            return true;
+        }
+    }
+    return false;
+}
+
     private buildPlanForTransition(params: {
         input: RenderFamilyInput;
         currentGeometry: CanonicalGeometrySnapshot;
@@ -1120,6 +2233,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         const currentGeometry = input.geometry;
         if (!currentGeometry) {
             this.root.visible = false;
+            this.frontierGraphics.clear();
+            this.frontierGraphics.visible = false;
+            this.frontierMeshLayer.visible = false;
+            this.hideUnusedFrontierShaderLayers(0);
             resetMetaballGridStats();
             return { container: this.root };
         }
@@ -1132,6 +2249,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         );
         if (!enabled) {
             this.graphics.clear();
+            this.frontierGraphics.clear();
+            this.frontierGraphics.visible = false;
+            this.frontierMeshLayer.visible = false;
+            this.hideUnusedFrontierShaderLayers(0);
             this.root.visible = false;
             resetMetaballGridStats();
             return { container: this.root };
@@ -1250,6 +2371,48 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     | string
                     | undefined) ?? null,
         };
+        const frontierRequestedTechnique = this.readFrontierTechnique(input);
+        const frontierRequestedBorderGeometryMode =
+            this.readFrontierBorderGeometryMode(input);
+        const frontierPhaseSampling = this.readFrontierPhaseSampling(input);
+        const frontierBlurPasses = Math.max(
+            0,
+            Math.floor(
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_BLUR_PASSES',
+                    GAME_CONFIG.TERRITORY_FRONTIER_BLUR_PASSES ?? 0,
+                ),
+            ),
+        );
+        const frontierTriangleDiagonalPolicy =
+            this.readFrontierTriangleDiagonalPolicy(input);
+        const frontierChaikinPasses = Math.max(
+            0,
+            Math.floor(
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_CHAIKIN_PASSES',
+                    GAME_CONFIG.TERRITORY_FRONTIER_CHAIKIN_PASSES ?? 0,
+                ),
+            ),
+        );
+        const frontierShaderSoftnessPx = Math.max(
+            0.001,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
+                GAME_CONFIG.TERRITORY_FRONTIER_SHADER_SOFTNESS_PX ?? 5,
+            ),
+        );
+        const frontierBandWidthPx = Math.max(
+            0.001,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_BAND_WIDTH_PX',
+                GAME_CONFIG.TERRITORY_FRONTIER_BAND_WIDTH_PX ?? 2,
+            ),
+        );
         const transitionSessions = this.syncCapturedTransitionSessions({
             input,
             settings,
@@ -1265,10 +2428,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             positionJitter: settings.positionJitter,
             maxCells: settings.maxCells,
         });
-        const activeSessionPlans: Array<{
-            session: CapturedTransitionSession;
-            plan: CachedPlan;
-        }> = [];
+        const activeSessionPlans: ActiveSessionPlan[] = [];
 
         // Rebuild the plan when the plan key or input geometry reference changes.
         // The extra geometry-reference checks preserve the Phase C behavior:
@@ -1517,9 +2677,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
         const fillSat = readTunableNumber(input, 'METABALL_SATURATION', GAME_CONFIG.METABALL_SATURATION ?? 1.05);
         const fillLight = readTunableNumber(input, 'METABALL_LIGHTNESS', GAME_CONFIG.METABALL_LIGHTNESS ?? 0.65);
+        const fillEnabled = readTunableBoolean(
+            input,
+            'METABALL_FILL_ENABLED',
+            GAME_CONFIG.METABALL_FILL_ENABLED ?? true,
+        );
         const fillAlphaMult = Math.max(
             0,
             Math.min(1, readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.5)),
+        );
+        const effectiveFillAlphaMult = fillEnabled ? fillAlphaMult : 0;
+        const borderEnabled = readTunableBoolean(
+            input,
+            'METABALL_BORDER_ENABLED',
+            GAME_CONFIG.METABALL_BORDER_ENABLED ?? true,
         );
         const borderWidth = Math.max(
             0,
@@ -1529,6 +2700,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             0,
             Math.min(1, readTunableNumber(input, 'METABALL_BORDER_ALPHA', GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6)),
         );
+        const effectiveBorderWidth = borderEnabled ? borderWidth : 0;
+        const effectiveBorderAlpha = borderEnabled ? borderAlpha : 0;
         const borderSat = readTunableNumber(
             input,
             'METABALL_BORDER_SATURATION',
@@ -1618,6 +2791,52 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 ).length
             );
         }, 0);
+        let frontierTechnique = frontierRequestedTechnique;
+        let frontierFallbackReason: string | null = null;
+        if (frontierTechnique !== 'control') {
+            if (cached.classification.distribution !== 'square') {
+                frontierTechnique = 'control';
+                frontierFallbackReason = 'requires_square_distribution';
+            } else if (
+                frontierTechnique === 'shader_frontier_band' &&
+                !input.renderer
+            ) {
+                frontierTechnique = 'control';
+                frontierFallbackReason = 'renderer_unavailable';
+            }
+        }
+        let frontierBorderGeometryMode = frontierRequestedBorderGeometryMode;
+        let frontierBorderGeometryFallbackReason: string | null = null;
+        if (frontierTechnique !== 'control') {
+            frontierBorderGeometryMode = 'shared_edge';
+            if (frontierRequestedBorderGeometryMode !== 'shared_edge') {
+                frontierBorderGeometryFallbackReason =
+                    'requires_control_frontier';
+            }
+        } else if (frontierRequestedBorderGeometryMode === 'contour_matched') {
+            if (borderMode !== 'territory_edge') {
+                frontierBorderGeometryMode = 'shared_edge';
+                frontierBorderGeometryFallbackReason =
+                    'requires_territory_edge_border_mode';
+            } else if (!borderBlend) {
+                frontierBorderGeometryMode = 'shared_edge';
+                frontierBorderGeometryFallbackReason =
+                    'requires_centered_blended_borders';
+            } else if (cached.classification.distribution !== 'square') {
+                frontierBorderGeometryMode = 'shared_edge';
+                frontierBorderGeometryFallbackReason =
+                    'requires_square_distribution';
+            } else if (!input.renderer || typeof document === 'undefined') {
+                frontierBorderGeometryMode = 'shared_edge';
+                frontierBorderGeometryFallbackReason =
+                    'renderer_unavailable';
+            }
+        }
+        const frontierSurfaceRecipe =
+            resolveTerritoryFrontierSurfaceRecipe({
+                technique: frontierTechnique,
+                borderGeometryMode: frontierBorderGeometryMode,
+            });
         const phaseEdgesStatsPatch = {
             familyId: this.id,
             familyLabel: this.label,
@@ -1639,6 +2858,34 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             dxWeight: Number.isFinite(dxWeight)
                 ? dxWeight
                 : metaballGridPhaseEdgesGeometryDefaults.TERRITORY_DX_WEIGHT,
+            frontierRequestedTechnique,
+            frontierTechnique,
+            frontierRequestedBorderGeometryMode,
+            frontierBorderGeometryMode,
+            frontierBorderGeometryFallbackReason,
+            frontierSurfaceGeometryFamily:
+                frontierSurfaceRecipe.geometryFamily,
+            frontierStableGeometryFamily:
+                frontierSurfaceRecipe.stableGeometryFamily,
+            frontierTransitionGeometryFamily:
+                frontierSurfaceRecipe.transitionGeometryFamily,
+            frontierSurfaceInvariantViolation:
+                frontierSurfaceRecipe.invariantViolation,
+            frontierPhaseSampling,
+            frontierBlurPasses,
+            frontierTriangleDiagonalPolicy,
+            frontierChaikinPasses,
+            frontierShaderSoftnessPx,
+            frontierBandWidthPx,
+            frontierFallbackReason,
+            frontierPhaseLayerCount: 0,
+            frontierPhaseGridCols: 0,
+            frontierPhaseGridRows: 0,
+            frontierBlurMs: 0,
+            frontierContourExtractionMs: 0,
+            frontierSmoothingMs: 0,
+            frontierPolylineCount: 0,
+            frontierEmittedVertexCount: 0,
             transitionEventCount:
                 input.activeTransition?.events.length ??
                 input.transitionSessions?.reduce(
@@ -1722,9 +2969,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             borderChaikinPasses,
             fillSat.toFixed(4),
             fillLight.toFixed(4),
-            fillAlphaMult.toFixed(4),
-            borderWidth.toFixed(4),
-            borderAlpha.toFixed(4),
+            effectiveFillAlphaMult.toFixed(4),
+            effectiveBorderWidth.toFixed(4),
+            effectiveBorderAlpha.toFixed(4),
             borderSat.toFixed(4),
             borderLight.toFixed(4),
             // Classification-level knobs (also drive plan invalidation above,
@@ -1737,6 +2984,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             maxCellsHoisted,
             palFillSig,
             palBorderSig,
+            frontierTechnique,
+            frontierBorderGeometryMode,
+            frontierSurfaceRecipe.geometryFamily,
+            frontierPhaseSampling,
+            frontierBlurPasses,
+            frontierTriangleDiagonalPolicy,
+            frontierChaikinPasses,
+            frontierShaderSoftnessPx.toFixed(3),
+            frontierBandWidthPx.toFixed(3),
         ].join('|');
 
         const allowPaintSkip = !input.activeTransition;
@@ -1827,10 +3083,31 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         };
         const sceneBuildMs = performance.now() - sceneStartMs;
 
+        const usingControlFrontier = frontierTechnique === 'control';
+        let frontierPhaseLayerCount = 0;
+        let frontierPhaseGridCols = 0;
+        let frontierPhaseGridRows = 0;
+        let frontierBlurMs = 0;
+        let frontierContourExtractionMs = 0;
+        let frontierSmoothingMs = 0;
+        let frontierPolylineCount = 0;
+        let frontierEmittedVertexCount = 0;
+        let effectiveFrontierPhaseLayers: TerritoryFrontierPhaseFieldLayer[] = [];
+        let frontierPresentation:
+            | ReturnType<typeof buildTerritoryFrontierPresentation>
+            | null = null;
+
         // ── Paint: one shape per scene cell. O(N). ──────────────────────────
         const paintStartMs = performance.now();
         const g = this.graphics;
+        const borderLayer = this.borderGraphics;
         g.clear();
+        borderLayer.clear();
+        borderLayer.visible = false;
+        if (usingControlFrontier) {
+            this.frontierGraphics.clear();
+            this.frontierGraphics.visible = false;
+        }
         const spacingPx = cached.classification.spacingPx;
         // Clamp inset so a cell never collapses to 0. Non-native cells get an
         // extra `inwardOffsetPx` added to the inset, so ownership-boundary
@@ -1857,10 +3134,24 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             smoothingPasses: sharedEdgeSmoothingPasses,
         });
         const boundaryHexR = boundarySize / SQRT3;
-        const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        const canBuildScenePairPhaseSurface =
+            drawTerritoryEdgeOnly &&
+            borderBlend &&
+            cached.classification.distribution === 'square';
+        const canRenderPhaseFillSurface =
+            canBuildScenePairPhaseSurface &&
+            !!input.renderer &&
+            typeof document !== 'undefined';
+        const drawBaseBorders =
+            borderMode !== 'off' &&
+            effectiveBorderWidth > 0 &&
+            effectiveBorderAlpha > 0 &&
+            frontierSurfaceRecipe.usesBaseSceneBorders;
         const canUseSplitFillOnlyFastPath =
-            !drawBorders &&
+            usingControlFrontier &&
+            !canRenderPhaseFillSurface &&
+            !drawBaseBorders &&
             inwardOffsetPx === 0 &&
             edgeTrimPx === 0 &&
             cellShape === 'square' &&
@@ -1873,7 +3164,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // per-cell strokes in those modes — otherwise borders visibly detach
         // from their fills.
         const drawBlendedEdges =
-            drawBorders &&
+            drawBaseBorders &&
             drawTerritoryEdgeOnly &&
             borderBlend &&
             cached.classification.distribution === 'square';
@@ -1886,9 +3177,22 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         const rows = cached.classification.rows;
         const vstarCount = cached.classification.vstars.length;
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
-        if (
+        const needsEffectiveColorIdxByGridIdx =
             !canUseSplitFillOnlyFastPath &&
-            (inwardOffsetPx > 0 || (drawBorders && drawTerritoryEdgeOnly))
+            (
+                inwardOffsetPx > 0 ||
+                (
+                    borderMode !== 'off' &&
+                    effectiveBorderWidth > 0 &&
+                    effectiveBorderAlpha > 0 &&
+                    drawTerritoryEdgeOnly
+                ) ||
+                canBuildScenePairPhaseSurface ||
+                frontierSurfaceRecipe.usesPhaseFill ||
+                frontierSurfaceRecipe.usesPhaseBorder
+            );
+        if (
+            needsEffectiveColorIdxByGridIdx
         ) {
             effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
             effectiveColorIdxByGridIdx.fill(-1);
@@ -1915,6 +3219,117 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             }
         }
 
+        let sceneSurfaceFillLayers: TerritoryFrontierPhaseFieldLayer[] = [];
+        let sceneSurfaceBorderLayers: TerritoryFrontierPhaseFieldLayer[] = [];
+        if (canBuildScenePairPhaseSurface && effectiveColorIdxByGridIdx) {
+            const sceneSurfaceLayers = this.buildSceneSurfacePhaseLayers({
+                classification: cached.classification,
+                scene,
+                effectiveColorIdxByGridIdx,
+            });
+            sceneSurfaceFillLayers = sceneSurfaceLayers.fillLayers;
+            sceneSurfaceBorderLayers = sceneSurfaceLayers.borderLayers;
+        } else if (
+            frontierSurfaceRecipe.geometryFamily !== 'shared_edge' &&
+            (
+                frontierSurfaceRecipe.usesPhaseFill ||
+                frontierSurfaceRecipe.usesPhaseBorder
+            )
+        ) {
+            const sceneSurfaceLayers = this.buildSceneSurfacePhaseLayers({
+                classification: cached.classification,
+                scene,
+                effectiveColorIdxByGridIdx: null,
+            });
+            if (sceneSurfaceLayers.sourceKind !== 'none') {
+                sceneSurfaceFillLayers = sceneSurfaceLayers.fillLayers;
+                sceneSurfaceBorderLayers = sceneSurfaceLayers.borderLayers;
+            }
+        }
+        if (sceneSurfaceFillLayers.length > 0) {
+            effectiveFrontierPhaseLayers = sceneSurfaceFillLayers;
+            frontierPhaseLayerCount = Math.max(
+                frontierPhaseLayerCount,
+                sceneSurfaceFillLayers.length,
+            );
+            frontierPhaseGridCols = Math.max(
+                frontierPhaseGridCols,
+                ...sceneSurfaceFillLayers.map((layer) => layer.cols),
+            );
+            frontierPhaseGridRows = Math.max(
+                frontierPhaseGridRows,
+                ...sceneSurfaceFillLayers.map((layer) => layer.rows),
+            );
+            frontierEmittedVertexCount = Math.max(
+                frontierEmittedVertexCount,
+                sceneSurfaceFillLayers.reduce(
+                    (total, layer) => total + layer.values.length,
+                    0,
+                ),
+            );
+        }
+        if (
+            frontierSurfaceRecipe.usesPhaseBorder &&
+            sceneSurfaceBorderLayers.length > 0
+        ) {
+            frontierPresentation = buildTerritoryFrontierPresentation({
+                phaseField: { layers: sceneSurfaceBorderLayers },
+                technique:
+                    usingControlFrontier
+                        ? 'marching_squares_scalar'
+                        : frontierTechnique,
+                blurPasses: usingControlFrontier ? 0 : frontierBlurPasses,
+                chaikinPasses:
+                    usingControlFrontier
+                        ? borderChaikinPasses
+                        : frontierChaikinPasses,
+                triangleDiagonalPolicy: frontierTriangleDiagonalPolicy,
+            });
+            frontierPhaseLayerCount = Math.max(
+                frontierPhaseLayerCount,
+                frontierPresentation.metrics.phaseLayerCount,
+            );
+            frontierPhaseGridCols = Math.max(
+                frontierPhaseGridCols,
+                frontierPresentation.metrics.phaseGridCols,
+            );
+            frontierPhaseGridRows = Math.max(
+                frontierPhaseGridRows,
+                frontierPresentation.metrics.phaseGridRows,
+            );
+            frontierBlurMs = Math.max(
+                frontierBlurMs,
+                frontierPresentation.metrics.blurMs,
+            );
+            frontierContourExtractionMs = Math.max(
+                frontierContourExtractionMs,
+                frontierPresentation.metrics.contourExtractionMs,
+            );
+            frontierSmoothingMs = Math.max(
+                frontierSmoothingMs,
+                frontierPresentation.metrics.smoothingMs,
+            );
+            frontierPolylineCount = Math.max(
+                frontierPolylineCount,
+                frontierPresentation.metrics.polylineCount,
+            );
+            frontierEmittedVertexCount = Math.max(
+                frontierEmittedVertexCount,
+                frontierPresentation.metrics.emittedVertexCount,
+            );
+            effectiveFrontierPhaseLayers =
+                sceneSurfaceFillLayers.length > sceneSurfaceBorderLayers.length
+                    ? frontierPresentation.phaseField.layers.flatMap((layer) => {
+                          const mirrored = this.mirrorFrontierPhaseLayer(layer);
+                          return mirrored ? [layer, mirrored] : [layer];
+                      })
+                    : [...frontierPresentation.phaseField.layers];
+        }
+        const shouldRenderPhaseFillOverlay =
+            canRenderPhaseFillSurface &&
+            effectiveFrontierPhaseLayers.length > 0;
+        let baseBorderDrawn = false;
+
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
         const nativeLayerSig = [
             this.sessionKey ?? '',
@@ -1924,22 +3339,26 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             nativeSize.toFixed(2),
             nativeCornerR.toFixed(2),
             nativeHexR.toFixed(2),
-            fillAlphaMult.toFixed(4),
+            effectiveFillAlphaMult.toFixed(4),
             suppressedBaseSig,
             palFillSig,
         ].join('|');
 
-        g.visible = !canUseSplitFillOnlyFastPath;
-        this.nativeSpriteLayer.visible = canUseSplitFillOnlyFastPath;
-        this.transitionSpriteLayer.visible = canUseSplitFillOnlyFastPath;
+        g.visible = !canUseSplitFillOnlyFastPath && effectiveFillAlphaMult > 0;
+        this.nativeSpriteLayer.visible =
+            canUseSplitFillOnlyFastPath && effectiveFillAlphaMult > 0;
+        this.transitionSpriteLayer.visible =
+            canUseSplitFillOnlyFastPath && effectiveFillAlphaMult > 0;
 
         if (canUseSplitFillOnlyFastPath) {
             if (this.lastSplitNativeSig !== nativeLayerSig) {
                 let nativeCount = 0;
-                for (let i = 0; i < cached.classification.vstars.length; i++) {
-                    const v = cached.classification.vstars[i];
-                    if (v.role === 'native' && !suppressedBaseVIds.has(v.id)) {
-                        nativeCount += 1;
+                if (effectiveFillAlphaMult > 0) {
+                    for (let i = 0; i < cached.classification.vstars.length; i++) {
+                        const v = cached.classification.vstars[i];
+                        if (v.role === 'native' && !suppressedBaseVIds.has(v.id)) {
+                            nativeCount += 1;
+                        }
                     }
                 }
                 this.ensureSpritePool(
@@ -1963,7 +3382,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                         v.y,
                         nativeSize,
                         fillHex,
-                        fillAlphaMult,
+                        effectiveFillAlphaMult,
                     );
                     nativeWriteIndex += 1;
                 }
@@ -1976,7 +3395,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 if (c.role === 'native' || c.alpha <= 0) continue;
                 const fillHex = fillHexByColorIdx[c.colorIdx];
                 if (fillHex === undefined) continue;
-                if (c.alpha * fillAlphaMult <= 0) continue;
+                if (c.alpha * effectiveFillAlphaMult <= 0) continue;
                 transitionCount += 1;
             }
             this.ensureSpritePool(
@@ -1990,7 +3409,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 if (c.role === 'native' || c.alpha <= 0) continue;
                 const fillHex = fillHexByColorIdx[c.colorIdx];
                 if (fillHex === undefined) continue;
-                const alpha = c.alpha * fillAlphaMult;
+                const alpha = c.alpha * effectiveFillAlphaMult;
                 if (alpha <= 0) continue;
                 this.writeSquareSprite(
                     this.transitionSprites[transitionWriteIndex],
@@ -2012,9 +3431,18 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             for (let i = 0; i < scene.cells.length; i++) {
                 const c = scene.cells[i];
                 if (c.alpha <= 0) continue;
+                if (
+                    shouldRenderPhaseFillOverlay &&
+                    this.shouldSuppressSceneCellForFrontierFill(
+                        c,
+                        effectiveFrontierPhaseLayers,
+                    )
+                ) {
+                    continue;
+                }
                 const fillHex = fillHexByColorIdx[c.colorIdx];
                 if (fillHex === undefined) continue;
-                const alpha = c.alpha * fillAlphaMult;
+                const alpha = c.alpha * effectiveFillAlphaMult;
                 if (alpha <= 0) continue;
 
                 // Numeric grid indices are carried directly on the scene cell so
@@ -2056,7 +3484,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 // Per-cell border stroke: skipped for blended-edge path (drawn
                 // once per shared edge below instead) and for any cell whose
                 // neighbours all share its owner under territory_edge mode.
-                if (!drawBorders) continue;
+                if (!drawBaseBorders) continue;
                 if (drawBlendedEdges) continue; // handled by the edge pass below
                 if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
                     if (ix >= 0 && iy >= 0) {
@@ -2077,15 +3505,18 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 if (borderHex === undefined) continue;
                 const strokeOpts = {
                     color: borderHex,
-                    alpha: borderAlpha,
-                    width: borderWidth,
+                    alpha: effectiveBorderAlpha,
+                    width: effectiveBorderWidth,
                     cap: 'round' as const,
                     join: 'round' as const,
                 };
+                baseBorderDrawn = true;
                 if (cellShape === 'circle') {
-                    g.circle(x, y, half).stroke(strokeOpts);
+                    borderLayer.circle(x, y, half).stroke(strokeOpts);
                 } else if (cellShape === 'diamond') {
-                    g.poly([x, y - half, x + half, y, x, y + half, x - half, y]).stroke(strokeOpts);
+                    borderLayer
+                        .poly([x, y - half, x + half, y, x, y + half, x - half, y])
+                        .stroke(strokeOpts);
                 } else if (cellShape === 'hex') {
                     const pts: number[] = [];
                     for (let k = 0; k < 6; k++) {
@@ -2094,11 +3525,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                             y + HEX_VERTICES_POINTY[k][1] * hexR,
                         );
                     }
-                    g.poly(pts).stroke(strokeOpts);
+                    borderLayer.poly(pts).stroke(strokeOpts);
                 } else if (cornerR > 0) {
-                    g.roundRect(x - half, y - half, size, size, cornerR).stroke(strokeOpts);
+                    borderLayer
+                        .roundRect(x - half, y - half, size, size, cornerR)
+                        .stroke(strokeOpts);
                 } else {
-                    g.rect(x - half, y - half, size, size).stroke(strokeOpts);
+                    borderLayer
+                        .rect(x - half, y - half, size, size)
+                        .stroke(strokeOpts);
                 }
             }
         }
@@ -2182,8 +3617,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
             const strokeOpts = {
                 color: 0xffffff,
-                alpha: borderAlpha,
-                width: borderWidth,
+                alpha: effectiveBorderAlpha,
+                width: effectiveBorderWidth,
                 cap: 'round' as const,
                 join: 'round' as const,
             };
@@ -2230,12 +3665,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     if (!closed && edgeTrimPx > 0) {
                         pts = trimOpenPolylineEndpoints(pts, edgeTrimPx);
                     }
-                    g.moveTo(pts[0], pts[1]);
+                    baseBorderDrawn = true;
+                    borderLayer.moveTo(pts[0], pts[1]);
                     for (let k = 2; k < pts.length; k += 2) {
-                        g.lineTo(pts[k], pts[k + 1]);
+                        borderLayer.lineTo(pts[k], pts[k + 1]);
                     }
-                    if (closed) g.lineTo(pts[0], pts[1]);
-                    g.stroke(strokeOpts);
+                    if (closed) borderLayer.lineTo(pts[0], pts[1]);
+                    borderLayer.stroke(strokeOpts);
                 };
 
                 // Walk a chain from `startVertex` through unused edges until
@@ -2305,8 +3741,60 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 }
             }
         }
+        borderLayer.visible = baseBorderDrawn;
 
-        // ── Record paint-sig + stats (MG-PERF Phase A) ──────────────────────
+        if (shouldRenderPhaseFillOverlay) {
+            const fillSamplingMode =
+                frontierSurfaceRecipe.geometryFamily === 'shared_edge'
+                    ? 'nearest'
+                    : frontierTechnique === 'shader_frontier_band'
+                      ? frontierPhaseSampling
+                      : 'linear';
+            const fillSoftnessPx =
+                frontierTechnique === 'shader_frontier_band'
+                    ? frontierShaderSoftnessPx
+                    : 0;
+            this.renderFrontierFillFromPhase({
+                layers: effectiveFrontierPhaseLayers,
+                samplingMode: fillSamplingMode,
+                fillHexByColorIdx,
+                fillAlpha: effectiveFillAlphaMult,
+                softnessPx: fillSoftnessPx,
+            });
+        } else {
+            this.frontierFillMeshLayer.visible = false;
+            this.hideUnusedFrontierFillShaderLayers(0);
+        }
+
+        if (frontierPresentation) {
+            if (frontierSurfaceRecipe.borderSource === 'frontier_band') {
+                this.renderFrontierBand({
+                    layers: frontierPresentation.frontierBandLayers,
+                    samplingMode: frontierPhaseSampling,
+                    borderHexByColorIdx,
+                    borderAlpha: effectiveBorderAlpha,
+                    bandWidth: frontierBandWidthPx,
+                    softness: frontierShaderSoftnessPx,
+                });
+                this.frontierGraphics.clear();
+                this.frontierGraphics.visible = false;
+            } else {
+                this.frontierMeshLayer.visible = false;
+                this.hideUnusedFrontierShaderLayers(0);
+                this.renderFrontierContours({
+                    contourLayers: frontierPresentation.contourLayers,
+                    borderHexByColorIdx,
+                    borderAlpha: effectiveBorderAlpha,
+                    borderWidth: effectiveBorderWidth,
+                });
+            }
+        } else {
+            this.frontierGraphics.clear();
+            this.frontierGraphics.visible = false;
+            this.frontierMeshLayer.visible = false;
+            this.hideUnusedFrontierShaderLayers(0);
+        }
+
         this.lastPaintSig = paintSig;
         this.frameCount += 1;
         let paintedCells = 0;
@@ -2334,6 +3822,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         }
         updateMetaballGridStats({
             ...phaseEdgesStatsPatch,
+            frontierPhaseLayerCount,
+            frontierPhaseGridCols,
+            frontierPhaseGridRows,
+            frontierBlurMs,
+            frontierContourExtractionMs,
+            frontierSmoothingMs,
+            frontierPolylineCount,
+            frontierEmittedVertexCount,
             requestedSpacingPx: cached.classification.requestedSpacingPx,
             effectiveSpacingPx: cached.classification.spacingPx,
             requestedDensityCellsPerMpx: spacingToDensityCellsPerMpx(
@@ -2366,10 +3862,22 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         this.planWorker?.terminate();
         this.planWorker = null;
         this.graphics.clear();
+        this.frontierFillMeshLayer.visible = false;
+        this.borderGraphics.clear();
+        this.borderGraphics.visible = false;
+        this.frontierGraphics.clear();
+        this.frontierGraphics.visible = false;
+        this.frontierMeshLayer.visible = false;
+        this.hideUnusedFrontierFillShaderLayers(0);
+        this.hideUnusedFrontierShaderLayers(0);
         this.hideUnusedSprites(this.nativeSprites, 0);
         this.hideUnusedSprites(this.transitionSprites, 0);
         this.root.removeChildren();
         this.root.addChild(this.graphics);
+        this.root.addChild(this.frontierFillMeshLayer);
+        this.root.addChild(this.borderGraphics);
+        this.root.addChild(this.frontierGraphics);
+        this.root.addChild(this.frontierMeshLayer);
         this.root.addChild(this.nativeSpriteLayer);
         this.root.addChild(this.transitionSpriteLayer);
     }

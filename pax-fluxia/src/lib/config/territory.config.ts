@@ -1,4 +1,5 @@
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
+import { territoryFrontierConfigDefaults } from '$lib/territory/frontier/config';
 import { metaballFamilyConfigDefaults } from '$lib/territory/families/metaball/config';
 import { metaballGridFamilyConfigDefaults } from '$lib/territory/families/metaballGrid/config';
 import { perimeterFieldFamilyConfigDefaults } from '$lib/territory/families/perimeterField/config';
@@ -159,6 +160,7 @@ export const territoryConfigDefaults = {
     DF_HUE: 0,
     DF_SATURATION: 1.7,
     DF_LIGHTNESS: 0.4,
+    ...territoryFrontierConfigDefaults,
     DF_EDGE_FADE: 0,
     DF_ROUNDING: 0,
     DF_INFLUENCE_WEIGHT: 0,
