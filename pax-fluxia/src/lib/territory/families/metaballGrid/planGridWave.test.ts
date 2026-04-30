@@ -3,6 +3,7 @@ import type { ConquestEvent } from '@pax/common';
 import type { CanonicalGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
+import { summarizeMetaballGridFrontier } from './metaballGridRuntime';
 import type { GridAdjacency, GridWaveGeometry, GridWaveSeeding } from './metaballGridTypes';
 
 function makeSnapshot(regions: TerritoryRegionShape[]): CanonicalGeometrySnapshot {
@@ -249,6 +250,25 @@ describe('planGridWave', () => {
         expect(plan4.perEvent[0].seedVIds.length).toBeLessThanOrEqual(
             planNatives.perEvent[0].seedVIds.length,
         );
+    });
+
+    it('phase-frontier flip distribution is not unintentionally front-loaded on a representative conquest', () => {
+        const { plan } = makeFrontierShiftFixture({
+            seeding: 'winner_natives',
+            geometry: 'pre_to_post_frontier',
+            adjacency: '8',
+        });
+        const summary = summarizeMetaballGridFrontier({
+            orderedFlipTimes: plan.orderedFlipTimes,
+            flipWindow: 0.08,
+        });
+
+        expect(summary.transitionTotalCount).toBeGreaterThan(0);
+        expect(summary.p95).not.toBeNull();
+        expect(summary.p95!).toBeGreaterThan(0.5);
+        expect(summary.bins['0.5-0.75'] + summary.bins['0.75-1']).toBeGreaterThan(0);
+        expect(summary.visibleLifetimeProgress).not.toBeNull();
+        expect(summary.visibleLifetimeProgress!).toBeGreaterThan(0.5);
     });
 
     it('euclidean_band uses distance to seed, not grid graph', () => {

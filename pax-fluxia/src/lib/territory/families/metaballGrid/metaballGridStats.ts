@@ -7,6 +7,14 @@
  */
 import { writable } from 'svelte/store';
 
+export interface MetaballGridFlipTimeBins {
+    readonly '0-0.1': number;
+    readonly '0.1-0.25': number;
+    readonly '0.25-0.5': number;
+    readonly '0.5-0.75': number;
+    readonly '0.75-1': number;
+}
+
 export interface MetaballGridStats {
     /** Active family variant id (`metaball_grid` vs `metaball_grid_phase_edges`). */
     readonly familyId: string;
@@ -100,7 +108,61 @@ export interface MetaballGridStats {
     readonly fastPathUsed: boolean;
     /** If the retained fast path was not used, records the first blocking reason. */
     readonly fallbackReason: string | null;
+    /** Current configured territory transition duration in GAME_CONFIG. */
+    readonly configuredTransitionMs: number | null;
+    /** Whether the territory transition duration is currently bound to tick. */
+    readonly bindTransitionToTick: boolean;
+    /** Effective gameplay tick duration that the handler/lifecycle saw most recently. */
+    readonly effectiveTickMs: number | null;
+    /** Most recent handler-owned TerritoryTransitionEntry duration. */
+    readonly latestEntryDurationMs: number | null;
+    /** Most recent handler-owned TerritoryTransitionEntry start time. */
+    readonly latestEntryStartedAtMs: number | null;
+    /** Latest render-family activeTransition duration reaching the family. */
+    readonly activeTransitionDurationMs: number | null;
+    /** Latest render-family activeTransition start time reaching the family. */
+    readonly activeTransitionStartedAtMs: number | null;
+    /** Raw progress computed by the render-family scheduler/lifecycle before family-local overrides. */
+    readonly schedulerRawProgress: number | null;
+    /** Raw visible progress used by the family before easing. */
+    readonly rawProgress: number | null;
+    /** Eased visible progress actually driving the family scene. */
+    readonly easedProgress: number | null;
+    /** Local visual-transition duration when the family is running its own catch-up clock. */
+    readonly localVisualTransitionDurationMs: number | null;
+    /** Whether the requested transition plan is still pending off-thread. */
+    readonly requestedPlanPending: boolean;
+    /** Flip-time distribution minimum. */
+    readonly flipTimeMin: number | null;
+    /** Flip-time distribution p25. */
+    readonly flipTimeP25: number | null;
+    /** Flip-time distribution p50. */
+    readonly flipTimeP50: number | null;
+    /** Flip-time distribution p75. */
+    readonly flipTimeP75: number | null;
+    /** Flip-time distribution p95. */
+    readonly flipTimeP95: number | null;
+    /** Flip-time distribution maximum. */
+    readonly flipTimeMax: number | null;
+    /** Flip-time distribution counts in stable progress bins. */
+    readonly flipTimeBins: MetaballGridFlipTimeBins;
+    /** First progress value at which any frontier activity should become visible. */
+    readonly frontierVisibleStartProgress: number | null;
+    /** Last progress value at which frontier activity should remain visible. */
+    readonly frontierVisibleEndProgress: number | null;
+    /** Visible frontier lifetime as a fraction of the full transition duration. */
+    readonly frontierVisibleLifetimeProgress: number | null;
+    /** Visible frontier lifetime in ms for the currently active duration chain. */
+    readonly frontierVisibleLifetimeMs: number | null;
 }
+
+const EMPTY_FLIP_TIME_BINS: MetaballGridFlipTimeBins = {
+    '0-0.1': 0,
+    '0.1-0.25': 0,
+    '0.25-0.5': 0,
+    '0.5-0.75': 0,
+    '0.75-1': 0,
+};
 
 const INITIAL: MetaballGridStats = {
     familyId: 'metaball_grid',
@@ -147,6 +209,29 @@ const INITIAL: MetaballGridStats = {
     transitionSpriteWrites: 0,
     fastPathUsed: false,
     fallbackReason: null,
+    configuredTransitionMs: null,
+    bindTransitionToTick: false,
+    effectiveTickMs: null,
+    latestEntryDurationMs: null,
+    latestEntryStartedAtMs: null,
+    activeTransitionDurationMs: null,
+    activeTransitionStartedAtMs: null,
+    schedulerRawProgress: null,
+    rawProgress: null,
+    easedProgress: null,
+    localVisualTransitionDurationMs: null,
+    requestedPlanPending: false,
+    flipTimeMin: null,
+    flipTimeP25: null,
+    flipTimeP50: null,
+    flipTimeP75: null,
+    flipTimeP95: null,
+    flipTimeMax: null,
+    flipTimeBins: EMPTY_FLIP_TIME_BINS,
+    frontierVisibleStartProgress: null,
+    frontierVisibleEndProgress: null,
+    frontierVisibleLifetimeProgress: null,
+    frontierVisibleLifetimeMs: null,
 };
 
 export const metaballGridStats = writable<MetaballGridStats>(INITIAL);

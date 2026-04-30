@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     buildMetaballGridPlanKey,
     computeGridInwardOffset,
+    resolveMetaballGridDisplayProgress,
+    summarizeMetaballGridFrontier,
 } from './metaballGridRuntime';
 
 describe('buildMetaballGridPlanKey', () => {
@@ -138,5 +140,113 @@ describe('computeGridInwardOffset', () => {
         });
         expect(offset.x).toBeCloseTo(2.828427, 5);
         expect(offset.y).toBeCloseTo(2.828427, 5);
+    });
+});
+
+describe('resolveMetaballGridDisplayProgress', () => {
+    it('uses scheduler progress when the requested plan is already active', () => {
+        expect(
+            resolveMetaballGridDisplayProgress({
+                schedulerRawProgress: 0.35,
+                requestedPlanKey: 'transition:a',
+                cachedPlanKey: 'transition:a',
+                activeVisualTransition: null,
+                nowMs: 500,
+            }),
+        ).toEqual({
+            rawProgress: 0.35,
+            holdingForPlan: false,
+            usingVisualTransition: false,
+        });
+    });
+
+    it('freezes at t=0 while waiting for the matching plan', () => {
+        expect(
+            resolveMetaballGridDisplayProgress({
+                schedulerRawProgress: 0.72,
+                requestedPlanKey: 'transition:b',
+                cachedPlanKey: 'steady',
+                activeVisualTransition: null,
+                nowMs: 500,
+            }),
+        ).toEqual({
+            rawProgress: 0,
+            holdingForPlan: true,
+            usingVisualTransition: false,
+        });
+    });
+
+    it('uses the family-local visual clock when a late plan becomes active', () => {
+        expect(
+            resolveMetaballGridDisplayProgress({
+                schedulerRawProgress: 0.9,
+                requestedPlanKey: null,
+                cachedPlanKey: 'transition:c',
+                activeVisualTransition: {
+                    planKey: 'transition:c',
+                    startedAtMs: 1000,
+                    durationMs: 1000,
+                },
+                nowMs: 1250,
+            }),
+        ).toEqual({
+            rawProgress: 0.25,
+            holdingForPlan: false,
+            usingVisualTransition: true,
+        });
+    });
+});
+
+describe('summarizeMetaballGridFrontier', () => {
+    it('reports empty frontier stats for transitions with no changed cells', () => {
+        expect(
+            summarizeMetaballGridFrontier({
+                orderedFlipTimes: [],
+                flipWindow: 0.14,
+            }),
+        ).toEqual({
+            transitionTotalCount: 0,
+            min: null,
+            p25: null,
+            p50: null,
+            p75: null,
+            p95: null,
+            max: null,
+            bins: {
+                '0-0.1': 0,
+                '0.1-0.25': 0,
+                '0.25-0.5': 0,
+                '0.5-0.75': 0,
+                '0.75-1': 0,
+            },
+            visibleStartProgress: null,
+            visibleEndProgress: null,
+            visibleLifetimeProgress: null,
+        });
+    });
+
+    it('summarizes percentiles, bins, and visible frontier lifetime', () => {
+        const summary = summarizeMetaballGridFrontier({
+            orderedFlipTimes: [0.02, 0.08, 0.22, 0.41, 0.58, 0.73, 0.91],
+            flipWindow: 0.1,
+        });
+
+        expect(summary.transitionTotalCount).toBe(7);
+        expect(summary.min).toBeCloseTo(0.02);
+        expect(summary.p25).toBeCloseTo(0.15);
+        expect(summary.p50).toBeCloseTo(0.41);
+        expect(summary.p75).toBeCloseTo(0.655);
+        expect(summary.p95).toBeCloseTo(0.856);
+        expect(summary.max).toBeCloseTo(0.91);
+        expect(summary.bins).toEqual({
+            '0-0.1': 2,
+            '0.1-0.25': 1,
+            '0.25-0.5': 1,
+            '0.5-0.75': 2,
+            '0.75-1': 1,
+        });
+        expect(summary.visibleStartProgress).toBe(0);
+        expect(summary.visibleEndProgress).toBe(1);
+        expect(summary.visibleLifetimeProgress).toBe(1);
     });
 });

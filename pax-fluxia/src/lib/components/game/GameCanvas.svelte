@@ -118,6 +118,7 @@
         metaballGridPhaseEdgesGeometryDefaults,
         metaballGridPhaseEdgesModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
+    import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -1899,6 +1900,35 @@
         return mode === "metaball_grid_phase_edges"
             ? buildPhaseEdgesRenderFamilyConfigSource()
             : undefined;
+    }
+
+    function updateLiveMetaballGridTransitionDiagnostics(params: {
+        activeTransition: RenderFamilyActiveTransition | null;
+        effectiveTickMs: number;
+    }): void {
+        const activeEntries = territoryTransitions.getActiveEntries();
+        const latestEntry =
+            activeEntries.length > 0
+                ? [...activeEntries].sort((a, b) => {
+                      if (a.startTimeMs !== b.startTimeMs) {
+                          return b.startTimeMs - a.startTimeMs;
+                      }
+                      return b.starId.localeCompare(a.starId);
+                  })[0]!
+                : null;
+        updateMetaballGridStats({
+            configuredTransitionMs:
+                GAME_CONFIG.TERRITORY_TRANSITION_MS ?? null,
+            bindTransitionToTick:
+                GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK ?? false,
+            effectiveTickMs: params.effectiveTickMs,
+            latestEntryDurationMs: latestEntry?.durationMs ?? null,
+            latestEntryStartedAtMs: latestEntry?.startTimeMs ?? null,
+            activeTransitionDurationMs:
+                params.activeTransition?.durationMs ?? null,
+            activeTransitionStartedAtMs:
+                params.activeTransition?.startedAtMs ?? null,
+        });
     }
 
     function buildRenderFamilyOwnershipSnapshot(
@@ -5468,6 +5498,10 @@
                                 }),
                         );
                         mg.update(mgInput);
+                        updateLiveMetaballGridTransitionDiagnostics({
+                            activeTransition,
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                        });
                         if (mg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
@@ -5539,6 +5573,10 @@
                                 }),
                         );
                         mg.update(mgInput);
+                        updateLiveMetaballGridTransitionDiagnostics({
+                            activeTransition,
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                        });
                         if (mg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }

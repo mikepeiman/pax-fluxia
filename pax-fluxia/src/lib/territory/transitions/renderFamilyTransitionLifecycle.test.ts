@@ -210,4 +210,22 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
         expect(result.activeTransition?.events[0]?.progress).toBe(0);
         expect(result.terminalFrameStarIds).toEqual([]);
     });
+
+    it('preserves entry duration through the lifecycle so downstream families can see 200ms vs 1500ms', () => {
+        const short = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1100,
+            effectiveTickMs: 1000,
+            activeEntries: [makeEntry({ durationMs: 200 })],
+        });
+        const long = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1750,
+            effectiveTickMs: 1000,
+            activeEntries: [makeEntry({ durationMs: 1500 })],
+        });
+
+        expect(short.activeTransition?.durationMs).toBe(200);
+        expect(long.activeTransition?.durationMs).toBe(1500);
+        expect(short.activeTransition?.events[0]?.durationMs).toBe(200);
+        expect(long.activeTransition?.events[0]?.durationMs).toBe(1500);
+    });
 });

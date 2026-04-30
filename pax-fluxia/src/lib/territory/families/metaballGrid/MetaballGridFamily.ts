@@ -54,6 +54,7 @@ import type {
 import {
     buildMetaballGridPlanKey,
     resolveMetaballGridDisplayProgress,
+    summarizeMetaballGridFrontier,
 } from './metaballGridRuntime';
 import type { MetaballGridVisualTransitionTiming } from './metaballGridRuntime';
 import type {
@@ -1277,6 +1278,7 @@ export class MetaballGridFamily implements RenderFamily {
         visibleFrameState: MetaballGridVisibleFrameState;
         clockSource: 'none' | 'scheduler' | 'local';
         requestedPlanPending: boolean;
+        frontierDiagnostics: ReturnType<typeof summarizeMetaballGridFrontier>;
     }): Record<string, unknown> {
         const {
             input,
@@ -1301,6 +1303,7 @@ export class MetaballGridFamily implements RenderFamily {
             visibleFrameState,
             clockSource,
             requestedPlanPending,
+            frontierDiagnostics,
         } = params;
         const configSource = input.configSource;
         const classificationByOwner: Record<
@@ -1423,6 +1426,10 @@ export class MetaballGridFamily implements RenderFamily {
             visibleFrameState,
             clockSource,
             requestedPlanPending,
+            activeTransitionDurationMs: input.activeTransition?.durationMs ?? null,
+            localVisualTransitionDurationMs:
+                this.activeVisualTransition?.durationMs ?? null,
+            frontierDiagnostics,
             classification: {
                 cols: cached.classification.cols,
                 rows: cached.classification.rows,
@@ -1839,6 +1846,33 @@ export class MetaballGridFamily implements RenderFamily {
                 visualTransitionActive: progressState.usingVisualTransition,
                 visibleFrameState: perfTransitionState.visibleFrameState,
                 clockSource: perfTransitionState.clockSource,
+                activeTransitionDurationMs:
+                    input.activeTransition?.durationMs ?? null,
+                activeTransitionStartedAtMs:
+                    input.activeTransition?.startedAtMs ?? null,
+                schedulerRawProgress: input.activeTransition?.progress ?? null,
+                rawProgress: progressState.rawProgress,
+                easedProgress: progressState.rawProgress,
+                localVisualTransitionDurationMs:
+                    this.activeVisualTransition?.durationMs ?? null,
+                requestedPlanPending: perfTransitionState.requestedPlanPending,
+                flipTimeMin: null,
+                flipTimeP25: null,
+                flipTimeP50: null,
+                flipTimeP75: null,
+                flipTimeP95: null,
+                flipTimeMax: null,
+                flipTimeBins: {
+                    '0-0.1': 0,
+                    '0.1-0.25': 0,
+                    '0.25-0.5': 0,
+                    '0.5-0.75': 0,
+                    '0.75-1': 0,
+                },
+                frontierVisibleStartProgress: null,
+                frontierVisibleEndProgress: null,
+                frontierVisibleLifetimeProgress: null,
+                frontierVisibleLifetimeMs: null,
                 renderCacheMode: 'live_vectors',
             });
             return { container: this.root };
@@ -1856,6 +1890,10 @@ export class MetaballGridFamily implements RenderFamily {
             0,
             readTunableNumber(input, 'METABALL_GRID_FLIP_WINDOW', GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.14),
         );
+        const frontierDiagnostics = summarizeMetaballGridFrontier({
+            orderedFlipTimes: cached.wavePlan.orderedFlipTimes,
+            flipWindow,
+        });
         const strength = 1.0;
         const inwardOffsetPx = readTunableNumber(
             input,
@@ -2134,6 +2172,42 @@ export class MetaballGridFamily implements RenderFamily {
                 visualTransitionActive: progressState.usingVisualTransition,
                 visibleFrameState: perfTransitionState.visibleFrameState,
                 clockSource: perfTransitionState.clockSource,
+                activeTransitionDurationMs:
+                    input.activeTransition?.durationMs ?? null,
+                activeTransitionStartedAtMs:
+                    input.activeTransition?.startedAtMs ?? null,
+                schedulerRawProgress: input.activeTransition?.progress ?? null,
+                rawProgress,
+                easedProgress: easeProgress(waveEase, rawProgress),
+                localVisualTransitionDurationMs:
+                    this.activeVisualTransition?.durationMs ?? null,
+                requestedPlanPending: perfTransitionState.requestedPlanPending,
+                flipTimeMin: frontierDiagnostics.min,
+                flipTimeP25: frontierDiagnostics.p25,
+                flipTimeP50: frontierDiagnostics.p50,
+                flipTimeP75: frontierDiagnostics.p75,
+                flipTimeP95: frontierDiagnostics.p95,
+                flipTimeMax: frontierDiagnostics.max,
+                flipTimeBins: frontierDiagnostics.bins,
+                frontierVisibleStartProgress:
+                    frontierDiagnostics.visibleStartProgress,
+                frontierVisibleEndProgress:
+                    frontierDiagnostics.visibleEndProgress,
+                frontierVisibleLifetimeProgress:
+                    frontierDiagnostics.visibleLifetimeProgress,
+                frontierVisibleLifetimeMs:
+                    frontierDiagnostics.visibleLifetimeProgress !== null
+                        ? frontierDiagnostics.visibleLifetimeProgress *
+                          (progressState.usingVisualTransition
+                              ? Math.max(
+                                    1,
+                                    this.activeVisualTransition?.durationMs ?? 0,
+                                )
+                              : Math.max(
+                                    1,
+                                    input.activeTransition?.durationMs ?? 0,
+                                ))
+                        : null,
                 renderCacheMode: this.steadyTextureCacheActive
                     ? 'steady_texture'
                     : 'live_vectors',
@@ -2157,6 +2231,11 @@ export class MetaballGridFamily implements RenderFamily {
                     clockSource: perfTransitionState.clockSource,
                     requestedPlanPending:
                         perfTransitionState.requestedPlanPending,
+                    activeTransitionDurationMs:
+                        input.activeTransition?.durationMs ?? null,
+                    localVisualTransitionDurationMs:
+                        this.activeVisualTransition?.durationMs ?? null,
+                    frontierDiagnostics,
                 };
             }
             return { container: this.root };
@@ -2793,14 +2872,15 @@ export class MetaballGridFamily implements RenderFamily {
                 sharedEdgeSmoothingPasses,
                 edgeTrimPx,
                 borderChaikinPasses,
-                skipped: false,
-                rebuiltPlan,
-                holdingForPlan: progressState.holdingForPlan,
-                usingVisualTransition: progressState.usingVisualTransition,
-                visibleFrameState: perfTransitionState.visibleFrameState,
-                clockSource: perfTransitionState.clockSource,
-                requestedPlanPending: perfTransitionState.requestedPlanPending,
-            });
+            skipped: false,
+            rebuiltPlan,
+            holdingForPlan: progressState.holdingForPlan,
+            usingVisualTransition: progressState.usingVisualTransition,
+            visibleFrameState: perfTransitionState.visibleFrameState,
+            clockSource: perfTransitionState.clockSource,
+            requestedPlanPending: perfTransitionState.requestedPlanPending,
+            frontierDiagnostics,
+        });
         }
         updateMetaballGridStats({
             familyId: this.variant.id,
@@ -2852,6 +2932,39 @@ export class MetaballGridFamily implements RenderFamily {
             visualTransitionActive: progressState.usingVisualTransition,
             visibleFrameState: perfTransitionState.visibleFrameState,
             clockSource: perfTransitionState.clockSource,
+            activeTransitionDurationMs:
+                input.activeTransition?.durationMs ?? null,
+            activeTransitionStartedAtMs:
+                input.activeTransition?.startedAtMs ?? null,
+            schedulerRawProgress: input.activeTransition?.progress ?? null,
+            rawProgress,
+            easedProgress: progress,
+            localVisualTransitionDurationMs:
+                this.activeVisualTransition?.durationMs ?? null,
+            requestedPlanPending: perfTransitionState.requestedPlanPending,
+            flipTimeMin: frontierDiagnostics.min,
+            flipTimeP25: frontierDiagnostics.p25,
+            flipTimeP50: frontierDiagnostics.p50,
+            flipTimeP75: frontierDiagnostics.p75,
+            flipTimeP95: frontierDiagnostics.p95,
+            flipTimeMax: frontierDiagnostics.max,
+            flipTimeBins: frontierDiagnostics.bins,
+            frontierVisibleStartProgress:
+                frontierDiagnostics.visibleStartProgress,
+            frontierVisibleEndProgress:
+                frontierDiagnostics.visibleEndProgress,
+            frontierVisibleLifetimeProgress:
+                frontierDiagnostics.visibleLifetimeProgress,
+            frontierVisibleLifetimeMs:
+                frontierDiagnostics.visibleLifetimeProgress !== null
+                    ? frontierDiagnostics.visibleLifetimeProgress *
+                      (progressState.usingVisualTransition
+                          ? Math.max(
+                                1,
+                                this.activeVisualTransition?.durationMs ?? 0,
+                            )
+                          : Math.max(1, input.activeTransition?.durationMs ?? 0))
+                    : null,
             renderCacheMode: this.steadyTextureCacheActive
                 ? 'steady_texture'
                 : 'live_vectors',
