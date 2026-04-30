@@ -37,4 +37,5 @@ export const metaballGridPhaseEdgesModeDefaults = {
 export const metaballGridPhaseEdgesGeometryDefaults = {
     MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
+    TERRITORY_DX_WEIGHT: 0.3,
 } as const;

@@ -275,9 +275,6 @@ function makePhaseEdgesInput(
         METABALL_ALPHA: 1,
         METABALL_SATURATION: 1,
         METABALL_LIGHTNESS: 0.5,
-        MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
-        MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
-        TERRITORY_DX_WEIGHT: 0.3,
         ...metaballGridPhaseEdgesGeometryDefaults,
         ...metaballGridPhaseEdgesModeDefaults,
     };
@@ -384,6 +381,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(stats.borderChaikinPasses).toBe(4);
         expect(stats.disconnectEnabled).toBe(true);
         expect(stats.disconnectDistance).toBe(295);
+        expect(stats.dxWeight).toBe(0.3);
 
         family.dispose();
     });
@@ -403,6 +401,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED;
         const originalDisconnectDistance =
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE;
+        const originalDxWeight = GAME_CONFIG.TERRITORY_DX_WEIGHT;
 
         try {
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY = 'euclidean_band';
@@ -411,6 +410,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES = 4;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = true;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE = 295;
+            GAME_CONFIG.TERRITORY_DX_WEIGHT = 3;
 
             family.update(makePhaseEdgesInput(family, 0.35));
 
@@ -422,6 +422,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             expect(stats.borderChaikinPasses).toBe(4);
             expect(stats.disconnectEnabled).toBe(true);
             expect(stats.disconnectDistance).toBe(295);
+            expect(stats.dxWeight).toBe(0.3);
         } finally {
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY = originalWaveGeometry;
             GAME_CONFIG.METABALL_GRID_BORDER_MODE = originalBorderMode;
@@ -432,6 +433,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
                 originalDisconnectEnabled;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE =
                 originalDisconnectDistance;
+            GAME_CONFIG.TERRITORY_DX_WEIGHT = originalDxWeight;
             family.dispose();
         }
     });

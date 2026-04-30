@@ -544,7 +544,7 @@
             <div class="readout">
                 {formatPhaseEdgesSemanticsNote()}
                 Expected locked defaults: <code>pre_to_post_frontier</code>,
-                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px.
+                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30.
             </div>
         {/if}
     {/if}
