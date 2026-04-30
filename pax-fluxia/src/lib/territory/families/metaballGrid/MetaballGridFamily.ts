@@ -285,6 +285,26 @@ function readTunableBoolean(input: RenderFamilyInput, key: string, fallback: boo
     return typeof v === 'boolean' ? v : fallback;
 }
 
+function readConfigSourceBoolean(
+    configSource: Readonly<Record<string, unknown>> | undefined,
+    key: string,
+    fallback: boolean,
+): boolean {
+    const value = configSource?.[key];
+    return typeof value === 'boolean' ? value : fallback;
+}
+
+function readConfigSourceNumber(
+    configSource: Readonly<Record<string, unknown>> | undefined,
+    key: string,
+    fallback: number,
+): number {
+    const value = configSource?.[key];
+    return typeof value === 'number' && Number.isFinite(value)
+        ? value
+        : fallback;
+}
+
 function spacingToDensityCellsPerMpx(spacingPx: number): number {
     if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
     return 1_000_000 / (spacingPx * spacingPx);
@@ -1230,12 +1250,14 @@ export class MetaballGridFamily implements RenderFamily {
             worldHeight: input.world.height,
             nowMs: input.nowMs,
             geometrySource: settings.geometrySource,
+            configSource: input.configSource as Record<string, unknown> | undefined,
         });
     }
 
     private buildDebugSnapshot(params: {
         input: RenderFamilyInput;
         cached: CachedPlan;
+        settings: MetaballGridPlanSettings;
         ownerIdByColorIdx: ReadonlyArray<string>;
         scene: GridMetaballScene;
         schedulerRawProgress: number | null;
@@ -1243,6 +1265,11 @@ export class MetaballGridFamily implements RenderFamily {
         progress: number;
         flipTransition: GridFlipTransition;
         flipWindow: number;
+        borderMode: GridBorderMode;
+        borderBlend: boolean;
+        sharedEdgeSmoothingPasses: number;
+        edgeTrimPx: number;
+        borderChaikinPasses: number;
         skipped: boolean;
         rebuiltPlan: boolean;
         holdingForPlan: boolean;
@@ -1254,6 +1281,7 @@ export class MetaballGridFamily implements RenderFamily {
         const {
             input,
             cached,
+            settings,
             ownerIdByColorIdx,
             scene,
             schedulerRawProgress,
@@ -1261,6 +1289,11 @@ export class MetaballGridFamily implements RenderFamily {
             progress,
             flipTransition,
             flipWindow,
+            borderMode,
+            borderBlend,
+            sharedEdgeSmoothingPasses,
+            edgeTrimPx,
+            borderChaikinPasses,
             skipped,
             rebuiltPlan,
             holdingForPlan,
@@ -1269,6 +1302,7 @@ export class MetaballGridFamily implements RenderFamily {
             clockSource,
             requestedPlanPending,
         } = params;
+        const configSource = input.configSource;
         const classificationByOwner: Record<
             string,
             {
@@ -1347,16 +1381,41 @@ export class MetaballGridFamily implements RenderFamily {
         );
 
         return {
+            familyId: this.variant.id,
+            familyLabel: this.variant.label,
             sessionKey: this.sessionKey,
             planKey: cached.planKey,
             tick: input.gameTick ?? null,
             paused: input.paused ?? false,
             activeTransitionEventCount: input.activeTransition?.events.length ?? 0,
+            geometrySource: settings.geometrySource,
+            waveGeometry: settings.waveGeometry,
+            waveSeeding: settings.waveSeeding,
             schedulerRawProgress,
             rawProgress,
             progress,
             flipTransition,
             flipWindow,
+            borderMode,
+            borderBlend,
+            edgeSmoothingPasses: sharedEdgeSmoothingPasses,
+            edgeTrimPx,
+            borderChaikinPasses,
+            disconnectEnabled: readConfigSourceBoolean(
+                configSource,
+                'MODIFIED_VORONOI_DISCONNECT_ENABLED',
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false,
+            ),
+            disconnectDistance: readConfigSourceNumber(
+                configSource,
+                'MODIFIED_VORONOI_DISCONNECT_DISTANCE',
+                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+            ),
+            dxWeight: readConfigSourceNumber(
+                configSource,
+                'TERRITORY_DX_WEIGHT',
+                GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
+            ),
             rebuiltPlan,
             skipped,
             holdingForPlan,
@@ -1890,6 +1949,22 @@ export class MetaballGridFamily implements RenderFamily {
             0,
             Math.min(6, sharedEdgeSmoothingPasses + borderChaikinPasses),
         );
+        const configSource = input.configSource;
+        const disconnectEnabled = readConfigSourceBoolean(
+            configSource,
+            'MODIFIED_VORONOI_DISCONNECT_ENABLED',
+            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? false,
+        );
+        const disconnectDistance = readConfigSourceNumber(
+            configSource,
+            'MODIFIED_VORONOI_DISCONNECT_DISTANCE',
+            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+        );
+        const dxWeight = readConfigSourceNumber(
+            configSource,
+            'TERRITORY_DX_WEIGHT',
+            GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
+        );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
         const fillSat = readTunableNumber(input, 'METABALL_SATURATION', GAME_CONFIG.METABALL_SATURATION ?? 1.05);
@@ -2013,6 +2088,20 @@ export class MetaballGridFamily implements RenderFamily {
                 ? elapsed
                 : this.emaUpdateMs * 0.9 + elapsed * 0.1;
             updateMetaballGridStats({
+                familyId: this.variant.id,
+                familyLabel: this.variant.label,
+                geometrySource: settings.geometrySource,
+                waveGeometry: settings.waveGeometry,
+                waveSeeding: settings.waveSeeding,
+                borderMode,
+                borderBlend,
+                edgeSmoothingPasses: sharedEdgeSmoothingPasses,
+                edgeTrimPx,
+                borderChaikinPasses,
+                disconnectEnabled,
+                disconnectDistance,
+                dxWeight,
+                transitionEventCount: input.activeTransition?.events.length ?? 0,
                 requestedSpacingPx: cached.classification.requestedSpacingPx,
                 effectiveSpacingPx: cached.classification.spacingPx,
                 requestedDensityCellsPerMpx: spacingToDensityCellsPerMpx(
@@ -2691,6 +2780,7 @@ export class MetaballGridFamily implements RenderFamily {
             this.lastDebugSnapshot = this.buildDebugSnapshot({
                 input,
                 cached,
+                settings,
                 ownerIdByColorIdx,
                 scene,
                 schedulerRawProgress: input.activeTransition?.progress ?? null,
@@ -2698,6 +2788,11 @@ export class MetaballGridFamily implements RenderFamily {
                 progress,
                 flipTransition,
                 flipWindow,
+                borderMode,
+                borderBlend,
+                sharedEdgeSmoothingPasses,
+                edgeTrimPx,
+                borderChaikinPasses,
                 skipped: false,
                 rebuiltPlan,
                 holdingForPlan: progressState.holdingForPlan,
@@ -2708,6 +2803,20 @@ export class MetaballGridFamily implements RenderFamily {
             });
         }
         updateMetaballGridStats({
+            familyId: this.variant.id,
+            familyLabel: this.variant.label,
+            geometrySource: settings.geometrySource,
+            waveGeometry: settings.waveGeometry,
+            waveSeeding: settings.waveSeeding,
+            borderMode,
+            borderBlend,
+            edgeSmoothingPasses: sharedEdgeSmoothingPasses,
+            edgeTrimPx,
+            borderChaikinPasses,
+            disconnectEnabled,
+            disconnectDistance,
+            dxWeight,
+            transitionEventCount: input.activeTransition?.events.length ?? 0,
             requestedSpacingPx: cached.classification.requestedSpacingPx,
             effectiveSpacingPx: cached.classification.spacingPx,
             requestedDensityCellsPerMpx: spacingToDensityCellsPerMpx(

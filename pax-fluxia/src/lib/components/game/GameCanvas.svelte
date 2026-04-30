@@ -114,7 +114,10 @@
         createMetaballGridFamily,
         createMetaballGridPhaseEdgesFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
-    import { metaballGridPhaseEdgesModeDefaults } from "$lib/territory/families/metaballGrid/config";
+    import {
+        metaballGridPhaseEdgesGeometryDefaults,
+        metaballGridPhaseEdgesModeDefaults,
+    } from "$lib/territory/families/metaballGrid/config";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -1885,8 +1888,17 @@
     function buildPhaseEdgesRenderFamilyConfigSource(): Record<string, unknown> {
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseEdgesGeometryDefaults,
             ...metaballGridPhaseEdgesModeDefaults,
         };
+    }
+
+    function getRenderFamilyModeConfigSource(
+        mode: string,
+    ): Record<string, unknown> | undefined {
+        return mode === "metaball_grid_phase_edges"
+            ? buildPhaseEdgesRenderFamilyConfigSource()
+            : undefined;
     }
 
     function buildRenderFamilyOwnershipSnapshot(
@@ -2567,15 +2579,19 @@
     function buildRenderFamilyGeometryCacheKey(
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
+        configSource?: Record<string, unknown>,
     ): string {
+        const source =
+            configSource ??
+            (GAME_CONFIG as unknown as Record<string, unknown>);
         let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
-        key += `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
-        key += `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
-        key += `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:`;
-        key += `${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
-        key += `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:`;
-        key += `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:`;
-        key += `${GAME_CONFIG.CHAIKIN_BOUNDARY_PAD}:${GAME_CONFIG.CHAIKIN_BOUNDARY_EPS}:`;
+        key += `${source.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
+        key += `${source.MODIFIED_VORONOI_STAR_MARGIN}:${source.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
+        key += `${source.MODIFIED_VORONOI_CORRIDOR_SPACING}:${source.TERRITORY_CX_COUNT}:${source.TERRITORY_CX_WEIGHT}:`;
+        key += `${source.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${source.TERRITORY_CX_CONTEST_PAIR_COUNT}:${source.TERRITORY_CX_CONTEST_PAIR_WEIGHT}:${source.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
+        key += `${source.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${source.TERRITORY_DX_WEIGHT}:`;
+        key += `${source.TERRITORY_CLUSTER_SPLIT}:${source.VORONOI_BORDER_SMOOTH}:`;
+        key += `${source.CHAIKIN_BOUNDARY_PAD}:${source.CHAIKIN_BOUNDARY_EPS}:`;
         for (const star of stars) {
             key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
         }
@@ -2589,8 +2605,12 @@
     function getCurrentRenderFamilyGeometry(
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
+        configSource?: Record<string, unknown>,
     ): CanonicalGeometrySnapshot {
-        const key = buildRenderFamilyGeometryCacheKey(stars, lanes);
+        const source =
+            configSource ??
+            (GAME_CONFIG as unknown as Record<string, unknown>);
+        const key = buildRenderFamilyGeometryCacheKey(stars, lanes, source);
         if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
             renderFamilyGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
                 stars,
@@ -2600,7 +2620,9 @@
                 nowMs: fxOrchestrator.gameTime,
                 ownership: buildOwnershipSnapshotFromStars(stars),
                 geometrySource:
-                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "power_voronoi_0319",
+                    (source.PERIMETER_FIELD_GEOMETRY_SOURCE as string | null | undefined) ??
+                    "power_voronoi_0319",
+                configSource: source,
             });
             renderFamilyGeometryCacheKey = key;
             logPipelineStage({
@@ -2627,8 +2649,13 @@
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
         geometry: CanonicalGeometrySnapshot;
+        configSource?: Record<string, unknown> | null;
     }): void {
-        const key = buildRenderFamilyGeometryCacheKey(params.stars, params.lanes);
+        const key = buildRenderFamilyGeometryCacheKey(
+            params.stars,
+            params.lanes,
+            params.configSource ?? undefined,
+        );
         if (
             renderFamilyStableGeometryKey === key &&
             renderFamilyStableGeometry === params.geometry &&
@@ -2658,6 +2685,7 @@
     }
 
     function getTransitionDiagnosticPrevFrame(params: {
+        activeMode: string;
         activeTransition: RenderFamilyActiveTransition | null;
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
@@ -2698,6 +2726,9 @@
                     params.stars,
                 );
                 const ownership = buildOwnershipSnapshotFromStars(revertedStars);
+                const configSource = getRenderFamilyModeConfigSource(
+                    params.activeMode,
+                );
                 const geometry = measurePerf(
                     "game.renderFrame.tickEvents.capture.prevGeometry",
                     () =>
@@ -2709,8 +2740,12 @@
                             nowMs: fxOrchestrator.gameTime,
                             ownership,
                             geometrySource:
-                                GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+                                (configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as
+                                    | string
+                                    | null
+                                    | undefined) ??
                                 "power_voronoi_0319",
+                            configSource,
                         }),
                 );
                 transitionDiagnosticPrevKey = key;
@@ -2832,6 +2867,7 @@
             params.activeTransition,
         );
         const prevFrame = getTransitionDiagnosticPrevFrame({
+            activeMode: params.activeMode,
             activeTransition: params.activeTransition,
             stars: params.stars,
             lanes: params.lanes,
@@ -2845,7 +2881,11 @@
         const geometry =
             params.geometry ??
             measurePerf("game.renderFrame.tickEvents.capture.geometry", () =>
-                getCurrentRenderFamilyGeometry(params.stars, params.lanes),
+                getCurrentRenderFamilyGeometry(
+                    params.stars,
+                    params.lanes,
+                    getRenderFamilyModeConfigSource(params.activeMode),
+                ),
             );
         const liveFrame = measurePerf(
             "game.renderFrame.tickEvents.capture.extract",
@@ -5106,12 +5146,19 @@
                     : null;
                 let lastRenderFailure: string | null = null;
                 const lanes = activeGameStore.connections as StarConnection[];
+                const renderFamilyConfigSource =
+                    getRenderFamilyModeConfigSource(activeMode);
                 const activeRenderFamilyTransition =
                     renderFamilyTransitionState.activeTransition;
                 const readFamilyGeometry = (): CanonicalGeometrySnapshot => {
                     const geometry = measurePerf(
                         `game.renderFrame.geometry.${activeMode}`,
-                        () => getCurrentRenderFamilyGeometry(stars, lanes),
+                        () =>
+                            getCurrentRenderFamilyGeometry(
+                                stars,
+                                lanes,
+                                renderFamilyConfigSource,
+                            ),
                     );
                     geometryReady = true;
                     return geometry;
@@ -5323,6 +5370,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
+                                activeMode,
                                 activeTransition,
                                 stars,
                                 lanes,
@@ -5359,6 +5407,7 @@
                             stars,
                             lanes,
                             geometry,
+                            configSource: renderFamilyConfigSource,
                         });
                         transitionDiagnosticFrameInput = {
                             activeMode,
@@ -5391,6 +5440,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
+                                activeMode,
                                 activeTransition,
                                 stars,
                                 lanes,
@@ -5427,6 +5477,7 @@
                             stars,
                             lanes,
                             geometry,
+                            configSource: renderFamilyConfigSource,
                         });
                         transitionDiagnosticFrameInput = {
                             activeMode,
@@ -5459,6 +5510,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
+                                activeMode,
                                 activeTransition,
                                 stars,
                                 lanes,
@@ -5483,8 +5535,7 @@
                                     transitionSessions:
                                         renderFamilyTransitionState.activeSessions,
                                     tunableKeys: mg.tunableKeys,
-                                    configSource:
-                                        buildPhaseEdgesRenderFamilyConfigSource(),
+                                    configSource: renderFamilyConfigSource,
                                 }),
                         );
                         mg.update(mgInput);
@@ -5497,6 +5548,7 @@
                             stars,
                             lanes,
                             geometry,
+                            configSource: renderFamilyConfigSource,
                         });
                         transitionDiagnosticFrameInput = {
                             activeMode,
@@ -5534,6 +5586,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
+                                activeMode,
                                 activeTransition,
                                 stars,
                                 lanes,
@@ -5570,6 +5623,7 @@
                             stars,
                             lanes,
                             geometry,
+                            configSource: renderFamilyConfigSource,
                         });
                         if (
                             transitionDiagnosticStableFrame ||

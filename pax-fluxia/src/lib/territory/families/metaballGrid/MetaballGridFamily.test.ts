@@ -6,7 +6,10 @@ import type {
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
-import { createMetaballGridFamily } from './MetaballGridFamily';
+import {
+    createMetaballGridFamily,
+    createMetaballGridPhaseEdgesFamily,
+} from './MetaballGridFamily';
 import { metaballGridStats } from './metaballGridStats';
 
 function makeSnapshot(
@@ -299,6 +302,41 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(
             internalAfterCleanup.activeNextSprites.some((sprite) => sprite.visible),
         ).toBe(false);
+
+        family.dispose();
+    });
+
+    it('reports phase-edges defaults as a separate live family state', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        const input = makeInput(0.35);
+        const tunables = new Map(input.tunables);
+        tunables.set('METABALL_GRID_WAVE_GEOMETRY', 'pre_to_post_frontier');
+        tunables.set('METABALL_GRID_BORDER_MODE', 'territory_edge');
+        tunables.set('METABALL_GRID_BORDER_BLEND', true);
+        tunables.set('METABALL_GRID_BORDER_CHAIKIN_PASSES', 4);
+        family.update({
+            ...input,
+            tunables,
+            configSource: {
+                MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
+                MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
+                TERRITORY_DX_WEIGHT: 0.3,
+            },
+        });
+
+        const stats = get(metaballGridStats);
+        expect(stats.familyId).toBe('metaball_grid_phase_edges');
+        expect(stats.waveGeometry).toBe('pre_to_post_frontier');
+        expect(stats.borderMode).toBe('territory_edge');
+        expect(stats.borderBlend).toBe(true);
+        expect(stats.borderChaikinPasses).toBe(4);
+        expect(stats.disconnectEnabled).toBe(true);
+        expect(stats.disconnectDistance).toBe(295);
 
         family.dispose();
     });

@@ -75,6 +75,9 @@ export function buildRenderFamilyInput(params: {
         lanes: params.lanes,
         world: { width: params.worldWidth, height: params.worldHeight },
         tunables,
+        configSource:
+            params.configSource ??
+            (GAME_CONFIG as unknown as Record<string, unknown>),
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
         transitionSessions: params.transitionSessions ?? null,
@@ -110,6 +113,7 @@ export function buildRenderFamilyInput(params: {
             geometry: input.geometry,
             prevGeometry: input.prevGeometry,
             tunables: Object.fromEntries(tunables.entries()),
+            configSource: input.configSource,
             renderer: input.renderer,
             activeTransition: input.activeTransition,
             transitionSessions: input.transitionSessions,

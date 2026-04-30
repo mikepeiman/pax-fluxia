@@ -68,6 +68,7 @@ export interface RenderFamilyInput {
     lanes: ReadonlyArray<StarConnection>;
     world: { width: number; height: number };
     tunables: ReadonlyMap<string, RenderFamilyTunableValue>;
+    configSource?: Readonly<Record<string, unknown>>;
     renderer?: PIXI.Renderer;
     activeTransition?: RenderFamilyActiveTransition | null;
     transitionSessions?: ReadonlyArray<RenderFamilyTransitionSession> | null;

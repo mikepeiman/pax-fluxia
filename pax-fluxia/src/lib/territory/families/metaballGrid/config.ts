@@ -33,3 +33,8 @@ export const metaballGridPhaseEdgesModeDefaults = {
     METABALL_GRID_EDGE_TRIM_PX: 0,
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
 } as const;
+
+export const metaballGridPhaseEdgesGeometryDefaults = {
+    MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
+    MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
+} as const;

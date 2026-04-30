@@ -8,6 +8,34 @@
 import { writable } from 'svelte/store';
 
 export interface MetaballGridStats {
+    /** Active family variant id (`metaball_grid` vs `metaball_grid_phase_edges`). */
+    readonly familyId: string;
+    /** Human label for the active family variant. */
+    readonly familyLabel: string;
+    /** Effective upstream geometry source feeding the family. */
+    readonly geometrySource: string | null;
+    /** Effective wave-propagation geometry. */
+    readonly waveGeometry: string;
+    /** Effective frontier seeding strategy. */
+    readonly waveSeeding: string;
+    /** Effective border rendering strategy. */
+    readonly borderMode: string;
+    /** Whether centered-blended territory-edge borders are active. */
+    readonly borderBlend: boolean;
+    /** Effective shared-edge smoothing passes. */
+    readonly edgeSmoothingPasses: number;
+    /** Effective shared-edge trim distance in pixels. */
+    readonly edgeTrimPx: number;
+    /** Effective territory-edge Chaikin passes. */
+    readonly borderChaikinPasses: number;
+    /** Effective DX disconnect toggle in the upstream geometry path. */
+    readonly disconnectEnabled: boolean;
+    /** Effective DX disconnect distance in pixels. */
+    readonly disconnectDistance: number;
+    /** Effective DX weight in the upstream geometry path. */
+    readonly dxWeight: number;
+    /** Active conquest events driving this family update. */
+    readonly transitionEventCount: number;
     /** Requested cell spacing from config (px). */
     readonly requestedSpacingPx: number;
     /** Effective spacing after `METABALL_GRID_MAX_CELLS` coarsening (px). */
@@ -42,6 +70,22 @@ export interface MetaballGridStats {
     readonly lastSceneBuildMs: number;
     /** Paint time for the last update (ms). */
     readonly lastPaintMs: number;
+    /** True when a new transition plan is still building off-thread. */
+    readonly planWorkerPending: boolean;
+    /** True when the family is intentionally holding the PRE frame for a pending plan. */
+    readonly holdingForPlan: boolean;
+    /** True when the visible transition is driven by the family's local clock. */
+    readonly visualTransitionActive: boolean;
+    /** Human-meaningful state of the currently visible metaball-grid frame. */
+    readonly visibleFrameState:
+        | 'steady'
+        | 'holding_pre'
+        | 'requested_plan'
+        | 'fallback_plan';
+    /** Which timeline currently drives visible transition progress. */
+    readonly clockSource: 'none' | 'scheduler' | 'local';
+    /** Whether the family is rendering live vector graphics or a cached steady-state texture. */
+    readonly renderCacheMode: 'live_vectors' | 'steady_texture';
     /** Transition cells currently inside the active blend window. */
     readonly activeWindowCount: number;
     /** Total non-native transition cells in the ordered frontier. */
@@ -59,6 +103,20 @@ export interface MetaballGridStats {
 }
 
 const INITIAL: MetaballGridStats = {
+    familyId: 'metaball_grid',
+    familyLabel: 'Metaball Grid',
+    geometrySource: null,
+    waveGeometry: 'grid_bfs',
+    waveSeeding: 'winner_natives',
+    borderMode: 'off',
+    borderBlend: false,
+    edgeSmoothingPasses: 0,
+    edgeTrimPx: 0,
+    borderChaikinPasses: 0,
+    disconnectEnabled: false,
+    disconnectDistance: 0,
+    dxWeight: 0,
+    transitionEventCount: 0,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
     requestedDensityCellsPerMpx: 0,
@@ -76,6 +134,12 @@ const INITIAL: MetaballGridStats = {
     lastPlanBuildMs: 0,
     lastSceneBuildMs: 0,
     lastPaintMs: 0,
+    planWorkerPending: false,
+    holdingForPlan: false,
+    visualTransitionActive: false,
+    visibleFrameState: 'steady',
+    clockSource: 'none',
+    renderCacheMode: 'live_vectors',
     activeWindowCount: 0,
     transitionTotalCount: 0,
     promotedToActiveCount: 0,

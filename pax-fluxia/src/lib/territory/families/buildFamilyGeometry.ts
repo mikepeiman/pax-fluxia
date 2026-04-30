@@ -25,6 +25,7 @@ import type {
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
+import { buildTerritoryGeneratorSettingsFromTunables } from '../geometry/geometryTuning';
 
 type PerimeterFieldGeometrySourceId = 'canonical_vector' | 'power_voronoi_0319';
 
@@ -314,6 +315,36 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
     };
 }
 
+export function buildPowerVoronoi0319Settings(params: {
+    lanes: ReadonlyArray<StarConnection>;
+    worldWidth: number;
+    worldHeight: number;
+    configSource?: Record<string, unknown>;
+}): TerritoryGeneratorSettings {
+    const runtimeSettings = readTerritoryRuntimeSettings(
+        (params.configSource ??
+            (GAME_CONFIG as unknown as Record<string, unknown>)) as Record<
+            string,
+            unknown
+        >,
+    );
+    return buildTerritoryGeneratorSettingsFromTunables({
+        world: {
+            width: params.worldWidth,
+            height: params.worldHeight,
+        },
+        tunables: {
+            ...runtimeSettings.tunables,
+            corridorEnabled:
+                runtimeSettings.tunables.corridorEnabled &&
+                params.lanes.length > 0,
+            disconnectEnabled:
+                runtimeSettings.tunables.disconnectEnabled &&
+                params.lanes.length > 0,
+        },
+    });
+}
+
 function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     stars: ReadonlyArray<StarState>;
     lanes: ReadonlyArray<StarConnection>;
@@ -321,32 +352,14 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     worldHeight: number;
     ownershipVersion: string;
     sourceStyle: CanonicalGeometrySnapshot['sourceStyle'];
+    configSource?: Record<string, unknown>;
 }): CanonicalGeometrySnapshot | null {
-    const settings: TerritoryGeneratorSettings = {
-        starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-        corridorEnabled:
-            Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) &&
-            params.lanes.length > 0,
-        corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-        cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
-        cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-        disconnectEnabled:
-            Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) &&
-            params.lanes.length > 0,
-        disconnectDistance:
-            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-        dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
-        clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-        chaikinPasses: Math.max(
-            0,
-            Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)),
-        ),
-        frontierResolution: 0,
-        boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-        boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+    const settings = buildPowerVoronoi0319Settings({
+        lanes: params.lanes,
         worldWidth: params.worldWidth,
         worldHeight: params.worldHeight,
-    };
+        configSource: params.configSource,
+    });
 
     const result = computeGeometry0319(
         [...params.stars],
@@ -378,14 +391,18 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     nowMs: number;
     ownership?: OwnershipSnapshot | null;
     geometrySource?: string | null;
+    configSource?: Record<string, unknown>;
 }): CanonicalGeometrySnapshot {
+    const configSource =
+        params.configSource ??
+        (GAME_CONFIG as unknown as Record<string, unknown>);
     const runtimeSettings = readTerritoryRuntimeSettings(
-        GAME_CONFIG as unknown as Record<string, unknown>,
+        configSource,
     );
     const ownership =
         params.ownership ?? buildOwnershipSnapshotFromStars(params.stars);
     const geometrySource = (params.geometrySource ??
-        GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+        configSource.PERIMETER_FIELD_GEOMETRY_SOURCE ??
         'power_voronoi_0319') as PerimeterFieldGeometrySourceId;
 
     if (geometrySource === 'power_voronoi_0319') {
@@ -396,6 +413,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
             worldHeight: params.worldHeight,
             ownershipVersion: ownership.version,
             sourceStyle: runtimeSettings.selection.styleMode,
+            configSource,
         });
         if (adapted) {
             logPipelineStage({
