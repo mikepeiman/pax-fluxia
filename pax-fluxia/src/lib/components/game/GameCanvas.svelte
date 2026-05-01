@@ -180,8 +180,8 @@
         type TerritoryPresentationFrame,
     } from "$lib/components/game/territoryPresentationSpace";
     import {
+        resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
-        resolveMapFitWorldRect,
         resolveViewportWorldRect,
     } from "$lib/components/game/worldRect";
 
@@ -3271,9 +3271,10 @@
         const cw = app.screen.width;
         const ch = app.screen.height;
         const es = baseScale * clampedZoom;
-        const stageFitRect = getStageFitRect();
-        const baselineX = cw / 2 - stageFitRect.centerX * es;
-        const baselineY = ch / 2 - stageFitRect.centerY * es;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
         const desiredStageX = cw / 2 - sx * es;
         const desiredStageY = ch / 2 - sy * es;
 
@@ -3760,19 +3761,15 @@
     // Rendering
     // ============================================================================
 
-    // Camera-fit diagnostics for the star map.
+    // Camera-fit rect for the star map.
     let contentMinX = 0;
     let contentMinY = 0;
     let contentWidth = 1600;
     let contentHeight = 900;
     // Stable coordinate-space map extents rooted at (0,0).
-    let mapWorldMinX = 0;
-    let mapWorldMinY = 0;
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
-    // Territory presentation frame. This must stay locked to the same
-    // authoritative map rect the stage uses for fit/centering, otherwise fills
-    // and stars will disagree about what "the map" means.
+    // Territory fill frame that is viewport-aligned but centered on the star map.
     let territoryWorldMinX = 0;
     let territoryWorldMinY = 0;
     let territoryWorldWidth = 1600;
@@ -3785,26 +3782,6 @@
             width: territoryWorldWidth,
             height: territoryWorldHeight,
         };
-    }
-
-    function getStageFitRect(): {
-        minX: number;
-        minY: number;
-        width: number;
-        height: number;
-        centerX: number;
-        centerY: number;
-    } {
-        const mapFitRect = resolveMapFitWorldRect({
-            minX: mapWorldMinX,
-            minY: mapWorldMinY,
-            width: GAME_WIDTH,
-            height: GAME_HEIGHT,
-            requiredWidth: GAME_WIDTH,
-            requiredHeight: GAME_HEIGHT,
-            source: "configured_map",
-        });
-        return mapFitRect;
     }
 
     /** Resolve configured map extents for the current display orientation. */
@@ -3857,8 +3834,6 @@
         contentMinY = fitRect.minY;
         contentWidth = fitRect.width;
         contentHeight = fitRect.height;
-        mapWorldMinX = worldRect.minX;
-        mapWorldMinY = worldRect.minY;
         GAME_WIDTH = worldRect.width;
         GAME_HEIGHT = worldRect.height;
 
@@ -3870,10 +3845,21 @@
     }
 
     function updateTerritoryViewportFrame() {
-        territoryWorldMinX = mapWorldMinX;
-        territoryWorldMinY = mapWorldMinY;
-        territoryWorldWidth = GAME_WIDTH;
-        territoryWorldHeight = GAME_HEIGHT;
+        if (!app) return;
+        const fitScale = Math.max(baseScale, 0.000001);
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const viewportFrame = resolveCenteredViewportFrame({
+            centerX: contentCenterX,
+            centerY: contentCenterY,
+            viewportWidthPx: app.screen.width,
+            viewportHeightPx: app.screen.height,
+            scale: fitScale,
+        });
+        territoryWorldMinX = viewportFrame.minX;
+        territoryWorldMinY = viewportFrame.minY;
+        territoryWorldWidth = viewportFrame.width;
+        territoryWorldHeight = viewportFrame.height;
         if (voronoiContainer) {
             voronoiContainer.x = territoryWorldMinX;
             voronoiContainer.y = territoryWorldMinY;
@@ -4004,10 +3990,9 @@
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
 
-        const stageFitRect = getStageFitRect();
         baseScale = Math.min(
-            containerWidth / stageFitRect.width,
-            containerHeight / stageFitRect.height,
+            containerWidth / contentWidth,
+            containerHeight / contentHeight,
         );
         updateTerritoryViewportFrame();
 
@@ -4051,9 +4036,10 @@
         app.stage.scale.set(es, es);
 
         // Center on content bounding box, then apply pan offset
-        const stageFitRect = getStageFitRect();
-        const baselineX = cw / 2 - stageFitRect.centerX * es;
-        const baselineY = ch / 2 - stageFitRect.centerY * es;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
 
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
@@ -4081,9 +4067,8 @@
         const cw = app.screen.width;
         const ch = app.screen.height;
         const es = baseScale * zoomLevel;
-        const stageFitRect = getStageFitRect();
-        const scaledContentW = stageFitRect.width * es;
-        const scaledContentH = stageFitRect.height * es;
+        const scaledContentW = contentWidth * es;
+        const scaledContentH = contentHeight * es;
 
         // Only allow pan when zoomed-in content exceeds viewport
         const overflowX = Math.max(0, (scaledContentW - cw) / 2);
@@ -4095,8 +4080,10 @@
         panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
 
         // Reapply position after clamp
-        const baselineX = cw / 2 - stageFitRect.centerX * es;
-        const baselineY = ch / 2 - stageFitRect.centerY * es;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = cw / 2 - contentCenterX * es;
+        const baselineY = ch / 2 - contentCenterY * es;
         app.stage.x = baselineX - panOffsetX * es;
         app.stage.y = baselineY - panOffsetY * es;
     }
@@ -4135,11 +4122,10 @@
         const effectiveScale = baseScale * zoomLevel;
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
-        const stageFitRect = getStageFitRect();
-        const baselineX =
-            containerWidth / 2 - stageFitRect.centerX * effectiveScale;
-        const baselineY =
-            containerHeight / 2 - stageFitRect.centerY * effectiveScale;
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
+        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
 
         // worldBefore should remain under cursor after transform:
         // screenX = baselineX - panOffsetX * es + worldBefore.x * es
