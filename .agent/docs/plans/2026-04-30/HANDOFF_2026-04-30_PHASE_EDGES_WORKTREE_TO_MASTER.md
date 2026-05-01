@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Code-bearing branch tip at last runtime validation:** `73b607e91` (`Fix phase-edges viewport fill phase and perimeter border`)  
+**Code-bearing branch tip at last runtime validation:** `4dbdd11ea` (`Fix phase-edges border layer ownership`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master before subsequent docs-only catch-up commits:** 15
+**Commits ahead of master before subsequent docs-only catch-up commits:** 16
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -32,6 +32,7 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 13. `81451e3dc` - `Restore star-fit centering for territory presentation`
 14. `4328753af` - `Document restored star-fit centering model`
 15. `73b607e91` - `Fix phase-edges viewport fill phase and perimeter border`
+16. `4dbdd11ea` - `Fix phase-edges border layer ownership`
 
 ### Code scope
 
@@ -628,3 +629,41 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - do not treat this as a one-off right-edge patch; the durable fix is preserving world-grid phase when localized presentation frames are used
   - the outer perimeter must remain a first-class clipped-frame pass, not a side effect of owner-owner edge collection
   - after live verification of the right-margin and four-sided-perimeter result, the next queued task is transition end-jank/disjointness near the finish
+
+### 2026-05-01 - additive correction after the localized-phase fix still left the visible border defects
+
+- The user then reported that the previous code-bearing fix had not visibly solved the remaining acceptance issues:
+  - the right-side margin still appeared
+  - the outer map perimeter now showed on three sides except the right
+  - `Border Mode = off` still left a surviving solid-color border path
+  - `Border Mode = territory_edge` showed two nearly identical borders, slightly offset
+- This narrowed the next correction to render-path ownership:
+  - not just geometry support
+  - not just perimeter collection
+- Important diagnosis:
+  - Phase Edges was still allowing dormant/non-selected border layers to survive underneath the shared-edge control path
+  - phase-derived border presentation was not fully gated by `Border Mode`
+  - centered-blended shared-edge borders were not explicitly restricted to the `shared_edge` border source
+  - the clipped-frame outer perimeter also still used strict edge-overrun checks, so exact-right-edge contact could be missed
+- Runtime changes made in `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`:
+  - clear and hide dormant border layers every frame:
+    - `frontierGraphics`
+    - `frontierMeshLayer`
+    - unused frontier shader layers
+  - gate phase-derived border rendering behind:
+    - `borderMode !== 'off'`
+    - positive effective border width / alpha
+    - the selected frontier surface recipe actually using phase borders
+  - restrict centered-blended shared-edge borders so they only run when the active border source is `shared_edge`
+  - treat exact clipped-frame boundary contact as inclusive for outer perimeter interval collection, so the right side is not dropped when the last occupied owner column lands exactly on the frame edge
+- Regression coverage added in `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`:
+  - `Border Mode = off` clears stale border layers
+  - shared-edge `territory_edge` keeps the visible border on the base border layer only
+- Validation:
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts src/lib/territory/families/metaballGrid/buildGridClassification.test.ts`
+  - `bun x vite build`
+- Merge/backport guidance:
+  - preserve the rule that border mode owns every border-producing layer, not just the primary one
+  - preserve the mutual exclusion between shared-edge borders and phase-derived contour/band borders in control mode
+  - if the right-side fill margin still remains after this correction, continue with a fill-support audit separately; do not fold that investigation back into border-layer ownership
+  - the next queued acceptance task remains transition end-jank/disjointness, but only after the live border/perimeter result is confirmed

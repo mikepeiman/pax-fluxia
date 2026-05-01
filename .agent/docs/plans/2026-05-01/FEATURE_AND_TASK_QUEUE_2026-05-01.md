@@ -1,9 +1,10 @@
 # Feature And Task Queue - 2026-05-01
 
 ## Active
-- Live user verification that the preferred Phase Edges mode is centered by the star-fit rect again after the map-rect centering step was rejected.
-- Live user verification that territory fills now extend symmetrically around that centered star-fit view.
-- Live user verification that `Outer perimeter border` is either fully absent when off or fully consistent around the map when on.
+- Live user verification that the preferred Phase Edges mode remains centered by the star-fit rect.
+- Live user verification that the optional outer perimeter border now includes the right side as well, instead of dropping only that side.
+- Live user verification that `Border Mode = off` now leaves no surviving underlying border draw in Phase Edges.
+- Live user verification that `Border Mode = territory_edge` no longer stacks a second border path under the intended blended shared-edge border.
 - Continue Phase Edges acceptance work from 2026-04-30 after the viewport/world-rect correction:
 - no structural fill/border divergence
 - no stable-area steady-state vs transition border divergence
@@ -41,12 +42,22 @@
   - not from whichever sampled grid column happened to be last
   - this keeps `Outer perimeter border` a first-class optional feature rather than a right-edge artifact
 - Added regression coverage in `pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.test.ts` for localized frame phase preservation.
+- Corrected Phase Edges border-layer ownership in `MetaballGridPhaseEdgesFamily.ts`:
+  - dormant contour/shader border layers are now cleared and hidden every frame instead of being allowed to survive under shared-edge control
+  - phase-derived border presentation is now gated by `borderMode !== 'off'` and active border alpha/width, so `Border Mode = off` no longer leaves a hidden secondary border path alive
+  - centered-blended shared-edge borders now only run when the selected frontier border source is actually `shared_edge`, preventing contour/shared-edge stacking in control mode
+  - clipped-frame outer-perimeter collection now treats exact frame-edge contact as inclusive, so the right side does not disappear when the last owner column lands exactly on the frame boundary
+- Added regression coverage in `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts` for:
+  - clearing stale border layers when `Border Mode = off`
+  - keeping shared-edge `territory_edge` borders on the base border layer only
 - Validated the current delta with:
   - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/buildGridClassification.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts src/lib/territory/families/metaballGrid/buildGridClassification.test.ts`
   - `bun x vite build`
 
 ## Next
 - User confirms the live result in the running worktree.
-- If a one-sided fill margin still remains after the grid-phase preservation change, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a centering baseline problem.
-- If the outer perimeter is still asymmetric, inspect whether any border path outside the centered-blended pass still bypasses `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED`.
+- If the right-side fill margin still remains after the border-layer ownership fix, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a border-path problem.
+- If the right-side perimeter is still missing, inspect whether the presentation-frame width itself is slightly overshooting the occupied grid support rather than the perimeter pass missing a contact edge.
 - After those two live checks pass, start the queued transition end-jank investigation.

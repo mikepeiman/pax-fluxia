@@ -23,3 +23,6 @@
 - Once a territory renderer localizes geometry into a presentation frame, the grid classifier must preserve the underlying world-grid phase. Rebuilding the localized frame as a fresh `0`-anchored grid will manufacture one-sided gaps and make centering bugs look worse than they are.
 - Optional outer-perimeter borders must be derived from the clipped presentation-frame boundary, not from whichever sampled grid edge happened to be last. Sampling artifacts and frame-edge clipping will otherwise show up as “only one side has a border.”
 - `bun x vitest` is currently unreliable in this Windows worktree because of a temp-path `vite/dist/client/client.mjs` resolution failure. The repo-local runner `bun ./node_modules/vitest/vitest.mjs run ...` is the reliable path here.
+- Border mode must own every visible border path. If `Border Mode = off` still leaves a visible line, a second border-producing layer is escaping the contract.
+- Shared-edge and phase-derived contour/band borders are mutually exclusive geometry families in control mode. If both render in the same frame, the defect is layer ownership, not styling.
+- Clipped-frame perimeter tests need inclusive edge contact, not strict overrun tests. When a grid cell lands exactly on the frame boundary, strict inequality can drop a whole side even though the presentation frame itself is correct.
