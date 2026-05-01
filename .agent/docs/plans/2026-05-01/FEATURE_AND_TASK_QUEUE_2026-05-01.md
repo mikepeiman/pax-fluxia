@@ -1,8 +1,8 @@
 # Feature And Task Queue - 2026-05-01
 
 ## Active
-- Live user verification that the preferred Phase Edges mode is now centered by the authoritative map rect rather than by the star-fit rect.
-- Live user verification that territory fills now reach the full viewport/grid-area bounds without the all-edge margins introduced by the earlier viewport-aligned presentation-frame theory.
+- Live user verification that the preferred Phase Edges mode is centered by the star-fit rect again after the map-rect centering step was rejected.
+- Live user verification that territory fills now extend symmetrically around that centered star-fit view.
 - Live user verification that `Outer perimeter border` is either fully absent when off or fully consistent around the map when on.
 - Continue Phase Edges acceptance work from 2026-04-30 after the viewport/world-rect correction:
 - no structural fill/border divergence
@@ -27,11 +27,9 @@
 - Re-locked the territory presentation frame to the authoritative map rect so stars, fills, and borders share the same map ownership contract again.
 - Added a first-class `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` toggle and surfaced it in `Territory Styles > Border` as `Outer perimeter border`.
 - Corrected the Phase Edges centered-blended edge path so owner-vs-world perimeter edges are drawn by an explicit perimeter pass instead of leaking asymmetrically from the owner-owner adjacency pass.
+- Rejected the map-rect centering theory after live user feedback and restored star-fit centering in `GameCanvas.svelte` while keeping the explicit outer-perimeter toggle/path.
 
 ## Next
 - User confirms the live result in the running worktree.
-- If centering is still not exact after the map-rect fit change, inspect whether the remaining offset is:
-  - CSS grid/container sizing outside Pixi
-  - a stage child outside the unified map-fit transform path
-  - stale saved-map/debug-map metadata feeding the wrong authored/display map rect
+- If centering is still not exact after the star-fit restore, inspect whether the remaining offset is in the viewport-aligned fill-frame sizing/localization rather than the centering baseline itself.
 - If the outer perimeter is still asymmetric, inspect whether any remaining border path bypasses `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` and still treats out-of-bounds neighbors as implicit edges.

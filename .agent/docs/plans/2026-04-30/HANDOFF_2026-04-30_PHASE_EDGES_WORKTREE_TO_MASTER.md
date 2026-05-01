@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**This branch tip:** `c2f3dcfb8` (`Align territory fit to map rect and add outer border toggle`)  
+**This branch tip:** `81451e3dc` (`Restore star-fit centering for territory presentation`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master:** 11
+**Commits ahead of master:** 13
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -28,6 +28,8 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 9. `89c9cdd69` - `Fix territory viewport presentation framing`
 10. `bde7dd7c3` - `Update viewport fix handoff metadata`
 11. `c2f3dcfb8` - `Align territory fit to map rect and add outer border toggle`
+12. `36ef604d0` - `Document map-rect centering rethink and perimeter toggle`
+13. `81451e3dc` - `Restore star-fit centering for territory presentation`
 
 ### Code scope
 
@@ -571,3 +573,18 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - live user verification that the map is now exactly centered
   - live user verification that fills reach the intended map-area bounds
   - live user verification that outer perimeter is either fully off or fully consistent around the whole map
+
+### 2026-05-01 - additive correction after the map-rect centering step was rejected
+
+- The user then clarified that the previous summary sentence had inverted the intended ownership model:
+  - the star-map bounds are what must be centered
+  - the fill must extend equally in all directions around that centered star-map view
+- This means commit `c2f3dcfb8` should not be treated as the final centering architecture. It preserved the outer-perimeter work, but its map-rect centering change was a semantic misread of the user requirement.
+- Corrective runtime change in `81451e3dc`:
+  - restored star-fit/content-rect centering in `GameCanvas.svelte`
+  - restored star-fit/content-rect sizing for `baseScale`, zoom baseline, wheel-anchor baseline, and pan clamping
+  - kept the explicit `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` toggle/path from `c2f3dcfb8`
+- Merge guidance:
+  - keep the outer-perimeter feature from `c2f3dcfb8`
+  - do not keep its map-rect centering baseline
+  - the active branch tip returns to star-fit centering while still using a viewport-aligned territory fill frame around that star-fit center
