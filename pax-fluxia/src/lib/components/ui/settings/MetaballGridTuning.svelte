@@ -106,6 +106,35 @@
         return !isPhaseEdgesMode() && usesGridEdgeShapingControls();
     }
 
+    function usesBorderChaikinControl(): boolean {
+        if (isPhaseFieldMode()) return false;
+        return (
+            currentBorderMode() === 'territory_edge' &&
+            currentBorderBlend() &&
+            currentDistribution() === 'square'
+        );
+    }
+
+    function usesSharedEdgeSmoothingControl(): boolean {
+        if (!showGridEdgeShapingControls()) return false;
+        if (!isPhaseFieldMode()) return true;
+        return currentCellShape() === 'square';
+    }
+
+    function sharedEdgeSmoothingDescription(): string {
+        if (isPhaseFieldMode()) {
+            return 'Rounds square grid-edge boundary strokes.';
+        }
+        return 'Softens the grid-edge border path before Chaikin rounding.';
+    }
+
+    function sharedEdgeTrimDescription(): string {
+        if (isPhaseFieldMode()) {
+            return 'Moves grid-edge boundary strokes inward.';
+        }
+        return 'Trims open grid-edge border chains at both ends.';
+    }
+
     // Resolved values.
     function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
         const raw =
@@ -730,61 +759,65 @@
 {/if}
 
 {#if showGridEdgeShapingControls()}
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name" title="Number of Chaikin corner-cutting passes applied to the grid-edge border path before it is stroked. 0 = angular. Higher values = rounder.">
-                Border Chaikin Passes
-            </span>
-            <span class="val">{currentBorderChaikinPasses()}</span>
+    {#if usesBorderChaikinControl()}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name" title="Number of Chaikin corner-cutting passes applied to the blended grid-edge border path before it is stroked. 0 = angular. Higher values = rounder.">
+                    Border Chaikin Passes
+                </span>
+                <span class="val">{currentBorderChaikinPasses()}</span>
+            </div>
+            <div class="var-desc">
+                Rounds the blended grid-edge border line. Higher values cost more CPU.
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="4"
+                step="1"
+                value={currentBorderChaikinPasses()}
+                oninput={(event) => {
+                    const value = parseInt((event.target as HTMLInputElement).value, 10);
+                    writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+                }}
+            />
         </div>
-        <div class="var-desc">
-            Rounds the grid-edge border path. Higher values cost more CPU.
+    {/if}
+
+    {#if usesSharedEdgeSmoothingControl()}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name" title="Extra rounding pressure applied before the grid-edge border path is stroked.">
+                    Shared Edge Smoothing
+                </span>
+                <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+            </div>
+            <div class="var-desc">
+                {sharedEdgeSmoothingDescription()}
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="4"
+                step="1"
+                value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+                oninput={(event) => {
+                    const value = parseInt((event.target as HTMLInputElement).value, 10);
+                    writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+                }}
+            />
         </div>
-        <input
-            type="range"
-            min="0"
-            max="4"
-            step="1"
-            value={currentBorderChaikinPasses()}
-            oninput={(event) => {
-                const value = parseInt((event.target as HTMLInputElement).value, 10);
-                writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
-            }}
-        />
-    </div>
+    {/if}
 
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name" title="Extra rounding pressure applied before the grid-edge border path is stroked.">
-                Shared Edge Smoothing
-            </span>
-            <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
-        </div>
-        <div class="var-desc">
-            Softens the grid-edge border path before Chaikin rounding.
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="4"
-            step="1"
-            value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-            oninput={(event) => {
-                const value = parseInt((event.target as HTMLInputElement).value, 10);
-                writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
-            }}
-        />
-    </div>
-
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name" title="Trim open grid-edge border polylines inward at each endpoint.">
+            <span class="var-name" title="Trim or inset the grid-edge border path.">
                 Shared Edge Trim
             </span>
             <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
         </div>
         <div class="var-desc">
-            Trims open grid-edge border chains at both ends.
+            {sharedEdgeTrimDescription()}
         </div>
         <input
             type="range"
@@ -798,9 +831,14 @@
             }}
         />
     </div>
+    {#if isPhaseFieldMode() && currentCellShape() !== 'square'}
+        <div class="var-desc">
+            Shared Edge Smoothing is only used with square cells in Phase Field.
+        </div>
+    {/if}
 {:else if currentBorderMode() === 'territory_edge' && usesGeometryFrontierBorders()}
     <div class="var-desc">
-        Grid-edge shaping appears when Centered-blended borders is Off.
+        Smooth territory-outline borders ignore grid-edge shaping. Turn Centered-blended borders Off to tune the grid-edge fallback path.
     </div>
 {/if}
 </div>

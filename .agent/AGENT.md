@@ -830,3 +830,31 @@ Suggested structure:
   - disabled range inputs no longer have live `+/-` buttons beside them,
   - phase-field grid-edge shaping controls are only rendered when the active border path actually uses them,
   - the previous split-brain interaction state is removed instead of merely restyled.
+
+### 2026-05-01 - Audit Phase-Field Border Shape Controls
+
+- Lane: `territory/phase-field-border-shape-audit`
+- User task: audit the three `Shape` controls (`Border Chaikin Passes`, `Shared Edge Smoothing`, `Shared Edge Trim`) because they appeared to have zero effect.
+
+#### Pass Log
+
+1. Pass 1 - Traced the UI write path and confirmed all three controls do write into live config correctly. The problem is not slider reactivity.
+2. Pass 2 - Traced the runtime read path in `MetaballGridPhaseFieldFamily.ts` and confirmed the user's live settings currently select `TERRITORY_RENDER_MODE=metaball_grid_phase_field`, `METABALL_GRID_BORDER_MODE=territory_edge`, and `METABALL_GRID_BORDER_BLEND=true`.
+3. Pass 3 - Confirmed that this exact combination activates `useCanonicalTerritoryEdgeBorders`, which routes border rendering through `drawCanonicalTerritoryEdgeOverlay(...)`. That branch ignores all three shape controls entirely.
+4. Pass 4 - Audited the fallback grid-border path too. Findings for Phase Field specifically:
+   - `Border Chaikin Passes` is dead in every phase-field border branch.
+   - `Shared Edge Smoothing` is only real for square-cell grid-edge fallback borders.
+   - `Shared Edge Trim` is only real for grid-edge fallback borders, where it moves boundary strokes inward rather than trimming a smooth outline.
+5. Pass 5 - Tightened `MetaballGridTuning.svelte` to match that truth:
+   - removed `Border Chaikin Passes` from Phase Field,
+   - only show `Shared Edge Smoothing` in Phase Field when square-cell grid-edge fallback borders can actually use it,
+   - rewrote the trim/smoothing copy so Phase Field no longer claims it is shaping a path it does not use,
+   - replaced the old fallback note with a direct statement that smooth territory-outline borders ignore grid-edge shaping.
+
+#### Merge Note
+
+- Functional conflict surface for this pass is `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`.
+- Critical behavioral deltas for merge/review:
+  - in the user's current live phase-field settings, those three shape controls are now explicitly not surfaced as live because the smooth territory-outline border branch ignores them,
+  - `Border Chaikin Passes` is no longer offered in Phase Field because it was dead,
+  - Phase Field only shows the remaining grid-edge shaping controls when the active border path can actually consume them.
