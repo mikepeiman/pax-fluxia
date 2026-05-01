@@ -61,6 +61,7 @@
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
+    import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -1386,19 +1387,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         view="modes"
                     />
                 {:else if sec.id === "territory_tuning"}
-                    <ControlsSectionTerritory
+                    <TerritoryTopologyTuning
                         {panel}
                         {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                        view="tuning"
                     />
                 {:else if sec.id === "territory_styles"}
                     <ControlsSectionTerritory

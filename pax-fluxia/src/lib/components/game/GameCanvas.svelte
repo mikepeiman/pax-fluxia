@@ -1896,17 +1896,17 @@
 
     function buildPhaseEdgesRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesGeometryDefaults,
             ...metaballGridPhaseEdgesModeDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
         };
     }
 
     function buildPhaseFieldRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseFieldGeometryDefaults,
             ...metaballGridPhaseFieldModeDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
         };
     }
 

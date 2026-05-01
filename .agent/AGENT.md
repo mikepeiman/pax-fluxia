@@ -693,3 +693,37 @@ Suggested structure:
   - confirm `territory_edge` vs `per_cell` reads distinctly in phase field,
   - confirm `Centered-blended borders` now affects border behavior rather than frontier highlight,
   - confirm `Frontier Highlight` plus `Frontier Fade Start/End` behaves as a separate conquest-local accent.
+
+### 2026-04-30 - Territory Styles/Topology Split And Canonical Phase-Field Borders
+
+- Lane: `territory/styles-topology-split-and-canonical-borders`
+- User task: remove the duplicate Territory top-level sections by separating topology into its own panel and leaving the rest as a pure Territory Styles surface, then debug why phase-field still did not show borders despite the earlier border pass.
+- Scope this pass: settings-shell structure, Territory styles copy truthfulness, phase-mode default cleanup, and the phase-field `territory_edge + centered-blended` runtime path.
+
+#### Pass Log
+
+1. Pass 1 - Audited the top-level Territory shell instead of assuming the duplication was just naming drift. Confirmed the problem was structural: `GameSettingsPanel.svelte` mounted both `territory_tuning` and `territory_styles`, but `ControlsSection-Territory.svelte` still rendered nearly the same renderer/style body in both cases because the styles shell did not actually exclude the topology content path strongly enough.
+2. Pass 2 - Split topology into its own mounted component. Added `TerritoryTopologyTuning.svelte`, moved the topology-only controls and compile-status behavior there, wired `territory_tuning` in `GameSettingsPanel.svelte` to that dedicated component, and relabeled the section in `settingsRegistry.ts` to `Territory Topology`.
+3. Pass 3 - Reduced `ControlsSection-Territory.svelte` to a real styles shell for the `territory_styles` section. Removed the old embedded topology module logic from that component so the remaining surface is explicitly `Territory Styles`.
+4. Pass 4 - Cleaned the styles copy to match the new ownership boundaries. The Metaball Grid styles card no longer claims topology ownership; it now points users to `Territory Topology` for corridor/disconnect/star-margin/frontier-resolution work and keeps this panel focused on appearance and transition feel.
+5. Pass 5 - Re-traced the phase-field border failure after the earlier overlay pass and found the deeper semantic issue: default phase-field borders used `territory_edge + centered-blended`, but that path still depended on the grid-derived shared-edge builder. That made the default border look fragile or absent even though the control plumbing existed.
+6. Pass 6 - Switched the default phase-field `territory_edge + centered-blended` path to canonical geometry borders. `MetaballGridPhaseFieldFamily.ts` now draws `frontierPolylines` and `worldBorderPolylines` from the canonical geometry snapshot when the mode is using the canonical centered-blended territory-edge case, while the old grid-owned border scene remains available for explicit grid-border looks (`per_cell` or non-blended territory-edge fallback).
+7. Pass 7 - Made the control semantics truthful after that runtime change. In `MetaballGridTuning.svelte`, the shared edge-shaping controls now explain when they do and do not apply: canonical phase-field territory-edge borders ignore the grid-owned Chaikin/smoothing/trim path unless the user explicitly falls back to the non-canonical edge mode.
+8. Pass 8 - Restored the missing `METABALL_GRID_WAVE_GEOMETRY` keys in the phase-mode defaults objects after removing the hard override earlier in the sprint. This keeps `phase_edges` and shared family code type-safe without reintroducing the old false-choice runtime lock, because `GameCanvas.svelte` now merges mode defaults before live `GAME_CONFIG`.
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, `pax-fluxia/src/lib/components/ui/settings/settingsRegistry.ts`, `pax-fluxia/src/lib/components/ui/settings/TerritoryTopologyTuning.svelte`, `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`, `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`, `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`, and `pax-fluxia/src/lib/territory/families/metaballGrid/config.ts`.
+- Critical behavioral deltas for merge/review:
+  - `Territory Topology` is now its own top-level settings panel,
+  - `Territory Styles` is now a style-only shell instead of a duplicate topology surface,
+  - phase-field default centered-blended territory-edge borders now follow canonical territory frontiers rather than the grid-owned fallback edge builder,
+  - grid edge-shaping controls are now explicitly fallback-only in canonical phase-field border mode,
+  - restoring phase-mode default keys did not re-lock `Propagation Shape`, because live config still overrides the defaults in `GameCanvas.svelte`.
+- Validation completed:
+  - `git diff --check` returned only existing LF→CRLF warnings on touched files,
+  - filtered `bun run check` no longer reports the introduced phase-mode default-property errors; touched territory files only surfaced existing unused-selector warnings plus unrelated repo-baseline errors elsewhere.
+- In-app verification still needed:
+  - confirm the top-level Territory UI now reads as `Territory Modes & Transition`, `Territory Topology`, and `Territory Styles` with no duplicate topology body,
+  - confirm phase-field borders are now visible by default in `territory_edge + centered-blended`,
+  - compare the new canonical border default against the explicit grid-owned fallback look by toggling centered-blended off or using `per_cell`.

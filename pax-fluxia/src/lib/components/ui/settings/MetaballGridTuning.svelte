@@ -1,7 +1,10 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
-    import { metaballGridPhaseEdgesModeDefaults } from '$lib/territory/families/metaballGrid/config';
+    import {
+        metaballGridPhaseEdgesModeDefaults,
+        metaballGridPhaseFieldModeDefaults,
+    } from '$lib/territory/families/metaballGrid/config';
     import { metaballGridStats } from '$lib/territory/families/metaballGrid/metaballGridStats';
 
     interface Props {
@@ -81,7 +84,22 @@
     }
 
     function currentBorderBlendDescription(): string {
+        if (usesCanonicalTerritoryEdgeBorders()) {
+            return 'Phase Field default: Territory-edge + centered-blended uses the canonical territory frontier lines, so borders stay aligned with the smooth POST territory. Turn this off to fall back to grid-owned edge strokes.';
+        }
         return 'Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).';
+    }
+
+    function usesCanonicalTerritoryEdgeBorders(): boolean {
+        return (
+            isPhaseFieldMode() &&
+            currentBorderMode() === 'territory_edge' &&
+            currentBorderBlend()
+        );
+    }
+
+    function usesGridEdgeShapingControls(): boolean {
+        return currentBorderMode() === 'territory_edge' && !usesCanonicalTerritoryEdgeBorders();
     }
 
     // Resolved values.
@@ -188,33 +206,39 @@
     }
 
     function currentBorderMode(): 'off' | 'per_cell' | 'territory_edge' {
-        if (isPhaseEdgesMode()) {
-            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE;
-        }
+        const modeDefault = isPhaseEdgesMode()
+            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE
+            : isPhaseFieldMode()
+              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_MODE
+              : 'off';
         const raw =
             panel.metaballGridBorderMode ??
             GAME_CONFIG.METABALL_GRID_BORDER_MODE ??
-            'off';
+            modeDefault;
         if (raw === 'per_cell') return 'per_cell';
         if (raw === 'territory_edge') return 'territory_edge';
         return 'off';
     }
 
     function currentBorderBlend(): boolean {
-        if (isPhaseEdgesMode()) {
-            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND;
-        }
-        return panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? true;
+        const modeDefault = isPhaseEdgesMode()
+            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND
+            : isPhaseFieldMode()
+              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_BLEND
+              : true;
+        return panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? modeDefault;
     }
 
     function currentBorderChaikinPasses(): number {
-        if (isPhaseEdgesMode()) {
-            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES;
-        }
+        const modeDefault = isPhaseEdgesMode()
+            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
+            : isPhaseFieldMode()
+              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
+              : 0;
         return (
             panel.metaballGridBorderChaikinPasses ??
             GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
-            0
+            modeDefault
         );
     }
 
@@ -709,14 +733,18 @@
         <span class="val">{currentBorderChaikinPasses()}</span>
     </div>
     <div class="var-desc">
-        Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
+        {#if usesCanonicalTerritoryEdgeBorders()}
+            Phase Field canonical-border mode already follows the smoothed territory frontier from geometry. Switch Centered-blended off to shape the grid-owned fallback border path instead.
+        {:else}
+            Smoothing for the grid-owned territory-edge fallback path. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries.
+        {/if}
     </div>
     <input
         type="range"
         min="0"
         max="4"
         step="1"
-        disabled={isPhaseEdgesMode()}
+        disabled={isPhaseEdgesMode() || !usesGridEdgeShapingControls()}
         value={currentBorderChaikinPasses()}
         oninput={(event) => {
             const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -733,13 +761,18 @@
         <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
     </div>
     <div class="var-desc">
-        Additional shared-edge softening for the centered-blended border path. In phase field, this rounds the dedicated border overlay. In phase edges, it still affects the edge-forward boundary pass.
+        {#if usesCanonicalTerritoryEdgeBorders()}
+            Phase Field canonical-border mode ignores grid edge rounding. Switch Centered-blended off to edit the grid-owned fallback path.
+        {:else}
+            Additional shared-edge softening for the grid-owned territory-edge fallback path.
+        {/if}
     </div>
     <input
         type="range"
         min="0"
         max="4"
         step="1"
+        disabled={!usesGridEdgeShapingControls()}
         value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
         oninput={(event) => {
             const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -756,13 +789,18 @@
         <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
     </div>
     <div class="var-desc">
-        Endpoint trim for open shared-edge chains in the centered-blended border path. Higher values shorten exposed chain ends before the border stroke is drawn.
+        {#if usesCanonicalTerritoryEdgeBorders()}
+            Phase Field canonical-border mode ignores grid endpoint trim. Switch Centered-blended off to trim the grid-owned fallback path instead.
+        {:else}
+            Endpoint trim for open shared-edge chains in the grid-owned territory-edge fallback path.
+        {/if}
     </div>
     <input
         type="range"
         min="0"
         max="12"
         step="0.5"
+        disabled={!usesGridEdgeShapingControls()}
         value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);

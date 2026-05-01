@@ -117,7 +117,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "territory_tuning",
         icon: "🧭",
-        label: "Territory Tuning & Constraints",
+        label: "Territory Topology",
         color: "#6ee7b7",
         tier: "basic",
         scope: "territory",

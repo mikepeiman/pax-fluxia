@@ -3,7 +3,10 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type {
+    CanonicalFrontierPolyline,
+    CanonicalGeometrySnapshot,
+} from '../../contracts/GeometryContracts';
 import {
     buildOwnershipSnapshotFromStars,
     buildPerimeterFieldRenderFamilyGeometry,
@@ -26,6 +29,7 @@ import {
     resetMetaballGridStats,
     updateMetaballGridStats,
 } from './metaballGridStats';
+import { metaballGridPhaseFieldModeDefaults } from './config';
 import type {
     GridAdjacency,
     GridClassification,
@@ -461,6 +465,32 @@ function drawGeometryFill(params: {
         graphics.closePath();
         graphics.fill({ color, alpha });
     }
+}
+
+function drawCanonicalBorderPolyline(params: {
+    graphics: PIXI.Graphics;
+    polyline: CanonicalFrontierPolyline;
+    color: number;
+    width: number;
+    alpha: number;
+}): void {
+    const { graphics, polyline, color, width, alpha } = params;
+    if (polyline.points.length < 2 || width <= 0 || alpha <= 0) return;
+    graphics.beginPath();
+    graphics.moveTo(polyline.points[0][0], polyline.points[0][1]);
+    for (let i = 1; i < polyline.points.length; i++) {
+        graphics.lineTo(polyline.points[i][0], polyline.points[i][1]);
+    }
+    if (polyline.closed) {
+        graphics.lineTo(polyline.points[0][0], polyline.points[0][1]);
+    }
+    graphics.stroke({
+        color,
+        alpha,
+        width,
+        cap: 'round',
+        join: 'round',
+    });
 }
 
 function isPrevSideCell(
@@ -1131,6 +1161,55 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         }
     }
 
+    private drawCanonicalTerritoryEdgeOverlay(params: {
+        geometry: CanonicalGeometrySnapshot;
+        ownerColorIdx: ReadonlyMap<string, number>;
+        borderHexByColorIdx: readonly number[];
+        borderWidth: number;
+        borderAlpha: number;
+    }): void {
+        const g = this.borderGraphics;
+        g.clear();
+        if (params.borderWidth <= 0 || params.borderAlpha <= 0) return;
+
+        for (const polyline of params.geometry.frontierPolylines) {
+            const ownerAIdx = params.ownerColorIdx.get(polyline.ownerA);
+            const ownerBIdx = params.ownerColorIdx.get(polyline.ownerB);
+            const ownerAHex =
+                ownerAIdx === undefined ? undefined : params.borderHexByColorIdx[ownerAIdx];
+            const ownerBHex =
+                ownerBIdx === undefined ? undefined : params.borderHexByColorIdx[ownerBIdx];
+            const color =
+                ownerAHex !== undefined && ownerBHex !== undefined
+                    ? blendColors(ownerAHex, ownerBHex, 0.5)
+                    : ownerAHex ?? ownerBHex;
+            if (color === undefined) continue;
+            drawCanonicalBorderPolyline({
+                graphics: g,
+                polyline,
+                color,
+                width: params.borderWidth,
+                alpha: params.borderAlpha,
+            });
+        }
+
+        for (const polyline of params.geometry.worldBorderPolylines) {
+            const ownerAIdx = params.ownerColorIdx.get(polyline.ownerA);
+            const color =
+                ownerAIdx === undefined
+                    ? undefined
+                    : params.borderHexByColorIdx[ownerAIdx];
+            if (color === undefined) continue;
+            drawCanonicalBorderPolyline({
+                graphics: g,
+                polyline,
+                color,
+                width: params.borderWidth,
+                alpha: params.borderAlpha,
+            });
+        }
+    }
+
     private updateDebugSnapshot(params: {
         input: RenderFamilyInput;
         cached: CachedPlan;
@@ -1298,13 +1377,15 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         const borderMode = readTunableString<GridBorderMode>(
             input,
             'METABALL_GRID_BORDER_MODE',
-            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ?? 'off',
+            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ??
+                metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_MODE,
             ['off', 'per_cell', 'territory_edge'],
         );
         const borderBlend = readTunableBoolean(
             input,
             'METABALL_GRID_BORDER_BLEND',
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? false,
+            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ??
+                metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_BLEND,
         );
         const sharedEdgeSmoothingPasses = Math.max(
             0,
@@ -1314,7 +1395,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     readTunableNumber(
                         input,
                         'METABALL_GRID_EDGE_SMOOTHING_PASSES',
-                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0,
+                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ??
+                            metaballGridPhaseFieldModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
                     ),
                 ),
             ),
@@ -1324,7 +1406,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             readTunableNumber(
                 input,
                 'METABALL_GRID_EDGE_TRIM_PX',
-                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0,
+                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ??
+                    metaballGridPhaseFieldModeDefaults.METABALL_GRID_EDGE_TRIM_PX,
             ),
         );
         const borderChaikinPasses = Math.max(
@@ -1335,7 +1418,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     readTunableNumber(
                         input,
                         'METABALL_GRID_BORDER_CHAIKIN_PASSES',
-                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ?? 0,
+                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
+                            metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
                     ),
                 ),
             ),
@@ -1428,6 +1512,12 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END ?? 0.96,
             ),
         );
+        const useCanonicalTerritoryEdgeBorders =
+            borderEnabled &&
+            borderMode === 'territory_edge' &&
+            borderBlend &&
+            borderWidth > 0 &&
+            borderAlpha > 0;
 
         const frontierDiagnostics = summarizeMetaballGridFrontier({
             orderedFlipTimes: cached.wavePlan.orderedFlipTimes,
@@ -1603,7 +1693,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             });
             sceneBuildMs = performance.now() - sceneStartMs;
 
-            if (borderEnabled && borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0) {
+            if (
+                !useCanonicalTerritoryEdgeBorders &&
+                borderEnabled &&
+                borderMode !== 'off' &&
+                borderWidth > 0 &&
+                borderAlpha > 0
+            ) {
                 const borderSceneStartMs = performance.now();
                 const borderScene = renderMetaballGridScene({
                     classification: cached.classification,
@@ -1834,7 +1930,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 alpha: fillAlpha,
             });
             this.baseGraphics.visible = true;
-            if (borderEnabled && borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0) {
+            if (
+                !useCanonicalTerritoryEdgeBorders &&
+                borderEnabled &&
+                borderMode !== 'off' &&
+                borderWidth > 0 &&
+                borderAlpha > 0
+            ) {
                 const borderSceneStartMs = performance.now();
                 const borderScene = renderMetaballGridScene({
                     classification: cached.classification,
@@ -1855,7 +1957,15 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             paintedCells = 0;
         }
 
-        if (borderSceneCells.length > 0) {
+        if (useCanonicalTerritoryEdgeBorders) {
+            this.drawCanonicalTerritoryEdgeOverlay({
+                geometry: currentGeometry,
+                ownerColorIdx,
+                borderHexByColorIdx: frontierHexByColorIdx,
+                borderWidth,
+                borderAlpha,
+            });
+        } else if (borderSceneCells.length > 0) {
             this.drawBorderOverlay({
                 classification: cached.classification,
                 sceneCells: borderSceneCells,

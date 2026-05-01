@@ -33,6 +33,7 @@ export const metaballGridFamilyConfigDefaults = {
 } as const;
 
 export const metaballGridPhaseEdgesModeDefaults = {
+    METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
     METABALL_GRID_BORDER_MODE: 'territory_edge' as const,
     METABALL_GRID_BORDER_BLEND: true,
     METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
@@ -46,7 +47,14 @@ export const metaballGridPhaseEdgesGeometryDefaults = {
     TERRITORY_DX_WEIGHT: 0.3,
 } as const;
 
-export const metaballGridPhaseFieldModeDefaults = {} as const;
+export const metaballGridPhaseFieldModeDefaults = {
+    METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
+    METABALL_GRID_BORDER_MODE: 'territory_edge' as const,
+    METABALL_GRID_BORDER_BLEND: true,
+    METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
+    METABALL_GRID_EDGE_TRIM_PX: 0,
+    METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
+} as const;
 
 export const metaballGridPhaseFieldGeometryDefaults = {
     MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
