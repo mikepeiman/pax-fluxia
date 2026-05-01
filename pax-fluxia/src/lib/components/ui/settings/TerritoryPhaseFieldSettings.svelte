@@ -64,7 +64,7 @@
         if (currentBorderMode() === "off") return "Off";
         if (currentBorderMode() === "per_cell") return "Per cell";
         return currentBorderBlend()
-            ? "Territory edge · blended line"
+            ? "Territory edge · fill-following loops"
             : "Territory edge · split cell strokes";
     }
 
@@ -94,7 +94,7 @@
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
-                detail: "Shape → Border Mode is Off.",
+                detail: "Shape -> Border Mode is Off.",
             };
         }
         if (currentBorderMode() === "per_cell") {
@@ -108,7 +108,7 @@
             return {
                 tone: "live",
                 summary: "Borders live",
-                detail: "One blended border line follows the smooth territory outline.",
+                detail: "Per-owner border loops follow the final territory fill outline.",
             };
         }
         return {

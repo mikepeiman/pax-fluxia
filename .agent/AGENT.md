@@ -858,3 +858,84 @@ Suggested structure:
   - in the user's current live phase-field settings, those three shape controls are now explicitly not surfaced as live because the smooth territory-outline border branch ignores them,
   - `Border Chaikin Passes` is no longer offered in Phase Field because it was dead,
   - Phase Field only shows the remaining grid-edge shaping controls when the active border path can actually consume them.
+
+### 2026-05-01 - Audit Phase-Field Border/Fill Geometry Misalignment
+
+- Lane: `territory/phase-field-border-fill-alignment-audit`
+- User task: audit and diagnose the visible border/fill misalignment, especially cases where MSR-shaped fills appear to jut past the drawn borders.
+
+#### Pass Log
+
+1. Pass 1 - Traced the phase-field steady-state fill path in `MetaballGridPhaseFieldFamily.ts` and confirmed the mode fills territory from `currentGeometry.territoryRegions` via `renderGeometryTexture(...)` / `drawGeometryFill(...)`.
+2. Pass 2 - Traced the smooth border path in that same family and confirmed `territory_edge + blend on` does not use the fill polygons. It draws `currentGeometry.frontierPolylines` and `currentGeometry.worldBorderPolylines` through `drawCanonicalTerritoryEdgeOverlay(...)`.
+3. Pass 3 - Audited the canonical geometry compiler and confirmed `CanonicalGeometrySnapshot` is assembled from two different raw geometry products:
+   - fill regions come from `geometry.mergedTerritories`,
+   - smooth borders come from `geometry.sharedPolylines` and `geometry.worldBorderPolylines`.
+4. Pass 4 - Confirmed the more serious divergence in `Geometry_0319.ts`: after `constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells)` builds fill polygons from the same chained frontier data, the compiler mutates only the fill polygons with `applyExplicitMinStarMargin(...)`. The border polylines are not rebuilt afterward. This means the snapshot can already contain fill/border disagreement before phase-field ever renders it.
+5. Pass 5 - Audited `applyExplicitMinStarMargin(...)` in `minStarMargin.ts` and confirmed it pushes fill vertices outward to satisfy the minimum owned-star distance. That makes MSR a fill-only deformation pass in the current pipeline.
+6. Pass 6 - Audited the phase-field transition mask path separately and confirmed a second mismatch source: `buildGridClassification(...)` uses nearest-owned-star fallback when polygon coverage misses a cell, explicitly to fill MSR/moat gaps. During conquest, the PRE mask can therefore classify cells as owned outside the smooth border polyline surface.
+
+#### Diagnosis
+
+- Primary root cause:
+  - phase-field smooth borders and phase-field fills are drawn from different geometry products inside the same `CanonicalGeometrySnapshot`,
+  - and the fill product is further deformed by MSR after the border product has already been finalized.
+- Secondary root cause:
+  - the conquest-time grid classifier uses nearest-owned-star fallback to keep the cell field continuous across MSR gaps,
+  - so transition masks can also temporarily extend fill presence beyond the smooth border path.
+- Incorrect assumption that failed here:
+  - I had been treating `currentGeometry` as a single coherent surface where smooth borders and fills were still guaranteed to match.
+  - The code does not support that assumption.
+
+#### Merge Note
+
+- No runtime changes were made in this pass.
+- Critical behavioral finding for follow-up:
+  - if fills are authoritative, smooth borders must be regenerated from the same post-MSR surface,
+  - or MSR/fallback expansion must stop mutating ownership coverage independently of the smooth border path.
+
+### 2026-05-01 - Fix Phase-Field Border/Fill Alignment From Geometry Shell Loops
+
+- Lane: `territory/phase-field-fill-following-borders`
+- User task: fix the audited border/fill misalignment, while keeping boundary shaping consistent with geometry-layer constraints and encapsulated for reuse across modes/worktrees.
+
+#### Pass Log
+
+1. Pass 1 - Rejected a phase-field-only paint hack after re-reading the user intent. The fix needed to follow geometry-layer outputs shaped by MSR/CX/DX/LP, not bolt a special renderer-local interpretation onto one mode.
+2. Pass 2 - Audited the canonical geometry contract and confirmed the needed pre-render artifact already exists: `shellLoops` in `CanonicalGeometrySnapshot` are derived from the final region geometry, after constraint shaping, and can represent outer and hole boundaries with owner identity.
+3. Pass 3 - Added `resolveTerritoryBorderLoops(...)` in `pax-fluxia/src/lib/territory/geometry/resolveTerritoryBorderLoops.ts`. This helper resolves fill-following owner boundary loops from shared geometry:
+   - prefer `shellLoops` when present,
+   - preserve hole-vs-outer semantics via stroke alignment,
+   - fall back to `territoryRegions` when shell loops are absent.
+4. Pass 4 - Swapped `MetaballGridPhaseFieldFamily.ts` off the old smooth-border centerline branch for `territory_edge + blend on`. Phase field now draws fill-following owner border loops from the resolved geometry artifact instead of `frontierPolylines/worldBorderPolylines`.
+5. Pass 5 - Added a masked PRE border layer in phase field so conquest-time PRE fill can carry its own matching border surface where the PRE mask is visible, instead of always showing only the POST border on top of a mixed PRE/POST composite.
+6. Pass 6 - Updated the phase-field settings copy in `MetaballGridTuning.svelte` and `TerritoryPhaseFieldSettings.svelte` so the UI now describes the live behavior truthfully:
+   - `Fill-following territory borders`
+   - `Per-owner border loops follow the final territory fill outline`
+   - grid-edge fallback wording remains separate
+7. Pass 7 - Added focused coverage in `resolveTerritoryBorderLoops.test.ts` for:
+   - shell-loop preference,
+   - hole-loop outside alignment,
+   - territory-region fallback.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/resolveTerritoryBorderLoops.test.ts`
+- `git diff --check`
+- settings-copy sweep confirming the stale phase-field “one blended border line / smooth territory outline” wording was removed
+- filtered `bun run check` produced no new hits for:
+  - `MetaballGridPhaseFieldFamily`
+  - `resolveTerritoryBorderLoops`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/geometry/resolveTerritoryBorderLoops.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveTerritoryBorderLoops.test.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryPhaseFieldSettings.svelte`
+- Critical behavioral deltas for merge/review:
+  - smooth phase-field borders no longer come from the older shared-frontier centerline artifact,
+  - they now follow the final geometry-layer owner surfaces via resolved shell loops,
+  - PRE border presentation can now track PRE fill visibility during conquest when the render-texture mask path is active.
