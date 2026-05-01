@@ -11,7 +11,6 @@ import type {
 import { aiConfigDefaults } from './ai.config';
 import { audioConfigDefaults } from './audio.config';
 import { gameplayConfigDefaults } from './gameplay.config';
-import phaseFieldDefaultValues from './phase-field-default.json';
 import { rendererConfigDefaults } from './renderer.config';
 import { territoryConfigDefaults } from './territory.config';
 
@@ -327,6 +326,7 @@ interface GameConfigType {
      * Minimum distance (px) from mapgen lane chords / sampled centerlines to non-endpoint stars.
      * Drives Delaunay pass-through prune and curved-lane solver only — **not** territory MSR.
      */
+    MAPGEN_LANE_MARGIN_ENABLED: boolean;
     MAPGEN_LANE_MARGIN_PX: number;
     /**
      * Lane centerline: `straight` = chord only. `curved` = chord when it clears other
@@ -427,7 +427,7 @@ interface GameConfigType {
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
-    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'active_front' | 'unified_topology' | 'crossfade' | 'off'; // Clean-arch fill transition selector
+    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'active_front' | 'unified_topology' | 'pv_frontline' | 'crossfade' | 'off'; // Clean-arch fill transition selector
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
     TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
@@ -765,7 +765,6 @@ const _rawConfig: GameConfigType = {
     ...rendererConfigDefaults,
     ...territoryConfigDefaults,
     ...audioConfigDefaults,
-    ...(phaseFieldDefaultValues as Partial<GameConfigType>),
 };
 
 export const DEFAULT_GAME_CONFIG: Readonly<GameConfigType> = Object.freeze({ ..._rawConfig });

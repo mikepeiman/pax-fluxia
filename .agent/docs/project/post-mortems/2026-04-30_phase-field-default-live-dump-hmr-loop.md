@@ -27,13 +27,14 @@ Entering the main menu from the landing page caused the shell to mount, then unm
 
 ## Fix
 
-- Created a stable checked-in snapshot at `pax-fluxia/src/lib/config/phase-field-default.json`.
-- Repointed `game.config.ts` and `builtinThemes.ts` to that stable file.
+- Removed runtime imports of `common/resources/settings-live/current-settings.json`.
 - Removed the `themeStore` startup auto-apply block so shell boot no longer mutates config implicitly.
-- Updated `GameSettingsPanel.svelte` reset-to-defaults flow to apply `Phase Field Default` instead of the old `Mar 16 Default (DY4)` preset.
+- Follow-up correction: promoted the Phase Field values into the actual owner default modules (`gameplay.config.ts`, `renderer.config.ts`, `territory.config.ts`, and territory-family defaults) instead of keeping a startup overlay file.
+- Follow-up correction: changed the built-in `Phase Field Default` theme to derive from `DEFAULT_GAME_CONFIG`, and changed `resetToDefaults()` to reload into factory defaults instead of applying a theme overlay first.
 
 ## Derived Rule
 
 - Never import a live dev dump file into watched runtime source.
 - If the app writes a file during normal UI interaction, that file must remain a dev artifact or be copied into a separate stable snapshot before runtime imports use it.
 - Startup theme/default selection must not perform hidden writes during shell boot unless that behavior is explicitly required and verified.
+- If the user asks to "update config defaults," update the owner default definitions instead of layering a runtime snapshot over them.

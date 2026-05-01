@@ -758,7 +758,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         syncPanelKey(key, val);
     }
 
-    /** Nuclear reset: clear ALL pax-* localStorage keys, apply default theme, reload. */
+    /** Nuclear reset: clear ALL pax-* localStorage keys and reload into factory defaults. */
     function resetToDefaults() {
         // Clear all pax localStorage keys
         const keysToRemove: string[] = [];
@@ -775,9 +775,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         localStorage.removeItem(VISUALS_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
-
-        // Apply the stable factory baseline before reload
-        themeStore.applyTheme("Phase Field Default");
 
         // Reload to fully reinitialize from clean state
         window.location.reload();

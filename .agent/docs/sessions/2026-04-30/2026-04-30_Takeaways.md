@@ -14,3 +14,5 @@
 - Render-order regressions are easy to miss in settings-focused passes; container hierarchy assertions need to be rechecked whenever UI work touches renderer-adjacent code.
 - A live dev dump file cannot also be a runtime default source. If UI mount-time saves write that file and the app imports it, Vite will treat normal UI startup as a source change and hot-reload the route in a loop.
 - Startup theme selection must be state-only unless explicitly requested; auto-applying a theme during shell boot creates hidden config writes and can trip unrelated side effects.
+- When the user asks to make current settings the new defaults, the correct fix is to update the owner default modules, not to overlay a captured snapshot at startup.
+- A built-in theme can mirror factory defaults, but it should derive from the same default source rather than creating a second source of truth.

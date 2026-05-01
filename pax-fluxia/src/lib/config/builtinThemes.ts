@@ -12,8 +12,8 @@
 // ============================================================================
 
 import { type ComposedTheme, type ThemeCategory, CATEGORY_KEYS } from './categoryThemes';
+import { DEFAULT_GAME_CONFIG } from './game.config';
 import { normalizeThemeValues, type ThemePrimitiveValues } from './themeRouting';
-import phaseFieldDefaultValues from './phase-field-default.json';
 
 const themeModules = import.meta.glob<Record<string, unknown>>('./builtin-themes/**/*.json', { eager: true });
 
@@ -50,6 +50,10 @@ interface RawBuiltinThemeEntry extends BuiltinThemeEntry {
     sourcePath: string;
     sourceSlug: string;
 }
+
+const PHASE_FIELD_DEFAULT_THEME_VALUES = Object.fromEntries(
+    Object.entries(DEFAULT_GAME_CONFIG).filter(([key]) => !key.startsWith('_')),
+) as Record<string, number | string | boolean>;
 
 function splitIntoCategories(
     values: Record<string, unknown>,
@@ -184,9 +188,9 @@ function loadRawBuiltinThemeEntries(): RawBuiltinThemeEntry[] {
     entries.push({
         name: '',
         baseName: 'Phase Field Default',
-        description: 'Default app settings captured from the current Phase Field baseline.',
+        description: 'Factory default app settings.',
         createdAt: '2026-04-30T00:00:00.000Z',
-        values: coercePrimitiveValues(phaseFieldDefaultValues as Record<string, unknown>),
+        values: coercePrimitiveValues(PHASE_FIELD_DEFAULT_THEME_VALUES),
         builtIn: true as const,
         isImported: false,
         sourcePath: 'phase-field-default',

@@ -1,9 +1,9 @@
 export const gameplayConfigDefaults = {
-    BASE_TICK_MS: 1050,
+    BASE_TICK_MS: 1450,
     MIN_TICK_MS: 100,
-    ANIMATION_SPEED_MS: 1050,
+    ANIMATION_SPEED_MS: 1450,
     BIND_ANIMATION_TO_TICK: true,
-    NUMBER_TRANSITION_MS: 120,
+    NUMBER_TRANSITION_MS: 250,
     LABEL_ANIM_MODE: 'rolling' as const,
 
     TRANSFER_RATE: 0.1,
@@ -42,6 +42,7 @@ export const gameplayConfigDefaults = {
     HEX_RADIUS: 50,
     HEX_PADDING: 50,
     CONNECTION_MAX_DISTANCE: 150,
+    MAPGEN_LANE_MARGIN_ENABLED: true,
     MAPGEN_LANE_MARGIN_PX: 75,
     MAPGEN_LANE_MODE: 'curved',
     MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: 0.55,
@@ -56,5 +57,5 @@ export const gameplayConfigDefaults = {
     _MAP_PADDING_Y: 0,
 
     MIN_LINKS_PER_STAR: 1,
-    MAX_LINKS_PER_STAR: 8,
+    MAX_LINKS_PER_STAR: 6,
 } as const;

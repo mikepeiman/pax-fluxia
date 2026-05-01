@@ -28,6 +28,7 @@
 - Promoted the current Phase Field settings snapshot into the app default config baseline and a new built-in theme named `Phase Field Default`.
 - Restored an explicit Attack Surge pulse-duration bind-to-tick toggle and changed lane container ordering so lanes render beneath stars and ships.
 - Fixed the landing-page -> main-menu dev loop by decoupling `Phase Field Default` from the live `current-settings.json` dump file and removing the startup auto-apply mutation from `themeStore`.
+- Corrected the Phase Field defaulting model by removing the startup snapshot overlay, promoting those values into the real owner config defaults, deleting `phase-field-default.json`, and deriving the built-in `Phase Field Default` theme from `DEFAULT_GAME_CONFIG`.
 
 ## Next
 - Confirm the master menu Theme widget now stretches full-width and shows the requested overwrite-confirmation flow on `Update`.
