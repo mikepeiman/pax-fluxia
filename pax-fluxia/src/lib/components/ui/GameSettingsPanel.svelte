@@ -61,6 +61,7 @@
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
+    import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
     import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
@@ -931,14 +932,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         persistSectionOrder();
     }
 
-    // Most recently opened sections first
-    let orderedOpenSections = $derived(
-        [...sectionOrder]
-            .reverse()
-            .map((id) => sections.find((s) => s.id === id))
-            .filter(Boolean) as typeof sections,
-    );
-
     const sections = SETTINGS_SECTIONS;
 
     // Filter sections by active tier (basic shows basic, advanced shows basic+advanced, developer shows all)
@@ -947,8 +940,31 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         advanced: 1,
         developer: 2,
     };
+    let activeTerritoryRenderMode = $derived(
+        (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) as
+            | string
+            | null,
+    );
+    function isSectionVisible(section: SettingsSectionDefinition): boolean {
+        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
+        if (section.id === "territory_phase_field") {
+            return activeTerritoryRenderMode === "metaball_grid_phase_field";
+        }
+        if (section.id === "territory_styles") {
+            return activeTerritoryRenderMode !== "metaball_grid_phase_field";
+        }
+        return true;
+    }
     let visibleSections = $derived(
-        sections.filter((s) => TIER_RANK[s.tier] <= TIER_RANK[activeTier]),
+        sections.filter((section) => isSectionVisible(section)),
+    );
+
+    // Most recently opened sections first, but only while they remain visible.
+    let orderedOpenSections = $derived(
+        [...sectionOrder]
+            .reverse()
+            .map((id) => visibleSections.find((section) => section.id === id))
+            .filter(Boolean) as typeof sections,
     );
 
     let lastForceOpenSectionNonce = $state(-1);
@@ -960,6 +976,21 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             setTier("developer");
         }
         openSection(forceOpenSection);
+    });
+
+    let phaseFieldSectionAutoOpened = $state(false);
+    $effect(() => {
+        const phaseFieldVisible =
+            activeTerritoryRenderMode === "metaball_grid_phase_field";
+        if (!phaseFieldVisible) {
+            phaseFieldSectionAutoOpened = false;
+            return;
+        }
+        if (phaseFieldSectionAutoOpened) return;
+        phaseFieldSectionAutoOpened = true;
+        if (!sectionOrder.includes("territory_phase_field")) {
+            openSection("territory_phase_field");
+        }
     });
 
     interface SubsectionChip {
@@ -1388,6 +1419,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     />
                 {:else if sec.id === "territory_tuning"}
                     <TerritoryTopologyTuning
+                        {panel}
+                        {updatePanel}
+                    />
+                {:else if sec.id === "territory_phase_field"}
+                    <TerritoryPhaseFieldSettings
                         {panel}
                         {updatePanel}
                     />

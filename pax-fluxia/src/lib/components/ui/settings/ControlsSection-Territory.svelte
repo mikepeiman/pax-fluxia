@@ -1714,7 +1714,7 @@
   </div>
 {/if}
 
-{#if showRendererModule("metaball-grid") && isMetaballGridStyle()}
+{#if showRendererModule("metaball-grid") && isMetaballGridStyle() && !isMetaballGridPhaseFieldStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">

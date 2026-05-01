@@ -42,6 +42,7 @@ This work costs money. Minimize token waste. Be tactical, concise, and explicit.
   - expose it as a real, understandable UX choice, or
   - make it a deliberate opinionated default and remove any false suggestion that the user can or should control it.
 - Never let prototype safety defaults masquerade as finished product decisions.
+- When a mode has materially different live controls from the shared family shell, give it its own truthful settings surface instead of reusing a misleading generic one.
 
 ### 2.2 User Trust
 
@@ -727,3 +728,45 @@ Suggested structure:
   - confirm the top-level Territory UI now reads as `Territory Modes & Transition`, `Territory Topology`, and `Territory Styles` with no duplicate topology body,
   - confirm phase-field borders are now visible by default in `territory_edge + centered-blended`,
   - compare the new canonical border default against the explicit grid-owned fallback look by toggling centered-blended off or using `per_cell`.
+
+### 2026-04-30 - Dedicated Phase Field Settings Section
+
+- Lane: `territory/phase-field-settings-surface`
+- User task: create a new top-level settings section for `metaball_grid_phase_field`, expose only controls that are true and active, and clean up duplicate/redundant/dead UI in that mode path.
+- Scope this pass: settings registry, top-level settings shell visibility behavior, phase-field mode surface composition, and tracked handoff updates.
+
+#### Pass Log
+
+1. Pass 1 - Re-audited the phase-field UI path instead of assuming the problem was only naming/copy. Confirmed the mode still reused the generic `Territory Styles` shell, which mixed active phase-field controls with dead generic surface controls (`METABALL_FILL_ENABLED`, `METABALL_BLUR`, `METABALL_BLUR_AFFECTS_BORDERS`, and shared `METABALL_CHAIKIN_PASSES`) and obscured the real border gate behind a different module.
+2. Pass 2 - Re-audited the settings shell itself. Confirmed `GameSettingsPanel.svelte` still rendered `orderedOpenSections` directly from saved `sectionOrder`, so a section could stay mounted after it was supposed to be hidden by mode/tier context.
+3. Pass 3 - Added a new top-level section id, `territory_phase_field`, in `settingsRegistry.ts`. Positioned it alongside the other Territory sections so the mode has its own first-class entry instead of hiding inside the shared styles shell.
+4. Pass 4 - Made the settings shell mode-aware in `GameSettingsPanel.svelte`. `Phase Field` now appears only when the active territory render mode is `metaball_grid_phase_field`, `Territory Styles` is hidden while that mode is active, and `orderedOpenSections` now filters through the currently visible section set instead of blindly rendering stale saved state.
+5. Pass 5 - Added first-reveal auto-open for the new `Phase Field` section so the panel is discoverable the moment the user switches into the mode, rather than requiring them to guess a new icon appeared in the toolbar.
+6. Pass 6 - Built `TerritoryPhaseFieldSettings.svelte` as a dedicated truthful mode surface. It exposes:
+   - fill SLA
+   - border SLA
+   - a live border-state readout that explains why borders are or are not drawing
+   - the existing active `MetaballGridTuning` stack for shape, propagation, finish, and perf
+7. Pass 7 - Intentionally omitted dead or misleading phase-field controls from that new surface:
+   - the generic fill enable toggle
+   - GPU blur
+   - blur-affects-borders
+   - shared `METABALL_CHAIKIN_PASSES`
+   These were left available only in the older generic shell for other modes that still use that component, rather than being presented as if phase field consumed them.
+8. Pass 8 - Removed phase field from the generic metaball-grid styles card in `ControlsSection-Territory.svelte` so the mode no longer duplicates itself through `Territory Styles`.
+9. Pass 9 - Ran targeted verification. `git diff --check` remained clean except for existing LF→CRLF warnings. Filtered `bun run check` showed no new type errors from `TerritoryPhaseFieldSettings.svelte`; touched files only surfaced the old repo-baseline `GameSettingsPanel.svelte` typing failures plus existing unused-selector warnings in older shells.
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, `pax-fluxia/src/lib/components/ui/settings/settingsRegistry.ts`, `pax-fluxia/src/lib/components/ui/settings/TerritoryPhaseFieldSettings.svelte`, and `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Critical behavioral deltas for merge/review:
+  - `metaball_grid_phase_field` now has a dedicated top-level settings section,
+  - `Territory Styles` no longer appears while phase field is active,
+  - hidden sections no longer keep rendering just because they were previously open,
+  - the phase-field mode path now surfaces only controls the runtime actually consumes,
+  - the panel itself now explains border readiness in user-facing terms instead of forcing reconstruction from internal config.
+- In-app verification still needed:
+  - confirm the `Phase Field` section appears and auto-opens when the mode becomes active,
+  - confirm `Territory Styles` disappears while phase field is active,
+  - confirm the border-state readout matches actual on-map results for `off`, `per_cell`, and `territory_edge` cases,
+  - confirm the new panel feels sufficient without the removed generic/dead controls.

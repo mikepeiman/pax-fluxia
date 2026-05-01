@@ -20,11 +20,27 @@
 - Restored real border semantics in phase field by splitting frontier highlight into its own dedicated toggle and adding a real border overlay layer that honors shared border width/alpha/HSL and grid-border tuning.
 - Split duplicated Territory settings into a dedicated `Territory Topology` panel plus a pure `Territory Styles` panel.
 - Switched the default phase-field `territory_edge + centered-blended` border path to canonical geometry frontier/world-border polylines so the default border look follows actual territory truth instead of the grid-owned fallback edge builder.
+- Added a dedicated top-level `Phase Field` settings section that appears only when `metaball_grid_phase_field` is active, auto-opens on first reveal, and hides the generic `Territory Styles` panel for that mode.
+- Replaced the phase-field reuse of generic territory surface tuning with a truthful surface card that exposes only live controls:
+  - fill SLA
+  - border SLA
+  - live border-state readout
+  - the existing active `MetaballGridTuning` stack
+- Removed dead/misleading phase-field surfaces from the UI path:
+  - the generic fill enable toggle
+  - GPU blur
+  - blur-affects-borders
+  - shared `METABALL_CHAIKIN_PASSES`
+- Fixed the settings shell so hidden sections no longer keep rendering just because they were previously open in `sectionOrder`.
 
 ## Next
 - Run visual QA in-app against real conquest sessions, especially consecutive capture sessions and long chained frontiers.
 - Tune the new finish-tail controls in live conquest footage and decide whether the current starter border baseline should become a stronger authored default.
 - Tune the new phase-field border overlay in conquest and steady state, especially the distinction between `territory_edge`, `per_cell`, centered-blended borders, and the separate `Frontier Highlight` accent.
-- Validate the new Territory panel split in-app and prune any remaining stale style-only copy or unused CSS left behind by the topology extraction.
+- Validate the new `Phase Field` top-level section in-app:
+  - confirm it appears only for `metaball_grid_phase_field`
+  - confirm `Territory Styles` disappears while it is active
+  - confirm the border-state readout matches the actual visible border result
+- Prune the remaining stale unused CSS warnings in the older territory/settings shells once the visual structure stabilizes.
 - Decide whether the prototype should replace `metaball_grid` outright after user verification, or remain as a separate comparison mode for another iteration.
 - If the phase-field presentation is accepted, harden the composite path toward an owner/palette texture renderer and reduce the remaining vector fallback cost.

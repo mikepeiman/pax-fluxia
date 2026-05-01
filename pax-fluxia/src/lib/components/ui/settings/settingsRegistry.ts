@@ -10,6 +10,7 @@ export type SettingsSectionId =
     | "conquest_effects"
     | "map_options"
     | "territory_modes"
+    | "territory_phase_field"
     | "territory_tuning"
     | "territory_styles"
     | "fleet_star_visuals"
@@ -111,6 +112,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         icon: "🌍",
         label: "Territory Modes & Transition",
         color: "#66ccaa",
+        tier: "basic",
+        scope: "territory",
+    },
+    {
+        id: "territory_phase_field",
+        icon: "◌",
+        label: "Phase Field",
+        color: "#8ab4ff",
         tier: "basic",
         scope: "territory",
     },
