@@ -410,13 +410,14 @@ interface GameConfigType {
     METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
     METABALL_GRID_MAX_CELLS: number; // Optional planner cap; coarsens spacing upward when exceeded
     METABALL_GRID_INWARD_OFFSET_PX: number; // Extra inset applied to boundary / in-transition cells
+    METABALL_GRID_BOUNDARY_FILL_FLUSH: boolean; // Keep owner-boundary fills flush to the visible border unless explicit inward pullback is requested
     METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Primitive painted for each cell
     METABALL_GRID_CELL_INSET_PX: number; // Base inset applied to all cells
     METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
     METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
     METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
     METABALL_GRID_EDGE_SMOOTHING_PASSES: number; // Extra smoothing applied to shared boundary corners
-    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim and boundary inset for shared edges
+    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim for shared-edge chains and junction shaping
     METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
     METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
     METABALL_GRID_WAVE_GEOMETRY:

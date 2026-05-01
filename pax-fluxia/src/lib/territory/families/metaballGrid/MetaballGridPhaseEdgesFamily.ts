@@ -82,6 +82,7 @@ import {
     metaballGridPhaseEdgesModeDefaults,
 } from './config';
 import {
+    computeBoundaryInset,
     computeSharedBoundaryCornerRadius,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
@@ -213,6 +214,7 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_FLIP_TRANSITION',
     'METABALL_GRID_FLIP_WINDOW',
     'METABALL_GRID_INWARD_OFFSET_PX',
+    'METABALL_GRID_BOUNDARY_FILL_FLUSH',
     'METABALL_GRID_CELL_SHAPE',
     'METABALL_GRID_CELL_INSET_PX',
     'METABALL_GRID_CELL_CORNER_PX',
@@ -327,6 +329,13 @@ interface OuterPerimeterInterval {
     readonly end: number;
 }
 
+interface OuterPerimeterBounds {
+    readonly left: number;
+    readonly top: number;
+    readonly right: number;
+    readonly bottom: number;
+}
+
 const OUTER_PERIMETER_EDGE_EPSILON = 0.001;
 
 function addOuterPerimeterInterval(
@@ -346,6 +355,37 @@ function addOuterPerimeterInterval(
     intervals.push({ start, end });
 }
 
+function resolveOuterPerimeterBounds(params: {
+    classification: GridClassification;
+    effectiveColorIdxByGridIdx: Int32Array;
+    cellHalfExtent: number;
+}): OuterPerimeterBounds | null {
+    let left = Number.POSITIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+    for (let iy = 0; iy < params.classification.rows; iy++) {
+        for (let ix = 0; ix < params.classification.cols; ix++) {
+            const gridIndex = iy * params.classification.cols + ix;
+            if (params.effectiveColorIdxByGridIdx[gridIndex] < 0) continue;
+            const vstar = params.classification.vstars[gridIndex];
+            left = Math.min(left, vstar.x - params.cellHalfExtent);
+            top = Math.min(top, vstar.y - params.cellHalfExtent);
+            right = Math.max(right, vstar.x + params.cellHalfExtent);
+            bottom = Math.max(bottom, vstar.y + params.cellHalfExtent);
+        }
+    }
+    if (
+        !Number.isFinite(left) ||
+        !Number.isFinite(top) ||
+        !Number.isFinite(right) ||
+        !Number.isFinite(bottom)
+    ) {
+        return null;
+    }
+    return { left, top, right, bottom };
+}
+
 function drawOuterPerimeterIntervals(params: {
     borderLayer: PIXI.Graphics;
     classification: GridClassification;
@@ -353,16 +393,20 @@ function drawOuterPerimeterIntervals(params: {
     borderHexByColorIdx: readonly Array<number | undefined>;
     borderAlpha: number;
     borderWidth: number;
-    frameWidth: number;
-    frameHeight: number;
     cellHalfExtent: number;
     markBorderDrawn: () => void;
 }): void {
+    const bounds = resolveOuterPerimeterBounds({
+        classification: params.classification,
+        effectiveColorIdxByGridIdx: params.effectiveColorIdxByGridIdx,
+        cellHalfExtent: params.cellHalfExtent,
+    });
+    if (!bounds) return;
     const intervalsByKey = new Map<string, OuterPerimeterInterval[]>();
     const clampX = (value: number): number =>
-        Math.max(0, Math.min(params.frameWidth, value));
+        Math.max(bounds.left, Math.min(bounds.right, value));
     const clampY = (value: number): number =>
-        Math.max(0, Math.min(params.frameHeight, value));
+        Math.max(bounds.top, Math.min(bounds.bottom, value));
 
     for (let iy = 0; iy < params.classification.rows; iy++) {
         for (let ix = 0; ix < params.classification.cols; ix++) {
@@ -376,8 +420,8 @@ function drawOuterPerimeterIntervals(params: {
             const bottom = vstar.y + params.cellHalfExtent;
 
             if (
-                left <= OUTER_PERIMETER_EDGE_EPSILON &&
-                right >= -OUTER_PERIMETER_EDGE_EPSILON
+                left <= bounds.left + OUTER_PERIMETER_EDGE_EPSILON &&
+                right >= bounds.left - OUTER_PERIMETER_EDGE_EPSILON
             ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
@@ -388,8 +432,8 @@ function drawOuterPerimeterIntervals(params: {
                 );
             }
             if (
-                top <= OUTER_PERIMETER_EDGE_EPSILON &&
-                bottom >= -OUTER_PERIMETER_EDGE_EPSILON
+                top <= bounds.top + OUTER_PERIMETER_EDGE_EPSILON &&
+                bottom >= bounds.top - OUTER_PERIMETER_EDGE_EPSILON
             ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
@@ -400,8 +444,8 @@ function drawOuterPerimeterIntervals(params: {
                 );
             }
             if (
-                right >= params.frameWidth - OUTER_PERIMETER_EDGE_EPSILON &&
-                left <= params.frameWidth + OUTER_PERIMETER_EDGE_EPSILON
+                right >= bounds.right - OUTER_PERIMETER_EDGE_EPSILON &&
+                left <= bounds.right + OUTER_PERIMETER_EDGE_EPSILON
             ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
@@ -412,8 +456,8 @@ function drawOuterPerimeterIntervals(params: {
                 );
             }
             if (
-                bottom >= params.frameHeight - OUTER_PERIMETER_EDGE_EPSILON &&
-                top <= params.frameHeight + OUTER_PERIMETER_EDGE_EPSILON
+                bottom >= bounds.bottom - OUTER_PERIMETER_EDGE_EPSILON &&
+                top <= bounds.bottom + OUTER_PERIMETER_EDGE_EPSILON
             ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
@@ -453,18 +497,18 @@ function drawOuterPerimeterIntervals(params: {
             switch (side) {
                 case 'left':
                     params.borderLayer
-                        .moveTo(insetPx, currentStart)
-                        .lineTo(insetPx, currentEnd)
+                        .moveTo(bounds.left + insetPx, currentStart)
+                        .lineTo(bounds.left + insetPx, currentEnd)
                         .stroke(strokeOpts);
                     break;
                 case 'top':
                     params.borderLayer
-                        .moveTo(currentStart, insetPx)
-                        .lineTo(currentEnd, insetPx)
+                        .moveTo(currentStart, bounds.top + insetPx)
+                        .lineTo(currentEnd, bounds.top + insetPx)
                         .stroke(strokeOpts);
                     break;
                 case 'right': {
-                    const x = Math.max(insetPx, params.frameWidth - insetPx);
+                    const x = Math.max(bounds.left + insetPx, bounds.right - insetPx);
                     params.borderLayer
                         .moveTo(x, currentStart)
                         .lineTo(x, currentEnd)
@@ -472,7 +516,7 @@ function drawOuterPerimeterIntervals(params: {
                     break;
                 }
                 case 'bottom': {
-                    const y = Math.max(insetPx, params.frameHeight - insetPx);
+                    const y = Math.max(bounds.top + insetPx, bounds.bottom - insetPx);
                     params.borderLayer
                         .moveTo(currentStart, y)
                         .lineTo(currentEnd, y)
@@ -2847,6 +2891,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             'METABALL_GRID_INWARD_OFFSET_PX',
             GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0,
         );
+        const boundaryFillFlush = readTunableBoolean(
+            input,
+            'METABALL_GRID_BOUNDARY_FILL_FLUSH',
+            metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH,
+        );
         const waveEase = readTunableString<GridWaveEase>(
             input,
             'METABALL_GRID_WAVE_EASE',
@@ -3373,16 +3422,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         this.frontierMeshLayer.visible = false;
         this.hideUnusedFrontierShaderLayers(0);
         const spacingPx = cached.classification.spacingPx;
-        // Clamp inset so a cell never collapses to 0. Non-native cells get an
-        // extra `inwardOffsetPx` added to the inset, so ownership-boundary
-        // cells read visually smaller than interior-territory cells — this is
-        // the semantic the "Inward Offset" knob advertises.
+        // Clamp inset so a cell never collapses to 0. Interior cells always
+        // honor `cellInsetPx`. Boundary cells can either stay flush to the
+        // visible frontier (preferred Phase Edges path) or fall back to the
+        // legacy "inherit cell inset + junction trim" behavior when the user
+        // explicitly disables flush boundary fill.
         const insetMax = spacingPx * 0.45;
         const nativeInset = Math.min(cellInsetPx, insetMax);
-        const boundaryInset = Math.min(
-            cellInsetPx + Math.max(0, inwardOffsetPx) + edgeTrimPx,
+        const boundaryInset = computeBoundaryInset({
             insetMax,
-        );
+            cellInsetPx,
+            inwardOffsetPx,
+            edgeTrimPx,
+            flushBoundaryFill: boundaryFillFlush,
+        });
         // Defaults for square shape at native inset — reused inside the loop
         // when a cell is native. Boundary cells recompute.
         const nativeSize = spacingPx - nativeInset * 2;
@@ -4144,8 +4197,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 borderHexByColorIdx,
                 borderAlpha: effectiveBorderAlpha,
                 borderWidth: effectiveBorderWidth,
-                frameWidth: input.world.width,
-                frameHeight: input.world.height,
                 cellHalfExtent: trueHalf,
                 markBorderDrawn: () => {
                     baseBorderDrawn = true;

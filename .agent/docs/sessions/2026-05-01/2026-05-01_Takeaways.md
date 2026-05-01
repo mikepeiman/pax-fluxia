@@ -38,3 +38,10 @@
   - duplicated controls with different applicability gating are a reliable way to recreate "this slider does nothing" regressions
 - `Outer perimeter border` was another example of a control whose state existed but whose consumer was owned by the wrong branch. The fix was not about default values; it was about moving the perimeter draw pass out of the centered-blended shared-edge branch and making it a first-class border pass.
 - Disabled controls need explicit unmet-requirement messaging. `Junction Render` was technically disabled for a valid reason, but without surfacing that reason the control reads like dead UI.
+- `Inward Offset` was not the true owner of boundary fill pullback. Boundary fill was still inheriting `Cell Inset` and `Junction Gap Trim`, which created a hidden second pullback path and made zero-offset fills look broken.
+- Boundary fill needs its own explicit ownership rule:
+  - flush by default for the preferred Phase Edges surface
+  - explicit pullback only from `Inward Offset`
+  - optional legacy inherited behavior only when deliberately enabled
+- Fullscreen perimeter bugs are a strong signal that the outer border is owned by the local/fullscreen frame instead of the occupied map coverage. For owner-vs-world perimeter, occupied territory bounds are the stable contract.
+- When the user explicitly asks for a feature, the default posture should be implementation ownership. If the current branch/gating does not expose it, the next move is to extend that branch or ask whether to do so, not to defend the current limitation.

@@ -82,3 +82,28 @@
 - If the right-side fill margin still remains after the border-layer ownership fix, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a border-path problem.
 - If the outer perimeter still fails live after the branch-ownership correction, inspect whether the clipped-frame interval collector is not covering the contour-matched rounded path rather than a state propagation problem.
 - After those two live checks pass, start the queued transition end-jank investigation.
+
+## Addendum - 2026-05-01 boundary-fill ownership and fullscreen perimeter correction
+- Live user report after the last border pass:
+  - normal window now shows outer borders on all four sides
+  - Chrome `F11` fullscreen loses top/bottom borders
+  - fill still does not match border at map edges
+  - fill still pulls back from borders within territories even with `Inward Offset = 0`
+- Current task focus:
+  - keep outer perimeter visible in fullscreen because it should derive from occupied map coverage, not the resized fullscreen frame
+  - make fill flush to the border by default
+  - make `Inward Offset` the explicit frontier pullback control
+  - expose a direct on/off-style control for flush boundary fill instead of silently inheriting pullback from other knobs
+- Implemented:
+  - added `computeBoundaryInset(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` to the live config contract and surfaced it in `Territory Styles > Fill` as `Flush Boundary Fill`
+  - set `metaball_grid_phase_edges` default boundary fill behavior to flush
+  - rewired `MetaballGridFamily.ts` and `MetaballGridPhaseEdgesFamily.ts` so boundary fill no longer secretly inherits `Cell Inset` and `Junction Gap Trim` when flush mode is enabled
+  - rewired the Phase Edges outer perimeter pass so it derives from occupied territory bounds rather than fullscreen/local presentation-frame dimensions
+- Live verification needed:
+  - top and bottom outer borders remain visible in Chrome `F11` fullscreen
+  - `Flush Boundary Fill` keeps fills flush by default
+  - `Inward Offset` now visibly pulls the fill back only when you explicitly raise it above `0`
+  - fill at map edges aligns more closely with the outer perimeter border
+- Still queued after this acceptance pass:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition

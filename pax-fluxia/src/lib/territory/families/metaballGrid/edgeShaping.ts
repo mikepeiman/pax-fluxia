@@ -5,6 +5,14 @@ export interface SharedBoundaryCornerRadiusParams {
     readonly smoothingPasses: number;
 }
 
+export interface ComputeBoundaryInsetParams {
+    readonly insetMax: number;
+    readonly cellInsetPx: number;
+    readonly inwardOffsetPx: number;
+    readonly edgeTrimPx: number;
+    readonly flushBoundaryFill: boolean;
+}
+
 export function computeSharedBoundaryCornerRadius(
     params: SharedBoundaryCornerRadiusParams,
 ): number {
@@ -20,6 +28,20 @@ export function computeSharedBoundaryCornerRadius(
         clampedHalf * Math.min(0.85, smoothingPasses * 0.18),
     );
     return Math.max(baseRadius, smoothingRadius);
+}
+
+export function computeBoundaryInset(
+    params: ComputeBoundaryInsetParams,
+): number {
+    const explicitInset = Math.max(0, params.inwardOffsetPx);
+    const legacyInset =
+        Math.max(0, params.cellInsetPx) +
+        explicitInset +
+        Math.max(0, params.edgeTrimPx);
+    return Math.min(
+        params.flushBoundaryFill ? explicitInset : legacyInset,
+        Math.max(0, params.insetMax),
+    );
 }
 
 function trimEndpoint(

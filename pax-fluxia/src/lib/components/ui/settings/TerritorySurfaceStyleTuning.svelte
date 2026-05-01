@@ -196,6 +196,16 @@
         );
     }
 
+    function currentBoundaryFillFlush(): boolean {
+        return boolVal(
+            "metaballGridBoundaryFillFlush",
+            "METABALL_GRID_BOUNDARY_FILL_FLUSH",
+            isPhaseEdgesFamily()
+                ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH
+                : metaballGridFamilyConfigDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH,
+        );
+    }
+
     function canEditFrontierBorderGeometry(): boolean {
         return (
             isPhaseEdgesFamily() &&
@@ -369,13 +379,41 @@
 
                 <div class="var-row">
                     <div class="row-top">
+                        <span class="var-name" title="When on, territory boundary fills stay flush to the visible border by default. When off, boundary cells inherit the legacy cell inset and junction-gap pullback.">
+                            Flush Boundary Fill
+                        </span>
+                        <span class="val">{currentBoundaryFillFlush() ? "On" : "Off"}</span>
+                    </div>
+                    <div class="var-desc">
+                        Keeps the visible fill locked to the visible territory border by default. Leave this <strong>On</strong> for complete fills, then use <strong>Inward Offset</strong> only when you intentionally want the fill pulled back.
+                    </div>
+                    <label class="toggle-row">
+                        <input
+                            type="checkbox"
+                            checked={currentBoundaryFillFlush()}
+                            onchange={(event) => {
+                                const value = (event.target as HTMLInputElement).checked;
+                                onUpdate(
+                                    "METABALL_GRID_BOUNDARY_FILL_FLUSH",
+                                    "metaballGridBoundaryFillFlush",
+                                    value,
+                                );
+                            }}
+                        />
+                        <span class="var-name">Boundary fill matches border</span>
+                        <span class="val">{currentBoundaryFillFlush() ? "On" : "Off"}</span>
+                    </label>
+                </div>
+
+                <div class="var-row">
+                    <div class="row-top">
                         <span class="var-name" title="Extra inset applied to boundary / in-transition fill cells.">
                             Inward Offset
                         </span>
                         <span class="val">{numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0).toFixed(0)}px</span>
                     </div>
                     <div class="var-desc">
-                        Pulls the visible frontier fill inward from the classified territory edge. In Phase Edges this now drives the phase-surface fill replacement too, not just the legacy base cell paint path.
+                        Adds explicit pullback from the visible territory border. With <strong>Boundary fill matches border</strong> on, <strong>0px</strong> means the fill stays flush to the border.
                     </div>
                     <input
                         type="range"
@@ -702,7 +740,7 @@
                         {#if !canEditSharedEdgeControls() && sharedEdgeControlGateReason()}
                             {sharedEdgeControlGateReason()}
                         {:else}
-                            This is the small three-way-junction gap control. On the current straight shared-edge path it also contributes some boundary fill pullback, which is why it affects both the visible endpoint gap and the fill cut.
+                            This is the small three-way-junction gap control for the Straight shared edge border family. It trims open shared-edge chains at multi-owner junctions; it should no longer secretly move the fill unless you deliberately switch back to the legacy non-flush boundary behavior.
                         {/if}
                     </div>
                     <input

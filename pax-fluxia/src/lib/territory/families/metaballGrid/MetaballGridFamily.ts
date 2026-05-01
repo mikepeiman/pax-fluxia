@@ -64,6 +64,7 @@ import type {
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 import {
+    computeBoundaryInset,
     computeSharedBoundaryCornerRadius,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
@@ -201,6 +202,7 @@ const METABALL_GRID_TUNABLE_KEYS = [
     'METABALL_GRID_FLIP_TRANSITION',
     'METABALL_GRID_FLIP_WINDOW',
     'METABALL_GRID_INWARD_OFFSET_PX',
+    'METABALL_GRID_BOUNDARY_FILL_FLUSH',
     'METABALL_GRID_CELL_SHAPE',
     'METABALL_GRID_CELL_INSET_PX',
     'METABALL_GRID_CELL_CORNER_PX',
@@ -231,6 +233,7 @@ interface MetaballGridFamilyVariant {
     readonly defaultWaveGeometry: GridWaveGeometry;
     readonly defaultBorderMode: GridBorderMode;
     readonly defaultBorderBlend: boolean;
+    readonly defaultBoundaryFillFlush: boolean;
     readonly defaultEdgeSmoothingPasses: number;
     readonly defaultEdgeTrimPx: number;
     readonly defaultBorderChaikinPasses: number;
@@ -242,6 +245,7 @@ const DEFAULT_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
     defaultWaveGeometry: 'grid_bfs',
     defaultBorderMode: 'off',
     defaultBorderBlend: false,
+    defaultBoundaryFillFlush: false,
     defaultEdgeSmoothingPasses: 0,
     defaultEdgeTrimPx: 0,
     defaultBorderChaikinPasses: 0,
@@ -256,6 +260,8 @@ const PHASE_EDGE_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
         metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE,
     defaultBorderBlend:
         metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
+    defaultBoundaryFillFlush:
+        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH,
     defaultEdgeSmoothingPasses:
         metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
     defaultEdgeTrimPx:
@@ -1913,6 +1919,11 @@ export class MetaballGridFamily implements RenderFamily {
             'METABALL_GRID_INWARD_OFFSET_PX',
             GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0,
         );
+        const boundaryFillFlush = readTunableBoolean(
+            input,
+            'METABALL_GRID_BOUNDARY_FILL_FLUSH',
+            this.variant.defaultBoundaryFillFlush,
+        );
         const waveEase = readTunableString<GridWaveEase>(
             input,
             'METABALL_GRID_WAVE_EASE',
@@ -2288,16 +2299,19 @@ export class MetaballGridFamily implements RenderFamily {
         const g = this.graphics;
         g.clear();
         const spacingPx = cached.classification.spacingPx;
-        // Clamp inset so a cell never collapses to 0. Non-native cells get an
-        // extra `inwardOffsetPx` added to the inset, so ownership-boundary
-        // cells read visually smaller than interior-territory cells — this is
-        // the semantic the "Inward Offset" knob advertises.
+        // Clamp inset so a cell never collapses to 0. Interior cells always
+        // honor `cellInsetPx`. Boundary cells can either stay flush to the
+        // visible frontier or fall back to the legacy "inherit cell inset +
+        // junction trim" behavior when flush boundary fill is disabled.
         const insetMax = spacingPx * 0.45;
         const nativeInset = Math.min(cellInsetPx, insetMax);
-        const boundaryInset = Math.min(
-            cellInsetPx + Math.max(0, inwardOffsetPx) + edgeTrimPx,
+        const boundaryInset = computeBoundaryInset({
             insetMax,
-        );
+            cellInsetPx,
+            inwardOffsetPx,
+            edgeTrimPx,
+            flushBoundaryFill: boundaryFillFlush,
+        });
         // Defaults for square shape at native inset — reused inside the loop
         // when a cell is native. Boundary cells recompute.
         const nativeSize = spacingPx - nativeInset * 2;

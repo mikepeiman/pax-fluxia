@@ -722,3 +722,38 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Merge/backport guidance:
   - keep outer perimeter as an independent owner-vs-world border pass, not as a side effect of the shared-edge blended branch
   - when disabling a style control for branch-specific reasons, surface the unmet requirement in the UI; do not leave dead-looking controls without explanation
+
+### 2026-05-01 - additive correction for hidden boundary-fill pullback and fullscreen perimeter loss
+
+- The next live report refined the remaining acceptance gaps:
+  - normal window now showed outer borders on all four sides
+  - Chrome `F11` fullscreen dropped the top and bottom outer borders
+  - fill still did not match the border at map edges
+  - fill still pulled back from borders even with `Inward Offset = 0`
+- Important diagnosis:
+  - the remaining fill pullback was not controlled solely by `Inward Offset`
+  - boundary fill was still inheriting `Cell Inset` and `Junction Gap Trim`
+  - this meant the preferred Phase Edges surface had a hidden second fill-pullback path
+  - the fullscreen-only top/bottom loss indicated the outer perimeter pass was still owned by fullscreen/local frame dimensions instead of occupied territory bounds
+- Runtime corrections made:
+  - added shared helper `computeBoundaryInset(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` to the live contract:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/config.ts`
+    - `pax-fluxia/src/lib/config/game.config.ts`
+    - `pax-fluxia/src/lib/components/ui/settingsDefs.ts`
+  - surfaced `Flush Boundary Fill` in `pax-fluxia/src/lib/components/ui/settings/TerritorySurfaceStyleTuning.svelte`
+  - set Phase Edges default boundary-fill behavior to flush
+  - updated both `MetaballGridFamily.ts` and `MetaballGridPhaseEdgesFamily.ts` so boundary fill no longer silently inherits `Cell Inset` and `Junction Gap Trim` when flush mode is enabled
+  - updated the Phase Edges outer-perimeter pass so it derives bounds from occupied territory cells instead of fullscreen/local presentation-frame dimensions
+- Regression coverage added:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.test.ts`
+    - flush mode keeps `Inward Offset = 0` truly flush
+    - legacy mode preserves the older inherited-inset behavior
+- Validation:
+  - `bun x vitest run src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Merge/backport guidance:
+  - preserve `METABALL_GRID_BOUNDARY_FILL_FLUSH` as a first-class surface contract; do not fold it back into `Inward Offset`
+  - preserve the rule that `Cell Inset` is an interior grid separation control, not an automatic frontier pullback control
+  - preserve the rule that `Junction Gap Trim` shapes shared-edge/junction stroke geometry, not boundary fill, unless legacy non-flush behavior is intentionally chosen
+  - keep owner-vs-world perimeter keyed to occupied territory bounds so fullscreen/window-size changes cannot drop sides of the map

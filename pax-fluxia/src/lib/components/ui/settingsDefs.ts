@@ -586,6 +586,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_POSITION_JITTER' },
     { configKey: 'METABALL_GRID_MAX_CELLS' },
     { configKey: 'METABALL_GRID_INWARD_OFFSET_PX' },
+    { configKey: 'METABALL_GRID_BOUNDARY_FILL_FLUSH' },
     { configKey: 'METABALL_GRID_CELL_SHAPE' },
     { configKey: 'METABALL_GRID_CELL_INSET_PX' },
     { configKey: 'METABALL_GRID_CELL_CORNER_PX' },

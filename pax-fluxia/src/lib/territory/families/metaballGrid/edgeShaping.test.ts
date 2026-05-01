@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    computeBoundaryInset,
     computeSharedBoundaryCornerRadius,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
@@ -53,5 +54,31 @@ describe('trimOpenPolylineEndpoints', () => {
 
     it('leaves short paths alone when there is not enough geometry to trim', () => {
         expect(trimOpenPolylineEndpoints([0, 0, 10, 0], 3)).toEqual([0, 0, 10, 0]);
+    });
+});
+
+describe('computeBoundaryInset', () => {
+    it('keeps boundary fill flush when explicit pullback is zero', () => {
+        expect(
+            computeBoundaryInset({
+                insetMax: 12,
+                cellInsetPx: 2,
+                inwardOffsetPx: 0,
+                edgeTrimPx: 3,
+                flushBoundaryFill: true,
+            }),
+        ).toBe(0);
+    });
+
+    it('preserves legacy inherited inset behavior when flush mode is off', () => {
+        expect(
+            computeBoundaryInset({
+                insetMax: 12,
+                cellInsetPx: 2,
+                inwardOffsetPx: 1,
+                edgeTrimPx: 3,
+                flushBoundaryFill: false,
+            }),
+        ).toBe(6);
     });
 });
