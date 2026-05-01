@@ -65,6 +65,7 @@ import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 import {
     computeBoundaryInset,
+    computeSquareCellEdgeInsets,
     computeSharedBoundaryCornerRadius,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
@@ -511,6 +512,43 @@ function drawFilledGridCell(
         return;
     }
     graphics.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
+}
+
+function drawFilledSquareCellWithEdgeInsets(
+    graphics: PIXI.Graphics,
+    x: number,
+    y: number,
+    trueHalf: number,
+    edgeInsets: {
+        readonly left: number;
+        readonly right: number;
+        readonly top: number;
+        readonly bottom: number;
+    },
+    cornerR: number,
+    fillHex: number,
+    alpha: number,
+): void {
+    const left = x - trueHalf + edgeInsets.left;
+    const right = x + trueHalf - edgeInsets.right;
+    const top = y - trueHalf + edgeInsets.top;
+    const bottom = y + trueHalf - edgeInsets.bottom;
+    const width = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
+    if (!(width > 0) || !(height > 0)) return;
+    if (cornerR > 0) {
+        graphics
+            .roundRect(
+                left,
+                top,
+                width,
+                height,
+                Math.min(cornerR, width * 0.5, height * 0.5),
+            )
+            .fill({ color: fillHex, alpha });
+        return;
+    }
+    graphics.rect(left, top, width, height).fill({ color: fillHex, alpha });
 }
 
 /**
@@ -2585,19 +2623,47 @@ export class MetaballGridFamily implements RenderFamily {
                 const size = isBoundary ? boundarySize : nativeSize;
                 const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
                 const hexR = isBoundary ? boundaryHexR : nativeHexR;
-
-                drawFilledGridCell(
-                    g,
-                    cellShape,
-                    x,
-                    y,
-                    half,
-                    size,
-                    cornerR,
-                    hexR,
-                    fillHex,
-                    alpha,
-                );
+                const shouldUseDirectionalSquareFill =
+                    cellShape === 'square' &&
+                    !!effectiveColorIdxByGridIdx &&
+                    drawBlendedEdges;
+                if (shouldUseDirectionalSquareFill) {
+                    const edgeInsets = computeSquareCellEdgeInsets({
+                        ix,
+                        iy,
+                        cols,
+                        rows,
+                        colorIdx: c.colorIdx,
+                        colorIdxByGridIdx: effectiveColorIdxByGridIdx,
+                        nativeInsetPx: nativeInset,
+                        boundaryInsetPx: boundaryInset,
+                        useSharedEdgeBorders: drawBlendedEdges,
+                        useOuterBorder: false,
+                    });
+                    drawFilledSquareCellWithEdgeInsets(
+                        g,
+                        x,
+                        y,
+                        spacingPx * 0.5,
+                        edgeInsets,
+                        cornerR,
+                        fillHex,
+                        alpha,
+                    );
+                } else {
+                    drawFilledGridCell(
+                        g,
+                        cellShape,
+                        x,
+                        y,
+                        half,
+                        size,
+                        cornerR,
+                        hexR,
+                        fillHex,
+                        alpha,
+                    );
+                }
 
                 // Per-cell border stroke: skipped for blended-edge path (drawn
                 // once per shared edge below instead) and for any cell whose

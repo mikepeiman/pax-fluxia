@@ -788,3 +788,37 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Merge/backport guidance:
   - preserve the rule that centered-blended shared-edge borders are a border-only presentation choice
   - do not let the shared-edge recipe re-acquire `usesPhaseFill = true`, or the inset-gap bug will return immediately
+
+### 2026-05-01 - additive correction for directional boundary fill on true-edge borders
+
+- The next live report rejected the previous recipe-only fix:
+  - no visible change
+  - `Flush Boundary Fill` still appeared inert
+  - the user explicitly asked for a direct diff between `centered-blended` on/off
+- Important diagnosis:
+  - the previous shared-edge recipe correction was valid but not sufficient
+  - the deeper mismatch was geometric:
+    - square-cell fill still used a uniform four-sided inset
+    - centered blended borders render on the true shared edge
+    - with nonzero `Cell Inset`, those two facts alone guarantee a visible gap
+  - this also explains why `Flush Boundary Fill` and `Inward Offset` still looked ineffective: they only touched the boundary inset, while the visually dominant gap was still the uniform cell inset
+- Runtime correction:
+  - added `computeSquareCellEdgeInsets(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - square-cell fill now uses per-edge inset ownership in:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+  - same-owner sides keep `Cell Inset`
+  - frontier-facing sides and outer-perimeter sides use boundary inset ownership instead
+  - this lets:
+    - `Cell Inset` remain an interior grid-separation control
+    - `Flush Boundary Fill` control whether boundary-facing sides stay flush
+    - `Inward Offset` visibly pull back the actual shared/world edge fill when requested
+- Regression coverage:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.test.ts`
+    - asserts frontier-facing sides can flush while same-owner sides keep the native inset
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Merge/backport guidance:
+  - preserve the separation between interior cell styling and boundary-edge styling
+  - do not collapse square-cell fill back to one uniform inset when a true-edge border family is active, or the centered-blended gap will return

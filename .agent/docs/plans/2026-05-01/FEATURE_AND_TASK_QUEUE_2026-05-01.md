@@ -108,6 +108,34 @@
 - Still queued after this acceptance pass:
   - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition
 
+## Addendum - 2026-05-01 directional boundary fill for shared-edge borders
+- Live user report after the shared-edge fill-suppression correction:
+  - still no visible change
+  - `Flush Boundary Fill` still appeared inert
+  - `Inward Offset` still appeared inert
+  - the user explicitly narrowed the comparison again:
+    - `Centered-blended borders = Off` => fills look correct
+    - `Centered-blended borders = On` => fills are inset
+- Updated diagnosis:
+  - the remaining mismatch was no longer phase-fill overlay ownership
+  - square-cell fill geometry was still using a uniform four-sided inset
+  - centered blended borders draw on the true shared edge
+  - with nonzero `Cell Inset`, that guarantees a visible gap whenever the border leaves the per-cell stroke path and moves to the true ownership edge
+- Implemented:
+  - added `computeSquareCellEdgeInsets(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - square-cell fill now uses per-edge inset ownership instead of uniform shrink in:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+  - same-owner sides keep `Cell Inset`
+  - frontier-facing sides and outer-perimeter sides now use boundary inset ownership, so `Flush Boundary Fill` and `Inward Offset` can visibly affect the actual shared/world edge instead of fighting a uniform shrink
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Live verification needed:
+  - with `Centered-blended borders = On`, the inset gap should finally collapse
+  - `Flush Boundary Fill` should now visibly matter
+  - `Inward Offset` should now visibly pull the fill back from the true shared edge
+
 ## Addendum - 2026-05-01 centered-blended shared-edge fill ownership correction
 - Live user report after the boundary-fill flush/perimeter correction:
   - there was still an inset gap

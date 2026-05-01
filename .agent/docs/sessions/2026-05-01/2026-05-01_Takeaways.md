@@ -47,3 +47,7 @@
 - When the user explicitly asks for a feature, the default posture should be implementation ownership. If the current branch/gating does not expose it, the next move is to extend that branch or ask whether to do so, not to defend the current limitation.
 - A surface recipe must not advertise phase fill ownership when the visible behavior is supposed to be border-only. In this case, `shared_edge + centered-blended borders` was still enabling phase fill replacement, which made a border-style toggle silently inset the fill.
 - Dirty-frame signatures must include every newly added live surface control. `METABALL_GRID_BOUNDARY_FILL_FLUSH` initially worked in code but was absent from the paint signatures, which would have allowed repaint skipping to hide the toggle.
+- For square-cell territory fills, `Cell Inset` cannot stay a uniform four-sided shrink if the visible border moves onto the true shared/world edge. The fill geometry has to become per-edge:
+  - same-owner sides use the interior cell inset
+  - frontier-facing and world-facing sides use the boundary inset contract
+- If a user says a control still does nothing, diff the exact visual branches instead of assuming the last conceptual fix must be the right one. In this case, the true delta was between per-cell-border geometry and true-edge-border geometry, not only between phase-fill enabled/disabled.
