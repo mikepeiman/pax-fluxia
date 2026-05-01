@@ -1,6 +1,10 @@
 # Feature And Task Queue - 2026-05-01
 
 ## Active
+- Complete a full `metaball_grid_phase_edges` value/control contract audit:
+- enumerate every direct family tunable and every inherited geometry/topology tunable that changes the live render
+- identify which keys are surfaced in UI, which are duplicated across UI surfaces, and which still affect the mode without any reachable UI
+- specifically confirm the likely hidden-affecting keys behind the user's "mystery value" suspicion
 - Live user verification that the preferred Phase Edges mode remains centered by the star-fit rect.
 - Live user verification that the optional outer perimeter border now includes the right side as well, instead of dropping only that side.
 - Live user verification that `Border Mode = off` now leaves no surviving underlying border draw in Phase Edges.
@@ -55,9 +59,20 @@
   - `bun x vite build`
   - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts src/lib/territory/families/metaballGrid/buildGridClassification.test.ts`
   - `bun x vite build`
+- Completed a first-pass Phase Edges contract audit:
+  - confirmed the direct Phase Edges family tunables in `MetaballGridPhaseEdgesFamily.ts`
+  - confirmed the inherited geometry/topology tunables consumed through `buildPerimeterFieldRenderFamilyGeometry()` and `readTerritoryGeometryTunables()`
+  - confirmed that `CHAIKIN_BOUNDARY_PAD`, `CHAIKIN_BOUNDARY_EPS`, `TERRITORY_CLUSTER_SPLIT`, and `VORONOI_BORDER_SMOOTH` still affect the current Phase Edges render path without a reachable Phase Edges UI control
+  - confirmed that `FRONTIER_RESOLUTION` does affect Phase Edges and is currently surfaced under `Territory Tuning & Constraints > Border Transition`, which is semantically misleading but wired
+  - confirmed that several live Phase Edges surface controls remain duplicated between `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
 
 ## Next
 - User confirms the live result in the running worktree.
+- Deliver the user-facing contract audit report for `metaball_grid_phase_edges`, including:
+  - every affecting value
+  - UI location if present
+  - duplicate/misleading placement if applicable
+  - hidden/non-UI affecting values
 - If the right-side fill margin still remains after the border-layer ownership fix, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a border-path problem.
 - If the right-side perimeter is still missing, inspect whether the presentation-frame width itself is slightly overshooting the occupied grid support rather than the perimeter pass missing a contact edge.
 - After those two live checks pass, start the queued transition end-jank investigation.

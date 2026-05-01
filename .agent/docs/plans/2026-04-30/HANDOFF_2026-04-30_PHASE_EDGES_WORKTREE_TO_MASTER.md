@@ -667,3 +667,37 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - preserve the mutual exclusion between shared-edge borders and phase-derived contour/band borders in control mode
   - if the right-side fill margin still remains after this correction, continue with a fill-support audit separately; do not fold that investigation back into border-layer ownership
   - the next queued acceptance task remains transition end-jank/disjointness, but only after the live border/perimeter result is confirmed
+
+### 2026-05-01 - additive Phase Edges render-contract audit before further tuning
+
+- The next task was not a code change; it was an architecture/ownership audit requested by the user:
+  - enumerate literally every value affecting `metaball_grid_phase_edges`
+  - audit which of those values are surfaced in UI
+  - identify anything affecting the mode that is hidden, duplicated, or weakly wired
+- Important merge guidance from this audit:
+  - do not treat `MetaballGridPhaseEdgesFamily.ts` as the whole contract
+  - this mode also depends on the inherited geometry/topology contract consumed through:
+    - `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+    - `pax-fluxia/src/lib/territory/geometry/geometryTuning.ts`
+- Hidden/non-UI affecting values confirmed for the current Phase Edges path:
+  - `VORONOI_BORDER_SMOOTH`
+  - `CHAIKIN_BOUNDARY_PAD`
+  - `CHAIKIN_BOUNDARY_EPS`
+  - `TERRITORY_CLUSTER_SPLIT`
+- Semantically misleading but reachable value confirmed:
+  - `FRONTIER_RESOLUTION` affects the geometry underlayer consumed by Phase Edges, but the current UI location is `Territory Tuning & Constraints > Border Transition`
+- Duplicated live UI ownership confirmed for the current Phase Edges mode:
+  - `METABALL_GRID_CELL_SHAPE`
+  - `METABALL_GRID_CELL_INSET_PX`
+  - `METABALL_GRID_CELL_CORNER_PX`
+  - `METABALL_GRID_BORDER_MODE`
+  - `METABALL_GRID_BORDER_BLEND`
+  - `METABALL_GRID_BORDER_CHAIKIN_PASSES`
+  - `METABALL_GRID_EDGE_SMOOTHING_PASSES`
+  - `METABALL_GRID_EDGE_TRIM_PX`
+- Specific gating defect confirmed:
+  - `MetaballGridTuning.svelte` still exposes weaker applicability gating for `Shared Edge Smoothing` and `Shared Edge Trim` than `TerritorySurfaceStyleTuning.svelte`
+  - this is a reliable source of "the slider exists but does nothing right now" regressions
+- Merge/backport implication:
+  - before merging this worktree into `master`, decide one authoritative UI owner for the duplicated Phase Edges surface keys
+  - and either surface or intentionally retire the hidden geometry keys above, otherwise the merged branch will still carry non-obvious render-affecting state

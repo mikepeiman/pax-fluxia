@@ -26,3 +26,13 @@
 - Border mode must own every visible border path. If `Border Mode = off` still leaves a visible line, a second border-producing layer is escaping the contract.
 - Shared-edge and phase-derived contour/band borders are mutually exclusive geometry families in control mode. If both render in the same frame, the defect is layer ownership, not styling.
 - Clipped-frame perimeter tests need inclusive edge contact, not strict overrun tests. When a grid cell lands exactly on the frame boundary, strict inequality can drop a whole side even though the presentation frame itself is correct.
+- For `metaball_grid_phase_edges`, the real render contract is two-layered:
+  - direct family tunables in `MetaballGridPhaseEdgesFamily.ts`
+  - inherited geometry/topology tunables in `buildPerimeterFieldRenderFamilyGeometry()` / `readTerritoryGeometryTunables()`
+- A settings key being present in `settingsDefs.ts` is not evidence that the user can actually reach it in the current mode. `TERRITORY_CLUSTER_SPLIT` is currently mapped in panel plumbing but not rendered as a Phase Edges UI control.
+- `CHAIKIN_BOUNDARY_PAD` and `CHAIKIN_BOUNDARY_EPS` currently affect the geometry Phase Edges consumes, but there is no live UI surface for them in the current mode.
+- `VORONOI_BORDER_SMOOTH` still affects the Phase Edges underlayer geometry, but its current UI exposure is tied to runtime surface cards rather than the active shared-surface Phase Edges path.
+- `FRONTIER_RESOLUTION` affects Phase Edges, but its current home under `Border Transition` is semantically misleading; it is really a geometry/frontier sampling resolution input.
+- Duplicated UI controls are still a structural problem in the current Phase Edges surfaces:
+  - several border/cell-paint keys are exposed in both `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
+  - duplicated controls with different applicability gating are a reliable way to recreate "this slider does nothing" regressions
