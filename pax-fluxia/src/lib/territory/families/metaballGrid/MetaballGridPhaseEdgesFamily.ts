@@ -317,7 +317,169 @@ function buildSessionKey(input: RenderFamilyInput): string {
         .map((s) => s.id)
         .sort((a, b) => a.localeCompare(b))
         .join('|');
-    return `${input.world.width}x${input.world.height}:${starIds}`;
+    return `${input.world.minX ?? 0},${input.world.minY ?? 0}:${input.world.width}x${input.world.height}:${starIds}`;
+}
+
+type OuterPerimeterSide = 'left' | 'top' | 'right' | 'bottom';
+
+interface OuterPerimeterInterval {
+    readonly start: number;
+    readonly end: number;
+}
+
+function addOuterPerimeterInterval(
+    intervalsByKey: Map<string, OuterPerimeterInterval[]>,
+    side: OuterPerimeterSide,
+    ownerIndex: number,
+    start: number,
+    end: number,
+): void {
+    if (!(end > start)) return;
+    const key = `${side}:${ownerIndex}`;
+    let intervals = intervalsByKey.get(key);
+    if (!intervals) {
+        intervals = [];
+        intervalsByKey.set(key, intervals);
+    }
+    intervals.push({ start, end });
+}
+
+function drawOuterPerimeterIntervals(params: {
+    borderLayer: PIXI.Graphics;
+    classification: GridClassification;
+    effectiveColorIdxByGridIdx: Int32Array;
+    borderHexByColorIdx: readonly Array<number | undefined>;
+    borderAlpha: number;
+    borderWidth: number;
+    frameWidth: number;
+    frameHeight: number;
+    cellHalfExtent: number;
+    markBorderDrawn: () => void;
+}): void {
+    const intervalsByKey = new Map<string, OuterPerimeterInterval[]>();
+    const clampX = (value: number): number =>
+        Math.max(0, Math.min(params.frameWidth, value));
+    const clampY = (value: number): number =>
+        Math.max(0, Math.min(params.frameHeight, value));
+
+    for (let iy = 0; iy < params.classification.rows; iy++) {
+        for (let ix = 0; ix < params.classification.cols; ix++) {
+            const gridIndex = iy * params.classification.cols + ix;
+            const ownerIndex = params.effectiveColorIdxByGridIdx[gridIndex];
+            if (ownerIndex < 0) continue;
+            const vstar = params.classification.vstars[gridIndex];
+            const left = vstar.x - params.cellHalfExtent;
+            const right = vstar.x + params.cellHalfExtent;
+            const top = vstar.y - params.cellHalfExtent;
+            const bottom = vstar.y + params.cellHalfExtent;
+
+            if (left < 0 && right > 0) {
+                addOuterPerimeterInterval(
+                    intervalsByKey,
+                    'left',
+                    ownerIndex,
+                    clampY(top),
+                    clampY(bottom),
+                );
+            }
+            if (top < 0 && bottom > 0) {
+                addOuterPerimeterInterval(
+                    intervalsByKey,
+                    'top',
+                    ownerIndex,
+                    clampX(left),
+                    clampX(right),
+                );
+            }
+            if (right > params.frameWidth && left < params.frameWidth) {
+                addOuterPerimeterInterval(
+                    intervalsByKey,
+                    'right',
+                    ownerIndex,
+                    clampY(top),
+                    clampY(bottom),
+                );
+            }
+            if (bottom > params.frameHeight && top < params.frameHeight) {
+                addOuterPerimeterInterval(
+                    intervalsByKey,
+                    'bottom',
+                    ownerIndex,
+                    clampX(left),
+                    clampX(right),
+                );
+            }
+        }
+    }
+
+    const insetPx = Math.max(0.5, params.borderWidth * 0.5);
+    const strokeOpts = {
+        color: 0xffffff,
+        alpha: params.borderAlpha,
+        width: params.borderWidth,
+        cap: 'round' as const,
+        join: 'round' as const,
+    };
+
+    for (const [key, intervals] of intervalsByKey) {
+        if (intervals.length === 0) continue;
+        const sep = key.indexOf(':');
+        const side = key.slice(0, sep) as OuterPerimeterSide;
+        const ownerIndex = Number(key.slice(sep + 1));
+        const ownerHex = params.borderHexByColorIdx[ownerIndex];
+        if (ownerHex === undefined) continue;
+        intervals.sort((a, b) => (a.start - b.start) || (a.end - b.end));
+        strokeOpts.color = ownerHex;
+
+        let currentStart = intervals[0].start;
+        let currentEnd = intervals[0].end;
+        const flush = (): void => {
+            if (!(currentEnd > currentStart)) return;
+            params.markBorderDrawn();
+            switch (side) {
+                case 'left':
+                    params.borderLayer
+                        .moveTo(insetPx, currentStart)
+                        .lineTo(insetPx, currentEnd)
+                        .stroke(strokeOpts);
+                    break;
+                case 'top':
+                    params.borderLayer
+                        .moveTo(currentStart, insetPx)
+                        .lineTo(currentEnd, insetPx)
+                        .stroke(strokeOpts);
+                    break;
+                case 'right': {
+                    const x = Math.max(insetPx, params.frameWidth - insetPx);
+                    params.borderLayer
+                        .moveTo(x, currentStart)
+                        .lineTo(x, currentEnd)
+                        .stroke(strokeOpts);
+                    break;
+                }
+                case 'bottom': {
+                    const y = Math.max(insetPx, params.frameHeight - insetPx);
+                    params.borderLayer
+                        .moveTo(currentStart, y)
+                        .lineTo(currentEnd, y)
+                        .stroke(strokeOpts);
+                    break;
+                }
+            }
+        };
+
+        for (let i = 1; i < intervals.length; i++) {
+            const interval = intervals[i];
+            if (interval.start <= currentEnd + 0.01) {
+                currentEnd = Math.max(currentEnd, interval.end);
+                continue;
+            }
+            flush();
+            currentStart = interval.start;
+            currentEnd = interval.end;
+        }
+        flush();
+    }
 }
 
 interface CachedPlan {
@@ -1055,6 +1217,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 requestId,
                 planKey: params.planKey,
                 world: {
+                    minX: params.input.world.minX ?? 0,
+                    minY: params.input.world.minY ?? 0,
                     width: params.input.world.width,
                     height: params.input.world.height,
                 },
@@ -1207,7 +1371,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
         const classificationStartMs = performance.now();
         const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
+            world: {
+                minX: input.world.minX ?? 0,
+                minY: input.world.minY ?? 0,
+                width: input.world.width,
+                height: input.world.height,
+            },
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
             prevGeometry: session.prevGeometry,
@@ -2178,7 +2347,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
         const classificationStartMs = performance.now();
         const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
+            world: {
+                minX: input.world.minX ?? 0,
+                minY: input.world.minY ?? 0,
+                width: input.world.width,
+                height: input.world.height,
+            },
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
             prevGeometry,
@@ -2233,7 +2407,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
         const classificationStartMs = performance.now();
         const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
+            world: {
+                minX: input.world.minX ?? 0,
+                minY: input.world.minY ?? 0,
+                width: input.world.width,
+                height: input.world.height,
+            },
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
             prevGeometry: currentGeometry,
@@ -3673,7 +3852,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 opposingWeight: number;
             }
             const edgesByPair = new Map<string, BoundaryEdgeBucket>();
-            const worldEdgesByOwner = new Map<number, BoundaryEdge[]>();
             const ownerSetByVertex = new Map<number, Set<number>>();
             const recordVertexOwners = (vertexId: number, a: number, b: number): void => {
                 let ownerSet = ownerSetByVertex.get(vertexId);
@@ -3722,44 +3900,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 recordVertexOwners(v0, lo, hi);
                 recordVertexOwners(v1, lo, hi);
             };
-            const pushWorldEdge = (
-                ownerIndex: number,
-                v0: number,
-                v1: number,
-            ): void => {
-                let edges = worldEdgesByOwner.get(ownerIndex);
-                if (!edges) {
-                    edges = [];
-                    worldEdgesByOwner.set(ownerIndex, edges);
-                }
-                edges.push({
-                    v0,
-                    v1,
-                    cellIndex0: -1,
-                    cellIndex1: -1,
-                });
-            };
-
             for (let iy = 0; iy < rows; iy++) {
                 for (let ix = 0; ix < cols; ix++) {
                     const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
                     if (selfIdx < 0) continue;
-                    if (outerBorderEnabled) {
-                        if (ix === 0) {
-                            pushWorldEdge(
-                                selfIdx,
-                                iy * vCols + ix,
-                                (iy + 1) * vCols + ix,
-                            );
-                        }
-                        if (iy === 0) {
-                            pushWorldEdge(
-                                selfIdx,
-                                iy * vCols + ix,
-                                iy * vCols + (ix + 1),
-                            );
-                        }
-                    }
                     // Right neighbour → vertical shared edge,
                     // vertex (ix+1, iy) → vertex (ix+1, iy+1).
                     if (ix + 1 < cols) {
@@ -3775,12 +3919,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 cellIndex + 1,
                             );
                         }
-                    } else if (outerBorderEnabled) {
-                        pushWorldEdge(
-                            selfIdx,
-                            iy * vCols + (ix + 1),
-                            (iy + 1) * vCols + (ix + 1),
-                        );
                     }
                     // Bottom neighbour → horizontal shared edge,
                     // vertex (ix, iy+1) → vertex (ix+1, iy+1).
@@ -3797,12 +3935,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 cellIndex + cols,
                             );
                         }
-                    } else if (outerBorderEnabled) {
-                        pushWorldEdge(
-                            selfIdx,
-                            (iy + 1) * vCols + ix,
-                            (iy + 1) * vCols + (ix + 1),
-                        );
                     }
                 }
             }
@@ -3954,11 +4086,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             }
 
             if (outerBorderEnabled) {
-                for (const [ownerIndex, edges] of worldEdgesByOwner) {
-                    const ownerHex = borderHexByColorIdx[ownerIndex];
-                    if (ownerHex === undefined) continue;
-                    drawBoundaryEdgeBucket(edges, ownerHex, false);
-                }
+                drawOuterPerimeterIntervals({
+                    borderLayer,
+                    classification: cached.classification,
+                    effectiveColorIdxByGridIdx,
+                    borderHexByColorIdx,
+                    borderAlpha: effectiveBorderAlpha,
+                    borderWidth: effectiveBorderWidth,
+                    frameWidth: input.world.width,
+                    frameHeight: input.world.height,
+                    cellHalfExtent: trueHalf,
+                    markBorderDrawn: () => {
+                        baseBorderDrawn = true;
+                    },
+                });
             }
 
             if (frontierJunctionRenderMode === 'bubble' && frontierJunctionRadiusPx > 0) {

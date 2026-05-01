@@ -5533,6 +5533,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5605,6 +5607,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5681,6 +5685,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5764,6 +5770,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,

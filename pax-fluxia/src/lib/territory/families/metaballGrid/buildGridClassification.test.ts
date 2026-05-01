@@ -109,6 +109,22 @@ describe('buildGridClassification', () => {
         expect(result.vstars[0].y).toBe(10);
     });
 
+    it('preserves the global grid phase when a localized presentation frame starts mid-cell', () => {
+        const shiftedWorld = { minX: 10, minY: 0, width: 100, height: 40 };
+        const result = buildGridClassification({
+            world: shiftedWorld,
+            spacingPx: 24,
+            originMode: 'centered',
+            prevGeometry: makeSnapshot([rect('A', 'all', 0, 0, 100, 40)]),
+            nextGeometry: makeSnapshot([rect('A', 'all', 0, 0, 100, 40)]),
+            conquestEvents: [],
+        });
+        const firstRow = result.vstars.filter((vstar) => vstar.iy === 0);
+        expect(firstRow.map((vstar) => vstar.x)).toEqual([2, 26, 50, 74, 98]);
+        expect(result.byRole.outside.length).toBe(0);
+        expect(result.byRole.native.length).toBe(result.vstars.length);
+    });
+
     it('corner origin places cell (0,0) at (0, 0)', () => {
         const result = buildGridClassification({
             world: WORLD,

@@ -29,6 +29,7 @@ import type {
 } from './metaballGridTypes';
 
 const DEFAULT_EVENT_ID = '__default__';
+const WORLD_MIN_EPSILON = 0.000001;
 
 /**
  * Compute the origin offset for a grid of given spacing and origin mode.
@@ -40,6 +41,23 @@ function resolveOffset(spacingPx: number, originMode: GridOriginMode): { offsetX
         return { offsetX: spacingPx / 2, offsetY: spacingPx / 2 };
     }
     return { offsetX: 0, offsetY: 0 };
+}
+
+function resolveFirstGridIndex(
+    worldMin: number,
+    spacingPx: number,
+    originOffset: number,
+): number {
+    return Math.ceil((worldMin - originOffset) / spacingPx);
+}
+
+function resolveGridCount(
+    worldSize: number,
+    spacingPx: number,
+    firstLocalCoord: number,
+    halfSpacing: number,
+): number {
+    return Math.max(1, Math.floor((worldSize - firstLocalCoord + halfSpacing) / spacingPx) + 1);
 }
 
 interface IndexedRegion {
@@ -401,6 +419,8 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
 
     if (requestedSpacingPx <= 0) throw new Error('spacingPx must be > 0');
     if (world.width <= 0 || world.height <= 0) throw new Error('world dimensions must be > 0');
+    const worldMinX = Number.isFinite(world.minX) ? world.minX! : 0;
+    const worldMinY = Number.isFinite(world.minY) ? world.minY! : 0;
 
     // Coarsen spacing upward if a maxCells cap would otherwise be exceeded.
     // A grid at `s` px has `ceil(w/s) * ceil(h/s)` cells. We approximate the
@@ -423,9 +443,20 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
         }
     }
 
-    const cols = Math.ceil(world.width / spacingPx);
-    const rows = Math.ceil(world.height / spacingPx);
     const { offsetX, offsetY } = resolveOffset(spacingPx, originMode);
+    const halfSpacing = spacingPx * 0.5;
+    const firstGridIx = resolveFirstGridIndex(worldMinX, spacingPx, offsetX);
+    const firstGridIy = resolveFirstGridIndex(worldMinY, spacingPx, offsetY);
+    const firstLocalX = firstGridIx * spacingPx + offsetX - worldMinX;
+    const firstLocalY = firstGridIy * spacingPx + offsetY - worldMinY;
+    const cols =
+        Math.abs(worldMinX) <= WORLD_MIN_EPSILON
+            ? Math.ceil(world.width / spacingPx)
+            : resolveGridCount(world.width, spacingPx, firstLocalX, halfSpacing);
+    const rows =
+        Math.abs(worldMinY) <= WORLD_MIN_EPSILON
+            ? Math.ceil(world.height / spacingPx)
+            : resolveGridCount(world.height, spacingPx, firstLocalY, halfSpacing);
     const distribution = distributionArg ?? 'square';
     // Clamp jitter fraction to [0, 0.5]; > 0.5 lets neighbours swap slots.
     const positionJitter = distribution === 'jittered'
@@ -477,15 +508,17 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
 
     const vstars: GridVStar[] = new Array(cols * rows);
     const emittableVstars: GridVStar[] = [];
-    const halfSpacing = spacingPx * 0.5;
     const jitterAmp = positionJitter * spacingPx;
 
     for (let iy = 0; iy < rows; iy++) {
+        const globalIy = firstGridIy + iy;
         // `hex_offset`: shift odd rows by half-spacing for honeycomb packing.
-        const rowXShift = distribution === 'hex_offset' && (iy & 1) === 1 ? halfSpacing : 0;
+        const rowXShift =
+            distribution === 'hex_offset' && (globalIy & 1) === 1 ? halfSpacing : 0;
         for (let ix = 0; ix < cols; ix++) {
-            let x = ix * spacingPx + offsetX + rowXShift;
-            let y = iy * spacingPx + offsetY;
+            const globalIx = firstGridIx + ix;
+            let x = globalIx * spacingPx + offsetX + rowXShift - worldMinX;
+            let y = globalIy * spacingPx + offsetY - worldMinY;
             if (jitterAmp > 0) {
                 // Deterministic per-cell scatter. Use two independent hashes
                 // so x/y offsets do not correlate diagonally.

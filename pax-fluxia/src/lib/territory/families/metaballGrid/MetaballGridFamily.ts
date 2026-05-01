@@ -365,7 +365,7 @@ function buildSessionKey(input: RenderFamilyInput): string {
         .map((s) => s.id)
         .sort((a, b) => a.localeCompare(b))
         .join('|');
-    return `${input.world.width}x${input.world.height}:${starIds}`;
+    return `${input.world.minX ?? 0},${input.world.minY ?? 0}:${input.world.width}x${input.world.height}:${starIds}`;
 }
 
 interface CachedPlan {
@@ -1199,6 +1199,8 @@ export class MetaballGridFamily implements RenderFamily {
                 requestId,
                 planKey: params.planKey,
                 world: {
+                    minX: params.input.world.minX ?? 0,
+                    minY: params.input.world.minY ?? 0,
                     width: params.input.world.width,
                     height: params.input.world.height,
                 },
@@ -1475,7 +1477,12 @@ export class MetaballGridFamily implements RenderFamily {
 
         const classificationStartMs = performance.now();
         const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
+            world: {
+                minX: input.world.minX ?? 0,
+                minY: input.world.minY ?? 0,
+                width: input.world.width,
+                height: input.world.height,
+            },
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
             prevGeometry,
@@ -1530,7 +1537,12 @@ export class MetaballGridFamily implements RenderFamily {
 
         const classificationStartMs = performance.now();
         const classification = buildGridClassification({
-            world: { width: input.world.width, height: input.world.height },
+            world: {
+                minX: input.world.minX ?? 0,
+                minY: input.world.minY ?? 0,
+                width: input.world.width,
+                height: input.world.height,
+            },
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
             prevGeometry: currentGeometry,
