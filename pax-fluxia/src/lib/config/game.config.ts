@@ -397,6 +397,7 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
     METABALL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
+    METABALL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
     METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
     METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
     METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing

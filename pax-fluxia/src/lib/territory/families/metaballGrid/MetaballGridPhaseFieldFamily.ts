@@ -77,6 +77,7 @@ const HEX_VERTICES_POINTY: ReadonlyArray<readonly [number, number]> = (() => {
 
 const METABALL_GRID_PHASE_FIELD_TUNABLE_KEYS = [
     'METABALL_GRID_SPACING_PX',
+    'METABALL_GRID_PATTERN_SPACING_PX',
     'METABALL_GRID_ORIGIN_MODE',
     'METABALL_GRID_DISTRIBUTION',
     'METABALL_GRID_POSITION_JITTER',
@@ -135,12 +136,19 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly prevOwnedStars: readonly GridOwnedStar[];
+    readonly nextOwnedStars: readonly GridOwnedStar[];
     readonly prevResolvedGeometry: ConstraintAlignedTerritoryGeometry;
     readonly nextResolvedGeometry: ConstraintAlignedTerritoryGeometry;
     readonly classificationBuildMs: number;
     readonly wavePlanBuildMs: number;
     readonly planBuildMs: number;
     readonly nextGeometryRef: CanonicalGeometrySnapshot;
+}
+
+interface CachedPatternClassification {
+    readonly key: string;
+    readonly classification: GridClassification;
 }
 
 type GeometryFillSource = Pick<ConstraintAlignedTerritoryGeometry, 'territoryRegions'>;
@@ -555,10 +563,10 @@ function buildOwnershipSceneCells(params: {
 
 function paintCellScene(params: {
     graphics: PIXI.Graphics;
-    classification: GridClassification;
     sceneCells: readonly GridRenderCell[];
     fillHexByColorIdx: readonly number[];
     cellShape: GridCellShape;
+    cellSpacingPx: number;
     cellInsetPx: number;
     cellCornerPx: number;
     inwardOffsetPx: number;
@@ -571,7 +579,7 @@ function paintCellScene(params: {
         return 0;
     }
 
-    const spacingPx = params.classification.spacingPx;
+    const spacingPx = params.cellSpacingPx;
     const insetMax = spacingPx * 0.45;
     const nativeInset = Math.min(params.cellInsetPx, insetMax);
     const boundaryInset = Math.min(
@@ -647,6 +655,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     private textureHeight = 0;
     private sessionKey: string | null = null;
     private cachedPlan: CachedPlan | null = null;
+    private cachedPatternClassification: CachedPatternClassification | null = null;
     private lastPlanParamsKey: string | null = null;
     private lastPaintSig: string | null = null;
     private lastPrevTextureSig: string | null = null;
@@ -687,6 +696,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
     private resetState(): void {
         this.cachedPlan = null;
+        this.cachedPatternClassification = null;
         this.lastPlanParamsKey = null;
         this.lastPaintSig = null;
         this.lastPrevTextureSig = null;
@@ -927,6 +937,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry,
+            prevOwnedStars,
+            nextOwnedStars,
             prevResolvedGeometry,
             nextResolvedGeometry,
             classificationBuildMs,
@@ -936,6 +948,57 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         };
     }
 
+    private resolvePatternClassification(params: {
+        input: RenderFamilyInput;
+        cached: CachedPlan;
+        settings: PhaseFieldPlanSettings;
+        patternSpacingPx: number;
+    }): GridClassification {
+        const key = [
+            buildTransitionKey(params.input),
+            params.cached.prevGeometry.version,
+            params.cached.nextGeometryRef.version,
+            params.cached.prevResolvedGeometry.appliedMarginPx.toFixed(2),
+            params.cached.nextResolvedGeometry.appliedMarginPx.toFixed(2),
+            params.patternSpacingPx.toFixed(2),
+            params.settings.originMode,
+            params.settings.distribution,
+            params.settings.positionJitter.toFixed(3),
+        ].join('|');
+        if (this.cachedPatternClassification?.key === key) {
+            return this.cachedPatternClassification.classification;
+        }
+
+        const prevGeometryForClassification: CanonicalGeometrySnapshot = {
+            ...params.cached.prevGeometry,
+            territoryRegions: params.cached.prevResolvedGeometry.territoryRegions,
+        };
+        const nextGeometryForClassification: CanonicalGeometrySnapshot = {
+            ...params.cached.nextGeometryRef,
+            territoryRegions: params.cached.nextResolvedGeometry.territoryRegions,
+        };
+        const starPositions = new Map<string, { x: number; y: number }>();
+        for (const star of params.input.stars) {
+            starPositions.set(star.id, { x: star.x, y: star.y });
+        }
+
+        const classification = buildGridClassification({
+            world: params.input.world,
+            spacingPx: params.patternSpacingPx,
+            originMode: params.settings.originMode,
+            prevGeometry: prevGeometryForClassification,
+            nextGeometry: nextGeometryForClassification,
+            conquestEvents: params.input.activeTransition?.conquestEvents ?? [],
+            resolveStarPosition: (starId: string) => starPositions.get(starId) ?? null,
+            prevOwnedStars: params.cached.prevOwnedStars,
+            nextOwnedStars: params.cached.nextOwnedStars,
+            distribution: params.settings.distribution,
+            positionJitter: params.settings.positionJitter,
+        });
+        this.cachedPatternClassification = { key, classification };
+        return classification;
+    }
+
     private renderPatternTexture(params: {
         renderer: PIXI.Renderer;
         texture: PIXI.RenderTexture;
@@ -943,10 +1006,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         maskGraphics: PIXI.Graphics;
         container: PIXI.Container;
         geometry: GeometryFillSource;
-        classification: GridClassification;
         sceneCells: readonly GridRenderCell[];
         fillHexByColorIdx: readonly number[];
         cellShape: GridCellShape;
+        cellSpacingPx: number;
         cellInsetPx: number;
         cellCornerPx: number;
         inwardOffsetPx: number;
@@ -954,10 +1017,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     }): number {
         const painted = paintCellScene({
             graphics: params.patternGraphics,
-            classification: params.classification,
             sceneCells: params.sceneCells,
             fillHexByColorIdx: params.fillHexByColorIdx,
             cellShape: params.cellShape,
+            cellSpacingPx: params.cellSpacingPx,
             cellInsetPx: params.cellInsetPx,
             cellCornerPx: params.cellCornerPx,
             inwardOffsetPx: params.inwardOffsetPx,
@@ -1514,6 +1577,16 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             (GAME_CONFIG.METABALL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
             ['square', 'circle', 'diamond', 'hex'],
         );
+        const patternSpacingPx = Math.max(
+            16,
+            readTunableNumber(
+                input,
+                'METABALL_GRID_PATTERN_SPACING_PX',
+                ((GAME_CONFIG as unknown as Record<string, unknown>)
+                    .METABALL_GRID_PATTERN_SPACING_PX as number | undefined) ??
+                    metaballGridPhaseFieldModeDefaults.METABALL_GRID_PATTERN_SPACING_PX,
+            ),
+        );
         const cellInsetPx = Math.max(
             0,
             readTunableNumber(
@@ -1743,6 +1816,12 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 borderLightMult,
             );
         }
+        const patternClassification = this.resolvePatternClassification({
+            input,
+            cached,
+            settings,
+            patternSpacingPx,
+        });
 
         const paintSig = [
             cached.planKey,
@@ -1752,6 +1831,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             quantProgress(easedProgress),
             quantProgress(normalizedProgress),
             fillAlpha.toFixed(3),
+            patternSpacingPx.toFixed(2),
+            patternClassification.spacingPx.toFixed(2),
             cellShape,
             cellInsetPx.toFixed(2),
             cellCornerPx.toFixed(2),
@@ -1843,7 +1924,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             'steady';
         let borderSceneCells: readonly GridRenderCell[] = [];
         const nextOwnershipScene = buildOwnershipSceneCells({
-            classification: cached.classification,
+            classification: patternClassification,
             ownerColorIdx,
             side: 'next',
         });
@@ -1908,7 +1989,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             if (input.renderer) {
                 this.ensureTextures(input.world.width, input.world.height);
                 const prevOwnershipScene = buildOwnershipSceneCells({
-                    classification: cached.classification,
+                    classification: patternClassification,
                     ownerColorIdx,
                     side: 'prev',
                 });
@@ -1919,6 +2000,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
+                    patternSpacingPx.toFixed(2),
+                    patternClassification.spacingPx.toFixed(2),
                     cellShape,
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
@@ -1932,10 +2015,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         maskGraphics: this.prevSourceMaskGraphics,
                         container: this.prevSourceContainer,
                         geometry: prevResolvedGeometry,
-                        classification: cached.classification,
                         sceneCells: prevOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
+                        cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
                         inwardOffsetPx,
@@ -1951,6 +2034,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
+                    patternSpacingPx.toFixed(2),
+                    patternClassification.spacingPx.toFixed(2),
                     cellShape,
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
@@ -1964,10 +2049,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         maskGraphics: this.nextSourceMaskGraphics,
                         container: this.nextSourceContainer,
                         geometry: currentResolvedGeometry,
-                        classification: cached.classification,
                         sceneCells: nextOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
+                        cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
                         inwardOffsetPx,
@@ -2014,10 +2099,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             } else {
                 paintedCells = paintCellScene({
                     graphics: this.baseGraphics,
-                    classification: cached.classification,
                     sceneCells: nextOwnershipScene,
                     fillHexByColorIdx,
                     cellShape,
+                    cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
                     inwardOffsetPx,
@@ -2128,6 +2213,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
+                    patternSpacingPx.toFixed(2),
+                    patternClassification.spacingPx.toFixed(2),
                     cellShape,
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
@@ -2141,10 +2228,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         maskGraphics: this.nextSourceMaskGraphics,
                         container: this.nextSourceContainer,
                         geometry: currentResolvedGeometry,
-                        classification: cached.classification,
                         sceneCells: nextOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
+                        cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
                         inwardOffsetPx,
@@ -2158,10 +2245,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             } else {
                 paintedCells = paintCellScene({
                     graphics: this.baseGraphics,
-                    classification: cached.classification,
                     sceneCells: nextOwnershipScene,
                     fillHexByColorIdx,
                     cellShape,
+                    cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
                     inwardOffsetPx,

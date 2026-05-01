@@ -75,6 +75,26 @@
         return null;
     }
 
+    function currentPlannerSpacingLabel(): string {
+        return isPhaseFieldMode() ? 'Transition Spacing' : 'Cell Spacing';
+    }
+
+    function currentPlannerSpacingDescription(): string {
+        if (isPhaseFieldMode()) {
+            return 'Spacing of the conquest scheduler grid. Smaller = denser takeover timing and heavier CPU. This does not set the visible fill-pattern size.';
+        }
+        return 'Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)×(worldHeight/spacing).';
+    }
+
+    function currentPatternSpacingPx(): number {
+        return (
+            panel.metaballGridPatternSpacingPx ??
+            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_PATTERN_SPACING_PX ??
+            metaballGridPhaseFieldModeDefaults.METABALL_GRID_PATTERN_SPACING_PX ??
+            64
+        ) as number;
+    }
+
     function currentBorderBlendLabel(): string {
         if (isPhaseFieldMode()) {
             return 'Singular blended territory border';
@@ -433,7 +453,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
-            Cell Spacing
+            {currentPlannerSpacingLabel()}
         </span>
         <span class="val">{currentSpacingPx()}px</span>
     </div>
@@ -609,6 +629,30 @@
 
 {#if showModule('shape')}
 <div class="module-block">
+{#if isPhaseFieldMode()}
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
+            Pattern Spacing
+        </span>
+        <span class="val">{currentPatternSpacingPx()}px</span>
+    </div>
+    <div class="var-desc">
+        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
+    </div>
+    <input
+        type="range"
+        min="16"
+        max="128"
+        step="1"
+        value={currentPatternSpacingPx()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
+        }}
+    />
+</div>
+{/if}
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Per-cell primitive. Square tiles the grid cleanly; circle and diamond create visible inter-cell gaps naturally.">

@@ -580,6 +580,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
     { configKey: 'METABALL_GRID_SPACING_PX' },
+    { configKey: 'METABALL_GRID_PATTERN_SPACING_PX' },
     { configKey: 'METABALL_GRID_ORIGIN_MODE' },
     { configKey: 'METABALL_GRID_DISTRIBUTION' },
     { configKey: 'METABALL_GRID_POSITION_JITTER' },

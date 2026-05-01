@@ -1,5 +1,6 @@
 export const metaballGridFamilyConfigDefaults = {
     METABALL_GRID_SPACING_PX: 32,
+    METABALL_GRID_PATTERN_SPACING_PX: 64,
     METABALL_GRID_ORIGIN_MODE: 'centered' as const,
     METABALL_GRID_DISTRIBUTION: 'square' as const,
     METABALL_GRID_POSITION_JITTER: 0,
@@ -49,6 +50,7 @@ export const metaballGridPhaseEdgesGeometryDefaults = {
 
 export const metaballGridPhaseFieldModeDefaults = {
     METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
+    METABALL_GRID_PATTERN_SPACING_PX: 64,
     METABALL_GRID_BORDER_MODE: 'territory_edge' as const,
     METABALL_GRID_BORDER_BLEND: true,
     METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,

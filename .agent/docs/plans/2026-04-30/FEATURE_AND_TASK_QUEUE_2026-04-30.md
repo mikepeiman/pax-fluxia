@@ -36,10 +36,15 @@
   - PRE and POST render textures now paint real cell-pattern ownership layers,
   - those patterned layers are clipped by resolved geometry,
   - the conquest composite remains local, but `Cell Shape` / `Cell Inset` / `Square Corner` are no longer just mask-side effects.
+- Corrected the follow-up regression where visible fill was still being sampled from the conquest scheduler lattice:
+  - phase field now uses a separate cached presentation classification for visible PRE/POST fill,
+  - `Transition Spacing` remains the scheduler-density control,
+  - `Pattern Spacing` now controls the actual visible fill lattice density.
 
 ## Next
 - Verify in-app that the new patterned PRE/POST texture path still preserves conquest readability and does not introduce Pixi mask/container artifacts.
 - Tune the fill-pattern controls now that they affect the actual visible territory surface in steady state and conquest.
+- Verify in-app that `Pattern Spacing`, `Cell Shape`, `Cell Inset`, and `Square Corner` now produce obvious visible changes at rest without requiring an active conquest.
 - Run visual QA in-app against real conquest sessions, especially consecutive capture sessions and long chained frontiers.
 - Tune the new finish-tail controls in live conquest footage and decide whether the current starter border baseline should become a stronger authored default.
 - Tune the new phase-field border overlay in conquest and steady state, especially the distinction between `territory_edge`, `per_cell`, centered-blended borders, and the separate `Frontier Highlight` accent.

@@ -373,6 +373,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
         },
         'Cell Spacing': { key: 'METABALL_GRID_SPACING_PX' },
+        'Pattern Spacing': { key: 'METABALL_GRID_PATTERN_SPACING_PX' },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
         'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },

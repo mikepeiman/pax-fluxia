@@ -1174,3 +1174,51 @@ Suggested structure:
   - phase-field no longer presents `Cell Shape` as a transition-only mask concern,
   - PRE and POST visible fill layers now render as actual cell patterns,
   - resolved geometry still owns the territory boundary through clipping, so fill presentation and territory constraints are no longer split concerns.
+
+### 2026-05-01 - Split Phase-Field Presentation Pattern From Transition Scheduler
+
+- Lane: `territory/phase-field-pattern-presentation-lattice`
+- User task: fix the regression where phase-field fill turned into a tiny-dot field, cell controls appeared dead, and sliders lagged because visible fill had been incorrectly derived from the transition lattice.
+
+#### Pass Log
+
+1. Pass 1 - Audited the regression and confirmed the real mistake:
+   - visible fill had been bucket-picked from the dense conquest scheduler grid,
+   - so `METABALL_GRID_SPACING_PX = 4` was still effectively driving presentation density,
+   - `Cell Shape`, `Cell Inset`, and `Square Corner` therefore operated on a sparse sampling artifact instead of a true fill lattice.
+2. Pass 2 - Rejected the bucketing approach and replaced it with a separate cached presentation classification inside `MetaballGridPhaseFieldFamily.ts`.
+3. Pass 3 - Kept the conquest scheduler on its own dense grid, but built PRE/NEXT visible fill from a separate pattern classification keyed by:
+   - resolved PRE/NEXT geometry,
+   - `METABALL_GRID_PATTERN_SPACING_PX`,
+   - origin mode,
+   - distribution,
+   - position jitter.
+4. Pass 4 - Restored the ownership-scene builder to emit all presentation cells instead of one representative per bucket.
+5. Pass 5 - Repaired `MetaballGridTuning.svelte` after the prior failed patch:
+   - restored module-nav structure,
+   - restored valid section nesting,
+   - added a real `Pattern Spacing` control under `Shape`,
+   - relabeled scheduler spacing as `Transition Spacing` for phase field.
+6. Pass 6 - Raised the phase-field default `METABALL_GRID_PATTERN_SPACING_PX` to `64` so legacy inset values do not immediately collapse into a fine noise field.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/config.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+  - `pax-fluxia/src/lib/components/ui/settingsDefs.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/settingMetadata.ts`
+  - `pax-fluxia/src/lib/config/game.config.ts`
+- Critical behavioral delta for merge/review:
+  - phase-field now uses two lattices with distinct jobs:
+    - dense scheduler lattice for conquest timing,
+    - coarser presentation lattice for visible fill pattern
+  - shape controls now target the actual visible territory surface instead of a sparsified scheduler sample
+  - `Pattern Spacing` is now the fill-style density control, while `Transition Spacing` remains the conquest-timing density control.
