@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**This branch tip:** `81451e3dc` (`Restore star-fit centering for territory presentation`)  
+**Code-bearing branch tip at last runtime validation:** `73b607e91` (`Fix phase-edges viewport fill phase and perimeter border`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master:** 13
+**Commits ahead of master before subsequent docs-only catch-up commits:** 15
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -30,6 +30,8 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 11. `c2f3dcfb8` - `Align territory fit to map rect and add outer border toggle`
 12. `36ef604d0` - `Document map-rect centering rethink and perimeter toggle`
 13. `81451e3dc` - `Restore star-fit centering for territory presentation`
+14. `4328753af` - `Document restored star-fit centering model`
+15. `73b607e91` - `Fix phase-edges viewport fill phase and perimeter border`
 
 ### Code scope
 
@@ -588,3 +590,41 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - keep the outer-perimeter feature from `c2f3dcfb8`
   - do not keep its map-rect centering baseline
   - the active branch tip returns to star-fit centering while still using a viewport-aligned territory fill frame around that star-fit center
+
+### 2026-05-01 - additive correction after the star-fit restoration was still not fully right live
+
+- The user then provided a tighter live report and screenshot:
+  - the result was close again, like the earlier improved state, but still not correct
+  - there was still a visible margin on the right side only
+  - optional outer-edge borders were still appearing only on the right side
+  - the user explicitly wanted transition end-jank queued next, but only after these two presentation defects were corrected
+- The important architectural diagnosis from this step:
+  - the remaining right-side margin was not just a camera-centering problem
+  - the localized Phase Edges presentation frame was rebuilding grid classification as a fresh local `0`-anchored grid
+  - when the star-fit-centered presentation frame begins at non-zero `minX/minY`, that loses the underlying world-grid phase and shifts the sampled fill support relative to the visible frame
+  - the right-only outer border was also not solved merely by turning owner-vs-world perimeter on; the perimeter pass itself needed to be derived from the clipped presentation frame instead of whichever sampled edge columns happened to survive classification
+- Runtime changes made:
+  - extended the render-family world contract so localized family inputs now carry presentation-frame `minX` / `minY`
+    - `pax-fluxia/src/lib/territory/families/RenderFamilyTypes.ts`
+    - `pax-fluxia/src/lib/territory/families/buildRenderFamilyInput.ts`
+  - updated `GameCanvas.svelte` so localized territory-family inputs pass `worldMinX` / `worldMinY` from `territoryPresentationFrame`
+  - updated grid-classification ownership for localized builds:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/metaballGridTypes.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/metaballGridPlanWorkerTypes.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `buildGridClassification()` now preserves world-grid phase for localized frames while retaining the older rooted-at-zero behavior for normal world-rooted builds
+  - replaced the old owner-vs-world perimeter leakage path in `MetaballGridPhaseEdgesFamily.ts` with a real clipped-frame outer-perimeter pass:
+    - derives perimeter intervals from the actual presentation-frame boundary
+    - groups them by owner and side
+    - insets them by half border width so top/left/bottom do not clip away while right remains visible
+- Tests/validation added for this correction:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.test.ts`
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/buildGridClassification.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/buildGridClassification.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
+- Important merge/backport guidance:
+  - do not treat this as a one-off right-edge patch; the durable fix is preserving world-grid phase when localized presentation frames are used
+  - the outer perimeter must remain a first-class clipped-frame pass, not a side effect of owner-owner edge collection
+  - after live verification of the right-margin and four-sided-perimeter result, the next queued task is transition end-jank/disjointness near the finish

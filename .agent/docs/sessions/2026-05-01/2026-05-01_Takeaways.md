@@ -20,3 +20,6 @@
 - The durable rule is narrower than either extreme:
   - do not let authored map extents replace star-fit as the centering owner when the user is evaluating centered playfield composition
   - do not let territory fills remain anchored to the raw map rect when the centered star-fit view is the thing the player is visually composing against
+- Once a territory renderer localizes geometry into a presentation frame, the grid classifier must preserve the underlying world-grid phase. Rebuilding the localized frame as a fresh `0`-anchored grid will manufacture one-sided gaps and make centering bugs look worse than they are.
+- Optional outer-perimeter borders must be derived from the clipped presentation-frame boundary, not from whichever sampled grid edge happened to be last. Sampling artifacts and frame-edge clipping will otherwise show up as “only one side has a border.”
+- `bun x vitest` is currently unreliable in this Windows worktree because of a temp-path `vite/dist/client/client.mjs` resolution failure. The repo-local runner `bun ./node_modules/vitest/vitest.mjs run ...` is the reliable path here.

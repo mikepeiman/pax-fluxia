@@ -7,6 +7,9 @@
 - Continue Phase Edges acceptance work from 2026-04-30 after the viewport/world-rect correction:
 - no structural fill/border divergence
 - no stable-area steady-state vs transition border divergence
+- Queue the next acceptance pass after centering/perimeter verification:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition
+  - test whether the end-state snap is skipping or collapsing the final few presentation frames
 
 ## Completed
 - Audited the map/viewport defect as a world-rect ownership bug, not a CSS-only issue.
@@ -28,8 +31,22 @@
 - Added a first-class `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` toggle and surfaced it in `Territory Styles > Border` as `Outer perimeter border`.
 - Corrected the Phase Edges centered-blended edge path so owner-vs-world perimeter edges are drawn by an explicit perimeter pass instead of leaking asymmetrically from the owner-owner adjacency pass.
 - Rejected the map-rect centering theory after live user feedback and restored star-fit centering in `GameCanvas.svelte` while keeping the explicit outer-perimeter toggle/path.
+- Corrected the remaining localized Phase Edges sampling defect by preserving the global grid phase through the viewport-local presentation frame:
+  - `RenderFamilyInput.world` now carries presentation-frame `minX/minY`
+  - `buildRenderFamilyInput()` now freezes those values into the family contract
+  - `buildGridClassification()` now preserves world-grid phase for localized presentation frames instead of rebuilding as a fresh `0`-anchored grid every time
+  - `MetaballGridFamily.ts`, `MetaballGridPhaseEdgesFamily.ts`, and the plan-worker request all now propagate that phase-preserving world contract
+- Replaced the old optional outer-perimeter border leak path with a real clipped-frame perimeter pass in `MetaballGridPhaseEdgesFamily.ts`:
+  - owner-vs-world perimeter is now derived from the actual presentation-frame boundary
+  - not from whichever sampled grid column happened to be last
+  - this keeps `Outer perimeter border` a first-class optional feature rather than a right-edge artifact
+- Added regression coverage in `pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.test.ts` for localized frame phase preservation.
+- Validated the current delta with:
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/buildGridClassification.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
 
 ## Next
 - User confirms the live result in the running worktree.
-- If centering is still not exact after the star-fit restore, inspect whether the remaining offset is in the viewport-aligned fill-frame sizing/localization rather than the centering baseline itself.
-- If the outer perimeter is still asymmetric, inspect whether any remaining border path bypasses `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` and still treats out-of-bounds neighbors as implicit edges.
+- If a one-sided fill margin still remains after the grid-phase preservation change, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a centering baseline problem.
+- If the outer perimeter is still asymmetric, inspect whether any border path outside the centered-blended pass still bypasses `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED`.
+- After those two live checks pass, start the queued transition end-jank investigation.
