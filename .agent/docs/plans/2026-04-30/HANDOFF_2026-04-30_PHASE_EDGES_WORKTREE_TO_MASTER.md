@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**This branch tip:** `adc0b8b35` (`Fix map viewport world bounds alignment`)  
+**This branch tip:** `89c9cdd69` (`Fix territory viewport presentation framing`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master:** 8
+**Commits ahead of master:** 9
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -25,6 +25,7 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 6. `25b959ce` - `Fix phase-edges fill offset and junction controls`
 7. `2f7d7ebcb` - `Narrow phase-edges frontier fill suppression`
 8. `adc0b8b35` - `Fix map viewport world bounds alignment`
+9. `89c9cdd69` - `Fix territory viewport presentation framing`
 
 ### Code scope
 
