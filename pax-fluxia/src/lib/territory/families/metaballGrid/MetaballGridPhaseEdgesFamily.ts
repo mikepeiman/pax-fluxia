@@ -327,6 +327,8 @@ interface OuterPerimeterInterval {
     readonly end: number;
 }
 
+const OUTER_PERIMETER_EDGE_EPSILON = 0.001;
+
 function addOuterPerimeterInterval(
     intervalsByKey: Map<string, OuterPerimeterInterval[]>,
     side: OuterPerimeterSide,
@@ -373,7 +375,10 @@ function drawOuterPerimeterIntervals(params: {
             const top = vstar.y - params.cellHalfExtent;
             const bottom = vstar.y + params.cellHalfExtent;
 
-            if (left < 0 && right > 0) {
+            if (
+                left <= OUTER_PERIMETER_EDGE_EPSILON &&
+                right >= -OUTER_PERIMETER_EDGE_EPSILON
+            ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
                     'left',
@@ -382,7 +387,10 @@ function drawOuterPerimeterIntervals(params: {
                     clampY(bottom),
                 );
             }
-            if (top < 0 && bottom > 0) {
+            if (
+                top <= OUTER_PERIMETER_EDGE_EPSILON &&
+                bottom >= -OUTER_PERIMETER_EDGE_EPSILON
+            ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
                     'top',
@@ -391,7 +399,10 @@ function drawOuterPerimeterIntervals(params: {
                     clampX(right),
                 );
             }
-            if (right > params.frameWidth && left < params.frameWidth) {
+            if (
+                right >= params.frameWidth - OUTER_PERIMETER_EDGE_EPSILON &&
+                left <= params.frameWidth + OUTER_PERIMETER_EDGE_EPSILON
+            ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
                     'right',
@@ -400,7 +411,10 @@ function drawOuterPerimeterIntervals(params: {
                     clampY(bottom),
                 );
             }
-            if (bottom > params.frameHeight && top < params.frameHeight) {
+            if (
+                bottom >= params.frameHeight - OUTER_PERIMETER_EDGE_EPSILON &&
+                top <= params.frameHeight + OUTER_PERIMETER_EDGE_EPSILON
+            ) {
                 addOuterPerimeterInterval(
                     intervalsByKey,
                     'bottom',
@@ -3354,10 +3368,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         g.clear();
         borderLayer.clear();
         borderLayer.visible = false;
-        if (usingControlFrontier) {
-            this.frontierGraphics.clear();
-            this.frontierGraphics.visible = false;
-        }
+        this.frontierGraphics.clear();
+        this.frontierGraphics.visible = false;
+        this.frontierMeshLayer.visible = false;
+        this.hideUnusedFrontierShaderLayers(0);
         const spacingPx = cached.classification.spacingPx;
         // Clamp inset so a cell never collapses to 0. Non-native cells get an
         // extra `inwardOffsetPx` added to the inset, so ownership-boundary
@@ -3425,7 +3439,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             effectiveBorderWidth > 0 &&
             effectiveBorderAlpha > 0 &&
             borderBlend &&
-            cached.classification.distribution === 'square';
+            cached.classification.distribution === 'square' &&
+            frontierSurfaceRecipe.borderSource === 'shared_edge';
+        const shouldRenderPhaseBorder =
+            borderMode !== 'off' &&
+            effectiveBorderWidth > 0 &&
+            effectiveBorderAlpha > 0 &&
+            frontierSurfaceRecipe.usesPhaseBorder;
         const sceneOwnerOccupancy =
             drawBlendedEdges ||
             canBuildScenePairPhaseSurface ||
@@ -3541,10 +3561,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 ),
             );
         }
-        if (
-            frontierSurfaceRecipe.usesPhaseBorder &&
-            sceneSurfaceBorderLayers.length > 0
-        ) {
+        if (shouldRenderPhaseBorder && sceneSurfaceBorderLayers.length > 0) {
             frontierPresentation = buildTerritoryFrontierPresentation({
                 phaseField: { layers: sceneSurfaceBorderLayers },
                 technique:

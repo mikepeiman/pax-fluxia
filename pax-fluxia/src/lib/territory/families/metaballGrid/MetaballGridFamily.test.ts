@@ -803,4 +803,65 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.dispose();
     });
+
+    it('clears dormant contour and shader border layers when border mode is off', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        const staleState = family as unknown as {
+            borderGraphics: { visible: boolean };
+            frontierGraphics: { visible: boolean };
+            frontierMeshLayer: { visible: boolean };
+        };
+        staleState.borderGraphics.visible = true;
+        staleState.frontierGraphics.visible = true;
+        staleState.frontierMeshLayer.visible = true;
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_BORDER_ENABLED: true,
+                METABALL_GRID_BORDER_MODE: 'off',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+
+        expect(staleState.borderGraphics.visible).toBe(false);
+        expect(staleState.frontierGraphics.visible).toBe(false);
+        expect(staleState.frontierMeshLayer.visible).toBe(false);
+
+        family.dispose();
+    });
+
+    it('keeps shared-edge territory borders on the base border layer only', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_BORDER_ENABLED: true,
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+
+        const state = family as unknown as {
+            borderGraphics: { visible: boolean };
+            frontierGraphics: { visible: boolean };
+            frontierMeshLayer: { visible: boolean };
+        };
+
+        expect(state.borderGraphics.visible).toBe(true);
+        expect(state.frontierGraphics.visible).toBe(false);
+        expect(state.frontierMeshLayer.visible).toBe(false);
+
+        family.dispose();
+    });
 });
