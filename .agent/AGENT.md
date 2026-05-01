@@ -1061,3 +1061,36 @@ Suggested structure:
   - phase field no longer renders fill from one ownership surface and border from another,
   - fill, smooth border, and grid classification now all derive from the same resolved constraint-aligned frontier set,
   - shared junction endpoints are now explicitly welded before fill reconstruction and stroke rendering.
+
+### 2026-05-01 - Filter Lane-Pair Spur Frontiers Out Of Phase-Field Borders
+
+- Lane: `territory/phase-field-cx-spur-border-cleanup`
+- User task: fix the last remaining border artifact class after screenshot review. The visible clue was short unmatched border stubs, likely caused by lane-pair / corridor virtual-site frontier fragments.
+
+#### Pass Log
+
+1. Pass 1 - Audited the resolved phase-field geometry helper and found that it still drew every aligned frontier polyline, even though the reconstructed fill surface did not necessarily use every frontier fragment.
+2. Pass 2 - Rejected a first filter attempt based on owner-loop walk acceptance because it was too brittle at junctions.
+3. Pass 3 - Replaced that with a fill-truth filter inside `resolveConstraintAlignedTerritoryGeometry.ts`:
+   - build provisional aligned frontiers,
+   - rebuild resolved fill regions from them,
+   - keep only those frontier/world polylines whose segment chain actually appears on a resolved territory boundary,
+   - realign once more after filtering so discarded spur endpoints no longer perturb shared junction resolution.
+4. Pass 4 - Added coverage in `resolveConstraintAlignedTerritoryGeometry.test.ts` for a disconnected spur frontier that should be removed while the real border remains.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- `git diff --check`
+- filtered `bun run check` produced no new hits for:
+  - `resolveConstraintAlignedTerritoryGeometry`
+  - `MetaballGridPhaseFieldFamily`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- Critical behavioral delta for merge/review:
+  - phase field no longer strokes resolved frontier fragments that never become part of the final resolved territory boundary,
+  - short CX / lane-pair spur borders should now be filtered before final border painting.

@@ -242,6 +242,131 @@ function toSharedPolyline(
     };
 }
 
+function normalizeClosedRing(
+    points: ReadonlyArray<[number, number]>,
+): readonly [number, number][] {
+    if (points.length < 2) return points;
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (first[0] === last[0] && first[1] === last[1]) {
+        return points.slice(0, -1);
+    }
+    return points;
+}
+
+function buildDirectedSegmentKeys(
+    points: ReadonlyArray<[number, number]>,
+    closed: boolean,
+): readonly string[] {
+    if (points.length < 2) return [];
+    const keys: string[] = [];
+    const limit = closed ? points.length : points.length - 1;
+    for (let index = 0; index < limit; index++) {
+        const [ax, ay] = points[index]!;
+        const [bx, by] = points[(index + 1) % points.length]!;
+        keys.push(`${pointKey(ax, ay)}>${pointKey(bx, by)}`);
+    }
+    return keys;
+}
+
+function ringContainsPolyline(
+    ringPoints: ReadonlyArray<[number, number]>,
+    polylinePoints: ReadonlyArray<[number, number]>,
+): boolean {
+    const normalizedRing = normalizeClosedRing(ringPoints);
+    const ringSegments = buildDirectedSegmentKeys(normalizedRing, true);
+    const polylineSegments = buildDirectedSegmentKeys(polylinePoints, false);
+    if (ringSegments.length === 0 || polylineSegments.length === 0) return false;
+    if (ringSegments.length < polylineSegments.length) return false;
+
+    const doubledRing = [...ringSegments, ...ringSegments];
+    const reversedSegments = buildDirectedSegmentKeys(
+        [...polylinePoints].reverse(),
+        false,
+    );
+    const matchesAt = (candidate: readonly string[], start: number): boolean => {
+        for (let index = 0; index < candidate.length; index++) {
+            if (doubledRing[start + index] !== candidate[index]) return false;
+        }
+        return true;
+    };
+
+    for (let start = 0; start < ringSegments.length; start++) {
+        if (matchesAt(polylineSegments, start)) return true;
+        if (matchesAt(reversedSegments, start)) return true;
+    }
+    return false;
+}
+
+function filterPolylinesByResolvedRegions(params: {
+    frontierPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>;
+    worldBorderPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>;
+    territoryRegions: ReadonlyArray<TerritoryRegionShape>;
+}): {
+    readonly frontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
+    readonly worldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
+} {
+    const keepPolyline = (
+        polyline: ConstraintAlignedFrontierPolyline,
+    ): boolean =>
+        params.territoryRegions.some((region) =>
+            ringContainsPolyline(region.points, polyline.points),
+        );
+
+    return {
+        frontierPolylines: params.frontierPolylines.filter(keepPolyline),
+        worldBorderPolylines: params.worldBorderPolylines.filter(keepPolyline),
+    };
+}
+
+function alignGeometry(params: {
+    frontierPolylines: ReadonlyArray<CanonicalFrontierPolyline>;
+    worldBorderPolylines: ReadonlyArray<CanonicalFrontierPolyline>;
+    ownerStars: ReadonlyMap<string, readonly StarState[]>;
+    appliedMarginPx: number;
+}): ConstraintAlignedTerritoryGeometry {
+    const endpointOwners = collectEndpointOwners(
+        params.frontierPolylines,
+        params.worldBorderPolylines,
+    );
+    const { positions: endpointPositions, junctions } = resolveEndpointPositions(
+        {
+            endpointOwners,
+            ownerStars: params.ownerStars,
+            appliedMarginPx: params.appliedMarginPx,
+        },
+    );
+
+    const frontierPolylines = params.frontierPolylines.map((polyline) =>
+        alignPolyline({
+            polyline,
+            kind: 'inter_owner',
+            endpointPositions,
+            ownerStars: params.ownerStars,
+            appliedMarginPx: params.appliedMarginPx,
+        }),
+    );
+    const worldBorderPolylines = params.worldBorderPolylines.map((polyline) =>
+        alignPolyline({
+            polyline,
+            kind: 'world',
+            endpointPositions,
+            ownerStars: params.ownerStars,
+            appliedMarginPx: params.appliedMarginPx,
+        }),
+    );
+    return {
+        territoryRegions: buildResolvedRegions(
+            frontierPolylines,
+            worldBorderPolylines,
+        ),
+        frontierPolylines,
+        worldBorderPolylines,
+        junctions,
+        appliedMarginPx: params.appliedMarginPx,
+    };
+}
+
 function buildResolvedRegions(
     frontierPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>,
     worldBorderPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>,
@@ -266,46 +391,39 @@ export function resolveConstraintAlignedTerritoryGeometry(
         params.requestedMarginPx,
     );
     const ownerStars = buildOwnerStars(params.stars);
-    const endpointOwners = collectEndpointOwners(
-        params.geometry.frontierPolylines,
-        params.geometry.worldBorderPolylines,
-    );
-    const { positions: endpointPositions, junctions } = resolveEndpointPositions(
-        {
-            endpointOwners,
-            ownerStars,
-            appliedMarginPx,
-        },
-    );
-
-    const frontierPolylines = params.geometry.frontierPolylines.map((polyline) =>
-        alignPolyline({
-            polyline,
-            kind: 'inter_owner',
-            endpointPositions,
-            ownerStars,
-            appliedMarginPx,
-        }),
-    );
-    const worldBorderPolylines = params.geometry.worldBorderPolylines.map(
-        (polyline) =>
-            alignPolyline({
-                polyline,
-                kind: 'world',
-                endpointPositions,
-                ownerStars,
-                appliedMarginPx,
-            }),
-    );
-
-    return {
-        territoryRegions: buildResolvedRegions(
-            frontierPolylines,
-            worldBorderPolylines,
-        ),
-        frontierPolylines,
-        worldBorderPolylines,
-        junctions,
+    const provisional = alignGeometry({
+        frontierPolylines: params.geometry.frontierPolylines,
+        worldBorderPolylines: params.geometry.worldBorderPolylines,
+        ownerStars,
         appliedMarginPx,
-    };
+    });
+    const filtered = filterPolylinesByResolvedRegions({
+        frontierPolylines: provisional.frontierPolylines,
+        worldBorderPolylines: provisional.worldBorderPolylines,
+        territoryRegions: provisional.territoryRegions,
+    });
+    const filteredCount =
+        filtered.frontierPolylines.length + filtered.worldBorderPolylines.length;
+    const provisionalCount =
+        provisional.frontierPolylines.length + provisional.worldBorderPolylines.length;
+    if (filteredCount === 0 || filteredCount === provisionalCount) {
+        return provisional;
+    }
+
+    const keptFrontierIds = new Set(
+        filtered.frontierPolylines.map((polyline) => polyline.frontierId),
+    );
+    const keptWorldIds = new Set(
+        filtered.worldBorderPolylines.map((polyline) => polyline.frontierId),
+    );
+    return alignGeometry({
+        frontierPolylines: params.geometry.frontierPolylines.filter((polyline) =>
+            keptFrontierIds.has(polyline.frontierId),
+        ),
+        worldBorderPolylines: params.geometry.worldBorderPolylines.filter(
+            (polyline) => keptWorldIds.has(polyline.frontierId),
+        ),
+        ownerStars,
+        appliedMarginPx,
+    });
 }

@@ -263,4 +263,121 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
         const owners = resolved.territoryRegions.map((region) => region.ownerId).sort();
         expect(owners).toEqual(['blue', 'red']);
     });
+
+    it('drops spur frontier fragments that are not part of any accepted territory loop', () => {
+        const geometry = makeGeometry({
+            frontierPolylines: [
+                {
+                    frontierId: 'f:red|blue:0',
+                    ownerA: 'red',
+                    ownerB: 'blue',
+                    ownerPairKey: 'red|blue',
+                    points: [
+                        [5, 0],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'f:green|orange:spur',
+                    ownerA: 'green',
+                    ownerB: 'orange',
+                    ownerPairKey: 'green|orange',
+                    points: [
+                        [30, 30],
+                        [34, 34],
+                    ],
+                    confidence: 1,
+                },
+            ],
+            worldBorderPolylines: [
+                {
+                    frontierId: 'w:red:0',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 0],
+                        [5, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:1',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [5, 10],
+                        [0, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:2',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 10],
+                        [0, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:0',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [5, 0],
+                        [10, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:1',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 0],
+                        [10, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:2',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 10],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+        });
+
+        const resolved = resolveConstraintAlignedTerritoryGeometry({
+            geometry,
+            stars: [
+                { id: 'r', x: 2, y: 5, ownerId: 'red' } as any,
+                { id: 'b', x: 8, y: 5, ownerId: 'blue' } as any,
+                { id: 'g', x: 28, y: 32, ownerId: 'green' } as any,
+                { id: 'o', x: 36, y: 36, ownerId: 'orange' } as any,
+            ],
+            requestedMarginPx: 0,
+        });
+
+        expect(
+            resolved.frontierPolylines.map((polyline) => polyline.ownerPairKey).sort(),
+        ).toEqual(['red|blue']);
+        expect(
+            resolved.frontierPolylines.some(
+                (polyline) => polyline.ownerPairKey === 'green|orange',
+            ),
+        ).toBe(false);
+    });
 });
