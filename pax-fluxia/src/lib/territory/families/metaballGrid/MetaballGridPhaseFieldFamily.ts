@@ -11,9 +11,10 @@ import {
     buildPerimeterFieldRenderFamilyGeometry,
 } from '../buildFamilyGeometry';
 import {
-    resolveConstraintAlignedFrontiers,
+    resolveConstraintAlignedTerritoryGeometry,
+    type ConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedFrontierPolyline,
-} from '../../geometry/resolveConstraintAlignedFrontiers';
+} from '../../geometry/resolveConstraintAlignedTerritoryGeometry';
 import type {
     RenderFamily,
     RenderFamilyInput,
@@ -134,11 +135,15 @@ interface CachedPlan {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly prevResolvedGeometry: ConstraintAlignedTerritoryGeometry;
+    readonly nextResolvedGeometry: ConstraintAlignedTerritoryGeometry;
     readonly classificationBuildMs: number;
     readonly wavePlanBuildMs: number;
     readonly planBuildMs: number;
     readonly nextGeometryRef: CanonicalGeometrySnapshot;
 }
+
+type GeometryFillSource = Pick<ConstraintAlignedTerritoryGeometry, 'territoryRegions'>;
 
 function clamp01(value: number): number {
     return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -451,7 +456,7 @@ function chaikinSmooth(pts: number[], passes: number, closed: boolean): number[]
 
 function drawGeometryFill(params: {
     graphics: PIXI.Graphics;
-    geometry: CanonicalGeometrySnapshot;
+    geometry: GeometryFillSource;
     resolveColor: (ownerId: string) => number;
     alpha: number;
 }): void {
@@ -718,15 +723,18 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         input: RenderFamilyInput,
         currentGeometry: CanonicalGeometrySnapshot,
         settings: PhaseFieldPlanSettings,
+        requestedMarginPx: number,
     ): CachedPlan {
         const transitionKey = buildTransitionKey(input);
         let prevGeometry = currentGeometry;
+        let prevStars = input.stars;
         let prevOwnedStars = toOwnedStars(input.stars);
         const nextOwnedStars = toOwnedStars(input.stars);
         const conquestEvents = input.activeTransition?.conquestEvents ?? [];
 
         if (input.activeTransition?.events.length) {
             const revertedStars = revertStarsForTransition(input);
+            prevStars = revertedStars;
             prevOwnedStars = toOwnedStars(revertedStars);
             prevGeometry =
                 input.prevGeometry ??
@@ -742,6 +750,25 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         input.configSource as Record<string, unknown> | undefined,
                 });
         }
+
+        const prevResolvedGeometry = resolveConstraintAlignedTerritoryGeometry({
+            geometry: prevGeometry,
+            stars: prevStars,
+            requestedMarginPx,
+        });
+        const nextResolvedGeometry = resolveConstraintAlignedTerritoryGeometry({
+            geometry: currentGeometry,
+            stars: input.stars,
+            requestedMarginPx,
+        });
+        const prevGeometryForClassification: CanonicalGeometrySnapshot = {
+            ...prevGeometry,
+            territoryRegions: prevResolvedGeometry.territoryRegions,
+        };
+        const nextGeometryForClassification: CanonicalGeometrySnapshot = {
+            ...currentGeometry,
+            territoryRegions: nextResolvedGeometry.territoryRegions,
+        };
 
         const geometryVersion =
             input.activeTransition?.events.length && prevGeometry !== currentGeometry
@@ -774,8 +801,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             world: input.world,
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
-            prevGeometry,
-            nextGeometry: currentGeometry,
+            prevGeometry: prevGeometryForClassification,
+            nextGeometry: nextGeometryForClassification,
             conquestEvents,
             resolveStarPosition,
             prevOwnedStars,
@@ -802,6 +829,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry,
+            prevResolvedGeometry,
+            nextResolvedGeometry,
             classificationBuildMs,
             wavePlanBuildMs,
             planBuildMs: classificationBuildMs + wavePlanBuildMs,
@@ -814,7 +843,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         texture: PIXI.RenderTexture;
         graphics: PIXI.Graphics;
         container: PIXI.Container;
-        geometry: CanonicalGeometrySnapshot;
+        geometry: GeometryFillSource;
         resolveColor: (ownerId: string) => number;
         alpha: number;
     }): void {
@@ -1166,9 +1195,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     }
 
     private drawConstraintAlignedTerritoryBorderOverlay(params: {
-        geometry: CanonicalGeometrySnapshot;
-        stars: ReadonlyArray<StarState>;
-        requestedMarginPx: number;
+        geometry: ConstraintAlignedTerritoryGeometry;
         ownerColorIdx: ReadonlyMap<string, number>;
         borderHexByColorIdx: readonly number[];
         borderWidth: number;
@@ -1178,13 +1205,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         g.clear();
         if (params.borderWidth <= 0 || params.borderAlpha <= 0) return;
 
-        const resolved = resolveConstraintAlignedFrontiers({
-            geometry: params.geometry,
-            stars: params.stars,
-            requestedMarginPx: params.requestedMarginPx,
-        });
-
-        for (const polyline of resolved.frontierPolylines) {
+        for (const polyline of params.geometry.frontierPolylines) {
             const ownerAIdx = params.ownerColorIdx.get(polyline.ownerA);
             const ownerBIdx = params.ownerColorIdx.get(polyline.ownerB);
             const ownerAHex =
@@ -1205,7 +1226,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             });
         }
 
-        for (const polyline of resolved.worldBorderPolylines) {
+        for (const polyline of params.geometry.worldBorderPolylines) {
             const ownerIdx = params.ownerColorIdx.get(polyline.ownerA);
             const color =
                 ownerIdx === undefined ? undefined : params.borderHexByColorIdx[ownerIdx];
@@ -1274,6 +1295,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
         const settings = this.readPlanSettings(input);
         const transitionKey = buildTransitionKey(input);
+        const requestedStarMarginPx = Math.max(
+            0,
+            Number(
+                (input.configSource?.MODIFIED_VORONOI_STAR_MARGIN as number | undefined) ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                    45,
+            ) || 0,
+        );
         const requestedPlanKey = [
             transitionKey,
             currentGeometry.version,
@@ -1286,6 +1315,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             settings.waveGeometry,
             settings.waveSeeding,
             settings.geometrySource ?? '',
+            requestedStarMarginPx.toFixed(2),
         ].join('|');
 
         if (
@@ -1293,12 +1323,19 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             this.lastPlanParamsKey !== requestedPlanKey ||
             this.cachedPlan.nextGeometryRef !== currentGeometry
         ) {
-            this.cachedPlan = this.buildCachedPlan(input, currentGeometry, settings);
+            this.cachedPlan = this.buildCachedPlan(
+                input,
+                currentGeometry,
+                settings,
+                requestedStarMarginPx,
+            );
             this.lastPlanParamsKey = requestedPlanKey;
             this.lastPaintSig = null;
         }
 
         const cached = this.cachedPlan;
+        const prevResolvedGeometry = cached.prevResolvedGeometry;
+        const currentResolvedGeometry = cached.nextResolvedGeometry;
         const fillAlpha = clamp01(
             readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.5),
         );
@@ -1522,14 +1559,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END ?? 0.96,
             ),
         );
-        const requestedStarMarginPx = Math.max(
-            0,
-            Number(
-                (input.configSource?.MODIFIED_VORONOI_STAR_MARGIN as number | undefined) ??
-                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                    45,
-            ) || 0,
-        );
         const useConstraintAlignedCenterlineBorders =
             borderEnabled &&
             borderMode === 'territory_edge' &&
@@ -1576,10 +1605,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         const hasTransition = (input.activeTransition?.events.length ?? 0) > 0;
 
         const baseOwners = new Set<string>();
-        for (const region of cached.prevGeometry.territoryRegions) {
+        for (const region of prevResolvedGeometry.territoryRegions) {
             baseOwners.add(region.ownerId);
         }
-        for (const region of currentGeometry.territoryRegions) {
+        for (const region of currentResolvedGeometry.territoryRegions) {
             baseOwners.add(region.ownerId);
         }
         const ownerIds = [...baseOwners].sort((a, b) => a.localeCompare(b));
@@ -1762,6 +1791,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 };
                 const prevTextureSig = [
                     cached.prevGeometry.version,
+                    prevResolvedGeometry.appliedMarginPx.toFixed(2),
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
@@ -1772,7 +1802,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         texture: this.prevTexture,
                         graphics: this.prevSourceGraphics,
                         container: this.prevSourceContainer,
-                        geometry: cached.prevGeometry,
+                        geometry: prevResolvedGeometry,
                         resolveColor: resolveFillHex,
                         alpha: fillAlpha,
                     });
@@ -1781,6 +1811,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
                 const nextTextureSig = [
                     currentGeometry.version,
+                    currentResolvedGeometry.appliedMarginPx.toFixed(2),
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
@@ -1791,7 +1822,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         texture: this.nextTexture,
                         graphics: this.nextSourceGraphics,
                         container: this.nextSourceContainer,
-                        geometry: currentGeometry,
+                        geometry: currentResolvedGeometry,
                         resolveColor: resolveFillHex,
                         alpha: fillAlpha,
                     });
@@ -1838,7 +1869,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 };
                 drawGeometryFill({
                     graphics: this.baseGraphics,
-                    geometry: currentGeometry,
+                    geometry: currentResolvedGeometry,
                     resolveColor: resolvePrevHex,
                     alpha: fillAlpha,
                 });
@@ -1944,7 +1975,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             };
             drawGeometryFill({
                 graphics: this.baseGraphics,
-                geometry: currentGeometry,
+                geometry: currentResolvedGeometry,
                 resolveColor: resolveFillHex,
                 alpha: fillAlpha,
             });
@@ -1978,9 +2009,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
         if (useConstraintAlignedCenterlineBorders) {
             this.drawConstraintAlignedTerritoryBorderOverlay({
-                geometry: currentGeometry,
-                stars: input.stars,
-                requestedMarginPx: requestedStarMarginPx,
+                geometry: currentResolvedGeometry,
                 ownerColorIdx,
                 borderHexByColorIdx: frontierHexByColorIdx,
                 borderWidth,

@@ -1000,3 +1000,64 @@ Suggested structure:
 - Critical behavioral delta for merge/review:
   - the smooth phase-field border path is no longer owner-loop fill stroking,
   - it is now one player-blended centerline derived from the same constraint space that shaped the fill boundaries.
+
+### 2026-05-01 - Unify Phase-Field Fill, Border, And Classification On One Constraint-Aligned Boundary Set
+
+- Lane: `territory/phase-field-unified-constraint-geometry`
+- User task: fix the remaining screenshot-visible seam defects:
+  - small-magnitude fill/border misalignment,
+  - apparent double-fill overlap near shared borders,
+  - unjoined border sections at multi-owner junctions.
+
+#### Pass Log
+
+1. Pass 1 - Re-read the screenshot against the current code and identified the real split:
+   - the singular centerline helper only changed the border stroke path,
+   - phase-field fill textures still used raw `territoryRegions`,
+   - grid classification still used raw `territoryRegions`,
+   - so the mode was still mixing multiple ownership surfaces.
+2. Pass 2 - Removed the midpoint-only helper pair:
+   - `resolveConstraintAlignedFrontiers.ts`
+   - `resolveConstraintAlignedFrontiers.test.ts`
+3. Pass 3 - Added `resolveConstraintAlignedTerritoryGeometry(...)` in `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`.
+   - Inputs:
+     - `CanonicalGeometrySnapshot`
+     - live stars
+     - requested star margin / MSR term
+   - Behavior:
+     - resolve shared endpoint ownership at every border endpoint,
+     - compute one shared resolved junction position per endpoint from the incident owners,
+     - align each shared/world border polyline to those resolved endpoints plus owner-aware interior displacement,
+     - rebuild territory fill regions from the adjusted polyline set via `constructFillsFromFrontierChain(...)`.
+4. Pass 4 - Added focused coverage in `resolveConstraintAlignedTerritoryGeometry.test.ts` for:
+   - inter-owner midpoint displacement,
+   - world-border owner-side displacement,
+   - shared multi-owner junction resolution,
+   - fill-region rebuild from the adjusted frontier set.
+5. Pass 5 - Rewired `MetaballGridPhaseFieldFamily.ts` so phase field now uses the resolved geometry artifact in all three places that mattered:
+   - PRE/NEXT fill textures,
+   - steady-state vector fill,
+   - grid classification inputs.
+6. Pass 6 - Kept the singular blended border branch, but made it draw from the same resolved geometry artifact that the fills now use, rather than recomputing its own separate frontier approximation.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- `git diff --check`
+- filtered `bun run check` no longer reports new hits for:
+  - `MetaballGridPhaseFieldFamily.ts`
+  - `resolveConstraintAlignedTerritoryGeometry.ts`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - deletion of:
+    - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedFrontiers.ts`
+    - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedFrontiers.test.ts`
+- Critical behavioral delta for merge/review:
+  - phase field no longer renders fill from one ownership surface and border from another,
+  - fill, smooth border, and grid classification now all derive from the same resolved constraint-aligned frontier set,
+  - shared junction endpoints are now explicitly welded before fill reconstruction and stroke rendering.
