@@ -24,6 +24,8 @@ export interface ConstraintAlignedTerritoryGeometry {
     readonly territoryRegions: readonly TerritoryRegionShape[];
     readonly frontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
     readonly worldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
+    readonly displayFrontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
+    readonly displayWorldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
     readonly junctions: readonly ConstraintAlignedJunction[];
     readonly appliedMarginPx: number;
 }
@@ -32,6 +34,15 @@ interface ResolveConstraintAlignedTerritoryGeometryParams {
     readonly geometry: CanonicalGeometrySnapshot;
     readonly stars: ReadonlyArray<StarState>;
     readonly requestedMarginPx: number;
+}
+
+interface DisplayBoundarySegment {
+    readonly ownerA: string;
+    readonly ownerB: string;
+    readonly ownerPairKey: string;
+    readonly kind: ConstraintAlignedFrontierPolyline['kind'];
+    readonly start: [number, number];
+    readonly end: [number, number];
 }
 
 interface EndpointOwners {
@@ -355,13 +366,17 @@ function alignGeometry(params: {
             appliedMarginPx: params.appliedMarginPx,
         }),
     );
+    const territoryRegions = buildResolvedRegions(frontierPolylines, worldBorderPolylines);
+    const displayGeometry = buildDisplayGeometryFromResolvedRegions(
+        territoryRegions,
+        params.appliedMarginPx,
+    );
     return {
-        territoryRegions: buildResolvedRegions(
-            frontierPolylines,
-            worldBorderPolylines,
-        ),
+        territoryRegions,
         frontierPolylines,
         worldBorderPolylines,
+        displayFrontierPolylines: displayGeometry.displayFrontierPolylines,
+        displayWorldBorderPolylines: displayGeometry.displayWorldBorderPolylines,
         junctions,
         appliedMarginPx: params.appliedMarginPx,
     };
@@ -381,6 +396,332 @@ function buildResolvedRegions(
         points: territory.points.map(([x, y]) => [x, y] as [number, number]),
         confidence: 1,
     }));
+}
+
+function polylineLength(points: ReadonlyArray<[number, number]>): number {
+    let total = 0;
+    for (let index = 1; index < points.length; index++) {
+        const [ax, ay] = points[index - 1]!;
+        const [bx, by] = points[index]!;
+        total += Math.hypot(bx - ax, by - ay);
+    }
+    return total;
+}
+
+function directionAtStart(points: ReadonlyArray<[number, number]>): number {
+    if (points.length < 2) return 0;
+    const [ax, ay] = points[0]!;
+    const [bx, by] = points[1]!;
+    return Math.atan2(by - ay, bx - ax);
+}
+
+function directionAtEnd(points: ReadonlyArray<[number, number]>): number {
+    if (points.length < 2) return 0;
+    const [ax, ay] = points[points.length - 2]!;
+    const [bx, by] = points[points.length - 1]!;
+    return Math.atan2(by - ay, bx - ax);
+}
+
+function normalizeAngleDelta(a: number, b: number): number {
+    let delta = Math.abs(a - b);
+    while (delta > Math.PI) delta = Math.abs(delta - Math.PI * 2);
+    return delta;
+}
+
+function createDisplayPolyline(params: {
+    ownerA: string;
+    ownerB: string;
+    ownerPairKey: string;
+    points: [number, number][];
+    kind: ConstraintAlignedFrontierPolyline['kind'];
+    index: number;
+    closed?: boolean;
+}): ConstraintAlignedFrontierPolyline {
+    return {
+        frontierId: `display:${params.ownerPairKey}:${params.index}`,
+        ownerA: params.ownerA,
+        ownerB: params.ownerB,
+        ownerPairKey: params.ownerPairKey,
+        points: params.points,
+        confidence: 1,
+        kind: params.kind,
+        closed: params.closed,
+    };
+}
+
+function buildDisplayGeometryFromResolvedRegions(
+    territoryRegions: ReadonlyArray<TerritoryRegionShape>,
+    appliedMarginPx: number,
+): {
+    readonly displayFrontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
+    readonly displayWorldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
+} {
+    const segmentOccurrences = new Map<
+        string,
+        {
+            ownerId: string;
+            start: [number, number];
+            end: [number, number];
+        }[]
+    >();
+
+    for (const region of territoryRegions) {
+        const points = normalizeClosedRing(region.points);
+        if (points.length < 2) continue;
+        for (let index = 0; index < points.length; index++) {
+            const start = points[index]!;
+            const end = points[(index + 1) % points.length]!;
+            const startKey = pointKey(start[0], start[1]);
+            const endKey = pointKey(end[0], end[1]);
+            if (startKey === endKey) continue;
+            const segmentKey =
+                startKey < endKey
+                    ? `${startKey}|${endKey}`
+                    : `${endKey}|${startKey}`;
+            const bucket = segmentOccurrences.get(segmentKey);
+            const occurrence = {
+                ownerId: region.ownerId,
+                start: [start[0], start[1]] as [number, number],
+                end: [end[0], end[1]] as [number, number],
+            };
+            if (bucket) {
+                bucket.push(occurrence);
+            } else {
+                segmentOccurrences.set(segmentKey, [occurrence]);
+            }
+        }
+    }
+
+    const frontierSegments: DisplayBoundarySegment[] = [];
+    const worldSegments: DisplayBoundarySegment[] = [];
+
+    for (const occurrences of segmentOccurrences.values()) {
+        const uniqueOwners = [...new Set(occurrences.map((entry) => entry.ownerId))].sort();
+        const first = occurrences[0];
+        if (!first) continue;
+        if (uniqueOwners.length === 1) {
+            const ownerA = uniqueOwners[0]!;
+            worldSegments.push({
+                ownerA,
+                ownerB: 'world',
+                ownerPairKey: `${ownerA}|world`,
+                kind: 'world',
+                start: first.start,
+                end: first.end,
+            });
+            continue;
+        }
+        if (uniqueOwners.length !== 2) continue;
+        const [ownerA, ownerB] = uniqueOwners;
+        frontierSegments.push({
+            ownerA: ownerA!,
+            ownerB: ownerB!,
+            ownerPairKey: `${ownerA}|${ownerB}`,
+            kind: 'inter_owner',
+            start: first.start,
+            end: first.end,
+        });
+    }
+
+    return {
+        displayFrontierPolylines: buildDisplayPolylinesFromSegments(
+            frontierSegments,
+            appliedMarginPx,
+        ),
+        displayWorldBorderPolylines: buildDisplayPolylinesFromSegments(
+            worldSegments,
+            appliedMarginPx,
+        ),
+    };
+}
+
+function buildDisplayPolylinesFromSegments(
+    segments: ReadonlyArray<DisplayBoundarySegment>,
+    appliedMarginPx: number,
+): readonly ConstraintAlignedFrontierPolyline[] {
+    if (segments.length === 0) return [];
+
+    const minDisplayLengthPx = Math.max(12, appliedMarginPx * 0.5);
+    const byOwnerPair = new Map<string, DisplayBoundarySegment[]>();
+    for (const segment of segments) {
+        const bucket = byOwnerPair.get(segment.ownerPairKey);
+        if (bucket) {
+            bucket.push(segment);
+        } else {
+            byOwnerPair.set(segment.ownerPairKey, [segment]);
+        }
+    }
+
+    const ownerCountByPoint = new Map<string, Set<string>>();
+    for (const segment of segments) {
+        const startKey = pointKey(segment.start[0], segment.start[1]);
+        const endKey = pointKey(segment.end[0], segment.end[1]);
+        const owners = [segment.ownerA, segment.ownerB].filter(
+            (ownerId) => !isWorldOwner(ownerId),
+        );
+        const startOwners = ownerCountByPoint.get(startKey) ?? new Set<string>();
+        const endOwners = ownerCountByPoint.get(endKey) ?? new Set<string>();
+        for (const ownerId of owners) {
+            startOwners.add(ownerId);
+            endOwners.add(ownerId);
+        }
+        ownerCountByPoint.set(startKey, startOwners);
+        ownerCountByPoint.set(endKey, endOwners);
+    }
+
+    const result: ConstraintAlignedFrontierPolyline[] = [];
+    let displayIndex = 0;
+
+    for (const [ownerPairKey, group] of byOwnerPair.entries()) {
+        const endpointMap = new Map<string, { segmentIndex: number; at: 'start' | 'end' }[]>();
+        for (let index = 0; index < group.length; index++) {
+            const segment = group[index]!;
+            const startKey = pointKey(segment.start[0], segment.start[1]);
+            const endKey = pointKey(segment.end[0], segment.end[1]);
+            const startEntries = endpointMap.get(startKey);
+            if (startEntries) {
+                startEntries.push({ segmentIndex: index, at: 'start' });
+            } else {
+                endpointMap.set(startKey, [{ segmentIndex: index, at: 'start' }]);
+            }
+            const endEntries = endpointMap.get(endKey);
+            if (endEntries) {
+                endEntries.push({ segmentIndex: index, at: 'end' });
+            } else {
+                endpointMap.set(endKey, [{ segmentIndex: index, at: 'end' }]);
+            }
+        }
+
+        const used = new Set<number>();
+        const startCandidates = group
+            .map((segment, index) => {
+                const startKey = pointKey(segment.start[0], segment.start[1]);
+                const endKey = pointKey(segment.end[0], segment.end[1]);
+                const startDegree = endpointMap.get(startKey)?.length ?? 0;
+                const endDegree = endpointMap.get(endKey)?.length ?? 0;
+                return {
+                    index,
+                    endpoint:
+                        startDegree !== 2
+                            ? 'start'
+                            : endDegree !== 2
+                              ? 'end'
+                              : startDegree <= endDegree
+                                ? 'start'
+                                : 'end',
+                    rank: Math.min(startDegree, endDegree),
+                } as const;
+            })
+            .sort((a, b) => a.rank - b.rank || a.index - b.index);
+
+        const orientSegment = (
+            segment: DisplayBoundarySegment,
+            startAt: 'start' | 'end',
+        ): [[number, number], [number, number]] =>
+            startAt === 'start'
+                ? [
+                      [segment.start[0], segment.start[1]],
+                      [segment.end[0], segment.end[1]],
+                  ]
+                : [
+                      [segment.end[0], segment.end[1]],
+                      [segment.start[0], segment.start[1]],
+                  ];
+
+        const pickNextRef = (
+            currentEndKey: string,
+            currentDirection: number,
+        ): { segmentIndex: number; at: 'start' | 'end' } | null => {
+            const candidates =
+                endpointMap.get(currentEndKey)?.filter(
+                    (candidate) => !used.has(candidate.segmentIndex),
+                ) ?? [];
+            if (candidates.length === 0) return null;
+            let best: { segmentIndex: number; at: 'start' | 'end' } | null = null;
+            let bestDelta = Infinity;
+            for (const candidate of candidates) {
+                const segment = group[candidate.segmentIndex]!;
+                const oriented = orientSegment(segment, candidate.at);
+                const nextDirection = directionAtStart(oriented);
+                const delta = normalizeAngleDelta(currentDirection, nextDirection);
+                if (delta < bestDelta) {
+                    best = candidate;
+                    bestDelta = delta;
+                }
+            }
+            return best;
+        };
+
+        const buildChainFrom = (
+            startIndex: number,
+            startAt: 'start' | 'end',
+        ): { points: [number, number][]; closed: boolean } => {
+            const first = group[startIndex]!;
+            const points = [...orientSegment(first, startAt)];
+            used.add(startIndex);
+            let currentDirection = directionAtEnd(points);
+            let currentEndKey = pointKey(
+                points[points.length - 1]![0],
+                points[points.length - 1]![1],
+            );
+            const startKey = pointKey(points[0]![0], points[0]![1]);
+            let closed = false;
+            let safety = group.length * 4;
+            while (safety-- > 0) {
+                const nextRef = pickNextRef(currentEndKey, currentDirection);
+                if (!nextRef) break;
+                const next = group[nextRef.segmentIndex]!;
+                const oriented = orientSegment(next, nextRef.at);
+                used.add(nextRef.segmentIndex);
+                points.push(oriented[1]);
+                currentDirection = directionAtEnd(oriented);
+                currentEndKey = pointKey(
+                    points[points.length - 1]![0],
+                    points[points.length - 1]![1],
+                );
+                if (currentEndKey === startKey) {
+                    points.pop();
+                    closed = true;
+                    break;
+                }
+            }
+            return { points, closed };
+        };
+
+        for (const candidate of startCandidates) {
+            if (used.has(candidate.index)) continue;
+            const chain = buildChainFrom(candidate.index, candidate.endpoint);
+            const length = polylineLength(chain.points);
+            const startKey = pointKey(chain.points[0]![0], chain.points[0]![1]);
+            const endKey = pointKey(
+                chain.points[chain.points.length - 1]![0],
+                chain.points[chain.points.length - 1]![1],
+            );
+            const startOwnerCount = ownerCountByPoint.get(startKey)?.size ?? 0;
+            const endOwnerCount = ownerCountByPoint.get(endKey)?.size ?? 0;
+            const looksLikeJunctionSpur =
+                group[0]?.kind === 'inter_owner' &&
+                length < minDisplayLengthPx &&
+                (startOwnerCount >= 3 || endOwnerCount >= 3) &&
+                !chain.closed;
+            if (looksLikeJunctionSpur) continue;
+
+            const [ownerA, ownerB] = ownerPairKey.split('|');
+            result.push(
+                createDisplayPolyline({
+                    ownerA,
+                    ownerB: ownerB ?? 'world',
+                    ownerPairKey,
+                    points: chain.points,
+                    kind: group[0]?.kind ?? 'inter_owner',
+                    index: displayIndex++,
+                    closed: chain.closed,
+                }),
+            );
+        }
+    }
+
+    return result;
 }
 
 export function resolveConstraintAlignedTerritoryGeometry(

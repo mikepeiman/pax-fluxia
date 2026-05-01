@@ -1094,3 +1094,44 @@ Suggested structure:
 - Critical behavioral delta for merge/review:
   - phase field no longer strokes resolved frontier fragments that never become part of the final resolved territory boundary,
   - short CX / lane-pair spur borders should now be filtered before final border painting.
+
+### 2026-05-01 - Assemble Phase-Field Display Borders From Resolved Fill Boundaries
+
+- Lane: `territory/phase-field-display-frontier-assembly`
+- User task: the remaining lane-pair border fragments still existed in screenshots. The user asked that these segments either disappear or be properly merged into the real visible frontiers.
+
+#### Pass Log
+
+1. Pass 1 - Re-audited the previous spur-filter pass and found the remaining weakness:
+   - phase field was still painting visible borders from filtered aligned frontier fragments,
+   - not from the final resolved territory-region boundaries that the user actually sees as fill.
+2. Pass 2 - Moved visible border assembly fully into `resolveConstraintAlignedTerritoryGeometry.ts`.
+   - The helper now derives display segments from `territoryRegions`,
+   - classifies those segments as inter-owner vs world boundary,
+   - groups them by owner pair,
+   - chains them into longer visible border polylines,
+   - drops short open inter-owner spur chains at multi-owner junctions.
+3. Pass 3 - Kept raw `frontierPolylines` / `worldBorderPolylines` for fill reconstruction, but made `displayFrontierPolylines` / `displayWorldBorderPolylines` the only stroke input for the smooth phase-field border branch.
+4. Pass 4 - Updated `MetaballGridPhaseFieldFamily.ts` to stroke the new display chains only.
+5. Pass 5 - Extended `resolveConstraintAlignedTerritoryGeometry.test.ts` to cover:
+   - visible owner-pair chain assembly from split boundary fragments,
+   - spur removal on the display-frontier output itself.
+
+#### Validation
+
+- `node_modules/.bin/vitest.exe run ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- `git diff --check`
+- filtered `bun run check` still shows only the existing repo-baseline issues and existing `MetaballGridTuning.svelte` warnings, with no new hit for:
+  - `resolveConstraintAlignedTerritoryGeometry.ts`
+  - `MetaballGridPhaseFieldFamily.ts`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+- Critical behavioral delta for merge/review:
+  - phase-field smooth borders are now assembled from final resolved fill boundaries instead of upstream frontier fragments,
+  - same-owner-pair visible border sections now join into longer chains before stroke,
+  - short lane-pair-style open stubs at multi-owner junctions should no longer survive as independent painted segments.

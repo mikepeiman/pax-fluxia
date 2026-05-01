@@ -264,6 +264,120 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
         expect(owners).toEqual(['blue', 'red']);
     });
 
+    it('assembles visible owner-pair borders from the resolved fill boundary', () => {
+        const geometry = makeGeometry({
+            frontierPolylines: [
+                {
+                    frontierId: 'f:red|blue:0',
+                    ownerA: 'blue',
+                    ownerB: 'red',
+                    ownerPairKey: 'blue|red',
+                    points: [
+                        [5, 0],
+                        [5, 5],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'f:red|blue:1',
+                    ownerA: 'blue',
+                    ownerB: 'red',
+                    ownerPairKey: 'blue|red',
+                    points: [
+                        [5, 5],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+            worldBorderPolylines: [
+                {
+                    frontierId: 'w:red:0',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 0],
+                        [5, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:1',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [5, 10],
+                        [0, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:2',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 10],
+                        [0, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:0',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [5, 0],
+                        [10, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:1',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 0],
+                        [10, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:2',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 10],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+        });
+
+        const resolved = resolveConstraintAlignedTerritoryGeometry({
+            geometry,
+            stars: [
+                { id: 'r', x: 2, y: 5, ownerId: 'red' } as any,
+                { id: 'b', x: 8, y: 5, ownerId: 'blue' } as any,
+            ],
+            requestedMarginPx: 0,
+        });
+
+        expect(resolved.displayFrontierPolylines).toHaveLength(1);
+        expect(resolved.displayFrontierPolylines[0]?.ownerPairKey).toBe('blue|red');
+        expect(resolved.displayFrontierPolylines[0]?.points).toEqual([
+            [5, 0],
+            [5, 5],
+            [5, 10],
+        ]);
+    });
+
     it('drops spur frontier fragments that are not part of any accepted territory loop', () => {
         const geometry = makeGeometry({
             frontierPolylines: [
@@ -376,6 +490,14 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
         ).toEqual(['red|blue']);
         expect(
             resolved.frontierPolylines.some(
+                (polyline) => polyline.ownerPairKey === 'green|orange',
+            ),
+        ).toBe(false);
+        expect(
+            resolved.displayFrontierPolylines.map((polyline) => polyline.ownerPairKey).sort(),
+        ).toEqual(['blue|red']);
+        expect(
+            resolved.displayFrontierPolylines.some(
                 (polyline) => polyline.ownerPairKey === 'green|orange',
             ),
         ).toBe(false);

@@ -1205,7 +1205,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         g.clear();
         if (params.borderWidth <= 0 || params.borderAlpha <= 0) return;
 
-        for (const polyline of params.geometry.frontierPolylines) {
+        for (const polyline of params.geometry.displayFrontierPolylines) {
             const ownerAIdx = params.ownerColorIdx.get(polyline.ownerA);
             const ownerBIdx = params.ownerColorIdx.get(polyline.ownerB);
             const ownerAHex =
@@ -1226,7 +1226,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             });
         }
 
-        for (const polyline of params.geometry.worldBorderPolylines) {
+        for (const polyline of params.geometry.displayWorldBorderPolylines) {
             const ownerIdx = params.ownerColorIdx.get(polyline.ownerA);
             const color =
                 ownerIdx === undefined ? undefined : params.borderHexByColorIdx[ownerIdx];
