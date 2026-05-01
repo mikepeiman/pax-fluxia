@@ -611,6 +611,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_FRONTIER_BAND_WIDTH_PX' },
     { configKey: 'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE' },
     { configKey: 'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX' },
+    { configKey: 'TERRITORY_FRONTIER_OUTER_BORDER_ENABLED' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

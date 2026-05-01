@@ -186,6 +186,16 @@
         return raw === "bubble" ? "bubble" : "gap";
     }
 
+    function currentFrontierOuterBorderEnabled(): boolean {
+        return boolVal(
+            "territoryFrontierOuterBorderEnabled",
+            "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
+            isPhaseEdgesFamily()
+                ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED
+                : false,
+        );
+    }
+
     function canEditFrontierBorderGeometry(): boolean {
         return (
             isPhaseEdgesFamily() &&
@@ -489,6 +499,31 @@
                 </label>
                 <div class="var-desc">
                     When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. In Per cell mode that blended stroke is added on top of the per-cell lattice so the actual faction frontier can still read as a single mixed boundary.
+                </div>
+
+                <label
+                    class="toggle-row"
+                    class:disabled={currentBorderMode() === "off"}
+                    title="Draw the owner-vs-world perimeter around the outside of the filled map area. Off means only inter-owner frontiers are stroked."
+                >
+                    <input
+                        type="checkbox"
+                        disabled={currentBorderMode() === "off"}
+                        checked={currentFrontierOuterBorderEnabled()}
+                        onchange={(event) => {
+                            const value = (event.target as HTMLInputElement).checked;
+                            onUpdate(
+                                "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
+                                "territoryFrontierOuterBorderEnabled",
+                                value,
+                            );
+                        }}
+                    />
+                    <span class="var-name">Outer perimeter border</span>
+                    <span class="val">{currentFrontierOuterBorderEnabled() ? "On" : "Off"}</span>
+                </label>
+                <div class="var-desc">
+                    First-class owner-vs-world perimeter toggle. This is not the same as the internal faction frontiers.
                 </div>
 
                 <div class="var-row">

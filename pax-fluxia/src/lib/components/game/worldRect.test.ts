@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     resolveCenteredViewportFrame,
     resolveContentFitWorldRect,
+    resolveMapFitWorldRect,
     resolveViewportWorldRect,
 } from "$lib/components/game/worldRect";
 
@@ -68,6 +69,28 @@ describe("resolveContentFitWorldRect", () => {
         expect(rect.height).toBe(640);
         expect(rect.centerX).toBe(700);
         expect(rect.centerY).toBe(400);
+    });
+});
+
+describe("resolveMapFitWorldRect", () => {
+    it("uses the authored world rect as the camera-fit domain", () => {
+        const worldRect = resolveViewportWorldRect({
+            points: [
+                { x: 220, y: 160 },
+                { x: 1180, y: 640 },
+            ],
+            configuredWidth: 1600,
+            configuredHeight: 900,
+        });
+
+        const rect = resolveMapFitWorldRect(worldRect);
+
+        expect(rect.minX).toBe(0);
+        expect(rect.minY).toBe(0);
+        expect(rect.width).toBe(1600);
+        expect(rect.height).toBe(900);
+        expect(rect.centerX).toBe(800);
+        expect(rect.centerY).toBe(450);
     });
 });
 

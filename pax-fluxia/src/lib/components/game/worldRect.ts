@@ -126,6 +126,25 @@ export function resolveContentFitWorldRect(
 }
 
 /**
+ * Resolve the authoritative map-fit rect from the stable world/map bounds.
+ *
+ * This is the camera-fit domain when the map rectangle, not the star cloud,
+ * owns centering and edge coverage.
+ */
+export function resolveMapFitWorldRect(
+    worldRect: ViewportWorldRect,
+): ContentFitWorldRect {
+    return {
+        minX: worldRect.minX,
+        minY: worldRect.minY,
+        width: worldRect.width,
+        height: worldRect.height,
+        centerX: worldRect.minX + worldRect.width / 2,
+        centerY: worldRect.minY + worldRect.height / 2,
+    };
+}
+
+/**
  * Resolve the viewport-aligned territory frame in world coordinates.
  *
  * This frame is centered on the fitted content, but sized so the fill surface

@@ -2698,6 +2698,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             'METABALL_GRID_BORDER_BLEND',
             metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
         );
+        const outerBorderEnabled = readTunableBoolean(
+            input,
+            'TERRITORY_FRONTIER_OUTER_BORDER_ENABLED',
+            metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED ??
+                false,
+        );
         const sharedEdgeSmoothingPasses = Math.max(
             0,
             Math.min(
@@ -3578,7 +3584,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     if (ix >= 0 && iy >= 0) {
                         const self = c.colorIdx;
                         const neighbourDiffers = (nx: number, ny: number): boolean => {
-                            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return true;
+                            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) {
+                                return outerBorderEnabled;
+                            }
                             return effectiveColorIdxByGridIdx![ny * cols + nx] !== self;
                         };
                         const isEdge =
@@ -3665,6 +3673,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 opposingWeight: number;
             }
             const edgesByPair = new Map<string, BoundaryEdgeBucket>();
+            const worldEdgesByOwner = new Map<number, BoundaryEdge[]>();
             const ownerSetByVertex = new Map<number, Set<number>>();
             const recordVertexOwners = (vertexId: number, a: number, b: number): void => {
                 let ownerSet = ownerSetByVertex.get(vertexId);
@@ -3713,11 +3722,44 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 recordVertexOwners(v0, lo, hi);
                 recordVertexOwners(v1, lo, hi);
             };
+            const pushWorldEdge = (
+                ownerIndex: number,
+                v0: number,
+                v1: number,
+            ): void => {
+                let edges = worldEdgesByOwner.get(ownerIndex);
+                if (!edges) {
+                    edges = [];
+                    worldEdgesByOwner.set(ownerIndex, edges);
+                }
+                edges.push({
+                    v0,
+                    v1,
+                    cellIndex0: -1,
+                    cellIndex1: -1,
+                });
+            };
 
             for (let iy = 0; iy < rows; iy++) {
                 for (let ix = 0; ix < cols; ix++) {
                     const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
                     if (selfIdx < 0) continue;
+                    if (outerBorderEnabled) {
+                        if (ix === 0) {
+                            pushWorldEdge(
+                                selfIdx,
+                                iy * vCols + ix,
+                                (iy + 1) * vCols + ix,
+                            );
+                        }
+                        if (iy === 0) {
+                            pushWorldEdge(
+                                selfIdx,
+                                iy * vCols + ix,
+                                iy * vCols + (ix + 1),
+                            );
+                        }
+                    }
                     // Right neighbour → vertical shared edge,
                     // vertex (ix+1, iy) → vertex (ix+1, iy+1).
                     if (ix + 1 < cols) {
@@ -3733,6 +3775,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 cellIndex + 1,
                             );
                         }
+                    } else if (outerBorderEnabled) {
+                        pushWorldEdge(
+                            selfIdx,
+                            iy * vCols + (ix + 1),
+                            (iy + 1) * vCols + (ix + 1),
+                        );
                     }
                     // Bottom neighbour → horizontal shared edge,
                     // vertex (ix, iy+1) → vertex (ix+1, iy+1).
@@ -3749,6 +3797,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 cellIndex + cols,
                             );
                         }
+                    } else if (outerBorderEnabled) {
+                        pushWorldEdge(
+                            selfIdx,
+                            (iy + 1) * vCols + ix,
+                            (iy + 1) * vCols + (ix + 1),
+                        );
                     }
                 }
             }
@@ -3765,26 +3819,16 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 frontierJunctionRenderMode === 'bubble'
                     ? Math.max(edgeTrimPx, frontierJunctionRadiusPx)
                     : edgeTrimPx;
-
-            for (const [key, bucket] of edgesByPair) {
-                if (bucket.edges.length === 0) continue;
-                const sep = key.indexOf('|');
-                const aIdx = Number(key.slice(0, sep));
-                const bIdx = Number(key.slice(sep + 1));
-                const hexA = borderHexByColorIdx[aIdx];
-                const hexB = borderHexByColorIdx[bIdx];
-                if (hexA === undefined || hexB === undefined) continue;
-                const totalPairWeight = bucket.ownerWeight + bucket.opposingWeight;
-                const pairBlendT =
-                    totalPairWeight > 0
-                        ? bucket.opposingWeight / totalPairWeight
-                        : 0.5;
-                strokeOpts.color = blendColors(hexA, hexB, pairBlendT);
-
-                // Adjacency: vertexId → [otherVertexId, edgeIndex][].
+            const drawBoundaryEdgeBucket = (
+                edges: readonly BoundaryEdge[],
+                color: number,
+                trimOpenEndpoints: boolean,
+            ): void => {
+                if (edges.length === 0) return;
+                strokeOpts.color = color;
                 const adj = new Map<number, Array<[number, number]>>();
-                for (let e = 0; e < bucket.edges.length; e++) {
-                    const { v0, v1 } = bucket.edges[e];
+                for (let e = 0; e < edges.length; e++) {
+                    const { v0, v1 } = edges[e];
                     let la = adj.get(v0);
                     if (!la) {
                         la = [];
@@ -3799,7 +3843,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     lb.push([v0, e]);
                 }
 
-                const usedEdge = new Uint8Array(bucket.edges.length);
+                const usedEdge = new Uint8Array(edges.length);
 
                 const drawChain = (vertexChain: number[], closed: boolean): void => {
                     if (vertexChain.length < 2) return;
@@ -3810,7 +3854,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     if (totalBorderChaikinPasses > 0) {
                         pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
                     }
-                    if (!closed && endpointTrimPx > 0) {
+                    if (trimOpenEndpoints && !closed && endpointTrimPx > 0) {
                         pts = trimOpenPolylineEndpoints(pts, endpointTrimPx);
                     }
                     baseBorderDrawn = true;
@@ -3859,10 +3903,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
                 // Pass 2: remaining closed loops (every incident vertex was
                 // degree 2, so they were never used as a pass-1 start).
-                for (let e = 0; e < bucket.edges.length; e++) {
+                for (let e = 0; e < edges.length; e++) {
                     if (usedEdge[e]) continue;
                     usedEdge[e] = 1;
-                    const { v0, v1 } = bucket.edges[e];
+                    const { v0, v1 } = edges[e];
                     const chain: number[] = [v0, v1];
                     let cur = v1;
                     while (cur !== v0) {
@@ -3886,6 +3930,34 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     // the duplicate so Chaikin sees a clean ring.
                     if (closed) chain.pop();
                     drawChain(chain, closed);
+                }
+            };
+
+            for (const [key, bucket] of edgesByPair) {
+                if (bucket.edges.length === 0) continue;
+                const sep = key.indexOf('|');
+                const aIdx = Number(key.slice(0, sep));
+                const bIdx = Number(key.slice(sep + 1));
+                const hexA = borderHexByColorIdx[aIdx];
+                const hexB = borderHexByColorIdx[bIdx];
+                if (hexA === undefined || hexB === undefined) continue;
+                const totalPairWeight = bucket.ownerWeight + bucket.opposingWeight;
+                const pairBlendT =
+                    totalPairWeight > 0
+                        ? bucket.opposingWeight / totalPairWeight
+                        : 0.5;
+                drawBoundaryEdgeBucket(
+                    bucket.edges,
+                    blendColors(hexA, hexB, pairBlendT),
+                    true,
+                );
+            }
+
+            if (outerBorderEnabled) {
+                for (const [ownerIndex, edges] of worldEdgesByOwner) {
+                    const ownerHex = borderHexByColorIdx[ownerIndex];
+                    if (ownerHex === undefined) continue;
+                    drawBoundaryEdgeBucket(edges, ownerHex, false);
                 }
             }
 

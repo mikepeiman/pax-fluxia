@@ -20,6 +20,7 @@ export const territoryFrontierConfigDefaults = {
     TERRITORY_FRONTIER_JUNCTION_RENDER_MODE:
         'gap' as TerritoryFrontierJunctionRenderMode,
     TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: 6,
+    TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: false,
 } as const;
 
 export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
@@ -33,6 +34,7 @@ export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
     'TERRITORY_FRONTIER_BAND_WIDTH_PX',
     'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
     'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
+    'TERRITORY_FRONTIER_OUTER_BORDER_ENABLED',
 ] as const;
 
 export interface TerritoryFrontierBenchmarkPreset {
