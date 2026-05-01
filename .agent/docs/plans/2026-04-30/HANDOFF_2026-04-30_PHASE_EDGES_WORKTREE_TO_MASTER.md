@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**This branch tip:** `89c9cdd69` (`Fix territory viewport presentation framing`)  
+**This branch tip:** `c2f3dcfb8` (`Align territory fit to map rect and add outer border toggle`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master:** 9
+**Commits ahead of master:** 11
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -26,6 +26,8 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 7. `2f7d7ebcb` - `Narrow phase-edges frontier fill suppression`
 8. `adc0b8b35` - `Fix map viewport world bounds alignment`
 9. `89c9cdd69` - `Fix territory viewport presentation framing`
+10. `bde7dd7c3` - `Update viewport fix handoff metadata`
+11. `c2f3dcfb8` - `Align territory fit to map rect and add outer border toggle`
 
 ### Code scope
 
@@ -518,3 +520,54 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - `pax-fluxia/src/lib/components/game/territoryPresentationSpace.test.ts`
   - `bun x vitest run src/lib/components/game/worldRect.test.ts src/lib/components/game/territoryPresentationSpace.test.ts`
   - `bun x vite build`
+
+### 2026-05-01 - additive rethink after the presentation-frame correction was also rejected live
+
+- The user later provided a screenshot and a more precise correction:
+  - the map was now closer to centered, but still not perfectly centered
+  - fills showed margins on all sides
+  - a visible outer border had leaked onto only one side of the map
+  - the user wanted outer borders as a real option:
+    - full-map
+    - consistent
+    - optional by toggle
+- This invalidated an important part of the earlier 2026-05-01 correction:
+  - centering the territory presentation on a viewport-sized frame around the star-fit rect was still the wrong owner for this surface
+  - the user’s requirement is that the authored/display map rect, not the star cloud, owns the visible filled map area
+- Revised architectural decision:
+  - keep the star-fit rect only as diagnostic/gameplay context
+  - use the authoritative map rect for stage fit/centering
+  - keep territory presentation locked to that same map rect
+  - preserve `territoryPresentationSpace.ts` as a reusable localization adapter, but do not let it own the visible fill bounds for this preferred path
+- Runtime changes made in `GameCanvas.svelte` and `worldRect.ts`:
+  - added `resolveMapFitWorldRect()` to convert the stable world rect into the fit/center contract used by the stage
+  - changed:
+    - `handleResize()`
+    - `applyZoomTransform()`
+    - `clampPan()`
+    - `handleWheel()`
+    - `navigateToStar()`
+    so their baseline fit/centering uses the map rect instead of the star-fit rect
+  - changed `updateTerritoryViewportFrame()` so the territory frame is the authoritative map rect again, not a viewport-sized world-space frame
+- Why this matters for merge-back:
+  - do not merge the viewport-aligned territory-frame theory as though it were the final architectural answer
+  - the durable invariant for this branch is now:
+    - stage fit == map rect
+    - territory presentation rect == map rect
+    - star-fit rect is no longer allowed to own visible map centering
+- Outer-border audit/fix made in the same step:
+  - identified that the centered-blended Phase Edges pass only collected owner-owner edges from right and bottom neighbours
+  - that meant owner-vs-world perimeter was never a first-class feature and could leak asymmetrically
+  - added shared runtime config `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED`
+  - surfaced it in `Territory Styles > Border` as `Outer perimeter border`
+  - updated `MetaballGridPhaseEdgesFamily.ts` so:
+    - out-of-bounds neighbours only count as edges when outer perimeter is enabled
+    - owner-vs-world perimeter edges are collected explicitly on all four sides
+    - those outer edges are stroked in their own owner-colored perimeter pass instead of piggybacking on the owner-owner blended pass
+- Validation after this additive rethink:
+  - `bun x vitest run src/lib/components/game/worldRect.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Remaining acceptance bar:
+  - live user verification that the map is now exactly centered
+  - live user verification that fills reach the intended map-area bounds
+  - live user verification that outer perimeter is either fully off or fully consistent around the whole map
