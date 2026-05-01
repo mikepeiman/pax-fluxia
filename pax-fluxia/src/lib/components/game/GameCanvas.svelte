@@ -173,6 +173,7 @@
         resetTerritoryRenderStatus,
         setTerritoryRenderStatus,
     } from "$lib/stores/territoryRenderStatusStore";
+    import { resolveViewportWorldRect } from "$lib/components/game/worldRect";
 
     // ============================================================================
     // PixiJS Application
@@ -3735,49 +3736,79 @@
     // Rendering
     // ============================================================================
 
-    // Content bounding box (dynamic — computed from star positions)
-    // These describe the actual star content area, NOT starting at (0,0)
+    // World rect used by both camera fitting and territory presentation.
+    // This stays rooted at (0,0) so fills and viewport math share one frame.
     let contentMinX = 0;
     let contentMinY = 0;
     let contentWidth = 1600;
     let contentHeight = 900;
-    // Legacy aliases used by bg sprite sizing
+    // Legacy aliases used by bg sprite sizing and territory family inputs.
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
 
-    /** Recompute world bounds from display positions (respects transpose) */
+    /** Resolve configured map extents for the current display orientation. */
+    function getConfiguredMapWorldSize(): {
+        width?: number;
+        height?: number;
+    } {
+        const configuredWidth =
+            typeof GAME_CONFIG._MAP_WIDTH === "number" &&
+            Number.isFinite(GAME_CONFIG._MAP_WIDTH) &&
+            GAME_CONFIG._MAP_WIDTH > 0
+                ? GAME_CONFIG._MAP_WIDTH
+                : undefined;
+        const configuredHeight =
+            typeof GAME_CONFIG._MAP_HEIGHT === "number" &&
+            Number.isFinite(GAME_CONFIG._MAP_HEIGHT) &&
+            GAME_CONFIG._MAP_HEIGHT > 0
+                ? GAME_CONFIG._MAP_HEIGHT
+                : undefined;
+        if (!configuredWidth || !configuredHeight) {
+            return {};
+        }
+        return mapTranspose.active
+            ? {
+                  width: configuredHeight,
+                  height: configuredWidth,
+              }
+            : {
+                  width: configuredWidth,
+                  height: configuredHeight,
+              };
+    }
+
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let minX = Infinity,
-            minY = Infinity;
-        let maxX = -Infinity,
-            maxY = -Infinity;
-        for (const s of currentStars) {
-            const dx = mapTranspose.x(s);
-            const dy = mapTranspose.y(s);
-            if (dx < minX) minX = dx;
-            if (dy < minY) minY = dy;
-            if (dx > maxX) maxX = dx;
-            if (dy > maxY) maxY = dy;
-        }
-        // Add padding (star radius + orbits)
-        const pad = 80;
-        contentMinX = minX - pad;
-        contentMinY = minY - pad;
-        contentWidth = maxX - minX + 2 * pad;
-        contentHeight = maxY - minY + 2 * pad;
-        // Legacy — used by bg sprite and territory renderers
-        GAME_WIDTH = maxX + pad;
-        GAME_HEIGHT = maxY + pad;
+        const displayPoints = currentStars.map((star) => ({
+            x: mapTranspose.x(star),
+            y: mapTranspose.y(star),
+        }));
+        const starMinX = Math.min(...displayPoints.map((point) => point.x));
+        const starMinY = Math.min(...displayPoints.map((point) => point.y));
+        const starMaxX = Math.max(...displayPoints.map((point) => point.x));
+        const starMaxY = Math.max(...displayPoints.map((point) => point.y));
+        const configuredWorldSize = getConfiguredMapWorldSize();
+        const worldRect = resolveViewportWorldRect({
+            points: displayPoints,
+            configuredWidth: configuredWorldSize.width,
+            configuredHeight: configuredWorldSize.height,
+        });
+
+        contentMinX = worldRect.minX;
+        contentMinY = worldRect.minY;
+        contentWidth = worldRect.width;
+        contentHeight = worldRect.height;
+        GAME_WIDTH = worldRect.width;
+        GAME_HEIGHT = worldRect.height;
 
         log.canvas(
             "WorldBounds",
-            `stars=${currentStars.length} min=(${minX.toFixed(0)},${minY.toFixed(0)}) max=(${maxX.toFixed(0)},${maxY.toFixed(0)}) content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) transpose=${mapTranspose.active}`,
+            `stars=${currentStars.length} starMin=(${starMinX.toFixed(0)},${starMinY.toFixed(0)}) starMax=(${starMaxX.toFixed(0)},${starMaxY.toFixed(0)}) world=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) required=${worldRect.requiredWidth.toFixed(0)}x${worldRect.requiredHeight.toFixed(0)} source=${worldRect.source} transpose=${mapTranspose.active}`,
         );
+
     }
 
-    /** DEBUG: Draw a bright yellow rectangle showing content bounds */
     function drawDebugWorldBounds() {
         if (!app) return;
         let dbg = (app as any)._debugBoundsGfx as PIXI.Graphics | undefined;

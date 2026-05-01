@@ -439,3 +439,29 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Validation after this additive update:
   - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
   - `bun x vite build`
+
+### 2026-05-01 - additive update after map/viewport contract audit
+
+- The user reported a new presentation defect in the currently preferred Phase Edges look:
+  - the map was visibly off-center in the canvas/grid area
+  - territory fills reached the top and left viewport bounds but not the bottom and right
+- The important diagnosis is architectural:
+  - `GameCanvas.svelte` was fitting the world to a star-derived bounding box
+  - territory renderers also consume `GAME_WIDTH` / `GAME_HEIGHT` as their world size
+  - when those values come from star extents instead of the canonical map rectangle, the viewport and territory surfaces drift apart
+- This is a portable anti-pattern to avoid on merge-back:
+  - using star bbox as a proxy for map/world bbox
+  - allowing camera-fit logic and surface-render logic to infer their own separate extents
+- Runtime changes made:
+  - added `pax-fluxia/src/lib/components/game/worldRect.ts`
+  - `resolveViewportWorldRect()` now resolves one authoritative world rect for presentation:
+    - prefer configured map width/height when present
+    - expand stale configured extents if live stars exceed them
+    - fall back to star extents only when no configured map rectangle exists
+  - `GameCanvas.svelte` now centers/fits against that resolved world rect and mirrors it into `GAME_WIDTH` / `GAME_HEIGHT`
+  - `gameStore.svelte.ts` now seeds `_MAP_WIDTH`, `_MAP_HEIGHT`, `_MAP_PADDING_X`, `_MAP_PADDING_Y` for debug and saved-map flows as well, not only standard generated maps
+- Tests/validation added:
+  - `pax-fluxia/src/lib/components/game/worldRect.test.ts`
+  - `bun x vitest run src/lib/components/game/worldRect.test.ts`
+  - `bun x vite build`
+- Acceptance still depends on live user confirmation in the running app, but this fix moves the issue out of one-off offset tweaking and into a shared world-rect contract that should port cleanly across worktrees.
