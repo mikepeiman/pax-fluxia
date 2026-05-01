@@ -1135,3 +1135,42 @@ Suggested structure:
   - phase-field smooth borders are now assembled from final resolved fill boundaries instead of upstream frontier fragments,
   - same-owner-pair visible border sections now join into longer chains before stroke,
   - short lane-pair-style open stubs at multi-owner junctions should no longer survive as independent painted segments.
+
+### 2026-05-01 - Make Phase-Field Cell Shape Drive The Visible Fill Surface
+
+- Lane: `territory/phase-field-patterned-fill-surface`
+- User task: correct the product failure where `Cell Shape`, `Cell Inset`, and `Square Corner` only affected a conquest mask edge case instead of the actual visible territory fill.
+
+#### Pass Log
+
+1. Pass 1 - Re-audited `MetaballGridPhaseFieldFamily.ts` and confirmed the real problem:
+   - phase field rendered PRE and POST as smooth geometry textures,
+   - cell primitives only affected the masked conquest overlay,
+   - steady-state fill therefore ignored the shape controls entirely.
+2. Pass 2 - Rejected the earlier cache-only idea as the wrong fix. The issue was render architecture, not invalidation.
+3. Pass 3 - Reworked the phase-field texture path:
+   - added reusable ownership-scene builders for PRE and POST cell fills,
+   - added shared cell-scene painting that honors `cellShape`, `cellInsetPx`, `cellCornerPx`, and `inwardOffsetPx`,
+   - changed PRE and POST render textures to paint actual cell patterns,
+   - clipped those pattern layers by the resolved constraint-aligned geometry so territory tuning still owns the boundary.
+4. Pass 4 - Preserved the conquest composite:
+   - POST patterned territory remains the base layer,
+   - PRE patterned territory remains the masked local reveal layer,
+   - the transition mask still controls conquest timing and finish collapse.
+5. Pass 5 - Updated vector fallback behavior so non-renderer mode also paints the next-state cell pattern as the visible base instead of smooth geometry fill.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check` showed only the pre-existing `MetaballGridTuning.svelte` unused-selector warnings
+- filtered `bunx tsc --noEmit --pretty false` showed only repo-baseline errors outside this lane; no new hit for:
+  - `MetaballGridPhaseFieldFamily.ts`
+
+#### Merge Note
+
+- Functional conflict surface for this pass:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+- Critical behavioral delta for merge/review:
+  - phase-field no longer presents `Cell Shape` as a transition-only mask concern,
+  - PRE and POST visible fill layers now render as actual cell patterns,
+  - resolved geometry still owns the territory boundary through clipping, so fill presentation and territory constraints are no longer split concerns.

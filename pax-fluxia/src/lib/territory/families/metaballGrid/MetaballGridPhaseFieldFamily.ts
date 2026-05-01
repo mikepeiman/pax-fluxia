@@ -525,6 +525,98 @@ function buildRoleCounts(classification: GridClassification): Record<string, num
     };
 }
 
+function buildOwnershipSceneCells(params: {
+    classification: GridClassification;
+    ownerColorIdx: ReadonlyMap<string, number>;
+    side: 'prev' | 'next';
+}): GridRenderCell[] {
+    const cells: GridRenderCell[] = [];
+    for (const vstar of params.classification.emittableVstars) {
+        const ownerId =
+            params.side === 'prev' ? vstar.prevOwnerId : vstar.nextOwnerId;
+        if (!ownerId) continue;
+        const colorIdx = params.ownerColorIdx.get(ownerId);
+        if (colorIdx === undefined) continue;
+        cells.push({
+            vId: vstar.id,
+            ix: vstar.ix,
+            iy: vstar.iy,
+            x: vstar.x,
+            y: vstar.y,
+            colorIdx,
+            alpha: 1,
+            strength: 1,
+            pass: 'single',
+            role: vstar.role,
+        });
+    }
+    return cells;
+}
+
+function paintCellScene(params: {
+    graphics: PIXI.Graphics;
+    classification: GridClassification;
+    sceneCells: readonly GridRenderCell[];
+    fillHexByColorIdx: readonly number[];
+    cellShape: GridCellShape;
+    cellInsetPx: number;
+    cellCornerPx: number;
+    inwardOffsetPx: number;
+    alphaMultiplier: number;
+}): number {
+    const g = params.graphics;
+    g.clear();
+
+    if (params.sceneCells.length === 0 || params.alphaMultiplier <= 0) {
+        return 0;
+    }
+
+    const spacingPx = params.classification.spacingPx;
+    const insetMax = spacingPx * 0.45;
+    const nativeInset = Math.min(params.cellInsetPx, insetMax);
+    const boundaryInset = Math.min(
+        params.cellInsetPx + Math.max(0, params.inwardOffsetPx),
+        insetMax,
+    );
+    const nativeSize = Math.max(1, spacingPx - nativeInset * 2);
+    const nativeHalf = nativeSize * 0.5;
+    const nativeCornerR =
+        params.cellShape === 'square'
+            ? Math.min(params.cellCornerPx, Math.max(0, nativeHalf - 0.5))
+            : 0;
+    const nativeHexR = nativeSize / SQRT3;
+    const boundarySize = Math.max(1, spacingPx - boundaryInset * 2);
+    const boundaryHalf = boundarySize * 0.5;
+    const boundaryCornerR =
+        params.cellShape === 'square'
+            ? Math.min(params.cellCornerPx, Math.max(0, boundaryHalf - 0.5))
+            : 0;
+    const boundaryHexR = boundarySize / SQRT3;
+
+    let painted = 0;
+    for (const cell of params.sceneCells) {
+        if (cell.alpha <= 0) continue;
+        const fillHex = params.fillHexByColorIdx[cell.colorIdx];
+        if (fillHex === undefined) continue;
+        const isBoundary = cell.role !== 'native';
+        drawFilledGridCell(
+            g,
+            params.cellShape,
+            cell.x,
+            cell.y,
+            isBoundary ? boundaryHalf : nativeHalf,
+            isBoundary ? boundarySize : nativeSize,
+            isBoundary ? boundaryCornerR : nativeCornerR,
+            isBoundary ? boundaryHexR : nativeHexR,
+            fillHex,
+            clamp01(cell.alpha * params.alphaMultiplier),
+        );
+        painted += 1;
+    }
+
+    return painted;
+}
+
 export class MetaballGridPhaseFieldFamily implements RenderFamily {
     readonly id = 'metaball_grid_phase_field';
     readonly label = 'Metaball Grid Phase Field';
@@ -537,8 +629,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     private readonly frontierGraphics = new PIXI.Graphics();
     private readonly prevSourceContainer = new PIXI.Container();
     private readonly prevSourceGraphics = new PIXI.Graphics();
+    private readonly prevSourceMaskGraphics = new PIXI.Graphics();
     private readonly nextSourceContainer = new PIXI.Container();
     private readonly nextSourceGraphics = new PIXI.Graphics();
+    private readonly nextSourceMaskGraphics = new PIXI.Graphics();
     private readonly maskSourceContainer = new PIXI.Container();
     private readonly maskSourceGraphics = new PIXI.Graphics();
     private readonly prevSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
@@ -565,7 +659,11 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
+        this.prevSourceGraphics.mask = this.prevSourceMaskGraphics;
+        this.nextSourceGraphics.mask = this.nextSourceMaskGraphics;
+        this.prevSourceContainer.addChild(this.prevSourceMaskGraphics);
         this.prevSourceContainer.addChild(this.prevSourceGraphics);
+        this.nextSourceContainer.addChild(this.nextSourceMaskGraphics);
         this.nextSourceContainer.addChild(this.nextSourceGraphics);
         this.maskSourceContainer.addChild(this.maskSourceGraphics);
         this.prevSprite.mask = this.maskSprite;
@@ -838,26 +936,45 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         };
     }
 
-    private renderGeometryTexture(params: {
+    private renderPatternTexture(params: {
         renderer: PIXI.Renderer;
         texture: PIXI.RenderTexture;
-        graphics: PIXI.Graphics;
+        patternGraphics: PIXI.Graphics;
+        maskGraphics: PIXI.Graphics;
         container: PIXI.Container;
         geometry: GeometryFillSource;
-        resolveColor: (ownerId: string) => number;
-        alpha: number;
-    }): void {
+        classification: GridClassification;
+        sceneCells: readonly GridRenderCell[];
+        fillHexByColorIdx: readonly number[];
+        cellShape: GridCellShape;
+        cellInsetPx: number;
+        cellCornerPx: number;
+        inwardOffsetPx: number;
+        alphaMultiplier: number;
+    }): number {
+        const painted = paintCellScene({
+            graphics: params.patternGraphics,
+            classification: params.classification,
+            sceneCells: params.sceneCells,
+            fillHexByColorIdx: params.fillHexByColorIdx,
+            cellShape: params.cellShape,
+            cellInsetPx: params.cellInsetPx,
+            cellCornerPx: params.cellCornerPx,
+            inwardOffsetPx: params.inwardOffsetPx,
+            alphaMultiplier: params.alphaMultiplier,
+        });
         drawGeometryFill({
-            graphics: params.graphics,
+            graphics: params.maskGraphics,
             geometry: params.geometry,
-            resolveColor: params.resolveColor,
-            alpha: params.alpha,
+            resolveColor: () => 0xffffff,
+            alpha: 1,
         });
         params.renderer.render({
             container: params.container,
             target: params.texture,
             clear: true,
         });
+        return painted;
     }
 
     private renderPrevMaskTexture(params: {
@@ -1725,6 +1842,11 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         let compositeMode: 'render_texture_mask' | 'vector_fallback' | 'steady' =
             'steady';
         let borderSceneCells: readonly GridRenderCell[] = [];
+        const nextOwnershipScene = buildOwnershipSceneCells({
+            classification: cached.classification,
+            ownerColorIdx,
+            side: 'next',
+        });
 
         if (hasTransition) {
             const sceneStartMs = performance.now();
@@ -1785,48 +1907,75 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             const paintStartMs = performance.now();
             if (input.renderer) {
                 this.ensureTextures(input.world.width, input.world.height);
-                const resolveFillHex = (ownerId: string): number => {
-                    const idx = ownerColorIdx.get(ownerId) ?? 0;
-                    return fillHexByColorIdx[idx] ?? this.colorUtils.getPlayerColor(ownerId);
-                };
+                const prevOwnershipScene = buildOwnershipSceneCells({
+                    classification: cached.classification,
+                    ownerColorIdx,
+                    side: 'prev',
+                });
                 const prevTextureSig = [
+                    cached.planKey,
                     cached.prevGeometry.version,
                     prevResolvedGeometry.appliedMarginPx.toFixed(2),
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
+                    cellShape,
+                    cellInsetPx.toFixed(2),
+                    cellCornerPx.toFixed(2),
+                    inwardOffsetPx.toFixed(2),
                 ].join('|');
                 if (this.prevTexture && this.lastPrevTextureSig !== prevTextureSig) {
-                    this.renderGeometryTexture({
+                    this.renderPatternTexture({
                         renderer: input.renderer,
                         texture: this.prevTexture,
-                        graphics: this.prevSourceGraphics,
+                        patternGraphics: this.prevSourceGraphics,
+                        maskGraphics: this.prevSourceMaskGraphics,
                         container: this.prevSourceContainer,
                         geometry: prevResolvedGeometry,
-                        resolveColor: resolveFillHex,
-                        alpha: fillAlpha,
+                        classification: cached.classification,
+                        sceneCells: prevOwnershipScene,
+                        fillHexByColorIdx,
+                        cellShape,
+                        cellInsetPx,
+                        cellCornerPx,
+                        inwardOffsetPx,
+                        alphaMultiplier: fillAlpha,
                     });
                     this.lastPrevTextureSig = prevTextureSig;
                 }
 
                 const nextTextureSig = [
+                    cached.planKey,
                     currentGeometry.version,
                     currentResolvedGeometry.appliedMarginPx.toFixed(2),
                     fillAlpha.toFixed(3),
                     satMult.toFixed(3),
                     lightMult.toFixed(3),
+                    cellShape,
+                    cellInsetPx.toFixed(2),
+                    cellCornerPx.toFixed(2),
+                    inwardOffsetPx.toFixed(2),
                 ].join('|');
                 if (this.nextTexture && this.lastNextTextureSig !== nextTextureSig) {
-                    this.renderGeometryTexture({
+                    paintedCells = this.renderPatternTexture({
                         renderer: input.renderer,
                         texture: this.nextTexture,
-                        graphics: this.nextSourceGraphics,
+                        patternGraphics: this.nextSourceGraphics,
+                        maskGraphics: this.nextSourceMaskGraphics,
                         container: this.nextSourceContainer,
                         geometry: currentResolvedGeometry,
-                        resolveColor: resolveFillHex,
-                        alpha: fillAlpha,
+                        classification: cached.classification,
+                        sceneCells: nextOwnershipScene,
+                        fillHexByColorIdx,
+                        cellShape,
+                        cellInsetPx,
+                        cellCornerPx,
+                        inwardOffsetPx,
+                        alphaMultiplier: fillAlpha,
                     });
                     this.lastNextTextureSig = nextTextureSig;
+                } else {
+                    paintedCells = nextOwnershipScene.length;
                 }
 
                 const maskTextureSig = [
@@ -1863,15 +2012,16 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 this.maskSprite.visible = true;
                 compositeMode = 'render_texture_mask';
             } else {
-                const resolvePrevHex = (ownerId: string): number => {
-                    const idx = ownerColorIdx.get(ownerId) ?? 0;
-                    return fillHexByColorIdx[idx] ?? this.colorUtils.getPlayerColor(ownerId);
-                };
-                drawGeometryFill({
+                paintedCells = paintCellScene({
                     graphics: this.baseGraphics,
-                    geometry: currentResolvedGeometry,
-                    resolveColor: resolvePrevHex,
-                    alpha: fillAlpha,
+                    classification: cached.classification,
+                    sceneCells: nextOwnershipScene,
+                    fillHexByColorIdx,
+                    cellShape,
+                    cellInsetPx,
+                    cellCornerPx,
+                    inwardOffsetPx,
+                    alphaMultiplier: fillAlpha,
                 });
                 this.baseGraphics.visible = true;
                 this.fallbackOverlayGraphics.clear();
@@ -1969,17 +2119,56 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             paintMs = performance.now() - paintStartMs;
         } else {
             const paintStartMs = performance.now();
-            const resolveFillHex = (ownerId: string): number => {
-                const idx = ownerColorIdx.get(ownerId) ?? 0;
-                return fillHexByColorIdx[idx] ?? this.colorUtils.getPlayerColor(ownerId);
-            };
-            drawGeometryFill({
-                graphics: this.baseGraphics,
-                geometry: currentResolvedGeometry,
-                resolveColor: resolveFillHex,
-                alpha: fillAlpha,
-            });
-            this.baseGraphics.visible = true;
+            if (input.renderer) {
+                this.ensureTextures(input.world.width, input.world.height);
+                const nextTextureSig = [
+                    cached.planKey,
+                    currentGeometry.version,
+                    currentResolvedGeometry.appliedMarginPx.toFixed(2),
+                    fillAlpha.toFixed(3),
+                    satMult.toFixed(3),
+                    lightMult.toFixed(3),
+                    cellShape,
+                    cellInsetPx.toFixed(2),
+                    cellCornerPx.toFixed(2),
+                    inwardOffsetPx.toFixed(2),
+                ].join('|');
+                if (this.nextTexture && this.lastNextTextureSig !== nextTextureSig) {
+                    paintedCells = this.renderPatternTexture({
+                        renderer: input.renderer,
+                        texture: this.nextTexture,
+                        patternGraphics: this.nextSourceGraphics,
+                        maskGraphics: this.nextSourceMaskGraphics,
+                        container: this.nextSourceContainer,
+                        geometry: currentResolvedGeometry,
+                        classification: cached.classification,
+                        sceneCells: nextOwnershipScene,
+                        fillHexByColorIdx,
+                        cellShape,
+                        cellInsetPx,
+                        cellCornerPx,
+                        inwardOffsetPx,
+                        alphaMultiplier: fillAlpha,
+                    });
+                    this.lastNextTextureSig = nextTextureSig;
+                } else {
+                    paintedCells = nextOwnershipScene.length;
+                }
+                this.nextSprite.visible = true;
+            } else {
+                paintedCells = paintCellScene({
+                    graphics: this.baseGraphics,
+                    classification: cached.classification,
+                    sceneCells: nextOwnershipScene,
+                    fillHexByColorIdx,
+                    cellShape,
+                    cellInsetPx,
+                    cellCornerPx,
+                    inwardOffsetPx,
+                    alphaMultiplier: fillAlpha,
+                });
+                this.baseGraphics.visible = true;
+            }
             if (
                 !useConstraintAlignedCenterlineBorders &&
                 borderEnabled &&
@@ -2004,7 +2193,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             }
             paintMs = performance.now() - paintStartMs;
             compositeMode = 'steady';
-            paintedCells = 0;
         }
 
         if (useConstraintAlignedCenterlineBorders) {
