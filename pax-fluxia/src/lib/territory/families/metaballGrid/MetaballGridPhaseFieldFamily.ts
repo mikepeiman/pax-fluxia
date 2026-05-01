@@ -1836,10 +1836,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     flipTransition,
                     flipWindow.toFixed(3),
                     prevMaskAlphaMultiplier.toFixed(3),
-                    cellShape,
                     transitionSize.toFixed(2),
                     transitionCornerR.toFixed(2),
-                    transitionHexR.toFixed(2),
                 ].join('|');
                 if (this.maskTexture && this.lastMaskTextureSig !== maskTextureSig) {
                     paintedCells = this.renderPrevMaskTexture({
