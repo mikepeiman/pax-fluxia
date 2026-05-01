@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveViewportWorldRect } from "$lib/components/game/worldRect";
+import {
+    resolveCenteredViewportFrame,
+    resolveContentFitWorldRect,
+    resolveViewportWorldRect,
+} from "$lib/components/game/worldRect";
 
 describe("resolveViewportWorldRect", () => {
     it("prefers configured map extents when they already cover the star field", () => {
@@ -48,5 +52,40 @@ describe("resolveViewportWorldRect", () => {
         expect(rect.width).toBe(1260);
         expect(rect.height).toBe(720);
         expect(rect.source).toBe("derived_star_extents");
+    });
+});
+
+describe("resolveContentFitWorldRect", () => {
+    it("tracks the star field instead of forcing fit to the authored world rect", () => {
+        const rect = resolveContentFitWorldRect([
+            { x: 220, y: 160 },
+            { x: 1180, y: 640 },
+        ]);
+
+        expect(rect.minX).toBe(140);
+        expect(rect.minY).toBe(80);
+        expect(rect.width).toBe(1120);
+        expect(rect.height).toBe(640);
+        expect(rect.centerX).toBe(700);
+        expect(rect.centerY).toBe(400);
+    });
+});
+
+describe("resolveCenteredViewportFrame", () => {
+    it("centers a viewport-sized fill frame around the fitted content center", () => {
+        const rect = resolveCenteredViewportFrame({
+            centerX: 700,
+            centerY: 400,
+            viewportWidthPx: 1800,
+            viewportHeightPx: 900,
+            scale: 1.5,
+        });
+
+        expect(rect.width).toBe(1200);
+        expect(rect.height).toBe(600);
+        expect(rect.minX).toBe(100);
+        expect(rect.minY).toBe(100);
+        expect(rect.centerX).toBe(700);
+        expect(rect.centerY).toBe(400);
     });
 });

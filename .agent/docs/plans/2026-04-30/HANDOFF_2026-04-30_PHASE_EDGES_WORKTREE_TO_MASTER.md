@@ -4,9 +4,9 @@
 **Branch:** `codex/2026-04-30-phase-edges-catchup`  
 **Merge target:** `master`  
 **Merge base:** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**This branch tip:** `18d39ac9` (`Remove session log ignore rule`)  
+**This branch tip:** `adc0b8b35` (`Fix map viewport world bounds alignment`)  
 **Master tip (at time of writing):** `f4bc81a9` (`fix: restore phase-edges as a separate session-overlay mode`)  
-**Commits ahead of master:** 4
+**Commits ahead of master:** 8
 
 This is the additive handoff record for eventually rolling this worktree back into `master`.
 Update this file in place. Do not replace it with a new summary doc each turn.
@@ -21,6 +21,10 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 2. `ab8cf80c` - `Re-home territory style controls and remove topology duplication`
 3. `78678f78` - `Catch up 2026-04-30 session and post-mortem docs`
 4. `18d39ac9` - `Remove session log ignore rule`
+5. `3e13cf68` - `Add phase-edges merge handoff history`
+6. `25b959ce` - `Fix phase-edges fill offset and junction controls`
+7. `2f7d7ebcb` - `Narrow phase-edges frontier fill suppression`
+8. `adc0b8b35` - `Fix map viewport world bounds alignment`
 
 ### Code scope
 
@@ -465,3 +469,51 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - `bun x vitest run src/lib/components/game/worldRect.test.ts`
   - `bun x vite build`
 - Acceptance still depends on live user confirmation in the running app, but this fix moves the issue out of one-off offset tweaking and into a shared world-rect contract that should port cleanly across worktrees.
+
+### 2026-05-01 - additive correction after the first viewport fix failed live
+
+- The user immediately rejected the first 2026-05-01 viewport fix:
+  - fills now showed margins on all edges
+  - the map still was not centered
+  - the user explicitly called out the conceptual error: the star map / game map is not the same contract as the territory fill bounds
+- That rejection matters for merge review:
+  - the earlier idea of making one world rect do everything was itself wrong for this surface
+  - do not merge the earlier viewport work as though it were the finished design
+- Corrected architectural model:
+  - `star-fit camera rect`
+    - follows the live star field
+    - owns camera centering / scale fit
+  - `stable authored/display map rect`
+    - rooted at `(0,0)`
+    - owns map/world-space truth for geometry derivation and other stable systems
+  - `viewport-aligned territory presentation frame`
+    - centered on the fitted star content
+    - sized to the live canvas viewport at the current fit scale
+    - owns only territory presentation, not geometry truth
+- The deeper implementation bug that the first fix missed:
+  - once `voronoiContainer` is shifted into the viewport-aligned territory frame, every territory renderer inside it must consume coordinates localized into that same frame
+  - shifting the container alone while leaving stars/geometry in absolute display-space guarantees drift
+- Runtime corrections made:
+  - added `pax-fluxia/src/lib/components/game/territoryPresentationSpace.ts`
+  - the helper localizes:
+    - display-space stars into the territory presentation frame
+    - canonical geometry into the same local frame
+    - region/frontier/shell/topology coordinates all move together
+  - localized geometry is cached by raw geometry reference + frame key to reduce unnecessary plan rebuild churn
+  - `GameCanvas.svelte` now:
+    - builds a `territoryPresentationFrameKey`
+    - includes that frame key in `buildTerritoryPresentationRequestSignature()`
+    - passes localized stars to direct territory renderers
+    - passes localized stars + localized geometry to render-family inputs
+    - passes localized stars/world size to canonical bridge and canonical controller presentation paths
+- Why this merge guidance matters:
+  - this is not a Phase Edges-specific hack
+  - it is a presentation-space adapter pattern for any territory renderer that must fill the viewport while the star-fit camera remains centered on live content
+  - if another worktree touches `GameCanvas.svelte`, preserve the separation between:
+    - stable geometry truth
+    - camera fit
+    - territory presentation frame
+- Tests/validation added for the correction:
+  - `pax-fluxia/src/lib/components/game/territoryPresentationSpace.test.ts`
+  - `bun x vitest run src/lib/components/game/worldRect.test.ts src/lib/components/game/territoryPresentationSpace.test.ts`
+  - `bun x vite build`
