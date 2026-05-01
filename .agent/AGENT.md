@@ -770,3 +770,26 @@ Suggested structure:
   - confirm `Territory Styles` disappears while phase field is active,
   - confirm the border-state readout matches actual on-map results for `off`, `per_cell`, and `territory_edge` cases,
   - confirm the new panel feels sufficient without the removed generic/dead controls.
+
+### 2026-05-01 - Remove `canonical` Jargon From Settings Copy
+
+- Lane: `territory/phase-field-copy-truth`
+- User task: stop adding commentary-heavy prose to controls sections, remove the user-facing word `canonical`, and answer directly what that wording was supposed to mean.
+
+#### Pass Log
+
+1. Pass 1 - Audited the settings UI path and confirmed the real issue: `canonical` in the phase-field panel was not carrying a stable product meaning. It was internal-sounding filler over a simple distinction the UI should have stated directly.
+2. Pass 2 - Reduced the phase-field top-level panel in `TerritoryPhaseFieldSettings.svelte` so it reads more like a control surface and less like a narrated explainer. Removed the extra descriptive paragraphs I had added around the section, the surface card, and the tuning stack.
+3. Pass 3 - Removed the user-facing `canonical` wording from the phase-field border-state summary and replaced it with direct language:
+   - smooth territory outline
+   - grid cell edges
+4. Pass 4 - Renamed the local `MetaballGridTuning.svelte` helper from `usesCanonicalTerritoryEdgeBorders()` to `usesGeometryFrontierBorders()` and replaced the related UI copy so the control descriptions now say what actually changes on screen.
+5. Pass 5 - Verified that the remaining `canonical` hits under `src/lib/components/ui/settings` are internal mode ids and logic branches such as `power_voronoi_canonical`, not the player-facing copy that triggered this correction.
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are `pax-fluxia/src/lib/components/ui/settings/TerritoryPhaseFieldSettings.svelte` and `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`.
+- Critical behavioral delta for merge/review:
+  - no runtime change,
+  - settings copy now states the real distinction directly: smooth territory outline vs grid cell edges,
+  - the added commentary text in the dedicated phase-field panel has been removed.

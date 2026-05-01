@@ -64,7 +64,7 @@
         if (currentBorderMode() === "off") return "Off";
         if (currentBorderMode() === "per_cell") return "Per cell";
         return currentBorderBlend()
-            ? "Territory edge · centered blend"
+            ? "Territory edge · blended line"
             : "Territory edge · split cell strokes";
     }
 
@@ -108,13 +108,13 @@
             return {
                 tone: "live",
                 summary: "Borders live",
-                detail: "Smooth ownership-frontier border follows the canonical territory edge.",
+                detail: "One blended border line follows the smooth territory outline.",
             };
         }
         return {
             tone: "live",
             summary: "Borders live",
-            detail: "Ownership-frontier border uses the grid-owned fallback edge path.",
+            detail: "Border strokes follow grid cell edges.",
         };
     }
 
@@ -131,23 +131,11 @@
             {borderStateValue.summary}
         </span>
     </div>
-    <div class="var-desc">
-        Phase Field has its own settings surface now. This panel only shows controls
-        the renderer actually consumes. Territory topology stays in Territory
-        Topology.
-    </div>
 
     <div class="phase-field-card">
         <h5 class="sub-heading">Surface</h5>
-        <div class="var-desc">
-            Shared fill and border energy for the visible phase-field surface. The
-            fill sliders are active; the old fill master toggle is not used by this
-            mode and is intentionally absent.
-        </div>
-
         <TerritorySlaWidget
             title="Territory fill"
-            help="Phase Field always resolves through the shared territory fill surface. Use these sliders for fill energy and opacity."
             {panel}
             onUpdate={writeConfig}
             configSat="METABALL_SATURATION"
@@ -163,7 +151,6 @@
 
         <TerritorySlaWidget
             title="Territory border"
-            help="Steady border surface only. Border path selection still lives in Shape → Border Mode below."
             {panel}
             onUpdate={writeConfig}
             configEnabled="METABALL_BORDER_ENABLED"
@@ -195,10 +182,6 @@
 
     <div class="phase-field-card">
         <h5 class="sub-heading">Shape, Propagation, Finish</h5>
-        <div class="var-desc">
-            This is the active phase-field tuning stack: grid layout, cell shape,
-            border pathing, propagation shape, conquest timing, and finish behavior.
-        </div>
         <MetaballGridTuning {panel} {updatePanel} />
     </div>
 </div>
@@ -276,13 +259,6 @@
         background: rgba(17, 24, 39, 0.6);
         color: rgba(226, 236, 248, 0.9);
         font-size: 11px;
-        line-height: 1.35;
-    }
-
-    .var-desc {
-        margin: 0;
-        color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
         line-height: 1.35;
     }
 </style>

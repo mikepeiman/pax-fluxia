@@ -84,13 +84,13 @@
     }
 
     function currentBorderBlendDescription(): string {
-        if (usesCanonicalTerritoryEdgeBorders()) {
-            return 'Phase Field default: Territory-edge + centered-blended uses the canonical territory frontier lines, so borders stay aligned with the smooth POST territory. Turn this off to fall back to grid-owned edge strokes.';
+        if (usesGeometryFrontierBorders()) {
+            return 'Phase Field default: Territory-edge + centered-blended draws one border line from the smooth territory outline. Turn this off to use grid cell edges instead.';
         }
         return 'Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).';
     }
 
-    function usesCanonicalTerritoryEdgeBorders(): boolean {
+    function usesGeometryFrontierBorders(): boolean {
         return (
             isPhaseFieldMode() &&
             currentBorderMode() === 'territory_edge' &&
@@ -99,7 +99,7 @@
     }
 
     function usesGridEdgeShapingControls(): boolean {
-        return currentBorderMode() === 'territory_edge' && !usesCanonicalTerritoryEdgeBorders();
+        return currentBorderMode() === 'territory_edge' && !usesGeometryFrontierBorders();
     }
 
     // Resolved values.
@@ -733,8 +733,8 @@
         <span class="val">{currentBorderChaikinPasses()}</span>
     </div>
     <div class="var-desc">
-        {#if usesCanonicalTerritoryEdgeBorders()}
-            Phase Field canonical-border mode already follows the smoothed territory frontier from geometry. Switch Centered-blended off to shape the grid-owned fallback border path instead.
+        {#if usesGeometryFrontierBorders()}
+            This path already uses the smooth territory outline. Turn Centered-blended off to shape the grid-cell fallback path instead.
         {:else}
             Smoothing for the grid-owned territory-edge fallback path. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries.
         {/if}
@@ -761,8 +761,8 @@
         <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
     </div>
     <div class="var-desc">
-        {#if usesCanonicalTerritoryEdgeBorders()}
-            Phase Field canonical-border mode ignores grid edge rounding. Switch Centered-blended off to edit the grid-owned fallback path.
+        {#if usesGeometryFrontierBorders()}
+            This path already uses the smooth territory outline. Turn Centered-blended off to round the grid-cell fallback path.
         {:else}
             Additional shared-edge softening for the grid-owned territory-edge fallback path.
         {/if}
@@ -789,8 +789,8 @@
         <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
     </div>
     <div class="var-desc">
-        {#if usesCanonicalTerritoryEdgeBorders()}
-            Phase Field canonical-border mode ignores grid endpoint trim. Switch Centered-blended off to trim the grid-owned fallback path instead.
+        {#if usesGeometryFrontierBorders()}
+            This path already uses the smooth territory outline. Turn Centered-blended off to trim the grid-cell fallback path instead.
         {:else}
             Endpoint trim for open shared-edge chains in the grid-owned territory-edge fallback path.
         {/if}
