@@ -1807,6 +1807,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             const values = new Float32Array(localCols * localRows);
             const ownerIndexByCell = new Int32Array(localCols * localRows);
             const validMask = new Uint8Array(localCols * localRows);
+            const suppressMask = new Uint8Array(localCols * localRows);
             for (let iy = minIy; iy <= maxIy; iy++) {
                 for (let ix = minIx; ix <= maxIx; ix++) {
                     const globalIndex = iy * cols + ix;
@@ -1817,6 +1818,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     ownerIndexByCell[localIndex] =
                         value >= 0.5 ? pair.ownerIndex : pair.opposingOwnerIndex;
                     validMask[localIndex] = 1;
+                    suppressMask[localIndex] = pair.indices.has(globalIndex) ? 1 : 0;
                 }
             }
             const origin = params.classification.vstars[minIy * cols + minIx];
@@ -1832,6 +1834,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 values,
                 ownerIndexByCell,
                 validMask,
+                suppressMask,
                 ownerIndex: pair.ownerIndex,
                 opposingOwnerIndex: pair.opposingOwnerIndex,
             });
@@ -2132,12 +2135,21 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             if (layer.validMask && layer.validMask[localIndex] === 0) {
                 continue;
             }
-        if (layer.opposingOwnerIndex != null) {
-            return true;
+            if (
+                layer.suppressMask &&
+                layer.suppressMask.length === layer.values.length
+            ) {
+                if (layer.suppressMask[localIndex] > 0) {
+                    return true;
+                }
+                continue;
+            }
+            if (layer.opposingOwnerIndex != null) {
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 
     private buildPlanForTransition(params: {
         input: RenderFamilyInput;

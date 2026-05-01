@@ -10,6 +10,7 @@
 - `Junction Render`
 - `Junction Gap Trim`
 - `Junction Bubble Radius`
+- Live verification that `Centered-blended borders` no longer causes a generalized fill pullback when `Inward Offset = 0`.
 
 ## Completed
 - Added a reusable frontier-processing layer for Phase Edges under `pax-fluxia/src/lib/territory/frontier/`.
@@ -31,6 +32,7 @@
 - `TERRITORY_FRONTIER_JUNCTION_RADIUS_PX`
 - Widened centered-blended border support so `per_cell` mode can retain per-cell border paint while overlaying one blended opposing-owner frontier stroke.
 - Clarified that `Grid | Frontier | Wave | Flip | Perf` in `MetaballGridTuning.svelte` are panel sections only, not renderer-mode toggles.
+- Fixed the Phase Edges fill-replacement suppression bug by introducing a dedicated `suppressMask` on frontier phase layers so fill replacement only applies to actual frontier cells, not the full expanded contour-valid neighborhood.
 
 ## Next
 - Get live user confirmation on:
@@ -40,5 +42,6 @@
   - `per_cell` borders preserving their lattice while the shared owner boundary renders as one blended stroke
   - `Junction Gap Trim` reproducing the low-pixel three-way gap control
   - `Junction Bubble Radius` producing a useful three-owner blended bubble when `Junction Render = Bubble`
+  - `Centered-blended borders` no longer causing a general fill pullback when `Inward Offset = 0`
   - no remaining duplicated topology/source controls
 - If any surfaced style control still does nothing, trace definition -> consumer -> render path before changing the UI again.

@@ -428,6 +428,11 @@
                 <div class="var-desc">
                     These controls own the visible border strategy for Metaball Grid surfaces. They no longer live in the tuning cards.
                 </div>
+                {#if isPhaseEdgesFamily()}
+                    <div class="var-desc">
+                        Related fill control: <strong>Inward Offset</strong> lives in the <strong>Fill</strong> subsection because it changes the visible fill frontier rather than the stroke itself.
+                    </div>
+                {/if}
 
                 <div class="var-row">
                     <div class="row-top">

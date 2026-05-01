@@ -696,6 +696,64 @@ describe('MetaballGridFamily active frontier fast path', () => {
         family.dispose();
     });
 
+    it('suppresses base fill only inside the explicit frontier-replacement mask', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        const shouldSuppressSceneCellForFrontierFill = (
+            family as unknown as {
+                shouldSuppressSceneCellForFrontierFill: (
+                    cell: { x: number; y: number; colorIdx: number },
+                    layers: Array<{
+                        ownerIndex?: number;
+                        opposingOwnerIndex?: number | null;
+                        originX: number;
+                        originY: number;
+                        cellSizePx: number;
+                        cols: number;
+                        rows: number;
+                        values: Float32Array;
+                        ownerIndexByCell: Int32Array;
+                        validMask?: Uint8Array;
+                        suppressMask?: Uint8Array;
+                    }>,
+                ) => boolean;
+            }
+        ).shouldSuppressSceneCellForFrontierFill.bind(family);
+
+        const layer = {
+            ownerIndex: 0,
+            opposingOwnerIndex: 1,
+            originX: 0,
+            originY: 0,
+            cellSizePx: 10,
+            cols: 3,
+            rows: 3,
+            values: new Float32Array(9).fill(1),
+            ownerIndexByCell: new Int32Array(9).fill(0),
+            validMask: new Uint8Array(9).fill(1),
+            suppressMask: Uint8Array.from([0, 0, 0, 0, 1, 0, 0, 0, 0]),
+        };
+
+        expect(
+            shouldSuppressSceneCellForFrontierFill(
+                { x: 10, y: 10, colorIdx: 0 },
+                [layer],
+            ),
+        ).toBe(true);
+        expect(
+            shouldSuppressSceneCellForFrontierFill(
+                { x: 0, y: 0, colorIdx: 0 },
+                [layer],
+            ),
+        ).toBe(false);
+
+        family.dispose();
+    });
+
     it('honors shared fill and border visibility toggles in phase-edges presentation', () => {
         const family = createMetaballGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {

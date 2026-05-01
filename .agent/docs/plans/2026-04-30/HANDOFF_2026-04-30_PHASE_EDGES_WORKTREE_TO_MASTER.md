@@ -416,3 +416,26 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - live user confirmation that `Inward Offset` now visibly changes the active Phase Edges fill frontier
   - live user evaluation of the new `per_cell` blended frontier overlay
   - live user evaluation of gap-trim versus bubble junction treatment
+
+### 2026-04-30 - additive update after centered-blended fill-offset audit
+
+- A further live user report narrowed the main remaining defect:
+  - `Centered-blended borders` still caused a significant general fill pullback
+  - turning that blend path off made fills reach the boundary again
+  - `Inward Offset` had become effectively hidden by the subsectioned styles UI because it lives under `Fill`
+- Root cause:
+  - the Phase Edges fill-suppression path was using `validMask`, which marks the broader neighborhood required for contour extraction
+  - that mask is wider than the set of cells that should have their base fill replaced
+  - result: a border presentation option could erase too much base fill and create an inward pull even when `Inward Offset = 0`
+- Architectural fix:
+  - added `suppressMask` to `TerritoryFrontierPhaseFieldLayer`
+  - Phase Edges pair layers now populate `suppressMask` only for the true frontier-pair cells, while `validMask` remains the broader contour domain
+  - `shouldSuppressSceneCellForFrontierFill()` now prefers `suppressMask` when present
+  - this explicitly separates:
+    - contour extraction support area
+    - base-fill replacement area
+- UI follow-up:
+  - the border section now tells the user that `Inward Offset` lives in `Fill`, which avoids another false “the control was removed” read without duplicating the control
+- Validation after this additive update:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`

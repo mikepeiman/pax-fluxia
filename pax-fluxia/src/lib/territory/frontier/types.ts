@@ -46,6 +46,7 @@ export interface TerritoryFrontierPhaseFieldLayer {
     readonly values: Float32Array;
     readonly ownerIndexByCell: Int32Array;
     readonly validMask?: Uint8Array;
+    readonly suppressMask?: Uint8Array;
     readonly ownerIndex?: number;
     readonly opposingOwnerIndex?: number | null;
 }

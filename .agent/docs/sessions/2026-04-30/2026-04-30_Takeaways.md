@@ -11,3 +11,4 @@
 - Panel-section chips must never look like renderer or FX toggles unless they actually mutate runtime behavior. Navigation disguised as a mode switch is a UX lie.
 - A visible style control is still fake if it only influences a dormant base-paint path while the active render path comes from a different surface recipe.
 - Explicit scene border modes such as `per_cell` must not be suppressed by whichever frontier recipe is currently selected. That is the same ownership error as letting style and topology both pretend to own geometry.
+- The contour-extraction domain and the fill-replacement domain are not the same thing. Reusing one mask for both let a border presentation path erase too much fill.
