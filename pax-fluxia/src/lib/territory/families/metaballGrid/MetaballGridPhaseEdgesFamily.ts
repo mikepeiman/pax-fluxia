@@ -3387,6 +3387,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // when a cell is native. Boundary cells recompute.
         const nativeSize = spacingPx - nativeInset * 2;
         const nativeHalf = nativeSize * 0.5;
+        const trueHalf = spacingPx * 0.5;
         const nativeCornerR = cellShape === 'square' ? Math.min(cellCornerPx, nativeHalf) : 0;
         const nativeHexR = nativeSize / SQRT3;
         const boundarySize = spacingPx - boundaryInset * 2;
@@ -3446,6 +3447,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             effectiveBorderWidth > 0 &&
             effectiveBorderAlpha > 0 &&
             frontierSurfaceRecipe.usesPhaseBorder;
+        const shouldDrawOuterPerimeter =
+            outerBorderEnabled &&
+            borderMode !== 'off' &&
+            effectiveBorderWidth > 0 &&
+            effectiveBorderAlpha > 0 &&
+            cached.classification.distribution === 'square';
         const sceneOwnerOccupancy =
             drawBlendedEdges ||
             canBuildScenePairPhaseSurface ||
@@ -3475,7 +3482,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     effectiveBorderAlpha > 0 &&
                     (
                         drawTerritoryEdgeOnly ||
-                        drawBlendedEdges
+                        drawBlendedEdges ||
+                        shouldDrawOuterPerimeter
                     )
                 ) ||
                 canBuildScenePairPhaseSurface ||
@@ -3843,7 +3851,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // blended colour of the two owners' border hexes.
         if (!canUseSplitFillOnlyFastPath && drawBlendedEdges && effectiveColorIdxByGridIdx) {
             const originOffset = cached.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
-            const trueHalf = spacingPx * 0.5;
             // Vertex grid is (cols+1) × (rows+1); vertex id = ivy * vCols + ivx.
             const vCols = cols + 1;
             const vertexX = (vid: number): number => {
@@ -4101,24 +4108,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     true,
                 );
             }
-
-            if (outerBorderEnabled) {
-                drawOuterPerimeterIntervals({
-                    borderLayer,
-                    classification: cached.classification,
-                    effectiveColorIdxByGridIdx,
-                    borderHexByColorIdx,
-                    borderAlpha: effectiveBorderAlpha,
-                    borderWidth: effectiveBorderWidth,
-                    frameWidth: input.world.width,
-                    frameHeight: input.world.height,
-                    cellHalfExtent: trueHalf,
-                    markBorderDrawn: () => {
-                        baseBorderDrawn = true;
-                    },
-                });
-            }
-
             if (frontierJunctionRenderMode === 'bubble' && frontierJunctionRadiusPx > 0) {
                 const bubbleStrokeWidth = Math.max(1, effectiveBorderWidth * 0.35);
                 for (const [vertexId, ownerSet] of ownerSetByVertex) {
@@ -4146,6 +4135,22 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                         });
                 }
             }
+        }
+        if (shouldDrawOuterPerimeter && effectiveColorIdxByGridIdx) {
+            drawOuterPerimeterIntervals({
+                borderLayer,
+                classification: cached.classification,
+                effectiveColorIdxByGridIdx,
+                borderHexByColorIdx,
+                borderAlpha: effectiveBorderAlpha,
+                borderWidth: effectiveBorderWidth,
+                frameWidth: input.world.width,
+                frameHeight: input.world.height,
+                cellHalfExtent: trueHalf,
+                markBorderDrawn: () => {
+                    baseBorderDrawn = true;
+                },
+            });
         }
         borderLayer.visible = baseBorderDrawn;
 

@@ -216,6 +216,28 @@
     function canEditSharedEdgeJunctionControls(): boolean {
         return canEditSharedEdgeControls();
     }
+
+    function sharedEdgeControlGateReason(): string | null {
+        if (!isPhaseEdgesFamily()) {
+            return "Only applies to Metaball Grid Phase Edges.";
+        }
+        if (currentFrontierTechnique() !== "control") {
+            return "Requires Frontier Technique = Current control.";
+        }
+        if (currentDistribution() !== "square") {
+            return "Requires Distribution = Square.";
+        }
+        if (currentBorderMode() !== "territory_edge") {
+            return "Requires Border Mode = Territory edge.";
+        }
+        if (!currentBorderBlend()) {
+            return "Requires Centered-blended borders = On.";
+        }
+        if (currentFrontierBorderGeometryMode() !== "shared_edge") {
+            return "Requires Frontier Border Geometry = Straight shared edge.";
+        }
+        return null;
+    }
 </script>
 
 {#if sectionHeading}
@@ -594,6 +616,7 @@
                 <div
                     class="var-row"
                     class:disabled={!canEditSharedEdgeControls()}
+                    title={!canEditSharedEdgeControls() ? sharedEdgeControlGateReason() ?? "" : ""}
                 >
                     <div class="row-top">
                         <span class="var-name" title="Extra rounding pressure on straight shared-edge control borders.">
@@ -602,7 +625,11 @@
                         <span class="val">{Math.round(numVal("metaballGridEdgeSmoothingPasses", "METABALL_GRID_EDGE_SMOOTHING_PASSES", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES))}</span>
                     </div>
                     <div class="var-desc">
-                        Only affects the Straight shared edge border family. Rounded contour-matched borders ignore this knob because they already derive from the rounded frontier surface.
+                        {#if !canEditSharedEdgeControls() && sharedEdgeControlGateReason()}
+                            {sharedEdgeControlGateReason()}
+                        {:else}
+                            Only affects the Straight shared edge border family. Rounded contour-matched borders ignore this knob because they already derive from the rounded frontier surface.
+                        {/if}
                     </div>
                     <input
                         type="range"
@@ -625,6 +652,7 @@
                 <div
                     class="var-row"
                     class:disabled={!canEditSharedEdgeJunctionControls()}
+                    title={!canEditSharedEdgeJunctionControls() ? sharedEdgeControlGateReason() ?? "" : ""}
                 >
                     <div class="row-top">
                         <span class="var-name" title="How straight shared-edge multi-owner junctions are presented.">
@@ -635,7 +663,11 @@
                         </span>
                     </div>
                     <div class="var-desc">
-                        Controls the three-way-or-more junction treatment on the Straight shared edge border family. Gap trim keeps the trimmed pixel gap; Bubble replaces that gap with a blended multi-owner bubble marker.
+                        {#if !canEditSharedEdgeJunctionControls() && sharedEdgeControlGateReason()}
+                            {sharedEdgeControlGateReason()}
+                        {:else}
+                            Controls the three-way-or-more junction treatment on the Straight shared edge border family. Gap trim keeps the trimmed pixel gap; Bubble replaces that gap with a blended multi-owner bubble marker.
+                        {/if}
                     </div>
                     <select
                         class="mode-select"
@@ -658,6 +690,7 @@
                 <div
                     class="var-row"
                     class:disabled={!canEditSharedEdgeControls()}
+                    title={!canEditSharedEdgeControls() ? sharedEdgeControlGateReason() ?? "" : ""}
                 >
                     <div class="row-top">
                         <span class="var-name" title="Trim open straight shared-edge chains inward at their endpoints. This is the low-pixel three-way junction gap slider.">
@@ -666,7 +699,11 @@
                         <span class="val">{numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX).toFixed(1)}px</span>
                     </div>
                     <div class="var-desc">
-                        This is the small three-way-junction gap control. On the current straight shared-edge path it also contributes some boundary fill pullback, which is why it affects both the visible endpoint gap and the fill cut.
+                        {#if !canEditSharedEdgeControls() && sharedEdgeControlGateReason()}
+                            {sharedEdgeControlGateReason()}
+                        {:else}
+                            This is the small three-way-junction gap control. On the current straight shared-edge path it also contributes some boundary fill pullback, which is why it affects both the visible endpoint gap and the fill cut.
+                        {/if}
                     </div>
                     <input
                         type="range"
@@ -689,6 +726,13 @@
                 <div
                     class="var-row"
                     class:disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
+                    title={
+                        !canEditSharedEdgeJunctionControls()
+                            ? sharedEdgeControlGateReason() ?? ""
+                            : currentFrontierJunctionRenderMode() !== "bubble"
+                              ? "Requires Junction Render = Bubble."
+                              : ""
+                    }
                 >
                     <div class="row-top">
                         <span class="var-name" title="Radius of the blended bubble marker drawn at straight shared-edge junctions with three or more contributing owners.">

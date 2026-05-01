@@ -36,3 +36,5 @@
 - Duplicated UI controls are still a structural problem in the current Phase Edges surfaces:
   - several border/cell-paint keys are exposed in both `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
   - duplicated controls with different applicability gating are a reliable way to recreate "this slider does nothing" regressions
+- `Outer perimeter border` was another example of a control whose state existed but whose consumer was owned by the wrong branch. The fix was not about default values; it was about moving the perimeter draw pass out of the centered-blended shared-edge branch and making it a first-class border pass.
+- Disabled controls need explicit unmet-requirement messaging. `Junction Render` was technically disabled for a valid reason, but without surfacing that reason the control reads like dead UI.

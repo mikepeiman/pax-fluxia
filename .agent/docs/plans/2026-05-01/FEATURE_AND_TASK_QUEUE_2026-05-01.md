@@ -6,7 +6,7 @@
 - identify which keys are surfaced in UI, which are duplicated across UI surfaces, and which still affect the mode without any reachable UI
 - specifically confirm the likely hidden-affecting keys behind the user's "mystery value" suspicion
 - Live user verification that the preferred Phase Edges mode remains centered by the star-fit rect.
-- Live user verification that the optional outer perimeter border now includes the right side as well, instead of dropping only that side.
+- Live user verification that `Outer perimeter border` now produces a real owner-vs-world perimeter pass in the preferred rounded path instead of remaining inert behind the shared-edge blended branch.
 - Live user verification that `Border Mode = off` now leaves no surviving underlying border draw in Phase Edges.
 - Live user verification that `Border Mode = territory_edge` no longer stacks a second border path under the intended blended shared-edge border.
 - Continue Phase Edges acceptance work from 2026-04-30 after the viewport/world-rect correction:
@@ -65,6 +65,12 @@
   - confirmed that `CHAIKIN_BOUNDARY_PAD`, `CHAIKIN_BOUNDARY_EPS`, `TERRITORY_CLUSTER_SPLIT`, and `VORONOI_BORDER_SMOOTH` still affect the current Phase Edges render path without a reachable Phase Edges UI control
   - confirmed that `FRONTIER_RESOLUTION` does affect Phase Edges and is currently surfaced under `Territory Tuning & Constraints > Border Transition`, which is semantically misleading but wired
   - confirmed that several live Phase Edges surface controls remain duplicated between `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
+- Corrected a newly exposed Phase Edges contract bug:
+  - `Outer perimeter border` was not truly broken in state propagation
+  - it was structurally orphaned behind the centered-blended shared-edge branch in `MetaballGridPhaseEdgesFamily.ts`
+  - the explicit perimeter pass now runs as its own border path whenever border mode is active, border width/alpha are positive, and the square-grid path is in play
+- Improved the Phase Edges style-surface UX:
+  - `Junction Render`, `Shared Edge Smoothing`, and `Junction Gap Trim` now expose their unmet gating reason directly when disabled instead of looking like random dead controls
 
 ## Next
 - User confirms the live result in the running worktree.
@@ -74,5 +80,5 @@
   - duplicate/misleading placement if applicable
   - hidden/non-UI affecting values
 - If the right-side fill margin still remains after the border-layer ownership fix, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a border-path problem.
-- If the right-side perimeter is still missing, inspect whether the presentation-frame width itself is slightly overshooting the occupied grid support rather than the perimeter pass missing a contact edge.
+- If the outer perimeter still fails live after the branch-ownership correction, inspect whether the clipped-frame interval collector is not covering the contour-matched rounded path rather than a state propagation problem.
 - After those two live checks pass, start the queued transition end-jank investigation.

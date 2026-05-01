@@ -701,3 +701,24 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Merge/backport implication:
   - before merging this worktree into `master`, decide one authoritative UI owner for the duplicated Phase Edges surface keys
   - and either surface or intentionally retire the hidden geometry keys above, otherwise the merged branch will still carry non-obvious render-affecting state
+
+### 2026-05-01 - additive correction for inert outer perimeter toggle and opaque junction gating
+
+- The next live report identified two more contract issues after the render-contract audit:
+  - `Outer perimeter border` still had no visible result
+  - `Junction Render` was effectively unreachable in the user's preferred rounded Phase Edges configuration
+- Important diagnosis:
+  - `Outer perimeter border` was not failing because its setting was unwired
+  - the value was reaching `MetaballGridPhaseEdgesFamily.ts`, but the consumer draw path (`drawOuterPerimeterIntervals(...)`) lived inside the centered-blended shared-edge branch
+  - this is a classic wrong-ownership bug: a first-class border toggle was implemented as a side effect of one particular border family
+- Runtime correction:
+  - moved the outer-perimeter pass out of the centered-blended shared-edge block
+  - introduced a dedicated `shouldDrawOuterPerimeter` gate
+  - widened `needsEffectiveColorIdxByGridIdx` so the independent perimeter pass still gets the occupancy truth it needs
+- UI clarification:
+  - `Junction Render` was not dead code; it is intentionally shared-edge-only
+  - `TerritorySurfaceStyleTuning.svelte` now exposes the unmet requirement directly through `sharedEdgeControlGateReason()`
+  - this reduces the chance that future agents or users will mistake branch-gated controls for broken controls
+- Merge/backport guidance:
+  - keep outer perimeter as an independent owner-vs-world border pass, not as a side effect of the shared-edge blended branch
+  - when disabling a style control for branch-specific reasons, surface the unmet requirement in the UI; do not leave dead-looking controls without explanation
