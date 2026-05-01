@@ -11,9 +11,9 @@ import {
     buildPerimeterFieldRenderFamilyGeometry,
 } from '../buildFamilyGeometry';
 import {
-    resolveTerritoryBorderLoops,
-    type ResolvedTerritoryBorderLoop,
-} from '../../geometry/resolveTerritoryBorderLoops';
+    resolveConstraintAlignedFrontiers,
+    type ConstraintAlignedFrontierPolyline,
+} from '../../geometry/resolveConstraintAlignedFrontiers';
 import type {
     RenderFamily,
     RenderFamilyInput,
@@ -470,26 +470,28 @@ function drawGeometryFill(params: {
     }
 }
 
-function drawResolvedBorderLoop(params: {
+function drawResolvedBorderPolyline(params: {
     graphics: PIXI.Graphics;
-    loop: ResolvedTerritoryBorderLoop;
+    polyline: ConstraintAlignedFrontierPolyline;
     color: number;
     width: number;
     alpha: number;
 }): void {
-    const { graphics, loop, color, width, alpha } = params;
-    if (loop.points.length < 2 || width <= 0 || alpha <= 0) return;
+    const { graphics, polyline, color, width, alpha } = params;
+    if (polyline.points.length < 2 || width <= 0 || alpha <= 0) return;
     graphics.beginPath();
-    graphics.moveTo(loop.points[0][0], loop.points[0][1]);
-    for (let i = 1; i < loop.points.length; i++) {
-        graphics.lineTo(loop.points[i][0], loop.points[i][1]);
+    graphics.moveTo(polyline.points[0][0], polyline.points[0][1]);
+    for (let i = 1; i < polyline.points.length; i++) {
+        graphics.lineTo(polyline.points[i][0], polyline.points[i][1]);
     }
-    graphics.lineTo(loop.points[0][0], loop.points[0][1]);
+    if (polyline.closed) {
+        graphics.lineTo(polyline.points[0][0], polyline.points[0][1]);
+    }
     graphics.stroke({
         color,
         alpha,
         width,
-        alignment: loop.alignment,
+        alignment: polyline.kind === 'world' ? 1 : 0.5,
         cap: 'round',
         join: 'round',
     });
@@ -527,7 +529,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     private readonly baseGraphics = new PIXI.Graphics();
     private readonly fallbackOverlayGraphics = new PIXI.Graphics();
     private readonly borderGraphics = new PIXI.Graphics();
-    private readonly prevBorderGraphics = new PIXI.Graphics();
     private readonly frontierGraphics = new PIXI.Graphics();
     private readonly prevSourceContainer = new PIXI.Container();
     private readonly prevSourceGraphics = new PIXI.Graphics();
@@ -563,7 +564,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.nextSourceContainer.addChild(this.nextSourceGraphics);
         this.maskSourceContainer.addChild(this.maskSourceGraphics);
         this.prevSprite.mask = this.maskSprite;
-        this.prevBorderGraphics.mask = this.maskSprite;
 
         this.root.addChild(this.baseGraphics);
         this.root.addChild(this.fallbackOverlayGraphics);
@@ -571,7 +571,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.root.addChild(this.prevSprite);
         this.root.addChild(this.maskSprite);
         this.root.addChild(this.borderGraphics);
-        this.root.addChild(this.prevBorderGraphics);
         this.root.addChild(this.frontierGraphics);
     }
 
@@ -1166,27 +1165,54 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         }
     }
 
-    private drawFillAlignedTerritoryBorderOverlay(params: {
-        graphics: PIXI.Graphics;
+    private drawConstraintAlignedTerritoryBorderOverlay(params: {
         geometry: CanonicalGeometrySnapshot;
+        stars: ReadonlyArray<StarState>;
+        requestedMarginPx: number;
         ownerColorIdx: ReadonlyMap<string, number>;
         borderHexByColorIdx: readonly number[];
         borderWidth: number;
         borderAlpha: number;
     }): void {
-        const g = params.graphics;
+        const g = this.borderGraphics;
         g.clear();
         if (params.borderWidth <= 0 || params.borderAlpha <= 0) return;
 
-        const loops = resolveTerritoryBorderLoops(params.geometry);
-        for (const loop of loops) {
-            const ownerIdx = params.ownerColorIdx.get(loop.ownerId);
+        const resolved = resolveConstraintAlignedFrontiers({
+            geometry: params.geometry,
+            stars: params.stars,
+            requestedMarginPx: params.requestedMarginPx,
+        });
+
+        for (const polyline of resolved.frontierPolylines) {
+            const ownerAIdx = params.ownerColorIdx.get(polyline.ownerA);
+            const ownerBIdx = params.ownerColorIdx.get(polyline.ownerB);
+            const ownerAHex =
+                ownerAIdx === undefined ? undefined : params.borderHexByColorIdx[ownerAIdx];
+            const ownerBHex =
+                ownerBIdx === undefined ? undefined : params.borderHexByColorIdx[ownerBIdx];
+            const color =
+                ownerAHex !== undefined && ownerBHex !== undefined
+                    ? blendColors(ownerAHex, ownerBHex, 0.5)
+                    : ownerAHex ?? ownerBHex;
+            if (color === undefined) continue;
+            drawResolvedBorderPolyline({
+                graphics: g,
+                polyline,
+                color,
+                width: params.borderWidth,
+                alpha: params.borderAlpha,
+            });
+        }
+
+        for (const polyline of resolved.worldBorderPolylines) {
+            const ownerIdx = params.ownerColorIdx.get(polyline.ownerA);
             const color =
                 ownerIdx === undefined ? undefined : params.borderHexByColorIdx[ownerIdx];
             if (color === undefined) continue;
-            drawResolvedBorderLoop({
+            drawResolvedBorderPolyline({
                 graphics: g,
-                loop,
+                polyline,
                 color,
                 width: params.borderWidth,
                 alpha: params.borderAlpha,
@@ -1496,7 +1522,15 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END ?? 0.96,
             ),
         );
-        const useFillAlignedTerritoryBorders =
+        const requestedStarMarginPx = Math.max(
+            0,
+            Number(
+                (input.configSource?.MODIFIED_VORONOI_STAR_MARGIN as number | undefined) ??
+                    GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                    45,
+            ) || 0,
+        );
+        const useConstraintAlignedCenterlineBorders =
             borderEnabled &&
             borderMode === 'territory_edge' &&
             borderBlend &&
@@ -1581,6 +1615,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             borderEnabled ? '1' : '0',
             borderWidth.toFixed(2),
             borderAlpha.toFixed(3),
+            requestedStarMarginPx.toFixed(2),
             sharedEdgeSmoothingPasses,
             edgeTrimPx.toFixed(2),
             borderChaikinPasses,
@@ -1653,8 +1688,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.nextSprite.visible = false;
         this.maskSprite.visible = false;
         this.borderGraphics.clear();
-        this.prevBorderGraphics.clear();
-        this.prevBorderGraphics.visible = false;
         this.frontierGraphics.clear();
 
         let paintedCells = 0;
@@ -1680,7 +1713,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             sceneBuildMs = performance.now() - sceneStartMs;
 
             if (
-                !useFillAlignedTerritoryBorders &&
+                !useConstraintAlignedCenterlineBorders &&
                 borderEnabled &&
                 borderMode !== 'off' &&
                 borderWidth > 0 &&
@@ -1917,7 +1950,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             });
             this.baseGraphics.visible = true;
             if (
-                !useFillAlignedTerritoryBorders &&
+                !useConstraintAlignedCenterlineBorders &&
                 borderEnabled &&
                 borderMode !== 'off' &&
                 borderWidth > 0 &&
@@ -1943,26 +1976,16 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             paintedCells = 0;
         }
 
-        if (useFillAlignedTerritoryBorders) {
-            this.drawFillAlignedTerritoryBorderOverlay({
-                graphics: this.borderGraphics,
+        if (useConstraintAlignedCenterlineBorders) {
+            this.drawConstraintAlignedTerritoryBorderOverlay({
                 geometry: currentGeometry,
+                stars: input.stars,
+                requestedMarginPx: requestedStarMarginPx,
                 ownerColorIdx,
                 borderHexByColorIdx: frontierHexByColorIdx,
                 borderWidth,
                 borderAlpha,
             });
-            if (hasTransition && input.renderer) {
-                this.drawFillAlignedTerritoryBorderOverlay({
-                    graphics: this.prevBorderGraphics,
-                    geometry: cached.prevGeometry,
-                    ownerColorIdx,
-                    borderHexByColorIdx: frontierHexByColorIdx,
-                    borderWidth,
-                    borderAlpha,
-                });
-                this.prevBorderGraphics.visible = true;
-            }
         } else if (borderSceneCells.length > 0) {
             this.drawBorderOverlay({
                 classification: cached.classification,

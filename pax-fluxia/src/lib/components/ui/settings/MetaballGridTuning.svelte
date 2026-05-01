@@ -77,26 +77,26 @@
 
     function currentBorderBlendLabel(): string {
         if (isPhaseFieldMode()) {
-            return 'Fill-following territory borders';
+            return 'Singular blended territory border';
         }
         return 'Centered-blended borders';
     }
 
     function currentBorderBlendTitle(): string {
         if (isPhaseFieldMode()) {
-            return 'On: phase-field borders follow the final territory fill outline. Off: borders fall back to grid cell edges.';
+            return 'On: phase-field draws one blended centerline border between players, aligned by the same territory constraints as the fills. Off: borders fall back to grid cell edges.';
         }
         return 'Centered-blended borders: a single stroke on each ownership-boundary edge, coloured as the 50/50 blend of the two players\' border colours. Off: each cell draws its own stroke in its own colour, so boundaries show two abutting strokes.';
     }
 
     function currentBorderBlendDescription(): string {
-        if (usesFillAlignedTerritoryBorders()) {
-            return 'Phase Field default: Territory-edge + fill-following borders draws owner-side loops from the final territory fill outline. Turn this off to use grid cell edges instead.';
+        if (usesSingularCenterlineTerritoryBorders()) {
+            return 'Phase Field default: Territory-edge + singular blended border draws one player-blended centerline aligned to the constrained territory fill boundary. Turn this off to use grid cell edges instead.';
         }
         return 'Only applies when Border Mode = "Territory edge". On: one blended stroke per shared boundary edge. Off: each cell strokes its own outline in its own colour (edges appear as two abutting lines).';
     }
 
-    function usesFillAlignedTerritoryBorders(): boolean {
+    function usesSingularCenterlineTerritoryBorders(): boolean {
         return (
             isPhaseFieldMode() &&
             currentBorderMode() === 'territory_edge' &&
@@ -105,7 +105,7 @@
     }
 
     function usesGridEdgeShapingControls(): boolean {
-        return currentBorderMode() === 'territory_edge' && !usesFillAlignedTerritoryBorders();
+        return currentBorderMode() === 'territory_edge' && !usesSingularCenterlineTerritoryBorders();
     }
 
     function showGridEdgeShapingControls(): boolean {
@@ -842,9 +842,9 @@
             Shared Edge Smoothing is only used with square cells in Phase Field.
         </div>
     {/if}
-{:else if currentBorderMode() === 'territory_edge' && usesFillAlignedTerritoryBorders()}
+{:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
     <div class="var-desc">
-        Fill-following territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
+        Singular blended territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
     </div>
 {/if}
 </div>

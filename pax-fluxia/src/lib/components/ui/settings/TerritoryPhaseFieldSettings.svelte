@@ -64,8 +64,8 @@
         if (currentBorderMode() === "off") return "Off";
         if (currentBorderMode() === "per_cell") return "Per cell";
         return currentBorderBlend()
-            ? "Territory edge · fill-following loops"
-            : "Territory edge · split cell strokes";
+            ? "Territory edge - singular blended centerline"
+            : "Territory edge - split cell strokes";
     }
 
     function borderState(): { tone: "live" | "blocked"; summary: string; detail: string } {
@@ -108,7 +108,7 @@
             return {
                 tone: "live",
                 summary: "Borders live",
-                detail: "Per-owner border loops follow the final territory fill outline.",
+                detail: "One blended centerline border follows the constrained territory fill boundary.",
             };
         }
         return {

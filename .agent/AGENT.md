@@ -939,3 +939,64 @@ Suggested structure:
   - smooth phase-field borders no longer come from the older shared-frontier centerline artifact,
   - they now follow the final geometry-layer owner surfaces via resolved shell loops,
   - PRE border presentation can now track PRE fill visibility during conquest when the render-texture mask path is active.
+
+### 2026-05-01 - Replace Loop-Stroke Border Hack With Constraint-Aligned Centerline Borders
+
+- Lane: `territory/phase-field-singular-centerline-borders`
+- User task: after screenshot review, replace the owner-loop border hack with what the user actually asked for:
+  - singular borders
+  - blended from player colors
+  - centered between players
+  - aligned to the same constrained geometry shaping the fills
+
+#### Pass Log
+
+1. Pass 1 - Accepted the screenshot diagnosis. The previous shell-loop stroke pass was wrong for the requested semantics because it necessarily produced owner-side double borders once adjacent fills diverged under MSR.
+2. Pass 2 - Removed the wrong shared helper pair:
+   - `resolveTerritoryBorderLoops.ts`
+   - `resolveTerritoryBorderLoops.test.ts`
+3. Pass 3 - Added `resolveConstraintAlignedFrontiers(...)` in `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedFrontiers.ts`.
+   - Input:
+     - `CanonicalGeometrySnapshot`
+     - live stars
+     - requested MSR / star margin
+   - Behavior:
+     - start from the shared `frontierPolylines` / `worldBorderPolylines`,
+     - apply the same owner-star margin displacement logic used by MSR,
+     - for inter-owner frontiers, average the two owner-side constrained positions into one singular centerline,
+     - for world borders, use the owner-side constrained edge directly.
+4. Pass 4 - Added focused coverage in `resolveConstraintAlignedFrontiers.test.ts` for:
+   - inter-owner midpoint alignment,
+   - world-border owner-side alignment.
+5. Pass 5 - Rewired `MetaballGridPhaseFieldFamily.ts` so `territory_edge + blend on` now draws only the new constraint-aligned centerline presentation path. The old per-owner loop-stroke path was removed.
+6. Pass 6 - Deleted the masked PRE border overlay from phase field for this branch. It was incompatible with the “singular border, not double” requirement because it could stack PRE and POST border paths at once.
+7. Pass 7 - Updated the phase-field settings copy to match the new semantics exactly:
+   - `Singular blended territory border`
+   - `One blended centerline border follows the constrained territory fill boundary`
+   - no remaining player-facing `fill-following loops` / `per-owner loop` language
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/resolveConstraintAlignedFrontiers.test.ts`
+- `git diff --check`
+- source sweep confirming removal of:
+  - `resolveTerritoryBorderLoops`
+  - `prevBorderGraphics`
+  - `fill-following loops`
+  - `per-owner border loops`
+- filtered `bun run check` still only surfaced the long-standing `MetaballGridTuning.svelte` style-block warning location at the `<style>` line, not a new runtime/helper error
+
+#### Merge Note
+
+- Functional conflict surfaces for this corrective pass are:
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedFrontiers.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedFrontiers.test.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryPhaseFieldSettings.svelte`
+  - deletion of:
+    - `pax-fluxia/src/lib/territory/geometry/resolveTerritoryBorderLoops.ts`
+    - `pax-fluxia/src/lib/territory/geometry/resolveTerritoryBorderLoops.test.ts`
+- Critical behavioral delta for merge/review:
+  - the smooth phase-field border path is no longer owner-loop fill stroking,
+  - it is now one player-blended centerline derived from the same constraint space that shaped the fill boundaries.
