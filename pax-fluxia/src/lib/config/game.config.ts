@@ -11,6 +11,7 @@ import type {
 import { aiConfigDefaults } from './ai.config';
 import { audioConfigDefaults } from './audio.config';
 import { gameplayConfigDefaults } from './gameplay.config';
+import phaseFieldDefaultValues from './phase-field-default.json';
 import { rendererConfigDefaults } from './renderer.config';
 import { territoryConfigDefaults } from './territory.config';
 
@@ -90,7 +91,7 @@ interface GameConfigType {
     CONQUEST_DAMAGED_DESTROY_RATE: number;  // % of damaged ships destroyed at conquest (0-1)
     OVERWHELM_THRESHOLD: number;
 
-    // Order Persistence
+    // Order continuity compatibility
     ORDERS_PERSIST_AFTER_CONQUEST: boolean;
 
     /** When attacker conquers defender, retain attack order as movement order */
@@ -156,6 +157,7 @@ interface GameConfigType {
     ATTACK_SURGE_RAMP_MS: number;        // Ramp-in duration for attack surge (ms, 0=instant/old behavior, default 300)
     ATTACK_SURGE_SHAPE: number;          // Surge pulse shape power (1=sine, 2=sharper peak, 0.5=flatter, default 1)
     SURGE_PULSE_DURATION_MS: number;     // Duration of one surge sine cycle (ms, default = BASE_TICK_MS)
+    SURGE_PULSE_BIND_TO_TICK: boolean;   // Bind surge pulse duration to BASE_TICK_MS (default true)
     // Conquest animation
     CONQUEST_ANIMATION_MODE: 'immediate' | 'surge' | 'travel' | 'arrowhead'; // Strategy for transferring attacker ships to conquered star
     CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
@@ -763,6 +765,7 @@ const _rawConfig: GameConfigType = {
     ...rendererConfigDefaults,
     ...territoryConfigDefaults,
     ...audioConfigDefaults,
+    ...(phaseFieldDefaultValues as Partial<GameConfigType>),
 };
 
 export const DEFAULT_GAME_CONFIG: Readonly<GameConfigType> = Object.freeze({ ..._rawConfig });

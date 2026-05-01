@@ -154,7 +154,7 @@ function applyThemeValuesFallback(
     } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
         if (affectsLanePaths) {
             gameStore.refreshLanePolylinesFromConfig();
-        } else if (GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS) {
+        } else if ((GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS) {
             gameStore.rebuildConnectionsFromLaneClearance();
         } else {
             gameStore.refreshLanePolylinesFromConfig();
@@ -217,24 +217,9 @@ function migrateOldPresets(): void {
 
 // ── Reactive State ──────────────────────────────────────────────────────────
 
-// Run migration and apply default theme on first load
+// Run migration on first load
 if (typeof window !== 'undefined') {
     migrateOldPresets();
-    // Auto-apply default theme only if nothing has been selected yet
-    // (first launch or after a reset). Use setTimeout to allow all stores to initialize.
-    setTimeout(() => {
-        if (!_selectedThemeName) {
-            const DEFAULT_THEME_NAME = 'Mar 16 Default (DY4)';
-            const allBuiltins = getBuiltinGameThemes();
-            const defaultTheme = allBuiltins.find(t => t.name === DEFAULT_THEME_NAME);
-            if (defaultTheme) {
-                import('$lib/config/themes').then(({ applyTheme }) => {
-                    applyTheme(defaultTheme);
-                    _selectedThemeName = DEFAULT_THEME_NAME;
-                });
-            }
-        }
-    }, 0);
 }
 
 let _userThemes = $state<GameTheme[]>(

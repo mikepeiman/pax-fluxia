@@ -13,6 +13,7 @@
 
 import { type ComposedTheme, type ThemeCategory, CATEGORY_KEYS } from './categoryThemes';
 import { normalizeThemeValues, type ThemePrimitiveValues } from './themeRouting';
+import phaseFieldDefaultValues from './phase-field-default.json';
 
 const themeModules = import.meta.glob<Record<string, unknown>>('./builtin-themes/**/*.json', { eager: true });
 
@@ -161,7 +162,7 @@ function needsDisambiguation(baseName: string, duplicateCount: number): boolean 
 }
 
 function loadRawBuiltinThemeEntries(): RawBuiltinThemeEntry[] {
-    return Object.entries(themeModules).map(([modulePath, mod]) => {
+    const entries = Object.entries(themeModules).map(([modulePath, mod]) => {
         const sourcePath = getSourcePath(modulePath);
         const sourceSlug = getFileStem(sourcePath);
         const data = getThemeData(mod);
@@ -179,6 +180,20 @@ function loadRawBuiltinThemeEntries(): RawBuiltinThemeEntry[] {
             sourceSlug,
         };
     });
+
+    entries.push({
+        name: '',
+        baseName: 'Phase Field Default',
+        description: 'Default app settings captured from the current Phase Field baseline.',
+        createdAt: '2026-04-30T00:00:00.000Z',
+        values: coercePrimitiveValues(phaseFieldDefaultValues as Record<string, unknown>),
+        builtIn: true as const,
+        isImported: false,
+        sourcePath: 'phase-field-default',
+        sourceSlug: 'phase-field-default',
+    });
+
+    return entries;
 }
 
 function resolveDisplayNames(rawEntries: RawBuiltinThemeEntry[]): BuiltinThemeEntry[] {

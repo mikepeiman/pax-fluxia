@@ -1,13 +1,6 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
-    import {
-        auditThemeRouting,
-        groupThemesByRenderFamily,
-        type ThemeFamilyGroup,
-        type ThemeRoutingStatus,
-    } from "$lib/config/themeRouting";
-    import { type GameTheme } from "$lib/config/themes";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
         registerCategoryPresetApplyCallback,
@@ -22,6 +15,7 @@
     import { log, logFlags } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
+    import { resolveTerritoryRenderModeOptions } from "$lib/territory/ui/territoryRenderModeCatalog";
     import {
         LOG_CATEGORIES,
     } from "./settingsDefs";
@@ -51,6 +45,7 @@
         saveAnimLockModes,
         loadTier,
         saveTier,
+        exportConfigJSON as exportConfigJSONBase,
         type AnimLockMode,
     } from "./panelSync";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
@@ -64,11 +59,9 @@
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
-    import ControlsSectionRules from "./settings/ControlsSection-Rules.svelte";
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
     import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import ControlsSectionDiagnostics from "./settings/ControlsSection-Diagnostics.svelte";
-    import ThemeSelectDropdown from "./settings/ThemeSelectDropdown.svelte";
     import {
         ANIM_SLIDERS,
         CONFIG_TO_PANEL_KEY,
@@ -87,6 +80,10 @@
         type SettingsSectionId,
         type SettingsSectionDefinition,
     } from "./settings/settingsRegistry";
+    import {
+        searchSettings,
+        type SettingsSearchResult,
+    } from "./settings/settingsSearch";
 
     // Aliases for the imported arrays (matches existing template references)
     const logCategories = LOG_CATEGORIES;
@@ -129,6 +126,76 @@
         return def?.unit === "×tick" || def?.unit === "ticks";
     }
 
+    const QUICK_TERRITORY_RENDER_MODE_IDS = new Set([
+        "territory_canonical",
+        "power_voronoi_canonical",
+        "territory_engine",
+        "power_voronoi",
+        "perimeter_field",
+        "metaball",
+        "metaball_grid",
+        "metaball_grid_phase_edges",
+    ]);
+
+    const TERRITORY_STYLE_TO_BOOLEAN: Record<string, string> = {
+        vs_pvv3: "territoryPVV3",
+        power_voronoi: "territoryPowerVoronoi",
+        modified_voronoi: "territoryModifiedVoronoi",
+        distance_field: "territoryDistanceField",
+        voronoi: "territoryVoronoi",
+        metaball: "territoryMetaball",
+        pixel: "territoryPixel",
+        graph: "territoryGraph",
+        contour: "territoryContour",
+        territory_engine: "territoryEngine",
+    };
+
+    let quickTerritoryRenderModeOptions = $derived(
+        resolveTerritoryRenderModeOptions().filter(
+            (option) =>
+                option.selectable &&
+                QUICK_TERRITORY_RENDER_MODE_IDS.has(option.id),
+        ),
+    );
+
+    function resolveActiveTerritoryRenderModeId(): string {
+        return (
+            panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "territory_canonical"
+        );
+    }
+
+    function resolveActiveFillTransitionId(): string {
+        const raw =
+            panel.territoryFillTransitionMode ??
+            panel.territoryFillTransition ??
+            GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
+            GAME_CONFIG.TERRITORY_FILL_MODE ??
+            "active_front";
+        if (raw === "frontier" || raw === "frontier_morph") return "active_front";
+        if (raw === "none") return "off";
+        return raw;
+    }
+
+    function selectQuickTerritoryRenderMode(modeId: string) {
+        updatePanel("territoryRenderMode", modeId);
+
+        if (modeId === "power_voronoi_canonical") {
+            updatePanel("territoryFillTransitionMode", "pv_frontline");
+            updatePanel("territoryBorderTransitionMode", "off");
+            updatePanel("territoryBorderTransition", "none");
+        } else if (resolveActiveFillTransitionId() === "pv_frontline") {
+            updatePanel("territoryFillTransitionMode", "active_front");
+        }
+
+        for (const [styleId, panelKey] of Object.entries(TERRITORY_STYLE_TO_BOOLEAN)) {
+            updatePanel(panelKey, modeId !== "none" && styleId === modeId);
+        }
+
+        (globalThis as any).__RENDER_MODE_LOGGED = false;
+    }
+
     function applyTimingBindingsAndLocks() {
         const nextTick = panel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
         GAME_CONFIG.BASE_TICK_MS = nextTick;
@@ -141,6 +208,11 @@
         if (panel.territoryTransitionBindToTick) {
             GAME_CONFIG.TERRITORY_TRANSITION_MS = nextTick;
             panel = { ...panel, territoryTransitionMs: nextTick };
+        }
+
+        if (panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true) {
+            GAME_CONFIG.SURGE_PULSE_DURATION_MS = nextTick;
+            panel = { ...panel, surgePulseDurationMs: nextTick };
         }
 
         const tickUpdates = recalcAnimLocksOnTickChange(nextTick) ?? {};
@@ -704,124 +776,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
         localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
 
-        // Apply the default layered-runtime theme before reload
-        themeStore.applyTheme("Mar 16 Default (DY4)");
+        // Apply the stable factory baseline before reload
+        themeStore.applyTheme("Phase Field Default");
 
         // Reload to fully reinitialize from clean state
         window.location.reload();
     }
 
     // =========================================================================
-
+    // Settings header utilities
     // =========================================================================
-    // Theme System — now uses shared themeStore
-    // =========================================================================
-    let showFullSaveInput = $state(false);
-    let fullSaveName = $state("");
-    let fullSaveFlash = $state(false);
-    let showThemeChips = $state(false);
     let showLoadMapDrawer = $state(false);
-    let themeFamilyGroups = $derived(
-        groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
-    );
-
-    const THEME_STATUS_LABELS: Record<ThemeRoutingStatus, string> = {
-        wired: "wired",
-        "compat-inferred": "compat inferred",
-        agnostic: "agnostic",
-        "needs-editing": "needs edit",
-    };
-
-    function getThemeAudit(theme: GameTheme) {
-        return auditThemeRouting(theme.values as Record<string, unknown>);
-    }
-
-    function getThemeStatusClass(status: ThemeRoutingStatus): string {
-        switch (status) {
-            case "wired":
-                return "status-wired";
-            case "compat-inferred":
-                return "status-compat";
-            case "needs-editing":
-                return "status-needs-edit";
-            default:
-                return "status-agnostic";
-        }
-    }
-
-    function getThemeOptionLabel(theme: GameTheme): string {
-        const audit = getThemeAudit(theme);
-        switch (audit.status) {
-            case "needs-editing":
-                return `${theme.name} [needs edit]`;
-            case "compat-inferred":
-                return `${theme.name} [compat inferred]`;
-            default:
-                return theme.name;
-        }
-    }
-
-    function getThemeChipTitle(theme: GameTheme): string {
-        const audit = getThemeAudit(theme);
-        return `${audit.familyLabel}: ${audit.notes.join(" ")}`;
-    }
-
-    function getThemeGroupSummary(group: ThemeFamilyGroup<GameTheme>): string {
-        const counts: Partial<Record<ThemeRoutingStatus, number>> = {};
-        for (const theme of group.themes) {
-            const status = getThemeAudit(theme).status;
-            counts[status] = (counts[status] ?? 0) + 1;
-        }
-        return [
-            counts.wired ? `${counts.wired} wired` : "",
-            counts["compat-inferred"]
-                ? `${counts["compat-inferred"]} compat inferred`
-                : "",
-            counts["needs-editing"]
-                ? `${counts["needs-editing"]} needs edit`
-                : "",
-            counts.agnostic ? `${counts.agnostic} agnostic` : "",
-        ]
-            .filter(Boolean)
-            .join(" | ");
-    }
-
-    function handleApplyTheme(name: string) {
-        themeStore.applyTheme(name);
-        configStatus = `\u2705 Theme \"${name}\" applied`;
-        configStatusColor = "#4ade80";
-    }
-    function handleSaveTheme() {
-        const name = fullSaveName.trim();
-        if (!name) return;
-        const savedTheme = themeStore.saveTheme(name);
-        fullSaveName = "";
-        showFullSaveInput = false;
-        configStatus = `\u2705 Theme \"${savedTheme.name}\" saved`;
-        configStatusColor = "#4ade80";
-        fullSaveFlash = true;
-        setTimeout(() => (fullSaveFlash = false), 600);
-        // Download theme JSON
-        themeStore.exportTheme(savedTheme.name);
-    }
-
-    function handleUpdateTheme() {
-        const name = themeStore.selectedThemeName;
-        if (!name || !themeStore.isUserTheme(name)) return;
-        themeStore.saveTheme(name);
-        configStatus = `\u2705 Theme \"${name}\" updated`;
-        configStatusColor = "#4ade80";
-        fullSaveFlash = true;
-        setTimeout(() => (fullSaveFlash = false), 600);
-    }
-
-    function handleExportTheme() {
-        themeStore.exportTheme(themeStore.selectedThemeName || undefined);
-    }
-
-    function handleDeleteFullTheme(name: string) {
-        themeStore.deleteTheme(name);
-    }
 
     function getLoadableMaps(): MapDefinition[] {
         return [...gameStore.savedMaps].sort((left, right) => {
@@ -840,32 +805,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         await gameStore.startGame();
         configStatus = `✅ Map "${savedMap.metadata.name}" loaded`;
         configStatusColor = "#4ade80";
-    }
-
-    function handleImportTheme() {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".json";
-        input.onchange = async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            try {
-                const text = await file.text();
-                const theme = JSON.parse(text) as GameTheme;
-                const importedTheme = themeStore.importTheme(theme, file.name);
-                if (importedTheme) {
-                    configStatus = `\u2705 Theme \"${importedTheme.name}\" imported`;
-                    configStatusColor = "#4ade80";
-                } else {
-                    configStatus = "\u274C Invalid theme file";
-                    configStatusColor = "#f87171";
-                }
-            } catch {
-                configStatus = "\u274C Failed to parse theme file";
-                configStatusColor = "#f87171";
-            }
-        };
-        input.click();
     }
 
     // =========================================================================
@@ -972,6 +911,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         activeSubsection: string;
     }
 
+    const SEARCH_TARGET_SELECTOR =
+        ".var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]";
+
     let sectionSubsections = $derived.by(() =>
         Object.fromEntries(
             sections.map((section) => [
@@ -981,9 +923,105 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         ) as Record<string, SubsectionChip[]>,
     );
     let activeSubsections = $state<Record<string, string>>({});
+    let settingsSearchQuery = $state("");
+    const sectionBodyNodes = new Map<SectionId, HTMLElement>();
+    let settingsSearchResults = $derived.by(() =>
+        searchSettings(settingsSearchQuery),
+    );
+    let matchedSectionIds = $derived.by(() =>
+        settingsSearchQuery.trim()
+            ? new Set(settingsSearchResults.map((result) => result.sectionId))
+            : null,
+    );
 
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
         return sections.find((section) => section.id === sectionId) ?? sections[0];
+    }
+
+    function normalizeSearchLookup(value: string): string {
+        return value
+            .toLowerCase()
+            .replace(/[_-]+/g, " ")
+            .replace(/[^\p{L}\p{N}\s.]/gu, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function revealSearchSection(sectionId: SectionId) {
+        const section = getSectionDefinition(sectionId);
+        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) {
+            setTier(section.tier);
+        }
+        openSection(sectionId);
+    }
+
+    function resolveSearchTargetElement(
+        node: HTMLElement,
+        result: SettingsSearchResult,
+    ): HTMLElement | null {
+        const anchorNeedle = normalizeSearchLookup(
+            `${result.anchorText ?? ""} ${result.configKey ?? ""}`,
+        );
+        if (!anchorNeedle) return null;
+        const candidates = Array.from(
+            node.querySelectorAll<HTMLElement>(SEARCH_TARGET_SELECTOR),
+        );
+        return (
+            candidates.find((candidate) => {
+                const candidateText = normalizeSearchLookup(
+                    [
+                        candidate.textContent ?? "",
+                        candidate.dataset.settingLabel ?? "",
+                        candidate.dataset.settingConfigKey ?? "",
+                        candidate.dataset.settingDescription ?? "",
+                    ].join(" "),
+                );
+                return (
+                    candidateText.includes(anchorNeedle) ||
+                    anchorNeedle.includes(candidateText)
+                );
+            }) ?? null
+        );
+    }
+
+    function flashSearchTarget(target: HTMLElement) {
+        target.classList.add("settings-search-hit");
+        setTimeout(() => target.classList.remove("settings-search-hit"), 1800);
+    }
+
+    async function navigateToSearchResult(result: SettingsSearchResult) {
+        revealSearchSection(result.sectionId);
+        if (result.subsectionId) {
+            activeSubsections = {
+                ...activeSubsections,
+                [result.sectionId]: result.subsectionId,
+            };
+        }
+        await tick();
+        await tick();
+        const sectionNode = sectionBodyNodes.get(result.sectionId);
+        if (!sectionNode) return;
+        const target =
+            resolveSearchTargetElement(sectionNode, result) ?? sectionNode;
+        const scrollTarget =
+            target.closest(
+                ".var-row, .toggle-row, .engine-control-group, .theme-card, section",
+            ) ?? target;
+        (scrollTarget as HTMLElement).scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
+        flashSearchTarget(scrollTarget as HTMLElement);
+    }
+
+    async function handleSearchSubmit() {
+        const firstResult = settingsSearchResults[0];
+        if (!firstResult) return;
+        await navigateToSearchResult(firstResult);
+    }
+
+    function clearSettingsSearch() {
+        settingsSearchQuery = "";
     }
 
     function applySubsectionFilter(
@@ -1004,6 +1042,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     function registerSectionBody(node: HTMLElement, params: SectionBodyParams) {
         let current = params;
+        sectionBodyNodes.set(params.sectionId, node);
         const refresh = () =>
             queueMicrotask(() =>
                 applySubsectionFilter(
@@ -1017,11 +1056,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
         return {
             update(next: SectionBodyParams) {
+                if (current.sectionId !== next.sectionId) {
+                    sectionBodyNodes.delete(current.sectionId);
+                    sectionBodyNodes.set(next.sectionId, node);
+                }
                 current = next;
                 refresh();
             },
             destroy() {
-                // no-op
+                if (sectionBodyNodes.get(current.sectionId) === node) {
+                    sectionBodyNodes.delete(current.sectionId);
+                }
             },
         };
     }
@@ -1052,149 +1097,100 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         {/each}
     </div>
 
-    <!-- Theme Picker (always visible — full-theme-bar with drawer) -->
-    <div class="full-theme-bar">
-        <div class="full-top-row">
-            <div class="full-action-buttons" class:hidden={showFullSaveInput}>
-                <ThemeSelectDropdown
-                    {themeFamilyGroups}
-                    selectedThemeName={themeStore.selectedThemeName}
-                    getThemeOptionLabel={getThemeOptionLabel}
-                    onSelectTheme={handleApplyTheme} />
-                {#if themeStore.selectedThemeName && themeStore.isUserTheme(themeStore.selectedThemeName)}
-                    <button
-                        class="full-action-btn full-update-btn"
-                        class:flash={fullSaveFlash}
-                        onclick={handleUpdateTheme}
-                        title="Update ‘{themeStore.selectedThemeName}’ with current settings"
-                    >
-                        💾 Update
-                    </button>
-                {/if}
+    <div class="settings-header-tools">
+        <label class="settings-search-label" for="settings-search-input">
+            Search Settings
+        </label>
+        <div class="settings-search-row">
+            <input
+                id="settings-search-input"
+                class="settings-search-input"
+                type="search"
+                placeholder="Search labels, panel copy, config keys, variables..."
+                bind:value={settingsSearchQuery}
+                onkeydown={async (event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        await handleSearchSubmit();
+                    } else if (event.key === "Escape" && settingsSearchQuery.trim()) {
+                        event.preventDefault();
+                        clearSettingsSearch();
+                    }
+                }}
+            />
+            {#if settingsSearchQuery.trim()}
                 <button
-                    class="full-action-btn full-create-btn"
-                    onclick={() => {
-                        showFullSaveInput = true;
-                    }}
-                    title="Save current settings as a new theme"
+                    class="settings-search-clear"
+                    type="button"
+                    onclick={clearSettingsSearch}
+                    title="Clear search"
                 >
-                    <span class="full-plus-icon">+</span> New
+                    ✕
                 </button>
-            </div>
-            <div class="full-save-drawer" class:open={showFullSaveInput}>
-                <input
-                    class="full-save-input"
-                    type="text"
-                    placeholder="Theme name…"
-                    bind:value={fullSaveName}
-                    onkeydown={(e) => {
-                        if (e.key === "Enter") handleSaveTheme();
-                        if (e.key === "Escape") {
-                            showFullSaveInput = false;
-                            fullSaveName = "";
-                        }
-                    }}
-                />
-                <button
-                    class="full-drawer-btn cancel"
-                    onclick={() => {
-                        showFullSaveInput = false;
-                        fullSaveName = "";
-                    }}
-                    title="Cancel">✕</button
-                >
-                <button
-                    class="full-drawer-btn confirm"
-                    class:flash={fullSaveFlash}
-                    onclick={handleSaveTheme}
-                    title="Save theme">✓</button
-                >
-            </div>
-        </div>
-        {#if themeStore.allThemes.length > 0}
-            <button
-                class="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold tracking-wide uppercase text-slate-400 bg-slate-800/60 border border-slate-700/50 rounded cursor-pointer hover:bg-slate-700/60 hover:text-slate-200 transition-colors"
-                onclick={() => showThemeChips = !showThemeChips}
-            >
-                <span class="text-[10px]">{showThemeChips ? '▾' : '▸'}</span>
-                <span>Theme Families</span>
-                <span class="ml-auto text-[10px] text-slate-500 font-normal">{themeFamilyGroups.length} groups / {themeStore.allThemes.length}</span>
-            </button>
-            {#if showThemeChips}
-                <div class="theme-family-groups">
-                    {#each themeFamilyGroups as group}
-                        <section class="theme-family-section">
-                            <div class="theme-family-header">
-                                <div class="theme-family-title-row">
-                                    <span class="theme-family-name">{group.label}</span>
-                                    <span class="theme-family-count">{group.themes.length}</span>
-                                </div>
-                                <p class="theme-family-description">{group.description}</p>
-                                <p class="theme-family-summary">{getThemeGroupSummary(group)}</p>
-                            </div>
-                            <div class="full-chips-row">
-                                {#each group.themes as t}
-                                    {@const routing = getThemeAudit(t)}
-                                    <button
-                                        class="full-chip"
-                                        class:active={themeStore.selectedThemeName === t.name}
-                                        onclick={() => handleApplyTheme(t.name)}
-                                        title={getThemeChipTitle(t)}
-                                    >
-                                        <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
-                                            {THEME_STATUS_LABELS[routing.status]}
-                                        </span>
-                                        <span class="theme-chip-name">{t.name}</span>
-                                        {#if themeStore.isUserTheme(t.name)}
-                                            <span
-                                                role="button"
-                                                tabindex="0"
-                                                class="full-chip-delete"
-                                                onclick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteFullTheme(t.name);
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter" || e.key === " ") {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleDeleteFullTheme(t.name);
-                                                    }
-                                                }}>&times;</span
-                                            >
-                                        {/if}
-                                    </button>
-                                {/each}
-                            </div>
-                        </section>
-                    {/each}
-                </div>
             {/if}
-        {/if}
-        <div class="full-io-row">
-            <button
-                class="full-io-btn"
-                onclick={handleExportTheme}
-                title="Export selected theme as JSON"
-            >
-                📤 Export
-            </button>
-            <button
-                class="full-io-btn"
-                onclick={handleImportTheme}
-                title="Import theme from JSON file"
-            >
-                📥 Import
-            </button>
-            <button
-                class="full-io-btn full-reset-btn"
-                onclick={resetToDefaults}
-                title="Clear all localStorage and reset to factory defaults (Mar 16 Default theme)"
-            >
-                🗑️ Clear All
-            </button>
         </div>
-        <div class="full-session-row">
+
+        {#if settingsSearchQuery.trim()}
+            <div class="settings-search-results">
+                <div class="settings-search-summary">
+                    {settingsSearchResults.length} match{settingsSearchResults.length === 1 ? "" : "es"}
+                </div>
+                {#if settingsSearchResults.length === 0}
+                    <div class="settings-search-empty">
+                        No matches. Try a control label, helper phrase, config key, or variable name.
+                    </div>
+                {:else}
+                    {#each settingsSearchResults as result}
+                        <button
+                            type="button"
+                            class="settings-search-result"
+                            onclick={() => void navigateToSearchResult(result)}
+                        >
+                            <span class="settings-search-result__title">{result.title}</span>
+                            <span class="settings-search-result__meta">
+                                {result.sectionLabel}
+                                {#if result.configKey}
+                                    · {result.configKey}
+                                {/if}
+                            </span>
+                            <span class="settings-search-result__snippet">{result.snippet}</span>
+                        </button>
+                    {/each}
+                {/if}
+            </div>
+        {/if}
+
+        <div class="settings-utility-row">
+            <button
+                class="full-io-btn full-export-btn"
+                onclick={() => {
+                    exportConfigJSONBase();
+                    configStatus = "✅ Exported JSON";
+                    configStatusColor = "#4ade80";
+                }}
+                title="Export the current game config as JSON"
+            >
+                📥 Export JSON
+            </button>
+            <button
+                class="full-io-btn full-export-btn"
+                onclick={exportConfigMD}
+                title="Export the current game config as Markdown"
+            >
+                📄 Export MD
+            </button>
+            <button
+                class="full-io-btn full-import-btn"
+                onclick={() => {
+                    const input = document.getElementById(
+                        "settings-config-import-input",
+                    ) as HTMLInputElement | null;
+                    input?.click();
+                }}
+                title="Import a saved game config from JSON"
+            >
+                📤 Import JSON
+            </button>
             <button
                 class="full-io-btn full-load-map-btn"
                 onclick={() => {
@@ -1204,29 +1200,49 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             >
                 🗺 Load Map
             </button>
-            {#if showLoadMapDrawer}
-                <div class="full-load-map-drawer">
-                    {#if gameStore.savedMaps.length === 0}
-                        <div class="full-load-map-empty">No saved maps available.</div>
-                    {:else}
-                        <div class="full-load-map-list">
-                            {#each getLoadableMaps() as map}
-                                <button
-                                    class="full-load-map-item"
-                                    onclick={() => void handleLoadMapFromSettings(map)}
-                                    title={`Load ${map.metadata.name}`}
-                                >
-                                    <span class="full-load-map-item__name">{map.metadata.name}</span>
-                                    <span class="full-load-map-item__meta">
-                                        {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
-                                    </span>
-                                </button>
-                            {/each}
-                        </div>
-                    {/if}
-                </div>
-            {/if}
+            <button
+                class="full-io-btn full-reset-btn"
+                onclick={resetToDefaults}
+                title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
+            >
+                🗑️ Clear All
+            </button>
         </div>
+        <input
+            id="settings-config-import-input"
+            type="file"
+            accept=".json"
+            style="display:none;"
+            onchange={importConfigJSON}
+        />
+        {#if configStatus}
+            <div class="settings-utility-status" style={`color:${configStatusColor};`}>
+                {configStatus}
+            </div>
+        {/if}
+
+        {#if showLoadMapDrawer}
+            <div class="full-load-map-drawer">
+                {#if gameStore.savedMaps.length === 0}
+                    <div class="full-load-map-empty">No saved maps available.</div>
+                {:else}
+                    <div class="full-load-map-list">
+                        {#each getLoadableMaps() as map}
+                            <button
+                                class="full-load-map-item"
+                                onclick={() => void handleLoadMapFromSettings(map)}
+                                title={`Load ${map.metadata.name}`}
+                            >
+                                <span class="full-load-map-item__name">{map.metadata.name}</span>
+                                <span class="full-load-map-item__meta">
+                                    {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
+                                </span>
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {/if}
     </div>
 
     <!-- Icon Toolbar -->
@@ -1235,6 +1251,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             <button
                 class="icon-btn"
                 class:active={openSections.has(s.id)}
+                class:search-hit={matchedSectionIds?.has(s.id)}
+                class:search-dim={matchedSectionIds && !matchedSectionIds.has(s.id)}
                 style="--accent: {s.color}"
                 onclick={() => toggleSection(s.id)}
                 title={s.label}
@@ -1256,6 +1274,30 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             {/if}
         </button>
     </div>
+
+    {#if orderedOpenSections.length > 0}
+        <div class="settings-render-mode-strip">
+            <div class="settings-render-mode-strip__label">Active Render Modes</div>
+            <div class="settings-render-mode-strip__chips">
+                {#each quickTerritoryRenderModeOptions as option}
+                    <button
+                        type="button"
+                        class="settings-render-mode-chip"
+                        class:active={resolveActiveTerritoryRenderModeId() === option.id}
+                        onclick={() => selectQuickTerritoryRenderMode(option.id)}
+                        title={option.shortDescription ?? option.label}
+                    >
+                        <span class="settings-render-mode-chip__title">{option.label}</span>
+                        {#if option.shortDescription}
+                            <span class="settings-render-mode-chip__meta">
+                                {option.shortDescription}
+                            </span>
+                        {/if}
+                    </button>
+                {/each}
+            </div>
+        </div>
+    {/if}
 
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
@@ -1304,31 +1346,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 }}
             >
                 {#if sec.id === "match_flow"}
-                    <section data-subsection-id="timing">
-                        <ControlsSectionTiming
-                            {panel}
-                            {updatePanel}
-                            {tickInterval}
-                            {updateTickInterval}
-                            {animLockModes}
-                            {animLockRatios}
-                            {animValues}
-                            {getAnimValue}
-                            {setAnimValue}
-                            {formatAnimValue}
-                            {pinValueToTickDuration}
-                            {lockRatioToTick}
-                            {lockRatioToAnimSpeed}
-                            syncFromConfig={syncAllFromConfig}
-                        />
-                    </section>
-                    <section data-subsection-id="rules">
-                        <ControlsSectionRules
-                            {panel}
-                            {updatePanel}
-                            syncFromConfig={syncAllFromConfig}
-                        />
-                    </section>
+                    <ControlsSectionTiming
+                        {panel}
+                        {updatePanel}
+                        {tickInterval}
+                        {updateTickInterval}
+                        {animLockModes}
+                        {animLockRatios}
+                        {animValues}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "combat_tuning"}
                     <ControlsSectionBattle
                         {panel}
@@ -1355,21 +1388,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "conquest_effects"}
-                    <section data-subsection-id="conquest">
-                        <ControlsSectionConquest
-                            {panel}
-                            {updatePanel}
-                            syncFromConfig={syncAllFromConfig}
-                        />
-                    </section>
-                    <section data-subsection-id="effects">
-                        <ControlsSectionSurge
-                            {panel}
-                            {updatePanel}
-                            syncFromConfig={syncAllFromConfig}
-                        />
-                    </section>
+                {:else if sec.id === "conquest"}
+                    <ControlsSectionConquest
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
+                {:else if sec.id === "effects"}
+                    <ControlsSectionSurge
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
+                    />
                 {:else if sec.id === "territory_modes"}
                     <ControlsSectionTerritory
                         {panel}
@@ -1420,10 +1450,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <ControlsSectionShips
                         {panel}
                         {updatePanel}
-                        {exportConfigMD}
-                        {importConfigJSON}
-                        {configStatus}
-                        {configStatusColor}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "players"}
@@ -1440,14 +1466,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     />
                 {:else if sec.id === "logging"}
                     <ControlsSectionLogging
-                        {panel}
-                        {updatePanel}
                         {logCategories}
                         {logRefresh}
-                        {exportConfigMD}
-                        {importConfigJSON}
-                        {configStatus}
-                        {configStatusColor}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "audio"}
@@ -1459,6 +1479,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {:else if sec.id === "diagnostics"}
                     <ControlsSectionDiagnostics
                         {panel}
+                        {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
@@ -1521,6 +1542,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: var(--accent);
         box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
     }
+    .icon-btn.search-hit {
+        border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.18));
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+    .icon-btn.search-dim {
+        opacity: 0.46;
+    }
     .icon-emoji {
         font-size: 22px;
         line-height: 1;
@@ -1546,6 +1574,71 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     /* ── Section Panel ── */
+    .settings-render-mode-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 0 2px;
+    }
+    .settings-render-mode-strip__label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.82);
+    }
+    .settings-render-mode-strip__chips {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 8px;
+    }
+    .settings-render-mode-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        min-height: 68px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background:
+            linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.62));
+        color: rgba(226, 232, 240, 0.92);
+        text-align: left;
+        cursor: pointer;
+        transition:
+            border-color 0.16s ease,
+            background 0.16s ease,
+            transform 0.16s ease,
+            box-shadow 0.16s ease;
+    }
+    .settings-render-mode-chip:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.42);
+        background:
+            linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.74));
+        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.2);
+    }
+    .settings-render-mode-chip.active {
+        border-color: rgba(96, 165, 250, 0.7);
+        background:
+            linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.84));
+        box-shadow:
+            0 0 0 1px rgba(96, 165, 250, 0.18),
+            0 14px 28px rgba(15, 23, 42, 0.28);
+    }
+    .settings-render-mode-chip__title {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #f8fafc;
+    }
+    .settings-render-mode-chip__meta {
+        font-size: 11px;
+        line-height: 1.4;
+        color: rgba(191, 219, 254, 0.78);
+    }
     .section-panel {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1556,6 +1649,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: flex;
         flex-direction: column;
         min-height: 0;
+    }
+    :global(.settings-search-hit) {
+        animation: settings-search-hit-flash 1.8s ease;
     }
     .section-head-wrap {
         display: flex;
@@ -1571,6 +1667,20 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         to {
             opacity: 1;
             transform: translateY(0);
+        }
+    }
+    @keyframes settings-search-hit-flash {
+        0% {
+            background: rgba(37, 99, 235, 0.12);
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.35);
+        }
+        40% {
+            background: rgba(37, 99, 235, 0.2);
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28);
+        }
+        100% {
+            background: transparent;
+            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
         }
     }
 
@@ -1677,95 +1787,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.is-hidden-by-subsection) {
         display: none !important;
     }
-    /* Paired orb controls side-by-side */
-    .orb-pair {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px;
-    }
-    .var-row.compact {
-        padding: 3px 5px;
-        gap: 2px;
-    }
-    .var-row.compact .row-top {
-        gap: 2px;
-    }
-    .var-row.compact .var-name {
-        font-size: 9px;
-    }
-    .var-row.compact .val {
-        font-size: 9px;
-    }
-
     /* ── Controls ── */
-    .var-row {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
-        padding: 4px 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-    }
-    .var-row.disabled {
-        opacity: 0.45;
-    }
-    .var-row.indent {
-        margin-left: 12px;
-    }
-    .row-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .var-name {
-        font-size: 12px;
-        font-weight: 600;
-        color: #eee;
-    }
-    .val {
-        font-family: "Exo", sans-serif;
-        font-size: 12px;
-        color: var(--accent, #00e0ff);
-    }
-    .toggle-label {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 600;
-        color: #eee;
-    }
-    input[type="range"] {
-        width: 100%;
-        accent-color: var(--accent, #00e0ff);
-        height: 6px;
-        background: #334;
-        border-radius: 3px;
-        cursor: pointer;
-    }
-    input[type="checkbox"] {
-        accent-color: var(--accent, #00e0ff);
-        width: 13px;
-        height: 13px;
-    }
-    .mode-select {
-        width: 100%;
-        background: #1a1a2e;
-        color: #ddd;
-        border: 1px solid #334;
-        border-radius: 3px;
-        padding: 3px 6px;
-        font-size: 10px;
-        font-family: inherit;
-        accent-color: var(--accent, #00e0ff);
-        cursor: pointer;
-    }
-    .mode-select:focus {
-        outline: 1px solid var(--accent, #00e0ff);
-    }
-
     .sub-heading {
         font-size: 9px;
         text-transform: uppercase;
@@ -1938,282 +1960,147 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         letter-spacing: 0.5px;
     }
 
-    /* ── Full Theme Picker (large) ── */
-    .full-theme-bar {
+    .settings-header-tools {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        padding: 6px 8px;
+        gap: 8px;
+        padding: 8px 10px 10px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .full-top-row {
-        position: relative;
-        height: 36px;
-        overflow: visible;
+
+    .settings-search-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.74);
     }
-    .full-action-buttons {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: stretch;
-        gap: 5px;
-        min-width: 0;
-        transition:
-            transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-            opacity 0.25s;
-    }
-    .full-action-buttons.hidden {
-        transform: translateX(-100%);
-        opacity: 0;
-        pointer-events: none;
-    }
-    .full-action-half {
-        flex: 1;
-        height: 100%;
-        min-width: 0;
-    }
-    .full-action-btn {
-        background: rgba(255, 255, 255, 0.04);
-        color: #aaa;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 6px;
-        font-size: 13px;
-        font-family: inherit;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        transition: all 0.2s;
-    }
-    .full-action-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.25);
-    }
-    .full-plus-icon {
-        font-size: 16px;
-        font-weight: bold;
-        color: #888;
-        transition: color 0.2s;
-    }
-    .full-action-btn:hover .full-plus-icon {
-        color: #4ade80;
-    }
-    .full-save-drawer {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        gap: 5px;
-        transform: translateX(100%);
-        opacity: 0;
-        transition:
-            transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-            opacity 0.25s;
-        pointer-events: none;
-        background: #111520;
-        z-index: 30;
-    }
-    .full-save-drawer.open {
-        transform: translateX(0);
-        opacity: 1;
-        pointer-events: auto;
-    }
-    .full-save-input {
-        flex: 1;
-        background: rgba(0, 0, 0, 0.2);
-        color: #fff;
-        border: 1px solid rgba(74, 222, 128, 0.3);
-        border-radius: 6px;
-        padding: 0 12px;
-        font-size: 13px;
-        font-family: inherit;
-        outline: none;
-        transition: border-color 0.2s;
-    }
-    .full-save-input:focus {
-        border-color: #4ade80;
-        box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2) inset;
-    }
-    .full-save-input::placeholder {
-        color: #666;
-    }
-    .full-drawer-btn {
-        width: 36px;
-        height: 100%;
-        border: 1px solid;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .full-drawer-btn.cancel {
-        background: rgba(255, 255, 255, 0.05);
-        color: #999;
-        border-color: rgba(255, 255, 255, 0.15);
-    }
-    .full-drawer-btn.cancel:hover {
-        background: rgba(255, 55, 55, 0.15);
-        color: #ff5555;
-        border-color: rgba(255, 55, 55, 0.4);
-    }
-    .full-drawer-btn.confirm {
-        background: rgba(74, 222, 128, 0.1);
-        color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.3);
-    }
-    .full-drawer-btn.confirm:hover {
-        background: rgba(74, 222, 128, 0.2);
-        color: #4ade80;
-        border-color: #4ade80;
-    }
-    .full-drawer-btn.confirm.flash {
-        background: #4ade80;
-        color: #000;
-        transform: scale(0.95);
-    }
-    .full-chips-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        width: 100%;
-    }
-    .theme-family-groups {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-    }
-    .theme-family-section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 8px;
-        border: 1px solid rgba(125, 211, 252, 0.12);
-        border-radius: 10px;
-        background:
-            linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(10, 15, 26, 0.92)),
-            rgba(255, 255, 255, 0.02);
-    }
-    .theme-family-header {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    .theme-family-title-row {
+
+    .settings-search-row {
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    .theme-family-name {
-        font-size: 11px;
+
+    .settings-search-input {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.66);
+        color: #f8fafc;
+        font-size: 13px;
+    }
+
+    .settings-search-input:focus {
+        outline: none;
+        border-color: rgba(96, 165, 250, 0.68);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
+    }
+
+    .settings-search-input::placeholder {
+        color: rgba(148, 163, 184, 0.74);
+    }
+
+    .settings-search-clear {
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(226, 232, 240, 0.74);
+        cursor: pointer;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            color 0.18s;
+    }
+
+    .settings-search-clear:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.24);
+        color: #fff;
+    }
+
+    .settings-search-results {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 4px 2px 0;
+    }
+
+    .settings-search-summary {
+        font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #e2e8f0;
+        color: rgba(148, 163, 184, 0.88);
     }
-    .theme-family-count {
-        padding: 1px 6px;
-        border-radius: 999px;
-        background: rgba(125, 211, 252, 0.12);
-        color: #7dd3fc;
-        font-size: 10px;
-    }
-    .theme-family-description,
-    .theme-family-summary {
-        margin: 0;
-        font-size: 11px;
-        line-height: 1.4;
-    }
-    .theme-family-description {
-        color: rgba(203, 213, 225, 0.72);
-    }
-    .theme-family-summary {
-        color: rgba(148, 163, 184, 0.9);
-    }
-    .full-chip {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #bbb;
+
+    .settings-search-empty {
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.42);
+        color: rgba(203, 213, 225, 0.78);
         font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .settings-search-result {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.46);
+        color: #e2e8f0;
         cursor: pointer;
-        transition: all 0.2s;
+        text-align: left;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            transform 0.18s;
     }
-    .full-chip:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.25);
-        color: #fff;
+
+    .settings-search-result:hover {
+        background: rgba(30, 41, 59, 0.8);
+        border-color: rgba(96, 165, 250, 0.34);
+        transform: translateY(-1px);
     }
-    .full-chip.active {
-        background: rgba(74, 222, 128, 0.12);
-        border-color: rgba(74, 222, 128, 0.4);
-        color: #4ade80;
-    }
-    .theme-chip-status {
-        padding: 1px 6px;
-        border-radius: 999px;
-        font-size: 9px;
+
+    .settings-search-result__title {
+        font-size: 12px;
         font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .settings-search-result__meta {
+        font-size: 10px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        border: 1px solid transparent;
+        color: #93c5fd;
     }
-    .theme-chip-name {
-        white-space: nowrap;
+
+    .settings-search-result__snippet {
+        font-size: 11px;
+        line-height: 1.4;
+        color: rgba(203, 213, 225, 0.8);
     }
-    .status-wired {
-        background: rgba(74, 222, 128, 0.12);
-        border-color: rgba(74, 222, 128, 0.28);
-        color: #86efac;
-    }
-    .status-compat {
-        background: rgba(251, 191, 36, 0.12);
-        border-color: rgba(251, 191, 36, 0.28);
-        color: #fcd34d;
-    }
-    .status-needs-edit {
-        background: rgba(248, 113, 113, 0.12);
-        border-color: rgba(248, 113, 113, 0.28);
-        color: #fca5a5;
-    }
-    .status-agnostic {
-        background: rgba(148, 163, 184, 0.12);
-        border-color: rgba(148, 163, 184, 0.24);
-        color: #cbd5e1;
-    }
-    .full-chip-delete {
-        border: none;
-        background: transparent;
-        font-size: 14px;
-        line-height: 1;
-        opacity: 0.3;
-        cursor: pointer;
-        padding-left: 2px;
-        color: inherit;
-    }
-    .full-chip-delete:hover {
-        opacity: 1;
-        color: #ff5555;
-    }
-    .full-io-row {
+
+    .settings-utility-row {
         display: flex;
         gap: 6px;
-        width: 100%;
-        margin-top: 4px;
+        flex-wrap: wrap;
     }
     .full-io-btn {
-        flex: 1;
+        flex: 1 1 140px;
         padding: 3px 8px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 6px;
@@ -2228,6 +2115,25 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: rgba(255, 255, 255, 0.2);
         color: #fff;
     }
+    .settings-utility-status {
+        margin-top: 4px;
+        font-size: 10px;
+        line-height: 1.35;
+    }
+    .full-export-btn {
+        border-color: rgba(74, 222, 128, 0.22);
+        color: #b8f5c8;
+    }
+    .full-export-btn:hover {
+        box-shadow: 0 0 8px rgba(74, 222, 128, 0.15);
+    }
+    .full-import-btn {
+        border-color: rgba(250, 204, 21, 0.22);
+        color: #fce588;
+    }
+    .full-import-btn:hover {
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.15);
+    }
     .full-reset-btn {
         border-color: rgba(255, 68, 68, 0.35);
         color: #ff8888;
@@ -2237,12 +2143,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: #ff4444;
         color: #ff4444;
         box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
-    }
-    .full-session-row {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        width: 100%;
     }
     .full-load-map-btn {
         border-color: rgba(125, 211, 252, 0.28);
