@@ -2378,4 +2378,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: rgba(74, 222, 128, 0.25);
         border-color: rgba(74, 222, 128, 0.6);
     }
+    :global(.slider-nudge-btn:disabled) {
+        opacity: 0.32;
+        cursor: not-allowed;
+        pointer-events: none;
+        color: rgba(255, 255, 255, 0.35);
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+    }
 </style>

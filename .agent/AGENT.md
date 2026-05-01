@@ -235,6 +235,20 @@ Required pattern:
 - Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
 - User configurability is part of the product.
 
+### 4.6a Control Coherence
+
+- Visible controls are promises. Do not surface a control whose interaction paths disagree about whether it is live.
+- If a control is inactive in the current mode, either:
+  - hide it, or
+  - render it as explicit read-only status.
+- Do not leave a control visibly interactive while only some of its input paths actually work.
+- Auxiliary affordances count as part of the control:
+  - nudge buttons
+  - keyboard input
+  - drag/track input
+  - focus/hover states
+- Shared input helpers must respect `disabled` state unless there is an explicit product decision not to.
+
 ### 4.7 Comments
 
 For complex or non-obvious code, comment:
@@ -793,3 +807,26 @@ Suggested structure:
   - no runtime change,
   - settings copy now states the real distinction directly: smooth territory outline vs grid cell edges,
   - the added commentary text in the dedicated phase-field panel has been removed.
+
+### 2026-05-01 - Fix Phase-Field Shape Slider Truthfulness
+
+- Lane: `territory/phase-field-shape-slider-coherence`
+- User task: fix the defective `Shape` subsection sliders (`Border Chaikin Passes`, `Shared Edge Smoothing`, `Shared Edge Trim`) and post-mortem why the sliders were dead while `+/-` nudges still worked.
+
+#### Pass Log
+
+1. Pass 1 - Traced the defect from the reported symptom instead of assuming a browser/CSS range issue. Confirmed the three sliders in `MetaballGridTuning.svelte` were explicitly disabled by mode/path gating while still being rendered as normal live controls.
+2. Pass 2 - Traced the separate `+/-` path through `use:nudgeSliders` in `GameSettingsPanel.svelte` and confirmed the shared `nudgeSliders.ts` helper injected active buttons beside every range input without respecting `input.disabled`.
+3. Pass 3 - Wrote the process post-mortem in `.agent/docs/project/post-mortems/2026-05-01_phase-field-shape-sliders-disabled-but-nudges-live.md` and added a durable `Control Coherence` rule to this file.
+4. Pass 4 - Fixed the shared helper: `nudgeSliders.ts` now mirrors the real `disabled` state onto injected buttons, blocks click handling when the source range is disabled, and observes `disabled` attribute changes so the wrapper stays truthful as mode state changes.
+5. Pass 5 - Fixed the phase-field shape UI itself in `MetaballGridTuning.svelte`: the three grid-edge shaping controls are no longer surfaced as dead sliders when the active border path does not use them. They render only when the current border path can actually consume them.
+6. Pass 6 - Reduced the remaining fallback-state copy to one direct line: `Grid-edge shaping appears when Centered-blended borders is Off.`
+7. Pass 7 - Added disabled-state styling for the injected nudge buttons in `GameSettingsPanel.svelte` so the shared control chrome now visually matches interaction truth.
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are `pax-fluxia/src/lib/components/ui/settings/nudgeSliders.ts`, `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`, and `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Critical behavioral deltas for merge/review:
+  - disabled range inputs no longer have live `+/-` buttons beside them,
+  - phase-field grid-edge shaping controls are only rendered when the active border path actually uses them,
+  - the previous split-brain interaction state is removed instead of merely restyled.

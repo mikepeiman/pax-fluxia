@@ -102,6 +102,10 @@
         return currentBorderMode() === 'territory_edge' && !usesGeometryFrontierBorders();
     }
 
+    function showGridEdgeShapingControls(): boolean {
+        return !isPhaseEdgesMode() && usesGridEdgeShapingControls();
+    }
+
     // Resolved values.
     function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
         const raw =
@@ -725,89 +729,80 @@
 </div>
 {/if}
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
-            Border Chaikin Passes
-        </span>
-        <span class="val">{currentBorderChaikinPasses()}</span>
+{#if showGridEdgeShapingControls()}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name" title="Number of Chaikin corner-cutting passes applied to the grid-edge border path before it is stroked. 0 = angular. Higher values = rounder.">
+                Border Chaikin Passes
+            </span>
+            <span class="val">{currentBorderChaikinPasses()}</span>
+        </div>
+        <div class="var-desc">
+            Rounds the grid-edge border path. Higher values cost more CPU.
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={currentBorderChaikinPasses()}
+            oninput={(event) => {
+                const value = parseInt((event.target as HTMLInputElement).value, 10);
+                writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+            }}
+        />
     </div>
-    <div class="var-desc">
-        {#if usesGeometryFrontierBorders()}
-            This path already uses the smooth territory outline. Turn Centered-blended off to shape the grid-cell fallback path instead.
-        {:else}
-            Smoothing for the grid-owned territory-edge fallback path. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries.
-        {/if}
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        disabled={isPhaseEdgesMode() || !usesGridEdgeShapingControls()}
-        value={currentBorderChaikinPasses()}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
-        }}
-    />
-</div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
-            Shared Edge Smoothing
-        </span>
-        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name" title="Extra rounding pressure applied before the grid-edge border path is stroked.">
+                Shared Edge Smoothing
+            </span>
+            <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+        </div>
+        <div class="var-desc">
+            Softens the grid-edge border path before Chaikin rounding.
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="4"
+            step="1"
+            value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+            oninput={(event) => {
+                const value = parseInt((event.target as HTMLInputElement).value, 10);
+                writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+            }}
+        />
     </div>
-    <div class="var-desc">
-        {#if usesGeometryFrontierBorders()}
-            This path already uses the smooth territory outline. Turn Centered-blended off to round the grid-cell fallback path.
-        {:else}
-            Additional shared-edge softening for the grid-owned territory-edge fallback path.
-        {/if}
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        disabled={!usesGridEdgeShapingControls()}
-        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
-        }}
-    />
-</div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
-            Shared Edge Trim
-        </span>
-        <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name" title="Trim open grid-edge border polylines inward at each endpoint.">
+                Shared Edge Trim
+            </span>
+            <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+        </div>
+        <div class="var-desc">
+            Trims open grid-edge border chains at both ends.
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="12"
+            step="0.5"
+            value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+            oninput={(event) => {
+                const value = parseFloat((event.target as HTMLInputElement).value);
+                writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+            }}
+        />
     </div>
+{:else if currentBorderMode() === 'territory_edge' && usesGeometryFrontierBorders()}
     <div class="var-desc">
-        {#if usesGeometryFrontierBorders()}
-            This path already uses the smooth territory outline. Turn Centered-blended off to trim the grid-cell fallback path instead.
-        {:else}
-            Endpoint trim for open shared-edge chains in the grid-owned territory-edge fallback path.
-        {/if}
+        Grid-edge shaping appears when Centered-blended borders is Off.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="0.5"
-        disabled={!usesGridEdgeShapingControls()}
-        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
-        }}
-    />
-</div>
+{/if}
 </div>
 {/if}
 

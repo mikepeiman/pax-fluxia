@@ -7,6 +7,7 @@
  * - Uses MutationObserver to catch dynamically-added sliders
  * - Reads step/min/max from the input attributes
  * - Dispatches native 'input' event so existing oninput handlers fire
+ * - Mirrors the input's disabled state onto the injected buttons
  */
 
 function createNudgeBtn(label: string, direction: -1 | 1, input: HTMLInputElement): HTMLButtonElement {
@@ -16,6 +17,7 @@ function createNudgeBtn(label: string, direction: -1 | 1, input: HTMLInputElemen
     btn.textContent = label;
     btn.setAttribute('aria-label', direction === -1 ? 'Decrease' : 'Increase');
     btn.addEventListener('click', (e) => {
+        if (input.disabled || btn.disabled) return;
         e.preventDefault();
         e.stopPropagation();
         const step = parseFloat(input.step) || 1;
@@ -33,9 +35,24 @@ function createNudgeBtn(label: string, direction: -1 | 1, input: HTMLInputElemen
     return btn;
 }
 
+function syncNudgeState(input: HTMLInputElement) {
+    const wrapper = input.parentElement;
+    if (!wrapper?.classList.contains('nudge-slider-wrap')) return;
+    const disabled = input.disabled;
+    wrapper.classList.toggle('nudge-slider-wrap--disabled', disabled);
+    const buttons = wrapper.querySelectorAll<HTMLButtonElement>('.slider-nudge-btn');
+    buttons.forEach((btn) => {
+        btn.disabled = disabled;
+        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    });
+}
+
 function wrapSlider(input: HTMLInputElement) {
     // Skip if already wrapped
-    if (input.parentElement?.classList.contains('nudge-slider-wrap')) return;
+    if (input.parentElement?.classList.contains('nudge-slider-wrap')) {
+        syncNudgeState(input);
+        return;
+    }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'nudge-slider-wrap';
@@ -43,6 +60,7 @@ function wrapSlider(input: HTMLInputElement) {
     wrapper.appendChild(createNudgeBtn('−', -1, input));
     wrapper.appendChild(input);
     wrapper.appendChild(createNudgeBtn('+', 1, input));
+    syncNudgeState(input);
 }
 
 export function nudgeSliders(node: HTMLElement) {
@@ -58,7 +76,12 @@ export function nudgeSliders(node: HTMLElement) {
     const observer = new MutationObserver(() => {
         setTimeout(processAll, 50);
     });
-    observer.observe(node, { childList: true, subtree: true });
+    observer.observe(node, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['disabled']
+    });
 
     return {
         destroy() {
