@@ -45,3 +45,5 @@
   - optional legacy inherited behavior only when deliberately enabled
 - Fullscreen perimeter bugs are a strong signal that the outer border is owned by the local/fullscreen frame instead of the occupied map coverage. For owner-vs-world perimeter, occupied territory bounds are the stable contract.
 - When the user explicitly asks for a feature, the default posture should be implementation ownership. If the current branch/gating does not expose it, the next move is to extend that branch or ask whether to do so, not to defend the current limitation.
+- A surface recipe must not advertise phase fill ownership when the visible behavior is supposed to be border-only. In this case, `shared_edge + centered-blended borders` was still enabling phase fill replacement, which made a border-style toggle silently inset the fill.
+- Dirty-frame signatures must include every newly added live surface control. `METABALL_GRID_BOUNDARY_FILL_FLUSH` initially worked in code but was absent from the paint signatures, which would have allowed repaint skipping to hide the toggle.

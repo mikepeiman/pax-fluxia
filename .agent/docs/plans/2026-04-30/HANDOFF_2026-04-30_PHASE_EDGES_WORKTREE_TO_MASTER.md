@@ -757,3 +757,34 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - preserve the rule that `Cell Inset` is an interior grid separation control, not an automatic frontier pullback control
   - preserve the rule that `Junction Gap Trim` shapes shared-edge/junction stroke geometry, not boundary fill, unless legacy non-flush behavior is intentionally chosen
   - keep owner-vs-world perimeter keyed to occupied territory bounds so fullscreen/window-size changes cannot drop sides of the map
+
+### 2026-05-01 - additive correction for centered-blended shared-edge fill suppression
+
+- The next live report isolated the remaining inset-gap bug precisely:
+  - with `Centered-blended borders = Off`, fills looked correct
+  - with `Centered-blended borders = On`, fills became inset and `Inward Offset` still looked ineffective
+- Important diagnosis:
+  - this was not another hidden inset math bug
+  - the shared-edge surface recipe in `pax-fluxia/src/lib/territory/frontier/surface.ts` still advertised `usesPhaseFill = true`
+  - that allowed the centered-blended shared-edge border branch to activate the phase fill-replacement/suppression path
+  - net effect: a border-style toggle was still silently changing fill geometry
+- Runtime/contract correction:
+  - changed the shared-edge surface recipe to:
+    - `fillSource = scene_cells`
+    - `usesPhaseFill = false`
+  - left contour/shader families on `phase_surface`
+  - updated `MetaballGridPhaseEdgesFamily.ts` so centered-blended shared-edge borders no longer build/render the phase fill overlay path
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` to the paint signatures in both:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    so the dirty-frame gate cannot skip repaint when that live toggle changes
+- Regression coverage:
+  - `pax-fluxia/src/lib/territory/frontier/frontier.test.ts`
+    - shared-edge recipe now asserts scene-cell fill ownership / no phase fill
+    - contour/shader recipes still assert phase-surface fill ownership
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Merge/backport guidance:
+  - preserve the rule that centered-blended shared-edge borders are a border-only presentation choice
+  - do not let the shared-edge recipe re-acquire `usesPhaseFill = true`, or the inset-gap bug will return immediately

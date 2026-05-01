@@ -2106,6 +2106,7 @@ export class MetaballGridFamily implements RenderFamily {
             cellShape,
             cellInsetPx.toFixed(2),
             cellCornerPx.toFixed(2),
+            boundaryFillFlush ? '1' : '0',
             borderMode,
             borderBlend ? '1' : '0',
             sharedEdgeSmoothingPasses,

@@ -3273,6 +3273,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             cellShape,
             cellInsetPx.toFixed(2),
             cellCornerPx.toFixed(2),
+            boundaryFillFlush ? '1' : '0',
             borderMode,
             borderBlend ? '1' : '0',
             sharedEdgeSmoothingPasses,
@@ -3460,9 +3461,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         const canBuildScenePairPhaseSurface =
             drawTerritoryEdgeOnly &&
             borderBlend &&
-            cached.classification.distribution === 'square';
+            cached.classification.distribution === 'square' &&
+            (
+                frontierSurfaceRecipe.usesPhaseFill ||
+                frontierSurfaceRecipe.usesPhaseBorder
+            );
         const canRenderPhaseFillSurface =
             canBuildScenePairPhaseSurface &&
+            frontierSurfaceRecipe.usesPhaseFill &&
             !!input.renderer &&
             typeof document !== 'undefined';
         const drawSceneSharedEdgeBorders =

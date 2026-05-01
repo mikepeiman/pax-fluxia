@@ -107,3 +107,32 @@
   - fill at map edges aligns more closely with the outer perimeter border
 - Still queued after this acceptance pass:
   - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition
+
+## Addendum - 2026-05-01 centered-blended shared-edge fill ownership correction
+- Live user report after the boundary-fill flush/perimeter correction:
+  - there was still an inset gap
+  - `Inward Offset` still looked inert
+  - comparison isolated the defect cleanly:
+    - `Centered-blended borders = Off` => fills were correct
+    - `Centered-blended borders = On` => fills became inset
+- Diagnosis:
+  - the shared-edge recipe still advertised `usesPhaseFill = true`
+  - so the centered-blended shared-edge branch was still enabling phase fill replacement/suppression
+  - that made a border-color/style toggle silently own fill geometry
+- Implemented:
+  - corrected `pax-fluxia/src/lib/territory/frontier/surface.ts` so the shared-edge recipe now uses:
+    - `fillSource = scene_cells`
+    - `usesPhaseFill = false`
+  - updated `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts` so shared-edge centered-blended borders no longer build/render the phase fill overlay path
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` into the paint signatures of both:
+    - `MetaballGridFamily.ts`
+    - `MetaballGridPhaseEdgesFamily.ts`
+    so toggling the boundary-fill mode cannot be skipped by the dirty-frame gate
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Live verification needed:
+  - `Centered-blended borders = On` should no longer introduce the inset gap
+  - `Inward Offset` should now visibly control fill pullback again
+- Still queued after this acceptance pass:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition

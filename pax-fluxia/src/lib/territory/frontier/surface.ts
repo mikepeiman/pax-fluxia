@@ -44,7 +44,8 @@ export function resolveTerritoryFrontierSurfaceRecipe(
                     : 'shared_edge'
               : 'phase_contour';
 
-    const fillSource: TerritoryFrontierSurfaceFillSource = 'phase_surface';
+    const fillSource: TerritoryFrontierSurfaceFillSource =
+        geometryFamily === 'shared_edge' ? 'scene_cells' : 'phase_surface';
     const borderSource: TerritoryFrontierSurfaceBorderSource =
         geometryFamily === 'shared_edge'
             ? 'shared_edge'
@@ -52,7 +53,7 @@ export function resolveTerritoryFrontierSurfaceRecipe(
               ? 'frontier_band'
               : 'contour';
     const usesBaseSceneBorders = geometryFamily === 'shared_edge';
-    const usesPhaseFill = true;
+    const usesPhaseFill = geometryFamily !== 'shared_edge';
     const usesPhaseBorder = geometryFamily !== 'shared_edge';
 
     const stableGeometryFamily = geometryFamily;

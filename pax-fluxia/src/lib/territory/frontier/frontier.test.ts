@@ -157,7 +157,9 @@ describe('territory frontier utility', () => {
         expect(sharedEdge.geometryFamily).toBe('shared_edge');
         expect(sharedEdge.stableGeometryFamily).toBe('shared_edge');
         expect(sharedEdge.transitionGeometryFamily).toBe('shared_edge');
+        expect(sharedEdge.fillSource).toBe('scene_cells');
         expect(sharedEdge.borderSource).toBe('shared_edge');
+        expect(sharedEdge.usesPhaseFill).toBe(false);
         expect(sharedEdge.invariantViolation).toBeNull();
 
         const contourMatched = resolveTerritoryFrontierSurfaceRecipe({
@@ -167,7 +169,9 @@ describe('territory frontier utility', () => {
         expect(contourMatched.geometryFamily).toBe('phase_contour');
         expect(contourMatched.stableGeometryFamily).toBe('phase_contour');
         expect(contourMatched.transitionGeometryFamily).toBe('phase_contour');
+        expect(contourMatched.fillSource).toBe('phase_surface');
         expect(contourMatched.borderSource).toBe('contour');
+        expect(contourMatched.usesPhaseFill).toBe(true);
         expect(contourMatched.invariantViolation).toBeNull();
 
         const shaderBand = resolveTerritoryFrontierSurfaceRecipe({
@@ -177,7 +181,9 @@ describe('territory frontier utility', () => {
         expect(shaderBand.geometryFamily).toBe('phase_band');
         expect(shaderBand.stableGeometryFamily).toBe('phase_band');
         expect(shaderBand.transitionGeometryFamily).toBe('phase_band');
+        expect(shaderBand.fillSource).toBe('phase_surface');
         expect(shaderBand.borderSource).toBe('frontier_band');
+        expect(shaderBand.usesPhaseFill).toBe(true);
         expect(shaderBand.invariantViolation).toBeNull();
     });
 });
