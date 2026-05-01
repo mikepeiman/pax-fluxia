@@ -410,6 +410,10 @@
     {/each}
 </div>
 
+<div class="var-desc module-nav-note">
+    <strong>Panel Sections:</strong> Grid, Frontier, Wave, Flip, and Perf only change which controls are shown in this settings panel. They do not switch the renderer or apply a visual effect by themselves.
+</div>
+
 {#if isPhaseEdgesMode() && !showModule('frontier')}
 <div class="mode-lock-note">
     Frontier remains a module label in this panel, but the actual Phase Edges comparison controls are rendered below even if that chip is not selected.

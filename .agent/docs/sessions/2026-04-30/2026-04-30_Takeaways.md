@@ -8,3 +8,6 @@
 - The process failure mattered as much as the code defects: completion was reported before user-visible verification and before required daily docs/commits existed.
 - Parent panels and child panels must not both own subsection navigation. Duplicated navigation authority is the same class of defect as duplicated topology authority: two UI surfaces pretending to own one contract.
 - Ignore rules must not be broader than the artifact paths they intend to suppress. A naked `sessions/` rule was catching required `.agent/docs/sessions/...` records and directly contradicting the repo protocol.
+- Panel-section chips must never look like renderer or FX toggles unless they actually mutate runtime behavior. Navigation disguised as a mode switch is a UX lie.
+- A visible style control is still fake if it only influences a dormant base-paint path while the active render path comes from a different surface recipe.
+- Explicit scene border modes such as `per_cell` must not be suppressed by whichever frontier recipe is currently selected. That is the same ownership error as letting style and topology both pretend to own geometry.

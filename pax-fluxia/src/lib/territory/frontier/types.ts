@@ -30,6 +30,10 @@ export type TerritoryFrontierTriangleDiagonalPolicy =
     | 'checkerboard'
     | 'gradient';
 
+export type TerritoryFrontierJunctionRenderMode =
+    | 'gap'
+    | 'bubble';
+
 export interface TerritoryFrontierPhaseFieldLayer {
     readonly id: string;
     readonly label: string;

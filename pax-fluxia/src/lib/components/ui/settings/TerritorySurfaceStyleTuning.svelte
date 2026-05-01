@@ -177,6 +177,15 @@
         return raw === "contour_matched" ? "contour_matched" : "shared_edge";
     }
 
+    function currentFrontierJunctionRenderMode(): "gap" | "bubble" {
+        const raw = stringVal(
+            "territoryFrontierJunctionRenderMode",
+            "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
+            "gap",
+        );
+        return raw === "bubble" ? "bubble" : "gap";
+    }
+
     function canEditFrontierBorderGeometry(): boolean {
         return (
             isPhaseEdgesFamily() &&
@@ -192,6 +201,10 @@
             canEditFrontierBorderGeometry() &&
             currentFrontierBorderGeometryMode() === "shared_edge"
         );
+    }
+
+    function canEditSharedEdgeJunctionControls(): boolean {
+        return canEditSharedEdgeControls();
     }
 </script>
 
@@ -330,7 +343,7 @@
                         <span class="val">{numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0).toFixed(0)}px</span>
                     </div>
                     <div class="var-desc">
-                        Pulls the visible fill inward from the classified territory edge so the fill sits cleanly inside the border.
+                        Pulls the visible frontier fill inward from the classified territory edge. In Phase Edges this now drives the phase-surface fill replacement too, not just the legacy base cell paint path.
                     </div>
                     <input
                         type="range"
@@ -450,12 +463,12 @@
 
                 <label
                     class="toggle-row"
-                    class:disabled={currentBorderMode() !== "territory_edge"}
-                    title="Centered-blended borders apply one shared stroke between owners instead of two abutting owner-colored strokes."
+                    class:disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
+                    title="Centered-blended borders draw a single shared stroke where opposing owners meet. In Per cell mode this overlays only the cross-owner boundaries; same-owner cell lines remain per-cell."
                 >
                     <input
                         type="checkbox"
-                        disabled={currentBorderMode() !== "territory_edge"}
+                        disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
                         checked={currentBorderBlend()}
                         onchange={(event) => {
                             const value = (event.target as HTMLInputElement).checked;
@@ -470,7 +483,7 @@
                     <span class="val">{currentBorderBlend() ? "On" : "Off"}</span>
                 </label>
                 <div class="var-desc">
-                    When Territory edge is active, this draws one shared blended stroke per owner boundary instead of two back-to-back strokes.
+                    When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. In Per cell mode that blended stroke is added on top of the per-cell lattice so the actual faction frontier can still read as a single mixed boundary.
                 </div>
 
                 <div class="var-row">
@@ -571,11 +584,44 @@
 
                 <div
                     class="var-row"
+                    class:disabled={!canEditSharedEdgeJunctionControls()}
+                >
+                    <div class="row-top">
+                        <span class="var-name" title="How straight shared-edge multi-owner junctions are presented.">
+                            Junction Render
+                        </span>
+                        <span class="val">
+                            {#if currentFrontierJunctionRenderMode() === "bubble"}Bubble{:else}Gap trim{/if}
+                        </span>
+                    </div>
+                    <div class="var-desc">
+                        Controls the three-way-or-more junction treatment on the Straight shared edge border family. Gap trim keeps the trimmed pixel gap; Bubble replaces that gap with a blended multi-owner bubble marker.
+                    </div>
+                    <select
+                        class="mode-select"
+                        disabled={!canEditSharedEdgeJunctionControls()}
+                        value={currentFrontierJunctionRenderMode()}
+                        onchange={(event) => {
+                            const value = (event.target as HTMLSelectElement).value;
+                            onUpdate(
+                                "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
+                                "territoryFrontierJunctionRenderMode",
+                                value,
+                            );
+                        }}
+                    >
+                        <option value="gap">Gap trim</option>
+                        <option value="bubble">Bubble</option>
+                    </select>
+                </div>
+
+                <div
+                    class="var-row"
                     class:disabled={!canEditSharedEdgeControls()}
                 >
                     <div class="row-top">
-                        <span class="var-name" title="Trim open straight shared-edge chains inward at their endpoints.">
-                            Shared Edge Trim
+                        <span class="var-name" title="Trim open straight shared-edge chains inward at their endpoints. This is the low-pixel three-way junction gap slider.">
+                            Junction Gap Trim
                         </span>
                         <span class="val">{numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX).toFixed(1)}px</span>
                     </div>
@@ -594,6 +640,37 @@
                             onUpdate(
                                 "METABALL_GRID_EDGE_TRIM_PX",
                                 "metaballGridEdgeTrimPx",
+                                value,
+                            );
+                        }}
+                    />
+                </div>
+
+                <div
+                    class="var-row"
+                    class:disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
+                >
+                    <div class="row-top">
+                        <span class="var-name" title="Radius of the blended bubble marker drawn at straight shared-edge junctions with three or more contributing owners.">
+                            Junction Bubble Radius
+                        </span>
+                        <span class="val">{numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6).toFixed(1)}px</span>
+                    </div>
+                    <div class="var-desc">
+                        Experimental. Draws a small multi-owner bubble at straight shared-edge junctions, using the average of the contributing border colors.
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="16"
+                        step="0.5"
+                        disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
+                        value={numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6)}
+                        oninput={(event) => {
+                            const value = parseFloat((event.target as HTMLInputElement).value);
+                            onUpdate(
+                                "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX",
+                                "territoryFrontierJunctionRadiusPx",
                                 value,
                             );
                         }}

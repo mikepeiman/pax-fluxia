@@ -386,3 +386,33 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Explicitly recorded that the current worktree also has uncommitted local-only noise:
   - `common/resources/settings-live/current-settings.json`
   - `pax-fluxia/.agent-harness/`
+
+### 2026-04-30 - additive update after live Phase Edges review
+
+- The user identified a new preferred visual candidate: the current Phase Edges default look in this worktree now reads as attractive and consistent overall, but still had three important defects:
+  - fill sat inside the border with no working control over that pullback
+  - `per_cell` borders brought fill back to the edge but lost the blended opposing-force frontier
+  - the low-pixel three-way junction gap control was no longer discoverable in the styles UI
+- Runtime changes made in response:
+  - `METABALL_GRID_INWARD_OFFSET_PX` was wired into the active phase-fill replacement path by offsetting the shader fill threshold instead of leaving the control trapped in the legacy base-cell paint branch
+  - explicit `per_cell` borders were split from frontier-recipe ownership so a phase-derived frontier technique can no longer suppress them
+  - centered-blended boundary drawing was widened to operate in `per_cell` mode on square grids, overlaying one shared opposing-owner frontier stroke on top of the per-cell lattice
+  - blended boundary color now uses occupancy-weighted pairing rather than a blind 50/50 owner blend, so PRE/POST influence can move across the transition
+  - new straight-shared-edge junction tunables were added:
+    - `TERRITORY_FRONTIER_JUNCTION_RENDER_MODE`
+    - `TERRITORY_FRONTIER_JUNCTION_RADIUS_PX`
+  - straight shared-edge junctions can now stay as a trimmed low-pixel gap or render an experimental multi-owner color bubble at 3+ owner junctions
+- UI changes made in response:
+  - `Territory Styles` now explicitly surfaces:
+    - `Junction Render`
+    - `Junction Gap Trim`
+    - `Junction Bubble Radius`
+  - `Shared Edge Trim` was relabeled in the visible UI to make it discoverable as the three-way-junction gap slider the user remembered
+  - `MetaballGridTuning.svelte` now explicitly states that `Grid | Frontier | Wave | Flip | Perf` are panel sections only, not renderer/effect switches
+- Validation after this additive update:
+  - `bun x vite build`
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+- Remaining acceptance bar after this additive update:
+  - live user confirmation that `Inward Offset` now visibly changes the active Phase Edges fill frontier
+  - live user evaluation of the new `per_cell` blended frontier overlay
+  - live user evaluation of gap-trim versus bubble junction treatment

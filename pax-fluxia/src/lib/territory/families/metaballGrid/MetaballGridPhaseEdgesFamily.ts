@@ -38,13 +38,14 @@ import {
     TERRITORY_FRONTIER_TUNABLE_KEYS,
     type TerritoryFrontierBorderGeometryMode,
     type TerritoryFrontierContourLayerResult,
+    type TerritoryFrontierJunctionRenderMode,
     type TerritoryFrontierPhaseFieldLayer,
     type TerritoryFrontierPhaseSamplingMode,
     type TerritoryFrontierTechniqueId,
     type TerritoryFrontierTriangleDiagonalPolicy,
 } from '$lib/territory/frontier';
 import type { StarState } from '$lib/types/game.types';
-import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
+import { adjustColorHSL, blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
@@ -518,6 +519,24 @@ function colorHexToVec3(hex: number): Float32Array {
         ((hex >> 8) & 0xff) / 255,
         (hex & 0xff) / 255,
     ]);
+}
+
+function averageHexColors(hexes: readonly number[]): number {
+    if (hexes.length === 0) return 0xffffff;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (const hex of hexes) {
+        const [cr, cg, cb] = hexToRGB(hex);
+        r += cr;
+        g += cg;
+        b += cb;
+    }
+    return (
+        (Math.round(r / hexes.length) << 16) |
+        (Math.round(g / hexes.length) << 8) |
+        Math.round(b / hexes.length)
+    );
 }
 
 function applyFlipTimeJitter(
@@ -1405,6 +1424,17 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         );
     }
 
+    private readFrontierJunctionRenderMode(
+        input: RenderFamilyInput,
+    ): TerritoryFrontierJunctionRenderMode {
+        return readTunableString(
+            input,
+            'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
+            GAME_CONFIG.TERRITORY_FRONTIER_JUNCTION_RENDER_MODE ?? 'gap',
+            ['gap', 'bubble'],
+        );
+    }
+
     private buildFrontierRenderLayerSources(params: {
         input: RenderFamilyInput;
         cached: CachedPlan;
@@ -1841,15 +1871,18 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         classification: GridClassification;
         scene: GridMetaballScene;
         effectiveColorIdxByGridIdx: Int32Array | null;
+        occupancyByColor?: ReadonlyMap<number, Float32Array> | null;
     }): {
         fillLayers: TerritoryFrontierPhaseFieldLayer[];
         borderLayers: TerritoryFrontierPhaseFieldLayer[];
         sourceKind: 'scene_pairs' | 'scene_owners' | 'none';
     } {
-        const occupancyByColor = this.buildSceneOwnerOccupancy({
-            scene: params.scene,
-            classification: params.classification,
-        });
+        const occupancyByColor =
+            params.occupancyByColor
+            ?? this.buildSceneOwnerOccupancy({
+                scene: params.scene,
+                classification: params.classification,
+            });
         if (params.effectiveColorIdxByGridIdx) {
             const pairLayers = this.buildScenePairFrontierPhaseLayers({
                 classification: params.classification,
@@ -1961,6 +1994,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         fillHexByColorIdx: readonly number[];
         fillAlpha: number;
         softnessPx: number;
+        thresholdOffsetPx: number;
     }): void {
         if (params.fillAlpha <= 0) {
             this.hideUnusedFrontierFillShaderLayers(0);
@@ -1988,7 +2022,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             );
             this.writeFrontierPhaseTexture(state, phaseLayer, params.samplingMode);
             const uniforms = (state.shader.resources as any).frontierUniforms.uniforms;
-            uniforms.uThreshold = phaseLayer.threshold;
+            uniforms.uThreshold = Math.max(
+                0.001,
+                Math.min(
+                    0.999,
+                    phaseLayer.threshold
+                        + params.thresholdOffsetPx / Math.max(1, phaseLayer.cellSizePx),
+                ),
+            );
             uniforms.uSoftness = Math.max(
                 0,
                 params.softnessPx / Math.max(1, phaseLayer.cellSizePx),
@@ -2387,6 +2428,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         );
         const frontierTriangleDiagonalPolicy =
             this.readFrontierTriangleDiagonalPolicy(input);
+        const frontierJunctionRenderMode =
+            this.readFrontierJunctionRenderMode(input);
         const frontierChaikinPasses = Math.max(
             0,
             Math.floor(
@@ -2411,6 +2454,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 input,
                 'TERRITORY_FRONTIER_BAND_WIDTH_PX',
                 GAME_CONFIG.TERRITORY_FRONTIER_BAND_WIDTH_PX ?? 2,
+            ),
+        );
+        const frontierJunctionRadiusPx = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
+                GAME_CONFIG.TERRITORY_FRONTIER_JUNCTION_RADIUS_PX ?? 6,
             ),
         );
         const transitionSessions = this.syncCapturedTransitionSessions({
@@ -2993,6 +3044,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             frontierChaikinPasses,
             frontierShaderSoftnessPx.toFixed(3),
             frontierBandWidthPx.toFixed(3),
+            frontierJunctionRenderMode,
+            frontierJunctionRadiusPx.toFixed(3),
         ].join('|');
 
         const allowPaintSkip = !input.activeTransition;
@@ -3135,6 +3188,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         });
         const boundaryHexR = boundarySize / SQRT3;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        const drawPerCellBorders =
+            borderMode === 'per_cell' &&
+            effectiveBorderWidth > 0 &&
+            effectiveBorderAlpha > 0;
         const canBuildScenePairPhaseSurface =
             drawTerritoryEdgeOnly &&
             borderBlend &&
@@ -3143,11 +3200,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             canBuildScenePairPhaseSurface &&
             !!input.renderer &&
             typeof document !== 'undefined';
-        const drawBaseBorders =
-            borderMode !== 'off' &&
+        const drawSceneSharedEdgeBorders =
+            drawTerritoryEdgeOnly &&
             effectiveBorderWidth > 0 &&
             effectiveBorderAlpha > 0 &&
             frontierSurfaceRecipe.usesBaseSceneBorders;
+        const drawBaseBorders =
+            drawPerCellBorders ||
+            drawSceneSharedEdgeBorders;
         const canUseSplitFillOnlyFastPath =
             usingControlFrontier &&
             !canRenderPhaseFillSurface &&
@@ -3164,10 +3224,21 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // per-cell strokes in those modes — otherwise borders visibly detach
         // from their fills.
         const drawBlendedEdges =
-            drawBaseBorders &&
-            drawTerritoryEdgeOnly &&
+            borderMode !== 'off' &&
+            effectiveBorderWidth > 0 &&
+            effectiveBorderAlpha > 0 &&
             borderBlend &&
             cached.classification.distribution === 'square';
+        const sceneOwnerOccupancy =
+            drawBlendedEdges ||
+            canBuildScenePairPhaseSurface ||
+            frontierSurfaceRecipe.usesPhaseFill ||
+            frontierSurfaceRecipe.usesPhaseBorder
+                ? this.buildSceneOwnerOccupancy({
+                      scene,
+                      classification: cached.classification,
+                  })
+                : null;
 
         // Build an effective per-grid-index colorIdx so both "per-cell stroke
         // gating" and "centered blended edge drawing" read the same truth.
@@ -3185,7 +3256,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     borderMode !== 'off' &&
                     effectiveBorderWidth > 0 &&
                     effectiveBorderAlpha > 0 &&
-                    drawTerritoryEdgeOnly
+                    (
+                        drawTerritoryEdgeOnly ||
+                        drawBlendedEdges
+                    )
                 ) ||
                 canBuildScenePairPhaseSurface ||
                 frontierSurfaceRecipe.usesPhaseFill ||
@@ -3226,6 +3300,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 classification: cached.classification,
                 scene,
                 effectiveColorIdxByGridIdx,
+                occupancyByColor: sceneOwnerOccupancy,
             });
             sceneSurfaceFillLayers = sceneSurfaceLayers.fillLayers;
             sceneSurfaceBorderLayers = sceneSurfaceLayers.borderLayers;
@@ -3240,6 +3315,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 classification: cached.classification,
                 scene,
                 effectiveColorIdxByGridIdx: null,
+                occupancyByColor: sceneOwnerOccupancy,
             });
             if (sceneSurfaceLayers.sourceKind !== 'none') {
                 sceneSurfaceFillLayers = sceneSurfaceLayers.fillLayers;
@@ -3485,7 +3561,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 // once per shared edge below instead) and for any cell whose
                 // neighbours all share its owner under territory_edge mode.
                 if (!drawBaseBorders) continue;
-                if (drawBlendedEdges) continue; // handled by the edge pass below
+                if (drawBlendedEdges && drawTerritoryEdgeOnly) continue; // handled by the edge pass below
                 if (drawTerritoryEdgeOnly && effectiveColorIdxByGridIdx) {
                     if (ix >= 0 && iy >= 0) {
                         const self = c.colorIdx;
@@ -3568,18 +3644,62 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             interface BoundaryEdge {
                 readonly v0: number;
                 readonly v1: number;
+                readonly cellIndex0: number;
+                readonly cellIndex1: number;
             }
-            const edgesByPair = new Map<string, BoundaryEdge[]>();
-            const pushEdge = (a: number, b: number, v0: number, v1: number): void => {
+            interface BoundaryEdgeBucket {
+                readonly edges: BoundaryEdge[];
+                ownerWeight: number;
+                opposingWeight: number;
+            }
+            const edgesByPair = new Map<string, BoundaryEdgeBucket>();
+            const ownerSetByVertex = new Map<number, Set<number>>();
+            const recordVertexOwners = (vertexId: number, a: number, b: number): void => {
+                let ownerSet = ownerSetByVertex.get(vertexId);
+                if (!ownerSet) {
+                    ownerSet = new Set<number>();
+                    ownerSetByVertex.set(vertexId, ownerSet);
+                }
+                ownerSet.add(a);
+                ownerSet.add(b);
+            };
+            const samplePairWeight = (
+                colorIdx: number,
+                cellIndex0: number,
+                cellIndex1: number,
+            ): number => {
+                if (!sceneOwnerOccupancy) return 0;
+                const occupancy = sceneOwnerOccupancy.get(colorIdx);
+                if (!occupancy) return 0;
+                return (
+                    ((occupancy[cellIndex0] ?? 0) + (occupancy[cellIndex1] ?? 0)) * 0.5
+                );
+            };
+            const pushEdge = (
+                a: number,
+                b: number,
+                v0: number,
+                v1: number,
+                cellIndex0: number,
+                cellIndex1: number,
+            ): void => {
                 const lo = a < b ? a : b;
                 const hi = a < b ? b : a;
                 const key = `${lo}|${hi}`;
-                let list = edgesByPair.get(key);
-                if (!list) {
-                    list = [];
-                    edgesByPair.set(key, list);
+                let bucket = edgesByPair.get(key);
+                if (!bucket) {
+                    bucket = {
+                        edges: [],
+                        ownerWeight: 0,
+                        opposingWeight: 0,
+                    };
+                    edgesByPair.set(key, bucket);
                 }
-                list.push({ v0, v1 });
+                bucket.edges.push({ v0, v1, cellIndex0, cellIndex1 });
+                bucket.ownerWeight += samplePairWeight(lo, cellIndex0, cellIndex1);
+                bucket.opposingWeight += samplePairWeight(hi, cellIndex0, cellIndex1);
+                recordVertexOwners(v0, lo, hi);
+                recordVertexOwners(v1, lo, hi);
             };
 
             for (let iy = 0; iy < rows; iy++) {
@@ -3589,6 +3709,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     // Right neighbour → vertical shared edge,
                     // vertex (ix+1, iy) → vertex (ix+1, iy+1).
                     if (ix + 1 < cols) {
+                        const cellIndex = iy * cols + ix;
                         const rIdx = effectiveColorIdxByGridIdx[iy * cols + ix + 1];
                         if (rIdx >= 0 && rIdx !== selfIdx) {
                             pushEdge(
@@ -3596,12 +3717,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 rIdx,
                                 iy * vCols + (ix + 1),
                                 (iy + 1) * vCols + (ix + 1),
+                                cellIndex,
+                                cellIndex + 1,
                             );
                         }
                     }
                     // Bottom neighbour → horizontal shared edge,
                     // vertex (ix, iy+1) → vertex (ix+1, iy+1).
                     if (iy + 1 < rows) {
+                        const cellIndex = iy * cols + ix;
                         const dIdx = effectiveColorIdxByGridIdx[(iy + 1) * cols + ix];
                         if (dIdx >= 0 && dIdx !== selfIdx) {
                             pushEdge(
@@ -3609,6 +3733,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                                 dIdx,
                                 (iy + 1) * vCols + ix,
                                 (iy + 1) * vCols + (ix + 1),
+                                cellIndex,
+                                cellIndex + cols,
                             );
                         }
                     }
@@ -3623,20 +3749,30 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 join: 'round' as const,
             };
 
-            for (const [key, edges] of edgesByPair) {
-                if (edges.length === 0) continue;
+            const endpointTrimPx =
+                frontierJunctionRenderMode === 'bubble'
+                    ? Math.max(edgeTrimPx, frontierJunctionRadiusPx)
+                    : edgeTrimPx;
+
+            for (const [key, bucket] of edgesByPair) {
+                if (bucket.edges.length === 0) continue;
                 const sep = key.indexOf('|');
                 const aIdx = Number(key.slice(0, sep));
                 const bIdx = Number(key.slice(sep + 1));
                 const hexA = borderHexByColorIdx[aIdx];
                 const hexB = borderHexByColorIdx[bIdx];
                 if (hexA === undefined || hexB === undefined) continue;
-                strokeOpts.color = blendColors(hexA, hexB, 0.5);
+                const totalPairWeight = bucket.ownerWeight + bucket.opposingWeight;
+                const pairBlendT =
+                    totalPairWeight > 0
+                        ? bucket.opposingWeight / totalPairWeight
+                        : 0.5;
+                strokeOpts.color = blendColors(hexA, hexB, pairBlendT);
 
                 // Adjacency: vertexId → [otherVertexId, edgeIndex][].
                 const adj = new Map<number, Array<[number, number]>>();
-                for (let e = 0; e < edges.length; e++) {
-                    const { v0, v1 } = edges[e];
+                for (let e = 0; e < bucket.edges.length; e++) {
+                    const { v0, v1 } = bucket.edges[e];
                     let la = adj.get(v0);
                     if (!la) {
                         la = [];
@@ -3651,7 +3787,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     lb.push([v0, e]);
                 }
 
-                const usedEdge = new Uint8Array(edges.length);
+                const usedEdge = new Uint8Array(bucket.edges.length);
 
                 const drawChain = (vertexChain: number[], closed: boolean): void => {
                     if (vertexChain.length < 2) return;
@@ -3662,8 +3798,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     if (totalBorderChaikinPasses > 0) {
                         pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
                     }
-                    if (!closed && edgeTrimPx > 0) {
-                        pts = trimOpenPolylineEndpoints(pts, edgeTrimPx);
+                    if (!closed && endpointTrimPx > 0) {
+                        pts = trimOpenPolylineEndpoints(pts, endpointTrimPx);
                     }
                     baseBorderDrawn = true;
                     borderLayer.moveTo(pts[0], pts[1]);
@@ -3711,10 +3847,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
                 // Pass 2: remaining closed loops (every incident vertex was
                 // degree 2, so they were never used as a pass-1 start).
-                for (let e = 0; e < edges.length; e++) {
+                for (let e = 0; e < bucket.edges.length; e++) {
                     if (usedEdge[e]) continue;
                     usedEdge[e] = 1;
-                    const { v0, v1 } = edges[e];
+                    const { v0, v1 } = bucket.edges[e];
                     const chain: number[] = [v0, v1];
                     let cur = v1;
                     while (cur !== v0) {
@@ -3740,13 +3876,43 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     drawChain(chain, closed);
                 }
             }
+
+            if (frontierJunctionRenderMode === 'bubble' && frontierJunctionRadiusPx > 0) {
+                const bubbleStrokeWidth = Math.max(1, effectiveBorderWidth * 0.35);
+                for (const [vertexId, ownerSet] of ownerSetByVertex) {
+                    if (ownerSet.size < 3) continue;
+                    const bubbleHexes = [...ownerSet]
+                        .map((ownerIndex) => borderHexByColorIdx[ownerIndex])
+                        .filter((hex): hex is number => hex !== undefined);
+                    if (bubbleHexes.length === 0) continue;
+                    const bubbleColor = averageHexColors(bubbleHexes);
+                    const vx = vertexX(vertexId);
+                    const vy = vertexY(vertexId);
+                    baseBorderDrawn = true;
+                    borderLayer
+                        .circle(vx, vy, frontierJunctionRadiusPx)
+                        .fill({
+                            color: bubbleColor,
+                            alpha: Math.min(1, effectiveBorderAlpha * 0.9),
+                        })
+                        .stroke({
+                            color: bubbleColor,
+                            alpha: effectiveBorderAlpha,
+                            width: bubbleStrokeWidth,
+                            cap: 'round' as const,
+                            join: 'round' as const,
+                        });
+                }
+            }
         }
         borderLayer.visible = baseBorderDrawn;
 
         if (shouldRenderPhaseFillOverlay) {
             const fillSamplingMode =
                 frontierSurfaceRecipe.geometryFamily === 'shared_edge'
-                    ? 'nearest'
+                    ? inwardOffsetPx > 0
+                        ? 'linear'
+                        : 'nearest'
                     : frontierTechnique === 'shader_frontier_band'
                       ? frontierPhaseSampling
                       : 'linear';
@@ -3760,6 +3926,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 fillHexByColorIdx,
                 fillAlpha: effectiveFillAlphaMult,
                 softnessPx: fillSoftnessPx,
+                thresholdOffsetPx: Math.max(0, inwardOffsetPx),
             });
         } else {
             this.frontierFillMeshLayer.visible = false;

@@ -1,6 +1,7 @@
 import type {
     TerritoryFrontierBenchmarkPresetId,
     TerritoryFrontierBorderGeometryMode,
+    TerritoryFrontierJunctionRenderMode,
     TerritoryFrontierTechniqueId,
     TerritoryFrontierTriangleDiagonalPolicy,
 } from './types';
@@ -16,6 +17,9 @@ export const territoryFrontierConfigDefaults = {
     TERRITORY_FRONTIER_CHAIKIN_PASSES: 0,
     TERRITORY_FRONTIER_SHADER_SOFTNESS_PX: 5,
     TERRITORY_FRONTIER_BAND_WIDTH_PX: 2,
+    TERRITORY_FRONTIER_JUNCTION_RENDER_MODE:
+        'gap' as TerritoryFrontierJunctionRenderMode,
+    TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: 6,
 } as const;
 
 export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
@@ -27,6 +31,8 @@ export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
     'TERRITORY_FRONTIER_CHAIKIN_PASSES',
     'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
     'TERRITORY_FRONTIER_BAND_WIDTH_PX',
+    'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
+    'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
 ] as const;
 
 export interface TerritoryFrontierBenchmarkPreset {

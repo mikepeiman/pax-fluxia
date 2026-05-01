@@ -10,6 +10,7 @@ import type {
 } from '../territory/transitions/territoryTransitionModes';
 import type {
     TerritoryFrontierBorderGeometryMode,
+    TerritoryFrontierJunctionRenderMode,
     TerritoryFrontierPhaseSamplingMode,
     TerritoryFrontierTechniqueId,
     TerritoryFrontierTriangleDiagonalPolicy,
@@ -436,6 +437,8 @@ interface GameConfigType {
     TERRITORY_FRONTIER_CHAIKIN_PASSES: number; // Post-contour Chaikin smoothing passes
     TERRITORY_FRONTIER_SHADER_SOFTNESS_PX: number; // Softness of shader frontier band in phase-distance units
     TERRITORY_FRONTIER_BAND_WIDTH_PX: number; // Half-width of the shader frontier band in phase-distance units
+    TERRITORY_FRONTIER_JUNCTION_RENDER_MODE: TerritoryFrontierJunctionRenderMode; // Shared-junction presentation on straight shared-edge frontiers
+    TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: number; // Bubble radius for multi-owner shared-edge junction markers
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops

@@ -671,6 +671,31 @@ describe('MetaballGridFamily active frontier fast path', () => {
         family.dispose();
     });
 
+    it('keeps per-cell borders visible when a phase-derived frontier technique is selected', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_BORDER_ENABLED: true,
+                METABALL_GRID_BORDER_MODE: 'per_cell',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_squares_scalar',
+            }),
+        );
+
+        const state = family as unknown as {
+            borderGraphics: { visible: boolean };
+        };
+
+        expect(state.borderGraphics.visible).toBe(true);
+
+        family.dispose();
+    });
+
     it('honors shared fill and border visibility toggles in phase-edges presentation', () => {
         const family = createMetaballGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {
