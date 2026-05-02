@@ -6,9 +6,9 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
+        forcedModule?: Exclude<PerimeterFieldModuleId, 'all' | 'none'> | null;
+        hideModuleChrome?: boolean;
     }
-
-    let { panel, updatePanel }: Props = $props();
 
     type PerimeterFieldModuleId =
         | 'all'
@@ -16,6 +16,13 @@
         | 'field'
         | 'transition'
         | 'diagnostics';
+
+    let {
+        panel,
+        updatePanel,
+        forcedModule = null,
+        hideModuleChrome = false,
+    }: Props = $props();
 
     const PERIMETER_FIELD_MODULES = [
         { id: 'field', label: 'Field' },
@@ -29,7 +36,12 @@
         (panel[PERIMETER_FIELD_MODULE_PANEL_KEY] ?? 'all') as PerimeterFieldModuleId,
     );
 
+    let resolvedModule = $derived(
+        (forcedModule ?? activeModule) as PerimeterFieldModuleId,
+    );
+
     $effect(() => {
+        if (forcedModule) return;
         if (activeModule === 'all' || activeModule === 'none') return;
         if (!PERIMETER_FIELD_MODULES.some((module) => module.id === activeModule)) {
             updatePanel(PERIMETER_FIELD_MODULE_PANEL_KEY, 'all');
@@ -39,7 +51,7 @@
     function showModule(
         id: Exclude<PerimeterFieldModuleId, 'all' | 'none'>,
     ): boolean {
-        return activeModule === 'all' || activeModule === id;
+        return resolvedModule === 'all' || resolvedModule === id;
     }
 
     function setActiveModule(value: PerimeterFieldModuleId): void {
@@ -135,39 +147,41 @@
     });
 </script>
 
-<div class="module-head">
-    <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'all'}
-            onclick={() => {
-                setActiveModule('all');
-            }}>All</button>
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'none'}
-            onclick={() => {
-                setActiveModule('none');
-            }}>None</button>
+{#if !hideModuleChrome}
+    <div class="module-head">
+        <div class="module-scope-toggle" role="group" aria-label="Perimeter field subsection visibility">
+            <button
+                type="button"
+                class="module-all-toggle"
+                class:active={activeModule === 'all'}
+                onclick={() => {
+                    setActiveModule('all');
+                }}>All</button>
+            <button
+                type="button"
+                class="module-all-toggle"
+                class:active={activeModule === 'none'}
+                onclick={() => {
+                    setActiveModule('none');
+                }}>None</button>
+        </div>
     </div>
-</div>
 
-<div class="module-nav">
-    {#each PERIMETER_FIELD_MODULES as module}
-        <button
-            type="button"
-            class="module-chip"
-            class:active={activeModule === module.id}
-            onclick={() => {
-                setActiveModule(activeModule === module.id ? 'all' : module.id);
-            }}
-        >
-            {module.label}
-        </button>
-    {/each}
-</div>
+    <div class="module-nav">
+        {#each PERIMETER_FIELD_MODULES as module}
+            <button
+                type="button"
+                class="module-chip"
+                class:active={activeModule === module.id}
+                onclick={() => {
+                    setActiveModule(activeModule === module.id ? 'all' : module.id);
+                }}
+            >
+                {module.label}
+            </button>
+        {/each}
+    </div>
+{/if}
 
 {#if showModule('field')}
 <div class="module-block">

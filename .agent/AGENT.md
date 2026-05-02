@@ -1297,3 +1297,39 @@ Suggested structure:
   - `Pattern Spacing` is now adjacent to `Transition Spacing` and shares the same snapped `1..64` contract in UI and runtime
   - `Inward Offset` no longer keys off conquest roles; it now targets the visible PRE/NEXT ownership boundary cells of the presentation lattice
   - steady-state phase-field fill should now respond to fill-offset tuning without requiring an active conquest.
+
+### 2026-05-01 - Restore Missing Diagnostics Geometry Toggle
+
+- Lane: `settings/diagnostics-perimeter-geometry-toggle-restore`
+- User task: restore Diagnostics `Show Underlying Geometry`, which had disappeared from the in-game settings.
+
+#### Pass Log
+
+1. Pass 1 - Audited the setting path and confirmed the runtime flag still existed:
+   - `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY` is still live in `GameCanvas.svelte`,
+   - the label/metadata still exists in `PerimeterFieldTuning.svelte` and `settingMetadata.ts`,
+   - so this was a settings-surface regression, not dead runtime.
+2. Pass 2 - Traced the actual regression source:
+   - Diagnostics mounts `PerimeterFieldDiagnosticsPanel`,
+   - that panel mounts the full `PerimeterFieldTuning` component,
+   - `PerimeterFieldTuning` respects persisted module-chip state,
+   - if the saved module was `field` or `transition`, the diagnostics controls disappeared inside Diagnostics.
+3. Pass 3 - Fixed the composition instead of duplicating the toggle:
+   - added optional `forcedModule` and `hideModuleChrome` props to `PerimeterFieldTuning`,
+   - `PerimeterFieldDiagnosticsPanel` now forces `diagnostics` mode and hides the module chrome there,
+   - `Show Underlying Geometry` is restored in the Diagnostics section and can no longer vanish behind stale module state.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`
+  - `pax-fluxia/src/lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte`
+- Critical behavioral delta for merge/review:
+  - the Diagnostics wrapper now renders the perimeter diagnostics controls deterministically
+  - persisted `perimeterFieldModuleVisibility` no longer hides `Show Underlying Geometry` inside the Diagnostics section.

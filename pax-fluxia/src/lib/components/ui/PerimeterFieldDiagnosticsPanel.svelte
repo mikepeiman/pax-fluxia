@@ -40,7 +40,12 @@
         </button>
     </div>
 
-    <PerimeterFieldTuning {panel} {updatePanel} />
+    <PerimeterFieldTuning
+        {panel}
+        {updatePanel}
+        forcedModule="diagnostics"
+        hideModuleChrome={true}
+    />
 </div>
 
 <style>
