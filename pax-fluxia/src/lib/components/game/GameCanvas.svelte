@@ -4345,31 +4345,40 @@
         }
     }
 
-    function renderPerimeterFieldDebugOverlay(activeMode: string): void {
-        if (activeMode !== "perimeter_field" || !debugGraphics) return;
+    function renderTerritoryGeometryDebugOverlay(
+        activeMode: string,
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): void {
+        if (!debugGraphics) return;
         const showGeometry =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
         const showVstars =
-            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
+            activeMode === "perimeter_field" &&
+            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false);
         if (!showGeometry && !showVstars) return;
 
-        const family = getRenderFamily("perimeter_field");
-        if (!(family instanceof PerimeterFieldFamily)) return;
-        const snapshot =
-            perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
-        if (!snapshot) return;
-
-        const scrubEnabled =
-            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
-            Boolean(snapshot.transitionTargetGeometry);
-
         if (showGeometry) {
-            for (const points of getPerimeterDebugLoops(
-                snapshot.displayGeometry,
-            )) {
+            const geometry = getCurrentRenderFamilyGeometry(
+                stars,
+                lanes,
+                getRenderFamilyModeConfigSource(activeMode),
+            );
+            for (const points of getPerimeterDebugLoops(geometry)) {
                 drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
             }
-            if (scrubEnabled && snapshot.transitionTargetGeometry) {
+            const family =
+                activeMode === "perimeter_field"
+                    ? getRenderFamily("perimeter_field")
+                    : null;
+            const snapshot =
+                family instanceof PerimeterFieldFamily
+                    ? perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot
+                    : null;
+            const scrubEnabled =
+                (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+                Boolean(snapshot?.transitionTargetGeometry);
+            if (scrubEnabled && snapshot?.transitionTargetGeometry) {
                 for (const points of getPerimeterDebugLoops(
                     snapshot.transitionTargetGeometry,
                 )) {
@@ -4385,6 +4394,14 @@
         }
 
         if (showVstars) {
+            const family = getRenderFamily("perimeter_field");
+            if (!(family instanceof PerimeterFieldFamily)) return;
+            const snapshot =
+                perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
+            if (!snapshot) return;
+            const scrubEnabled =
+                (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+                Boolean(snapshot.transitionTargetGeometry);
             drawPerimeterSampleTrajectories(
                 debugGraphics,
                 snapshot.transitionSamples,
@@ -6061,7 +6078,11 @@
         }
 
         measurePerf("game.renderFrame.perimeterDebugOverlay", () => {
-            renderPerimeterFieldDebugOverlay(activeTerritoryMode);
+            renderTerritoryGeometryDebugOverlay(
+                activeTerritoryMode,
+                stars,
+                activeGameStore.connections as StarConnection[],
+            );
         });
 
         // Render stars (static elements)

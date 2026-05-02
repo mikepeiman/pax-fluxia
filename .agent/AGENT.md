@@ -1333,3 +1333,41 @@ Suggested structure:
 - Critical behavioral delta for merge/review:
   - the Diagnostics wrapper now renders the perimeter diagnostics controls deterministically
   - persisted `perimeterFieldModuleVisibility` no longer hides `Show Underlying Geometry` inside the Diagnostics section.
+
+### 2026-05-01 - Move Underlying Geometry To Global Diagnostics
+
+- Lane: `settings/global-underlying-geometry-diagnostic`
+- User task: `Show Underlying Geometry` must be a global Diagnostics control, not a perimeter-only panel artifact, and it must draw in the current active territory mode.
+
+#### Pass Log
+
+1. Pass 1 - Corrected the earlier diagnosis:
+   - the prior restore only made the control harder to lose inside the perimeter diagnostics wrapper,
+   - but it still left the surface mode-scoped and the renderer perimeter-field-only,
+   - so it did not satisfy the actual user requirement.
+2. Pass 2 - Promoted the toggle to the top-level Diagnostics section in `ControlsSection-Diagnostics.svelte`.
+   - The control now sits in its own `Territory Geometry` subsection.
+   - It mutates the live config directly and forces a territory visual refresh.
+3. Pass 3 - Removed the duplicate `Show Underlying Geometry` toggle from `PerimeterFieldTuning.svelte`.
+   - `Show Perimeter Vstars` and the other perimeter-only diagnostics remain there.
+4. Pass 4 - Generalized the runtime overlay in `GameCanvas.svelte`.
+   - The overlay now draws the active mode's current geometry loops using `getCurrentRenderFamilyGeometry(...)` and the active mode's config source.
+   - The perimeter-field-only magenta alternate geometry and vstar/sample overlays remain perimeter-specific when that family exposes them.
+5. Pass 5 - Revalidated the touched Diagnostics and `GameCanvas` path.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- Critical behavioral delta for merge/review:
+  - `Show Underlying Geometry` is now a global Diagnostics control
+  - the cyan geometry overlay now works for the current active territory mode, not just `perimeter_field`
+  - perimeter-only sample/vstar debug visuals remain scoped to the perimeter-field family.

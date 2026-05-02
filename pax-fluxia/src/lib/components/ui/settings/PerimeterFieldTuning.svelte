@@ -463,31 +463,6 @@
 <label class="toggle-row">
     <input
         type="checkbox"
-        checked={panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY', 'perimeterFieldDebugShowGeometry', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Draw the source geometry loops that the perimeter sampler is tracing."
-    >
-        Show Underlying Geometry
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Cyan shows the current base geometry. In paused scrub mode, magenta shows the next-state geometry as well.
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
         checked={panel.perimeterFieldDebugShowVstars ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false}
         onchange={(event) => {
             const value = (event.target as HTMLInputElement).checked;

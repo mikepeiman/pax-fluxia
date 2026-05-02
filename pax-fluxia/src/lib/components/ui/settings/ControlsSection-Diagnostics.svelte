@@ -1,5 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
@@ -90,6 +91,21 @@
     function togglePolylineSamples(): void {
         overlayConfig.showPolylineSamples = !overlayConfig.showPolylineSamples;
         syncOverlayState();
+    }
+
+    function showUnderlyingGeometryEnabled(): boolean {
+        return (
+            panel.perimeterFieldDebugShowGeometry ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ??
+            false
+        );
+    }
+
+    function toggleUnderlyingGeometry(): void {
+        GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY =
+            !showUnderlyingGeometryEnabled();
+        bumpTerritoryVisualConfig();
+        syncFromConfig?.();
     }
 
     function toggleAuthoredMeasurements(): void {
@@ -314,6 +330,24 @@
                 : "No authored measurements"}
         </span>
     </label>
+</section>
+
+<section data-subsection-id="territory-geometry">
+    <h4 class="sub-heading">Territory Geometry</h4>
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={showUnderlyingGeometryEnabled()}
+            onchange={toggleUnderlyingGeometry}
+        />
+        <span class="var-name">Show Underlying Geometry</span>
+        <span class="debug-hint">
+            {getTerritoryRenderModeLabel(liveRenderMode)}
+        </span>
+    </label>
+    <div class="readout">
+        Draws the active territory mode's current geometry loops. In perimeter-field scrub/replay, the alternate target geometry is also shown when available.
+    </div>
 </section>
 
 <section data-subsection-id="measurements">
