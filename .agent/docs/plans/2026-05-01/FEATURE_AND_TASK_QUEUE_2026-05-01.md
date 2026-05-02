@@ -176,3 +176,25 @@
 
 - verify live `Perimeter Field` border placement against the filled edge
 - if the border still feels too stair-stepped after alignment is correct, the next pass is contour quality, not ownership or fill correctness
+
+## Update - Branch Review Against Master Completed
+
+### Completed
+
+- created and pushed review branch:
+  - `codex/metaball-radical-opt-review-20260502`
+- compared the full branch against current `origin/master`
+- recorded a merge recommendation in the main 2026-04-30 metaball handoff
+
+### Outcome
+
+- branch is `34` commits ahead of `origin/master`
+- branch is too broad and not green enough for wholesale merge
+- recommendation is:
+  - do **not** merge this branch as-is
+  - salvage the validated `Perimeter Field` / shared-metaball subset into a fresh narrow branch
+
+### Next
+
+- if merge work proceeds, extract only the validated territory subset first
+- fix remaining typecheck breakage before any PR based on that extracted branch

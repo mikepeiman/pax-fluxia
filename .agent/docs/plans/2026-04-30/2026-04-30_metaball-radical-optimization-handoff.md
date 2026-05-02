@@ -1409,3 +1409,180 @@ Why this is first:
     - `MetaballRenderer`
     - `buildPerimeterFieldScene`
     - `buildPowerVoronoiFrontierTopology`
+
+## 2026-05-02 Branch-vs-Master Review And Merge Recommendation
+
+### Snapshot
+- review branch:
+  - `codex/metaball-radical-opt-review-20260502`
+- pushed checkpoint:
+  - `43be57405` `Checkpoint metaball optimization and perimeter field recovery`
+- current master comparison target at review time:
+  - `origin/master` = `cad080942`
+- ancestry delta:
+  - `0 behind / 34 ahead` vs `origin/master`
+- overall diff size:
+  - `210 files changed`
+  - `29,823 insertions`
+  - `12,070 deletions`
+
+### What this branch actually contains
+
+This branch is materially broader than the stated sprint goal of radical metaball performance optimization.
+
+1. Core territory / metaball / perimeter-field work
+   - bounded local overlay solve infrastructure for `metaball` and `perimeter_field`
+   - scene-input extensions in the shared metaball renderer
+   - topology-plan loop-winding normalization
+   - `Perimeter Field` fill / border recovery:
+     - owner-mask fill
+     - top-owner winner mode
+     - trusted-geometry remainder backfill
+     - filled-frontier border alignment
+   - transition diagnostics compatibility and settings work
+
+2. Metaball-grid / phase-edges work
+   - new `metaball_grid_phase_edges` mode
+   - active-frontier / timing / transition fixes
+   - grid runtime and diagnostics expansion
+
+3. Gameplay perf / diagnostics tooling
+   - benchmark harness work
+   - in-app conquest bench tooling
+   - live transition capture / telemetry / perf probes
+
+4. Large unrelated UI and structure payload
+   - HUD component splits
+   - main-menu split / theme dropdown work
+   - map-editor path / file reorganization
+   - settings IA restructuring
+   - `.obsidian` config drift
+   - worktree-process docs
+
+### Narrower territory/metaball area size
+- the territory/metaball/perimeter/settings subset alone is still large:
+  - `33 files changed`
+  - `4,806 insertions`
+  - `3,975 deletions`
+- the clearly unrelated UI / perf / worktree payload is also large:
+  - `34 files changed`
+  - `13,863 insertions`
+  - `1,912 deletions`
+
+### Has the primary optimization goal been achieved?
+
+Not conclusively.
+
+What did land:
+- a real shared local-overlay substrate exists
+- solve bounds are now derived for `metaball` and `perimeter_field`
+- the renderer can build base + local overlay scenes
+- telemetry / diagnostics coverage improved materially
+
+What is still missing:
+- no branch-level benchmark proving a stable win against current `master` for the user-facing `metaball` / `perimeter_field` modes
+- this worktree spent significant effort recovering visual regressions caused during rollout of that optimization path
+- final state is much better than the broken middle state, but the branch outcome is now a mix of:
+  - optimization substrate
+  - mode repair
+  - unrelated infrastructure / UI churn
+
+Conclusion on the original goal:
+- the branch achieved useful optimization infrastructure
+- it did **not** produce a clean, self-contained, benchmark-proven optimization payload suitable for wholesale merge
+
+### Branch health at review time
+
+Focused validation that passed:
+- `src/lib/renderers/MetaballRenderer.test.ts`
+- `src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
+- `src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts`
+
+Branch-wide health concerns:
+- `bun x tsc --noEmit` is red on this branch
+- notable failures include changed / branch-induced surfaces such as:
+  - `src/lib/components/ui/panelSync.test.ts`
+  - `src/lib/config/game.config.ts`
+  - `src/lib/perf/inAppConquestBench.ts`
+  - `src/lib/territory/devtools/TransitionDiagnosticsAdapters.ts`
+  - `src/lib/territory/families/metaball/buildMetaballScene.test.ts`
+  - `src/lib/territory/families/metaball/metaballLocalOverlay.test.ts`
+  - `src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `src/lib/territory/families/perimeterField/perimeterFieldDiagnostics.test.ts`
+- `git diff --check origin/master...HEAD` also reports trailing whitespace in:
+  - `.agent/docs/game/territory/TERRITORY_RENDER_SYSTEM_CURRENT.md`
+
+### Concrete merge blockers in the actual territory code
+
+1. `Perimeter Field` still hard-forces PREV-base transition behavior
+   - `src/lib/territory/families/perimeterField/PerimeterFieldFamily.ts`
+   - `readFreezeBaseDuringTransition()` always returns `true`
+   - this means the exposed `PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION = false` setting is currently not honored
+   - that makes current settings / UI semantics misleading even if the current forced behavior is visually necessary
+
+2. The branch is not scoped to the intended merge target
+   - even if the territory stack itself were accepted, merging this branch wholesale would also drag in:
+     - large UI reorganizations
+     - benchmark / tooling work
+     - map-editor file moves
+     - `.obsidian` changes
+     - process docs
+
+### Serious recommendation
+
+Do **not** merge this branch wholesale into `master`.
+
+Reason:
+- it is too broad
+- it is not branch-green
+- it does not isolate the original optimization goal cleanly
+- it mixes meaningful territory recovery with unrelated product and tooling churn
+
+### What is worth merging back, selectively
+
+The following subset appears worth salvaging into one or more narrow follow-up branches / cherry-picks:
+
+1. `Perimeter Field` recovery stack
+   - topology-loop winding normalization so valid loops are not dropped
+   - V-star coverage recovery for topology-plan mode
+   - owner-mask fill
+   - top-owner winner classification
+   - trusted-geometry remainder backfill
+   - filled-frontier border alignment
+
+2. Shared renderer scene-surface additions that those fixes require
+   - scene-level fill mode
+   - scene-level winner mode
+   - scene-level fill fallback regions
+   - scene-level border geometry mode
+
+3. `TransitionDebugPanel` compatibility wrapper
+   - small, low-risk, directly fixes a broken import surface
+
+4. Potentially the bounded local-overlay substrate
+   - only if revalidated deliberately against `master`
+   - and only if merged with fresh benchmark evidence plus visual QA for:
+     - `Metaball`
+     - `Perimeter Field`
+     - `Metaball Grid Phase Edges`
+
+### What should not ride along in the same merge
+
+- HUD/main-menu/map-editor reorganizations
+- settings IA restructuring beyond what the territory subset strictly needs
+- benchmark harness / gameplay perf runner work
+- `.obsidian` config changes
+- multi-lane/process documentation payload
+- live settings baseline churn unless intentionally curated
+
+### Recommended merge strategy
+
+1. Do not open a PR from this branch as-is.
+2. Create a fresh branch from current `master`.
+3. Cherry-pick or manually reapply only the validated territory subset.
+4. Fix the remaining branch-induced type errors in that narrow branch.
+5. Re-run:
+   - targeted vitest for territory files
+   - full `bun x tsc --noEmit`
+   - live visual QA in `Metaball`, `Perimeter Field`, and `Metaball Grid Phase Edges`
+6. Only then decide whether the local-overlay optimization itself is ready, or whether to merge just the perimeter-field recovery fixes first.
