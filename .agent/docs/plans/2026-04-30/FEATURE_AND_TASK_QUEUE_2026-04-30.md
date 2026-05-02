@@ -9,75 +9,14 @@
 
 ## Merge Handoff
 
-### Primary Merge Unit
-
-- `metaball_grid_phase_field` plus the shared `power_voronoi_0319` authority seam it depends on.
-- Do not treat the mode as safely portable without the geometry reset. Earlier renderer-local fixes were exploratory, but the branch conclusion is clear: the mode is only trustworthy when all current 0319 live consumers read the same resolved shared-boundary snapshot.
-
-### What This Branch Introduced
-
-- New territory mode:
-  - `metaball_grid_phase_field`
-- Runtime / render-family integration:
-  - `GameCanvas.svelte`
-  - `territoryRenderModeCatalog.ts`
-  - `MetaballGridPhaseFieldFamily.ts`
-- Dedicated Phase Field UX surface:
-  - `TerritoryPhaseFieldSettings.svelte`
-  - reworked `MetaballGridTuning.svelte`
-  - split `Territory Topology` vs `Territory Styles`
-  - removal of dead / duplicate / misleading controls
-- Diagnostics rework:
-  - dedicated `Phase Field` top-level settings section
-  - global `Show Underlying Geometry` diagnostics toggle
-  - explicit geometry stage selector
-  - shared geometry artifact export using the same stage ladder
-- Geometry / border / fill work required by the mode:
-  - geometry-level inset fill helper for `Inward Offset`
-  - chain-walk junction fix so shell loops and fill reconstruction stop taking wrong spurs at LP/CX-heavy junctions
-  - MSR decoupling from power-voronoi weighting / midpoint spacing
-  - one shared post-0319 authority seam for resolved frontiers, regions, and display borders
-
-### Required Merge Surfaces
-
-#### Phase Field Mode Ownership
-
-- `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
-- `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
-- `pax-fluxia/src/lib/territory/ui/territoryRenderModeCatalog.ts`
-- `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
-- `pax-fluxia/src/lib/components/ui/settings/TerritoryPhaseFieldSettings.svelte`
-- `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`
-- `pax-fluxia/src/lib/components/ui/settings/TerritoryTopologyTuning.svelte`
-- `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
-- `pax-fluxia/src/lib/config/game.config.ts`
-- `pax-fluxia/src/lib/components/ui/settingsDefs.ts`
-- `pax-fluxia/src/lib/components/ui/settings/settingMetadata.ts`
-
-#### Shared Geometry Authority Support
-
-- `pax-fluxia/src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.ts`
-- `pax-fluxia/src/lib/territory/geometry/geometryStageLadder.ts`
-- `pax-fluxia/src/lib/territory/contracts/GeometryContracts.ts`
-- `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
-- `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
-- `pax-fluxia/src/lib/territory/geometry/buildInsetTerritoryRegions.ts`
-- `pax-fluxia/src/lib/territory/compiler/chainWalkCore.ts`
-- `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
-- `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
-- `pax-fluxia/src/lib/territory/compiler/powerVoronoiWeighting.ts`
-- `pax-fluxia/src/lib/renderers/territoryFeatures.ts`
-
-#### Diagnostics / Artifact Surfaces
-
-- `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
-- `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte`
-- `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
-
-### What Is Secondary
-
-- Large parts of the branch outside the files above are supportive or historical, but not the defining merge unit.
-- If merge pressure is high, protect the Phase Field runtime plus the shared geometry-authority seam first. That is the branch's actual product.
+- Dedicated tracked handoff doc:
+  - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_BRANCH_HANDOFF.md`
+- This queue file tracks the sprint arc.
+- The standalone handoff doc is the merge-agent source for:
+  - Phase Field branch ownership
+  - required merge surfaces
+  - shared `power_voronoi_0319` authority-seam dependency
+  - validation and post-merge verification
 
 ### Validation Summary
 
