@@ -37,6 +37,10 @@ import {
     pickClockwiseAdjacentArc,
     type DirectedPlanarArc,
 } from './planarWalk';
+import {
+    resolvePowerVoronoiBaseWeight,
+    resolvePowerVoronoiWeightedSite,
+} from './powerVoronoiWeighting';
 
 // ---------------------------------------------------------------------------
 // Geometry types (canonical contracts for PVV2 path)
@@ -957,7 +961,7 @@ export function generateVoronoiTerritoryGeometry(
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
-            weight: starMargin * starMargin,
+            weight: resolvePowerVoronoiBaseWeight(),
             ownerId: s.ownerId!,
             starId: s.id,
         }));
@@ -967,7 +971,7 @@ export function generateVoronoiTerritoryGeometry(
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
-                    weight: starMargin * starMargin * cv.weight,
+                    weight: resolvePowerVoronoiWeightedSite(cv.weight),
                     ownerId: cv.ownerId,
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
@@ -980,7 +984,7 @@ export function generateVoronoiTerritoryGeometry(
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,
-                    weight: starMargin * starMargin * dv.weight,
+                    weight: resolvePowerVoronoiWeightedSite(dv.weight),
                     ownerId: DISCONNECT_OWNER_ID,
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',

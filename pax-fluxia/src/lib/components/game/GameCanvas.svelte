@@ -153,6 +153,7 @@
     import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
+    import { resolveConstraintAlignedTerritoryGeometry } from "$lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import {
@@ -4125,26 +4126,65 @@
         renderRulerOverlay(debugGraphics);
     }
 
-    function getPerimeterDebugLoops(
-        geometry: CanonicalGeometrySnapshot,
-    ): ReadonlyArray<ReadonlyArray<[number, number]>> {
+    function getPerimeterDebugLoops(params: {
+        geometry: CanonicalGeometrySnapshot;
+        activeMode: string;
+        stars: ReadonlyArray<StarState>;
+    }): ReadonlyArray<{ points: ReadonlyArray<[number, number]>; closed: boolean }> {
+        const configSource =
+            getRenderFamilyModeConfigSource(params.activeMode) ??
+            (GAME_CONFIG as unknown as Record<string, unknown>);
+        if (
+            params.activeMode === "metaball_grid_phase_field" ||
+            params.activeMode === "metaball_grid_phase_edges" ||
+            params.activeMode === "perimeter_field"
+        ) {
+            const requestedMarginPx =
+                typeof configSource.MODIFIED_VORONOI_STAR_MARGIN === "number"
+                    ? configSource.MODIFIED_VORONOI_STAR_MARGIN
+                    : 0;
+            const resolved = resolveConstraintAlignedTerritoryGeometry({
+                geometry: params.geometry,
+                stars: params.stars,
+                requestedMarginPx,
+                preferSharedBoundaryResolution: true,
+            });
+            const resolvedPolylines = [
+                ...resolved.displayFrontierPolylines,
+                ...resolved.displayWorldBorderPolylines,
+            ].map((polyline) => ({
+                points: polyline.points,
+                closed: Boolean(polyline.closed),
+            }));
+            if (resolvedPolylines.length > 0) {
+                return resolvedPolylines;
+            }
+        }
+        const geometry = params.geometry;
         const shellLoops = geometry.shellLoops.filter(
             (loop) => loop.classification === "outer" && Boolean(loop.ownerId),
         );
         if (shellLoops.length > 0) {
-            return shellLoops.map((loop) => loop.points);
+            return shellLoops.map((loop) => ({
+                points: loop.points,
+                closed: true,
+            }));
         }
         return geometry.territoryRegions
             .filter((region) => Boolean(region.ownerId))
-            .map((region) => region.points);
+            .map((region) => ({
+                points: region.points,
+                closed: true,
+            }));
     }
 
-    function drawClosedPolyline(
+    function drawPolyline(
         g: PIXI.Graphics,
         points: ReadonlyArray<[number, number]>,
         color: number,
         alpha: number,
         width: number,
+        closed = false,
     ): void {
         if (points.length < 2) return;
         g.beginPath();
@@ -4152,7 +4192,9 @@
         for (let i = 1; i < points.length; i++) {
             g.lineTo(points[i][0], points[i][1]);
         }
-        g.lineTo(points[0][0], points[0][1]);
+        if (closed) {
+            g.lineTo(points[0][0], points[0][1]);
+        }
         g.stroke({ color, alpha, width });
     }
 
@@ -4364,8 +4406,19 @@
                 lanes,
                 getRenderFamilyModeConfigSource(activeMode),
             );
-            for (const points of getPerimeterDebugLoops(geometry)) {
-                drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
+            for (const polyline of getPerimeterDebugLoops({
+                geometry,
+                activeMode,
+                stars,
+            })) {
+                drawPolyline(
+                    debugGraphics,
+                    polyline.points,
+                    0x47d7ff,
+                    0.85,
+                    2,
+                    polyline.closed,
+                );
             }
             const family =
                 activeMode === "perimeter_field"
@@ -4379,15 +4432,18 @@
                 (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
                 Boolean(snapshot?.transitionTargetGeometry);
             if (scrubEnabled && snapshot?.transitionTargetGeometry) {
-                for (const points of getPerimeterDebugLoops(
-                    snapshot.transitionTargetGeometry,
-                )) {
-                    drawClosedPolyline(
+                for (const polyline of getPerimeterDebugLoops({
+                    geometry: snapshot.transitionTargetGeometry,
+                    activeMode,
+                    stars,
+                })) {
+                    drawPolyline(
                         debugGraphics,
-                        points,
+                        polyline.points,
                         0xff5bd1,
                         0.65,
                         2,
+                        polyline.closed,
                     );
                 }
             }

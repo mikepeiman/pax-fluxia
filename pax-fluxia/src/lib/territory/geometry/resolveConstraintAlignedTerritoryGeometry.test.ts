@@ -502,4 +502,141 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
             ),
         ).toBe(false);
     });
+
+    it('can ignore owner-local territory loops and rebuild from shared frontiers', () => {
+        const geometry = makeGeometry({
+            territoryRegions: [
+                {
+                    regionId: 'red',
+                    ownerId: 'red',
+                    points: [
+                        [0, 0],
+                        [4, 0],
+                        [4, 10],
+                        [0, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    regionId: 'blue',
+                    ownerId: 'blue',
+                    points: [
+                        [4, 0],
+                        [10, 0],
+                        [10, 10],
+                        [4, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+            frontierPolylines: [
+                {
+                    frontierId: 'f:red|blue:0',
+                    ownerA: 'blue',
+                    ownerB: 'red',
+                    ownerPairKey: 'blue|red',
+                    points: [
+                        [5, 0],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+            worldBorderPolylines: [
+                {
+                    frontierId: 'w:red:0',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 0],
+                        [5, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:1',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [5, 10],
+                        [0, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:red:2',
+                    ownerA: 'red',
+                    ownerB: 'world',
+                    ownerPairKey: 'red|world',
+                    points: [
+                        [0, 10],
+                        [0, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:0',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [5, 0],
+                        [10, 0],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:1',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 0],
+                        [10, 10],
+                    ],
+                    confidence: 1,
+                },
+                {
+                    frontierId: 'w:blue:2',
+                    ownerA: 'blue',
+                    ownerB: 'world',
+                    ownerPairKey: 'blue|world',
+                    points: [
+                        [10, 10],
+                        [5, 10],
+                    ],
+                    confidence: 1,
+                },
+            ],
+        });
+
+        const fromRegions = resolveConstraintAlignedTerritoryGeometry({
+            geometry,
+            stars: [
+                { id: 'r', x: 2, y: 5, ownerId: 'red' } as any,
+                { id: 'b', x: 8, y: 5, ownerId: 'blue' } as any,
+            ],
+            requestedMarginPx: 0,
+        });
+        const fromSharedFrontiers = resolveConstraintAlignedTerritoryGeometry({
+            geometry,
+            stars: [
+                { id: 'r', x: 2, y: 5, ownerId: 'red' } as any,
+                { id: 'b', x: 8, y: 5, ownerId: 'blue' } as any,
+            ],
+            requestedMarginPx: 0,
+            preferSharedBoundaryResolution: true,
+        });
+
+        expect(fromRegions.displayFrontierPolylines[0]?.points).toEqual([
+            [4, 0],
+            [4, 10],
+        ]);
+        expect(fromSharedFrontiers.displayFrontierPolylines[0]?.points).toEqual([
+            [5, 0],
+            [5, 10],
+        ]);
+    });
 });

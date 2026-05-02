@@ -64,7 +64,7 @@ export function computeCorridorVirtuals(
     includeCrossOwnerDistributedSamples = true,
     crossOwnerMidpointPairWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? weightMultiplier,
     crossOwnerMidpointPairCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-    crossOwnerMidpointPairSpacing = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+    crossOwnerMidpointPairSpacing = spacing,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,

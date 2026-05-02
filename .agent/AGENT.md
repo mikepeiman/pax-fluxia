@@ -1488,3 +1488,55 @@ Suggested structure:
 - Local session catch-up docs updated:
   - `.agent/docs/sessions/2026-05-01/2026-05-01_Session.md`
   - `.agent/docs/sessions/2026-05-01/2026-05-01_Takeaways.md`
+
+### 2026-05-02 - Decouple MSR From Power-Voronoi Weighting And Force Shared-Boundary Resolution
+
+- Lane: `geometry/msr-shared-boundary-resolution`
+- User task: fix still-erroneous geometry boundaries in live `metaball_grid_phase_field`, where `MSR` appeared backwards and higher values made borders impinge on stars more instead of preserving clearance.
+
+#### Pass Log
+
+1. Pass 1 - Audited the live mode path instead of treating the issue as a phase-field-only paint bug.
+   - Confirmed live mode is `TERRITORY_RENDER_MODE=metaball_grid_phase_field` with `PERIMETER_FIELD_GEOMETRY_SOURCE=power_voronoi_0319`.
+   - Confirmed Diagnostics `Show Underlying Geometry` was active, so the screenshot was exposing current geometry truth, not just presentation.
+2. Pass 2 - Found an MSR semantics coupling bug in the power-voronoi source path.
+   - `Geometry_0319.ts` and `powerVoronoiTerritoryGeometryGenerator.ts` were still using `starMargin * starMargin` as the real-site weight base.
+   - Corridor/disconnect virtuals were still scaled from that same MSR-derived base.
+   - `computeCorridorVirtuals(...)` defaulted contested midpoint-pair spacing from `MODIFIED_VORONOI_STAR_MARGIN`.
+   - Result: moving the MSR slider also changed power-diagram weight scale and CX midpoint spacing, which made the map look "better at 0" for the wrong reason.
+3. Pass 3 - Found the second fault: owner-local territory loops were still being trusted as the authority surface when present.
+   - The 0319 generator builds shared frontiers, constructs fills, then applies `applyExplicitMinStarMargin(...)` to each owner fill loop independently.
+   - That owner-local post-pass can diverge adjacent copies of a shared boundary.
+   - The resolver and diagnostics were then short-circuiting to those already-mutated `territoryRegions`, which preserved the bad authority surface.
+4. Pass 4 - Decoupled MSR from power-voronoi weighting and contested midpoint spacing.
+   - Added `powerVoronoiWeighting.ts` with a stable base power-voronoi weight radius.
+   - Updated `Geometry_0319.ts` and `powerVoronoiTerritoryGeometryGenerator.ts` to use that stable base for real, corridor, and disconnect sites.
+   - Updated `territoryFeatures.ts` so cross-owner midpoint-pair spacing defaults to corridor spacing, not MSR.
+5. Pass 5 - Added an explicit shared-boundary-resolution override to the geometry resolver.
+   - `resolveConstraintAlignedTerritoryGeometry(...)` now accepts `preferSharedBoundaryResolution`.
+   - When true, it ignores owner-local `territoryRegions` and rebuilds resolved territory regions from shared/world frontiers.
+   - `MetaballGridPhaseFieldFamily.ts` now uses this mode for both PRE and NEXT geometry.
+   - `GameCanvas.svelte` global Diagnostics overlay now uses the same mode for the active geometry it draws.
+6. Pass 6 - Added focused test coverage for the exact regression seam.
+   - New test proves that when stale owner-local loops disagree with shared frontiers, the resolver can ignore them and rebuild from the frontier set instead.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/compiler/powerVoronoiWeighting.test.ts ./src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- `bunx tsc --noEmit --pretty false` filtered for touched files produced no hits
+- `git diff --check` returned only the existing LF->CRLF warnings
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
+  - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+  - `pax-fluxia/src/lib/renderers/territoryFeatures.ts`
+  - `pax-fluxia/src/lib/territory/compiler/powerVoronoiWeighting.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- Critical behavioral delta for merge/review:
+  - `MSR` no longer secretly rescales power-voronoi site weights or contested midpoint-pair spacing in the live 0319 geometry path
+  - phase-field and global geometry diagnostics no longer trust owner-local post-MSR loops when shared frontiers are the correct authority
+  - current-mode borders/fills/underlying-geometry overlay are now resolved from the same shared-boundary seam instead of mixing frontier truth with independently mutated fill loops

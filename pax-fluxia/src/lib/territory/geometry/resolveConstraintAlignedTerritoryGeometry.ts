@@ -34,6 +34,7 @@ interface ResolveConstraintAlignedTerritoryGeometryParams {
     readonly geometry: CanonicalGeometrySnapshot;
     readonly stars: ReadonlyArray<StarState>;
     readonly requestedMarginPx: number;
+    readonly preferSharedBoundaryResolution?: boolean;
 }
 
 interface DisplayBoundarySegment {
@@ -263,6 +264,15 @@ function normalizeClosedRing(
         return points.slice(0, -1);
     }
     return points;
+}
+
+function cloneTerritoryRegions(
+    territoryRegions: ReadonlyArray<TerritoryRegionShape>,
+): readonly TerritoryRegionShape[] {
+    return territoryRegions.map((region) => ({
+        ...region,
+        points: region.points.map(([x, y]) => [x, y] as [number, number]),
+    }));
 }
 
 function buildDirectedSegmentKeys(
@@ -731,6 +741,38 @@ export function resolveConstraintAlignedTerritoryGeometry(
         params.stars,
         params.requestedMarginPx,
     );
+    if (
+        params.geometry.territoryRegions.length > 0 &&
+        !params.preferSharedBoundaryResolution
+    ) {
+        const territoryRegions = cloneTerritoryRegions(
+            params.geometry.territoryRegions,
+        );
+        const displayGeometry = buildDisplayGeometryFromResolvedRegions(
+            territoryRegions,
+            appliedMarginPx,
+        );
+        return {
+            territoryRegions,
+            frontierPolylines: params.geometry.frontierPolylines.map(
+                (polyline) => ({
+                    ...polyline,
+                    kind: 'inter_owner' as const,
+                }),
+            ),
+            worldBorderPolylines: params.geometry.worldBorderPolylines.map(
+                (polyline) => ({
+                    ...polyline,
+                    kind: 'world' as const,
+                }),
+            ),
+            displayFrontierPolylines: displayGeometry.displayFrontierPolylines,
+            displayWorldBorderPolylines:
+                displayGeometry.displayWorldBorderPolylines,
+            junctions: [],
+            appliedMarginPx,
+        };
+    }
     const ownerStars = buildOwnerStars(params.stars);
     const provisional = alignGeometry({
         frontierPolylines: params.geometry.frontierPolylines,

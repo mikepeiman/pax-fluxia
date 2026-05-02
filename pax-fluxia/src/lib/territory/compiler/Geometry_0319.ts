@@ -47,6 +47,10 @@ import {
 } from './powerVoronoiTerritoryGeometryGenerator';
 import { buildFrontierMap } from './buildFrontierMap';
 import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
+import {
+    resolvePowerVoronoiBaseWeight,
+    resolvePowerVoronoiWeightedSite,
+} from './powerVoronoiWeighting';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '$lib/renderers/territoryFeatures';
@@ -137,7 +141,7 @@ export function computeGeometry0319(
         }
 
         // ── Stage 0: Build site array ───────────────────────────────────────
-        const defaultWeight = starMargin * starMargin;
+        const defaultWeight = resolvePowerVoronoiBaseWeight();
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
@@ -164,12 +168,11 @@ export function computeGeometry0319(
                 true,
                 config.cxContestPairWeight,
                 config.cxContestPairCount,
-                config.starMargin,
             );
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
-                    weight: starMargin * starMargin * cv.weight,
+                    weight: resolvePowerVoronoiWeightedSite(cv.weight),
                     ownerId: cv.ownerId,
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
@@ -182,7 +185,7 @@ export function computeGeometry0319(
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,
-                    weight: starMargin * starMargin * dv.weight,
+                    weight: resolvePowerVoronoiWeightedSite(dv.weight),
                     ownerId: DISCONNECT_OWNER_ID,
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',

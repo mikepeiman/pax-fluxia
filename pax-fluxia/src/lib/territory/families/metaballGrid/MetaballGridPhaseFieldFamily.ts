@@ -893,11 +893,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             geometry: prevGeometry,
             stars: prevStars,
             requestedMarginPx,
+            preferSharedBoundaryResolution: true,
         });
         const nextResolvedGeometry = resolveConstraintAlignedTerritoryGeometry({
             geometry: currentGeometry,
             stars: input.stars,
             requestedMarginPx,
+            preferSharedBoundaryResolution: true,
         });
         const prevGeometryForClassification: CanonicalGeometrySnapshot = {
             ...prevGeometry,
