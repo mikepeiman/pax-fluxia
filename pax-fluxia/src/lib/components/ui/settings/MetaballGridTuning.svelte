@@ -86,13 +86,20 @@
         return 'Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)×(worldHeight/spacing).';
     }
 
+    function snapPatternSpacingPx(raw: number): number {
+        const clamped = Math.max(1, Math.min(64, Math.round(raw)));
+        if (clamped <= 24) return clamped;
+        return Math.max(24, Math.min(64, 24 + Math.round((clamped - 24) / 4) * 4));
+    }
+
     function currentPatternSpacingPx(): number {
-        return (
+        const raw = (
             panel.metaballGridPatternSpacingPx ??
             (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_PATTERN_SPACING_PX ??
             metaballGridPhaseFieldModeDefaults.METABALL_GRID_PATTERN_SPACING_PX ??
             64
         ) as number;
+        return snapPatternSpacingPx(raw);
     }
 
     function currentBorderBlendLabel(): string {
@@ -473,6 +480,32 @@
     />
 </div>
 
+{#if isPhaseFieldMode()}
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
+            Pattern Spacing
+        </span>
+        <span class="val">{currentPatternSpacingPx()}px</span>
+    </div>
+    <div class="var-desc">
+        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="64"
+        step="1"
+        value={currentPatternSpacingPx()}
+        oninput={(event) => {
+            const raw = parseFloat((event.target as HTMLInputElement).value);
+            const value = snapPatternSpacingPx(raw);
+            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
+        }}
+    />
+</div>
+{/if}
+
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
@@ -601,58 +634,11 @@
     />
 </div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Extra inset applied only to non-native (boundary / in-transition) cells on top of Cell Inset. Visually pulls the territory edge inward from its classified extent. 0 = no extra offset.">
-            Inward Offset
-        </span>
-        <span class="val">{panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}px</span>
-    </div>
-    <div class="var-desc">
-        Extra inset on non-native cells (boundary + in-transition). Adds to the base Cell Inset, so boundary cells render smaller than interior-territory cells. 0 = no extra offset.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="24"
-        step="1"
-        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
-        }}
-    />
-</div>
-
 </div>
 {/if}
 
 {#if showModule('shape')}
 <div class="module-block">
-{#if isPhaseFieldMode()}
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
-            Pattern Spacing
-        </span>
-        <span class="val">{currentPatternSpacingPx()}px</span>
-    </div>
-    <div class="var-desc">
-        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
-    </div>
-    <input
-        type="range"
-        min="16"
-        max="128"
-        step="1"
-        value={currentPatternSpacingPx()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
-        }}
-    />
-</div>
-{/if}
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Per-cell primitive. Square tiles the grid cleanly; circle and diamond create visible inter-cell gaps naturally.">
@@ -702,6 +688,29 @@
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Pulls the visible fill inward at real ownership edges. 0 = no pullback. Higher values create a clearer gap between the fill and the border.">
+            Inward Offset
+        </span>
+        <span class="val">{panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}px</span>
+    </div>
+    <div class="var-desc">
+        Extra inward pullback on cells that sit on the visible territory edge. This affects the rendered fill surface, not just transition cells.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="24"
+        step="1"
+        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
         }}
     />
 </div>

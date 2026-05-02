@@ -1259,3 +1259,41 @@ Suggested structure:
   - phase-field conquest visibility no longer depends on `METABALL_GRID_CELL_INSET_PX`
   - dense scheduler spacing can stay small without collapsing the actual reveal mask to 1px
   - fill styling and transition visibility are now separated concerns again.
+
+### 2026-05-01 - Phase-Field Pattern Spacing Adjacency + Real Fill Offset
+
+- Lane: `territory/phase-field-pattern-spacing-and-fill-offset`
+- User task: make `Pattern Spacing` sit next to `Transition Spacing`, open its usable range to `1..64`, and fix `Inward Offset` so it affects the visible fill instead of doing nothing.
+
+#### Pass Log
+
+1. Pass 1 - Audited the quickfix state and confirmed the real dead path:
+   - `Pattern Spacing` had been moved adjacent in UI but the runtime still clamped it to `>=16`,
+   - `Inward Offset` was still keyed off `cell.role !== 'native'`,
+   - steady-state visible fill scenes are all `native`, so ownership-edge pullback never fired on the actual fill.
+2. Pass 2 - Added phase-field pattern-spacing quantization to both UI and runtime:
+   - `1..24` stays 1px granular,
+   - `>24` snaps to 4px detents through `64`,
+   - runtime now reads the same snapped range instead of silently forcing `>=16`.
+3. Pass 3 - Rewired phase-field fill offset to the real presentation lattice:
+   - built cached PRE/NEXT ownership-edge cell sets from the pattern classification,
+   - square/jittered paths use orthogonal neighbors,
+   - `hex_offset` uses parity-correct 6-neighbor ownership checks,
+   - visible fill now applies `METABALL_GRID_INWARD_OFFSET_PX` to true ownership-edge cells in both render-texture and vector-fallback paths.
+4. Pass 4 - Revalidated the touched settings and renderer files with focused workspace checks.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+- Critical behavioral delta for merge/review:
+  - `Pattern Spacing` is now adjacent to `Transition Spacing` and shares the same snapped `1..64` contract in UI and runtime
+  - `Inward Offset` no longer keys off conquest roles; it now targets the visible PRE/NEXT ownership boundary cells of the presentation lattice
+  - steady-state phase-field fill should now respond to fill-offset tuning without requiring an active conquest.
