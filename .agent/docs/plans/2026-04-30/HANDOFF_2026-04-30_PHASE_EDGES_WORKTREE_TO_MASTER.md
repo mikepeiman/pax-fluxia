@@ -1110,3 +1110,64 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - implemented
 - repo-validated
 - still requires live verification
+
+### 2026-05-02 - frontier FX top-level section and first three live modes
+
+- After the fill/border gap issue was accepted as fixed, the next delivered slice was a new top-level settings section:
+  - `Frontier FX`
+- Files:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-FrontierFx.svelte`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/settingsRegistry.ts`
+  - `pax-fluxia/src/lib/components/ui/settingsDefs.ts`
+- The section currently exposes three live surface-track modes:
+  - `soft_fade`
+  - `stepped_moat`
+  - `plasma_rim`
+
+#### Shared frontier FX layer
+
+- New shared helper files:
+  - `pax-fluxia/src/lib/territory/frontier/fx.ts`
+  - `pax-fluxia/src/lib/territory/frontier/fx.test.ts`
+- Added new frontier config/tunable keys under the shared frontier contract:
+  - `TERRITORY_FRONTIER_FX_MODE`
+  - `TERRITORY_FRONTIER_FX_WIDTH_PX`
+  - `TERRITORY_FRONTIER_FX_STRENGTH`
+  - `TERRITORY_FRONTIER_FX_STEPS`
+  - `TERRITORY_FRONTIER_FX_SOFTNESS`
+  - `TERRITORY_FRONTIER_FX_PULSE_SPEED`
+  - `TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE`
+  - `TERRITORY_FRONTIER_FX_APPLY_TRANSITION`
+
+#### Runtime ownership rule
+
+- In both:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+- the new FX are wired as fill-side only.
+- They do not own topology, contour extraction, or border geometry.
+- When an FX mode is active for the frame:
+  - the fill loop samples the shared frontier-distance field
+  - fill color/alpha are modulated there
+  - sprite fast fill paths are disabled so the live per-cell draw loop remains authoritative
+- `plasma_rim` is time-driven from `nowMs`, so the paint signature now includes a pulse bucket.
+
+#### Backport / merge guidance
+
+- Merge this as a coherent slice:
+  - UI section registration
+  - shared frontier helper/config/types
+  - family runtime wiring
+  - tests
+- Do not backport only the UI or only the helper layer; without the family wiring the section will exist but do nothing.
+- Do not re-enable sprite fast paths while frontier FX is active unless the fast path is upgraded to carry the same per-cell modulation, or the effects will silently disappear in some states.
+
+#### Validation
+
+- `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\fx.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+- `bun x vite build`
+
+#### Next queued task
+
+- The next major task after this FX slice is still the end-of-transition 1-3 frame pop / jank audit.

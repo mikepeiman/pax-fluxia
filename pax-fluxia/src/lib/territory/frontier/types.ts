@@ -34,6 +34,12 @@ export type TerritoryFrontierJunctionRenderMode =
     | 'gap'
     | 'bubble';
 
+export type TerritoryFrontierFxMode =
+    | 'off'
+    | 'soft_fade'
+    | 'stepped_moat'
+    | 'plasma_rim';
+
 export interface TerritoryFrontierPhaseFieldLayer {
     readonly id: string;
     readonly label: string;

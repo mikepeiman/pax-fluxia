@@ -352,7 +352,39 @@ function makePhaseEdgesInput(
 
 interface GraphicsInstructionSnapshot {
     readonly action: string;
+    readonly styleFingerprint: string;
     readonly pathInstructions: readonly string[];
+}
+
+function sanitizeInstructionData(
+    value: unknown,
+    seen: WeakSet<object> = new WeakSet(),
+): unknown {
+    if (
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+    ) {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map((entry) => sanitizeInstructionData(entry, seen));
+    }
+    if (typeof value !== 'object') {
+        return String(value);
+    }
+    if (seen.has(value)) {
+        return '[Circular]';
+    }
+    seen.add(value);
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+        if (key === 'path') continue;
+        out[key] = sanitizeInstructionData(entry, seen);
+    }
+    seen.delete(value);
+    return out;
 }
 
 function captureGraphicsInstructionSnapshot(target: unknown): GraphicsInstructionSnapshot[] {
@@ -378,6 +410,9 @@ function captureGraphicsInstructionSnapshot(target: unknown): GraphicsInstructio
 
     return instructions.map((instruction) => ({
         action: instruction.action,
+        styleFingerprint: JSON.stringify(
+            sanitizeInstructionData(instruction.data),
+        ),
         pathInstructions:
             instruction.data?.path?.instructions?.map((pathInstruction) =>
                 JSON.stringify([
@@ -392,6 +427,17 @@ function captureFillSnapshot(target: unknown): readonly string[] {
     return captureGraphicsInstructionSnapshot(target)
         .filter((instruction) => instruction.action === 'fill')
         .flatMap((instruction) => instruction.pathInstructions);
+}
+
+function captureFillRenderSnapshot(target: unknown): readonly string[] {
+    return captureGraphicsInstructionSnapshot(target)
+        .filter((instruction) => instruction.action === 'fill')
+        .map((instruction) =>
+            JSON.stringify([
+                instruction.styleFingerprint,
+                ...instruction.pathInstructions,
+            ]),
+        );
 }
 
 function captureStrokeSnapshot(target: unknown): readonly string[] {
@@ -951,6 +997,115 @@ describe('MetaballGridFamily active frontier fast path', () => {
         const offset24 = captureFillSnapshot(state.graphics);
 
         expect(offset24.length).toBeLessThanOrEqual(offset23.length);
+
+        family.dispose();
+    });
+
+    it('applies soft-fade frontier FX on the live phase-edges fill path', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+                TERRITORY_FRONTIER_FX_MODE: 'off',
+            }),
+        );
+        const state = family as unknown as { graphics: unknown };
+        const offSnapshot = captureFillRenderSnapshot(state.graphics);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+                TERRITORY_FRONTIER_FX_MODE: 'soft_fade',
+                TERRITORY_FRONTIER_FX_WIDTH_PX: 24,
+                TERRITORY_FRONTIER_FX_STRENGTH: 0.8,
+                TERRITORY_FRONTIER_FX_SOFTNESS: 1.2,
+            }),
+        );
+        const softFadeSnapshot = captureFillRenderSnapshot(state.graphics);
+
+        expect(softFadeSnapshot).not.toEqual(offSnapshot);
+
+        family.dispose();
+    });
+
+    it('applies stepped-moat frontier FX on the live phase-edges fill path', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+                TERRITORY_FRONTIER_FX_MODE: 'off',
+            }),
+        );
+        const state = family as unknown as { graphics: unknown };
+        const offSnapshot = captureFillRenderSnapshot(state.graphics);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+                TERRITORY_FRONTIER_FX_MODE: 'stepped_moat',
+                TERRITORY_FRONTIER_FX_WIDTH_PX: 30,
+                TERRITORY_FRONTIER_FX_STRENGTH: 0.85,
+                TERRITORY_FRONTIER_FX_STEPS: 5,
+            }),
+        );
+        const steppedSnapshot = captureFillRenderSnapshot(state.graphics);
+
+        expect(steppedSnapshot).not.toEqual(offSnapshot);
+
+        family.dispose();
+    });
+
+    it('animates plasma-rim frontier FX over time on the live phase-edges fill path', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        const inputA = makePhaseEdgesInput(family, 0.35, {
+            METABALL_GRID_BORDER_MODE: 'territory_edge',
+            METABALL_GRID_BORDER_BLEND: true,
+            TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            TERRITORY_FRONTIER_FX_MODE: 'plasma_rim',
+            TERRITORY_FRONTIER_FX_WIDTH_PX: 26,
+            TERRITORY_FRONTIER_FX_STRENGTH: 0.9,
+            TERRITORY_FRONTIER_FX_PULSE_SPEED: 1.4,
+        });
+        family.update({ ...inputA, nowMs: 10_000 });
+        const state = family as unknown as { graphics: unknown };
+        const earlySnapshot = captureFillRenderSnapshot(state.graphics);
+
+        const inputB = makePhaseEdgesInput(family, 0.35, {
+            METABALL_GRID_BORDER_MODE: 'territory_edge',
+            METABALL_GRID_BORDER_BLEND: true,
+            TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            TERRITORY_FRONTIER_FX_MODE: 'plasma_rim',
+            TERRITORY_FRONTIER_FX_WIDTH_PX: 26,
+            TERRITORY_FRONTIER_FX_STRENGTH: 0.9,
+            TERRITORY_FRONTIER_FX_PULSE_SPEED: 1.4,
+        });
+        family.update({ ...inputB, nowMs: 10_320 });
+        const lateSnapshot = captureFillRenderSnapshot(state.graphics);
+
+        expect(lateSnapshot).not.toEqual(earlySnapshot);
 
         family.dispose();
     });

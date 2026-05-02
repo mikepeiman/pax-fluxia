@@ -54,3 +54,14 @@
   - the new square-bounds offset path can intentionally return `null` for a fully suppressed square band
   - if the draw loop then falls back to legacy square fill, the visual result will look glitchy, unstable, or capped even if the suppression math is correct
   - suppression must remain authoritative all the way to the final draw loop
+- The next clean architectural step after the fill/border fix was not to bury new effects in the existing styles card.
+  - a top-level `Frontier FX` section is the right ownership surface
+  - it keeps border-adjacent fill VFX separate from topology and separate from basic fill/border styling
+- The first three shippable frontier VFX can stay on the surface track:
+  - `soft_fade`
+  - `stepped_moat`
+  - `plasma_rim`
+- For correctness, any fill-side VFX that modulates per-cell color/alpha must disable sprite fast fill paths for the active frame unless the fast path itself is upgraded to carry the same modulation.
+- Animated frontier FX needs paint invalidation from `nowMs`; otherwise the visuals will silently freeze behind a valid draw-cache signature.
+- The next major task remains the end-transition 1-3 frame pop.
+  - do not let the new FX work distract from that handoff audit

@@ -61,6 +61,7 @@
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
+    import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -1450,6 +1451,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         activeSubsection={activeSubsections[sec.id] ?? "all"}
+                    />
+                {:else if sec.id === "frontier_fx"}
+                    <ControlsSectionFrontierFx
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "fleet_star_visuals"}
                     <ControlsSectionShips

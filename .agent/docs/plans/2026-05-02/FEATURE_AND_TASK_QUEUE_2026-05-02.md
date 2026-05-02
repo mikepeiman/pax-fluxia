@@ -49,34 +49,43 @@
   - `borderBlend = true`
   - compare offset `23px` vs `24px`
   - assert the `24px` result does not grow back through repaint fallback
+- Added a new top-level settings section:
+  - `Frontier FX`
+  - mounted from `GameSettingsPanel.svelte`
+  - registered in `settingsRegistry.ts`
+- Implemented three border-inward frontier surface VFX modes:
+  - `soft_fade`
+  - `stepped_moat`
+  - `plasma_rim`
+- Added shared frontier FX helpers:
+  - `pax-fluxia/src/lib/territory/frontier/fx.ts`
+  - `pax-fluxia/src/lib/territory/frontier/fx.test.ts`
+- Wired those FX through the live fill loops in:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+- Runtime contract for this step:
+  - FX are fill-side only
+  - fast sprite fill paths are disabled when FX are active for the frame
+  - animated plasma uses the render clock via `nowMs`
+- Added renderer-level regression coverage proving:
+  - `soft_fade` changes the live Phase Edges fill render
+  - `stepped_moat` changes the live Phase Edges fill render
+  - `plasma_rim` animates over time on the live Phase Edges fill render
 
 ## Next
 
-- User verification in the live app:
-  - does the missing-margin / inset gap finally disappear when `Centered-blended borders` is on?
-  - do `Inward Offset` and `Flush Boundary Fill` now visibly affect the fill?
-  - does the centered-blended outer perimeter still behave correctly after the visible-boundary geometry change?
-- Specific inward-offset verification:
-  - no remnant row of tiny squares should persist at high offsets unless there is still a live path not yet covered by the new skip logic
-  - no special snap should occur at `24px`
-  - the slider should now run to `60px`
-- If live verification still shows repaint/glitch behavior, trace whether a second fill layer or mesh pass is still drawing suppressed cells after the square-loop skip fix
-- If live verification still shows a one-ring effect without repaint, trace whether the remaining clamp is now only at the final visible-bounds mapping stage instead of the old frontier-owner stage
-- Rework `Inward Offset` to match the actual requirement:
-  - not a one-ring per-cell shrink on the frontier-adjacent squares
-  - a global, variable-width clean offset measured from the frontier itself
-  - alternate stepped fallback: pixellated distance bands where outermost cells shrink most and deeper rows shrink less
-- Add a new top-level settings section:
-  - `Frontier FX`
-  - own all offset / moat / border-adjacent VFX tuning there
-- Keep `Frontier FX` split conceptually into:
-  - surface shaping / style that can live in the family
-  - timed/emitted VFX that should extend territory VFX contracts instead of being hidden inside the renderer
-- VFX ideation queue for border moats / gradients:
-  - stepped square moat bands
-  - hot plasma ribbon / heat shimmer frontier
+- Live user verification of the new `Frontier FX` section:
+  - the section appears at top level
+  - all three modes are visible and reactive
+  - `soft_fade`, `stepped_moat`, and `plasma_rim` produce distinct looks
+- Add the remaining queued moat/VFX ideas:
+  - hot plasma ribbon / heat shimmer frontier as a separate mode from the current `plasma_rim`
   - particle drift / embers / ion sparks along the border
   - geometry-based crenellated or oscillating moat strip
+- Keep the VFX split clean:
+  - surface-track work can stay in the shared frontier/family layer
+  - timed/emitted work should extend territory VFX contracts instead of living only inside the renderer
 - Transition-end smoothness / end-of-transition jank:
-  - inspect final 1-3 transition frames vs first steady-state frame
-  - prefer continuity/timing fix before adding terminal hold frames
+  - inspect the final 1-3 transition frames vs the first steady-state frame
+  - check continuity first, then timing/clock handoff, then easing
+  - only add a terminal hold if the underlying handoff is already continuous

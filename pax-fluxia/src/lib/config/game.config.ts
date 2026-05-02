@@ -10,6 +10,7 @@ import type {
 } from '../territory/transitions/territoryTransitionModes';
 import type {
     TerritoryFrontierBorderGeometryMode,
+    TerritoryFrontierFxMode,
     TerritoryFrontierJunctionRenderMode,
     TerritoryFrontierPhaseSamplingMode,
     TerritoryFrontierTechniqueId,
@@ -441,6 +442,14 @@ interface GameConfigType {
     TERRITORY_FRONTIER_JUNCTION_RENDER_MODE: TerritoryFrontierJunctionRenderMode; // Shared-junction presentation on straight shared-edge frontiers
     TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: number; // Bubble radius for multi-owner shared-edge junction markers
     TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: boolean; // Draw owner-vs-world outer perimeter borders instead of limiting strokes to inter-owner frontiers
+    TERRITORY_FRONTIER_FX_MODE: TerritoryFrontierFxMode; // Border-inward frontier surface FX mode
+    TERRITORY_FRONTIER_FX_WIDTH_PX: number; // Width of the inward frontier FX region in px
+    TERRITORY_FRONTIER_FX_STRENGTH: number; // Intensity of the selected frontier FX mode
+    TERRITORY_FRONTIER_FX_STEPS: number; // Quantized bands for stepped moat mode
+    TERRITORY_FRONTIER_FX_SOFTNESS: number; // Falloff power for smooth inward frontier effects
+    TERRITORY_FRONTIER_FX_PULSE_SPEED: number; // Pulse speed for animated plasma rim mode
+    TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE: boolean; // Apply frontier FX when no conquest transition is active
+    TERRITORY_FRONTIER_FX_APPLY_TRANSITION: boolean; // Apply frontier FX during conquest transitions
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops

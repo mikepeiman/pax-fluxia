@@ -1,6 +1,7 @@
 import type {
     TerritoryFrontierBenchmarkPresetId,
     TerritoryFrontierBorderGeometryMode,
+    TerritoryFrontierFxMode,
     TerritoryFrontierJunctionRenderMode,
     TerritoryFrontierTechniqueId,
     TerritoryFrontierTriangleDiagonalPolicy,
@@ -21,7 +22,26 @@ export const territoryFrontierConfigDefaults = {
         'gap' as TerritoryFrontierJunctionRenderMode,
     TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: 6,
     TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: false,
+    TERRITORY_FRONTIER_FX_MODE: 'off' as TerritoryFrontierFxMode,
+    TERRITORY_FRONTIER_FX_WIDTH_PX: 24,
+    TERRITORY_FRONTIER_FX_STRENGTH: 0.75,
+    TERRITORY_FRONTIER_FX_STEPS: 4,
+    TERRITORY_FRONTIER_FX_SOFTNESS: 1.2,
+    TERRITORY_FRONTIER_FX_PULSE_SPEED: 1,
+    TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE: true,
+    TERRITORY_FRONTIER_FX_APPLY_TRANSITION: true,
 } as const;
+
+export const TERRITORY_FRONTIER_FX_TUNABLE_KEYS = [
+    'TERRITORY_FRONTIER_FX_MODE',
+    'TERRITORY_FRONTIER_FX_WIDTH_PX',
+    'TERRITORY_FRONTIER_FX_STRENGTH',
+    'TERRITORY_FRONTIER_FX_STEPS',
+    'TERRITORY_FRONTIER_FX_SOFTNESS',
+    'TERRITORY_FRONTIER_FX_PULSE_SPEED',
+    'TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE',
+    'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
+] as const;
 
 export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
     'TERRITORY_FRONTIER_TECHNIQUE',
@@ -35,6 +55,7 @@ export const TERRITORY_FRONTIER_TUNABLE_KEYS = [
     'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
     'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
     'TERRITORY_FRONTIER_OUTER_BORDER_ENABLED',
+    ...TERRITORY_FRONTIER_FX_TUNABLE_KEYS,
 ] as const;
 
 export interface TerritoryFrontierBenchmarkPreset {

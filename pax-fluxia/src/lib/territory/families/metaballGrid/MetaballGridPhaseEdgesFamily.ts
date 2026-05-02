@@ -33,13 +33,17 @@ import {
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import {
+    applyTerritoryFrontierFxToFill,
+    buildTerritoryFrontierFxSampleField,
     buildOwnershipGridFrontierDistanceField,
     buildTerritoryFrontierPresentation,
     computeVisibleSquareBoundsFromDistance,
+    isTerritoryFrontierFxActive,
     resolveTerritoryFrontierSurfaceRecipe,
     TERRITORY_FRONTIER_TUNABLE_KEYS,
     type TerritoryFrontierBorderGeometryMode,
     type TerritoryFrontierContourLayerResult,
+    type TerritoryFrontierFxSample,
     type TerritoryFrontierJunctionRenderMode,
     type TerritoryFrontierPhaseFieldLayer,
     type TerritoryFrontierPhaseSamplingMode,
@@ -3079,6 +3083,86 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         );
 
         // ── Palette: owner → (colorIdx, adjusted fill hex, adjusted border hex) ─
+        const frontierFxMode = readTunableString(
+            input,
+            'TERRITORY_FRONTIER_FX_MODE',
+            GAME_CONFIG.TERRITORY_FRONTIER_FX_MODE ?? 'off',
+            ['off', 'soft_fade', 'stepped_moat', 'plasma_rim'],
+        );
+        const frontierFxWidthPx = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_FX_WIDTH_PX',
+                GAME_CONFIG.TERRITORY_FRONTIER_FX_WIDTH_PX ?? 24,
+            ),
+        );
+        const frontierFxStrength = Math.max(
+            0,
+            Math.min(
+                1,
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_FX_STRENGTH',
+                    GAME_CONFIG.TERRITORY_FRONTIER_FX_STRENGTH ?? 0.75,
+                ),
+            ),
+        );
+        const frontierFxSteps = Math.max(
+            1,
+            Math.round(
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_FX_STEPS',
+                    GAME_CONFIG.TERRITORY_FRONTIER_FX_STEPS ?? 4,
+                ),
+            ),
+        );
+        const frontierFxSoftness = Math.max(
+            0.35,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_FX_SOFTNESS',
+                GAME_CONFIG.TERRITORY_FRONTIER_FX_SOFTNESS ?? 1.2,
+            ),
+        );
+        const frontierFxPulseSpeed = Math.max(
+            0.1,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_FX_PULSE_SPEED',
+                GAME_CONFIG.TERRITORY_FRONTIER_FX_PULSE_SPEED ?? 1,
+            ),
+        );
+        const frontierFxApplySteadyState = readTunableBoolean(
+            input,
+            'TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE',
+            GAME_CONFIG.TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE ?? true,
+        );
+        const frontierFxApplyTransition = readTunableBoolean(
+            input,
+            'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
+            GAME_CONFIG.TERRITORY_FRONTIER_FX_APPLY_TRANSITION ?? true,
+        );
+        const frontierFxTuning = {
+            mode: frontierFxMode,
+            widthPx: frontierFxWidthPx,
+            strength: frontierFxStrength,
+            steps: frontierFxSteps,
+            softness: frontierFxSoftness,
+            pulseSpeed: frontierFxPulseSpeed,
+            applySteadyState: frontierFxApplySteadyState,
+            applyTransition: frontierFxApplyTransition,
+        };
+        const frontierFxActiveForFrame = isTerritoryFrontierFxActive(
+            frontierFxTuning,
+            activeSessionPlans.length > 0,
+        );
+        const frontierFxAnimatedForFrame =
+            frontierFxActiveForFrame && frontierFxMode === 'plasma_rim';
+        const frontierFxPulseBucket = frontierFxAnimatedForFrame
+            ? Math.floor(input.nowMs / 16)
+            : 0;
         const ownerColorIdx = new Map<string, number>();
         const fillHexByColorIdx: number[] = [];
         const borderHexByColorIdx: number[] = [];
@@ -3350,6 +3434,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             maxCellsHoisted,
             palFillSig,
             palBorderSig,
+            frontierFxMode,
+            frontierFxWidthPx.toFixed(3),
+            frontierFxStrength.toFixed(3),
+            frontierFxSteps,
+            frontierFxSoftness.toFixed(3),
+            frontierFxPulseSpeed.toFixed(3),
+            frontierFxApplySteadyState ? '1' : '0',
+            frontierFxApplyTransition ? '1' : '0',
+            frontierFxPulseBucket,
             frontierTechnique,
             frontierBorderGeometryMode,
             frontierSurfaceRecipe.geometryFamily,
@@ -3542,6 +3635,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             usingControlFrontier &&
             !canRenderPhaseFillSurface &&
             !drawBaseBorders &&
+            !frontierFxActiveForFrame &&
             inwardOffsetPx === 0 &&
             edgeTrimPx === 0 &&
             cellShape === 'square' &&
@@ -3595,7 +3689,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 borderMode === 'territory_edge' ||
                 inwardOffsetPx > 0 ||
                 !boundaryFillFlush ||
-                outerBorderEnabled
+                outerBorderEnabled ||
+                frontierFxActiveForFrame
             );
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
         const needsEffectiveColorIdxByGridIdx =
@@ -3613,6 +3708,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     )
                 ) ||
                 canBuildScenePairPhaseSurface ||
+                frontierFxActiveForFrame ||
                 frontierSurfaceRecipe.usesPhaseFill ||
                 frontierSurfaceRecipe.usesPhaseBorder
             );
@@ -3644,7 +3740,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             }
         }
         let visibleSquareBoundsByGridIdx: Array<VisibleSquareCellBounds | null> | null = null;
-        if (cellShape === 'square' && effectiveColorIdxByGridIdx) {
+        let frontierFxSamples: Array<TerritoryFrontierFxSample | null> | null = null;
+        if (
+            effectiveColorIdxByGridIdx &&
+            (cellShape === 'square' || frontierFxActiveForFrame)
+        ) {
             const distanceField = buildOwnershipGridFrontierDistanceField({
                 cols,
                 rows,
@@ -3652,23 +3752,33 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 spacingPx,
                 includeWorldEdge: true,
             });
-            visibleSquareBoundsByGridIdx = new Array<VisibleSquareCellBounds | null>(vstarCount);
-            for (let i = 0; i < vstarCount; i++) {
-                const colorIdx = effectiveColorIdxByGridIdx[i];
-                if (colorIdx < 0) {
-                    visibleSquareBoundsByGridIdx[i] = null;
-                    continue;
-                }
-                const v = cached.classification.vstars[i];
-                visibleSquareBoundsByGridIdx[i] = computeVisibleSquareBoundsFromDistance({
-                    x: v.x,
-                    y: v.y,
-                    halfSizePx: trueHalf,
-                    nativeInsetPx: nativeInset,
-                    boundaryOffsetPx: boundaryOffsetTargetPx,
-                    cellIndex: i,
+            if (frontierFxActiveForFrame) {
+                frontierFxSamples = buildTerritoryFrontierFxSampleField({
                     distanceField,
+                    tuning: frontierFxTuning,
+                    nowMs: input.nowMs,
+                    hasActiveTransition: activeSessionPlans.length > 0,
                 });
+            }
+            if (cellShape === 'square') {
+                visibleSquareBoundsByGridIdx = new Array<VisibleSquareCellBounds | null>(vstarCount);
+                for (let i = 0; i < vstarCount; i++) {
+                    const colorIdx = effectiveColorIdxByGridIdx[i];
+                    if (colorIdx < 0) {
+                        visibleSquareBoundsByGridIdx[i] = null;
+                        continue;
+                    }
+                    const v = cached.classification.vstars[i];
+                    visibleSquareBoundsByGridIdx[i] = computeVisibleSquareBoundsFromDistance({
+                        x: v.x,
+                        y: v.y,
+                        halfSizePx: trueHalf,
+                        nativeInsetPx: nativeInset,
+                        boundaryOffsetPx: boundaryOffsetTargetPx,
+                        cellIndex: i,
+                        distanceField,
+                    });
+                }
             }
         }
 
@@ -3892,15 +4002,23 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 ) {
                     continue;
                 }
-                const fillHex = fillHexByColorIdx[c.colorIdx];
-                if (fillHex === undefined) continue;
-                const alpha = c.alpha * effectiveFillAlphaMult;
-                if (alpha <= 0) continue;
-
                 // Numeric grid indices are carried directly on the scene cell so
                 // the hot paint loop does not need to parse `g:${ix}:${iy}` ids.
                 const ix = c.ix;
                 const iy = c.iy;
+                const cellIndex = iy * cols + ix;
+                const fillHex = fillHexByColorIdx[c.colorIdx];
+                if (fillHex === undefined) continue;
+                const fxSample = frontierFxSamples?.[cellIndex] ?? null;
+                const styledFillHex = applyTerritoryFrontierFxToFill(
+                    fillHex,
+                    fxSample,
+                );
+                const alpha =
+                    c.alpha
+                    * effectiveFillAlphaMult
+                    * (fxSample?.alphaMultiplier ?? 1);
+                if (alpha <= 0) continue;
 
                 // Trust the scene cell's (x, y) — classification already applied
                 // any distribution-driven row shift (hex_offset) or jitter. A
@@ -3935,7 +4053,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 const size = isBoundary ? boundarySize : nativeSize;
                 const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
                 const hexR = isBoundary ? boundaryHexR : nativeHexR;
-                const cellIndex = iy * cols + ix;
                 const usesDistanceSquareBounds =
                     cellShape === 'square' && visibleSquareBoundsByGridIdx !== null;
                 const squareBounds =
@@ -3960,7 +4077,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                         g,
                         squareBounds,
                         squareCornerR,
-                        fillHex,
+                        styledFillHex,
                         alpha,
                     );
                 } else {
@@ -3973,7 +4090,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                         size,
                         cornerR,
                         hexR,
-                        fillHex,
+                        styledFillHex,
                         alpha,
                     );
                 }
