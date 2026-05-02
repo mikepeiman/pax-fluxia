@@ -132,6 +132,15 @@ function hashStringList(items: ReadonlyArray<string>): string {
     return h.toString(16).padStart(8, '0');
 }
 
+function reverseSectionRefs(sectionRefs: ReadonlyArray<SectionRef>): SectionRef[] {
+    return [...sectionRefs]
+        .reverse()
+        .map((ref) => ({
+            sectionId: ref.sectionId,
+            direction: ref.direction === 'forward' ? 'reverse' : 'forward',
+        }));
+}
+
 export interface BuildPowerVoronoiFrontierTopologyParams {
     sharedPolylines: ReadonlyArray<SharedPolyline>;
     worldBorderPolylines: ReadonlyArray<SharedPolyline>;
@@ -245,12 +254,18 @@ export function buildPowerVoronoiFrontierTopology(
         const sectionKey = hashStringList(
             sectionRefs.map((entry) => entry.sectionId).sort(),
         );
+        const rawSignedArea = signedArea(loopPoints);
+        // Chain-walk segment order is deterministic but not guaranteed to emit outer
+        // loops with the same winding every frame; normalize here so downstream
+        // perimeter sampling never drops a valid owner loop on sign alone.
+        const normalizedSectionRefs =
+            rawSignedArea < 0 ? reverseSectionRefs(sectionRefs) : sectionRefs;
         loops.push({
             id: `loop:${walkLoop.ownerId}:${sectionKey}`,
             ownerId: walkLoop.ownerId,
             componentId: `comp:${walkLoop.ownerId}:${sectionKey}`,
-            sectionRefs,
-            signedArea: signedArea(loopPoints),
+            sectionRefs: normalizedSectionRefs,
+            signedArea: Math.abs(rawSignedArea),
         });
     }
 

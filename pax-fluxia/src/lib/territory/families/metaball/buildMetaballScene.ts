@@ -1,10 +1,12 @@
 import { logPipelineStage, summarizeScene } from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { MetaballSceneInput } from '$lib/renderers/MetaballRenderer';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
 import {
     buildSceneFingerprint,
     buildMetaballBaseContext,
+    readTunableNumber,
 } from './metaballSceneBase';
 import {
     buildMetaballTransitionSamples,
@@ -172,6 +174,12 @@ export function buildMetaballScene(
         dynamicFingerprint,
         sceneFingerprint: `${resolvedStaticScene.staticFingerprint}::${dynamicFingerprint}`,
         fingerprint: `${resolvedStaticScene.staticFingerprint}::${dynamicFingerprint}`,
+        influenceRadiusPx: readTunableNumber(
+            input,
+            'METABALL_INFLUENCE_RADIUS',
+            GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 90,
+        ),
+        ownershipMarginPx: 0,
     };
     logPipelineStage({
         channel: 'renderer',

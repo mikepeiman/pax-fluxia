@@ -343,6 +343,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Perimeter Vstar Power': {
             key: 'PERIMETER_FIELD_INFLUENCE_WEIGHT',
         },
+        'Star Metaball Power': {
+            key: 'PERIMETER_FIELD_STAR_METABALL_WEIGHT',
+        },
         'Transition Slice Count': {
             key: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
         },

@@ -8,13 +8,18 @@ import {
 } from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '../../../renderers/RenderContext';
 import type {
+    MetaballFillFallbackRegion,
     MetaballInfluenceSample,
     MetaballSceneInput,
+    MetaballSolveBounds,
 } from '../../../renderers/MetaballRenderer';
 import type { StarState } from '../../../types/game.types';
 import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
-import { buildSceneFingerprint } from '../metaball/metaballSceneBase';
+import {
+    buildSceneFingerprint,
+    computeMetaballStarStrength,
+} from '../metaball/metaballSceneBase';
 import {
     hasUsableFrontierTopology,
     sampleVSetFromGeometry,
@@ -64,6 +69,7 @@ export interface PerimeterFieldDebugSnapshot {
     transitionSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     effectiveProgress: number | null;
     transitionPlan?: TransitionPlan | null;
+    solveBounds?: MetaballSolveBounds | null;
 }
 
 export interface PerimeterFieldBuiltScene {
@@ -244,6 +250,25 @@ function regionCentroid(points: ReadonlyArray<[number, number]>): [number, numbe
     return [x / count, y / count];
 }
 
+function polygonBounds(points: ReadonlyArray<[number, number]>): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+} {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of points) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+    return { minX, minY, maxX, maxY };
+}
+
 function offsetSampleInsideLoop(params: {
     point: [number, number];
     prevPoint: [number, number];
@@ -387,6 +412,79 @@ function buildOwnerClusterScene(
     }
 
     return { ownedStars, clusterMap, playerColors, clusterShips, ownerToCluster };
+}
+
+function collectStarOwners(stars: ReadonlyArray<StarState>): string[] {
+    return [...new Set(stars.map((star) => star.ownerId ?? '').filter(Boolean))];
+}
+
+function buildFillFallbackRegions(params: {
+    geometries: ReadonlyArray<CanonicalGeometrySnapshot | null | undefined>;
+    ownerToCluster: ReadonlyMap<string, number>;
+}): MetaballFillFallbackRegion[] {
+    const regions: MetaballFillFallbackRegion[] = [];
+    const seen = new Set<string>();
+
+    for (const geometry of params.geometries) {
+        if (!geometry) continue;
+        for (const source of listPerimeterSources(geometry)) {
+            const playerIdx = params.ownerToCluster.get(source.ownerId);
+            if (playerIdx === undefined || Math.abs(polygonArea(source.points)) <= 1e-3) {
+                continue;
+            }
+            const key = `${geometry.version}:${source.ownerId}:${source.sourceId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const bounds = polygonBounds(source.points);
+            regions.push({
+                id: key,
+                ownerId: source.ownerId,
+                playerIdx,
+                points: [...source.points],
+                minX: bounds.minX,
+                minY: bounds.minY,
+                maxX: bounds.maxX,
+                maxY: bounds.maxY,
+            });
+        }
+    }
+
+    return regions;
+}
+
+function buildStarAnchorSamples(params: {
+    stars: ReadonlyArray<StarState>;
+    ownerToCluster: ReadonlyMap<string, number>;
+    colorUtils: ColorUtils;
+    strengthMult: number;
+    debugState: 'static' | 'target';
+}): PerimeterFieldDebugSample[] {
+    const strengthMult = Math.max(0, params.strengthMult);
+    if (strengthMult <= 1e-6) return [];
+    const samples: PerimeterFieldDebugSample[] = [];
+    for (const star of params.stars) {
+        const ownerId = star.ownerId;
+        if (!ownerId) continue;
+        const playerIdx = params.ownerToCluster.get(ownerId);
+        if (playerIdx === undefined) continue;
+        const strength = computeMetaballStarStrength(star, strengthMult);
+        if (strength <= 1e-6) continue;
+        samples.push({
+            id: `star-anchor:${star.id}`,
+            x: star.x,
+            y: star.y,
+            playerIdx,
+            strength,
+            ownerId,
+            ownerColor: params.colorUtils.getPlayerColor(ownerId),
+            sourceId: `star:${star.id}`,
+            starIds: [star.id],
+            transitionRole: 'static',
+            label: `M:${star.id}`,
+            debugState: params.debugState,
+        });
+    }
+    return samples;
 }
 
 function buildPerimeterSourceSampleSets(params: {
@@ -772,12 +870,15 @@ function buildPlanScene(params: {
     spacing: number;
     offsetPx: number;
     strength: number;
+    influenceRadius: number;
+    starMetaballWeight: number;
     geometrySource: string;
     freezeBase: boolean;
 }): PerimeterFieldBuiltScene {
     const extraOwners = [
         ...collectGeometryOwners(params.geometry),
         ...collectPlanOwners(params.transitionPlan),
+        ...collectStarOwners(params.input.stars),
     ];
     const clusterScene = buildOwnerClusterScene(
         params.starsForDisplay,
@@ -793,6 +894,10 @@ function buildPlanScene(params: {
             strength: params.strength,
             ownerToCluster: clusterScene.ownerToCluster,
         },
+    });
+    const staticFillFallbackRegions = buildFillFallbackRegions({
+        geometries: [params.geometry],
+        ownerToCluster: clusterScene.ownerToCluster,
     });
     logPipelineStage({
         channel: 'renderer',
@@ -828,7 +933,7 @@ function buildPlanScene(params: {
     });
 
     if (!params.transitionPlan) {
-        const staticSamples = currentVs.map((v, index) =>
+        const staticPerimeterSamples = currentVs.map((v, index) =>
             buildPerimeterDebugSampleFromV({
                 v,
                 colorUtils: params.colorUtils,
@@ -837,8 +942,23 @@ function buildPlanScene(params: {
                 label: `S${String(index).padStart(2, '0')}`,
             }),
         );
+        const staticSamples = [
+            ...staticPerimeterSamples,
+            ...buildStarAnchorSamples({
+                stars: params.starsForDisplay,
+                ownerToCluster: clusterScene.ownerToCluster,
+                colorUtils: params.colorUtils,
+                strengthMult: params.starMetaballWeight,
+                debugState: 'static',
+            }),
+        ];
         const visibleStaticSamples = sortSamplesByStableKey(
             staticSamples.filter((sample) => sample.strength > 1e-6),
+        );
+        const staticFingerprint = buildSceneFingerprint(
+            visibleStaticSamples,
+            clusterScene.playerColors,
+            clusterScene.clusterShips,
         );
         return {
             sceneInput: {
@@ -849,28 +969,16 @@ function buildPlanScene(params: {
                 staticSamples: visibleStaticSamples,
                 dynamicSamples: [],
                 samples: visibleStaticSamples,
-                staticFingerprint: buildSceneFingerprint(
-                    visibleStaticSamples,
-                    clusterScene.playerColors,
-                    clusterScene.clusterShips,
-                ),
+                staticFingerprint,
                 dynamicFingerprint: '',
-                sceneFingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${buildSceneFingerprint(
-                    visibleStaticSamples,
-                    clusterScene.playerColors,
-                    clusterScene.clusterShips,
-                )}`,
-                fingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${buildSceneFingerprint(
-                    visibleStaticSamples,
-                    clusterScene.playerColors,
-                    clusterScene.clusterShips,
-                )}`,
-                influenceRadiusPx: readNumber(
-                    params.input,
-                    'PERIMETER_FIELD_INFLUENCE_RADIUS',
-                    GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
-                ),
+                sceneFingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}`,
+                fingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}`,
+                influenceRadiusPx: params.influenceRadius,
                 ownershipMarginPx: 0,
+                fillOpacityMode: 'owner-mask',
+                winnerMode: 'top-owner',
+                fillFallbackRegions: staticFillFallbackRegions,
+                borderGeometryMode: 'grid-ribbon',
             },
             debug: {
                 displayGeometry: params.geometry,
@@ -887,6 +995,27 @@ function buildPlanScene(params: {
 
     const plan = params.transitionPlan;
     const progress = clamp01(params.input.activeTransition?.progress ?? 0);
+    const transitionFillFallbackRegions = buildFillFallbackRegions({
+        geometries:
+            progress >= 0.5
+                ? [plan.nextGeometry, params.geometry]
+                : [params.geometry, plan.nextGeometry],
+        ownerToCluster: clusterScene.ownerToCluster,
+    });
+    const displayStarSamples = buildStarAnchorSamples({
+        stars: params.starsForDisplay,
+        ownerToCluster: clusterScene.ownerToCluster,
+        colorUtils: params.colorUtils,
+        strengthMult: params.starMetaballWeight,
+        debugState: 'static',
+    });
+    const targetStarSamples = buildStarAnchorSamples({
+        stars: params.input.stars,
+        ownerToCluster: clusterScene.ownerToCluster,
+        colorUtils: params.colorUtils,
+        strengthMult: params.starMetaballWeight,
+        debugState: 'target',
+    });
     const changedLoopIds = new Set<string>([
         ...plan.prevVSet
             .filter((v) => plan.changedSections.removedSectionIds.has(v.sectionId))
@@ -896,7 +1025,7 @@ function buildPlanScene(params: {
             .map((v) => v.loopId),
     ]);
 
-    const staticSamples = plan.nextVSet
+    const staticPerimeterSamples = plan.nextVSet
         .filter((v) => plan.changedSections.unchangedSectionIds.has(v.sectionId))
         .map((v, index) => {
             const role: TransitionRole = changedLoopIds.has(v.loopId) ? 'preserved' : 'static';
@@ -908,20 +1037,27 @@ function buildPlanScene(params: {
                 label: `${role === 'preserved' ? 'K' : 'S'}${String(index).padStart(2, '0')}`,
             });
         });
+    const staticSamples = [
+        ...staticPerimeterSamples,
+        ...displayStarSamples,
+    ];
 
-    const targetStaticSamples = plan.nextVSet.map((v, index) =>
-        buildPerimeterDebugSampleFromV({
-            v,
-            colorUtils: params.colorUtils,
-            debugState: 'target',
-            transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
-                ? changedLoopIds.has(v.loopId)
-                    ? 'preserved'
-                    : 'static'
-                : 'appearing',
-            label: `T${String(index).padStart(2, '0')}`,
-        }),
-    );
+    const targetStaticSamples = [
+        ...plan.nextVSet.map((v, index) =>
+            buildPerimeterDebugSampleFromV({
+                v,
+                colorUtils: params.colorUtils,
+                debugState: 'target',
+                transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                    ? changedLoopIds.has(v.loopId)
+                        ? 'preserved'
+                        : 'static'
+                    : 'appearing',
+                label: `T${String(index).padStart(2, '0')}`,
+            }),
+        ),
+        ...targetStarSamples,
+    ];
 
     const transitionSamples: PerimeterFieldDebugSample[] = [];
     for (const mover of plan.movers) {
@@ -977,33 +1113,39 @@ function buildPlanScene(params: {
 
     const endpointSamples =
         progress <= 1e-6
-            ? plan.prevVSet.map((v, index) =>
-                  buildPerimeterDebugSampleFromV({
-                      v,
-                      colorUtils: params.colorUtils,
-                      debugState: 'transition-old',
-                      transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
-                          ? changedLoopIds.has(v.loopId)
-                              ? 'preserved'
-                              : 'static'
-                          : 'disappearing',
-                      label: `O${String(index).padStart(2, '0')}`,
-                  }),
-              )
+            ? [
+                  ...plan.prevVSet.map((v, index) =>
+                      buildPerimeterDebugSampleFromV({
+                          v,
+                          colorUtils: params.colorUtils,
+                          debugState: 'transition-old',
+                          transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                              ? changedLoopIds.has(v.loopId)
+                                  ? 'preserved'
+                                  : 'static'
+                              : 'disappearing',
+                          label: `O${String(index).padStart(2, '0')}`,
+                      }),
+                  ),
+                  ...displayStarSamples,
+              ]
             : progress >= 1 - 1e-6
-              ? plan.nextVSet.map((v, index) =>
-                    buildPerimeterDebugSampleFromV({
-                        v,
-                        colorUtils: params.colorUtils,
-                        debugState: 'transition-new',
-                        transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
-                            ? changedLoopIds.has(v.loopId)
-                                ? 'preserved'
-                                : 'static'
-                            : 'appearing',
-                        label: `N${String(index).padStart(2, '0')}`,
-                    }),
-                )
+              ? [
+                    ...plan.nextVSet.map((v, index) =>
+                        buildPerimeterDebugSampleFromV({
+                            v,
+                            colorUtils: params.colorUtils,
+                            debugState: 'transition-new',
+                            transitionRole: plan.changedSections.unchangedSectionIds.has(v.sectionId)
+                                ? changedLoopIds.has(v.loopId)
+                                    ? 'preserved'
+                                    : 'static'
+                                : 'appearing',
+                            label: `N${String(index).padStart(2, '0')}`,
+                        }),
+                    ),
+                    ...targetStarSamples,
+                ]
               : null;
 
     const visibleStaticSamples = sortSamplesByStableKey(
@@ -1052,12 +1194,12 @@ function buildPlanScene(params: {
             dynamicFingerprint,
             sceneFingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
             fingerprint: `${params.geometrySource}:${params.freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
-            influenceRadiusPx: readNumber(
-                params.input,
-                'PERIMETER_FIELD_INFLUENCE_RADIUS',
-                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
-            ),
-            ownershipMarginPx: 0,
+                influenceRadiusPx: params.influenceRadius,
+                ownershipMarginPx: 0,
+                fillOpacityMode: 'owner-mask',
+                winnerMode: 'top-owner',
+                fillFallbackRegions: transitionFillFallbackRegions,
+                borderGeometryMode: 'grid-ribbon',
         },
         debug: {
             displayGeometry: params.geometry,
@@ -1079,6 +1221,7 @@ export function buildPerimeterFieldScene(params: {
     transitionTargetGeometry?: CanonicalGeometrySnapshot | null;
     transitionPlan?: TransitionPlan | null;
     colorUtils: ColorUtils;
+    forcePlanStaticScene?: boolean;
 }): PerimeterFieldBuiltScene {
     const spacing = readNumber(
         params.input,
@@ -1097,6 +1240,16 @@ export function buildPerimeterFieldScene(params: {
         params.input,
         'PERIMETER_FIELD_INFLUENCE_WEIGHT',
         GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT ?? 1.35,
+    );
+    const influenceRadius = readNumber(
+        params.input,
+        'PERIMETER_FIELD_INFLUENCE_RADIUS',
+        GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
+    );
+    const starMetaballWeight = readNumber(
+        params.input,
+        'PERIMETER_FIELD_STAR_METABALL_WEIGHT',
+        GAME_CONFIG.PERIMETER_FIELD_STAR_METABALL_WEIGHT ?? 4.3,
     );
     const oldFade = readNumber(
         params.input,
@@ -1127,6 +1280,7 @@ export function buildPerimeterFieldScene(params: {
     const canUsePlanEngine =
         transitionEngine === 'plan' &&
         (params.transitionPlan != null ||
+            params.forcePlanStaticScene === true ||
             (!params.input.activeTransition && hasUsableFrontierTopology(params.geometry)));
     if (canUsePlanEngine) {
         return finalizeBuiltScene(buildPlanScene({
@@ -1138,6 +1292,8 @@ export function buildPerimeterFieldScene(params: {
             spacing,
             offsetPx,
             strength,
+            influenceRadius,
+            starMetaballWeight,
             geometrySource,
             freezeBase,
         }), {
@@ -1147,7 +1303,22 @@ export function buildPerimeterFieldScene(params: {
         });
     }
 
-    const clusterScene = buildOwnerClusterScene(params.starsForDisplay, params.colorUtils);
+    const clusterScene = buildOwnerClusterScene(params.starsForDisplay, params.colorUtils, [
+        ...collectGeometryOwners(params.geometry),
+        ...(params.transitionTargetGeometry
+            ? collectGeometryOwners(params.transitionTargetGeometry)
+            : []),
+        ...collectStarOwners(params.input.stars),
+    ]);
+    const fallbackFillRegions = buildFillFallbackRegions({
+        geometries:
+            params.input.activeTransition && params.transitionTargetGeometry
+                ? (params.input.activeTransition.progress ?? 0) >= 0.5
+                    ? [params.transitionTargetGeometry, params.geometry]
+                    : [params.geometry, params.transitionTargetGeometry]
+                : [params.geometry],
+        ownerToCluster: clusterScene.ownerToCluster,
+    });
     const displaySourceData = getCachedPerimeterSourceData({
         geometry: params.geometry,
         ownerToCluster: clusterScene.ownerToCluster,
@@ -1186,11 +1357,33 @@ export function buildPerimeterFieldScene(params: {
                   transitionSamples: [],
                   excludedStaticSampleIds: new Set<string>(),
               };
+    const displayStarSamples = buildStarAnchorSamples({
+        stars: params.starsForDisplay,
+        ownerToCluster: clusterScene.ownerToCluster,
+        colorUtils: params.colorUtils,
+        strengthMult: starMetaballWeight,
+        debugState: 'static',
+    });
+    const targetStarSamples = params.transitionTargetGeometry
+        ? buildStarAnchorSamples({
+              stars: params.input.stars,
+              ownerToCluster: clusterScene.ownerToCluster,
+              colorUtils: params.colorUtils,
+              strengthMult: starMetaballWeight,
+              debugState: 'target',
+          })
+        : [];
 
-    const staticSamples = displaySourceData.flattenedSamples.filter(
-        (sample) => !sample.id || !excludedStaticSampleIds.has(sample.id),
-    );
-    const targetStaticSamples = targetSourceData?.flattenedSamples ?? [];
+    const staticSamples = [
+        ...displaySourceData.flattenedSamples.filter(
+            (sample) => !sample.id || !excludedStaticSampleIds.has(sample.id),
+        ),
+        ...displayStarSamples,
+    ];
+    const targetStaticSamples = [
+        ...(targetSourceData?.flattenedSamples ?? []),
+        ...targetStarSamples,
+    ];
     const visibleStaticSamples = sortSamplesByStableKey(
         staticSamples.filter((sample) => sample.strength > 1e-6),
     );
@@ -1228,12 +1421,12 @@ export function buildPerimeterFieldScene(params: {
             dynamicFingerprint,
             sceneFingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
             fingerprint: `${geometrySource}:${freezeBase ? 1 : 0}:${staticFingerprint}::${dynamicFingerprint}`,
-            influenceRadiusPx: readNumber(
-                params.input,
-                'PERIMETER_FIELD_INFLUENCE_RADIUS',
-                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ?? 52,
-            ),
-            ownershipMarginPx: 0,
+        influenceRadiusPx: influenceRadius,
+        ownershipMarginPx: 0,
+        fillOpacityMode: 'owner-mask',
+        winnerMode: 'top-owner',
+        fillFallbackRegions: fallbackFillRegions,
+        borderGeometryMode: 'grid-ribbon',
         },
         debug: {
             displayGeometry: params.geometry,

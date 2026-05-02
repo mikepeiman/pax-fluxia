@@ -49,6 +49,10 @@ interface SceneLike {
     sceneFingerprint?: string;
     staticFingerprint?: string;
     dynamicFingerprint?: string;
+    solveBounds?: {
+        width?: number;
+        height?: number;
+    };
     ownedStars?: readonly unknown[];
     staticSamples?: readonly unknown[];
     dynamicSamples?: readonly unknown[];
@@ -248,11 +252,16 @@ export function summarizeScene(scene: SceneLike): string {
         (sum, ships) => sum + ships,
         0,
     );
+    const solveBoundsSummary =
+        scene.solveBounds != null
+            ? `${Math.round(scene.solveBounds.width ?? 0)}x${Math.round(scene.solveBounds.height ?? 0)}`
+            : 'full';
     return [
         `fingerprint=${scene.sceneFingerprint ?? "none"}`,
         `staticSamples=${scene.staticSamples?.length ?? 0}`,
         `dynamicSamples=${scene.dynamicSamples?.length ?? 0}`,
         `samples=${sampleCount}`,
+        `bounds=${solveBoundsSummary}`,
         `ownedStars=${scene.ownedStars?.length ?? 0}`,
         `clusterShips=${Math.round(totalClusterShips)}`,
     ].join(" ");

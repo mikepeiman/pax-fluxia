@@ -224,6 +224,53 @@ function uploadTerritoryTexture(): void {
     territoryTextureSource?.update();
 }
 
+function buildSolveBoundsFingerprint(bounds: MetaballSolveBounds): string {
+    return [
+        Math.round(bounds.minX * 10),
+        Math.round(bounds.minY * 10),
+        Math.round(bounds.maxX * 10),
+        Math.round(bounds.maxY * 10),
+    ].join(':');
+}
+
+function resolveMetaballGridFrame(params: {
+    worldWidth: number;
+    worldHeight: number;
+    coverage: number;
+    cellSize: number;
+    solveBounds?: MetaballSolveBounds;
+}): {
+    gridOriginX: number;
+    gridOriginY: number;
+    gridW: number;
+    gridH: number;
+} {
+    if (params.solveBounds) {
+        const gridOriginX =
+            Math.floor(params.solveBounds.minX / params.cellSize) * params.cellSize;
+        const gridOriginY =
+            Math.floor(params.solveBounds.minY / params.cellSize) * params.cellSize;
+        const maxX =
+            Math.ceil(params.solveBounds.maxX / params.cellSize) * params.cellSize;
+        const maxY =
+            Math.ceil(params.solveBounds.maxY / params.cellSize) * params.cellSize;
+        return {
+            gridOriginX,
+            gridOriginY,
+            gridW: Math.max(params.cellSize, maxX - gridOriginX),
+            gridH: Math.max(params.cellSize, maxY - gridOriginY),
+        };
+    }
+
+    const pad = Math.max(params.worldWidth, params.worldHeight) * params.coverage;
+    return {
+        gridOriginX: -pad,
+        gridOriginY: -pad,
+        gridW: params.worldWidth + pad * 2,
+        gridH: params.worldHeight + pad * 2,
+    };
+}
+
 export interface MetaballRenderOptions {
     /** When set, enables combat/recency border boosts from Star lastCombatTick / lastAttackTick */
     gameTick?: number;
@@ -231,6 +278,12 @@ export interface MetaballRenderOptions {
     sceneInput?: MetaballSceneInput;
     /** Optional instance-owned runtime; when omitted the legacy singleton runtime is used. */
     runtime?: MetaballRendererRuntime;
+    /**
+     * When false, bypass the async worker path and solve immediately on the main
+     * thread. Families that composite multiple metaball layers in one frame use
+     * this to avoid presenting stale base/overlay pairs.
+     */
+    allowWorker?: boolean;
     /** Optional metrics sink used by benchmark tooling. */
     metrics?: MetaballRenderMetrics;
 }
@@ -360,6 +413,30 @@ export interface MetaballInfluenceSample {
     disconnectVirtual?: boolean;
 }
 
+export interface MetaballSolveBounds {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    width?: number;
+    height?: number;
+}
+
+export type MetaballFillOpacityMode = 'influence' | 'owner-mask';
+export type MetaballWinnerMode = 'dominance-filter' | 'top-owner';
+export type MetaballBorderGeometryMode = 'stroke-centerline' | 'grid-ribbon';
+
+export interface MetaballFillFallbackRegion {
+    id?: string;
+    ownerId: string;
+    playerIdx: number;
+    points: ReadonlyArray<[number, number]>;
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
 export interface MetaballSceneInput {
     ownedStars: ReadonlyArray<StarState>;
     clusterMap: ReadonlyMap<string, { clusterIdx: number; ownerId: string }>;
@@ -374,6 +451,11 @@ export interface MetaballSceneInput {
     fingerprint?: string;
     influenceRadiusPx?: number;
     ownershipMarginPx?: number;
+    solveBounds?: MetaballSolveBounds;
+    fillOpacityMode?: MetaballFillOpacityMode;
+    winnerMode?: MetaballWinnerMode;
+    fillFallbackRegions?: ReadonlyArray<MetaballFillFallbackRegion>;
+    borderGeometryMode?: MetaballBorderGeometryMode;
 }
 
 export function computeMetaballStarStrength(
@@ -541,12 +623,49 @@ function buildFingerprint(
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
     fp += `:msr${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
-    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
+    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}`;
     fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
     if (sceneFingerprint) {
         fp += `:scene:${sceneFingerprint}`;
     }
     return fp;
+}
+
+export function buildMetaballCacheFingerprint(params: {
+    stars: ReadonlyArray<StarState>;
+    gameTick: number | undefined;
+    sceneFingerprint?: string;
+    sceneInfluenceRadiusPx?: number;
+    sceneOwnershipMarginPx?: number;
+    sceneFillOpacityMode?: MetaballFillOpacityMode;
+    sceneWinnerMode?: MetaballWinnerMode;
+    sceneBorderGeometryMode?: MetaballBorderGeometryMode;
+    solveBounds?: MetaballSolveBounds | null;
+}): string {
+    let fingerprint = buildFingerprint(
+        params.stars,
+        params.gameTick,
+        params.sceneFingerprint,
+    );
+    if (params.sceneInfluenceRadiusPx !== undefined) {
+        fingerprint += `:sceneRadius:${Math.round(params.sceneInfluenceRadiusPx * 100)}`;
+    }
+    if (params.sceneOwnershipMarginPx !== undefined) {
+        fingerprint += `:sceneMargin:${Math.round(params.sceneOwnershipMarginPx * 100)}`;
+    }
+    if (params.sceneFillOpacityMode) {
+        fingerprint += `:sceneFillMode:${params.sceneFillOpacityMode}`;
+    }
+    if (params.sceneWinnerMode) {
+        fingerprint += `:sceneWinnerMode:${params.sceneWinnerMode}`;
+    }
+    if (params.sceneBorderGeometryMode) {
+        fingerprint += `:sceneBorderMode:${params.sceneBorderGeometryMode}`;
+    }
+    if (params.solveBounds) {
+        fingerprint += `:bounds:${buildSolveBoundsFingerprint(params.solveBounds)}`;
+    }
+    return fingerprint;
 }
 
 function buildColorFingerprint(
@@ -626,6 +745,39 @@ function distPointToSegment(
     return Math.hypot(px - qx, py - qy);
 }
 
+function pointInPolygon(
+    x: number,
+    y: number,
+    points: ReadonlyArray<[number, number]>,
+): boolean {
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const [xi, yi] = points[i]!;
+        const [xj, yj] = points[j]!;
+        const intersects =
+            yi > y !== yj > y &&
+            x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-9) + xi;
+        if (intersects) inside = !inside;
+    }
+    return inside;
+}
+
+function findFillFallbackRegion(
+    regions: ReadonlyArray<MetaballFillFallbackRegion>,
+    x: number,
+    y: number,
+): MetaballFillFallbackRegion | null {
+    for (const region of regions) {
+        if (x < region.minX || x > region.maxX || y < region.minY || y > region.maxY) {
+            continue;
+        }
+        if (pointInPolygon(x, y, region.points)) {
+            return region;
+        }
+    }
+    return null;
+}
+
 function segmentNearHotCombat(
     ax: number,
     ay: number,
@@ -662,6 +814,18 @@ type MetaballCellWinner = {
     secondInf: number;
     secondPlayer: number;
 };
+
+function resolveMetaballFillAlpha(params: {
+    winner: MetaballCellWinner;
+    alpha: number;
+    edgeFade: number;
+    fillOpacityMode: MetaballFillOpacityMode;
+}): number {
+    if (params.fillOpacityMode === 'owner-mask') {
+        return params.alpha;
+    }
+    return Math.min(1, params.winner.maxInf * params.edgeFade) * params.alpha;
+}
 
 /** Resolve winning cluster for one grid cell from a pre-built influence vector */
 function resolveMetaballCellWinner(
@@ -1281,6 +1445,7 @@ function buildMetaballWorkerRequest(params: {
     includeStaticSamples: boolean;
     worldWidth: number;
     worldHeight: number;
+    solveBounds?: MetaballSolveBounds;
     gameTick: number | undefined;
     radius: number;
     falloffType: string;
@@ -1289,7 +1454,9 @@ function buildMetaballWorkerRequest(params: {
     cellSize: number;
     dominanceFilterOn: boolean;
     dominanceMinActive: number;
+    winnerMode: MetaballWinnerMode;
     edgeFade: number;
+    fillOpacityMode: MetaballFillOpacityMode;
     borderWidth: number;
     borderAlpha: number;
     fillSatMult: number;
@@ -1320,6 +1487,14 @@ function buildMetaballWorkerRequest(params: {
         config: {
             worldWidth: params.worldWidth,
             worldHeight: params.worldHeight,
+            solveBounds: params.solveBounds
+                ? {
+                      minX: params.solveBounds.minX,
+                      minY: params.solveBounds.minY,
+                      maxX: params.solveBounds.maxX,
+                      maxY: params.solveBounds.maxY,
+                  }
+                : undefined,
             gameTick: params.gameTick,
             radius: params.radius,
             falloffType: params.falloffType,
@@ -1328,7 +1503,9 @@ function buildMetaballWorkerRequest(params: {
             cellSize: params.cellSize,
             dominanceFilterOn: params.dominanceFilterOn,
             dominanceMinActive: params.dominanceMinActive,
+            winnerMode: params.winnerMode,
             edgeFade: params.edgeFade,
+            fillOpacityMode: params.fillOpacityMode,
             borderWidth: params.borderWidth,
             borderAlpha: params.borderAlpha,
             fillSatMult: params.fillSatMult,
@@ -1466,9 +1643,8 @@ function commitMetaballWorkerResponse(
                 width: stroke.width,
                 color: stroke.color,
                 alpha: stroke.alpha,
-                cap: 'butt',
-                join: 'miter',
-                miterLimit: 10,
+                cap: 'round',
+                join: 'round',
             });
         }
     }
@@ -1617,6 +1793,7 @@ function renderMetaballImpl(
     const gameTick = options?.gameTick;
     const blurStrengthCfg = Math.max(0, GAME_CONFIG.METABALL_BLUR ?? 0);
     const blurUnifiesBorders = !!GAME_CONFIG.METABALL_BLUR_AFFECTS_BORDERS;
+    const allowWorker = options?.allowWorker ?? true;
 
     if (!show) {
         if (metaballLayer) metaballLayer.visible = false;
@@ -1628,12 +1805,23 @@ function renderMetaballImpl(
     ensureMetaballParenting(container, blurUnifiesBorders, blurStrengthCfg);
     if (!territorySprite || !borderGraphics) return;
 
+    const solveBounds = sceneInput?.solveBounds;
+    const fillOpacityMode = sceneInput?.fillOpacityMode ?? 'influence';
+    const winnerMode = sceneInput?.winnerMode ?? 'dominance-filter';
+    const fillFallbackRegions = sceneInput?.fillFallbackRegions ?? [];
+    const borderGeometryMode = sceneInput?.borderGeometryMode ?? 'stroke-centerline';
     const fingerprint =
-        buildFingerprint(
+        buildMetaballCacheFingerprint({
             stars,
             gameTick,
-            sceneInput?.sceneFingerprint ?? sceneInput?.fingerprint,
-        ) +
+            sceneFingerprint: sceneInput?.sceneFingerprint ?? sceneInput?.fingerprint,
+            sceneInfluenceRadiusPx: sceneInput?.influenceRadiusPx,
+            sceneOwnershipMarginPx: sceneInput?.ownershipMarginPx,
+            sceneFillOpacityMode: fillOpacityMode,
+            sceneWinnerMode: winnerMode,
+            sceneBorderGeometryMode: borderGeometryMode,
+            solveBounds,
+        }) +
         `:${worldWidth}:${worldHeight}` +
         `:colors:${buildColorFingerprint(stars, colorUtils)}`;
     if (fingerprint === cachedFingerprint) {
@@ -1688,6 +1876,7 @@ function renderMetaballImpl(
     const dominanceMinActive = dominanceFilterOn
         ? Math.min(0.999, Math.max(0.5000001, rawDominanceThresh))
         : 0;
+    const useDominanceFilter = winnerMode !== 'top-owner' && dominanceFilterOn;
     const strengthMult = GAME_CONFIG.METABALL_STRENGTH_MULT ?? 1.0;
     const edgeFade = GAME_CONFIG.METABALL_EDGE_FADE ?? 3.0;
     const borderWidth = GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5;
@@ -1769,11 +1958,13 @@ function renderMetaballImpl(
     );
 
     const coverage = GAME_CONFIG.METABALL_COVERAGE ?? 0.3;
-    const pad = Math.max(worldWidth, worldHeight) * coverage;
-    const gridOriginX = -pad;
-    const gridOriginY = -pad;
-    const gridW = worldWidth + pad * 2;
-    const gridH = worldHeight + pad * 2;
+    const { gridOriginX, gridOriginY, gridW, gridH } = resolveMetaballGridFrame({
+        worldWidth,
+        worldHeight,
+        coverage,
+        cellSize,
+        solveBounds,
+    });
 
     const cols = Math.ceil(gridW / cellSize);
     const rows = Math.ceil(gridH / cellSize);
@@ -1826,7 +2017,7 @@ function renderMetaballImpl(
     const dynamicFieldFingerprint =
         dynamicSamples.length > 0 ? buildInfluenceFingerprint(dynamicSamples) : '';
 
-    if (shouldUseMetaballWorker()) {
+    if (allowWorker && shouldUseMetaballWorker()) {
         const workerState = runtime.getWorkerState();
         const requestId = workerState.nextRequestId++;
         const includeStaticSamples =
@@ -1843,6 +2034,7 @@ function renderMetaballImpl(
                     includeStaticSamples,
                     worldWidth,
                     worldHeight,
+                    solveBounds,
                     gameTick,
                     radius,
                     falloffType,
@@ -1851,7 +2043,9 @@ function renderMetaballImpl(
                     cellSize,
                     dominanceFilterOn,
                     dominanceMinActive,
+                    winnerMode,
                     edgeFade,
+                    fillOpacityMode,
                     borderWidth,
                     borderAlpha,
                     fillSatMult,
@@ -2103,7 +2297,7 @@ function renderMetaballImpl(
                 offset,
                 numPlayers,
                 forcedPlayer,
-                dominanceFilterOn,
+                useDominanceFilter,
                 dominanceMinActive,
             );
             if (!wGeom) continue;
@@ -2116,7 +2310,7 @@ function renderMetaballImpl(
                     offset,
                     numPlayers,
                     forcedPlayer,
-                    dominanceFilterOn,
+                    useDominanceFilter,
                     dominanceMinActive,
                 );
                 if (!realWinner || realWinner.maxPlayer !== wGeom.maxPlayer) continue;
@@ -2147,7 +2341,12 @@ function renderMetaballImpl(
 
             [r, g, b] = applyFillHSL(r, g, b, 0, fillSatMult, fillLightMult);
 
-            const fadeAlpha = Math.min(1, fillWinner.maxInf * edgeFade) * alpha;
+            const fadeAlpha = resolveMetaballFillAlpha({
+                winner: fillWinner,
+                alpha,
+                edgeFade,
+                fillOpacityMode,
+            });
             if (fadeAlpha < 0.01) continue;
 
             const pixelOffset = idx * 4;
@@ -2164,6 +2363,51 @@ function renderMetaballImpl(
                 0,
                 Math.min(255, Math.round(fadeAlpha * 255)),
             );
+        }
+    }
+
+    if (fillFallbackRegions.length > 0) {
+        const fallbackAlphaByte = Math.max(
+            0,
+            Math.min(255, Math.round(alpha * 255)),
+        );
+        if (fallbackAlphaByte > 0) {
+            for (let row = 0; row < rows; row++) {
+                const py = rowCenters[row];
+                const rowOffset = rowStart[row];
+                for (let col = 0; col < cols; col++) {
+                    const idx = rowOffset + col;
+                    if (ownerGridGeom[idx] >= 0) continue;
+                    const px = colCenters[col];
+                    const region = findFillFallbackRegion(fillFallbackRegions, px, py);
+                    if (!region) continue;
+                    const color = playerColors[region.playerIdx];
+                    if (!color) continue;
+                    ownerGridGeom[idx] = region.playerIdx;
+                    let [r, g, b] = applyFillHSL(
+                        color[0],
+                        color[1],
+                        color[2],
+                        0,
+                        fillSatMult,
+                        fillLightMult,
+                    );
+                    const pixelOffset = idx * 4;
+                    territoryPixels[pixelOffset] = Math.max(
+                        0,
+                        Math.min(255, Math.round(r)),
+                    );
+                    territoryPixels[pixelOffset + 1] = Math.max(
+                        0,
+                        Math.min(255, Math.round(g)),
+                    );
+                    territoryPixels[pixelOffset + 2] = Math.max(
+                        0,
+                        Math.min(255, Math.round(b)),
+                    );
+                    territoryPixels[pixelOffset + 3] = fallbackAlphaByte;
+                }
+            }
         }
     }
 
@@ -2322,7 +2566,9 @@ function renderMetaballImpl(
             const aMul = 1 + (combatNear ? combatABoost : 0) + forceRatioScale * imbalance * 0.5;
             const w = wMul * borderWidth;
             const a = Math.min(1, borderAlpha * aMul);
-            const sk = `${s.color}:${w.toFixed(2)}:${a.toFixed(3)}`;
+            const pairLo = Math.min(s.lo, s.ro);
+            const pairRo = Math.max(s.lo, s.ro);
+            const sk = `${pairLo}:${pairRo}:${s.color}:${w.toFixed(2)}:${a.toFixed(3)}`;
             const list = byStyle.get(sk);
             if (list) list.push(s);
             else byStyle.set(sk, [s]);
@@ -2330,10 +2576,37 @@ function renderMetaballImpl(
 
         for (const [sk, segs] of byStyle) {
             const parts = sk.split(':');
-            const color = +parts[0];
-            const w = +parts[1];
-            const a = +parts[2];
+            const color = +parts[2];
+            const w = +parts[3];
+            const a = +parts[4];
             const baseSegs: MergedSeg[] = segs.map(({ ax, ay, bx, by }) => ({ ax, ay, bx, by }));
+            if (borderGeometryMode === 'grid-ribbon') {
+                borderGraphics.beginPath();
+                let drewFill = false;
+                for (const seg of baseSegs) {
+                    if (Math.abs(seg.ax - seg.bx) < EPS) {
+                        const x = seg.ax - w / 2;
+                        const y = Math.min(seg.ay, seg.by);
+                        const h = Math.abs(seg.by - seg.ay);
+                        if (h < EPS) continue;
+                        borderGraphics.rect(x, y, w, h);
+                        drewFill = true;
+                        continue;
+                    }
+                    if (Math.abs(seg.ay - seg.by) < EPS) {
+                        const x = Math.min(seg.ax, seg.bx);
+                        const y = seg.ay - w / 2;
+                        const width = Math.abs(seg.bx - seg.ax);
+                        if (width < EPS) continue;
+                        borderGraphics.rect(x, y, width, w);
+                        drewFill = true;
+                    }
+                }
+                if (drewFill) {
+                    borderGraphics.fill({ color, alpha: a });
+                }
+                continue;
+            }
             const chains = chainSegmentsToPolylines(baseSegs);
             borderGraphics.beginPath();
             let drewStroke = false;
@@ -2354,9 +2627,8 @@ function renderMetaballImpl(
                     width: w,
                     color,
                     alpha: a,
-                    cap: 'butt',
-                    join: 'miter',
-                    miterLimit: 10,
+                    cap: 'round',
+                    join: 'round',
                 });
             }
         }

@@ -60,4 +60,55 @@ describe('buildPowerVoronoiFrontierTopology', () => {
             ),
         ).toBe(true);
     });
+
+    it('normalizes owner-world loop winding so outer loops stay positive', () => {
+        const worldBorderPolylines: SharedPolyline[] = [
+            {
+                ownerPairKey: 'red|world',
+                color: 0,
+                points: [
+                    [0, 0],
+                    [0, 100],
+                ],
+            },
+            {
+                ownerPairKey: 'red|world',
+                color: 0,
+                points: [
+                    [0, 100],
+                    [100, 100],
+                ],
+            },
+            {
+                ownerPairKey: 'red|world',
+                color: 0,
+                points: [
+                    [100, 100],
+                    [100, 0],
+                ],
+            },
+            {
+                ownerPairKey: 'red|world',
+                color: 0,
+                points: [
+                    [100, 0],
+                    [0, 0],
+                ],
+            },
+        ];
+
+        const result = buildPowerVoronoiFrontierTopology({
+            sharedPolylines: [],
+            worldBorderPolylines,
+            ownershipVersion: 'test',
+            worldWidth: 100,
+            worldHeight: 100,
+            fingerprint: 'square-world-border-ccw',
+        });
+
+        expect(result.topologyReliable).toBe(true);
+        expect(result.topology.loops).toHaveLength(1);
+        expect(result.topology.loops[0]?.signedArea).toBeGreaterThan(0);
+        expect(result.topology.loops[0]?.sectionRefs).toHaveLength(4);
+    });
 });

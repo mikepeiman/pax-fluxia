@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     createMetaballRuntime,
     renderMetaball,
@@ -18,10 +19,17 @@ import {
     type MetaballStaticScene,
 } from './buildMetaballScene';
 import {
+    buildDerivedMetaballSceneInput,
+    buildLocalizedMetaballSceneInput,
+    buildMetaballTransitionSolveBounds,
+    updateMetaballLocalOverlayMask,
+} from './metaballLocalOverlay';
+import {
     reconcileMetaballConquestCache,
     type MetaballConquestCacheEntry,
 } from './metaballConquestTransitions';
 import { measurePerf } from '$lib/perf/perfProbe';
+import { readTunableNumber } from './metaballSceneBase';
 
 const METABALL_TUNABLE_KEYS = [
     'MODIFIED_VORONOI_STAR_MARGIN',
@@ -109,14 +117,45 @@ export class MetaballFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = METABALL_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
+    private readonly baseLayer = new PIXI.Container();
+    private readonly baseRenderLayer = new PIXI.Container();
+    private readonly baseCutoutMask = new PIXI.Graphics();
+    private readonly overlayLayer = new PIXI.Container();
+    private readonly overlayRenderLayer = new PIXI.Container();
     private readonly colorUtils: ColorUtils;
-    private readonly runtime: MetaballRendererRuntime = createMetaballRuntime();
+    private readonly baseRuntime: MetaballRendererRuntime = createMetaballRuntime();
+    private readonly overlayRuntime: MetaballRendererRuntime = createMetaballRuntime();
     private readonly conquestCache = new Map<string, MetaballConquestCacheEntry>();
     private staticSceneKey: string | null = null;
     private staticScene: MetaballStaticScene | null = null;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
+        this.rebuildDisplayGraph();
+    }
+
+    private rebuildDisplayGraph(): void {
+        this.root.removeChildren();
+        this.baseLayer.removeChildren();
+        this.overlayLayer.removeChildren();
+        this.baseLayer.addChild(this.baseRenderLayer);
+        this.baseLayer.addChild(this.baseCutoutMask);
+        this.overlayLayer.addChild(this.overlayRenderLayer);
+        this.root.addChild(this.baseLayer);
+        this.root.addChild(this.overlayLayer);
+    }
+
+    private ensureDisplayGraph(): void {
+        if (
+            this.baseLayer.parent === this.root &&
+            this.overlayLayer.parent === this.root &&
+            this.baseRenderLayer.parent === this.baseLayer &&
+            this.baseCutoutMask.parent === this.baseLayer &&
+            this.overlayRenderLayer.parent === this.overlayLayer
+        ) {
+            return;
+        }
+        this.rebuildDisplayGraph();
     }
 
     /** PIXI root for this family (detach when switching to another render mode). */
@@ -126,6 +165,7 @@ export class MetaballFamily implements RenderFamily {
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
         return measurePerf('territory.metaballFamily.update', () => {
+            this.ensureDisplayGraph();
             reconcileMetaballConquestCache({
                 input,
                 colorUtils: this.colorUtils,
@@ -172,7 +212,7 @@ export class MetaballFamily implements RenderFamily {
                         nowMs: input.nowMs,
                         paused: input.paused,
                         activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership.version,
+                        ownershipVersion: input.ownership?.version ?? null,
                         geometryVersion: input.geometry?.version ?? null,
                     },
                     staticSceneCacheHit,
@@ -188,10 +228,146 @@ export class MetaballFamily implements RenderFamily {
                 totalMs: 0,
                 reusedFingerprint: false,
             };
+            const overlayRenderMetrics: MetaballRenderMetrics = {
+                solveMs: 0,
+                textureUploadMs: 0,
+                borderMs: 0,
+                totalMs: 0,
+                reusedFingerprint: false,
+            };
+            const influenceRadiusPx = readTunableNumber(
+                input,
+                'METABALL_INFLUENCE_RADIUS',
+                GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 90,
+            );
+            const blurPx = Math.max(
+                0,
+                readTunableNumber(
+                    input,
+                    'METABALL_BLUR',
+                    GAME_CONFIG.METABALL_BLUR ?? 0,
+                ),
+            );
+            const borderWidth = Math.max(
+                0,
+                readTunableNumber(
+                    input,
+                    'METABALL_BORDER_WIDTH',
+                    GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5,
+                ),
+            );
+            const cellSize = Math.max(
+                1,
+                readTunableNumber(
+                    input,
+                    'METABALL_CELL_SIZE',
+                    GAME_CONFIG.METABALL_CELL_SIZE ?? 10,
+                ),
+            );
+            const coverage = Math.max(
+                0,
+                readTunableNumber(
+                    input,
+                    'METABALL_COVERAGE',
+                    GAME_CONFIG.METABALL_COVERAGE ?? 0.25,
+                ),
+            );
+            const solveBounds = this.staticScene
+                ? buildMetaballTransitionSolveBounds({
+                      input,
+                      baseContext: this.staticScene.baseContext,
+                      conquestCache: this.conquestCache,
+                      influenceRadiusPx,
+                      blurPx,
+                      borderWidth,
+                      cellSize,
+                  })
+                : null;
+            const shouldUseLocalOverlay =
+                Boolean(solveBounds) &&
+                (sceneInput.dynamicSamples?.length ?? 0) > 0 &&
+                Boolean(input.activeTransition?.events.length);
+            const displayPad =
+                Math.max(input.world.width, input.world.height) * coverage +
+                influenceRadiusPx * 2 +
+                blurPx * 6 +
+                borderWidth * 2;
+            const displayBounds = {
+                minX: -displayPad,
+                minY: -displayPad,
+                maxX: input.world.width + displayPad,
+                maxY: input.world.height + displayPad,
+            };
             measurePerf('territory.metaballFamily.render', () => {
+                if (shouldUseLocalOverlay && solveBounds) {
+                    const baseSceneInput = buildDerivedMetaballSceneInput({
+                        sceneInput,
+                        staticSamples: sceneInput.staticSamples ?? [],
+                        dynamicSamples: [],
+                        sceneTag: 'staticBase',
+                    });
+                    const overlaySceneInput = buildLocalizedMetaballSceneInput({
+                        sceneInput,
+                        solveBounds,
+                        sampleMarginPx: influenceRadiusPx * 2,
+                        sceneTag: 'localOverlay',
+                    });
+
+                    updateMetaballLocalOverlayMask({
+                        baseRenderLayer: this.baseRenderLayer,
+                        baseMask: this.baseCutoutMask,
+                        solveBounds,
+                        displayBounds,
+                    });
+                    this.baseLayer.visible = true;
+                    renderMetaball(
+                        input.stars,
+                        this.baseRenderLayer,
+                        this.colorUtils,
+                        input.world.width,
+                        input.world.height,
+                        input.lanes,
+                        {
+                            gameTick: input.gameTick,
+                            sceneInput: baseSceneInput,
+                            runtime: this.baseRuntime,
+                            allowWorker: false,
+                            metrics: renderMetrics,
+                        },
+                    );
+
+                    this.overlayLayer.visible = overlaySceneInput.samples.length > 0;
+                    if (this.overlayLayer.visible) {
+                        renderMetaball(
+                            input.stars,
+                            this.overlayRenderLayer,
+                            this.colorUtils,
+                            input.world.width,
+                            input.world.height,
+                            input.lanes,
+                            {
+                                gameTick: input.gameTick,
+                                sceneInput: overlaySceneInput,
+                                runtime: this.overlayRuntime,
+                                allowWorker: false,
+                                metrics: overlayRenderMetrics,
+                            },
+                        );
+                    }
+                    return;
+                }
+
+                updateMetaballLocalOverlayMask({
+                    baseRenderLayer: this.baseRenderLayer,
+                    baseMask: this.baseCutoutMask,
+                    solveBounds: null,
+                    displayBounds,
+                });
+                this.baseLayer.visible = true;
+                this.overlayLayer.visible = false;
                 renderMetaball(
                     input.stars,
-                    this.root,
+                    this.baseRenderLayer,
                     this.colorUtils,
                     input.world.width,
                     input.world.height,
@@ -199,7 +375,8 @@ export class MetaballFamily implements RenderFamily {
                     {
                         gameTick: input.gameTick,
                         sceneInput,
-                        runtime: this.runtime,
+                        runtime: this.baseRuntime,
+                        allowWorker: false,
                         metrics: renderMetrics,
                     },
                 );
@@ -211,16 +388,22 @@ export class MetaballFamily implements RenderFamily {
                 from: 'MetaballSceneInput',
                 to: 'PIXI display root',
                 purpose: 'Upload metaball texture and borders for presentation',
-                summary: summarizeRendererMetrics(renderMetrics),
+                summary:
+                    shouldUseLocalOverlay && solveBounds
+                        ? `base{${summarizeRendererMetrics(renderMetrics)}} overlay{${summarizeRendererMetrics(overlayRenderMetrics)}}`
+                        : summarizeRendererMetrics(renderMetrics),
                 perfEventName: 'territory.metaball.familyRendered',
                 perfDetail: {
                     sceneFingerprint: sceneInput.sceneFingerprint,
                     staticSceneCacheHit,
+                    localOverlay: shouldUseLocalOverlay,
                 },
                 logDetail: {
                     sceneFingerprint: sceneInput.sceneFingerprint,
                     staticSceneCacheHit,
+                    solveBounds,
                     renderMetrics,
+                    overlayRenderMetrics,
                 },
             });
             return { container: this.root };
@@ -228,11 +411,14 @@ export class MetaballFamily implements RenderFamily {
     }
 
     dispose(): void {
-        this.runtime.dispose();
+        this.baseRuntime.dispose();
+        this.overlayRuntime.dispose();
         this.conquestCache.clear();
         this.staticSceneKey = null;
         this.staticScene = null;
-        this.root.removeChildren();
+        this.baseRenderLayer.mask = null;
+        this.baseCutoutMask.clear();
+        this.rebuildDisplayGraph();
     }
 }
 

@@ -95,6 +95,27 @@ function buildPerimeterSectionPoints(
     return flattenRegionLoopPoints(loop, sections);
 }
 
+function reverseLoopSectionRefs(sectionRefs: ReadonlyArray<RegionLoop['sectionRefs'][number]>):
+    RegionLoop['sectionRefs'] {
+    return [...sectionRefs]
+        .reverse()
+        .map((ref) => ({
+            sectionId: ref.sectionId,
+            direction: ref.direction === 'forward' ? 'reverse' : 'forward',
+        }));
+}
+
+function normalizeLoopForSampling(loop: RegionLoop): RegionLoop {
+    if (loop.signedArea >= 0) return loop;
+    return {
+        ...loop,
+        // Defend against stale or pre-normalized topology snapshots so plan-mode
+        // sampling stays coverage-complete even if an outer loop arrives reversed.
+        sectionRefs: reverseLoopSectionRefs(loop.sectionRefs),
+        signedArea: Math.abs(loop.signedArea),
+    };
+}
+
 function interpolateAlongPolyline(
     points: ReadonlyArray<[number, number]>,
     targetArclength: number,
@@ -321,7 +342,8 @@ export function sampleVSetFromGeometry(params: {
 
     const vs: PerimeterV[] = [];
     const loops = [...topology.loops]
-        .filter((loop) => loop.signedArea > 0 && Boolean(loop.ownerId))
+        .filter((loop) => Math.abs(loop.signedArea) > 1e-6 && Boolean(loop.ownerId))
+        .map(normalizeLoopForSampling)
         .sort((a, b) => a.id.localeCompare(b.id));
 
     for (const loop of loops) {

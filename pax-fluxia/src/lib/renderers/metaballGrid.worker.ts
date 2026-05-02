@@ -16,6 +16,18 @@ type MetaballCellWinner = {
     secondPlayer: number;
 };
 
+function resolveFillAlpha(params: {
+    winner: MetaballCellWinner;
+    alpha: number;
+    edgeFade: number;
+    fillOpacityMode: 'influence' | 'owner-mask';
+}): number {
+    if (params.fillOpacityMode === 'owner-mask') {
+        return params.alpha;
+    }
+    return Math.min(1, params.winner.maxInf * params.edgeFade) * params.alpha;
+}
+
 type MergedSeg = { ax: number; ay: number; bx: number; by: number };
 
 const EPS = 1e-4;
@@ -123,6 +135,38 @@ function buildGridKey(
         Math.round(gridOriginY * 100),
         Math.round(cellSize * 100),
     ].join(':');
+}
+
+function resolveMetaballGridFrame(config: MetaballWorkerRequest['config']): {
+    gridOriginX: number;
+    gridOriginY: number;
+    gridW: number;
+    gridH: number;
+} {
+    if (config.solveBounds) {
+        const gridOriginX =
+            Math.floor(config.solveBounds.minX / config.cellSize) * config.cellSize;
+        const gridOriginY =
+            Math.floor(config.solveBounds.minY / config.cellSize) * config.cellSize;
+        const maxX =
+            Math.ceil(config.solveBounds.maxX / config.cellSize) * config.cellSize;
+        const maxY =
+            Math.ceil(config.solveBounds.maxY / config.cellSize) * config.cellSize;
+        return {
+            gridOriginX,
+            gridOriginY,
+            gridW: Math.max(config.cellSize, maxX - gridOriginX),
+            gridH: Math.max(config.cellSize, maxY - gridOriginY),
+        };
+    }
+
+    const pad = Math.max(config.worldWidth, config.worldHeight) * config.coverage;
+    return {
+        gridOriginX: -pad,
+        gridOriginY: -pad,
+        gridW: config.worldWidth + pad * 2,
+        gridH: config.worldHeight + pad * 2,
+    };
 }
 
 function ensureGridRuntime(
@@ -460,11 +504,8 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
     const totalStart = performance.now();
     const { config } = input;
     const numPlayers = input.playerColors.length;
-    const pad = Math.max(config.worldWidth, config.worldHeight) * config.coverage;
-    const gridOriginX = -pad;
-    const gridOriginY = -pad;
-    const gridW = config.worldWidth + pad * 2;
-    const gridH = config.worldHeight + pad * 2;
+    const { gridOriginX, gridOriginY, gridW, gridH } =
+        resolveMetaballGridFrame(config);
     const cols = Math.ceil(gridW / config.cellSize);
     const rows = Math.ceil(gridH / config.cellSize);
     const cellCount = cols * rows;
@@ -540,6 +581,8 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
     const ownerGridGeom = new Int16Array(cellCount);
     ownerGridGeom.fill(-1);
     const msrOwnerGrid = config.msrPx > 0 ? new Int16Array(cellCount) : null;
+    const useDominanceFilter =
+        config.winnerMode !== 'top-owner' && config.dominanceFilterOn;
     const classificationStart = performance.now();
     if (msrOwnerGrid) {
         msrOwnerGrid.fill(-1);
@@ -575,7 +618,7 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
                 offset,
                 numPlayers,
                 forcedPlayer,
-                config.dominanceFilterOn,
+                useDominanceFilter,
                 config.dominanceMinActive,
             );
             if (!geomWinner) continue;
@@ -588,7 +631,7 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
                     offset,
                     numPlayers,
                     forcedPlayer,
-                    config.dominanceFilterOn,
+                    useDominanceFilter,
                     config.dominanceMinActive,
                 );
                 if (!realWinner || realWinner.maxPlayer !== geomWinner.maxPlayer) continue;
@@ -613,7 +656,12 @@ function solveMetaballFrame(input: MetaballWorkerRequest): Omit<MetaballWorkerRe
             }
 
             [r, g, b] = applyFillHSL(r, g, b, config.fillSatMult, config.fillLightMult);
-            const fadeAlpha = Math.min(1, fillWinner.maxInf * config.edgeFade) * config.alpha;
+            const fadeAlpha = resolveFillAlpha({
+                winner: fillWinner,
+                alpha: config.alpha,
+                edgeFade: config.edgeFade,
+                fillOpacityMode: config.fillOpacityMode,
+            });
             if (fadeAlpha < 0.01) continue;
 
             const pixelOffset = idx * 4;

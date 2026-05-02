@@ -19,6 +19,12 @@ export interface MetaballWorkerStar {
 export interface MetaballWorkerConfig {
     worldWidth: number;
     worldHeight: number;
+    solveBounds?: {
+        minX: number;
+        minY: number;
+        maxX: number;
+        maxY: number;
+    };
     gameTick?: number;
     radius: number;
     falloffType: string;
@@ -27,7 +33,9 @@ export interface MetaballWorkerConfig {
     cellSize: number;
     dominanceFilterOn: boolean;
     dominanceMinActive: number;
+    winnerMode: 'dominance-filter' | 'top-owner';
     edgeFade: number;
+    fillOpacityMode: 'influence' | 'owner-mask';
     borderWidth: number;
     borderAlpha: number;
     fillSatMult: number;

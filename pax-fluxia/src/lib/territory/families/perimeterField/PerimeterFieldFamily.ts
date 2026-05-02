@@ -30,6 +30,13 @@ import {
 } from './buildPerimeterFieldScene';
 import type { TransitionPlan } from './perimeterFieldTransitionTypes';
 import { measurePerf } from '$lib/perf/perfProbe';
+import { GAME_CONFIG } from '$lib/config/game.config';
+import {
+    buildDerivedMetaballSceneInput,
+    buildLocalizedMetaballSceneInput,
+    buildPerimeterFieldSolveBounds,
+} from './perimeterFieldLocalOverlay';
+import { updateMetaballLocalOverlayMask } from '../metaball/metaballLocalOverlay';
 
 const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_GEOMETRY_SOURCE',
@@ -38,6 +45,7 @@ const PERIMETER_FIELD_TUNABLE_KEYS = [
     'PERIMETER_FIELD_INWARD_OFFSET_PX',
     'PERIMETER_FIELD_INFLUENCE_RADIUS',
     'PERIMETER_FIELD_INFLUENCE_WEIGHT',
+    'PERIMETER_FIELD_STAR_METABALL_WEIGHT',
     'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
     'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
     'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
@@ -143,8 +151,14 @@ export class PerimeterFieldFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = PERIMETER_FIELD_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
+    private readonly baseLayer = new PIXI.Container();
+    private readonly baseRenderLayer = new PIXI.Container();
+    private readonly baseCutoutMask = new PIXI.Graphics();
+    private readonly overlayLayer = new PIXI.Container();
+    private readonly overlayRenderLayer = new PIXI.Container();
     private readonly colorUtils: ColorUtils;
-    private readonly runtime: MetaballRendererRuntime = createMetaballRuntime();
+    private readonly baseRuntime: MetaballRendererRuntime = createMetaballRuntime();
+    private readonly overlayRuntime: MetaballRendererRuntime = createMetaballRuntime();
     private sessionKey: string | null = null;
     private oldGeometryKey: string | null = null;
     private oldGeometry: CanonicalGeometrySnapshot | null = null;
@@ -154,6 +168,31 @@ export class PerimeterFieldFamily implements RenderFamily {
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
+        this.rebuildDisplayGraph();
+    }
+
+    private rebuildDisplayGraph(): void {
+        this.root.removeChildren();
+        this.baseLayer.removeChildren();
+        this.overlayLayer.removeChildren();
+        this.baseLayer.addChild(this.baseRenderLayer);
+        this.baseLayer.addChild(this.baseCutoutMask);
+        this.overlayLayer.addChild(this.overlayRenderLayer);
+        this.root.addChild(this.baseLayer);
+        this.root.addChild(this.overlayLayer);
+    }
+
+    private ensureDisplayGraph(): void {
+        if (
+            this.baseLayer.parent === this.root &&
+            this.overlayLayer.parent === this.root &&
+            this.baseRenderLayer.parent === this.baseLayer &&
+            this.baseCutoutMask.parent === this.baseLayer &&
+            this.overlayRenderLayer.parent === this.overlayLayer
+        ) {
+            return;
+        }
+        this.rebuildDisplayGraph();
     }
 
     get displayRoot(): PIXI.Container {
@@ -203,11 +242,12 @@ export class PerimeterFieldFamily implements RenderFamily {
             colorUtils: this.colorUtils,
         });
 
-        return { builtScene, displayStars };
+        return { builtScene, displayStars, displayGeometry };
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
         return measurePerf('territory.perimeterFieldFamily.update', () => {
+            this.ensureDisplayGraph();
             const nextSessionKey = buildSessionKey(input);
             if (this.sessionKey !== nextSessionKey) {
                 this.sessionKey = nextSessionKey;
@@ -220,6 +260,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                 this.lastDebugSnapshot = null;
                 return { container: this.root };
             }
+            this.root.visible = true;
             logPipelineStage({
                 channel: 'renderer',
                 context: 'PerimeterFieldFamily',
@@ -249,19 +290,27 @@ export class PerimeterFieldFamily implements RenderFamily {
                 Boolean(this.transitionPlan);
 
             if (transitionKey && this.oldGeometryKey !== transitionKey) {
-                const revertedStars = revertStarsForTransition(input);
-                this.oldGeometry = measurePerf(
-                    'territory.perimeterFieldFamily.buildOldGeometry',
-                    () =>
-                        buildPerimeterFieldRenderFamilyGeometry({
-                            stars: revertedStars,
-                            lanes: input.lanes,
-                            worldWidth: input.world.width,
-                            worldHeight: input.world.height,
-                            nowMs: input.nowMs,
-                            geometrySource,
-                        }),
-                );
+                const upstreamPrevGeometry =
+                    input.prevGeometry &&
+                    input.prevGeometry.version !== currentGeometry.version
+                        ? input.prevGeometry
+                        : null;
+                this.oldGeometry =
+                    upstreamPrevGeometry ??
+                    measurePerf(
+                        'territory.perimeterFieldFamily.buildOldGeometry',
+                        () => {
+                            const revertedStars = revertStarsForTransition(input);
+                            return buildPerimeterFieldRenderFamilyGeometry({
+                                stars: revertedStars,
+                                lanes: input.lanes,
+                                worldWidth: input.world.width,
+                                worldHeight: input.world.height,
+                                nowMs: input.nowMs,
+                                geometrySource,
+                            });
+                        },
+                    );
                 this.oldGeometryKey = transitionKey;
             } else if (!transitionKey) {
                 this.oldGeometryKey = null;
@@ -330,7 +379,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                 this.transitionPlanKey = null;
             }
 
-            const { builtScene, displayStars } = measurePerf(
+            const { builtScene, displayStars, displayGeometry } = measurePerf(
                 'territory.perimeterFieldFamily.buildScene',
                 () =>
                     this.buildSceneForInput({
@@ -338,7 +387,32 @@ export class PerimeterFieldFamily implements RenderFamily {
                         currentGeometry,
                     }),
             );
-            this.lastDebugSnapshot = builtScene.debug;
+            const influenceRadius =
+                builtScene.sceneInput.influenceRadiusPx ??
+                GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS ??
+                52;
+            const solveBounds =
+                transitionKey &&
+                transitionEngine === 'plan' &&
+                this.transitionPlan
+                    ? buildPerimeterFieldSolveBounds({
+                          plan: this.transitionPlan,
+                          influenceRadiusPx: influenceRadius,
+                          blurPx: Math.max(0, GAME_CONFIG.METABALL_BLUR ?? 0),
+                          borderWidth: Math.max(
+                              0,
+                              GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5,
+                          ),
+                          cellSize: Math.max(
+                              1,
+                              GAME_CONFIG.METABALL_CELL_SIZE ?? 8,
+                          ),
+                      })
+                    : null;
+            this.lastDebugSnapshot = {
+                ...builtScene.debug,
+                solveBounds,
+            };
             logPipelineStage({
                 channel: 'renderer',
                 context: 'PerimeterFieldFamily',
@@ -362,7 +436,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                         nowMs: input.nowMs,
                         paused: input.paused,
                         activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership.version,
+                        ownershipVersion: input.ownership?.version ?? null,
                         geometryVersion: currentGeometry.version,
                         geometrySource,
                         transitionEngine,
@@ -372,22 +446,138 @@ export class PerimeterFieldFamily implements RenderFamily {
                     oldGeometry: this.oldGeometry,
                     transitionPlan: this.transitionPlan,
                     displayStars,
-                    debugSnapshot: builtScene.debug,
+                    displayGeometryVersion: displayGeometry.version,
+                    debugSnapshot: this.lastDebugSnapshot,
                     sceneInput: builtScene.sceneInput,
                 },
             });
-            const renderMetrics: MetaballRenderMetrics = {
+            const baseRenderMetrics: MetaballRenderMetrics = {
                 solveMs: 0,
                 textureUploadMs: 0,
                 borderMs: 0,
                 totalMs: 0,
                 reusedFingerprint: false,
             };
+            const overlayRenderMetrics: MetaballRenderMetrics = {
+                solveMs: 0,
+                textureUploadMs: 0,
+                borderMs: 0,
+                totalMs: 0,
+                reusedFingerprint: false,
+            };
+            const shouldUseLocalOverlay =
+                Boolean(solveBounds) &&
+                Boolean(transitionKey) &&
+                transitionEngine === 'plan' &&
+                readFreezeBaseDuringTransition(input);
+            const blurPx = Math.max(
+                0,
+                readNumber(
+                    input,
+                    'METABALL_BLUR',
+                    GAME_CONFIG.METABALL_BLUR ?? 0,
+                ),
+            );
+            const borderWidth = Math.max(
+                0,
+                readNumber(
+                    input,
+                    'METABALL_BORDER_WIDTH',
+                    GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5,
+                ),
+            );
+            const coverage = Math.max(
+                0,
+                readNumber(
+                    input,
+                    'METABALL_COVERAGE',
+                    GAME_CONFIG.METABALL_COVERAGE ?? 0.25,
+                ),
+            );
+            const displayPad =
+                Math.max(input.world.width, input.world.height) * coverage +
+                influenceRadius * 2 +
+                blurPx * 6 +
+                borderWidth * 2;
+            const displayBounds = {
+                minX: -displayPad,
+                minY: -displayPad,
+                maxX: input.world.width + displayPad,
+                maxY: input.world.height + displayPad,
+            };
 
             measurePerf('territory.perimeterFieldFamily.render', () => {
+                if (shouldUseLocalOverlay && solveBounds) {
+                    const baseSceneInput = buildDerivedMetaballSceneInput({
+                        sceneInput: builtScene.sceneInput,
+                        staticSamples: builtScene.debug.staticSamples.filter(
+                            (sample) => sample.strength > 1e-6,
+                        ),
+                        dynamicSamples: [],
+                        sceneTag: 'staticBase',
+                    });
+                    const overlaySceneInput = buildLocalizedMetaballSceneInput({
+                        sceneInput: builtScene.sceneInput,
+                        solveBounds,
+                        sampleMarginPx: influenceRadius * 2,
+                        sceneTag: 'localOverlay',
+                    });
+
+                    updateMetaballLocalOverlayMask({
+                        baseRenderLayer: this.baseRenderLayer,
+                        baseMask: this.baseCutoutMask,
+                        solveBounds,
+                        displayBounds,
+                    });
+                    this.baseLayer.visible = true;
+                    renderMetaball(
+                        displayStars,
+                        this.baseRenderLayer,
+                        this.colorUtils,
+                        input.world.width,
+                        input.world.height,
+                        input.lanes,
+                        {
+                            gameTick: input.gameTick,
+                            sceneInput: baseSceneInput,
+                            runtime: this.baseRuntime,
+                            allowWorker: false,
+                            metrics: baseRenderMetrics,
+                        },
+                    );
+
+                    this.overlayLayer.visible = overlaySceneInput.samples.length > 0;
+                    if (this.overlayLayer.visible) {
+                        renderMetaball(
+                            displayStars,
+                            this.overlayRenderLayer,
+                            this.colorUtils,
+                            input.world.width,
+                            input.world.height,
+                            input.lanes,
+                            {
+                                gameTick: input.gameTick,
+                                sceneInput: overlaySceneInput,
+                                runtime: this.overlayRuntime,
+                                allowWorker: false,
+                                metrics: overlayRenderMetrics,
+                            },
+                        );
+                    }
+                    return;
+                }
+
+                updateMetaballLocalOverlayMask({
+                    baseRenderLayer: this.baseRenderLayer,
+                    baseMask: this.baseCutoutMask,
+                    solveBounds: null,
+                    displayBounds,
+                });
+                this.baseLayer.visible = true;
+                this.overlayLayer.visible = false;
                 renderMetaball(
                     displayStars,
-                    this.root,
+                    this.baseRenderLayer,
                     this.colorUtils,
                     input.world.width,
                     input.world.height,
@@ -395,8 +585,9 @@ export class PerimeterFieldFamily implements RenderFamily {
                     {
                         gameTick: input.gameTick,
                         sceneInput: builtScene.sceneInput,
-                        runtime: this.runtime,
-                        metrics: renderMetrics,
+                        runtime: this.baseRuntime,
+                        allowWorker: false,
+                        metrics: baseRenderMetrics,
                     },
                 );
             });
@@ -407,20 +598,26 @@ export class PerimeterFieldFamily implements RenderFamily {
                 from: 'MetaballSceneInput',
                 to: 'PIXI display root',
                 purpose: 'Render perimeter-field sample solve through the shared metaball substrate',
-                summary: summarizeRendererMetrics(renderMetrics),
+                summary:
+                    shouldUseLocalOverlay && solveBounds
+                        ? `base{${summarizeRendererMetrics(baseRenderMetrics)}} overlay{${summarizeRendererMetrics(overlayRenderMetrics)}}`
+                        : summarizeRendererMetrics(baseRenderMetrics),
                 perfEventName: 'territory.perimeterField.familyRendered',
                 perfDetail: {
                     geometrySource,
                     transitionEngine,
                     oldGeometryCacheHit,
                     transitionPlanCacheHit,
+                    localOverlay: shouldUseLocalOverlay,
                 },
                 logDetail: {
                     geometrySource,
                     transitionEngine,
                     oldGeometryCacheHit,
                     transitionPlanCacheHit,
-                    renderMetrics,
+                    solveBounds,
+                    baseRenderMetrics,
+                    overlayRenderMetrics,
                     sceneFingerprint: builtScene.sceneInput.sceneFingerprint,
                 },
             });
@@ -430,10 +627,13 @@ export class PerimeterFieldFamily implements RenderFamily {
     }
 
     dispose(): void {
-        this.runtime.dispose();
+        this.baseRuntime.dispose();
+        this.overlayRuntime.dispose();
         this.sessionKey = null;
         this.resetState();
-        this.root.removeChildren();
+        this.baseRenderLayer.mask = null;
+        this.baseCutoutMask.clear();
+        this.rebuildDisplayGraph();
     }
 }
 

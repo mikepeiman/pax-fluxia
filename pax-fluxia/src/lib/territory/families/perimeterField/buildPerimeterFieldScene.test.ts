@@ -146,6 +146,7 @@ function makeTransition(progress = 0.5): RenderFamilyActiveTransition {
         conquestType: 'complete' as const,
     };
     return {
+        sessionKey: `test-transition:${progress.toFixed(3)}`,
         conquestEvents: [conquestEvent],
         events: [
             {
@@ -171,6 +172,7 @@ function makeSquareTopology(params: {
     ownerId: string;
     loopId: string;
     bounds: [number, number, number, number];
+    reverseWinding?: boolean;
 }): FrontierTopology {
     const [left, top, right, bottom] = params.bounds;
     const ownerPairKey = `${params.ownerId}|world`;
@@ -274,19 +276,28 @@ function makeSquareTopology(params: {
         [sectionIds.left, makeSection(sectionIds.left, tl, bl, [[left, top], [left, bottom]])],
     ]);
 
-    const sectionRefs: SectionRef[] = [
-        { sectionId: sectionIds.top, direction: 'forward' },
-        { sectionId: sectionIds.right, direction: 'forward' },
-        { sectionId: sectionIds.bottom, direction: 'reverse' },
-        { sectionId: sectionIds.left, direction: 'reverse' },
-    ];
+    const sectionRefs: SectionRef[] = params.reverseWinding
+        ? [
+              { sectionId: sectionIds.left, direction: 'forward' },
+              { sectionId: sectionIds.bottom, direction: 'forward' },
+              { sectionId: sectionIds.right, direction: 'reverse' },
+              { sectionId: sectionIds.top, direction: 'reverse' },
+          ]
+        : [
+              { sectionId: sectionIds.top, direction: 'forward' },
+              { sectionId: sectionIds.right, direction: 'forward' },
+              { sectionId: sectionIds.bottom, direction: 'reverse' },
+              { sectionId: sectionIds.left, direction: 'reverse' },
+          ];
     const loops: RegionLoop[] = [
         {
             id: params.loopId,
             ownerId: params.ownerId,
             componentId: `comp:${params.loopId}`,
             sectionRefs,
-            signedArea: Math.abs((right - left) * (bottom - top)),
+            signedArea:
+                Math.abs((right - left) * (bottom - top)) *
+                (params.reverseWinding ? -1 : 1),
         },
     ];
 
@@ -316,6 +327,7 @@ function makeTopologyGeometry(params: {
     loopId: string;
     bounds: [number, number, number, number];
     starIds?: string[];
+    reverseWinding?: boolean;
 }): CanonicalGeometrySnapshot {
     const [left, top, right, bottom] = params.bounds;
     const points: [number, number][] = [
@@ -328,6 +340,7 @@ function makeTopologyGeometry(params: {
         ownerId: params.ownerId,
         loopId: params.loopId,
         bounds: params.bounds,
+        reverseWinding: params.reverseWinding,
     });
     return {
         version: `${params.ownerId}:${params.loopId}`,
@@ -412,6 +425,67 @@ function sampleSignature(
 }
 
 describe('buildPerimeterFieldScene', () => {
+    it('adds star-anchor metaballs with a dedicated perimeter-field weight control', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
+        const geometry = makeGeometry({
+            ownerId: 'red',
+            loopId: 'red-loop',
+            points: [
+                [20, 20],
+                [80, 20],
+                [80, 80],
+                [20, 80],
+            ],
+            starIds: ['target'],
+        });
+
+        const withStarMetaball = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
+                    PERIMETER_FIELD_STAR_METABALL_WEIGHT: 4.3,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+        const withoutStarMetaball = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
+                    PERIMETER_FIELD_STAR_METABALL_WEIGHT: 0,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        const starSamples = withStarMetaball.debug.staticSamples.filter(
+            (sample) => sample.sourceId === 'star:target',
+        );
+
+        expect(starSamples).toHaveLength(1);
+        expect(starSamples[0]?.x).toBe(50);
+        expect(starSamples[0]?.y).toBe(50);
+        expect(starSamples[0]?.strength).toBeGreaterThan(0);
+        expect(
+            withoutStarMetaball.debug.staticSamples.some(
+                (sample) => sample.sourceId === 'star:target',
+            ),
+        ).toBe(false);
+        expect(withStarMetaball.sceneInput.samples.length).toBe(
+            withoutStarMetaball.sceneInput.samples.length + 1,
+        );
+    });
+
     it('builds deterministic perimeter sample ids from the same geometry', () => {
         const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'red' })];
         const geometry = makeGeometry({
@@ -450,6 +524,42 @@ describe('buildPerimeterFieldScene', () => {
             sceneB.sceneInput.samples.map((sample) => sample.id),
         );
         expect(sceneA.sceneInput.fingerprint).toBe(sceneB.sceneInput.fingerprint);
+    });
+
+    it('uses owner-mask fill, top-owner winner selection, and geometry fallback regions for perimeter-field scenes', () => {
+        const stars = [makeStar({ id: 'target', x: 50, y: 50, ownerId: 'blue' })];
+        const geometry = makeTopologyGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop-topology',
+            bounds: [10, 10, 110, 110],
+            starIds: ['target'],
+        });
+
+        const scene = buildPerimeterFieldScene({
+            input: makeInput({
+                stars,
+                tunables: {
+                    PERIMETER_FIELD_TRANSITION_ENGINE: 'plan',
+                    PERIMETER_FIELD_SAMPLE_SPACING: 20,
+                    PERIMETER_FIELD_INWARD_OFFSET_PX: 0,
+                    PERIMETER_FIELD_INFLUENCE_WEIGHT: 1.5,
+                    PERIMETER_FIELD_STAR_METABALL_WEIGHT: 0,
+                },
+            }),
+            starsForDisplay: stars,
+            geometry,
+            colorUtils,
+        });
+
+        expect(scene.sceneInput.fillOpacityMode).toBe('owner-mask');
+        expect(scene.sceneInput.winnerMode).toBe('top-owner');
+        expect(scene.sceneInput.borderGeometryMode).toBe('grid-ribbon');
+        expect(scene.sceneInput.fillFallbackRegions?.length).toBeGreaterThan(0);
+        expect(
+            scene.sceneInput.fillFallbackRegions?.every(
+                (region) => region.ownerId === 'blue',
+            ),
+        ).toBe(true);
     });
 
     it('falls back to territory regions when no outer shell loops are available', () => {
@@ -662,10 +772,10 @@ describe('buildPerimeterFieldScene', () => {
 
         const prevScene = buildPerimeterFieldScene({
             input: makeInput({
-                stars: [displayStars[1]!],
+                stars: displayStars,
                 tunables: { PERIMETER_FIELD_SAMPLE_SPACING: 20 },
             }),
-            starsForDisplay: [displayStars[1]!],
+            starsForDisplay: displayStars,
             geometry: oldGeometry,
             colorUtils,
         });
@@ -963,6 +1073,50 @@ describe('buildPerimeterFieldScene', () => {
         );
         expect(sampleSignature(frame1Scene.sceneInput.samples)).toEqual(
             sampleSignature(nextScene.sceneInput.samples),
+        );
+    });
+
+    it('samples the same topology-plan V-set even when loop winding is reversed', () => {
+        const ownerToCluster = new Map<string, number>([['blue', 0]]);
+        const canonicalGeometry = makeTopologyGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop-topology',
+            bounds: [15, 15, 85, 85],
+            starIds: ['target'],
+        });
+        const reversedGeometry = makeTopologyGeometry({
+            ownerId: 'blue',
+            loopId: 'blue-loop-topology',
+            bounds: [15, 15, 85, 85],
+            starIds: ['target'],
+            reverseWinding: true,
+        });
+
+        const canonicalVSet = sampleVSetFromGeometry({
+            geometry: canonicalGeometry,
+            options: {
+                spacing: 20,
+                offsetPx: 0,
+                strength: 1.5,
+                ownerToCluster,
+            },
+        });
+        const reversedVSet = sampleVSetFromGeometry({
+            geometry: reversedGeometry,
+            options: {
+                spacing: 20,
+                offsetPx: 0,
+                strength: 1.5,
+                ownerToCluster,
+            },
+        });
+
+        expect(reversedVSet.length).toBeGreaterThan(0);
+        expect(
+            reversedVSet.every((sample) => sample.ownerId === 'blue'),
+        ).toBe(true);
+        expect(sampleSignature(reversedVSet)).toEqual(
+            sampleSignature(canonicalVSet),
         );
     });
 });

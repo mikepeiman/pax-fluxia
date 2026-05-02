@@ -57,6 +57,40 @@ describe('buildMetaballCacheFingerprint', () => {
         expect(next).not.toBe(base);
     });
 
+    it('changes when scene winner mode changes', () => {
+        const base = buildMetaballCacheFingerprint({
+            stars: TEST_STARS,
+            gameTick: 10,
+            sceneFingerprint: 'scene-a',
+            sceneWinnerMode: 'dominance-filter',
+        });
+        const next = buildMetaballCacheFingerprint({
+            stars: TEST_STARS,
+            gameTick: 10,
+            sceneFingerprint: 'scene-a',
+            sceneWinnerMode: 'top-owner',
+        });
+
+        expect(next).not.toBe(base);
+    });
+
+    it('changes when scene border geometry mode changes', () => {
+        const base = buildMetaballCacheFingerprint({
+            stars: TEST_STARS,
+            gameTick: 10,
+            sceneFingerprint: 'scene-a',
+            sceneBorderGeometryMode: 'stroke-centerline',
+        });
+        const next = buildMetaballCacheFingerprint({
+            stars: TEST_STARS,
+            gameTick: 10,
+            sceneFingerprint: 'scene-a',
+            sceneBorderGeometryMode: 'grid-ribbon',
+        });
+
+        expect(next).not.toBe(base);
+    });
+
     it('changes when contested midpoint-pair settings change', () => {
         const originalCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT;
         const originalWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT;

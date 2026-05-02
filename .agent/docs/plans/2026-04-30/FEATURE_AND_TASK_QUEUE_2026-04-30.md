@@ -1,0 +1,81 @@
+# Feature And Task Queue - 2026-04-30
+
+## Active
+- Keep one master handoff artifact for this sprint in `.agent/docs/plans/2026-04-30/2026-04-30_metaball-radical-optimization-handoff.md`.
+- Sprint scope now explicitly covers all metaball family surfaces that still route through the shared sample-field compositor.
+
+## Completed
+- Produced a coding-agent-ready optimization and implementation handoff for the radical `metaball_grid` / `perimeter_field` refactor brief from `C:\Users\mikep\Documents\Obsidian Vault\2026-04-30 Perplexity prompt for radical metaball refactor.md`.
+- Documented the worktree pass additively in `.agent/docs/plans/2026-04-30/2026-04-30_metaball-radical-optimization-handoff.md`.
+- Audited the governing territory docs and the live `metaball_grid`, `perimeter_field`, and `MetaballRenderer` runtime paths before locking the optimization path.
+- Implemented the first production optimization slice for `perimeter_field`:
+  - explicit conquest-local solve bounds
+  - full-scene base plus local-overlay split inside `PerimeterFieldFamily`
+  - bounded-grid solve support in `MetaballRenderer` and `metaballGrid.worker.ts`
+  - additive helper module `pax-fluxia/src/lib/territory/families/perimeterField/perimeterFieldLocalOverlay.ts`
+- Corrected the split-path compositor flaw by cutting the base layer underneath the localized overlay instead of stacking unchanged statics twice.
+- Generalized the local overlay substrate for shared metaball-family use in `pax-fluxia/src/lib/territory/families/metaball/metaballLocalOverlay.ts`.
+- Rolled the shared bounded-overlay path into `pax-fluxia/src/lib/territory/families/metaball/MetaballFamily.ts`.
+- Updated `pax-fluxia/src/lib/territory/families/metaball/buildMetaballScene.ts` to emit explicit `influenceRadiusPx` scene metadata for downstream localized solves.
+- Updated `PerimeterFieldFamily` to reuse upstream `prevGeometry` when available instead of always rebuilding PREV locally.
+- Added pure helper coverage in `pax-fluxia/src/lib/territory/families/metaball/metaballLocalOverlay.test.ts`.
+- Audited `metaball_grid` and `metaball_grid_phase_edges` and left them unchanged because they already bypass the shared metaball compositor.
+- Restored the missing `pax-fluxia/src/lib/components/ui/TransitionDebugPanel.svelte` import target as a compatibility modal that wraps `PerimeterFieldDiagnosticsPanel.svelte` and preserves the existing `GameContainer.svelte` `onClose` contract.
+- Disabled the new bounded local-overlay rollout in `MetaballFamily` and `PerimeterFieldFamily` after user-reported visual corruption, restoring the known-correct full-scene render path while leaving the underlying renderer groundwork documented for follow-up.
+- Reverted that temporary disabling at user request so the full implemented metaball/perimeter-field rollout remains live for inspection.
+- Adjusted the shared metaball presentation path so localized base/overlay rollout passes in `Metaball` and `Perimeter Field` bypass async worker solves and present coherently in the same frame.
+- Repaired the steady-state lifecycle path for `Metaball` and `Perimeter Field`:
+  - both families now rebuild their persistent base/overlay display graph on dispose instead of leaving singleton roots empty
+  - both families now self-heal a stale/empty display graph at the start of `update()`
+  - `GameCanvas.svelte` now disposes the singleton render-family registry on teardown before destroying the Pixi app
+- Cleared the touched-family nullability noise surfaced by `bun run check`; no remaining `svelte-check` hits were reported for `MetaballFamily.ts` or `PerimeterFieldFamily.ts` in the filtered rerun.
+- Forced synchronous commit for the full shared-renderer path in `Metaball` and `Perimeter Field`:
+  - the shared metaball worker path only commits on a later matching render call, which can leave paused states blank and live states starved/stale
+  - all `renderMetaball(...)` calls in these two user-facing families now pass `allowWorker: false`
+- Restored real star-site metaballs to `Perimeter Field`:
+  - `perimeter_field` scenes now mix owned-star anchor samples back in alongside perimeter-derived shell samples
+  - added dedicated `PERIMETER_FIELD_STAR_METABALL_WEIGHT` tuning so star-site strength is no longer tied to perimeter-shell power
+  - added focused coverage in `pax-fluxia/src/lib/territory/families/perimeterField/buildPerimeterFieldScene.test.ts`
+- Added a new top-level `Territory Mode Tuning` settings route:
+  - initial broad renderer-hub implementation was rejected because it duplicated shared controls and duplicated them again inside the new section itself
+- Repaired the `Territory Mode Tuning` route so it no longer duplicates settings:
+  - added a dedicated `TerritoryModeTuningSection.svelte` instead of reusing the generic territory renderer hub
+  - `Territory Mode Tuning` now exposes only one canonical user-facing control:
+    - `Perimeter Field` -> `Star Metaball Power`
+  - removed the duplicate `Star Metaball Power` slider from the older `PerimeterFieldTuning.svelte` panel
+  - removed the temporary `mode_tuning` branch from `ControlsSection-Territory.svelte`
+- Removed the remaining source-geometry duplicates from the broader territory tuning surface:
+  - `PerimeterFieldTuning.svelte` no longer embeds its own source editor
+  - `TerritoryGeometrySourceTuning.svelte` now owns only the geometry-source selector
+  - shared MSR / CX / DX controls now live only under the canonical `Topology Rules` editor
+- Promoted shared topology controls into their own top-level settings section:
+  - added `Territory Topology`
+  - renamed the old `Territory Tuning & Constraints` surface to `Territory Renderer Tuning`
+  - removed the embedded topology block from `ControlsSection-Territory.svelte`
+- Removed dead `Border Transition` UI from the shared territory tuning panel:
+  - the controls only touched legacy `PowerVoronoi` renderers, not the active render-family / clean-runtime territory transitions
+
+## Next
+- Verify in-app that `Perimeter Field` now shows visible star-site metaball cores at owned star locations, especially in sparse regions where perimeter-shell-only fill previously hollowed out.
+- Verify the new `Territory Mode Tuning` top-level section appears in the settings UI and now contains only the single intended `Perimeter Field` star-metaball control.
+- Verify `Star Metaball Power` in `Perimeter Field` behaves as designed:
+  - `0` removes star-site contribution
+  - higher values strengthen star-centered cores without altering the shared field radius
+- Verify `Star Metaball Power` now has only one user-facing editing home in the Settings UI.
+- Verify `Base Geometry Source` now has only one user-facing editing home in the Settings UI.
+- Verify shared MSR / CX / DX topology controls now have only one user-facing editing home in the Settings UI.
+- Verify `Territory Topology` appears as its own top-level section and contains the full shared `Topology Rules` surface.
+- Verify `Territory Renderer Tuning` no longer contains the long topology block.
+- Verify `Border Transition` no longer appears in the generic territory tuning UI.
+- Reconcile the master merge against the handoff primer:
+  - keep runtime clusters together
+  - do not merge incidental `current-settings.json` / `.codex-perimeter-check.txt` / harness log artifacts
+  - re-test paused/live `metaball` and `perimeter_field` after landing
+- Verify `Perimeter Field` steady-state fill is now visibly more complete with star-site metaballs restored, while borders remain aligned.
+- Re-test active conquest transitions in `Perimeter Field` with the restored star anchors to ensure the localized overlay still blends correctly around changing ownership.
+- Verify in-app that paused `Metaball` and paused `Perimeter Field` now show steady-state territory immediately after load, without needing a subsequent tick/frame to reveal it.
+- Verify in-app that live `Metaball` is now visibly present during play rather than remaining blank.
+- Verify in-app that live `Perimeter Field` no longer presents only a partial/stale slice of fill+border.
+- Verify that the restored transition diagnostics modal opens from the existing debug entry point, closes on scrim / close button / `Escape`, and does not clip on mobile-sized viewports.
+- Re-run `vitest` and the broader package checks in a lane with the local `vite` / `@sveltejs/kit` dependency graph installed.
+- If either mode is still visually broken after this pass, isolate the next boundary as solve-equivalence within the localized overlay itself rather than family lifecycle or async presentation.

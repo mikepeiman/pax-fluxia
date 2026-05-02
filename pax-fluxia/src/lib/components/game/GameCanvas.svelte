@@ -104,6 +104,7 @@
     import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import {
+        disposeAllRenderFamilies,
         getRenderFamily,
         registerRenderFamily,
     } from "$lib/territory/families/renderFamilyRegistry";
@@ -3634,6 +3635,7 @@
         interactionOverlayCtx = null;
         interactionOverlayCanvas = null;
         lastInteractionOverlayRenderKey = null;
+        disposeAllRenderFamilies();
 
         if (app) {
             app.destroy(true, { children: true });

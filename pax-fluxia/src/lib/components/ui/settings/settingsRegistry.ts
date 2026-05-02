@@ -10,6 +10,8 @@ export type SettingsSectionId =
     | "conquest_effects"
     | "map_options"
     | "territory_modes"
+    | "territory_mode_tuning"
+    | "territory_topology"
     | "territory_tuning"
     | "territory_styles"
     | "fleet_star_visuals"
@@ -115,9 +117,25 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "territory",
     },
     {
+        id: "territory_mode_tuning",
+        icon: "🎛️",
+        label: "Territory Mode Tuning",
+        color: "#8de0c1",
+        tier: "basic",
+        scope: "territory",
+    },
+    {
+        id: "territory_topology",
+        icon: "🕸️",
+        label: "Territory Topology",
+        color: "#7dd3a7",
+        tier: "basic",
+        scope: "territory",
+    },
+    {
         id: "territory_tuning",
         icon: "🧭",
-        label: "Territory Tuning & Constraints",
+        label: "Territory Renderer Tuning",
         color: "#6ee7b7",
         tier: "basic",
         scope: "territory",

@@ -386,6 +386,7 @@ interface GameConfigType {
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
     PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
+    PERIMETER_FIELD_STAR_METABALL_WEIGHT: number; // Influence strength for real star-centered metaballs mixed into perimeter-field
     PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
     PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
     PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
