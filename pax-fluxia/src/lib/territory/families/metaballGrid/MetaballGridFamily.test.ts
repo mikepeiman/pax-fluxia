@@ -789,6 +789,53 @@ describe('MetaballGridFamily active frontier fast path', () => {
         family.dispose();
     });
 
+    it('keeps contour-technique fill coverage identical when centered-blended borders toggle on', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: false,
+                METABALL_GRID_CELL_INSET_PX: 0,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
+                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            }),
+        );
+        const offState = family as unknown as {
+            graphics: unknown;
+            frontierFillMeshLayer: { visible: boolean };
+            borderGraphics: unknown;
+            frontierGraphics: unknown;
+        };
+        const fillOff = captureFillSnapshot(offState.graphics);
+        const contourOff = captureStrokeSnapshot(offState.frontierGraphics);
+        expect(offState.frontierFillMeshLayer.visible).toBe(false);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                METABALL_GRID_CELL_INSET_PX: 0,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
+                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            }),
+        );
+        const fillOn = captureFillSnapshot(offState.graphics);
+        const contourOn = captureStrokeSnapshot(offState.frontierGraphics);
+
+        expect(fillOn).toEqual(fillOff);
+        expect(offState.frontierFillMeshLayer.visible).toBe(false);
+        expect(contourOn).not.toEqual(contourOff);
+
+        family.dispose();
+    });
+
     it('applies flush boundary fill in both centered-blended border states', () => {
         for (const borderBlend of [false, true]) {
             const family = createMetaballGridPhaseEdgesFamily({

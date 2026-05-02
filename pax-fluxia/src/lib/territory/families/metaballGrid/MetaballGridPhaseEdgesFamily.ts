@@ -2133,6 +2133,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 scene: params.scene,
                 classification: params.classification,
             });
+        const ownerLayers = this.buildFrontierPhaseLayersFromOccupancy({
+            classification: params.classification,
+            occupancyByColor,
+        });
         if (params.effectiveColorIdxByGridIdx) {
             const pairLayers = this.buildScenePairFrontierPhaseLayers({
                 classification: params.classification,
@@ -2140,24 +2144,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 effectiveColorIdxByGridIdx: params.effectiveColorIdxByGridIdx,
             });
             if (pairLayers.length > 0) {
-                const mirroredLayers = pairLayers
-                    .map((layer) => this.mirrorFrontierPhaseLayer(layer))
-                    .filter(
-                        (layer): layer is TerritoryFrontierPhaseFieldLayer =>
-                            layer !== null,
-                    );
                 return {
-                    fillLayers: [...pairLayers, ...mirroredLayers],
+                    fillLayers: ownerLayers,
                     borderLayers: pairLayers,
                     sourceKind: 'scene_pairs',
                 };
             }
         }
-
-        const ownerLayers = this.buildFrontierPhaseLayersFromOccupancy({
-            classification: params.classification,
-            occupancyByColor,
-        });
         if (ownerLayers.length > 0) {
             return {
                 fillLayers: ownerLayers,
@@ -3487,7 +3480,6 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 frontierSurfaceRecipe.usesPhaseBorder
             );
         const canRenderPhaseFillSurface =
-            canBuildScenePairPhaseSurface &&
             frontierSurfaceRecipe.usesPhaseFill &&
             !!input.renderer &&
             typeof document !== 'undefined';

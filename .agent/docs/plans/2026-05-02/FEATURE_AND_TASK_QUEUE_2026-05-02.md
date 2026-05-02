@@ -19,6 +19,9 @@
 - Updated style help text so `Centered-blended borders` is explicitly described as border-only
 - Rebuilt centered-blended border segments in both Metaball Grid families from visible square cell bounds instead of abstract lattice vertices
 - Routed outer perimeter interval collection through those same visible square cell bounds
+- Audited the live settings path and confirmed the running mode was `marching_triangles_gradient`, not the shared-edge control path
+- Corrected the contour-technique surface contract so `Centered-blended borders` no longer grants phase-fill ownership to contour techniques
+- Split pair-layer border generation from fill-layer generation in Phase Edges so pairwise blended contour borders do not silently swap fill geometry
 
 ## Next
 

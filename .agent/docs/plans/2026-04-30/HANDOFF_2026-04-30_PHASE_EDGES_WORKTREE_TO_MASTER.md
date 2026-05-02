@@ -871,3 +871,46 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - `bun x vitest run src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
   - `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
   - `bun x vite build`
+
+### 2026-05-02 - additive correction after tracing the actual live settings path
+
+- The next failure report was critical because it forced a protocol reset:
+  - repeated live "zero change" meant prior fixes were not on the active path the user was actually exercising
+- Live-path finding:
+  - reading `common/resources/settings-live/current-settings.json` showed the running mode was:
+    - `TERRITORY_RENDER_MODE = metaball_grid_phase_edges`
+    - `TERRITORY_FRONTIER_TECHNIQUE = marching_triangles_gradient`
+    - `METABALL_GRID_BORDER_MODE = territory_edge`
+    - `METABALL_GRID_BORDER_BLEND = true`
+    - `TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE = shared_edge`
+  - this means the user was on the contour technique family, not the shared-edge control family
+- Important diagnosis:
+  - in that live contour path, `METABALL_GRID_BORDER_BLEND` was still changing fill because:
+    - `canBuildScenePairPhaseSurface` was enabled
+    - `buildSceneSurfacePhaseLayers(...)` received `effectiveColorIdxByGridIdx`
+    - pairwise `scene_pairs` layers were then reused as fill layers
+  - that is the real border-only contract violation for the user's live renderer
+- Runtime correction:
+  - `pax-fluxia/src/lib/territory/frontier/surface.ts`
+    - contour techniques now resolve to `fillSource = scene_cells`
+    - contour techniques now resolve to `usesPhaseFill = false`
+    - contour techniques remain `usesPhaseBorder = true`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    - `buildSceneSurfacePhaseLayers(...)` now keeps `ownerLayers` as `fillLayers`
+    - pairwise `scene_pairs` are retained only as `borderLayers`
+    - `canRenderPhaseFillSurface` no longer inherits `borderBlend` through `canBuildScenePairPhaseSurface`
+- New regression coverage:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+    - added a test on the actual live path:
+      - `marching_triangles_gradient`
+      - `territory_edge`
+      - `borderBlend off/on`
+      - assert fill snapshot remains identical
+      - assert `frontierFillMeshLayer.visible` stays false
+- Merge/backport guidance:
+  - do not treat `borderBlend` as a harmless UI-only option; it was participating in phase-surface build selection
+  - preserve the separation:
+    - contour techniques own border via phase layers
+    - scene cells own fill
+    - pairwise `scene_pairs` layers are border-only
+  - when merging multiple worktrees, re-check the live settings file for the actual active path before trusting any renderer-specific fix story
