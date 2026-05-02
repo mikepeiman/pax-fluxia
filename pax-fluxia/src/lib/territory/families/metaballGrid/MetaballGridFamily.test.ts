@@ -350,6 +350,56 @@ function makePhaseEdgesInput(
     });
 }
 
+interface GraphicsInstructionSnapshot {
+    readonly action: string;
+    readonly pathInstructions: readonly string[];
+}
+
+function captureGraphicsInstructionSnapshot(target: unknown): GraphicsInstructionSnapshot[] {
+    const instructions = (
+        target as {
+            context?: {
+                instructions?: Array<{
+                    action: string;
+                    data?: {
+                        path?: {
+                            instructions?: Array<{
+                                action: string;
+                                data: unknown[];
+                            }>;
+                        };
+                    };
+                }>;
+            };
+        }
+    ).context?.instructions;
+
+    if (!instructions) return [];
+
+    return instructions.map((instruction) => ({
+        action: instruction.action,
+        pathInstructions:
+            instruction.data?.path?.instructions?.map((pathInstruction) =>
+                JSON.stringify([
+                    pathInstruction.action,
+                    ...(pathInstruction.data ?? []),
+                ]),
+            ) ?? [],
+    }));
+}
+
+function captureFillSnapshot(target: unknown): readonly string[] {
+    return captureGraphicsInstructionSnapshot(target)
+        .filter((instruction) => instruction.action === 'fill')
+        .flatMap((instruction) => instruction.pathInstructions);
+}
+
+function captureStrokeSnapshot(target: unknown): readonly string[] {
+    return captureGraphicsInstructionSnapshot(target)
+        .filter((instruction) => instruction.action === 'stroke')
+        .flatMap((instruction) => instruction.pathInstructions);
+}
+
 describe('MetaballGridFamily active frontier fast path', () => {
     it('uses retained frontier layers for square dual-pass conquest frames', () => {
         const family = createMetaballGridFamily({
@@ -694,6 +744,129 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(state.borderGraphics.visible).toBe(true);
 
         family.dispose();
+    });
+
+    it('keeps phase-edges fill coverage identical when centered-blended borders toggle on', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: false,
+                METABALL_GRID_CELL_INSET_PX: 2,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+        const offState = family as unknown as {
+            graphics: unknown;
+            borderGraphics: unknown;
+        };
+        const fillOff = captureFillSnapshot(offState.graphics);
+        const borderOff = captureStrokeSnapshot(offState.borderGraphics);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                METABALL_GRID_CELL_INSET_PX: 2,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+            }),
+        );
+        const fillOn = captureFillSnapshot(offState.graphics);
+        const borderOn = captureStrokeSnapshot(offState.borderGraphics);
+
+        expect(fillOn).toEqual(fillOff);
+        expect(borderOn).not.toEqual(borderOff);
+
+        family.dispose();
+    });
+
+    it('applies flush boundary fill in both centered-blended border states', () => {
+        for (const borderBlend of [false, true]) {
+            const family = createMetaballGridPhaseEdgesFamily({
+                getPlayerColor(ownerId: string): number {
+                    return ownerId === 'A' ? 0x3366ff : 0xff6633;
+                },
+            } as never);
+
+            family.update(
+                makePhaseEdgesInput(family, 0.35, {
+                    METABALL_GRID_BORDER_MODE: 'territory_edge',
+                    METABALL_GRID_BORDER_BLEND: borderBlend,
+                    METABALL_GRID_CELL_INSET_PX: 2,
+                    METABALL_GRID_EDGE_TRIM_PX: 2,
+                    METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
+                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+                }),
+            );
+            const state = family as unknown as { graphics: unknown };
+            const flushOff = captureFillSnapshot(state.graphics);
+
+            family.update(
+                makePhaseEdgesInput(family, 0.35, {
+                    METABALL_GRID_BORDER_MODE: 'territory_edge',
+                    METABALL_GRID_BORDER_BLEND: borderBlend,
+                    METABALL_GRID_CELL_INSET_PX: 2,
+                    METABALL_GRID_EDGE_TRIM_PX: 2,
+                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+                }),
+            );
+            const flushOn = captureFillSnapshot(state.graphics);
+
+            expect(flushOn).not.toEqual(flushOff);
+
+            family.dispose();
+        }
+    });
+
+    it('applies inward offset in both centered-blended border states', () => {
+        for (const borderBlend of [false, true]) {
+            const family = createMetaballGridPhaseEdgesFamily({
+                getPlayerColor(ownerId: string): number {
+                    return ownerId === 'A' ? 0x3366ff : 0xff6633;
+                },
+            } as never);
+
+            family.update(
+                makePhaseEdgesInput(family, 0.35, {
+                    METABALL_GRID_BORDER_MODE: 'territory_edge',
+                    METABALL_GRID_BORDER_BLEND: borderBlend,
+                    METABALL_GRID_CELL_INSET_PX: 2,
+                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+                }),
+            );
+            const state = family as unknown as { graphics: unknown };
+            const offsetZero = captureFillSnapshot(state.graphics);
+
+            family.update(
+                makePhaseEdgesInput(family, 0.35, {
+                    METABALL_GRID_BORDER_MODE: 'territory_edge',
+                    METABALL_GRID_BORDER_BLEND: borderBlend,
+                    METABALL_GRID_CELL_INSET_PX: 2,
+                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    METABALL_GRID_INWARD_OFFSET_PX: 3,
+                    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
+                }),
+            );
+            const offsetThree = captureFillSnapshot(state.graphics);
+
+            expect(offsetThree).not.toEqual(offsetZero);
+
+            family.dispose();
+        }
     });
 
     it('suppresses base fill only inside the explicit frontier-replacement mask', () => {

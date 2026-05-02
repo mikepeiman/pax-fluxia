@@ -33,6 +33,16 @@ export interface ComputeSquareCellEdgeInsetsParams {
     readonly useOuterBorder: boolean;
 }
 
+export interface OwnershipBoundaryCellParams {
+    readonly ix: number;
+    readonly iy: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly colorIdx: number;
+    readonly colorIdxByGridIdx: Int32Array | null;
+    readonly includeWorldEdge: boolean;
+}
+
 export function computeSharedBoundaryCornerRadius(
     params: SharedBoundaryCornerRadiusParams,
 ): number {
@@ -109,6 +119,41 @@ export function computeSquareCellEdgeInsets(
         top: sideInset(ix, iy - 1),
         bottom: sideInset(ix, iy + 1),
     };
+}
+
+export function isOwnershipBoundaryCell(
+    params: OwnershipBoundaryCellParams,
+): boolean {
+    const {
+        ix,
+        iy,
+        cols,
+        rows,
+        colorIdx,
+        colorIdxByGridIdx,
+        includeWorldEdge,
+    } = params;
+
+    if (!colorIdxByGridIdx) return false;
+    if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) return false;
+
+    const neighborDiffers = (nx: number, ny: number): boolean => {
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) {
+            return includeWorldEdge;
+        }
+        const neighborColorIdx = colorIdxByGridIdx[ny * cols + nx];
+        if (neighborColorIdx < 0) {
+            return includeWorldEdge;
+        }
+        return neighborColorIdx !== colorIdx;
+    };
+
+    return (
+        neighborDiffers(ix - 1, iy) ||
+        neighborDiffers(ix + 1, iy) ||
+        neighborDiffers(ix, iy - 1) ||
+        neighborDiffers(ix, iy + 1)
+    );
 }
 
 function trimEndpoint(

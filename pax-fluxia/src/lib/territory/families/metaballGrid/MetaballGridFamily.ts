@@ -65,8 +65,8 @@ import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 import {
     computeBoundaryInset,
-    computeSquareCellEdgeInsets,
     computeSharedBoundaryCornerRadius,
+    isOwnershipBoundaryCell,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 import {
@@ -512,43 +512,6 @@ function drawFilledGridCell(
         return;
     }
     graphics.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
-}
-
-function drawFilledSquareCellWithEdgeInsets(
-    graphics: PIXI.Graphics,
-    x: number,
-    y: number,
-    trueHalf: number,
-    edgeInsets: {
-        readonly left: number;
-        readonly right: number;
-        readonly top: number;
-        readonly bottom: number;
-    },
-    cornerR: number,
-    fillHex: number,
-    alpha: number,
-): void {
-    const left = x - trueHalf + edgeInsets.left;
-    const right = x + trueHalf - edgeInsets.right;
-    const top = y - trueHalf + edgeInsets.top;
-    const bottom = y + trueHalf - edgeInsets.bottom;
-    const width = Math.max(0, right - left);
-    const height = Math.max(0, bottom - top);
-    if (!(width > 0) || !(height > 0)) return;
-    if (cornerR > 0) {
-        graphics
-            .roundRect(
-                left,
-                top,
-                width,
-                height,
-                Math.min(cornerR, width * 0.5, height * 0.5),
-            )
-            .fill({ color: fillHex, alpha });
-        return;
-    }
-    graphics.rect(left, top, width, height).fill({ color: fillHex, alpha });
 }
 
 /**
@@ -2432,11 +2395,15 @@ export class MetaballGridFamily implements RenderFamily {
         const cols = cached.classification.cols;
         const rows = cached.classification.rows;
         const vstarCount = cached.classification.vstars.length;
+        const shouldUseSceneCellBoundaryClassification =
+            borderMode === 'territory_edge' ||
+            inwardOffsetPx > 0 ||
+            !boundaryFillFlush;
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
         if (
             !canUseSplitFillOnlyFastPath &&
             scene &&
-            (inwardOffsetPx > 0 || (drawBorders && drawTerritoryEdgeOnly))
+            shouldUseSceneCellBoundaryClassification
         ) {
             effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
             effectiveColorIdxByGridIdx.fill(-1);
@@ -2613,57 +2580,42 @@ export class MetaballGridFamily implements RenderFamily {
                 const x = c.x;
                 const y = c.y;
 
-                // Boundary cells (anything but 'native') get the inward-offset
-                // inset so the visible territory edge recedes from its classified
-                // extent. Pointy-top hex "radius" is vertex-to-center distance;
-                // honeycomb interlock for hex cells is produced by the
-                // `hex_offset` distribution (row shift applied in classification).
-                const isBoundary = c.role !== 'native';
-                const half = isBoundary ? boundaryHalf : nativeHalf;
-                const size = isBoundary ? boundarySize : nativeSize;
-                const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
-                const hexR = isBoundary ? boundaryHexR : nativeHexR;
-                const shouldUseDirectionalSquareFill =
-                    cellShape === 'square' &&
+                // Scene roles describe conquest-transition semantics, not the
+                // steady ownership frontier. The visible fill and territory-edge
+                // border path should use the same ownership-frontier truth in
+                // both steady state and transition frames.
+                const isOwnershipBoundary =
                     !!effectiveColorIdxByGridIdx &&
-                    drawBlendedEdges;
-                if (shouldUseDirectionalSquareFill) {
-                    const edgeInsets = computeSquareCellEdgeInsets({
+                    ix >= 0 &&
+                    ix < cols &&
+                    iy >= 0 &&
+                    iy < rows &&
+                    isOwnershipBoundaryCell({
                         ix,
                         iy,
                         cols,
                         rows,
                         colorIdx: c.colorIdx,
                         colorIdxByGridIdx: effectiveColorIdxByGridIdx,
-                        nativeInsetPx: nativeInset,
-                        boundaryInsetPx: boundaryInset,
-                        useSharedEdgeBorders: drawBlendedEdges,
-                        useOuterBorder: false,
+                        includeWorldEdge: true,
                     });
-                    drawFilledSquareCellWithEdgeInsets(
-                        g,
-                        x,
-                        y,
-                        spacingPx * 0.5,
-                        edgeInsets,
-                        cornerR,
-                        fillHex,
-                        alpha,
-                    );
-                } else {
-                    drawFilledGridCell(
-                        g,
-                        cellShape,
-                        x,
-                        y,
-                        half,
-                        size,
-                        cornerR,
-                        hexR,
-                        fillHex,
-                        alpha,
-                    );
-                }
+                const isBoundary = isOwnershipBoundary || c.role !== 'native';
+                const half = isBoundary ? boundaryHalf : nativeHalf;
+                const size = isBoundary ? boundarySize : nativeSize;
+                const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
+                const hexR = isBoundary ? boundaryHexR : nativeHexR;
+                drawFilledGridCell(
+                    g,
+                    cellShape,
+                    x,
+                    y,
+                    half,
+                    size,
+                    cornerR,
+                    hexR,
+                    fillHex,
+                    alpha,
+                );
 
                 // Per-cell border stroke: skipped for blended-edge path (drawn
                 // once per shared edge below instead) and for any cell whose

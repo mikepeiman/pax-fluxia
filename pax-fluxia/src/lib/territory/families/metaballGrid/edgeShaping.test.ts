@@ -3,6 +3,7 @@ import {
     computeBoundaryInset,
     computeSquareCellEdgeInsets,
     computeSharedBoundaryCornerRadius,
+    isOwnershipBoundaryCell,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 
@@ -131,5 +132,53 @@ describe('computeSquareCellEdgeInsets', () => {
             top: 2,
             bottom: 2,
         });
+    });
+});
+
+describe('isOwnershipBoundaryCell', () => {
+    it('detects cross-owner frontiers from the ownership grid', () => {
+        const grid = Int32Array.from([
+            1, 2,
+            1, 1,
+        ]);
+
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 2,
+                rows: 2,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('can ignore world edges when only interior frontiers should count', () => {
+        const grid = Int32Array.from([1]);
+
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 1,
+                rows: 1,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: false,
+            }),
+        ).toBe(false);
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 1,
+                rows: 1,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: true,
+            }),
+        ).toBe(true);
     });
 });

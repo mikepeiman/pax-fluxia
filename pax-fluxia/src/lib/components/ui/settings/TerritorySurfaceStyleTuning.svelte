@@ -385,7 +385,7 @@
                         <span class="val">{currentBoundaryFillFlush() ? "On" : "Off"}</span>
                     </div>
                     <div class="var-desc">
-                        Keeps the visible fill locked to the visible territory border by default. Leave this <strong>On</strong> for complete fills, then use <strong>Inward Offset</strong> only when you intentionally want the fill pulled back.
+                        Keeps the visible fill locked to the visible territory frontier by default. Leave this <strong>On</strong> for complete fills, then use <strong>Inward Offset</strong> only when you intentionally want the fill pulled back.
                     </div>
                     <label class="toggle-row">
                         <input
@@ -413,7 +413,7 @@
                         <span class="val">{numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0).toFixed(0)}px</span>
                     </div>
                     <div class="var-desc">
-                        Adds explicit pullback from the visible territory border. With <strong>Boundary fill matches border</strong> on, <strong>0px</strong> means the fill stays flush to the border.
+                        Adds explicit pullback from the visible territory frontier. With <strong>Boundary fill matches border</strong> on, <strong>0px</strong> means the fill stays flush in both centered-blended states.
                     </div>
                     <input
                         type="range"
@@ -539,7 +539,7 @@
                 <label
                     class="toggle-row"
                     class:disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
-                    title="Centered-blended borders draw a single shared stroke where opposing owners meet. In Per cell mode this overlays only the cross-owner boundaries; same-owner cell lines remain per-cell."
+                    title="Centered-blended borders draw a single shared stroke where opposing owners meet. This changes the border presentation only; it does not own fill geometry."
                 >
                     <input
                         type="checkbox"
@@ -558,7 +558,7 @@
                     <span class="val">{currentBorderBlend() ? "On" : "Off"}</span>
                 </label>
                 <div class="var-desc">
-                    When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. In Per cell mode that blended stroke is added on top of the per-cell lattice so the actual faction frontier can still read as a single mixed boundary.
+                    When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. The fill surface stays on the same geometry either way; this toggle only changes how the frontier stroke is presented.
                 </div>
 
                 <label

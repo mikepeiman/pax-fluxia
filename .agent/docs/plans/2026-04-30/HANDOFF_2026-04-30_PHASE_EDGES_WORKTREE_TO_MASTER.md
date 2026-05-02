@@ -71,6 +71,29 @@ Update this file in place. Do not replace it with a new summary doc each turn.
 - Repo protocol fix:
   - `.gitignore` no longer ignores `.agent/docs/sessions/` via a broad `sessions/` rule
 
+### 2026-05-02 additive note
+
+- The long-running centered-blended fill gap was addressed by collapsing fill ownership back onto the canonical scene-cell fill path and treating centered-blended borders as border-only.
+- New shared helper:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - `isOwnershipBoundaryCell(...)`
+- The important architectural correction:
+  - boundary fill ownership no longer depends on transition scene roles alone
+  - steady-state and transition boundary fill contraction now read the ownership frontier instead
+- The directional square-edge inset branch was removed from the active fill path in:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+- UI help text now explicitly states that `Centered-blended borders` is a border-only presentation toggle.
+- Added regression coverage:
+  - centered-blended on/off fill snapshots must match
+  - `Flush Boundary Fill` must affect fill in both border-blend states
+  - `Inward Offset` must affect fill in both border-blend states
+- Validation after this pass:
+  - `bun x vitest run src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
+- Acceptance is still user-visual, not repo-local. The next agent on `master` should not claim this one closed until the user confirms the missing-margin gap is actually gone in the live app.
+
 ---
 
 ## 2. What this branch is trying to solve
