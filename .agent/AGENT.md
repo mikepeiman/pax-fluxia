@@ -1222,3 +1222,40 @@ Suggested structure:
     - coarser presentation lattice for visible fill pattern
   - shape controls now target the actual visible territory surface instead of a sparsified scheduler sample
   - `Pattern Spacing` is now the fill-style density control, while `Transition Spacing` remains the conquest-timing density control.
+
+### 2026-05-01 - Restore Visible Phase-Field Conquest Transition
+
+- Lane: `territory/phase-field-transition-visibility-repair`
+- User task: investigate why phase-field conquest had become a snap with no visible transition and restore the intended local PRE/POST reveal.
+
+#### Pass Log
+
+1. Pass 1 - Compared the current phase-field renderer against the older `1f77ff80f` state and confirmed the transition composite itself still existed:
+   - NEXT is still the base layer,
+   - PRE is still the masked reveal layer,
+   - the conquest mask still comes from the scheduler grid.
+2. Pass 2 - Audited the live settings and the current mask-size math. Found the concrete regression:
+   - `METABALL_GRID_SPACING_PX = 4`
+   - `METABALL_GRID_CELL_INSET_PX = 19`
+   - transition cell size was still computed as `spacing - inset*2`, clamped to `1px`
+   - the mask and frontier highlight were therefore effectively invisible, so conquest read as a snap.
+3. Pass 3 - Separated transition-cell sizing from fill-style inset logic in `MetaballGridPhaseFieldFamily.ts`.
+   - Added a dedicated helper for transition-cell metrics.
+   - Transition reveal now sizes from scheduler spacing and finish-collapse controls only.
+   - Fill-style controls still affect the visible PRE/POST patterned territory surfaces, but no longer collapse the scheduler reveal itself.
+4. Pass 4 - Revalidated the touched renderer path against typecheck and workspace check filters.
+
+#### Validation
+
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surface for this pass:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+- Critical behavioral delta for merge/review:
+  - phase-field conquest visibility no longer depends on `METABALL_GRID_CELL_INSET_PX`
+  - dense scheduler spacing can stay small without collapsing the actual reveal mask to 1px
+  - fill styling and transition visibility are now separated concerns again.

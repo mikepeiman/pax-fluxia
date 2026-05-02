@@ -625,6 +625,34 @@ function paintCellScene(params: {
     return painted;
 }
 
+function buildTransitionCellMetrics(params: {
+    schedulerSpacingPx: number;
+    cellShape: GridCellShape;
+    cellCornerPx: number;
+    finalCellSizePx: number;
+    finishSizeMix: number;
+}): {
+    size: number;
+    half: number;
+    cornerR: number;
+    hexR: number;
+} {
+    const baseSize = Math.max(1, params.schedulerSpacingPx);
+    const collapsedSize = Math.min(baseSize, Math.max(1, params.finalCellSizePx));
+    const size = Math.max(1, lerp(baseSize, collapsedSize, params.finishSizeMix));
+    const half = size * 0.5;
+    const cornerR =
+        params.cellShape === 'square'
+            ? Math.min(params.cellCornerPx, Math.max(0, half - 0.5))
+            : 0;
+    return {
+        size,
+        half,
+        cornerR,
+        hexR: size / SQRT3,
+    };
+}
+
 export class MetaballGridPhaseFieldFamily implements RenderFamily {
     readonly id = 'metaball_grid_phase_field';
     readonly label = 'Metaball Grid Phase Field';
@@ -1967,23 +1995,17 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 sceneBuildMs += performance.now() - borderSceneStartMs;
             }
 
-            const spacingPx = cached.classification.spacingPx;
-            const transitionInset = cellInsetPx + inwardOffsetPx;
-            const baseTransitionSize = Math.max(1, spacingPx - transitionInset * 2);
-            const transitionSize = Math.max(
-                1,
-                lerp(
-                    baseTransitionSize,
-                    Math.min(baseTransitionSize, phaseFieldFinalCellSizePx),
-                    finishSizeMix,
-                ),
-            );
-            const transitionHalf = transitionSize * 0.5;
-            const transitionCornerR = Math.min(
+            const transitionMetrics = buildTransitionCellMetrics({
+                schedulerSpacingPx: cached.classification.spacingPx,
+                cellShape,
                 cellCornerPx,
-                Math.max(0, transitionHalf - 0.5),
-            );
-            const transitionHexR = transitionSize / SQRT3;
+                finalCellSizePx: phaseFieldFinalCellSizePx,
+                finishSizeMix,
+            });
+            const transitionSize = transitionMetrics.size;
+            const transitionHalf = transitionMetrics.half;
+            const transitionCornerR = transitionMetrics.cornerR;
+            const transitionHexR = transitionMetrics.hexR;
 
             const paintStartMs = performance.now();
             if (input.renderer) {
