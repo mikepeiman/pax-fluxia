@@ -30,6 +30,15 @@ export interface ConstraintAlignedTerritoryGeometry {
     readonly appliedMarginPx: number;
 }
 
+function cloneConstraintAlignedPolyline(
+    polyline: ConstraintAlignedFrontierPolyline,
+): ConstraintAlignedFrontierPolyline {
+    return {
+        ...polyline,
+        points: polyline.points.map(([x, y]) => [x, y] as [number, number]),
+    };
+}
+
 interface ResolveConstraintAlignedTerritoryGeometryParams {
     readonly geometry: CanonicalGeometrySnapshot;
     readonly stars: ReadonlyArray<StarState>;
@@ -809,4 +818,44 @@ export function resolveConstraintAlignedTerritoryGeometry(
         ownerStars,
         appliedMarginPx,
     });
+}
+
+export function readConstraintAlignedTerritoryGeometryFromSnapshot(
+    geometry: CanonicalGeometrySnapshot,
+): ConstraintAlignedTerritoryGeometry | null {
+    const ladder = geometry.diagnostics.stageLadder;
+    if (!ladder) return null;
+    return {
+        territoryRegions: ladder.resolvedRegions.map((region) => ({
+            ...region,
+            points: region.points.map(([x, y]) => [x, y] as [number, number]),
+        })),
+        frontierPolylines: ladder.resolvedSharedBoundaryFrontiers.map((polyline) =>
+            cloneConstraintAlignedPolyline({
+                ...polyline,
+                kind: 'inter_owner',
+            }),
+        ),
+        worldBorderPolylines: ladder.resolvedWorldBorders.map((polyline) =>
+            cloneConstraintAlignedPolyline({
+                ...polyline,
+                kind: 'world',
+            }),
+        ),
+        displayFrontierPolylines: ladder.displayFrontierPolylines.map((polyline) =>
+            cloneConstraintAlignedPolyline({
+                ...polyline,
+                kind: 'inter_owner',
+            }),
+        ),
+        displayWorldBorderPolylines: ladder.displayWorldBorderPolylines.map(
+            (polyline) =>
+                cloneConstraintAlignedPolyline({
+                    ...polyline,
+                    kind: 'world',
+                }),
+        ),
+        junctions: [],
+        appliedMarginPx: ladder.appliedMarginPx,
+    };
 }

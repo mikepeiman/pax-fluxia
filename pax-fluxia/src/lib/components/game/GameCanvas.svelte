@@ -153,7 +153,10 @@
     import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
-    import { resolveConstraintAlignedTerritoryGeometry } from "$lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry";
+    import {
+        getGeometryDebugStageLoops,
+        type GeometryDebugStageId,
+    } from "$lib/territory/geometry/geometryStageLadder";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import {
@@ -4126,56 +4129,16 @@
         renderRulerOverlay(debugGraphics);
     }
 
+    function getUnderlyingGeometryStageId(): GeometryDebugStageId {
+        return (GAME_CONFIG.PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE ??
+            "display_borders") as GeometryDebugStageId;
+    }
+
     function getPerimeterDebugLoops(params: {
         geometry: CanonicalGeometrySnapshot;
-        activeMode: string;
-        stars: ReadonlyArray<StarState>;
+        stageId: GeometryDebugStageId;
     }): ReadonlyArray<{ points: ReadonlyArray<[number, number]>; closed: boolean }> {
-        const configSource =
-            getRenderFamilyModeConfigSource(params.activeMode) ??
-            (GAME_CONFIG as unknown as Record<string, unknown>);
-        if (
-            params.activeMode === "metaball_grid_phase_field" ||
-            params.activeMode === "metaball_grid_phase_edges" ||
-            params.activeMode === "perimeter_field"
-        ) {
-            const requestedMarginPx =
-                typeof configSource.MODIFIED_VORONOI_STAR_MARGIN === "number"
-                    ? configSource.MODIFIED_VORONOI_STAR_MARGIN
-                    : 0;
-            const resolved = resolveConstraintAlignedTerritoryGeometry({
-                geometry: params.geometry,
-                stars: params.stars,
-                requestedMarginPx,
-                preferSharedBoundaryResolution: true,
-            });
-            const resolvedPolylines = [
-                ...resolved.displayFrontierPolylines,
-                ...resolved.displayWorldBorderPolylines,
-            ].map((polyline) => ({
-                points: polyline.points,
-                closed: Boolean(polyline.closed),
-            }));
-            if (resolvedPolylines.length > 0) {
-                return resolvedPolylines;
-            }
-        }
-        const geometry = params.geometry;
-        const shellLoops = geometry.shellLoops.filter(
-            (loop) => loop.classification === "outer" && Boolean(loop.ownerId),
-        );
-        if (shellLoops.length > 0) {
-            return shellLoops.map((loop) => ({
-                points: loop.points,
-                closed: true,
-            }));
-        }
-        return geometry.territoryRegions
-            .filter((region) => Boolean(region.ownerId))
-            .map((region) => ({
-                points: region.points,
-                closed: true,
-            }));
+        return getGeometryDebugStageLoops(params.geometry, params.stageId);
     }
 
     function drawPolyline(
@@ -4401,6 +4364,7 @@
         if (!showGeometry && !showVstars) return;
 
         if (showGeometry) {
+            const geometryStageId = getUnderlyingGeometryStageId();
             const geometry = getCurrentRenderFamilyGeometry(
                 stars,
                 lanes,
@@ -4408,8 +4372,7 @@
             );
             for (const polyline of getPerimeterDebugLoops({
                 geometry,
-                activeMode,
-                stars,
+                stageId: geometryStageId,
             })) {
                 drawPolyline(
                     debugGraphics,
@@ -4434,8 +4397,7 @@
             if (scrubEnabled && snapshot?.transitionTargetGeometry) {
                 for (const polyline of getPerimeterDebugLoops({
                     geometry: snapshot.transitionTargetGeometry,
-                    activeMode,
-                    stars,
+                    stageId: geometryStageId,
                 })) {
                     drawPolyline(
                         debugGraphics,
@@ -5136,6 +5098,7 @@
             `${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT}:${GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
             `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX}:` +

@@ -11,6 +11,7 @@ import {
     buildPerimeterFieldRenderFamilyGeometry,
 } from '../buildFamilyGeometry';
 import {
+    readConstraintAlignedTerritoryGeometryFromSnapshot,
     resolveConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedFrontierPolyline,
@@ -889,18 +890,22 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 });
         }
 
-        const prevResolvedGeometry = resolveConstraintAlignedTerritoryGeometry({
-            geometry: prevGeometry,
-            stars: prevStars,
-            requestedMarginPx,
-            preferSharedBoundaryResolution: true,
-        });
-        const nextResolvedGeometry = resolveConstraintAlignedTerritoryGeometry({
-            geometry: currentGeometry,
-            stars: input.stars,
-            requestedMarginPx,
-            preferSharedBoundaryResolution: true,
-        });
+        const prevResolvedGeometry =
+            readConstraintAlignedTerritoryGeometryFromSnapshot(prevGeometry) ??
+            resolveConstraintAlignedTerritoryGeometry({
+                geometry: prevGeometry,
+                stars: prevStars,
+                requestedMarginPx,
+                preferSharedBoundaryResolution: true,
+            });
+        const nextResolvedGeometry =
+            readConstraintAlignedTerritoryGeometryFromSnapshot(currentGeometry) ??
+            resolveConstraintAlignedTerritoryGeometry({
+                geometry: currentGeometry,
+                stars: input.stars,
+                requestedMarginPx,
+                preferSharedBoundaryResolution: true,
+            });
         const prevGeometryForClassification: CanonicalGeometrySnapshot = {
             ...prevGeometry,
             territoryRegions: prevResolvedGeometry.territoryRegions,

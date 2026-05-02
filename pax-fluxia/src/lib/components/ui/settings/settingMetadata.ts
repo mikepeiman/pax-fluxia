@@ -357,6 +357,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Show Underlying Geometry': {
             key: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY',
         },
+        'Underlying Geometry Stage': {
+            key: 'PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE',
+        },
         'Diagnostic Arrow Width': { key: 'PERIMETER_FIELD_DEBUG_VECTOR_WIDTH' },
         'Onion-Skin Steps': { key: 'PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT' },
         'Strobe Frame Stride': {

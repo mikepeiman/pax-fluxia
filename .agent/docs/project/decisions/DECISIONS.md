@@ -778,3 +778,53 @@ What it does not need to keep is the metaball presentation primitive itself. The
 - Shared surface controls must keep one stable meaning unless they are explicitly split. Phase field now uses a dedicated `Frontier Highlight` toggle so `Centered-blended borders` can remain an actual border-behavior control instead of mode-specific overloaded jargon.
 - A style control is only complete when it defines the visible surface, not just a hidden intermediate. For phase field, `Cell Shape` became a legitimate fill control only after PRE and POST themselves were rendered as cell-pattern layers instead of smooth geometry textures using cells merely as a mask.
 - The same principle applies to density. `METABALL_GRID_SPACING_PX` remains the conquest scheduler density control; visible fill density needs its own presentation artifact and its own control. Phase field now treats `METABALL_GRID_PATTERN_SPACING_PX` as a separate presentation-lattice input instead of downsampling the scheduler lattice.
+
+---
+
+# Decision: `power_voronoi_0319` Live Consumers Must Share One Post-0319 Authority Seam
+
+**Date:** 2026-05-02
+**Status:** Implemented
+**Ref:** D-0319-AUTHORITY-2026-05-02
+
+## Context
+
+The live `power_voronoi_0319` path had drifted into a mixed-geometry system:
+
+- `buildPerimeterFieldRenderFamilyGeometry(...)` adapted raw `mergedTerritories/sharedPolylines/worldBorderPolylines` straight into the live canonical snapshot.
+- `MetaballGridPhaseFieldFamily.ts` then re-ran its own shared-boundary resolution for PRE/NEXT geometry.
+- `GameCanvas.svelte` `Show Underlying Geometry` also re-ran a separate late resolution path.
+
+That made fills, borders, and diagnostics disagree unless they were repeatedly patched to match.
+
+## Decision
+
+- Treat `Geometry_0319` shared/world polylines as the only raw upstream live boundary source for current 0319 consumers.
+- Build one explicit post-0319 authority snapshot from that source:
+  - raw shared/world boundaries in
+  - shared-boundary resolution once
+  - resolved regions/topology/display-border chains out
+- Keep owner-local `mergedTerritories` as diagnostic context only, not live render truth, when they can diverge from the shared seam.
+- Expose geometry diagnostics as an explicit stage ladder, not one generic `geometry` overlay.
+
+## Stage Ladder
+
+- `raw_shared_frontiers`
+- `raw_world_borders`
+- `resolved_shared_boundary_frontiers`
+- `resolved_regions`
+- `display_borders`
+
+## Implementation Note
+
+- Shared authority builder: `pax-fluxia/src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.ts`
+- Shared stage helper: `pax-fluxia/src/lib/territory/geometry/geometryStageLadder.ts`
+- Live 0319 snapshot construction now flows through `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+- Phase-field reads resolved authority geometry from the snapshot when available; local re-resolution is now fallback-only for sources that do not publish the ladder.
+- Diagnostics overlay and artifact export now select/serialize the same named stages instead of implying one ambiguous `geometry`.
+
+## Rationale
+
+- This restores one truthful geometry seam without requiring every renderer to become a geometry repair layer.
+- It makes `MSR`, `CX`, `DX`, `LP`, resolved regions, and display borders auditable stage-by-stage.
+- It creates mergeable shared infrastructure rather than another phase-field-only exception path.

@@ -57,6 +57,17 @@
 
 ### Remaining Post-Merge Validation
 
+- Use the new stage-explicit Diagnostics ladder to compare:
+  - `Raw Shared Frontiers`
+  - `Raw World Borders`
+  - `Resolved Shared-Boundary Frontiers`
+  - `Resolved Regions`
+  - `Display Borders`
+- Verify that `power_voronoi_0319` live consumers now stay on one authority seam:
+  - phase-field classification
+  - phase-field visible borders
+  - global `Show Underlying Geometry`
+  - geometry artifact export
 - Verify `Show Underlying Geometry` no longer shows duplicate/backtracking owner loops at LP/CX-heavy seams.
 - Verify phase-field conquest still reads well after the shared chain-walk fix:
   - smooth borders
@@ -117,6 +128,12 @@
   - owner-boundary junction traversal is now planar-adjacent instead of insertion-order dependent,
   - effectively closed owner loops are claimed before open spurs,
   - the diagnostics shell-loop overlay should stop taking wrong LP/CX junction branches and backtracking.
+- Implemented the shared `power_voronoi_0319` geometry reset:
+  - added `buildPowerVoronoi0319AuthoritySnapshot.ts` as the one post-0319 authority seam for live consumers
+  - stopped adapting raw `mergedTerritories` directly into the live canonical snapshot
+  - added a geometry stage ladder contract plus shared helper `geometryStageLadder.ts`
+  - rewired phase-field to consume resolved authority geometry from the snapshot instead of re-resolving 0319 locally
+  - made `Show Underlying Geometry` stage-selectable and exported the same stage ladder through `perimeterFieldGeometryArtifact.ts`
 
 ## Next
 - Run in-app visual QA against the final shared chain-walk build, especially at LP/CX-heavy seams where `Show Underlying Geometry` previously showed multiple loops and wrong-way excursions.

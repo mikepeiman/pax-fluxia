@@ -25,6 +25,11 @@
         downloadBundle,
         downloadDiagnosticPackage,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
+    import {
+        GEOMETRY_DEBUG_STAGE_ORDER,
+        getGeometryDebugStageLabel,
+        type GeometryDebugStageId,
+    } from "$lib/territory/geometry/geometryStageLadder";
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
 
     interface Props {
@@ -104,6 +109,20 @@
     function toggleUnderlyingGeometry(): void {
         GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY =
             !showUnderlyingGeometryEnabled();
+        bumpTerritoryVisualConfig();
+        syncFromConfig?.();
+    }
+
+    function getUnderlyingGeometryStage(): GeometryDebugStageId {
+        return (panel.perimeterFieldDebugGeometryStage ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE ??
+            "display_borders") as GeometryDebugStageId;
+    }
+
+    function setUnderlyingGeometryStage(event: Event): void {
+        GAME_CONFIG.PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE = (
+            event.currentTarget as HTMLSelectElement
+        ).value as GeometryDebugStageId;
         bumpTerritoryVisualConfig();
         syncFromConfig?.();
     }
@@ -346,7 +365,26 @@
         </span>
     </label>
     <div class="readout">
-        Draws the active territory mode's current geometry loops. In perimeter-field scrub/replay, the alternate target geometry is also shown when available.
+        Showing <code>{getGeometryDebugStageLabel(getUnderlyingGeometryStage())}</code> for the active territory mode.
+    </div>
+    <div class="row">
+        <label class="var-name" for="underlying-geometry-stage">
+            Overlay Stage
+        </label>
+        <select
+            id="underlying-geometry-stage"
+            value={getUnderlyingGeometryStage()}
+            onchange={setUnderlyingGeometryStage}
+        >
+            {#each GEOMETRY_DEBUG_STAGE_ORDER as stageId}
+                <option value={stageId}>
+                    {getGeometryDebugStageLabel(stageId)}
+                </option>
+            {/each}
+        </select>
+    </div>
+    <div class="readout">
+        The overlay draws the selected stage for the active mode and, during perimeter-field scrub/replay, the alternate target snapshot at the same stage. `power_voronoi_0319` modes publish the full raw→resolved→display ladder; other sources fall back to their available live loops.
     </div>
 </section>
 

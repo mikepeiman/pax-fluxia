@@ -1540,3 +1540,61 @@ Suggested structure:
   - `MSR` no longer secretly rescales power-voronoi site weights or contested midpoint-pair spacing in the live 0319 geometry path
   - phase-field and global geometry diagnostics no longer trust owner-local post-MSR loops when shared frontiers are the correct authority
   - current-mode borders/fills/underlying-geometry overlay are now resolved from the same shared-boundary seam instead of mixing frontier truth with independently mutated fill loops
+
+### 2026-05-02 - Shared Geometry Reset For `power_voronoi_0319` Consumers
+
+- Lane: `geometry/shared-authority-reset`
+- User task: implement the shared reset plan so `power_voronoi_0319` live consumers stop mixing raw frontiers, owner-local postprocessed loops, and renderer-local re-resolution.
+
+#### Pass Log
+
+1. Pass 1 - Moved the live 0319 authority seam up into shared geometry construction.
+   - Added `pax-fluxia/src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.ts`.
+   - The builder now treats `Geometry_0319` shared/world polylines as the only raw upstream boundary input for live 0319 consumers.
+   - It resolves one shared-boundary seam, rebuilds resolved regions from that seam, rebuilds topology from the resolved seam, and emits the final `CanonicalGeometrySnapshot`.
+2. Pass 2 - Stopped adapting raw `mergedTerritories` directly into the live render-family snapshot.
+   - Replaced the old adapter path in `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`.
+   - `mergedTerritories` remain available only as diagnostic/raw context; live `territoryRegions` / `frontierPolylines` / `worldBorderPolylines` now come from the shared authority builder.
+3. Pass 3 - Added an explicit stage ladder to the geometry contract.
+   - `GeometryContracts.ts` now carries optional `stageLadder` diagnostics with these explicit stages:
+     - `raw_shared_frontiers`
+     - `raw_world_borders`
+     - `resolved_shared_boundary_frontiers`
+     - `resolved_regions`
+     - `display_borders`
+   - Added `pax-fluxia/src/lib/territory/geometry/geometryStageLadder.ts` to centralize stage ids, labels, and overlay-loop extraction.
+4. Pass 4 - Removed the active 0319 phase-field re-resolution pattern.
+   - `MetaballGridPhaseFieldFamily.ts` now reads resolved authority geometry from the snapshot when available.
+   - It falls back to local resolution only for sources that do not publish the authority ladder.
+5. Pass 5 - Turned the Diagnostics overlay into a real stage-selectable geometry ladder.
+   - `GameCanvas.svelte` no longer resolves geometry inside the overlay path.
+   - `ControlsSection-Diagnostics.svelte` now exposes a top-level stage selector next to `Show Underlying Geometry`.
+   - Added `PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE` through config/defaults/settings metadata.
+6. Pass 6 - Updated artifact export to serialize the same explicit stage ladder used by the overlay.
+   - `perimeterFieldGeometryArtifact.ts` now exports `displayGeometryStages` and `transitionTargetGeometryStages`.
+7. Pass 7 - Added focused tests at the new authority seam.
+   - New test file: `pax-fluxia/src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.test.ts`
+   - Existing resolver/settings/weighting tests remain green.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.test.ts ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts ./src/lib/territory/families/buildFamilyGeometry.test.ts ./src/lib/territory/compiler/powerVoronoiWeighting.test.ts`
+- `bunx tsc --noEmit --pretty false` filtered for touched files only surfaced the existing repo-baseline `game.config.ts` mismatch, with no new hits for the new authority builder, stage ladder, phase-field family, artifact export, or diagnostics panel
+- `git diff --check` returned only the existing LF->CRLF warnings
+
+#### Merge Note
+
+- New/changed shared-geometry merge surfaces:
+  - `pax-fluxia/src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.ts`
+  - `pax-fluxia/src/lib/territory/geometry/geometryStageLadder.ts`
+  - `pax-fluxia/src/lib/territory/contracts/GeometryContracts.ts`
+  - `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+  - `pax-fluxia/src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
+- Critical behavioral delta for merge/review:
+  - live `power_voronoi_0319` consumers now share one post-0319 resolved geometry seam instead of adapting raw owner polygons and repairing them downstream
+  - phase-field classification, phase-field border overlay, and global `Show Underlying Geometry` now read the same authority seam for 0319 snapshots
+  - the overlay and artifact export now name exact stages rather than calling everything generically `geometry`

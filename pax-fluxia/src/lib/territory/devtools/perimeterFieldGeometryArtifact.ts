@@ -8,6 +8,10 @@ import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import { compactPerimeterFieldDebugSnapshot } from '../families/perimeterField/perimeterFieldDiagnostics';
 import { buildPowerVoronoi0319Settings } from '../families/buildFamilyGeometry';
+import {
+    GEOMETRY_DEBUG_STAGE_ORDER,
+    getGeometryDebugStageLabel,
+} from '../geometry/geometryStageLadder';
 
 function triggerDownload(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
@@ -81,6 +85,93 @@ function serializeCanonicalGeometry(geometry: CanonicalGeometrySnapshot): Record
         })),
         provenance: geometry.provenance,
         diagnostics: geometry.diagnostics,
+    };
+}
+
+function serializeFrontierPolylines(
+    polylines: ReadonlyArray<CanonicalGeometrySnapshot['frontierPolylines'][number]>,
+): unknown[] {
+    return polylines.map((frontier) => ({
+        frontierId: frontier.frontierId,
+        ownerPairKey: frontier.ownerPairKey,
+        ownerA: frontier.ownerA,
+        ownerB: frontier.ownerB,
+        confidence: frontier.confidence,
+        closed: frontier.closed ?? false,
+        points: frontier.points,
+    }));
+}
+
+function serializeTerritoryRegions(
+    regions: ReadonlyArray<CanonicalGeometrySnapshot['territoryRegions'][number]>,
+): unknown[] {
+    return regions.map((region) => ({
+        regionId: region.regionId,
+        ownerId: region.ownerId,
+        starIds: [...(region.starIds ?? [])].sort(),
+        confidence: region.confidence,
+        points: region.points,
+    }));
+}
+
+function serializeGeometryStageLadder(
+    geometry: CanonicalGeometrySnapshot,
+): Record<string, unknown> | null {
+    const ladder = geometry.diagnostics.stageLadder;
+    if (!ladder) return null;
+    return {
+        authoritativeSeamFingerprint: ladder.authoritativeSeamFingerprint,
+        displayBorderFingerprint: ladder.displayBorderFingerprint,
+        appliedMarginPx: ladder.appliedMarginPx,
+        stages: GEOMETRY_DEBUG_STAGE_ORDER.map((stageId) => {
+            switch (stageId) {
+                case 'raw_shared_frontiers':
+                    return {
+                        id: stageId,
+                        label: getGeometryDebugStageLabel(stageId),
+                        frontiers: serializeFrontierPolylines(
+                            ladder.rawSharedFrontiers,
+                        ),
+                    };
+                case 'raw_world_borders':
+                    return {
+                        id: stageId,
+                        label: getGeometryDebugStageLabel(stageId),
+                        frontiers: serializeFrontierPolylines(
+                            ladder.rawWorldBorders,
+                        ),
+                    };
+                case 'resolved_shared_boundary_frontiers':
+                    return {
+                        id: stageId,
+                        label: getGeometryDebugStageLabel(stageId),
+                        frontiers: serializeFrontierPolylines(
+                            ladder.resolvedSharedBoundaryFrontiers,
+                        ),
+                        worldBorders: serializeFrontierPolylines(
+                            ladder.resolvedWorldBorders,
+                        ),
+                    };
+                case 'resolved_regions':
+                    return {
+                        id: stageId,
+                        label: getGeometryDebugStageLabel(stageId),
+                        regions: serializeTerritoryRegions(ladder.resolvedRegions),
+                    };
+                case 'display_borders':
+                    return {
+                        id: stageId,
+                        label: getGeometryDebugStageLabel(stageId),
+                        frontiers: serializeFrontierPolylines(
+                            ladder.displayFrontierPolylines,
+                        ),
+                        worldBorders: serializeFrontierPolylines(
+                            ladder.displayWorldBorderPolylines,
+                        ),
+                    };
+            }
+        }),
+        notes: [...ladder.notes],
     };
 }
 
@@ -158,6 +249,8 @@ function buildRelevantConfigSnapshot(
         CHAIKIN_BOUNDARY_EPS: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS,
         PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY:
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY,
+        PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE:
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_GEOMETRY_STAGE,
         PERIMETER_FIELD_DEBUG_SCRUB_ENABLED:
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED,
         PERIMETER_FIELD_DEBUG_REPLAY_SLOT:
@@ -224,8 +317,16 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
             displayGeometry: serializeCanonicalGeometry(
                 params.snapshot.displayGeometry,
             ),
+            displayGeometryStages: serializeGeometryStageLadder(
+                params.snapshot.displayGeometry,
+            ),
             transitionTargetGeometry: params.snapshot.transitionTargetGeometry
                 ? serializeCanonicalGeometry(
+                      params.snapshot.transitionTargetGeometry,
+                  )
+                : null,
+            transitionTargetGeometryStages: params.snapshot.transitionTargetGeometry
+                ? serializeGeometryStageLadder(
                       params.snapshot.transitionTargetGeometry,
                   )
                 : null,
