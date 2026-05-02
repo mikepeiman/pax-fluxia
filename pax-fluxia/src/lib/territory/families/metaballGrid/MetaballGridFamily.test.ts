@@ -916,6 +916,45 @@ describe('MetaballGridFamily active frontier fast path', () => {
         }
     });
 
+    it('does not repaint suppressed square bands when inward offset crosses the old 24px cap', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_SPACING_PX: 12,
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                METABALL_GRID_CELL_INSET_PX: 0,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                METABALL_GRID_INWARD_OFFSET_PX: 23,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            }),
+        );
+        const state = family as unknown as { graphics: unknown };
+        const offset23 = captureFillSnapshot(state.graphics);
+
+        family.update(
+            makePhaseEdgesInput(family, 0.35, {
+                METABALL_GRID_SPACING_PX: 12,
+                METABALL_GRID_BORDER_MODE: 'territory_edge',
+                METABALL_GRID_BORDER_BLEND: true,
+                METABALL_GRID_CELL_INSET_PX: 0,
+                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+                METABALL_GRID_INWARD_OFFSET_PX: 24,
+                TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
+            }),
+        );
+        const offset24 = captureFillSnapshot(state.graphics);
+
+        expect(offset24.length).toBeLessThanOrEqual(offset23.length);
+
+        family.dispose();
+    });
+
     it('suppresses base fill only inside the explicit frontier-replacement mask', () => {
         const family = createMetaballGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {

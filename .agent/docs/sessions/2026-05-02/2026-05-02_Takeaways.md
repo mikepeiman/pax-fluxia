@@ -50,3 +50,7 @@
 - The live `24px` snap was not arbitrary:
   - with `12px` spacing, `24px` landed exactly on the next band boundary
   - widening the slider alone would only move that failure unless the band-suppression rule changed too
+- Another concrete renderer failure mode is legacy fallback repaint:
+  - the new square-bounds offset path can intentionally return `null` for a fully suppressed square band
+  - if the draw loop then falls back to legacy square fill, the visual result will look glitchy, unstable, or capped even if the suppression math is correct
+  - suppression must remain authoritative all the way to the final draw loop

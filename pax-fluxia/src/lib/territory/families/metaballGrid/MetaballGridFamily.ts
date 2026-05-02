@@ -2690,10 +2690,15 @@ export class MetaballGridFamily implements RenderFamily {
                 const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
                 const hexR = isBoundary ? boundaryHexR : nativeHexR;
                 const cellIndex = iy * cols + ix;
+                const usesDistanceSquareBounds =
+                    cellShape === 'square' && visibleSquareBoundsByGridIdx !== null;
                 const squareBounds =
-                    cellShape === 'square' && visibleSquareBoundsByGridIdx
+                    usesDistanceSquareBounds
                         ? visibleSquareBoundsByGridIdx[cellIndex]
                         : null;
+                if (usesDistanceSquareBounds && !squareBounds) {
+                    continue;
+                }
                 if (squareBounds) {
                     const usesBoundaryBounds =
                         boundaryOffsetTargetPx > 0 &&

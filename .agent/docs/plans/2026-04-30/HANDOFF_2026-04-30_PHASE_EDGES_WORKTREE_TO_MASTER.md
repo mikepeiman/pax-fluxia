@@ -1053,3 +1053,60 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - do not backport only the slider-range change without the band-suppression rule, or the same bug will just reappear at a larger value
   - this is still not the final stepped-moat feature; it is a refinement of the clean-offset surface track
   - live user verification is still required before treating `Inward Offset` as accepted
+
+### 2026-05-02 - additive inward-offset repaint fallback fix
+
+- The next live report clarified that the remaining failure was not just math or range:
+  - the offset looked unstable
+  - the old `1-23px` behavior still appeared
+  - `24px` still snapped
+  - higher values showed transient gap bands
+  - most importantly, the user observed that the result looked like it was being painted over
+- That observation was correct.
+
+#### Root cause
+
+- In both:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+- the new frontier-distance offset path can return `null` visible square bounds for a square cell to indicate:
+  - this band/cell is fully suppressed
+- But the fill loops still fell back to the legacy `drawFilledGridCell(...)` path when `squareBounds` was `null`.
+- So the suppression result was being overwritten by the legacy square painter.
+
+#### Fix
+
+- In both families:
+  - if `visibleSquareBoundsByGridIdx` is active for square cells
+  - and the current cell resolves to `null`
+  - skip the cell entirely
+  - do not call the legacy square fill fallback
+
+#### Why it matters for merge/backport
+
+- Do not treat `null` square bounds as "no custom bounds available."
+- On the active offset path, `null` is a meaningful draw instruction:
+  - the cell must not be drawn
+- Any merge that reintroduces the legacy fallback under this condition will recreate the same glitchy "painted over" behavior even if the offset math remains correct.
+
+#### Regression coverage
+
+- Added renderer-level regression in:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+- Test shape:
+  - `spacing = 12`
+  - `territory_edge`
+  - `borderBlend = true`
+  - compare `23px` vs `24px`
+  - assert the `24px` snapshot does not grow back through repaint fallback
+
+#### Validation
+
+- `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\edgeShaping.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+- `bun x vite build`
+
+#### Acceptance status
+
+- implemented
+- repo-validated
+- still requires live verification
