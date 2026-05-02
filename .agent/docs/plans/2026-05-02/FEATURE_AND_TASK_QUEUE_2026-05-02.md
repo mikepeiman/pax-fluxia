@@ -29,4 +29,13 @@
   - does the missing-margin / inset gap finally disappear when `Centered-blended borders` is on?
   - do `Inward Offset` and `Flush Boundary Fill` now visibly affect the fill?
   - does the centered-blended outer perimeter still behave correctly after the visible-boundary geometry change?
+- Rework `Inward Offset` to match the actual requirement:
+  - not a one-ring per-cell shrink on the frontier-adjacent squares
+  - a global, variable-width clean offset measured from the frontier itself
+  - alternate stepped fallback: pixellated distance bands where outermost cells shrink most and deeper rows shrink less
+- VFX ideation queue for border moats / gradients:
+  - stepped square moat bands
+  - hot plasma ribbon / heat shimmer frontier
+  - particle drift / embers / ion sparks along the border
+  - geometry-based crenellated or oscillating moat strip
 - After fill acceptance, continue the already-queued transition-end smoothness / end-of-transition jank audit as a separate pass

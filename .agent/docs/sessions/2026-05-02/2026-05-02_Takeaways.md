@@ -22,3 +22,5 @@
 
 - Live visual verification is still required.
 - Transition-end jank remains queued after this fix.
+- `Inward Offset` must be redefined around frontier distance ownership, not frontier-adjacent cell ownership.
+- A viable fallback / stylistic variant is stepped square distance bands that create a pixellated moat.

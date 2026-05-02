@@ -914,3 +914,27 @@ The build/tests pass, but the user is the source of truth for the live scene. An
     - scene cells own fill
     - pairwise `scene_pairs` layers are border-only
   - when merging multiple worktrees, re-check the live settings file for the actual active path before trusting any renderer-specific fix story
+
+### 2026-05-02 - additive clarification of the real `Inward Offset` requirement
+
+- After the centered-blended gap was finally removed, the user clarified that `Inward Offset` is still wrong in a very specific way.
+- Current wrong behavior:
+  - only the first row of square cells on either side of the border changes
+  - each of those squares is shrunk locally / individually
+- Required behavior:
+  - a global, variable-width clean offset from the frontier itself
+  - the fill should retract from the frontier as a coherent offset field, not as isolated per-cell edge shrink
+- Important merge/backport implication:
+  - do not keep the current one-ring boundary-cell inset model as the definition of `Inward Offset`
+  - it must be replaced by either:
+    - true frontier-distance offset ownership, or
+    - an explicitly named stepped-square distance-band variant if a pixellated style is desired
+- User-accepted alternate visual direction:
+  - stepped square offsets
+  - outermost frontier row shrinks most, deeper rows shrink progressively less
+  - produces a pixellated moat / distance-gradient look
+- Additional future VFX ideas the user requested be queued:
+  - stepped-square moat bands
+  - hot plasma / heat ribbon frontier
+  - particle / ember / ion drift along frontiers
+  - geometry-based moat strip / crenellated or oscillating border band
