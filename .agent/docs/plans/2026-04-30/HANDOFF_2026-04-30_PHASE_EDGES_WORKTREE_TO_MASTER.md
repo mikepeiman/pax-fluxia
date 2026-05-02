@@ -845,3 +845,29 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Merge/backport guidance:
   - preserve the separation between interior cell styling and boundary-edge styling
   - do not collapse square-cell fill back to one uniform inset when a true-edge border family is active, or the centered-blended gap will return
+
+### 2026-05-02 - additive correction after the first border-only fix still failed visually
+
+- The first 2026-05-02 fix corrected fill ownership, but the user still reported no visible improvement.
+- Important diagnosis:
+  - centered-blended border geometry was still drawn on the abstract grid/shared-edge lattice
+  - the acceptable user-visible reference is the boundary of the visible filled squares, not the theoretical raw cell edge
+  - the remaining bug was therefore geometric-owner drift, not just fill-owner drift
+- Runtime correction:
+  - in both:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+  - added `VisibleSquareCellBounds`
+  - compute visible square bounds per occupied cell from the active fill shaping inputs:
+    - `Cell Inset`
+    - boundary inset (`Flush Boundary Fill` / `Inward Offset`)
+    - ownership boundary detection
+  - rebuilt centered-blended border segment extraction from overlap/midpoint calculations between neighboring visible square bounds
+  - routed outer perimeter interval collection through those same visible square bounds
+- Merge/backport guidance:
+  - do not merge only the earlier "border-only" contract change without this geometry-owner correction
+  - if a border mode claims to match the visible fill frontier, derive its stroke path from the same visible boundary geometry
+- Validation:
+  - `bun x vitest run src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`

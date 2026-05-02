@@ -337,6 +337,13 @@ interface OuterPerimeterBounds {
     readonly bottom: number;
 }
 
+interface VisibleSquareCellBounds {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+}
+
 const OUTER_PERIMETER_EDGE_EPSILON = 0.001;
 
 function addOuterPerimeterInterval(
@@ -360,6 +367,7 @@ function resolveOuterPerimeterBounds(params: {
     classification: GridClassification;
     effectiveColorIdxByGridIdx: Int32Array;
     cellHalfExtent: number;
+    cellBoundsByGridIdx?: readonly (VisibleSquareCellBounds | null)[] | null;
 }): OuterPerimeterBounds | null {
     let left = Number.POSITIVE_INFINITY;
     let top = Number.POSITIVE_INFINITY;
@@ -369,11 +377,19 @@ function resolveOuterPerimeterBounds(params: {
         for (let ix = 0; ix < params.classification.cols; ix++) {
             const gridIndex = iy * params.classification.cols + ix;
             if (params.effectiveColorIdxByGridIdx[gridIndex] < 0) continue;
-            const vstar = params.classification.vstars[gridIndex];
-            left = Math.min(left, vstar.x - params.cellHalfExtent);
-            top = Math.min(top, vstar.y - params.cellHalfExtent);
-            right = Math.max(right, vstar.x + params.cellHalfExtent);
-            bottom = Math.max(bottom, vstar.y + params.cellHalfExtent);
+            const cellBounds = params.cellBoundsByGridIdx?.[gridIndex];
+            if (cellBounds) {
+                left = Math.min(left, cellBounds.left);
+                top = Math.min(top, cellBounds.top);
+                right = Math.max(right, cellBounds.right);
+                bottom = Math.max(bottom, cellBounds.bottom);
+            } else {
+                const vstar = params.classification.vstars[gridIndex];
+                left = Math.min(left, vstar.x - params.cellHalfExtent);
+                top = Math.min(top, vstar.y - params.cellHalfExtent);
+                right = Math.max(right, vstar.x + params.cellHalfExtent);
+                bottom = Math.max(bottom, vstar.y + params.cellHalfExtent);
+            }
         }
     }
     if (
@@ -395,12 +411,14 @@ function drawOuterPerimeterIntervals(params: {
     borderAlpha: number;
     borderWidth: number;
     cellHalfExtent: number;
+    cellBoundsByGridIdx?: readonly (VisibleSquareCellBounds | null)[] | null;
     markBorderDrawn: () => void;
 }): void {
     const bounds = resolveOuterPerimeterBounds({
         classification: params.classification,
         effectiveColorIdxByGridIdx: params.effectiveColorIdxByGridIdx,
         cellHalfExtent: params.cellHalfExtent,
+        cellBoundsByGridIdx: params.cellBoundsByGridIdx,
     });
     if (!bounds) return;
     const intervalsByKey = new Map<string, OuterPerimeterInterval[]>();
@@ -414,11 +432,12 @@ function drawOuterPerimeterIntervals(params: {
             const gridIndex = iy * params.classification.cols + ix;
             const ownerIndex = params.effectiveColorIdxByGridIdx[gridIndex];
             if (ownerIndex < 0) continue;
+            const cellBounds = params.cellBoundsByGridIdx?.[gridIndex];
             const vstar = params.classification.vstars[gridIndex];
-            const left = vstar.x - params.cellHalfExtent;
-            const right = vstar.x + params.cellHalfExtent;
-            const top = vstar.y - params.cellHalfExtent;
-            const bottom = vstar.y + params.cellHalfExtent;
+            const left = cellBounds ? cellBounds.left : vstar.x - params.cellHalfExtent;
+            const right = cellBounds ? cellBounds.right : vstar.x + params.cellHalfExtent;
+            const top = cellBounds ? cellBounds.top : vstar.y - params.cellHalfExtent;
+            const bottom = cellBounds ? cellBounds.bottom : vstar.y + params.cellHalfExtent;
 
             if (
                 left <= bounds.left + OUTER_PERIMETER_EDGE_EPSILON &&
@@ -3585,6 +3604,35 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 effectiveColorIdxByGridIdx[iy * cols + ix] = c.colorIdx;
             }
         }
+        let visibleSquareBoundsByGridIdx: Array<VisibleSquareCellBounds | null> | null = null;
+        if (cellShape === 'square' && effectiveColorIdxByGridIdx) {
+            visibleSquareBoundsByGridIdx = new Array<VisibleSquareCellBounds | null>(vstarCount);
+            for (let i = 0; i < vstarCount; i++) {
+                const colorIdx = effectiveColorIdxByGridIdx[i];
+                if (colorIdx < 0) {
+                    visibleSquareBoundsByGridIdx[i] = null;
+                    continue;
+                }
+                const v = cached.classification.vstars[i];
+                const boundaryCell = isOwnershipBoundaryCell({
+                    ix: v.ix,
+                    iy: v.iy,
+                    cols,
+                    rows,
+                    colorIdx,
+                    colorIdxByGridIdx: effectiveColorIdxByGridIdx,
+                    includeWorldEdge: true,
+                });
+                const inset = boundaryCell ? boundaryInset : nativeInset;
+                const halfExtent = Math.max(0, trueHalf - inset);
+                visibleSquareBoundsByGridIdx[i] = {
+                    left: v.x - halfExtent,
+                    right: v.x + halfExtent,
+                    top: v.y - halfExtent,
+                    bottom: v.y + halfExtent,
+                };
+            }
+        }
 
         let sceneSurfaceFillLayers: TerritoryFrontierPhaseFieldLayer[] = [];
         let sceneSurfaceBorderLayers: TerritoryFrontierPhaseFieldLayer[] = [];
@@ -3932,24 +3980,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         //   5. stroke each polyline once with round caps + round joins.
         // The result is continuous, corner-joined boundaries in the 50/50
         // blended colour of the two owners' border hexes.
-        if (!canUseSplitFillOnlyFastPath && drawBlendedEdges && effectiveColorIdxByGridIdx) {
-            const originOffset = cached.classification.originMode === 'centered' ? spacingPx * 0.5 : 0;
-            // Vertex grid is (cols+1) × (rows+1); vertex id = ivy * vCols + ivx.
-            const vCols = cols + 1;
-            const vertexX = (vid: number): number => {
-                const ivx = vid % vCols;
-                return ivx * spacingPx + originOffset - trueHalf;
-            };
-            const vertexY = (vid: number): number => {
-                const ivx = vid % vCols;
-                const ivy = (vid - ivx) / vCols;
-                return ivy * spacingPx + originOffset - trueHalf;
-            };
-
-            // Edge buckets by "min|max" colour-idx pair.
+        if (
+            !canUseSplitFillOnlyFastPath &&
+            drawBlendedEdges &&
+            effectiveColorIdxByGridIdx &&
+            visibleSquareBoundsByGridIdx
+        ) {
             interface BoundaryEdge {
-                readonly v0: number;
-                readonly v1: number;
+                readonly v0: string;
+                readonly v1: string;
                 readonly cellIndex0: number;
                 readonly cellIndex1: number;
             }
@@ -3959,8 +3998,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 opposingWeight: number;
             }
             const edgesByPair = new Map<string, BoundaryEdgeBucket>();
-            const ownerSetByVertex = new Map<number, Set<number>>();
-            const recordVertexOwners = (vertexId: number, a: number, b: number): void => {
+            const ownerSetByVertex = new Map<string, Set<number>>();
+            const coordsByVertex = new Map<string, readonly [number, number]>();
+            const vertexKey = (x: number, y: number): string =>
+                `${x.toFixed(4)},${y.toFixed(4)}`;
+            const recordVertexOwners = (vertexId: string, a: number, b: number): void => {
                 let ownerSet = ownerSetByVertex.get(vertexId);
                 if (!ownerSet) {
                     ownerSet = new Set<number>();
@@ -3984,11 +4026,18 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             const pushEdge = (
                 a: number,
                 b: number,
-                v0: number,
-                v1: number,
+                x0: number,
+                y0: number,
+                x1: number,
+                y1: number,
                 cellIndex0: number,
                 cellIndex1: number,
             ): void => {
+                if (!(Math.abs(x1 - x0) > 0.001 || Math.abs(y1 - y0) > 0.001)) return;
+                const v0 = vertexKey(x0, y0);
+                const v1 = vertexKey(x1, y1);
+                coordsByVertex.set(v0, [x0, y0]);
+                coordsByVertex.set(v1, [x1, y1]);
                 const lo = a < b ? a : b;
                 const hi = a < b ? b : a;
                 const key = `${lo}|${hi}`;
@@ -4009,37 +4058,47 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             };
             for (let iy = 0; iy < rows; iy++) {
                 for (let ix = 0; ix < cols; ix++) {
-                    const selfIdx = effectiveColorIdxByGridIdx[iy * cols + ix];
-                    if (selfIdx < 0) continue;
-                    // Right neighbour → vertical shared edge,
-                    // vertex (ix+1, iy) → vertex (ix+1, iy+1).
+                    const cellIndex = iy * cols + ix;
+                    const selfIdx = effectiveColorIdxByGridIdx[cellIndex];
+                    const selfBounds = visibleSquareBoundsByGridIdx[cellIndex];
+                    if (selfIdx < 0 || !selfBounds) continue;
                     if (ix + 1 < cols) {
-                        const cellIndex = iy * cols + ix;
-                        const rIdx = effectiveColorIdxByGridIdx[iy * cols + ix + 1];
-                        if (rIdx >= 0 && rIdx !== selfIdx) {
+                        const rightIndex = cellIndex + 1;
+                        const rIdx = effectiveColorIdxByGridIdx[rightIndex];
+                        const rightBounds = visibleSquareBoundsByGridIdx[rightIndex];
+                        if (rIdx >= 0 && rIdx !== selfIdx && rightBounds) {
+                            const x = (selfBounds.right + rightBounds.left) * 0.5;
+                            const y0 = Math.max(selfBounds.top, rightBounds.top);
+                            const y1 = Math.min(selfBounds.bottom, rightBounds.bottom);
                             pushEdge(
                                 selfIdx,
                                 rIdx,
-                                iy * vCols + (ix + 1),
-                                (iy + 1) * vCols + (ix + 1),
+                                x,
+                                y0,
+                                x,
+                                y1,
                                 cellIndex,
-                                cellIndex + 1,
+                                rightIndex,
                             );
                         }
                     }
-                    // Bottom neighbour → horizontal shared edge,
-                    // vertex (ix, iy+1) → vertex (ix+1, iy+1).
                     if (iy + 1 < rows) {
-                        const cellIndex = iy * cols + ix;
-                        const dIdx = effectiveColorIdxByGridIdx[(iy + 1) * cols + ix];
-                        if (dIdx >= 0 && dIdx !== selfIdx) {
+                        const downIndex = cellIndex + cols;
+                        const dIdx = effectiveColorIdxByGridIdx[downIndex];
+                        const downBounds = visibleSquareBoundsByGridIdx[downIndex];
+                        if (dIdx >= 0 && dIdx !== selfIdx && downBounds) {
+                            const y = (selfBounds.bottom + downBounds.top) * 0.5;
+                            const x0 = Math.max(selfBounds.left, downBounds.left);
+                            const x1 = Math.min(selfBounds.right, downBounds.right);
                             pushEdge(
                                 selfIdx,
                                 dIdx,
-                                (iy + 1) * vCols + ix,
-                                (iy + 1) * vCols + (ix + 1),
+                                x0,
+                                y,
+                                x1,
+                                y,
                                 cellIndex,
-                                cellIndex + cols,
+                                downIndex,
                             );
                         }
                     }
@@ -4065,7 +4124,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             ): void => {
                 if (edges.length === 0) return;
                 strokeOpts.color = color;
-                const adj = new Map<number, Array<[number, number]>>();
+                const adj = new Map<string, Array<[string, number]>>();
                 for (let e = 0; e < edges.length; e++) {
                     const { v0, v1 } = edges[e];
                     let la = adj.get(v0);
@@ -4084,11 +4143,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
                 const usedEdge = new Uint8Array(edges.length);
 
-                const drawChain = (vertexChain: number[], closed: boolean): void => {
+                const drawChain = (vertexChain: string[], closed: boolean): void => {
                     if (vertexChain.length < 2) return;
                     let pts: number[] = [];
                     for (const vid of vertexChain) {
-                        pts.push(vertexX(vid), vertexY(vid));
+                        const coords = coordsByVertex.get(vid);
+                        if (!coords) return;
+                        pts.push(coords[0], coords[1]);
                     }
                     if (totalBorderChaikinPasses > 0) {
                         pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
@@ -4107,8 +4168,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
                 // Walk a chain from `startVertex` through unused edges until
                 // no unused edge is incident. Returns the vertex sequence.
-                const walkFrom = (startVertex: number): number[] => {
-                    const chain: number[] = [startVertex];
+                const walkFrom = (startVertex: string): string[] => {
+                    const chain: string[] = [startVertex];
                     let cur = startVertex;
                     while (true) {
                         const neighbours = adj.get(cur);
@@ -4146,7 +4207,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     if (usedEdge[e]) continue;
                     usedEdge[e] = 1;
                     const { v0, v1 } = edges[e];
-                    const chain: number[] = [v0, v1];
+                    const chain: string[] = [v0, v1];
                     let cur = v1;
                     while (cur !== v0) {
                         const neighbours = adj.get(cur);
@@ -4200,8 +4261,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                         .filter((hex): hex is number => hex !== undefined);
                     if (bubbleHexes.length === 0) continue;
                     const bubbleColor = averageHexColors(bubbleHexes);
-                    const vx = vertexX(vertexId);
-                    const vy = vertexY(vertexId);
+                    const coords = coordsByVertex.get(vertexId);
+                    if (!coords) continue;
+                    const [vx, vy] = coords;
                     baseBorderDrawn = true;
                     borderLayer
                         .circle(vx, vy, frontierJunctionRadiusPx)
@@ -4228,6 +4290,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 borderAlpha: effectiveBorderAlpha,
                 borderWidth: effectiveBorderWidth,
                 cellHalfExtent: trueHalf,
+                cellBoundsByGridIdx: visibleSquareBoundsByGridIdx,
                 markBorderDrawn: () => {
                     baseBorderDrawn = true;
                 },
