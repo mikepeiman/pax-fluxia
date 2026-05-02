@@ -1413,3 +1413,43 @@ Suggested structure:
   - phase-field `Inward Offset` is now a resolved-geometry fill inset
   - the fill no longer changes by shrinking ownership-boundary cells
   - borders remain on the resolved shared boundary while PRE/NEXT pattern fill is clipped inside the inset surface
+
+### 2026-05-02 - Fix Geometry Chain-Walk Junction Selection
+
+- Lane: `geometry/chain-walk-junction-resolution`
+- User task: diagnose the "Show Underlying Geometry" overlay showing multiple owner loops, backtracking seams, and paths bulging outside expected frontier midlines.
+
+#### Pass Log
+
+1. Pass 1 - Traced which geometry artifact the Diagnostics overlay actually draws.
+   - `GameCanvas.svelte` `getPerimeterDebugLoops(...)` prefers `geometry.shellLoops` and only falls back to `territoryRegions`.
+   - For the live phase-field mode, the geometry source is `power_voronoi_0319`, so those shell loops are adapted directly from `mergedTerritories`.
+2. Pass 2 - Confirmed the current overlay is not a scrub/target blend.
+   - `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY=true`
+   - `PERIMETER_FIELD_DEBUG_SCRUB_ENABLED=false`
+   - The messy cyan outlines therefore represent current geometry, not two frames overlaid.
+3. Pass 3 - Identified the geometry-core fault.
+   - `constructFillsFromFrontierChain(...)` delegates to `executeChainWalk(...)`.
+   - `executeChainWalk(...)` was still using a greedy "first unused candidate mentioning this owner" rule at junctions.
+   - That rule is order-dependent and can jump onto the wrong outgoing frontier at LP/CX-heavy junctions, producing duplicate owner loops, backtracking seams, and excursions outside expected midpoint/frontier flow.
+4. Pass 4 - Replaced the greedy owner walk with a planar-adjacent owner walk in `chainWalkCore.ts`.
+   - Added owner-specific directed polyline arcs.
+   - Used `planarWalk.ts` clockwise-adjacent selection instead of first-candidate selection.
+   - Harvests effectively closed owner loops first before allowing leftover open spur walks to consume frontier segments.
+   - This keeps diagnostics, fill construction, and topology loop assembly aligned around the same corrected walk behavior.
+5. Pass 5 - Revalidated the geometry tests that exercise the shared walker and downstream resolved geometry helpers.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.test.ts`
+- `bunx vitest run ./src/lib/territory/geometry/resolveConstraintAlignedTerritoryGeometry.test.ts`
+- `bunx vitest run ./src/lib/territory/geometry/buildInsetTerritoryRegions.test.ts`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/compiler/chainWalkCore.ts`
+- Critical behavioral delta for merge/review:
+  - owner loop construction at frontier junctions is no longer insertion-order dependent
+  - raw geometry shell loops exposed by Diagnostics should stop taking spurs and backtracking around LP/CX seams
+  - downstream consumers built on the shared chain walk (`constructFillsFromFrontierChain`, frontier-map assembly, power-voronoi topology adaptation) now inherit the same corrected junction rule

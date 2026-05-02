@@ -9,6 +9,13 @@
 // Does NOT: render, import PIXI, mutate inputs
 // ---------------------------------------------------------------------------
 
+import {
+    buildSortedOutgoingArcMap,
+    normalizePlanarAngle,
+    pickClockwiseAdjacentArc,
+    type DirectedPlanarArc,
+} from './planarWalk';
+
 export interface SharedPolylineLike {
     points: [number, number][];
     ownerPairKey: string;
@@ -79,6 +86,25 @@ export interface ChainWalkResult {
     junctionMap: Map<string, JunctionEntry[]>;
 }
 
+interface OwnerDirectedPolylineArc extends DirectedPlanarArc {
+    ownerId: string;
+    polylineIdx: number;
+    direction: 'forward' | 'reverse';
+    ownerPairKey: string;
+    points: [number, number][];
+    startVertexKey: string;
+    endVertexKey: string;
+}
+
+interface WalkCandidate {
+    loop: ChainWalkLoop;
+    usedPolylineIds: Set<number>;
+    nearClosed: boolean;
+    areaMagnitude: number;
+}
+
+const LOOP_CLOSURE_TOLERANCE_PX = 6;
+
 // ---------------------------------------------------------------------------
 // Core chain walk
 // ---------------------------------------------------------------------------
@@ -147,94 +173,245 @@ export function executeChainWalk(
         }
     }
 
+    const ownerArcs = new Map<string, OwnerDirectedPolylineArc[]>();
+    const ownerStartArcs = new Map<string, Map<number, OwnerDirectedPolylineArc[]>>();
+    function registerOwnerArc(arc: OwnerDirectedPolylineArc) {
+        const ownerBucket = ownerArcs.get(arc.ownerId);
+        if (ownerBucket) {
+            ownerBucket.push(arc);
+        } else {
+            ownerArcs.set(arc.ownerId, [arc]);
+        }
+        let byPolyline = ownerStartArcs.get(arc.ownerId);
+        if (!byPolyline) {
+            byPolyline = new Map<number, OwnerDirectedPolylineArc[]>();
+            ownerStartArcs.set(arc.ownerId, byPolyline);
+        }
+        const startBucket = byPolyline.get(arc.polylineIdx);
+        if (startBucket) {
+            startBucket.push(arc);
+        } else {
+            byPolyline.set(arc.polylineIdx, [arc]);
+        }
+    }
+
+    for (const info of polylineInfos) {
+        if (info.points.length < 2) continue;
+        const forwardAngle = normalizePlanarAngle(
+            Math.atan2(
+                info.points[info.points.length - 1]![1] - info.points[0]![1],
+                info.points[info.points.length - 1]![0] - info.points[0]![0],
+            ),
+        );
+        const reversePoints = [...info.points].reverse();
+        const reverseAngle = normalizePlanarAngle(forwardAngle + Math.PI);
+        for (const ownerId of [info.ownerA, info.ownerB]) {
+            if (!ownerId || ownerId === 'world') continue;
+            registerOwnerArc({
+                ownerId,
+                polylineIdx: info.globalIdx,
+                physicalIdx: info.globalIdx,
+                fromKey: info.startKey,
+                toKey: info.endKey,
+                angle: forwardAngle,
+                direction: 'forward',
+                ownerPairKey: info.ownerPairKey,
+                points: info.points,
+                startVertexKey: info.startKey,
+                endVertexKey: info.endKey,
+            });
+            registerOwnerArc({
+                ownerId,
+                polylineIdx: info.globalIdx,
+                physicalIdx: info.globalIdx,
+                fromKey: info.endKey,
+                toKey: info.startKey,
+                angle: reverseAngle,
+                direction: 'reverse',
+                ownerPairKey: info.ownerPairKey,
+                points: reversePoints,
+                startVertexKey: info.endKey,
+                endVertexKey: info.startKey,
+            });
+        }
+    }
+
+    function buildSegment(arc: OwnerDirectedPolylineArc): ChainWalkSegment {
+        return {
+            polylineIdx: arc.polylineIdx,
+            direction: arc.direction,
+            startVertexKey: arc.startVertexKey,
+            endVertexKey: arc.endVertexKey,
+            ownerPairKey: arc.ownerPairKey,
+            points: arc.points,
+        };
+    }
+
+    function isNearClosedLoop(loop: ChainWalkLoop): boolean {
+        const chain = flattenLoopPoints(loop);
+        if (chain.length < 3) return false;
+        const first = chain[0]!;
+        const last = chain[chain.length - 1]!;
+        return (
+            Math.abs(first[0] - last[0]) <= LOOP_CLOSURE_TOLERANCE_PX &&
+            Math.abs(first[1] - last[1]) <= LOOP_CLOSURE_TOLERANCE_PX
+        );
+    }
+
+    function polygonAreaMagnitude(loop: ChainWalkLoop): number {
+        const chain = flattenLoopPoints(loop);
+        if (chain.length < 3) return 0;
+        let area = 0;
+        for (let index = 0; index < chain.length; index++) {
+            const [ax, ay] = chain[index]!;
+            const [bx, by] = chain[(index + 1) % chain.length]!;
+            area += ax * by - bx * ay;
+        }
+        return Math.abs(area * 0.5);
+    }
+
+    function walkFromStartArc(params: {
+        ownerId: string;
+        startArc: OwnerDirectedPolylineArc;
+        adjacency: ReadonlyMap<string, readonly OwnerDirectedPolylineArc[]>;
+        remaining: ReadonlySet<number>;
+    }): WalkCandidate {
+        const usedPolylineIds = new Set<number>([params.startArc.physicalIdx]);
+        const segments: ChainWalkSegment[] = [buildSegment(params.startArc)];
+        const junctionVertexKeys: string[] = [params.startArc.startVertexKey];
+        const headKey = params.startArc.startVertexKey;
+        let currentArc = params.startArc;
+        let tailKey = params.startArc.endVertexKey;
+        let closed = false;
+        let safety = Math.max(4, params.remaining.size * 2);
+
+        while (safety-- > 0 && !closed) {
+            if (segments.length >= 2 && tailKey === headKey) {
+                closed = true;
+                break;
+            }
+            const nextArc = pickClockwiseAdjacentArc({
+                adjacency: params.adjacency,
+                current: currentArc,
+                isAvailable: (arc) =>
+                    params.remaining.has(arc.physicalIdx) &&
+                    !usedPolylineIds.has(arc.physicalIdx),
+            });
+            if (!nextArc) break;
+            usedPolylineIds.add(nextArc.physicalIdx);
+            segments.push(buildSegment(nextArc));
+            junctionVertexKeys.push(nextArc.startVertexKey);
+            currentArc = nextArc;
+            tailKey = nextArc.endVertexKey;
+        }
+
+        const loop: ChainWalkLoop = {
+            ownerId: params.ownerId,
+            segments,
+            junctionVertexKeys,
+            closed,
+        };
+        return {
+            loop,
+            usedPolylineIds,
+            nearClosed: isNearClosedLoop(loop),
+            areaMagnitude: polygonAreaMagnitude(loop),
+        };
+    }
+
+    function chooseBetterCandidate(
+        current: WalkCandidate | null,
+        next: WalkCandidate,
+        requireClosed: boolean,
+    ): WalkCandidate | null {
+        const nextClosed = next.loop.closed || next.nearClosed;
+        if (requireClosed && !nextClosed) return current;
+        if (!current) return next;
+
+        const currentClosed = current.loop.closed || current.nearClosed;
+        if (nextClosed !== currentClosed) {
+            return nextClosed ? next : current;
+        }
+        if (next.loop.segments.length !== current.loop.segments.length) {
+            return next.loop.segments.length > current.loop.segments.length
+                ? next
+                : current;
+        }
+        if (Math.abs(next.areaMagnitude - current.areaMagnitude) > 0.001) {
+            return next.areaMagnitude > current.areaMagnitude ? next : current;
+        }
+        if (next.usedPolylineIds.size !== current.usedPolylineIds.size) {
+            return next.usedPolylineIds.size > current.usedPolylineIds.size
+                ? next
+                : current;
+        }
+        return current;
+    }
+
     // --- Chain walk per owner ---
     const loops: ChainWalkLoop[] = [];
 
     for (const [ownerId, plIdxSet] of ownerPolylines) {
-        const ownerUsed = new Set<number>();
+        const remaining = new Set<number>(plIdxSet);
+        const adjacency = buildSortedOutgoingArcMap(
+            ownerArcs.get(ownerId) ?? [],
+        );
+        const startArcMap = ownerStartArcs.get(ownerId) ?? new Map();
 
-        for (const startPlIdx of plIdxSet) {
-            if (ownerUsed.has(startPlIdx)) continue;
-            ownerUsed.add(startPlIdx);
-
-            const startInfo = polylineInfos[startPlIdx];
-            const segments: ChainWalkSegment[] = [];
-            const junctionKeys: string[] = [];
-
-            // First segment: always forward
-            segments.push({
-                polylineIdx: startPlIdx,
-                direction: 'forward',
-                startVertexKey: startInfo.startKey,
-                endVertexKey: startInfo.endKey,
-                ownerPairKey: startInfo.ownerPairKey,
-                points: startInfo.points,
-            });
-            junctionKeys.push(startInfo.startKey);
-
-            let tailKey = startInfo.endKey;
-            const headKey = startInfo.startKey;
-            let safety = N * 2;
-            let closed = false;
-
-            while (safety-- > 0 && !closed) {
-                // Closure check (same threshold as original: length >= 4 points equivalent)
-                if (segments.length >= 2 && tailKey === headKey) {
-                    closed = true;
-                    break;
+        while (remaining.size > 0) {
+            let bestClosedCandidate: WalkCandidate | null = null;
+            for (const startPlIdx of remaining) {
+                for (const startArc of startArcMap.get(startPlIdx) ?? []) {
+                    const candidate = walkFromStartArc({
+                        ownerId,
+                        startArc,
+                        adjacency,
+                        remaining,
+                    });
+                    bestClosedCandidate = chooseBetterCandidate(
+                        bestClosedCandidate,
+                        candidate,
+                        true,
+                    );
                 }
-
-                const candidates = junctionMap.get(tailKey);
-                if (!candidates) break;
-
-                let found = false;
-                for (const cand of candidates) {
-                    if (ownerUsed.has(cand.plIdx)) continue;
-                    const ci = polylineInfos[cand.plIdx];
-                    if (ci.ownerA !== ownerId && ci.ownerB !== ownerId) continue;
-
-                    ownerUsed.add(cand.plIdx);
-
-                    if (cand.end === 'start') {
-                        // Forward traversal
-                        segments.push({
-                            polylineIdx: cand.plIdx,
-                            direction: 'forward',
-                            startVertexKey: ci.startKey,
-                            endVertexKey: ci.endKey,
-                            ownerPairKey: ci.ownerPairKey,
-                            points: ci.points,
-                        });
-                        junctionKeys.push(ci.startKey);
-                        tailKey = ci.endKey;
-                    } else {
-                        // Reverse traversal
-                        segments.push({
-                            polylineIdx: cand.plIdx,
-                            direction: 'reverse',
-                            startVertexKey: ci.endKey,
-                            endVertexKey: ci.startKey,
-                            ownerPairKey: ci.ownerPairKey,
-                            points: [...ci.points].reverse(),
-                        });
-                        junctionKeys.push(ci.endKey);
-                        tailKey = ci.startKey;
-                    }
-                    found = true;
-                    break;
-                }
-
-                if (!found) break;
             }
+            if (!bestClosedCandidate) break;
+            for (const polylineIdx of bestClosedCandidate.usedPolylineIds) {
+                remaining.delete(polylineIdx);
+            }
+            if (bestClosedCandidate.loop.segments.length >= 1) {
+                loops.push(bestClosedCandidate.loop);
+            }
+        }
 
-            // Accept loops with at least 2 segments (mirrors original chain.length >= 3)
-            if (segments.length >= 1) {
-                loops.push({
+        while (remaining.size > 0) {
+            const startPlIdx = remaining.values().next().value as
+                | number
+                | undefined;
+            if (startPlIdx === undefined) break;
+            let bestCandidate: WalkCandidate | null = null;
+            for (const startArc of startArcMap.get(startPlIdx) ?? []) {
+                const candidate = walkFromStartArc({
                     ownerId,
-                    segments,
-                    junctionVertexKeys: junctionKeys,
-                    closed,
+                    startArc,
+                    adjacency,
+                    remaining,
                 });
+                bestCandidate = chooseBetterCandidate(
+                    bestCandidate,
+                    candidate,
+                    false,
+                );
+            }
+            if (!bestCandidate) {
+                remaining.delete(startPlIdx);
+                continue;
+            }
+            for (const polylineIdx of bestCandidate.usedPolylineIds) {
+                remaining.delete(polylineIdx);
+            }
+            if (bestCandidate.loop.segments.length >= 1) {
+                loops.push(bestCandidate.loop);
             }
         }
     }
