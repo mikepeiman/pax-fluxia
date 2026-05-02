@@ -26,3 +26,11 @@
 - A viable fallback / stylistic variant is stepped square distance bands that create a pixellated moat.
 - Offset/moat tuning should become its own top-level UI surface, not remain buried inside styles.
 - End-transition jank is now explicitly specified as a 1-3 frame handoff pop between final transition frame and first steady-state frame.
+- The current frontier FX plan is not 100% aligned with existing VFX architecture yet:
+  - surface-local frontier shaping is aligned with the family/shared frontier library direction
+  - timed/emitted frontier FX is not yet aligned unless the territory VFX contracts are extended
+- The current territory VFX runtime is narrow:
+  - events: `territory_conquest_start`, `virtual_star_spawn`, `territory_retreat`
+  - commands: `spawn_particles`, `play_sound`, `debug_marker`
+- The user-provided territory VFX taxonomy already exists in the repo and is a useful planning target:
+  - `.agent/docs/plans/2026-04-09/2026-04-09 Pax Fluxia review dump, human-manual.md`

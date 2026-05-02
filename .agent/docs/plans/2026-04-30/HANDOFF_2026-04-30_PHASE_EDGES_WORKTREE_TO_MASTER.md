@@ -93,6 +93,23 @@ Update this file in place. Do not replace it with a new summary doc each turn.
   - `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
   - `bun x vite build`
 - Acceptance is still user-visual, not repo-local. The next agent on `master` should not claim this one closed until the user confirms the missing-margin gap is actually gone in the live app.
+- Additional architectural audit done on 2026-05-02:
+  - the repo does contain VFX architecture references, but they are split and partially stale
+  - the right authority order for frontier/VFX work is:
+    1. `.agent/docs/plans/2026-04-08/TERRITORY_RENDER_FAMILY_UNIFIED_PLAN.md`
+    2. `.agent/docs/game/territory/TERRITORY_RENDER_SYSTEM_CURRENT.md`
+    3. `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
+    4. `.agent/docs/game/vfx/VFX_TIMING_MODEL.md`
+    5. `.agent/docs/game/vfx/ANIMATION_GUIDE.md`
+  - the user-provided VFX taxonomy is already present in:
+    - `.agent/docs/plans/2026-04-09/2026-04-09 Pax Fluxia review dump, human-manual.md`
+  - important merge/backport warning:
+    - the current frontier FX plan is only partially aligned with repo VFX architecture
+    - static frontier surface shaping is fine as family-local/shared-frontier work
+    - timed/emitted frontier FX should not be buried only inside `MetaballGridPhaseEdgesFamily.ts`
+    - if plasma/particle/geometry-strip modes are implemented, the next agent should first extend territory VFX contracts or family `events[]`
+  - audit doc:
+    - `.agent/docs/sessions/2026-05-02/2026-05-02_vfx-architecture-alignment-audit.md`
 
 ---
 

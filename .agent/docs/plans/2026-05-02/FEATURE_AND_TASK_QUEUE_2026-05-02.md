@@ -22,6 +22,8 @@
 - Audited the live settings path and confirmed the running mode was `marching_triangles_gradient`, not the shared-edge control path
 - Corrected the contour-technique surface contract so `Centered-blended borders` no longer grants phase-fill ownership to contour techniques
 - Split pair-layer border generation from fill-layer generation in Phase Edges so pairwise blended contour borders do not silently swap fill geometry
+- Audited repo VFX architecture references and documented the current alignment/gap with the frontier FX plan in:
+  - `.agent/docs/sessions/2026-05-02/2026-05-02_vfx-architecture-alignment-audit.md`
 
 ## Next
 
@@ -36,6 +38,9 @@
 - Add a new top-level settings section:
   - `Frontier FX`
   - own all offset / moat / border-adjacent VFX tuning there
+- Keep `Frontier FX` split conceptually into:
+  - surface shaping / style that can live in the family
+  - timed/emitted VFX that should extend territory VFX contracts instead of being hidden inside the renderer
 - VFX ideation queue for border moats / gradients:
   - stepped square moat bands
   - hot plasma ribbon / heat shimmer frontier
