@@ -1453,3 +1453,38 @@ Suggested structure:
   - owner loop construction at frontier junctions is no longer insertion-order dependent
   - raw geometry shell loops exposed by Diagnostics should stop taking spurs and backtracking around LP/CX seams
   - downstream consumers built on the shared chain walk (`constructFillsFromFrontierChain`, frontier-map assembly, power-voronoi topology adaptation) now inherit the same corrected junction rule
+
+### 2026-05-02 - Documentation Catch-Up And Merge Handoff Finalization
+
+- Lane: `docs/session-catchup-and-merge-handoff`
+- User task: catch up yesterday's session docs and finalize the tracked handoff doc for merge into master.
+
+#### Pass Log
+
+1. Pass 1 - Audited `2026-05-01_Session.md` and `2026-05-01_Takeaways.md` against the later 2026-05-01 implementation entries already recorded in `AGENT.md`.
+2. Pass 2 - Appended the missing 2026-05-01 session coverage:
+   - the `Pattern Spacing` contract / presentation-edge-offset quickfix pass
+   - the Diagnostics underlying-geometry restore and global promotion
+3. Pass 3 - Added the missing derived lessons to `2026-05-01_Takeaways.md`:
+   - global diagnostics surfaces must not hide in mode-specific tuning shells
+   - UI/runtime range drift creates fake controls
+   - presentation edge-cell heuristics are not geometric inward offsets
+4. Pass 4 - Finalized the tracked merge handoff in `FEATURE_AND_TASK_QUEUE_2026-04-30.md` with:
+   - an executive summary
+   - landed scope
+   - critical merge surfaces
+   - validation summary
+   - post-merge validation list
+
+#### Validation
+
+- Source audit only
+- No runtime code changed in this pass
+
+#### Merge Note
+
+- Tracked merge handoff now lives in:
+  - `.agent/docs/plans/2026-04-30/FEATURE_AND_TASK_QUEUE_2026-04-30.md`
+- Local session catch-up docs updated:
+  - `.agent/docs/sessions/2026-05-01/2026-05-01_Session.md`
+  - `.agent/docs/sessions/2026-05-01/2026-05-01_Takeaways.md`
