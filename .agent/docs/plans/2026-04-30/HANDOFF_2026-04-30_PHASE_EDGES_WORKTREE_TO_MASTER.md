@@ -1020,3 +1020,36 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - implemented and repo-validated
   - still requires user live verification
   - top-level `Frontier FX`, stepped moat mode, timed VFX modes, and end-transition jank are still pending after this foundational step
+
+### 2026-05-02 - additive inward-offset remnant-row and slider-cap correction
+
+- The next live report on top of the frontier-distance core was precise:
+  - `Inward Offset` still left a row of tiny remnant squares along the frontier
+  - the current live spacing was `12px`
+  - the old slider ended at `24px`
+  - the result snapped at that max value
+- Important diagnosis:
+  - even after the frontier-distance refactor, `computeVisibleSquareBoundsFromDistance(...)` still clipped every surviving band locally
+  - with `12px` spacing, the distance bands were effectively:
+    - first ring near distance `0`
+    - second ring near distance `12`
+    - third ring near distance `24`
+  - so the old `24px` max landed exactly on the next band boundary
+  - widening the slider alone would only move the failure; the band-suppression rule itself had to change
+- Runtime correction:
+  - `pax-fluxia/src/lib/territory/frontier/distance.ts`
+  - before per-side clipping, any band whose centerline is already inside the requested offset is now suppressed wholesale
+  - only the current leading band can remain partially clipped
+- UI correction:
+  - `pax-fluxia/src/lib/components/ui/settings/TerritorySurfaceStyleTuning.svelte`
+  - `Inward Offset` slider range widened from `24px` to `60px`
+- Regression coverage:
+  - `pax-fluxia/src/lib/territory/frontier/distance.test.ts`
+  - new case asserts whole inner bands suppress once the requested width reaches their centerline
+- Validation:
+  - `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\edgeShaping.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Merge/backport guidance:
+  - do not backport only the slider-range change without the band-suppression rule, or the same bug will just reappear at a larger value
+  - this is still not the final stepped-moat feature; it is a refinement of the clean-offset surface track
+  - live user verification is still required before treating `Inward Offset` as accepted

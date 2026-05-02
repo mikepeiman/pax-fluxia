@@ -418,7 +418,7 @@
                     <input
                         type="range"
                         min="0"
-                        max="24"
+                        max="60"
                         step="1"
                         value={numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0)}
                         oninput={(event) => {

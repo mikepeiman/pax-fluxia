@@ -77,4 +77,42 @@ describe('computeVisibleSquareBoundsFromDistance', () => {
         expect(secondRingBounds?.right).toBe(56);
         expect(secondRingBounds?.left).toBe(34);
     });
+
+    it('suppresses whole inner bands once the requested offset reaches their centerline', () => {
+        const ownerIndexByCell = Int32Array.from([
+            0, 0, 0, 0, 1,
+        ]);
+        const field = buildOwnershipGridFrontierDistanceField({
+            cols: 5,
+            rows: 1,
+            ownerIndexByCell,
+            spacingPx: 12,
+            includeWorldEdge: false,
+        });
+
+        const secondBandBounds = computeVisibleSquareBoundsFromDistance({
+            x: 30,
+            y: 6,
+            halfSizePx: 6,
+            nativeInsetPx: 0,
+            boundaryOffsetPx: 20,
+            cellIndex: 2,
+            distanceField: field,
+        });
+
+        const thirdBandBounds = computeVisibleSquareBoundsFromDistance({
+            x: 18,
+            y: 6,
+            halfSizePx: 6,
+            nativeInsetPx: 0,
+            boundaryOffsetPx: 20,
+            cellIndex: 1,
+            distanceField: field,
+        });
+
+        expect(secondBandBounds).toBeNull();
+        expect(thirdBandBounds).not.toBeNull();
+        expect(thirdBandBounds?.left).toBe(12);
+        expect(thirdBandBounds?.right).toBe(24);
+    });
 });

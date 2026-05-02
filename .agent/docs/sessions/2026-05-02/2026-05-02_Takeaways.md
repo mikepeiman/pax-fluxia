@@ -44,3 +44,9 @@
 - The VFX architecture audit is now folded into the implementation plan:
   - surface-track work belongs in the shared frontier/family layer
   - timed/emitted work should extend territory VFX contracts or family `events[]`
+- A second practical lesson followed immediately:
+  - a distance field alone is not enough if every surviving band is still clipped locally
+  - for the clean-offset interpretation, inner bands must suppress wholesale once the requested width reaches the band centerline
+- The live `24px` snap was not arbitrary:
+  - with `12px` spacing, `24px` landed exactly on the next band boundary
+  - widening the slider alone would only move that failure unless the band-suppression rule changed too

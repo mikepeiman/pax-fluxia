@@ -34,6 +34,11 @@
 - Split the old boundary inset contract in `edgeShaping.ts`:
   - `computeBoundaryInset(...)` remains the clamped legacy helper
   - `computeBoundaryOffsetTargetPx(...)` now exposes the true unbounded target width for distance-band ownership
+- Refined the clean-offset behavior:
+  - whole inner bands now suppress once the requested offset reaches the band centerline
+  - this removes the persistent remnant/dot row at higher offsets
+  - it also removes the special `24px` snap condition that came from the next band reappearing at the old slider cap
+- Widened the visible `Inward Offset` slider range in `TerritorySurfaceStyleTuning.svelte` from `24px` to `60px`
 
 ## Next
 
@@ -41,6 +46,10 @@
   - does the missing-margin / inset gap finally disappear when `Centered-blended borders` is on?
   - do `Inward Offset` and `Flush Boundary Fill` now visibly affect the fill?
   - does the centered-blended outer perimeter still behave correctly after the visible-boundary geometry change?
+- Specific inward-offset verification:
+  - no remnant row of tiny squares should persist at high offsets
+  - no special snap should occur at `24px`
+  - the slider should now run to `60px`
 - If live verification still shows a one-ring effect, trace whether the remaining clamp is now only at the final visible-bounds mapping stage instead of the old frontier-owner stage
 - Rework `Inward Offset` to match the actual requirement:
   - not a one-ring per-cell shrink on the frontier-adjacent squares

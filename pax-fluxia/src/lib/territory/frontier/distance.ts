@@ -172,6 +172,21 @@ function resolveSideInsetPx(
 export function computeVisibleSquareBoundsFromDistance(
     params: ComputeVisibleSquareBoundsFromDistanceParams,
 ): VisibleSquareBounds | null {
+    const nearestBoundaryPx =
+        params.distanceField.nearestBoundaryPxByCell[params.cellIndex] ?? INF;
+    // Clean-offset mode should not leave arbitrarily tiny remnant cells
+    // hugging the frontier forever. Once the requested pullback reaches the
+    // center of a cell band, that entire band is considered inside the moat
+    // and is suppressed wholesale; only the current leading band can remain
+    // partially clipped.
+    if (
+        params.boundaryOffsetPx > 0 &&
+        Number.isFinite(nearestBoundaryPx) &&
+        nearestBoundaryPx + params.halfSizePx <= params.boundaryOffsetPx
+    ) {
+        return null;
+    }
+
     const leftInsetPx = resolveSideInsetPx(
         params.distanceField.leftDistancePxByCell[params.cellIndex] ?? INF,
         params.nativeInsetPx,
