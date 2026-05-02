@@ -63,15 +63,22 @@ export function computeSharedBoundaryCornerRadius(
 export function computeBoundaryInset(
     params: ComputeBoundaryInsetParams,
 ): number {
+    const legacyInset = computeBoundaryOffsetTargetPx(params);
+    return Math.min(
+        legacyInset,
+        Math.max(0, params.insetMax),
+    );
+}
+
+export function computeBoundaryOffsetTargetPx(
+    params: Omit<ComputeBoundaryInsetParams, 'insetMax'>,
+): number {
     const explicitInset = Math.max(0, params.inwardOffsetPx);
     const legacyInset =
         Math.max(0, params.cellInsetPx) +
         explicitInset +
         Math.max(0, params.edgeTrimPx);
-    return Math.min(
-        params.flushBoundaryFill ? explicitInset : legacyInset,
-        Math.max(0, params.insetMax),
-    );
+    return params.flushBoundaryFill ? explicitInset : legacyInset;
 }
 
 export function computeSquareCellEdgeInsets(

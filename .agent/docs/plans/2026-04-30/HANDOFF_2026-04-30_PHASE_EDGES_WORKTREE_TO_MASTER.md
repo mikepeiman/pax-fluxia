@@ -980,3 +980,43 @@ The build/tests pass, but the user is the source of truth for the live scene. An
     2. timing/clock discontinuity
     3. easing/curve issue
     4. only then terminal hold / extra finishing frames if still needed
+
+### 2026-05-02 - additive frontier-distance core implementation
+
+- The VFX architecture audit was incorporated directly into the active plan instead of being left as a separate note:
+  - `surface track` work stays in the family/shared frontier layer
+  - `timed VFX track` remains queued for later territory VFX contract work
+- First implementation step completed:
+  - new shared frontier-distance utility:
+    - `pax-fluxia/src/lib/territory/frontier/distance.ts`
+  - new tests:
+    - `pax-fluxia/src/lib/territory/frontier/distance.test.ts`
+- Important structural diagnosis:
+  - the old `Inward Offset` owner could never satisfy the user's spec because:
+    - `computeBoundaryInset(...)` clamps to `spacingPx * 0.45`
+    - so the visible effect cannot propagate beyond roughly one frontier ring
+- Contract split introduced in:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - `computeBoundaryInset(...)` remains the clamped legacy helper
+  - `computeBoundaryOffsetTargetPx(...)` now exposes the true requested width for distance-band ownership
+- Runtime integration:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+  - both now:
+    - build an ownership-grid frontier-distance field
+    - derive visible square bounds from that field
+    - use those bounds for square fill and square border drawing
+    - stop treating one clamped `boundaryInset` value as the final visible owner for boundary squares
+- Why this matters for merge/backport:
+  - this is the first change that can actually support:
+    - true global frontier-distance offset
+    - stepped square moat bands
+    - a reusable shared distance source for later frontier FX
+  - do not backport later stepped/plasma/particle work without this distance core, or the branch will regress into one-off boundary hacks again
+- Validation:
+  - `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\edgeShaping.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Acceptance status:
+  - implemented and repo-validated
+  - still requires user live verification
+  - top-level `Frontier FX`, stepped moat mode, timed VFX modes, and end-transition jank are still pending after this foundational step

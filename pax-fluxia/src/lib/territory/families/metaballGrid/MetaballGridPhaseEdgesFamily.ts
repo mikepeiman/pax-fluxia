@@ -33,7 +33,9 @@ import {
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import {
+    buildOwnershipGridFrontierDistanceField,
     buildTerritoryFrontierPresentation,
+    computeVisibleSquareBoundsFromDistance,
     resolveTerritoryFrontierSurfaceRecipe,
     TERRITORY_FRONTIER_TUNABLE_KEYS,
     type TerritoryFrontierBorderGeometryMode,
@@ -82,6 +84,7 @@ import {
     metaballGridPhaseEdgesModeDefaults,
 } from './config';
 import {
+    computeBoundaryOffsetTargetPx,
     computeBoundaryInset,
     computeSharedBoundaryCornerRadius,
     isOwnershipBoundaryCell,
@@ -844,6 +847,44 @@ function drawFilledGridCell(
         return;
     }
     graphics.rect(x - half, y - half, size, size).fill({ color: fillHex, alpha });
+}
+
+function drawFilledSquareBounds(
+    graphics: PIXI.Graphics,
+    bounds: VisibleSquareCellBounds,
+    cornerR: number,
+    fillHex: number,
+    alpha: number,
+): void {
+    const width = bounds.right - bounds.left;
+    const height = bounds.bottom - bounds.top;
+    if (!(width > 0) || !(height > 0)) return;
+    const clampedCornerR = Math.min(cornerR, width * 0.5, height * 0.5);
+    if (clampedCornerR > 0) {
+        graphics.roundRect(bounds.left, bounds.top, width, height, clampedCornerR).fill({
+            color: fillHex,
+            alpha,
+        });
+        return;
+    }
+    graphics.rect(bounds.left, bounds.top, width, height).fill({ color: fillHex, alpha });
+}
+
+function strokeSquareBounds(
+    graphics: PIXI.Graphics,
+    bounds: VisibleSquareCellBounds,
+    cornerR: number,
+    strokeOpts: PIXI.StrokeInput,
+): void {
+    const width = bounds.right - bounds.left;
+    const height = bounds.bottom - bounds.top;
+    if (!(width > 0) || !(height > 0)) return;
+    const clampedCornerR = Math.min(cornerR, width * 0.5, height * 0.5);
+    if (clampedCornerR > 0) {
+        graphics.roundRect(bounds.left, bounds.top, width, height, clampedCornerR).stroke(strokeOpts);
+        return;
+    }
+    graphics.rect(bounds.left, bounds.top, width, height).stroke(strokeOpts);
 }
 
 /**
@@ -3443,6 +3484,12 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // explicitly disables flush boundary fill.
         const insetMax = spacingPx * 0.45;
         const nativeInset = Math.min(cellInsetPx, insetMax);
+        const boundaryOffsetTargetPx = computeBoundaryOffsetTargetPx({
+            cellInsetPx,
+            inwardOffsetPx,
+            edgeTrimPx,
+            flushBoundaryFill: boundaryFillFlush,
+        });
         const boundaryInset = computeBoundaryInset({
             insetMax,
             cellInsetPx,
@@ -3598,6 +3645,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         }
         let visibleSquareBoundsByGridIdx: Array<VisibleSquareCellBounds | null> | null = null;
         if (cellShape === 'square' && effectiveColorIdxByGridIdx) {
+            const distanceField = buildOwnershipGridFrontierDistanceField({
+                cols,
+                rows,
+                ownerIndexByCell: effectiveColorIdxByGridIdx,
+                spacingPx,
+                includeWorldEdge: true,
+            });
             visibleSquareBoundsByGridIdx = new Array<VisibleSquareCellBounds | null>(vstarCount);
             for (let i = 0; i < vstarCount; i++) {
                 const colorIdx = effectiveColorIdxByGridIdx[i];
@@ -3606,23 +3660,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     continue;
                 }
                 const v = cached.classification.vstars[i];
-                const boundaryCell = isOwnershipBoundaryCell({
-                    ix: v.ix,
-                    iy: v.iy,
-                    cols,
-                    rows,
-                    colorIdx,
-                    colorIdxByGridIdx: effectiveColorIdxByGridIdx,
-                    includeWorldEdge: true,
+                visibleSquareBoundsByGridIdx[i] = computeVisibleSquareBoundsFromDistance({
+                    x: v.x,
+                    y: v.y,
+                    halfSizePx: trueHalf,
+                    nativeInsetPx: nativeInset,
+                    boundaryOffsetPx: boundaryOffsetTargetPx,
+                    cellIndex: i,
+                    distanceField,
                 });
-                const inset = boundaryCell ? boundaryInset : nativeInset;
-                const halfExtent = Math.max(0, trueHalf - inset);
-                visibleSquareBoundsByGridIdx[i] = {
-                    left: v.x - halfExtent,
-                    right: v.x + halfExtent,
-                    top: v.y - halfExtent,
-                    bottom: v.y + halfExtent,
-                };
             }
         }
 
@@ -3889,18 +3935,43 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 const size = isBoundary ? boundarySize : nativeSize;
                 const cornerR = isBoundary ? boundaryCornerR : nativeCornerR;
                 const hexR = isBoundary ? boundaryHexR : nativeHexR;
-                drawFilledGridCell(
-                    g,
-                    cellShape,
-                    x,
-                    y,
-                    half,
-                    size,
-                    cornerR,
-                    hexR,
-                    fillHex,
-                    alpha,
-                );
+                const cellIndex = iy * cols + ix;
+                const squareBounds =
+                    cellShape === 'square' && visibleSquareBoundsByGridIdx
+                        ? visibleSquareBoundsByGridIdx[cellIndex]
+                        : null;
+                if (squareBounds) {
+                    const usesBoundaryBounds =
+                        boundaryOffsetTargetPx > 0 &&
+                        (
+                            squareBounds.left > x - trueHalf + nativeInset ||
+                            squareBounds.right < x + trueHalf - nativeInset ||
+                            squareBounds.top > y - trueHalf + nativeInset ||
+                            squareBounds.bottom < y + trueHalf - nativeInset
+                        );
+                    const squareCornerR =
+                        usesBoundaryBounds || isBoundary ? boundaryCornerR : nativeCornerR;
+                    drawFilledSquareBounds(
+                        g,
+                        squareBounds,
+                        squareCornerR,
+                        fillHex,
+                        alpha,
+                    );
+                } else {
+                    drawFilledGridCell(
+                        g,
+                        cellShape,
+                        x,
+                        y,
+                        half,
+                        size,
+                        cornerR,
+                        hexR,
+                        fillHex,
+                        alpha,
+                    );
+                }
 
                 // Per-cell border stroke: skipped for blended-edge path (drawn
                 // once per shared edge below instead) and for any cell whose
@@ -3934,7 +4005,19 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     join: 'round' as const,
                 };
                 baseBorderDrawn = true;
-                if (cellShape === 'circle') {
+                if (squareBounds) {
+                    const usesBoundaryBounds =
+                        boundaryOffsetTargetPx > 0 &&
+                        (
+                            squareBounds.left > x - trueHalf + nativeInset ||
+                            squareBounds.right < x + trueHalf - nativeInset ||
+                            squareBounds.top > y - trueHalf + nativeInset ||
+                            squareBounds.bottom < y + trueHalf - nativeInset
+                        );
+                    const squareCornerR =
+                        usesBoundaryBounds || isBoundary ? boundaryCornerR : nativeCornerR;
+                    strokeSquareBounds(borderLayer, squareBounds, squareCornerR, strokeOpts);
+                } else if (cellShape === 'circle') {
                     borderLayer.circle(x, y, half).stroke(strokeOpts);
                 } else if (cellShape === 'diamond') {
                     borderLayer

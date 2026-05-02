@@ -40,6 +40,24 @@ Use that one source for:
 
 This keeps all frontier FX driven by one owner instead of separate one-off hacks.
 
+Split implementation into two tracks:
+
+- `surface track`
+  - clean offset
+  - stepped square moat bands
+  - fill/border-local shading masks
+- `timed VFX track`
+  - plasma pulses
+  - ion/ember particles
+  - animated geometry strip pulses
+  - transition-end polish effects
+
+Rule:
+
+- surface track may live in the render family / shared frontier library
+- timed VFX track should extend territory VFX contracts or use family `events[]`
+- all timed work stays on `gameNowMs`
+
 ## Implementation
 
 ### 1. Frontier Distance Core
@@ -71,6 +89,11 @@ Implement these as selectable modes, all driven by the same frontier-distance so
   - particles/embers/ion sparks emitted along the frontier tangent
 - `geometry_strip`
   - procedural moat strip / crenellated band with pulse or oscillation
+
+Implementation note:
+
+- `clean_offset` and `stepped_square` are surface-track work
+- `hot_plasma`, `ion_drift`, and `geometry_strip` are timed VFX-track work
 
 ### 4. Top-Level UI Section
 

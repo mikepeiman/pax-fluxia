@@ -34,3 +34,13 @@
   - commands: `spawn_particles`, `play_sound`, `debug_marker`
 - The user-provided territory VFX taxonomy already exists in the repo and is a useful planning target:
   - `.agent/docs/plans/2026-04-09/2026-04-09 Pax Fluxia review dump, human-manual.md`
+- The old boundary inset owner was structurally incapable of satisfying the real `Inward Offset` spec:
+  - `computeBoundaryInset(...)` clamps to `spacingPx * 0.45`
+  - that mathematically limits the effect to roughly one frontier ring
+- The first practical fix is not another slider tweak. It is a reusable frontier-distance source that can own:
+  - clean offset
+  - stepped moat bands
+  - later border-adjacent surface shading / timed VFX masks
+- The VFX architecture audit is now folded into the implementation plan:
+  - surface-track work belongs in the shared frontier/family layer
+  - timed/emitted work should extend territory VFX contracts or family `events[]`

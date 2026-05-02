@@ -24,6 +24,16 @@
 - Split pair-layer border generation from fill-layer generation in Phase Edges so pairwise blended contour borders do not silently swap fill geometry
 - Audited repo VFX architecture references and documented the current alignment/gap with the frontier FX plan in:
   - `.agent/docs/sessions/2026-05-02/2026-05-02_vfx-architecture-alignment-audit.md`
+- Incorporated the VFX architecture split into the active frontier FX plan:
+  - `surface track` stays in the shared frontier/family layer
+  - `timed VFX track` must extend territory VFX contracts or family `events[]`
+- Implemented the first surface-track step:
+  - new shared frontier-distance utility at `pax-fluxia/src/lib/territory/frontier/distance.ts`
+  - new tests at `pax-fluxia/src/lib/territory/frontier/distance.test.ts`
+  - both `MetaballGridPhaseEdgesFamily.ts` and `MetaballGridFamily.ts` now consume frontier-distance-derived visible square bounds instead of the old single-ring boundary inset owner
+- Split the old boundary inset contract in `edgeShaping.ts`:
+  - `computeBoundaryInset(...)` remains the clamped legacy helper
+  - `computeBoundaryOffsetTargetPx(...)` now exposes the true unbounded target width for distance-band ownership
 
 ## Next
 
@@ -31,6 +41,7 @@
   - does the missing-margin / inset gap finally disappear when `Centered-blended borders` is on?
   - do `Inward Offset` and `Flush Boundary Fill` now visibly affect the fill?
   - does the centered-blended outer perimeter still behave correctly after the visible-boundary geometry change?
+- If live verification still shows a one-ring effect, trace whether the remaining clamp is now only at the final visible-bounds mapping stage instead of the old frontier-owner stage
 - Rework `Inward Offset` to match the actual requirement:
   - not a one-ring per-cell shrink on the frontier-adjacent squares
   - a global, variable-width clean offset measured from the frontier itself
