@@ -938,3 +938,28 @@ The build/tests pass, but the user is the source of truth for the live scene. An
   - hot plasma / heat ribbon frontier
   - particle / ember / ion drift along frontiers
   - geometry-based moat strip / crenellated or oscillating border band
+
+### 2026-05-02 - additive implementation plan for frontier FX and end-transition jank
+
+- A dedicated implementation plan was added at:
+  - `.agent/docs/sessions/2026-05-02/2026-05-02_phase-edges-frontier-fx-and-end-jank-plan.md`
+- Key planning decision:
+  - all offset/moat effects should share one `frontier distance` source in `src/lib/territory/frontier/`
+  - this avoids repeating the earlier ownership bugs where different visual features used different boundary truths
+- Planned top-level UI change:
+  - add a new top-level settings section `Frontier FX`
+  - it should own offset / moat / border-adjacent VFX tuning
+  - do not bury these controls inside `Territory Styles`
+- Planned moat / gradient modes:
+  - `clean_offset`
+  - `stepped_square`
+  - `hot_plasma`
+  - `ion_drift`
+  - `geometry_strip`
+- End-transition jank spec now clarified:
+  - the user sees a small 1-3 frame disjoint/pop between the last transition frame inside a tick and the first steady-state frame at next-tick start
+  - planned debug order:
+    1. geometric continuity mismatch
+    2. timing/clock discontinuity
+    3. easing/curve issue
+    4. only then terminal hold / extra finishing frames if still needed

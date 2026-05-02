@@ -33,9 +33,14 @@
   - not a one-ring per-cell shrink on the frontier-adjacent squares
   - a global, variable-width clean offset measured from the frontier itself
   - alternate stepped fallback: pixellated distance bands where outermost cells shrink most and deeper rows shrink less
+- Add a new top-level settings section:
+  - `Frontier FX`
+  - own all offset / moat / border-adjacent VFX tuning there
 - VFX ideation queue for border moats / gradients:
   - stepped square moat bands
   - hot plasma ribbon / heat shimmer frontier
   - particle drift / embers / ion sparks along the border
   - geometry-based crenellated or oscillating moat strip
-- After fill acceptance, continue the already-queued transition-end smoothness / end-of-transition jank audit as a separate pass
+- Transition-end smoothness / end-of-transition jank:
+  - inspect final 1-3 transition frames vs first steady-state frame
+  - prefer continuity/timing fix before adding terminal hold frames

@@ -24,3 +24,5 @@
 - Transition-end jank remains queued after this fix.
 - `Inward Offset` must be redefined around frontier distance ownership, not frontier-adjacent cell ownership.
 - A viable fallback / stylistic variant is stepped square distance bands that create a pixellated moat.
+- Offset/moat tuning should become its own top-level UI surface, not remain buried inside styles.
+- End-transition jank is now explicitly specified as a 1-3 frame handoff pop between final transition frame and first steady-state frame.
