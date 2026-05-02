@@ -694,13 +694,13 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Pulls the visible fill inward at real ownership edges. 0 = no pullback. Higher values create a clearer gap between the fill and the border.">
+        <span class="var-name" title="Contracts the resolved territory fill inward after boundary shaping. 0 = no contraction. Higher values create a clearer gap between fill and border.">
             Inward Offset
         </span>
         <span class="val">{panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}px</span>
     </div>
     <div class="var-desc">
-        Extra inward pullback on cells that sit on the visible territory edge. This affects the rendered fill surface, not just transition cells.
+        Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
     </div>
     <input
         type="range"

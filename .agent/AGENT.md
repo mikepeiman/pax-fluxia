@@ -1371,3 +1371,45 @@ Suggested structure:
   - `Show Underlying Geometry` is now a global Diagnostics control
   - the cyan geometry overlay now works for the current active territory mode, not just `perimeter_field`
   - perimeter-only sample/vstar debug visuals remain scoped to the perimeter-field family.
+
+### 2026-05-01 - Correct Phase-Field Inward Offset To Geometry-Level Fill Inset
+
+- Lane: `phase-field/geometry-inset-fill-offset`
+- User task: implement the corrected `Inward Offset` semantics for phase field.
+
+#### Pass Log
+
+1. Pass 1 - Reconfirmed the spec before touching code:
+   - `Inward Offset` is not an edge-cell shrink,
+   - it must contract the resolved fill surface after MSR/CX/DX/LP,
+   - borders stay on the resolved shared boundary,
+   - cell pattern renders inside the inset fill surface.
+2. Pass 2 - Added a reusable geometry helper in `buildInsetTerritoryRegions.ts`.
+   - It samples along the resolved region boundary,
+   - chooses inward offset points against the resolved polygon itself,
+   - rebuilds a continuous inset fill ring from that already-constrained geometry.
+3. Pass 3 - Rewired `MetaballGridPhaseFieldFamily.ts` to use inset mask geometry for PRE/NEXT fill.
+   - The fill-side `edgeVIds` ownership-boundary heuristic was removed.
+   - `paintCellScene(...)` now uses only actual cell-shape controls.
+   - `Inward Offset` now changes the geometry mask, not per-cell boundary sizing.
+4. Pass 4 - Added a direct Pixi fallback mask path for `baseGraphics` and updated the in-panel copy in `MetaballGridTuning.svelte` so the control describes the real behavior.
+5. Pass 5 - Added focused geometry tests for the new inset helper.
+
+#### Validation
+
+- `bunx vitest run ./src/lib/territory/geometry/buildInsetTerritoryRegions.test.ts`
+- `git diff --check`
+- filtered `bun run check`
+- filtered `bunx tsc --noEmit --pretty false`
+
+#### Merge Note
+
+- Functional conflict surfaces for this pass are:
+  - `pax-fluxia/src/lib/territory/geometry/buildInsetTerritoryRegions.ts`
+  - `pax-fluxia/src/lib/territory/geometry/buildInsetTerritoryRegions.test.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+- Critical behavioral delta for merge/review:
+  - phase-field `Inward Offset` is now a resolved-geometry fill inset
+  - the fill no longer changes by shrinking ownership-boundary cells
+  - borders remain on the resolved shared boundary while PRE/NEXT pattern fill is clipped inside the inset surface

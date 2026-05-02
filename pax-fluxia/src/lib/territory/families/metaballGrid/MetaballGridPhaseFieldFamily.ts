@@ -15,6 +15,7 @@ import {
     type ConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedFrontierPolyline,
 } from '../../geometry/resolveConstraintAlignedTerritoryGeometry';
+import { buildInsetTerritoryRegions } from '../../geometry/buildInsetTerritoryRegions';
 import type {
     RenderFamily,
     RenderFamilyInput,
@@ -149,37 +150,10 @@ interface CachedPlan {
 interface CachedPatternClassification {
     readonly key: string;
     readonly classification: GridClassification;
-    readonly prevEdgeVIds: ReadonlySet<string>;
-    readonly nextEdgeVIds: ReadonlySet<string>;
 }
 
 type GeometryFillSource = Pick<ConstraintAlignedTerritoryGeometry, 'territoryRegions'>;
 type OwnershipSide = 'prev' | 'next';
-
-const ORTHOGONAL_EDGE_NEIGHBOR_DELTAS: ReadonlyArray<readonly [number, number]> = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-] as const;
-
-const HEX_EDGE_NEIGHBOR_DELTAS_EVEN_ROW: ReadonlyArray<readonly [number, number]> = [
-    [-1, 0],
-    [1, 0],
-    [-1, -1],
-    [0, -1],
-    [-1, 1],
-    [0, 1],
-] as const;
-
-const HEX_EDGE_NEIGHBOR_DELTAS_ODD_ROW: ReadonlyArray<readonly [number, number]> = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [1, -1],
-    [0, 1],
-    [1, 1],
-] as const;
 
 function clamp01(value: number): number {
     return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -595,45 +569,6 @@ function buildOwnershipSceneCells(params: {
     return cells;
 }
 
-function readVStarOwner(vstar: GridVStar, side: OwnershipSide): string | null {
-    return side === 'prev' ? vstar.prevOwnerId : vstar.nextOwnerId;
-}
-
-function buildOwnershipEdgeVIds(params: {
-    classification: GridClassification;
-    side: OwnershipSide;
-}): ReadonlySet<string> {
-    const edgeVIds = new Set<string>();
-    const { classification, side } = params;
-    const { cols, rows, distribution, vstars } = classification;
-
-    for (const vstar of vstars) {
-        const ownerId = readVStarOwner(vstar, side);
-        if (!ownerId) continue;
-        const neighborDeltas =
-            distribution === 'hex_offset'
-                ? (vstar.iy & 1) === 0
-                    ? HEX_EDGE_NEIGHBOR_DELTAS_EVEN_ROW
-                    : HEX_EDGE_NEIGHBOR_DELTAS_ODD_ROW
-                : ORTHOGONAL_EDGE_NEIGHBOR_DELTAS;
-        for (const [dx, dy] of neighborDeltas) {
-            const nx = vstar.ix + dx;
-            const ny = vstar.iy + dy;
-            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) {
-                edgeVIds.add(vstar.id);
-                break;
-            }
-            const neighbor = vstars[ny * cols + nx];
-            if (!neighbor || readVStarOwner(neighbor, side) !== ownerId) {
-                edgeVIds.add(vstar.id);
-                break;
-            }
-        }
-    }
-
-    return edgeVIds;
-}
-
 function paintCellScene(params: {
     graphics: PIXI.Graphics;
     sceneCells: readonly GridRenderCell[];
@@ -642,9 +577,7 @@ function paintCellScene(params: {
     cellSpacingPx: number;
     cellInsetPx: number;
     cellCornerPx: number;
-    inwardOffsetPx: number;
     alphaMultiplier: number;
-    edgeVIds?: ReadonlySet<string>;
 }): number {
     const g = params.graphics;
     g.clear();
@@ -655,43 +588,29 @@ function paintCellScene(params: {
 
     const spacingPx = params.cellSpacingPx;
     const insetMax = spacingPx * 0.45;
-    const nativeInset = Math.min(params.cellInsetPx, insetMax);
-    const boundaryInset = Math.min(
-        params.cellInsetPx + Math.max(0, params.inwardOffsetPx),
-        insetMax,
-    );
-    const nativeSize = Math.max(1, spacingPx - nativeInset * 2);
-    const nativeHalf = nativeSize * 0.5;
-    const nativeCornerR =
+    const cellInset = Math.min(params.cellInsetPx, insetMax);
+    const cellSize = Math.max(1, spacingPx - cellInset * 2);
+    const cellHalf = cellSize * 0.5;
+    const cellCornerR =
         params.cellShape === 'square'
-            ? Math.min(params.cellCornerPx, Math.max(0, nativeHalf - 0.5))
+            ? Math.min(params.cellCornerPx, Math.max(0, cellHalf - 0.5))
             : 0;
-    const nativeHexR = nativeSize / SQRT3;
-    const boundarySize = Math.max(1, spacingPx - boundaryInset * 2);
-    const boundaryHalf = boundarySize * 0.5;
-    const boundaryCornerR =
-        params.cellShape === 'square'
-            ? Math.min(params.cellCornerPx, Math.max(0, boundaryHalf - 0.5))
-            : 0;
-    const boundaryHexR = boundarySize / SQRT3;
+    const cellHexR = cellSize / SQRT3;
 
     let painted = 0;
     for (const cell of params.sceneCells) {
         if (cell.alpha <= 0) continue;
         const fillHex = params.fillHexByColorIdx[cell.colorIdx];
         if (fillHex === undefined) continue;
-        const isBoundary = params.edgeVIds
-            ? params.edgeVIds.has(cell.vId)
-            : cell.role !== 'native';
         drawFilledGridCell(
             g,
             params.cellShape,
             cell.x,
             cell.y,
-            isBoundary ? boundaryHalf : nativeHalf,
-            isBoundary ? boundarySize : nativeSize,
-            isBoundary ? boundaryCornerR : nativeCornerR,
-            isBoundary ? boundaryHexR : nativeHexR,
+            cellHalf,
+            cellSize,
+            cellCornerR,
+            cellHexR,
             fillHex,
             clamp01(cell.alpha * params.alphaMultiplier),
         );
@@ -735,6 +654,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = METABALL_GRID_PHASE_FIELD_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
+    private readonly baseMaskGraphics = new PIXI.Graphics();
     private readonly baseGraphics = new PIXI.Graphics();
     private readonly fallbackOverlayGraphics = new PIXI.Graphics();
     private readonly borderGraphics = new PIXI.Graphics();
@@ -751,6 +671,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     private readonly nextSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
     private readonly maskSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
     private readonly colorUtils: ColorUtils;
+    private readonly fillMaskGeometryCache = new WeakMap<
+        ConstraintAlignedTerritoryGeometry,
+        Map<string, GeometryFillSource>
+    >();
 
     private prevTexture: PIXI.RenderTexture | null = null;
     private nextTexture: PIXI.RenderTexture | null = null;
@@ -772,6 +696,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
+        this.baseGraphics.mask = this.baseMaskGraphics;
         this.prevSourceGraphics.mask = this.prevSourceMaskGraphics;
         this.nextSourceGraphics.mask = this.nextSourceMaskGraphics;
         this.prevSourceContainer.addChild(this.prevSourceMaskGraphics);
@@ -781,6 +706,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.maskSourceContainer.addChild(this.maskSourceGraphics);
         this.prevSprite.mask = this.maskSprite;
 
+        this.root.addChild(this.baseMaskGraphics);
         this.root.addChild(this.baseGraphics);
         this.root.addChild(this.fallbackOverlayGraphics);
         this.root.addChild(this.nextSprite);
@@ -1102,16 +1028,38 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.cachedPatternClassification = {
             key,
             classification,
-            prevEdgeVIds: buildOwnershipEdgeVIds({
-                classification,
-                side: 'prev',
-            }),
-            nextEdgeVIds: buildOwnershipEdgeVIds({
-                classification,
-                side: 'next',
-            }),
         };
         return this.cachedPatternClassification;
+    }
+
+    private resolveFillMaskGeometry(
+        geometry: ConstraintAlignedTerritoryGeometry,
+        inwardOffsetPx: number,
+    ): GeometryFillSource {
+        if (inwardOffsetPx <= 0) {
+            return geometry;
+        }
+
+        let cache = this.fillMaskGeometryCache.get(geometry);
+        if (!cache) {
+            cache = new Map<string, GeometryFillSource>();
+            this.fillMaskGeometryCache.set(geometry, cache);
+        }
+
+        const key = inwardOffsetPx.toFixed(2);
+        const cached = cache.get(key);
+        if (cached) {
+            return cached;
+        }
+
+        const fillGeometry = {
+            territoryRegions: buildInsetTerritoryRegions({
+                territoryRegions: geometry.territoryRegions,
+                insetPx: inwardOffsetPx,
+            }),
+        } satisfies GeometryFillSource;
+        cache.set(key, fillGeometry);
+        return fillGeometry;
     }
 
     private renderPatternTexture(params: {
@@ -1127,9 +1075,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         cellSpacingPx: number;
         cellInsetPx: number;
         cellCornerPx: number;
-        inwardOffsetPx: number;
         alphaMultiplier: number;
-        edgeVIds: ReadonlySet<string>;
     }): number {
         const painted = paintCellScene({
             graphics: params.patternGraphics,
@@ -1139,9 +1085,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             cellSpacingPx: params.cellSpacingPx,
             cellInsetPx: params.cellInsetPx,
             cellCornerPx: params.cellCornerPx,
-            inwardOffsetPx: params.inwardOffsetPx,
             alphaMultiplier: params.alphaMultiplier,
-            edgeVIds: params.edgeVIds,
         });
         drawGeometryFill({
             graphics: params.maskGraphics,
@@ -1939,8 +1883,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             patternSpacingPx,
         });
         const patternClassification = patternCache.classification;
-        const prevPatternEdgeVIds = patternCache.prevEdgeVIds;
-        const nextPatternEdgeVIds = patternCache.nextEdgeVIds;
+        const prevFillGeometry = this.resolveFillMaskGeometry(
+            prevResolvedGeometry,
+            inwardOffsetPx,
+        );
+        const currentFillGeometry = this.resolveFillMaskGeometry(
+            currentResolvedGeometry,
+            inwardOffsetPx,
+        );
 
         const paintSig = [
             cached.planKey,
@@ -2033,6 +1983,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.prevSprite.visible = false;
         this.nextSprite.visible = false;
         this.maskSprite.visible = false;
+        this.baseMaskGraphics.clear();
         this.borderGraphics.clear();
         this.frontierGraphics.clear();
 
@@ -2127,16 +2078,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         patternGraphics: this.prevSourceGraphics,
                         maskGraphics: this.prevSourceMaskGraphics,
                         container: this.prevSourceContainer,
-                        geometry: prevResolvedGeometry,
+                        geometry: prevFillGeometry,
                         sceneCells: prevOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
-                        inwardOffsetPx,
                         alphaMultiplier: fillAlpha,
-                        edgeVIds: prevPatternEdgeVIds,
                     });
                     this.lastPrevTextureSig = prevTextureSig;
                 }
@@ -2162,16 +2111,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         patternGraphics: this.nextSourceGraphics,
                         maskGraphics: this.nextSourceMaskGraphics,
                         container: this.nextSourceContainer,
-                        geometry: currentResolvedGeometry,
+                        geometry: currentFillGeometry,
                         sceneCells: nextOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
-                        inwardOffsetPx,
                         alphaMultiplier: fillAlpha,
-                        edgeVIds: nextPatternEdgeVIds,
                     });
                     this.lastNextTextureSig = nextTextureSig;
                 } else {
@@ -2220,9 +2167,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
-                    inwardOffsetPx,
                     alphaMultiplier: fillAlpha,
-                    edgeVIds: nextPatternEdgeVIds,
+                });
+                drawGeometryFill({
+                    graphics: this.baseMaskGraphics,
+                    geometry: currentFillGeometry,
+                    resolveColor: () => 0xffffff,
+                    alpha: 1,
                 });
                 this.baseGraphics.visible = true;
                 this.fallbackOverlayGraphics.clear();
@@ -2343,16 +2294,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         patternGraphics: this.nextSourceGraphics,
                         maskGraphics: this.nextSourceMaskGraphics,
                         container: this.nextSourceContainer,
-                        geometry: currentResolvedGeometry,
+                        geometry: currentFillGeometry,
                         sceneCells: nextOwnershipScene,
                         fillHexByColorIdx,
                         cellShape,
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
-                        inwardOffsetPx,
                         alphaMultiplier: fillAlpha,
-                        edgeVIds: nextPatternEdgeVIds,
                     });
                     this.lastNextTextureSig = nextTextureSig;
                 } else {
@@ -2368,9 +2317,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
-                    inwardOffsetPx,
                     alphaMultiplier: fillAlpha,
-                    edgeVIds: nextPatternEdgeVIds,
+                });
+                drawGeometryFill({
+                    graphics: this.baseMaskGraphics,
+                    geometry: currentFillGeometry,
+                    resolveColor: () => 0xffffff,
+                    alpha: 1,
                 });
                 this.baseGraphics.visible = true;
             }
