@@ -11,7 +11,8 @@ This branch is the originator and owner of `metaball_grid_phase_field`. The mode
 - `metaball_grid_phase_field` is a new territory render mode, not a cosmetic tweak to `metaball_grid`.
 - The mode uses conquest-local `PRE/POST` compositing with a deterministic grid scheduler, explicit propagation/timing/pattern controls, a dedicated settings surface, and its own border/fill behavior.
 - The late critical work is shared geometry-core, not renderer-local polish. The mode exposed faults in `power_voronoi_0319`, so this branch now also owns the authority reset that makes fills, borders, diagnostics, and MSR behavior derive from one resolved shared-boundary seam.
-- Branch tip for this handoff: `5deac9c75`.
+- Merge strategy companion:
+  - [2026-05-02_PHASE_FIELD_MERGE_STRATEGY.md](C:/Users/mikep/.codex/worktrees/bea2/pax-fluxia/.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_MERGE_STRATEGY.md)
 
 ## Primary Merge Unit
 

@@ -1598,3 +1598,37 @@ Suggested structure:
   - live `power_voronoi_0319` consumers now share one post-0319 resolved geometry seam instead of adapting raw owner polygons and repairing them downstream
   - phase-field classification, phase-field border overlay, and global `Show Underlying Geometry` now read the same authority seam for 0319 snapshots
   - the overlay and artifact export now name exact stages rather than calling everything generically `geometry`
+
+### 2026-05-02 - Produce Phase Field Merge Strategy Reference
+
+- Lane: `docs/phase-field-merge-strategy`
+- User task: produce a reference document explaining how to merge this branch back into `master`, including the preferred path, fallback surgical import order, and the files most likely to conflict.
+
+#### Pass Log
+
+1. Pass 1 - Audited the actual branch/`master` relationship before writing strategy.
+   - Confirmed `origin/master` has no commits beyond the merge base `cad080942cd19c311f7954fe342e3213663ce1dd`.
+   - That means the current safest recommendation is a whole-branch merge, not conflict-driven cherry-picking.
+2. Pass 2 - Audited the exploratory Phase Field history.
+   - Confirmed the branch contains many successive corrections and one explicit revert in the Phase Field lane.
+   - Concluded that replaying individual commits is higher risk than merging the final branch state or importing final file-group units.
+3. Pass 3 - Wrote a dedicated merge-strategy doc at:
+   - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_MERGE_STRATEGY.md`
+   - It includes:
+     - recommended whole-branch merge path
+     - fallback surgical import plan
+     - import order by final file-group units
+     - high-conflict files
+     - validation checklist
+4. Pass 4 - Updated the main Phase Field branch handoff doc to point at the new strategy companion instead of hardcoding a stale branch-tip hash.
+
+#### Validation
+
+- Source audit only
+- No runtime code changed in this pass
+
+#### Merge Note
+
+- Dedicated tracked docs for merge work are now:
+  - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_BRANCH_HANDOFF.md`
+  - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_MERGE_STRATEGY.md`

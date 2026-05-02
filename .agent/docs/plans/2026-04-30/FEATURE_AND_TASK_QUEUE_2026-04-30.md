@@ -11,8 +11,10 @@
 
 - Dedicated tracked handoff doc:
   - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_BRANCH_HANDOFF.md`
+- Dedicated tracked merge strategy doc:
+  - `.agent/docs/project/handoffs/2026-05-02_PHASE_FIELD_MERGE_STRATEGY.md`
 - This queue file tracks the sprint arc.
-- The standalone handoff doc is the merge-agent source for:
+- The standalone handoff + strategy docs are the merge-agent sources for:
   - Phase Field branch ownership
   - required merge surfaces
   - shared `power_voronoi_0319` authority-seam dependency
