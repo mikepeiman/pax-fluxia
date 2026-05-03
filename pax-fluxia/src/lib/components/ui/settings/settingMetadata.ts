@@ -394,14 +394,18 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Base Resolution': {
             key: 'METABALL_GRID_SPACING_PX',
             description:
-                'Phase Field scheduler-grid spacing; the authoritative base resolution size for takeover timing.',
+                'Authoritative phase-field lattice spacing for ownership classification, conquest timing density, transition-cell size, and grid-derived border/frontier detail.',
         },
         'Transition Spacing': {
             key: 'METABALL_GRID_SPACING_PX',
             description:
-                'Phase Field scheduler-grid spacing; the authoritative base resolution size for takeover timing.',
+                'Authoritative phase-field lattice spacing for ownership classification, conquest timing density, transition-cell size, and grid-derived border/frontier detail.',
         },
-        'Pattern Spacing': { key: 'METABALL_GRID_PATTERN_SPACING_PX' },
+        'Pattern Spacing': {
+            key: 'METABALL_GRID_PATTERN_SPACING_PX',
+            description:
+                'Visible interior fill-pattern spacing for settled and masked PRE/NEXT fills; changes pattern density but not conquest timing density or active frontier cell size.',
+        },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
         'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },

@@ -81,7 +81,7 @@
 
     function currentPlannerSpacingDescription(): string {
         if (isPhaseFieldMode()) {
-            return 'Authoritative scheduler-grid spacing for phase field. Smaller = denser takeover timing and heavier CPU. This is the real base resolution size; it does not set the visible fill-pattern size.';
+            return 'Authoritative phase-field lattice spacing. It sets ownership classification density, conquest-wave timing density, transition-cell size, and grid-derived border/frontier detail. Smaller = denser behavior and heavier CPU. It does not set the visible interior fill-pattern pitch.';
         }
         return 'Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)x(worldHeight/spacing).';
     }
@@ -476,13 +476,13 @@
 {#if isPhaseFieldMode()}
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
+        <span class="var-name" title="Visible fill-pattern lattice spacing in pixels. Larger = chunkier interior pattern. Smaller = denser interior pattern and more fill-render work.">
             Pattern Spacing
         </span>
         <span class="val">{currentPatternSpacingPx()}px</span>
     </div>
     <div class="var-desc">
-        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
+        Visible interior fill-pattern spacing for the PRE/NEXT ownership fills. This affects steady-state fill density and the masked transition fills. It does not change conquest timing density or the active frontier cell size.
     </div>
     <input
         type="range"
