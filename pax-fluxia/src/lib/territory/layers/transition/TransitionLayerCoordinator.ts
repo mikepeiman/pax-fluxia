@@ -52,6 +52,16 @@ function buildEmptyBorderFrame(): BorderTransitionFrame {
     };
 }
 
+function isTopologyFillRebuildMode(fillTransitionMode: string): boolean {
+    return (
+        fillTransitionMode === 'topology_fill_rebuild' ||
+        fillTransitionMode === 'unified_topology' ||
+        // PVV4 still exposes the older public id. Keep that surface stable
+        // while routing it through the active-front runtime path.
+        fillTransitionMode === 'pv_frontline'
+    );
+}
+
 export class TransitionLayerCoordinator {
     private readonly clock = new SharedTransitionClock();
 
@@ -68,8 +78,9 @@ export class TransitionLayerCoordinator {
         // ── Unified active-front path — frontier-chain transitions ───────
         // Fills are reconstructed from interpolated active-front geometry.
         // Activated when user selects the topology-driven fill rebuild path.
-        const topologyFillRebuildSelected =
-            input.selection.fillTransitionMode === 'topology_fill_rebuild';
+        const topologyFillRebuildSelected = isTopologyFillRebuildMode(
+            input.selection.fillTransitionMode,
+        );
         const nextTopo = input.geometry.frontierTopology;
 
         // For planning (conquest frame): use previousGeometry's topology

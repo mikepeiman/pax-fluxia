@@ -195,6 +195,57 @@
 - Validation:
   - `git push -u origin codex/render-infra/pvv4-transition-bets` succeeded
 
+### 2026-05-03 - Recorded the first checkpoint inside tracked docs
+
+- Action:
+  - committed:
+    - `18b6ef462` - `Record initial PVV4 branch checkpoint`
+  - pushed the branch after the commit
+- Purpose:
+  - make the tracked handoff file self-describing by including the first branch checkpoint metadata
+- Result:
+  - the branch now contains both the initial setup checkpoint and the follow-up documentation checkpoint on `origin`
+- Validation:
+  - push completed successfully
+
+### 2026-05-03 - Added a narrow PVV4 runtime-compatibility shim
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\geometry\registry.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+- Purpose:
+  - keep the existing PVV4 public ids stable while routing them into the geometry and active-front runtime paths that actually exist in source
+  - avoid starting visual bets against ids that did not line up cleanly with the registered runtime paths
+- Exact change:
+  - mapped `canonical_power_voronoi` to the existing unified vector geometry mode in the geometry registry
+  - treated `pv_frontline` as an alias for the topology/active-front transition path in the transition coordinator
+- Result:
+  - PVV4's public geometry/transition ids now resolve locally to the runtime seams that the branch intends to tune
+  - this is a compatibility shim, not a public-surface rename
+- Validation:
+  - source diff reviewed
+  - full runtime visual verification still requires app-level testing
+
+### 2026-05-03 - Attempted build validation and isolated environment blockers
+
+- Action:
+  - ran:
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+    - `bunx vite build`
+    - `bunx svelte-check --tsconfig ./tsconfig.json`
+- Purpose:
+  - verify the compatibility shim through the normal render-lane validation path before moving on to visible tuning bets
+- Result:
+  - validation is currently blocked by missing local install/generated state in this worktree, not by a demonstrated compile error from the shim itself
+  - observed blockers:
+    - `bun run build` could not find `vite`
+    - `bunx vite build` could not resolve local `vite` / `@sveltejs/kit` packages from the worktree config path
+    - `bunx svelte-check` could not read `.svelte-kit/tsconfig.json` and then failed to load missing local Svelte packages
+- Validation:
+  - there was no tracked lockfile drift left behind after the failed validation attempts
+  - code changes remain limited to the two intended source files
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
@@ -209,10 +260,11 @@
 - The easiest failure mode is over-fixing a mode that the user already considers close.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
 - Visual verification has not yet started for the new experiment sequence.
+- Local build/check validation is currently limited by missing worktree install/generated state.
 
 ## Next Intended Step
 
-- Commit and push the branch setup plus documentation protocol.
+- Commit and push the PVV4 runtime-compatibility shim.
 - Then begin `Approach A` as the first implementation bet:
   - time-profile refinement
   - minimal scope

@@ -18,9 +18,14 @@
   - `.agent/rules/worktree-protocols.md`
 - Started tracked handoff:
   - `.agent/docs/project/process/worktree-handoffs/2026-05-03_pvv4-transition-bets_handoff.md`
+- Added prerequisite PVV4 runtime-compatibility shim:
+  - `pax-fluxia/src/lib/territory/layers/geometry/registry.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
 - Key intended experiment order:
   1. time-profile refinement
   2. motion-isolation tightening
   3. local path shaping
   4. correspondence stabilization
   5. special-case polish
+- Validation note:
+  - normal `bun run build` / `bunx vite build` / `bunx svelte-check` are currently blocked by missing local install/generated state in this worktree

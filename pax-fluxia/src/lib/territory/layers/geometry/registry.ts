@@ -6,9 +6,16 @@ import { UnifiedVectorGeometryMode } from './modes/UnifiedVectorGeometryMode';
  * Legacy modes (PowerVoronoi, BoundaryAware, SeedGraph) have been removed.
  * All vector geometry goes through UnifiedVectorGeometryMode → compileVectorGeometry().
  */
+const unifiedVectorGeometryMode = new UnifiedVectorGeometryMode();
+
 export const GEOMETRY_MODES: readonly GeometryMode[] = [
-    new UnifiedVectorGeometryMode(),
+    unifiedVectorGeometryMode,
 ];
 
-export const GEOMETRY_MODE_BY_ID: ReadonlyMap<GeometryMode['id'], GeometryMode> =
-    new Map(GEOMETRY_MODES.map((mode) => [mode.id, mode]));
+export const GEOMETRY_MODE_BY_ID: ReadonlyMap<string, GeometryMode> =
+    new Map([
+        [unifiedVectorGeometryMode.id, unifiedVectorGeometryMode],
+        // Preserve the PVV4 public geometry id while routing it through the
+        // current unified vector compiler.
+        ['canonical_power_voronoi', unifiedVectorGeometryMode],
+    ]);
