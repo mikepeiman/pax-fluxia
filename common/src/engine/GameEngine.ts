@@ -129,10 +129,13 @@ export class GameEngine {
 
         // Prevent same-player opposing loops (A→B and B→A by same owner).
         // Cross-player mutual combat is always allowed — that's normal gameplay.
-        if (!cfg.ALLOW_OPPOSING_ORDERS) {
-            const target = state.stars.get(input.targetId);
-            if (target && target.targetId === input.sourceId && target.ownerId === source.ownerId) {
+        const target = state.stars.get(input.targetId);
+        if (target && target.ownerId === source.ownerId) {
+            if (target.targetId === input.sourceId) {
                 target.targetId = '';
+            }
+            if (target.queuedOrderTargetId === input.sourceId) {
+                target.queuedOrderTargetId = '';
             }
         }
 

@@ -162,14 +162,17 @@ export default defineConfig(async () => ({
   },
   resolve: {
     dedupe: ["pixi.js", "svelte"],
-    alias: benchmarkStandalone
-      ? {
-        "$app/navigation": path.resolve(
-          process.cwd(),
-          "src/lib/bench/navigationStub.ts",
-        ),
-      }
-      : undefined,
+    alias: {
+      $lib: path.resolve(process.cwd(), "src/lib"),
+      ...(benchmarkStandalone
+        ? {
+          "$app/navigation": path.resolve(
+            process.cwd(),
+            "src/lib/bench/navigationStub.ts",
+          ),
+        }
+        : {}),
+    },
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -195,7 +198,11 @@ export default defineConfig(async () => ({
         : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/common/resources/settings-live/**",
+        "**/common/resources/saved-maps/**",
+      ],
     },
   },
 }));

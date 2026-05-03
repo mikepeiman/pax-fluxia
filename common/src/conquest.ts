@@ -244,20 +244,22 @@ export function applyConquest(
     result.shipsTransferred = totalTransferred;
     result.perStarTransfers = perStarTransfers;
 
-    // Handle queued orders (only if orders persist after conquest)
-    if (cfg.ORDERS_PERSIST_AFTER_CONQUEST && defender.queuedOrderTargetId) {
+    // Chained orders are always preserved after conquest.
+    if (defender.queuedOrderTargetId) {
         defender.targetId = defender.queuedOrderTargetId;
         defender.queuedOrderTargetId = '';
+        const targetStar = ctx.getStar(defender.targetId);
+        if (targetStar && targetStar.ownerId === defender.ownerId) {
+            if (targetStar.targetId === defender.id) {
+                targetStar.targetId = '';
+            }
+            if (targetStar.queuedOrderTargetId === defender.id) {
+                targetStar.queuedOrderTargetId = '';
+            }
+        }
     } else {
         defender.targetId = '';
         defender.queuedOrderTargetId = '';
-    }
-
-    // Handle order retention
-    if (!cfg.RETAIN_ORDER_ON_CONQUEST) {
-        for (const atkStar of transferStars) {
-            atkStar.targetId = '';
-        }
     }
 
     return result;

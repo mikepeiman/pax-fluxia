@@ -10,7 +10,8 @@
 //
 // Pipeline:
 //   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
-//   1. Power diagram via d3-weighted-voronoi (weight = starMargin²)
+//   1. Power diagram via d3-weighted-voronoi using real-star power,
+//      MSR support sites, and shaping virtual sites
 //   2. Build shared edge graph from cells
 //   3. Merge: remove same-owner internal edges
 //   4. Arc smoothing on shared edges (future)
@@ -29,7 +30,6 @@ import { log } from '$lib/utils/logger';
 import { blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import {
     generateVoronoiTerritoryGeometry,
-    buildTerritoryGeometryFingerprint,
     chaikinSmoothPolyline,
     chaikinSmoothPolygon,
     chainSharedEdgesIntoPolylines,
@@ -39,10 +39,17 @@ import {
     type SharedPolyline,
     type TerritoryCell,
 } from '$lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator';
+import { buildRealSiteWeight } from '$lib/territory/compiler/powerVoronoiWeights';
 import { resamplePolygon, resamplePolyline, lerpPolygon, polygonCentroid } from '$lib/territory/geometry/morphUtils';
 import { SegmentMorphTransitionHandler, RopeBorderRenderer, PolygonMorphTransitionHandler } from '$lib/renderers/geometry/borderTransition';
 import { territoryTransitions } from '$lib/fx/handlers/territoryTransitionHandler';
 import { coerceVsTransitionModeForRenderMode } from '$lib/territory/transitions/territoryTransitionModes';
+import {
+    buildTerritoryGeometryCacheKeyParts,
+    buildTerritoryGeneratorSettingsFromTunables,
+    readNormalizedTerritoryGeometryTunables,
+    type TerritoryGeometryTunables,
+} from '$lib/territory/geometry/geometryTuning';
 
 // ── Localized Boundary Transition Pipeline ─────────────────────────────────
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
@@ -185,6 +192,37 @@ export function createPVV2State(): PVV2RendererState {
 /** Default (legacy) module-level state — used when no state is passed to renderPowerVoronoi. */
 const defaultState: PVV2RendererState = createPVV2State();
 
+function readNormalizedGeometryTunables(): TerritoryGeometryTunables {
+    return readNormalizedTerritoryGeometryTunables(
+        GAME_CONFIG as unknown as Record<string, unknown>,
+    );
+}
+
+function buildNormalizedStageConfig(
+    worldWidth: number,
+    worldHeight: number,
+    connections?: ReadonlyArray<StarConnection>,
+    frontierResolutionOverride?: number,
+): TerritoryGeneratorSettings {
+    const tunables = readNormalizedGeometryTunables();
+    const stageConfig = buildTerritoryGeneratorSettingsFromTunables({
+        world: { width: worldWidth, height: worldHeight },
+        tunables,
+    });
+    return {
+        ...stageConfig,
+        corridorEnabled: stageConfig.corridorEnabled && Boolean(connections?.length),
+        disconnectEnabled:
+            stageConfig.disconnectEnabled && Boolean(connections?.length),
+        frontierResolution:
+            frontierResolutionOverride ??
+            ((GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') ===
+            'unified_polygon'
+                ? stageConfig.frontierResolution
+                : 0),
+    };
+}
+
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
 /**
@@ -198,22 +236,12 @@ const defaultState: PVV2RendererState = createPVV2State();
  * until the next conquest triggers a natural rebuild.
  */
 function buildShapeFingerprint(stars: StarState[]): string {
+    const tunables = readNormalizedGeometryTunables();
     let fp = 'shape:';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
-    fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
-    fp += `:cxN=${GAME_CONFIG.TERRITORY_CX_COUNT}`;
-    fp += `:cxW=${GAME_CONFIG.TERRITORY_CX_WEIGHT}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
-    fp += `:dxW=${GAME_CONFIG.TERRITORY_DX_WEIGHT}`;
-    // Chaikin passes drives chainSharedEdgesIntoPolylines in the geometry stage
-    // — must be a shape-fingerprint dependency, not visual-only
-    fp += `:chaikin=${GAME_CONFIG.VORONOI_BORDER_SMOOTH}`;
+    fp += `:${buildTerritoryGeometryCacheKeyParts(tunables).join(':')}`;
     // Geometry mode selects which generator runs:
     // - 'power_voronoi': standard generateVoronoiTerritoryGeometry
     // - 'unified_polygon': dense resampled variant
@@ -1284,32 +1312,11 @@ export function renderPowerVoronoi(
         stageResult = precomputedGeometry;
         log.renderer('PVV2', `Using precomputed geometry (Geometry_0319)`);
     } else {
-        const stageConfig = {
-            starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-            corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
-            corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-            cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
-            cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-            cxContestMidpointVstars:
-                GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
-            cxContestPairCount:
-                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-            cxContestPairWeight:
-                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
-            disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
-            disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-            dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
-            clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-            chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-            // Only apply dense frontier resampling in unified_polygon geometry mode
-            frontierResolution: (GAME_CONFIG.TERRITORY_GEOMETRY_MODE ?? 'power_voronoi') === 'unified_polygon'
-                ? Math.max(1, Math.min(20, GAME_CONFIG.FRONTIER_RESOLUTION ?? 5))
-                : 0,
-            boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-            boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
+        const stageConfig = buildNormalizedStageConfig(
             worldWidth,
             worldHeight,
-        };
+            connections,
+        );
         stageResult = generateVoronoiTerritoryGeometry(geomStars, connections ?? [], stageConfig);
     }
     if ('kind' in stageResult) {
@@ -1475,33 +1482,23 @@ export function renderPowerVoronoi(
 
             // console.log('[DIAG-DURATION]', { baseDuration, wlTransitionMs, tickMs });
             const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
-            const wlDefaultWeight = wlStarMargin * wlStarMargin;
+            const wlTunables = readNormalizedGeometryTunables();
+        const wlDefaultWeight = buildRealSiteWeight(
+            wlStarMargin,
+            wlTunables.msrStarBias,
+        );
             // Power lerp config for loser VS
             const powerLerpStart = GAME_CONFIG.VS_POWER_LERP_START || wlDefaultWeight;  // 0 = full weight
             const powerLerpEnd = GAME_CONFIG.VS_POWER_LERP_END ?? 0;
 
             const stageConfig: TerritoryGeneratorSettings = {
+                ...buildNormalizedStageConfig(
+                    worldWidth,
+                    worldHeight,
+                    connections,
+                    0,
+                ),
                 starMargin: wlStarMargin,
-                corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
-                corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-                cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
-                cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-                cxContestMidpointVstars:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
-                cxContestPairCount:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-                cxContestPairWeight:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
-                disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
-                disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-                dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
-                clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-                chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-                frontierResolution: 0,
-                boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-                boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
-                worldWidth,
-                worldHeight,
             };
 
             // Conquered star stays at weight=0 during entire transition (VS handles visual)

@@ -103,7 +103,7 @@ Exception: dead code that was never functional can be cleaned up per user reques
 ### Opposing Orders (D-20)
 - "Opposing" = same-player loop (own Star A→B and B→A). Self-contradictory.
 - Cross-player mutual combat is ALWAYS allowed (normal gameplay).
-- `ALLOW_OPPOSING_ORDERS` is client-only boolean. When false (default): A→B cancels B→A (same owner only).
+- Same-owner lane exclusivity is fixed behavior: A→B cancels B→A. There is no surfaced opposing-orders option.
 
 ---
 

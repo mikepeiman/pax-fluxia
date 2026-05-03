@@ -379,7 +379,7 @@ function sectionPointsWithOrientation(
 // ---------------------------------------------------------------------------
 
 // Mode ID must match the FillTransitionModeId union string in TerritoryModeSelection.ts
-const ACTIVE_FRONT_MODE_ID = 'legacy_fill_active_front' as const;
+const ACTIVE_FRONT_MODE_ID = 'active_front' as const;
 
 // Tuning constants.
 // Fronts with mean per‑vertex movement below this threshold will be
@@ -388,7 +388,7 @@ const MIN_MEAN_FRONT_DISPLACEMENT = 0.25; // world pixels, deliberately small
 
 export const ActiveFrontFillMode: FillTransitionMode = {
     id: ACTIVE_FRONT_MODE_ID,
-    label: 'Legacy Fill Active Front',
+    label: 'Active Front Interpolation',
 
     plan(input: FillTransitionPlanInput): ActiveFrontFillPlan {
         const prevTopology = input.previousGeometry?.frontierTopology ?? null;
@@ -396,7 +396,7 @@ export const ActiveFrontFillMode: FillTransitionMode = {
 
         // Base fields required by FillTransitionPlan.[file:316]
         const basePlan: FillTransitionPlan = {
-            planId: `legacy-fill-active-front:${input.nextGeometry.version}`, // you can pick any stable ID scheme
+            planId: `active-front:${input.nextGeometry.version}`, // stable per target geometry version
             sourceMode: ACTIVE_FRONT_MODE_ID,
             startGeometryVersion: prevTopology ? prevTopology.version : nextTopology.version,
             endGeometryVersion: nextTopology.version,

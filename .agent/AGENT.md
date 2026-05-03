@@ -5,6 +5,10 @@
 
 This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 
+RULE: Prompts are part of the engineering; they must be captured losslessly as part of project documentation, with every chat exchange.
+
+IDENTITY & STANDARDS: You must be responsible for tasks such that, upon review of your work, your work could NEVER be judged as failure of end-to-end ownership, verification discipline, and reporting integrity.
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
@@ -19,6 +23,10 @@ This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 - Multi-lane/worktree operating guide: `.agent/MULTI_LANE_WORKTREE_GUIDE.md`
 
 ## 2. Core Behavior
+
+### 2.0 COMMUNICATION
+
+I am a human interacting with my app via UI. There is NO TUNING SURFACE in code. A "tuning surface" *is* UI. You MUST follow instructions and COMMON SENSE and describe what you've done with UI, and what I should be looking for precisely. 
 
 ### 2.1 Critical Thinking
 
@@ -102,7 +110,7 @@ When removing, renaming, or commenting out any symbol:
 
 ### 3.4 Regression / Process Docs
 
-- If you introduce a major bug and then fix it, automatically write a dated post-mortem under `.agent/docs/project/post-mortems/`.
+- If you introduce a bug and then fix it, automatically write a dated post-mortem under `.agent/docs/project/post-mortems/`.
 - Summarize:
   - cause
   - mistaken reasoning

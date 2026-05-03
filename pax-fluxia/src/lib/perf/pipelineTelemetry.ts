@@ -1,5 +1,5 @@
-import { log } from "$lib/utils/logger";
-import { recordPerfEvent } from "$lib/perf/perfProbe";
+import { log } from "../utils/logger";
+import { recordPerfEvent } from "./perfProbe";
 
 type PipelineChannel = "sys" | "state" | "data" | "renderer" | "input";
 

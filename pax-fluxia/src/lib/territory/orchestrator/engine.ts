@@ -11,6 +11,11 @@ import { renderPVV3, resetPVV3Cache } from '$lib/renderers/PVV3Renderer';
 import { renderRefactoredPowerVoronoi } from '$lib/renderers/RefactoredPVV2Renderer';
 import { log } from '$lib/utils/logger';
 import { computeGeometry0319 } from '$lib/territory/compiler/Geometry_0319';
+import {
+    buildTerritoryGeometryCacheKeyParts,
+    buildTerritoryGeneratorSettingsFromTunables,
+    readNormalizedTerritoryGeometryTunables,
+} from '$lib/territory/geometry/geometryTuning';
 import { executeNativeTerritoryStage, resetNativeTerritoryStageCaches } from './methods';
 import { OptimalTransportBorderTransition } from '$lib/territory/transitions/OptimalTransportBorderTransition';
 
@@ -134,6 +139,11 @@ function buildInputFingerprint(
     selection: TerritoryMethodSelection,
     input: TerritoryEngineInput,
 ): string {
+    const geometryKey = buildTerritoryGeometryCacheKeyParts(
+        readNormalizedTerritoryGeometryTunables(
+            GAME_CONFIG as unknown as Record<string, unknown>,
+        ),
+    ).join(':');
     let starHash = 0;
     for (const star of input.stars) {
         starHash ^= hashString(`${star.id}:${star.ownerId}:${Math.round(star.x)}:${Math.round(star.y)}`);
@@ -149,6 +159,7 @@ function buildInputFingerprint(
 
     return [
         selectionKey(selection),
+        geometryKey,
         input.stars.length,
         connections.length,
         input.worldWidth,
@@ -187,29 +198,17 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
         let precomputedGeometry: any = undefined;
         if (isNewFrontiers) {
             log.renderer('TerritoryEngine', `Dispatching to Geometry_0319 (GEOMETRY_MODE=${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}, ENGINE_METHOD=${GAME_CONFIG.TERRITORY_ENGINE_METHOD})`);
-            const stageConfig = {
-                starMargin: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-                corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(input.connections),
-                corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-                cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
-                cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-                cxContestMidpointVstars:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
-                cxContestPairCount:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-                cxContestPairWeight:
-                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
-                disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(input.connections),
-                disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
-                dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
-                clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
-                chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),
-                frontierResolution: 0,
-                boundaryPad: GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50,
-                boundaryEps: GAME_CONFIG.CHAIKIN_BOUNDARY_EPS ?? 6,
-                worldWidth: input.worldWidth,
-                worldHeight: input.worldHeight,
-            };
+            const stageConfig = buildTerritoryGeneratorSettingsFromTunables({
+                world: { width: input.worldWidth, height: input.worldHeight },
+                tunables: readNormalizedTerritoryGeometryTunables(
+                    GAME_CONFIG as unknown as Record<string, unknown>,
+                ),
+            });
+            stageConfig.corridorEnabled =
+                stageConfig.corridorEnabled && Boolean(input.connections?.length);
+            stageConfig.disconnectEnabled =
+                stageConfig.disconnectEnabled && Boolean(input.connections?.length);
+            stageConfig.frontierResolution = 0;
             const result = computeGeometry0319(input.stars, input.connections ?? [], stageConfig);
             if (!('kind' in result)) {
                 precomputedGeometry = result;

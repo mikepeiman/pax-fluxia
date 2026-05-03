@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import {
     pushStateCompat as pushState,
     replaceStateCompat as replaceState,
@@ -16,23 +16,27 @@
     StarNav,
     StarsPanel,
     StatusBar,
-    TopBar,
   } from "$lib/components/ui/hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
-  import TransitionDebugPanel from "$lib/components/ui/TransitionDebugPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
-  import ThemeSelectDropdown from "$lib/components/ui/settings/ThemeSelectDropdown.svelte";
-  import { groupThemesByRenderFamily } from "$lib/config/themeRouting";
-  import type { GameTheme } from "$lib/config/themes";
+  import TopBar from "$lib/components/ui/TopBar.svelte";
+  import GameHudTopBar from "$lib/components/ui/GameHudTopBar.svelte";
+  import GameThemeManager from "$lib/components/ui/GameThemeManager.svelte";
+  import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { PlayerState } from "$lib/types/game.types";
-  import { themeStore } from "$lib/stores/themeStore.svelte";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
-  import { diagnosticsUi } from "$lib/territory/devtools/diagnosticsUi";
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
+  import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
   import { pushHomeRouteDiagEvent } from "$lib/utils/homeRouteDiagnostics";
+  import { themeStore } from "$lib/stores/themeStore.svelte";
+  import { GAME_CONFIG } from "$lib/config/game.config";
+  import {
+    applyTopbarTerritoryModeShortcut,
+    getTopbarTerritoryModeOptions,
+  } from "$lib/territory/ui/territoryModeShortcuts";
 
   if (typeof window !== "undefined") {
     hydrateConfigFromPersistedUiSettings();
@@ -66,7 +70,6 @@
   // ── Panel visibility states ──
   let menuTheme = $state<MenuTheme>(loadMenuTheme());
   let showAudioSettings = $state(false);
-  let showTransitionDebugPanel = $state(false);
   let showSurrenderModal = $state(false);
   let showStarInfoPanel = $state(
     typeof localStorage !== "undefined" &&
@@ -78,13 +81,6 @@
   const isMobileAtLoad =
     typeof window !== "undefined" && window.innerWidth < 1024;
   let isMobileNow = $state(isMobileAtLoad);
-  let themeFamilyGroups = $derived(
-    groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
-  );
-
-  function getThemeOptionLabel(theme: GameTheme): string {
-    return theme.name;
-  }
 
   // Track mobile state reactively for FAB visibility
   if (typeof window !== "undefined") {
@@ -128,12 +124,10 @@
     showAudioSettings = true;
   }
 
-  function openTransitionDebugPanel() {
-    showTransitionDebugPanel = true;
-  }
-
   // ── In-game menu collapse ──
   let menuExpanded = $state(true);
+  let menuThemeManagerElement: HTMLDivElement | null = $state(null);
+  let drawerThemePanelElement: HTMLDivElement | null = $state(null);
 
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
@@ -214,19 +208,10 @@
   // ── Theme system (in right sidebar) ──
   // All theme state is now in the shared themeStore
 
-  // Listen for StarInfoPanel toggle from GameSettingsPanel
-  const handleOpenTransitionDebugPanelEvent = () => {
-    openTransitionDebugPanel();
-  };
-
   if (typeof window !== "undefined") {
     window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
       showStarInfoPanel = e.detail;
     }) as EventListener);
-    window.addEventListener(
-      "pax-open-transition-debug-panel",
-      handleOpenTransitionDebugPanelEvent as EventListener,
-    );
 
     // F hotkey — fit game to viewport
     window.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -276,24 +261,25 @@
   let isResizing = $state(false);
   let settingsPanelWidth = $state(loadSettingsPanelWidth());
   let isSettingsResizing = $state(false);
-  let forceOpenSettingsSection = $state<"debug" | null>(null);
+  let forceOpenSettingsSection = $state<SettingsSectionId | null>(null);
   let forceOpenSettingsSectionNonce = $state(0);
 
-  function revealSettingsSection(section: "debug") {
+  function revealSettingsSection(section: SettingsSectionId) {
     forceOpenSettingsSection = section;
     forceOpenSettingsSectionNonce += 1;
+  }
+
+  function openDiagnostics() {
+    setSettingsPanelOpen(true);
+    revealSettingsSection("diagnostics");
   }
 
   function toggleRulerDiagnostics() {
     const nextEnabled = !rulerTool.getState().enabled;
     rulerTool.setEnabled(nextEnabled);
     if (nextEnabled) {
-      diagnosticsUi.requestControlsOpen();
-      setSettingsPanelOpen(true);
-      revealSettingsSection("debug");
-      return;
+      openDiagnostics();
     }
-    diagnosticsUi.setOpen(false);
   }
 
   function startResize(e: PointerEvent) {
@@ -367,6 +353,11 @@
   let showSettingsFab = $state(false);
   let showExitConfirm = $state(false);
   let lastShellViewKey = "";
+  const topbarTerritoryModeOptions = getTopbarTerritoryModeOptions();
+  let topbarActiveTerritoryModeId = $state(GAME_CONFIG.TERRITORY_RENDER_MODE);
+  const currentThemeName = $derived(
+    themeStore.selectedThemeName || "Phase Field Default",
+  );
 
   // ── Back button navigation: close overlays instead of exiting ──
   // Push a history entry so Android back button fires popstate
@@ -442,6 +433,30 @@
     showExitConfirm = false;
   }
 
+  async function openThemeShortcuts() {
+    if (isMobileNow) {
+      mobileDrawerOpen = true;
+      await tick();
+      drawerThemePanelElement?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+      return;
+    }
+
+    menuExpanded = true;
+    await tick();
+    menuThemeManagerElement?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }
+
+  function handleTopbarTerritoryModeSelect(modeId: string) {
+    topbarActiveTerritoryModeId = modeId;
+    applyTopbarTerritoryModeShortcut(modeId);
+  }
+
   $effect(() => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
@@ -495,28 +510,39 @@
     }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("pax-game-container-unmounted"));
-      window.removeEventListener(
-        "pax-open-transition-debug-panel",
-        handleOpenTransitionDebugPanelEvent as EventListener,
-      );
     }
   });
 </script>
 
 <div class="app-container">
-  <TopBar
-    onSettingsClick={gameStore.currentView !== "game"
-      ? openAudioSettings
-      : undefined}
-    onHelpClick={() => alert("Help & controls guide coming soon!")}
-    onFitViewport={gameStore.currentView === "game"
-      ? () => gameCanvasRef?.centerAndFit?.()
-      : undefined}
-    onRulerToggle={gameStore.currentView === "game"
-      ? toggleRulerDiagnostics
-      : undefined}
-    rulerActive={gameStore.currentView === "game" ? $rulerTool.enabled : false}
-  />
+  {#if gameStore.currentView === "game"}
+    <GameHudTopBar
+      onMenuClick={() => gameStore.setView("menu")}
+      onSettingsClick={toggleSettingsPanel}
+      onDiagnosticsClick={openDiagnostics}
+      onThemesClick={openThemeShortcuts}
+      onRulerToggle={toggleRulerDiagnostics}
+      onAuthoredMeasurementsToggle={activeGameStore.mapDiagnostics.measurements.length > 0
+        ? () => authoredMeasurementsUi.toggle()
+        : undefined}
+      onFitViewport={() => gameCanvasRef?.centerAndFit?.()}
+      onHelpClick={() => alert("Help & controls guide coming soon!")}
+      diagnosticsActive={showSettingsPanel &&
+        forceOpenSettingsSection === "diagnostics"}
+      rulerActive={$rulerTool.enabled}
+      authoredMeasurementsActive={$authoredMeasurementsUi.visible}
+      authoredMeasurementsAvailable={activeGameStore.mapDiagnostics.measurements.length > 0}
+      onModeSelect={handleTopbarTerritoryModeSelect}
+      modeOptions={topbarTerritoryModeOptions}
+      fallbackActiveModeId={topbarActiveTerritoryModeId}
+      currentThemeName={currentThemeName}
+    />
+  {:else}
+    <TopBar
+      onSettingsClick={openAudioSettings}
+      onHelpClick={() => alert("Help & controls guide coming soon!")}
+    />
+  {/if}
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />
@@ -527,12 +553,6 @@
       menuTheme={menuTheme}
       onClose={() => (showAudioSettings = false)}
     />
-
-    {#if showTransitionDebugPanel}
-      <TransitionDebugPanel
-        onClose={() => (showTransitionDebugPanel = false)}
-      />
-    {/if}
 
     <div class="game-layout" class:settings-open={showSettingsPanel}>
       <!-- STATUSBAR (info display) -->
@@ -562,7 +582,7 @@
           </div>
         {/if}
 
-        <!-- TOP LEFT: debug panels -->
+        <!-- TOP LEFT: overlay panels -->
         <div class="overlay-top-left">
           {#if showStarInfoPanel}
             <StarInfoPanel />
@@ -670,21 +690,7 @@
 
         <hr class="sidebar-divider" />
 
-        <!-- 2. THEME SELECTOR (bold, prominent) -->
-        <div class="sidebar-theme">
-          <div class="theme-label" id="game-shell-theme-label">🎨 THEME</div>
-          <ThemeSelectDropdown
-            idBase="game-shell-theme"
-            labelledBy="game-shell-theme-label"
-            variant="shell"
-            {themeFamilyGroups}
-            selectedThemeName={themeStore.selectedThemeName}
-            placeholder="Select Theme..."
-            getThemeOptionLabel={getThemeOptionLabel}
-            onSelectTheme={(name) => themeStore.applyTheme(name)} />
-        </div>
-
-        <!-- 3. IN-GAME MENU -->
+        <!-- 2. IN-GAME MENU -->
         <div class="sidebar-menu">
           <button
             class="menu-header"
@@ -704,6 +710,18 @@
                 <span class="mi-icon">⚙</span>
                 <span class="mi-label">Settings</span>
               </button>
+              <button
+                class="menu-item"
+                class:active={showSettingsPanel &&
+                  forceOpenSettingsSection === "diagnostics"}
+                onclick={openDiagnostics}
+              >
+                <span class="mi-icon">◎</span>
+                <span class="mi-label">Diagnostics</span>
+              </button>
+              <div class="menu-theme-manager" bind:this={menuThemeManagerElement}>
+                <GameThemeManager />
+              </div>
               <button
                 class="menu-item"
                 onclick={openAudioSettings}
@@ -994,6 +1012,17 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
+            openDiagnostics();
+            showSettingsFab = false;
+          }}
+        >
+          <span class="fab-icon">◎</span>
+          <span>Diagnostics</span>
+        </button>
+        <button
+          class="fab-item"
+          onclick={() => {
+            audioManager.play("click");
             mobileDrawerOpen = !mobileDrawerOpen;
             showSettingsFab = false;
           }}
@@ -1026,7 +1055,7 @@
       </div>
     {/if}
 
-    <!-- Mobile drawer: leaderboard + theme -->
+    <!-- Mobile drawer: leaderboard + theme management -->
     {#if mobileDrawerOpen}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1044,16 +1073,8 @@
           <div class="drawer-leaderboard">
             <Leaderboard players={leaderboardPlayers} />
           </div>
-          <div class="drawer-theme-row">
-            <span class="drawer-theme-icon">🎨</span>
-            <ThemeSelectDropdown
-              idBase="mobile-game-shell-theme"
-              variant="shell"
-              {themeFamilyGroups}
-              selectedThemeName={themeStore.selectedThemeName}
-              placeholder="Theme..."
-              getThemeOptionLabel={getThemeOptionLabel}
-              onSelectTheme={(name) => themeStore.applyTheme(name)} />
+          <div class="drawer-theme-panel" bind:this={drawerThemePanelElement}>
+            <GameThemeManager variant="drawer" />
           </div>
         </div>
       </div>
@@ -1074,6 +1095,7 @@
   /* Default: Canvas | Right sidebar */
   /* Settings open: Canvas | Secondary (controls) | Right sidebar */
   .game-layout {
+    --game-hud-topbar-clearance: 64px;
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas: "canvas right";
@@ -1265,10 +1287,11 @@
       max-width: 280px !important;
       flex-shrink: 0;
     }
-    .drawer-theme-row {
+    .drawer-theme-panel {
       flex-direction: column !important;
       align-self: center !important;
-      max-width: 160px !important;
+      width: 100%;
+      max-width: 420px !important;
     }
   }
 
@@ -1439,19 +1462,12 @@
       min-width: 2em;
     }
 
-    /* Theme selector: inline icon + select */
-    .drawer-theme-row {
+    .drawer-theme-panel {
       display: flex;
-      align-items: center;
-      gap: 8px;
       width: 100%;
       max-width: 400px;
       min-width: 0;
       overflow: visible;
-    }
-    .drawer-theme-icon {
-      font-size: 1rem;
-      flex-shrink: 0;
     }
 
     /* Hide desktop-only elements on mobile */
@@ -1537,7 +1553,7 @@
     border-right: 1px solid #223;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: calc(10px + var(--game-hud-topbar-clearance)) 10px 10px;
     gap: 10px;
     z-index: 20;
     overflow-y: auto;
@@ -1562,7 +1578,7 @@
     border-left: 1px solid #334;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: calc(10px + var(--game-hud-topbar-clearance)) 10px 10px;
     gap: 0;
     z-index: 20;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
@@ -1595,27 +1611,6 @@
     padding-bottom: 8px;
     margin-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  /* Theme selector: bold and prominent */
-  .sidebar-theme {
-    flex-shrink: 0;
-    padding: 8px 4px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    min-width: 0;
-    overflow: visible;
-  }
-
-  .theme-label {
-    display: block;
-    font-family: "Exo", sans-serif;
-    font-size: 0.8rem;
-    font-weight: 900;
-    letter-spacing: 0.15em;
-    color: rgba(255, 200, 60, 0.9);
-    text-transform: uppercase;
-    margin-bottom: 6px;
   }
 
   /* In-game menu */
@@ -1699,6 +1694,11 @@
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     margin: 4px 0;
+  }
+
+  .menu-theme-manager {
+    width: 100%;
+    padding: 6px 12px 10px 42px;
   }
 
   .menu-item.quit-item:hover {
@@ -1837,7 +1837,7 @@
   /* ═══ OVERLAYS ═══ */
   .overlay-top-center {
     position: absolute;
-    top: 12px;
+    top: calc(12px + var(--game-hud-topbar-clearance));
     left: 50%;
     transform: translateX(-50%);
     z-index: 30;
@@ -1882,7 +1882,7 @@
 
   .overlay-top-left {
     position: absolute;
-    top: 12px;
+    top: calc(12px + var(--game-hud-topbar-clearance));
     left: 12px;
     z-index: 30;
     pointer-events: auto;

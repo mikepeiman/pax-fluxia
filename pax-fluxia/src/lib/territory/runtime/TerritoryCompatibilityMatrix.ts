@@ -11,6 +11,24 @@ export function validateTerritoryModeSelection(
     const warnings: string[] = [];
 
     if (
+        selection.geometryMode === 'canonical_power_voronoi' &&
+        selection.fillTransitionMode !== 'pv_frontline'
+    ) {
+        warnings.push(
+            'canonical_power_voronoi geometry is intended to run with pv_frontline transitions.',
+        );
+    }
+
+    if (
+        selection.fillTransitionMode === 'pv_frontline' &&
+        selection.borderTransitionMode !== 'off'
+    ) {
+        warnings.push(
+            'pv_frontline currently requires borderTransitionMode=off so fills and borders stay on the canonical PV surface.',
+        );
+    }
+
+    if (
         selection.styleMode === 'distance_field' &&
         selection.borderTransitionMode === 'rope_morph'
     ) {
@@ -21,9 +39,9 @@ export function validateTerritoryModeSelection(
 
     if (
         selection.styleMode === 'pixel' &&
-        selection.fillTransitionMode === 'legacy_fill_crossfade'
+        selection.fillTransitionMode === 'crossfade'
     ) {
-        warnings.push('pixel style + legacy alpha crossfade fill path may look blurred at low resolutions.');
+        warnings.push('pixel style + crossfade may look blurred at low resolutions.');
     }
 
     return {

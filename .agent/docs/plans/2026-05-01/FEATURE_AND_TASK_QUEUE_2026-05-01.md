@@ -1,0 +1,84 @@
+# Feature And Task Queue - 2026-05-01
+
+## Active
+- Verify the new `Live Settings Dump` controls in Diagnostics and confirm the landing-page reload loop is fully gone in the live UI.
+- Verify the new desktop HUD top bar in the live app, especially mode shortcut placement, topbar spacing, and the theme shortcut flow.
+- Reconcile any stale review findings against the actual current code and UI before treating them as still-open defects.
+- Verify the live `Frontier Topology` UI against the normalized shared constraint contract and ensure the surfaced maxima/ranges match the actual applied values.
+- Verify the Diagnostics `Show Underlying Geometry` control against active territory modes and confirm it is drawing shared territory geometry truth rather than perimeter-field-only local artifacts.
+- Verify the deterministic `MSR` rewrite on the user-reported star-cutting cases, especially the prior bad values around `75px` and above.
+- Verify the newly implemented local-interval `MSR` contract in the live UI:
+  - anchors and interval counts appear in Diagnostics
+  - accepted repairs increment on dense contested maps
+  - default `75px` keeps star/frontier stand-off without fill collapse
+  - the remaining rejected interval on `arena-further` is visually understandable and worth fixing rather than hiding
+- Verify the recalibrated `Star Bias` surface in the live UI:
+  - one surfaced slider only under `MSR as star power`
+  - no `mode / gain / exponent / cap` controls remain
+  - `MSR = 0` is neutral
+  - `MSR = 5` and `10` are safe
+  - `Star Bias = 0` leaves `CX`, `LP`, and `DX` visibly effective
+  - increasing `Star Bias` feels smooth and bounded
+- Live-verify the restored ownership invariant:
+  - on `arena-further`, no owned star should appear outside all owner-matching regions
+  - `Show Underlying Geometry` should agree with that
+- Reduce the remaining `MSR` interval failures that still report `Intrusion reached interval start/end` or residual-clearance failure after the local-interval hardening pass.
+- Decide whether to retire or normalize the hidden legacy `ModifiedVoronoiRenderer.ts` DX buffer path if that mode is ever reactivated.
+- Decide when to remove the legacy `TERRITORY_MSR_STAR_POWER_*` compatibility reader after saved settings/themes have migrated.
+- Harden or redesign `Star Bias` so stronger values cannot destabilize ownership through the weighted solve.
+
+## Completed
+- Started today's required dated docs under `.agent/docs/sessions/2026-05-01/` and `.agent/docs/plans/2026-05-01/`.
+- Carried forward the key settings-surface context from 2026-04-30 into today's docs set.
+- Removed the territory mode strip from `GameSettingsPanel.svelte`.
+- Added a dedicated desktop game HUD top bar for FPS/ships, theme shortcuts, quick actions, and territory mode shortcuts.
+- Hid the non-active territory modes from active selection and rebuilt the remaining shortcuts as smaller visually distinct buttons.
+- Wrote `.agent/docs/project/post-mortems/2026-05-01_settings-global-mode-shortcuts-wrong-surface.md`.
+- Documented the territory-shaping constraints audit in `.agent/docs/sessions/2026-05-01/2026-05-01_territory-shaping-constraints-audit.md`.
+- Documented the territory-shaping correction matrix in `.agent/docs/sessions/2026-05-01/2026-05-01_territory-shaping-constraint-correction-matrix.md`.
+- Separated LP spacing from `MSR` by adding `TERRITORY_CX_CONTEST_PAIR_SPACING`, wiring it through the geometry/render paths, and surfacing it in `Frontier Topology`.
+- Normalized the active territory-shaping contract so `MSR`, `CX`, `LP`, and `DX` now use one shared limits/defaults contract across `geometryTuning.ts`, `TerritorySettingsBridge.ts`, `GameCanvas.svelte`, and the active Power Voronoi / PVV3 / Metaball / engine consumers.
+- Extended the normalized-constraint verification with passing runs of:
+  - `TerritorySettingsBridge.test.ts`
+  - `geometry0319Debug.test.ts`
+  - `MetaballRenderer.test.ts`
+  - `buildFamilyGeometry.test.ts`
+  - `TerritoryArchitectureRouter.test.ts`
+- Moved `Show Underlying Geometry` into Diagnostics `Mode Diagnostics`, removed the duplicate toggle from the perimeter-field-only block, and rewired the overlay to draw active shared territory render-family geometry truth in `GameCanvas.svelte`.
+- Replaced the old force-like `MSR` model with a deterministic explicit frontier-exclusion stage applied in both `Geometry_0319.ts` and `powerVoronoiTerritoryGeometryGenerator.ts`, then rebuilt fill regions from the corrected frontier network.
+- Implemented the staged `MSR as star power` redesign:
+  - solve-stage real-star power controls
+  - solve-stage same-owner support-site rings
+  - ray-gated residual repair
+  - config/theme/debug/test wiring
+- Corrected the `MSR` default path so support-ring shaping is no longer active by default and advanced star power is opt-in.
+- Implemented the local-interval `MSR` hardening pass:
+  - assigned owner-side frontier anchors
+  - midpoint-bounded influence intervals
+  - interval-local subcurve repair
+  - validator-backed connectivity/count guards
+  - diagnostics summaries threaded to the Diagnostics panel
+- Extended `minStarMargin.test.ts` with locality, midpoint, and `arena-further` preservation tests and verified the hardening path with 20 passing focused tests.
+- Recalibrated solve-time star resistance into one normalized surfaced `Star Bias` control:
+  - added `TERRITORY_MSR_STAR_BIAS`
+  - removed normal UI ownership of the old `enabled/mode/gain/exponent/cap` star-power family
+  - kept legacy `TERRITORY_MSR_STAR_POWER_*` keys as compatibility-only readers
+  - changed solve-time real-star weighting to a bounded normalized-bias formula based on local per-star `MSR`
+  - verified the recalibration with a 6-file / 31-test passing Vitest suite
+- Debugged the fundamental geometry invariant directly on `arena-further` and fixed two root causes:
+  - virtual corridor/disconnect sites can no longer beat a real star at that star’s own point
+  - zero/negative corridor/disconnect multipliers now remain zero instead of snapping back to fallback weights
+- Tightened the `MSR` repair validator so repairs are rejected if they eject any owned star from all owner-matching regions.
+- Re-verified the active geometry path:
+  - before fix: `9` owned stars outside owner-matching regions on `arena-further`
+  - after both fixes: `0`
+  - focused suite now passes with 6 files / 35 tests
+
+## Next
+- Re-verify the live UI before calling the territory mode shortcut relocation complete.
+- Keep today's queue updated as soon as a new concrete task or verified defect is identified.
+- The shared active-mode territory constraint contract is now normalized. The next territory follow-through is live UI verification, then hidden legacy-path cleanup only if those paths are intended to remain revivable.
+- MSR / CX / LP / DX next follow-through:
+  - live-verify the current `arena-further` fixes in the app with `Show Underlying Geometry`
+  - inspect the remaining localized `MSR=75` interval-start / interval-end diagnostics, especially around `star-17`
+  - decide whether the remaining unresolved intervals need a smarter splice rule or only a better local radius cap

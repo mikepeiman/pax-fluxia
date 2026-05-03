@@ -109,6 +109,30 @@
 <h4 class="sub-heading">Pulse Timing</h4>
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Bind Pulse Duration To Tick</span>
+        <label class="toggle-switch">
+            <input
+                type="checkbox"
+                checked={panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true}
+                onchange={(event) => {
+                    const value = (event.target as HTMLInputElement).checked;
+                    GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK = value;
+                    updatePanel("surgePulseBindToTick", value);
+
+                    if (value) {
+                        const tickMs = panel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
+                        GAME_CONFIG.SURGE_PULSE_DURATION_MS = tickMs;
+                        updatePanel("surgePulseDurationMs", tickMs);
+                    }
+                }}
+            />
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+</div>
+
+<div class="var-row" class:locked={panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true}>
+    <div class="row-top">
         <span class="var-name">Pulse Duration</span>
         <span class="val">{panel.surgePulseDurationMs ?? GAME_CONFIG.SURGE_PULSE_DURATION_MS}ms</span>
     </div>
@@ -118,6 +142,7 @@
         max="5000"
         step="10"
         value={panel.surgePulseDurationMs ?? GAME_CONFIG.SURGE_PULSE_DURATION_MS}
+        disabled={panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true}
         oninput={(event) => {
             const value = +(event.target as HTMLInputElement).value;
             GAME_CONFIG.SURGE_PULSE_DURATION_MS = value;

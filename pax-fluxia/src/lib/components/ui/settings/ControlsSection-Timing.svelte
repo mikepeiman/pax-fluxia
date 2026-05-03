@@ -256,13 +256,6 @@
     </div>
 {/if}
 
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Ownership note</span>
-        <span class="val">Travel, surge, and conquest phase timings live in their own sections. End Settle only smooths the terminal handoff.</span>
-    </div>
-</div>
-
 <style>
     @import "./panel-shared.css";
 </style>

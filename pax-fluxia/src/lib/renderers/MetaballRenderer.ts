@@ -38,6 +38,11 @@ import type {
 import { computeDisconnectVirtuals } from './territoryFeatures';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
+import {
+    buildTerritoryGeometryCacheKeyParts,
+    readNormalizedTerritoryGeometryTunables,
+    type TerritoryGeometryTunables,
+} from '$lib/territory/geometry/geometryTuning';
 
 // ── Cache ──────────────────────────────────────────────────────────────────
 
@@ -68,6 +73,12 @@ let cachedGridRows = -1;
 let cachedGridCellSize = -1;
 let cachedGridOriginX = 0;
 let cachedGridOriginY = 0;
+
+function readNormalizedGeometryTunables(): TerritoryGeometryTunables {
+    return readNormalizedTerritoryGeometryTunables(
+        GAME_CONFIG as unknown as Record<string, unknown>,
+    );
+}
 
 type MetaballWorkerRuntimeState = {
     worker: Worker | null;
@@ -391,14 +402,17 @@ function buildCorridorSamples(
 ): MetaballInfluenceSample[] {
     const connectionList = connections ?? [];
     if (connectionList.length === 0) return [];
-    const corridorEnabled = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true;
-    const contestMidpointEnabled =
-        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true;
+    const tunables = readNormalizedGeometryTunables();
+    const corridorEnabled = tunables.corridorEnabled;
+    const contestMidpointEnabled = tunables.cxContestMidpointVstars;
     if (!corridorEnabled && !contestMidpointEnabled) return [];
 
-    const spacing = Math.max(12, GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60);
-    const cxCount = GAME_CONFIG.TERRITORY_CX_COUNT ?? 0;
-    const cxWeight = Math.max(0, GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5);
+    const spacing = tunables.corridorSpacing;
+    const cxCount = tunables.corridorCount;
+    const cxWeight = tunables.corridorWeight;
+    const cxContestPairWeight = tunables.cxContestPairWeight;
+    const cxContestPairCount = tunables.cxContestPairCount;
+    const cxContestPairSpacing = tunables.cxContestPairSpacing;
 
     const ownedStars = [...starById.values()].filter((s) => Boolean(s.ownerId));
     const sites = buildCorridorVirtualSites(
@@ -411,6 +425,9 @@ function buildCorridorSamples(
         contestMidpointEnabled,
         corridorEnabled,
         corridorEnabled,
+        cxContestPairWeight,
+        cxContestPairCount,
+        cxContestPairSpacing,
     );
 
     const out: MetaballInfluenceSample[] = [];
@@ -449,11 +466,12 @@ function buildDisconnectSamples(
     strengthMult: number,
     starById: Map<string, StarState>,
 ): MetaballInfluenceSample[] {
-    if (!GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) return [];
+    const tunables = readNormalizedGeometryTunables();
+    if (!tunables.disconnectEnabled) return [];
 
     const connectionList = connections ?? [];
-    const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
-    const dxW = GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3;
+    const maxDist = tunables.disconnectDistance;
+    const dxW = tunables.disconnectWeight;
     const virtuals = computeDisconnectVirtuals(
         [...ownedStars],
         [...allStars],
@@ -522,6 +540,7 @@ function buildFingerprint(
     gameTick: number | undefined,
     sceneFingerprint?: string,
 ): string {
+    const tunables = readNormalizedGeometryTunables();
     let fp = '';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}:${shipInfluenceBucket(s)}:${combatActivityBucket(s, gameTick)}|`;
@@ -540,13 +559,32 @@ function buildFingerprint(
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS}:${GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST}`;
     fp += `:${GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST}:${GAME_CONFIG.METABALL_BORDER_FORCE_RATIO}`;
-    fp += `:msr${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
-    fp += `:cx${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
-    fp += `:dx${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    fp += `:geom:${buildTerritoryGeometryCacheKeyParts(tunables).join(':')}`;
     if (sceneFingerprint) {
         fp += `:scene:${sceneFingerprint}`;
     }
     return fp;
+}
+
+export function buildMetaballCacheFingerprint(params: {
+    stars: ReadonlyArray<StarState>;
+    gameTick: number | undefined;
+    sceneFingerprint?: string;
+    sceneInfluenceRadiusPx?: number;
+    sceneOwnershipMarginPx?: number;
+}): string {
+    let fingerprint = buildFingerprint(
+        params.stars,
+        params.gameTick,
+        params.sceneFingerprint,
+    );
+    if (params.sceneInfluenceRadiusPx !== undefined) {
+        fingerprint += `:sceneRadius:${Math.round(params.sceneInfluenceRadiusPx)}`;
+    }
+    if (params.sceneOwnershipMarginPx !== undefined) {
+        fingerprint += `:sceneMargin:${Math.round(params.sceneOwnershipMarginPx)}`;
+    }
+    return fingerprint;
 }
 
 function buildColorFingerprint(

@@ -1,9 +1,7 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
-    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
-    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
     // Extracted from GameSettingsPanel.svelte
@@ -13,7 +11,6 @@
         updatePanel: (key: string, value: any) => void;
         vis: Record<string, any>;
         updateVisual: (key: string, val: any) => void;
-        densityVariables: any[];
         syncFromConfig?: () => void;
     }
     let {
@@ -21,7 +18,6 @@
         updatePanel,
         vis,
         updateVisual,
-        densityVariables,
         syncFromConfig,
     }: Props = $props();
     import { BG_IMAGES } from "$lib/config/bgManifest";
@@ -32,9 +28,12 @@
             | "straight"
             | "curved",
     );
+    const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
+        MAPGEN_LANE_MARGIN_ENABLED?: boolean;
+    };
     let laneMarginEnabled = $derived(
         (panel.mapgenLaneMarginEnabled ??
-            GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED ??
+            mapConfig.MAPGEN_LANE_MARGIN_ENABLED ??
             true) as boolean,
     );
     let effectiveLaneMarginPx = $derived(
@@ -51,14 +50,6 @@
         }),
     );
 
-    function rebuildLaneTopology(): void {
-        gameStore.rebuildConnectionsFromLaneClearance();
-    }
-
-    function refreshLanePaths(): void {
-        gameStore.refreshLanePolylinesFromConfig();
-    }
-
     // ── Background Image Picker ──
     let bgImages = $state<string[]>(BG_IMAGES);
 
@@ -70,182 +61,99 @@
 
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
 
-<h4 class="sub-heading">Background</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            data-setting-config-key="BG_IMAGE_URL"
-            data-setting-description="Background image asset path displayed behind the battlefield."
-            >Background Asset</span
-        >
-        <span class="val">{vis.bgImage || "none"}</span>
+<section data-subsection-id="background">
+    <h4 class="sub-heading">Background</h4>
+    <div class="var-row">
+        <div class="row-top">
+            <span
+                class="var-name"
+                data-setting-config-key="BG_IMAGE_URL"
+                data-setting-description="Background image asset path displayed behind the battlefield."
+                >Background Asset</span
+            >
+            <span class="val">{vis.bgImage || "none"}</span>
+        </div>
     </div>
-</div>
-<div class="bg-grid">
-    <button
-        class="bg-thumb"
-        class:active={!vis.bgImage}
-        onclick={() => changeBg("")}
-        title="No background"
-    >
-        <span class="bg-none-icon">∅</span>
-    </button>
-    {#each bgImages as img}
+    <div class="bg-grid">
         <button
             class="bg-thumb"
-            class:active={vis.bgImage === img}
-            onclick={() => changeBg(img)}
-            title={img
-                .replace(/\.(png|jpe?g|webp|avif)$/i, "")
-                .replace(/^pax-fluxia-/, "")}
+            class:active={!vis.bgImage}
+            onclick={() => changeBg("")}
+            title="No background"
         >
-            <img
-                src="/assets/{img}"
-                alt={img}
-                class="bg-thumb-img"
-                loading="lazy"
-            />
+            <span class="bg-none-icon">∅</span>
         </button>
-    {/each}
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">🌌 BG Opacity</span><span class="val"
-            >{(
-                (panel.bgImageAlpha ??
-                    GAME_CONFIG.BG_IMAGE_ALPHA ??
-                    0.35) as number
-            ).toFixed(2)}</span
-        >
+        {#each bgImages as img}
+            <button
+                class="bg-thumb"
+                class:active={vis.bgImage === img}
+                onclick={() => changeBg(img)}
+                title={img
+                    .replace(/\.(png|jpe?g|webp|avif)$/i, "")
+                    .replace(/^pax-fluxia-/, "")}
+            >
+                <img
+                    src="/assets/{img}"
+                    alt={img}
+                    class="bg-thumb-img"
+                    loading="lazy"
+                />
+            </button>
+        {/each}
     </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
-        oninput={(e) => {
-            const v = parseFloat((e.target as HTMLInputElement).value);
-            GAME_CONFIG.BG_IMAGE_ALPHA = v;
-            updatePanel("bgImageAlpha", v);
-            window.dispatchEvent(
-                new CustomEvent("pax-bg-alpha-change", { detail: v }),
-            );
-        }}
-    />
-</div>
-
-<h4 class="sub-heading">Overlays</h4>
-<label class="toggle-row"
-    ><input
-        type="checkbox"
-        checked={panel.showHexGrid}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.SHOW_HEX_GRID = v;
-            updatePanel("showHexGrid", v);
-        }}
-    />
-    <span class="var-name">🔷 Show Hex Grid</span></label
->
-<label class="toggle-row"
-    ><input
-        type="checkbox"
-        checked={typeof localStorage !== "undefined" &&
-            localStorage.getItem("pax-show-star-info") === "true"}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            localStorage.setItem("pax-show-star-info", v ? "true" : "false");
-            window.dispatchEvent(
-                new CustomEvent("pax-star-info-toggle", {
-                    detail: v,
-                }),
-            );
-        }}
-    />
-    <span
-        class="var-name"
-        data-setting-config-key="local.ui.starInspectorVisible"
-        data-setting-description="Local-only toggle persisted in localStorage as pax-show-star-info."
-        >🔍 Star Inspector</span
-    ><span
-        class="val"
-        style="font-size:9px;opacity:0.6">click star to inspect</span
-    ></label
->
-<label class="toggle-row"
-    ><input
-        type="checkbox"
-        checked={mapTranspose.active}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            mapTranspose.active = v;
-            // Dispatch resize event so GameCanvas recalculates scale
-            window.dispatchEvent(new Event("resize"));
-        }}
-    />
-    <span
-        class="var-name"
-        data-setting-config-key="local.mapTranspose.active"
-        data-setting-description="Local-only transpose flag that swaps display axes without mutating star data."
-        >🔄 Rotate Map (Transpose)</span
-    ><span
-        class="val"
-        style="font-size:9px;opacity:0.6">Flip X↔Y axes</span
-    ></label
->
-
-<h4 class="sub-heading">Map & lanes (live)</h4>
-<p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-    <strong>MSR</strong> — minimum star margin used by territory geometry, and also the fallback lane clearance when
-    dedicated lane margin is off. <strong>Lane margin</strong> — dedicated minimum distance from a non-endpoint star
-    center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
-    tries to reshape a violating connection before removing it during connectivity recompute.
-</p>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">MSR (territory boundaries)</span><span class="val"
-            >{Math.round(
-                panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
-            )}px</span
-        >
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">🌌 BG Opacity</span><span class="val"
+                >{(
+                    (panel.bgImageAlpha ??
+                        GAME_CONFIG.BG_IMAGE_ALPHA ??
+                        0.35) as number
+                ).toFixed(2)}</span
+            >
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
+            oninput={(e) => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                GAME_CONFIG.BG_IMAGE_ALPHA = v;
+                updatePanel("bgImageAlpha", v);
+                window.dispatchEvent(
+                    new CustomEvent("pax-bg-alpha-change", { detail: v }),
+                );
+            }}
+        />
     </div>
-    <input
-        type="range"
-        min="0"
-        max="500"
-        step="5"
-        value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = v;
-            updatePanel("starMargin", v);
-            bumpTerritoryVisualConfig();
-            if (!laneMarginEnabled) {
-                rebuildLaneTopology();
-            }
-        }}
-    />
-</div>
+</section>
+
+<section data-subsection-id="map-layout">
+    <h4 class="sub-heading">Map Layout</h4>
+    <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
+        <strong>Lane margin</strong> — dedicated minimum distance from a non-endpoint star
+        center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
+        tries to reshape a violating connection before removing it during connectivity recompute.
+    </p>
 <label class="toggle-row">
     <input
         type="checkbox"
         checked={laneMarginEnabled}
         onchange={(e) => {
             const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED = v;
+            mapConfig.MAPGEN_LANE_MARGIN_ENABLED = v;
             updatePanel("mapgenLaneMarginEnabled", v);
-            rebuildLaneTopology();
+            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
     <span
         class="var-name"
         data-setting-config-key="MAPGEN_LANE_MARGIN_ENABLED"
-        data-setting-description="When off, curved-lane clearance uses MODIFIED_VORONOI_STAR_MARGIN instead of MAPGEN_LANE_MARGIN_PX."
+        data-setting-description="When off, curved-lane clearance falls back to the active territory minimum star margin instead of MAPGEN_LANE_MARGIN_PX."
         >Use dedicated lane margin</span
     >
-    <span class="val">{laneMarginEnabled ? "On" : `MSR fallback (${Math.round(effectiveLaneMarginPx)}px)`}</span>
+    <span class="val">{laneMarginEnabled ? "On" : `Fallback (${Math.round(effectiveLaneMarginPx)}px)`}</span>
 </label>
 <div class="var-row">
     <div class="row-top">
@@ -258,7 +166,7 @@
     <div class="row-bottom" style="font-size:10px;opacity:0.68;">
         Effective lane clearance: {Math.round(effectiveLaneMarginPx)}px
         {#if !laneMarginEnabled}
-            (from MSR while dedicated lane margin is off)
+            (falling back to the active territory minimum star margin)
         {/if}
     </div>
     <input
@@ -272,7 +180,7 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
             updatePanel("mapgenLaneMarginPx", v);
-            rebuildLaneTopology();
+            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
 </div>
@@ -299,7 +207,7 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
             updatePanel("mapgenLaneCurveVsPruneBias", v);
-            rebuildLaneTopology();
+            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
 </div>
@@ -307,24 +215,20 @@
     ><input
         type="checkbox"
         checked={panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
             false}
         onchange={(e) => {
             const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
+            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
             updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", v);
-            if (v) {
-                rebuildLaneTopology();
-            } else {
-                refreshLanePaths();
-            }
+            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
     <span class="var-name">Recompute connectivity</span><span
         class="val"
         style="font-size:9px;opacity:0.6"
         >{(panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            GAME_CONFIG.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
             false)
             ? "authored maps: recompute on"
             : "authored maps: off reshapes only"}</span
@@ -346,7 +250,7 @@
                 aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "straight");
-                    refreshLanePaths();
+                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
                 }}>Straight</button
             >
             <button
@@ -357,12 +261,15 @@
                 aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "curved");
-                    refreshLanePaths();
+                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
                 }}>Curve if needed</button
             >
         </div>
     </div>
 </div>
+</section>
+
+<section data-subsection-id="labels-inspector">
 <h4 class="sub-heading">Labels & inspector</h4>
 <!-- Label Number Animation Mode -->
 <div class="var-row">
@@ -408,6 +315,9 @@
     />
 </div>
 
+ </section>
+
+<section data-subsection-id="connections">
 <h4 class="sub-heading">Connections</h4>
 <div class="var-row">
     <div class="row-top">
@@ -572,6 +482,7 @@
             )}
     />
 </div>
+</section>
 
 <style>
     @import "./panel-shared.css";

@@ -8,7 +8,8 @@
  *
  * Pipeline:
  *   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
- *   1. Power diagram via d3-weighted-voronoi (weight = starMargin²)
+ *   1. Power diagram via d3-weighted-voronoi using real-star weight plus
+ *      corridor sites, lane-pair sites, and disconnect sites
  *   2. Build per-star TerritoryCell[] from polygon output
  *   3. Extract SharedBorderEdge[] (contested edges before merge)
  *   4. Build cluster map (for disconnect splitting)
@@ -24,19 +25,29 @@
  */
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
-import type { StarState, StarConnection } from '$lib/types/game.types';
-import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '$lib/renderers/territoryFeatures';
-import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
-import { log } from '$lib/utils/logger';
+import type { StarState, StarConnection } from '../../types/game.types';
+import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '../../renderers/territoryFeatures';
+import { findConnectedClustersOptimized } from '../../renderers/territoryUtils';
+import { log } from '../../utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
-import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
+import {
+    buildRealSiteWeight,
+    buildVirtualSiteWeight,
+    clampVirtualSiteWeightForRealStarOwnership,
+} from './powerVoronoiWeights';
+import {
+    applyExplicitMinStarMargin,
+    resolvePerStarMinStarMarginPx,
+} from '../geometry/minStarMargin';
+import type { MinStarMarginDiagnostics } from '../geometry/minStarMargin';
 import {
     buildSortedOutgoingArcMap,
     normalizePlanarAngle,
     pickClockwiseAdjacentArc,
     type DirectedPlanarArc,
 } from './planarWalk';
+import { pointInPolygon } from '../geometry/geometryUtils';
 
 // ---------------------------------------------------------------------------
 // Geometry types (canonical contracts for PVV2 path)
@@ -49,7 +60,8 @@ export interface PowerSite {
     weight: number;
     ownerId: string;
     starId: string;
-    virtual?: 'corridor' | 'disconnect';
+    sourceStarId?: string;
+    virtual?: 'corridor' | 'disconnect' | 'msr_support';
 }
 
 /** Polygon output from the power diagram, augmented with ownership info. */
@@ -150,6 +162,7 @@ export interface TerritoryGeometryData {
     fingerprint: string;
     /** Canonical frontier map — Phase 1 identity annotation. Emitted alongside existing outputs. */
     frontierMap?: import('./canonicalTypes').TerritoryFrontierMap;
+    minStarMarginDiagnostics?: MinStarMarginDiagnostics;
 }
 
 /** A continuous closed frontier loop for one player's territory boundary. */
@@ -158,12 +171,112 @@ export interface FrontierLoop {
     ownerId: string;
 }
 
+function summarizeOwnerRegionCounts(
+    regions: ReadonlyArray<MergedTerritory>,
+): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const region of regions) {
+        counts.set(region.ownerId, (counts.get(region.ownerId) ?? 0) + 1);
+    }
+    return counts;
+}
+
+function allOwnedStarsRemainInsideOwnerRegions(
+    stars: ReadonlyArray<StarState>,
+    regions: ReadonlyArray<MergedTerritory>,
+): { ok: boolean; reason?: string } {
+    for (const star of stars) {
+        if (!star.ownerId) continue;
+        const inside = regions
+            .filter((region) => region.ownerId === star.ownerId)
+            .some((region) => pointInPolygon(star.x, star.y, region.points));
+        if (!inside) {
+            return {
+                ok: false,
+                reason: `Star ${star.id} left owner ${star.ownerId} region`,
+            };
+        }
+    }
+    return { ok: true };
+}
+
+function buildMinStarMarginValidator<TShared extends SharedPolyline>(params: {
+    cells: ReadonlyArray<TerritoryCell>;
+    baselineSharedPolylines: ReadonlyArray<TShared>;
+    baselineWorldBorderPolylines: ReadonlyArray<TShared>;
+    stars: ReadonlyArray<StarState>;
+}) {
+    const baselineRegions = constructFillsFromFrontierChain(
+        [...params.baselineSharedPolylines],
+        [...params.baselineWorldBorderPolylines],
+        [...params.cells],
+    );
+    const baselineOwnerCounts = summarizeOwnerRegionCounts(baselineRegions);
+    return (candidate: {
+        sharedPolylines: ReadonlyArray<TShared>;
+        worldBorderPolylines: ReadonlyArray<TShared>;
+    }): { ok: boolean; reason?: string } => {
+        const candidateRegions = constructFillsFromFrontierChain(
+            [...candidate.sharedPolylines],
+            [...candidate.worldBorderPolylines],
+            [...params.cells],
+        );
+        if (candidateRegions.length !== baselineRegions.length) {
+            return {
+                ok: false,
+                reason: `Region count ${candidateRegions.length} != ${baselineRegions.length}`,
+            };
+        }
+        const candidateOwnerCounts = summarizeOwnerRegionCounts(candidateRegions);
+        if (candidateOwnerCounts.size !== baselineOwnerCounts.size) {
+            return {
+                ok: false,
+                reason: 'Owner region partition changed',
+            };
+        }
+        for (const [ownerId, expectedCount] of baselineOwnerCounts.entries()) {
+            if ((candidateOwnerCounts.get(ownerId) ?? 0) !== expectedCount) {
+                return {
+                    ok: false,
+                    reason: `Owner ${ownerId} region count changed`,
+                };
+            }
+        }
+        for (const region of candidateRegions) {
+            if (region.points.length < 4) {
+                return {
+                    ok: false,
+                    reason: `Owner ${region.ownerId} region degenerated`,
+                };
+            }
+            const first = region.points[0]!;
+            const last = region.points[region.points.length - 1]!;
+            if (Math.abs(first[0] - last[0]) > 6 || Math.abs(first[1] - last[1]) > 6) {
+                return {
+                    ok: false,
+                    reason: `Owner ${region.ownerId} region opened`,
+                };
+            }
+        }
+        const starContainment = allOwnedStarsRemainInsideOwnerRegions(
+            params.stars,
+            candidateRegions,
+        );
+        if (!starContainment.ok) {
+            return starContainment;
+        }
+        return { ok: true };
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Stage config
 // ---------------------------------------------------------------------------
 
 export interface TerritoryGeneratorSettings {
-    starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN — shared power-voronoi scale term for real-site weight, clip padding, and contested midpoint spacing
+    starCoreGuardRadius: number;  // solve-time star-core ownership guard radius; independent from live MSR
+    starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN — explicit frontier stand-off around owned stars
+    msrStarBias: number;          // TERRITORY_MSR_STAR_BIAS
     corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
     cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)
@@ -171,6 +284,7 @@ export interface TerritoryGeneratorSettings {
     cxContestMidpointVstars: boolean; // TERRITORY_CX_CONTEST_MIDPOINT_VSTARS
     cxContestPairCount: number;       // TERRITORY_CX_CONTEST_PAIR_COUNT
     cxContestPairWeight: number;      // TERRITORY_CX_CONTEST_PAIR_WEIGHT
+    cxContestPairSpacing: number;     // TERRITORY_CX_CONTEST_PAIR_SPACING
     disconnectEnabled: boolean;   // MODIFIED_VORONOI_DISCONNECT_ENABLED
     disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
     dxWeight: number;             // TERRITORY_DX_WEIGHT — weight multiplier (0.0-2.0)
@@ -913,11 +1027,16 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
     let fp = 'pvv2:';
     for (const s of stars) fp += `${s.id}:${s.ownerId ?? ''}|`;
     fp += `:m${config.starMargin}`;
+    fp += `:msrBias${config.msrStarBias}`;
     fp += `:cs${config.clusterSplit ? 1 : 0}`;
     fp += `:ce${config.corridorEnabled ? 1 : 0}`;
     fp += `:csp${config.corridorSpacing}`;
     fp += `:cxN${config.cxCount}`;
     fp += `:cxW${config.cxWeight}`;
+    fp += `:cxMid${config.cxContestMidpointVstars ? 1 : 0}`;
+    fp += `:cxPairN${config.cxContestPairCount}`;
+    fp += `:cxPairW${config.cxContestPairWeight}`;
+    fp += `:cxPairS${config.cxContestPairSpacing}`;
     fp += `:de${config.disconnectEnabled ? 1 : 0}`;
     fp += `:dd${config.disconnectDistance}`;
     fp += `:dxW${config.dxWeight}`;
@@ -954,20 +1073,62 @@ export function generateVoronoiTerritoryGeometry(
         }
 
         // Stage 0: Build site array
+        const localStarMargins = resolvePerStarMinStarMarginPx({
+            stars: ownedStars,
+            requestedMarginPx: starMargin,
+            worldWidth,
+            worldHeight,
+        });
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
-            weight: starMargin * starMargin,
+            weight: buildRealSiteWeight(
+                localStarMargins.get(s.id) ?? starMargin,
+                config.msrStarBias,
+            ),
             ownerId: s.ownerId!,
             starId: s.id,
         }));
+    const realOwnershipGuardSites = sites.map((site) => ({
+        x: site.x,
+        y: site.y,
+        weight: site.weight,
+        clearanceRadiusPx: 0,
+    }));
+    const realDisconnectGuardSites = sites.map((site) => ({
+        x: site.x,
+        y: site.y,
+        weight: site.weight,
+        clearanceRadiusPx: config.starCoreGuardRadius,
+    }));
 
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, config.cxWeight, config.cxCount || undefined);
+            const corridorVirtuals = computeCorridorVirtuals(
+                ownedStars,
+                connections,
+                config.corridorSpacing,
+                config.cxWeight,
+                config.cxCount || undefined,
+                undefined,
+                config.cxContestMidpointVstars,
+                true,
+                true,
+                config.cxContestPairWeight,
+                config.cxContestPairCount,
+                config.cxContestPairSpacing,
+                config.starCoreGuardRadius,
+            );
             for (const cv of corridorVirtuals) {
+                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
+                    x: cv.x,
+                    y: cv.y,
+                    weight: buildVirtualSiteWeight(cv.weight),
+                    realSites: realOwnershipGuardSites,
+                });
+                if (clampedWeight <= 0) continue;
                 sites.push({
                     x: cv.x, y: cv.y,
-                    weight: starMargin * starMargin * cv.weight,
+                    weight: clampedWeight,
                     ownerId: cv.ownerId,
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
@@ -978,9 +1139,16 @@ export function generateVoronoiTerritoryGeometry(
         if (config.disconnectEnabled) {
             const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
             for (const dv of disconnectVirtuals) {
+                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
+                    x: dv.x,
+                    y: dv.y,
+                    weight: buildVirtualSiteWeight(dv.weight),
+                    realSites: realDisconnectGuardSites,
+                });
+                if (clampedWeight <= 0) continue;
                 sites.push({
                     x: dv.x, y: dv.y,
-                    weight: starMargin * starMargin * dv.weight,
+                    weight: clampedWeight,
                     ownerId: DISCONNECT_OWNER_ID,
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',
@@ -1070,9 +1238,14 @@ export function generateVoronoiTerritoryGeometry(
                 clusterMap.set(starId, info.clusterIdx);
             }
             for (const site of sites) {
-                if (site.virtual === 'corridor') {
-                    const sourceId = site.starId.split('_')[1];
-                    const srcCluster = clusterMap.get(sourceId);
+                if (site.virtual === 'corridor' || site.virtual === 'msr_support') {
+                    const sourceId =
+                        site.sourceStarId ??
+                        (site.virtual === 'corridor'
+                            ? site.starId.split('_')[1]
+                            : undefined);
+                    const srcCluster =
+                        sourceId !== undefined ? clusterMap.get(sourceId) : undefined;
                     if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
                 }
             }
@@ -1093,20 +1266,59 @@ export function generateVoronoiTerritoryGeometry(
         // Stage 8: Construct fill polygons by chaining frontier polylines at junction vertices.
         // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
         // Eliminates fill/border geometry divergence (B-42).
-        const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
-        const minStarMargin = applyExplicitMinStarMargin(
-            mergedTerritories,
-            ownedStars,
-            starMargin,
+        const rawMinStarMarginValidator = buildMinStarMarginValidator({
+            cells,
+            baselineSharedPolylines: rawSharedPolylines,
+            baselineWorldBorderPolylines: worldBorderPolylines,
+            stars: ownedStars,
+        });
+        const adjustedRawGeometry = applyExplicitMinStarMargin({
+            sharedPolylines: rawSharedPolylines,
+            worldBorderPolylines,
+            stars: ownedStars,
+            requestedMarginPx: starMargin,
+            worldWidth,
+            worldHeight,
+            validateRepair: (candidate) =>
+                rawMinStarMarginValidator({
+                    sharedPolylines: candidate.sharedPolylines,
+                    worldBorderPolylines: candidate.worldBorderPolylines,
+                }),
+        });
+        const minStarMarginValidator = buildMinStarMarginValidator({
+            cells,
+            baselineSharedPolylines: sharedPolylines,
+            baselineWorldBorderPolylines: worldBorderPolylines,
+            stars: ownedStars,
+        });
+        const adjustedGeometry = applyExplicitMinStarMargin({
+            sharedPolylines,
+            worldBorderPolylines,
+            stars: ownedStars,
+            requestedMarginPx: starMargin,
+            worldWidth,
+            worldHeight,
+            validateRepair: (candidate) =>
+                minStarMarginValidator({
+                    sharedPolylines: candidate.sharedPolylines,
+                    worldBorderPolylines: candidate.worldBorderPolylines,
+                }),
+        });
+        const mergedTerritories = constructFillsFromFrontierChain(
+            adjustedGeometry.sharedPolylines,
+            adjustedGeometry.worldBorderPolylines,
+            cells,
         );
         if (
-            minStarMargin.appliedMarginPx > 0
-            && Math.abs(minStarMargin.appliedMarginPx - minStarMargin.requestedMarginPx) >
-                0.01
+            adjustedGeometry.minAppliedMarginPx > 0 &&
+            (Math.abs(adjustedGeometry.minAppliedMarginPx - adjustedGeometry.requestedMarginPx) >
+                0.01 ||
+                Math.abs(adjustedGeometry.maxAppliedMarginPx - adjustedGeometry.requestedMarginPx) >
+                    0.01)
         ) {
             log.renderer(
                 'PVV2Stage',
-                `MSR clamp ${minStarMargin.requestedMarginPx.toFixed(2)} -> ${minStarMargin.appliedMarginPx.toFixed(2)}`,
+                `MSR local radii ${adjustedGeometry.requestedMarginPx.toFixed(2)} -> ${adjustedGeometry.minAppliedMarginPx.toFixed(2)}..${adjustedGeometry.maxAppliedMarginPx.toFixed(2)}`,
             );
         }
         log.renderer('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
@@ -1123,11 +1335,12 @@ export function generateVoronoiTerritoryGeometry(
             cells,
             mergedTerritories,
             sharedEdges,
-            rawSharedPolylines,
-            sharedPolylines,
-            worldBorderPolylines,
+            rawSharedPolylines: adjustedRawGeometry.sharedPolylines,
+            sharedPolylines: adjustedGeometry.sharedPolylines,
+            worldBorderPolylines: adjustedGeometry.worldBorderPolylines,
             enclaveMap: enclaveMapFinal,
             fingerprint,
+            minStarMarginDiagnostics: adjustedGeometry.diagnostics,
         } satisfies TerritoryGeometryData;
 
     } catch (err) {

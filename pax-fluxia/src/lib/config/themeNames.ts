@@ -56,7 +56,7 @@ const UPPERCASE_TOKEN_MAP: Record<string, string> = {
 };
 
 const GENERATED_NAME_BY_RENDER_MODE: Record<string, string> = {
-    territory_canonical: 'Canonical Theme',
+    territory_canonical: 'Layered Runtime Theme',
     territory_engine: 'DY4 Theme',
     vs_pvv3: 'PVV3 Theme',
     power_voronoi: 'Power Voronoi Theme',

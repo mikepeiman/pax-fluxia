@@ -31,6 +31,8 @@ Entering the main menu from the landing page caused the shell to mount, then unm
 - Removed the `themeStore` startup auto-apply block so shell boot no longer mutates config implicitly.
 - Follow-up correction: promoted the Phase Field values into the actual owner default modules (`gameplay.config.ts`, `renderer.config.ts`, `territory.config.ts`, and territory-family defaults) instead of keeping a startup overlay file.
 - Follow-up correction: changed the built-in `Phase Field Default` theme to derive from `DEFAULT_GAME_CONFIG`, and changed `resetToDefaults()` to reload into factory defaults instead of applying a theme overlay first.
+- Final correction: made `dumpSettings()` opt-in instead of default-on during dev, because normal menu mount still triggers local UI persistence writes.
+- Final correction: told Vite to ignore `common/resources/settings-live/**` and `common/resources/saved-maps/**` so dev artifact writes cannot bounce the route.
 
 ## Derived Rule
 
@@ -38,3 +40,4 @@ Entering the main menu from the landing page caused the shell to mount, then unm
 - If the app writes a file during normal UI interaction, that file must remain a dev artifact or be copied into a separate stable snapshot before runtime imports use it.
 - Startup theme/default selection must not perform hidden writes during shell boot unless that behavior is explicitly required and verified.
 - If the user asks to "update config defaults," update the owner default definitions instead of layering a runtime snapshot over them.
+- Removing the import path is not sufficient if the app still writes watched files during ordinary mount effects; the write path itself must be opt-in or explicitly ignored by the dev watcher.

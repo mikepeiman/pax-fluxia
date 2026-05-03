@@ -12,14 +12,30 @@ describe('resolveTerritoryArchitectureRoute', () => {
         expect(decision.isCanonicalStyle).toBe(true);
     });
 
-    it('routes canonical style to legacy bridge when architecture is legacy', () => {
+    it('routes canonical style to the clean bridge even when a legacy architecture value is persisted', () => {
         const decision = resolveTerritoryArchitectureRoute({
             renderMode: 'territory_canonical',
             architecturePath: 'legacy',
         });
 
-        expect(decision.route).toBe('canonical_legacy_bridge');
+        expect(decision.route).toBe('canonical_clean_bridge');
         expect(decision.isCanonicalStyle).toBe(true);
+    });
+
+    it('routes canonical PV mode through the clean bridge regardless of architecture toggle', () => {
+        const cleanDecision = resolveTerritoryArchitectureRoute({
+            renderMode: 'power_voronoi_canonical',
+            architecturePath: 'clean',
+        });
+        const legacyDecision = resolveTerritoryArchitectureRoute({
+            renderMode: 'power_voronoi_canonical',
+            architecturePath: 'legacy',
+        });
+
+        expect(cleanDecision.route).toBe('canonical_clean_bridge');
+        expect(legacyDecision.route).toBe('canonical_clean_bridge');
+        expect(cleanDecision.isCanonicalStyle).toBe(true);
+        expect(legacyDecision.isCanonicalStyle).toBe(true);
     });
 
     it('routes non-canonical style to legacy renderer regardless of architecture toggle', () => {

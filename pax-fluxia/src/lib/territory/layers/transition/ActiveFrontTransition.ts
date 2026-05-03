@@ -7,7 +7,7 @@ import type {
 } from '../../contracts/FrontierTopologyContracts';
 import type { FillTransitionFrame } from '../../contracts/TransitionContracts';
 import { rebuildLoopPoints } from '../../compiler/buildFrontierTopology';
-import { log } from '$lib/utils/logger';
+import { log } from '../../../utils/logger';
 
 type Vec2 = [number, number];
 

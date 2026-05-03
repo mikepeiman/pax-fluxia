@@ -1,9 +1,9 @@
 export interface Geometry0319DebugSnapshot {
-    useRenderFamilies: boolean | null;
     territoryRenderMode: string | null;
     geometrySource: string | null;
     frontierResolution: number | null;
     starMargin: number | null;
+    msrStarBias: number | null;
     corridorEnabled: boolean | null;
     corridorSpacing: number | null;
     cxCount: number | null;
@@ -11,6 +11,7 @@ export interface Geometry0319DebugSnapshot {
     cxContestMidpointVstars: boolean | null;
     cxContestPairCount: number | null;
     cxContestPairWeight: number | null;
+    cxContestPairSpacing: number | null;
     disconnectEnabled: boolean | null;
     disconnectDistance: number | null;
     dxWeight: number | null;
@@ -36,11 +37,11 @@ export function snapshotGeometry0319DebugConfig(
     source: Record<string, unknown>,
 ): Geometry0319DebugSnapshot {
     return {
-        useRenderFamilies: asBoolean(source.USE_RENDER_FAMILIES),
         territoryRenderMode: asString(source.TERRITORY_RENDER_MODE),
         geometrySource: asString(source.PERIMETER_FIELD_GEOMETRY_SOURCE),
         frontierResolution: asNumber(source.FRONTIER_RESOLUTION),
         starMargin: asNumber(source.MODIFIED_VORONOI_STAR_MARGIN),
+        msrStarBias: asNumber(source.TERRITORY_MSR_STAR_BIAS),
         corridorEnabled: asBoolean(source.MODIFIED_VORONOI_CORRIDOR_ENABLED),
         corridorSpacing: asNumber(source.MODIFIED_VORONOI_CORRIDOR_SPACING),
         cxCount: asNumber(source.TERRITORY_CX_COUNT),
@@ -48,6 +49,7 @@ export function snapshotGeometry0319DebugConfig(
         cxContestMidpointVstars: asBoolean(source.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS),
         cxContestPairCount: asNumber(source.TERRITORY_CX_CONTEST_PAIR_COUNT),
         cxContestPairWeight: asNumber(source.TERRITORY_CX_CONTEST_PAIR_WEIGHT),
+        cxContestPairSpacing: asNumber(source.TERRITORY_CX_CONTEST_PAIR_SPACING),
         disconnectEnabled: asBoolean(source.MODIFIED_VORONOI_DISCONNECT_ENABLED),
         disconnectDistance: asNumber(source.MODIFIED_VORONOI_DISCONNECT_DISTANCE),
         dxWeight: asNumber(source.TERRITORY_DX_WEIGHT),
@@ -77,14 +79,14 @@ export function formatGeometry0319DebugConfig(
 ): string {
     return [
         `mode=${fmtString(snapshot.territoryRenderMode)}`,
-        `families=${fmtBoolean(snapshot.useRenderFamilies)}`,
         `geom=${fmtString(snapshot.geometrySource)}`,
         `frontier=${fmtNumber(snapshot.frontierResolution)}`,
         `msr=${fmtNumber(snapshot.starMargin)}`,
+        `msrBias=${fmtNumber(snapshot.msrStarBias)}`,
         `corridor=${fmtBoolean(snapshot.corridorEnabled)}/${fmtNumber(snapshot.corridorSpacing)}`,
         `cx=${fmtNumber(snapshot.cxCount)}@${fmtNumber(snapshot.cxWeight)}`,
         `cxMid=${fmtBoolean(snapshot.cxContestMidpointVstars)}`,
-        `cxPair=${fmtNumber(snapshot.cxContestPairCount)}@${fmtNumber(snapshot.cxContestPairWeight)}`,
+        `cxPair=${fmtNumber(snapshot.cxContestPairCount)}@${fmtNumber(snapshot.cxContestPairWeight)}:${fmtNumber(snapshot.cxContestPairSpacing)}`,
         `dx=${fmtBoolean(snapshot.disconnectEnabled)}/${fmtNumber(snapshot.disconnectDistance)}@${fmtNumber(snapshot.dxWeight)}`,
         `cluster=${fmtBoolean(snapshot.clusterSplit)}`,
         `chaikin=${fmtNumber(snapshot.chaikinPasses)}`,

@@ -18,7 +18,7 @@ export interface TerritoryArchitectureRouteDecision {
 }
 
 function resolveArchitecturePath(raw: string | undefined): TerritoryArchitecturePath {
-    return raw === 'legacy' ? 'legacy' : 'clean';
+    return 'clean';
 }
 
 export function resolveTerritoryArchitectureRoute(
@@ -26,13 +26,24 @@ export function resolveTerritoryArchitectureRoute(
 ): TerritoryArchitectureRouteDecision {
     const renderMode = input.renderMode ?? 'territory_canonical';
     const architecturePath = resolveArchitecturePath(input.architecturePath);
-    const isCanonicalStyle = renderMode === 'territory_canonical';
+    const isCanonicalStyle =
+        renderMode === 'territory_canonical' ||
+        renderMode === 'power_voronoi_canonical';
 
     if (!isCanonicalStyle) {
         return {
             renderMode,
             architecturePath,
             route: 'legacy_style_renderer',
+            isCanonicalStyle,
+        };
+    }
+
+    if (renderMode === 'power_voronoi_canonical') {
+        return {
+            renderMode,
+            architecturePath,
+            route: 'canonical_clean_bridge',
             isCanonicalStyle,
         };
     }

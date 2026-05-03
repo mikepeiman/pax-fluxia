@@ -1,28 +1,17 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { DENSITY_VARIABLES } from "../settingsDefs";
-    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
-    import { logFlags } from "$lib/utils/logger";
-    import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
 
     // ControlsSection-STAR SYSTEM -- Star System Appearance (extracted from GameSettingsPanel.svelte)
 
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        exportConfigMD: () => void;
-        importConfigJSON: (e: Event) => void;
-        configStatus: string;
-        configStatusColor: string;
         syncFromConfig?: () => void;
     }
     let {
         panel,
         updatePanel,
-        exportConfigMD,
-        importConfigJSON,
-        configStatus,
-        configStatusColor,
         syncFromConfig,
     }: Props = $props();
 
@@ -40,12 +29,6 @@
         { value: "kite", label: "Kite" },
         { value: "spear", label: "Spear" },
     ] as const;
-
-    let debugShipCount = $state(0);
-    function updateDebugShipCount(count: number) {
-        const starId = selectedStarStore.id;
-        if (starId) debugShipCount = count;
-    }
 
     function applyGlowDominantOwnershipPreset() {
         const config = GAME_CONFIG as Record<string, any>;
@@ -796,7 +779,7 @@
 </div>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Ring Offset (Legacy)</span><span class="val"
+            <span class="var-name">Ring Offset</span><span class="val"
             >{((panel.starRingOffset ?? 20) as number).toFixed(0)}px</span
         >
     </div>
@@ -1907,32 +1890,6 @@
         }}
     />
 </div>
-
-<!-- ── Debug ── -->
-<h4 class="sub-heading">Debug: Ship Count</h4>
-{#if selectedStarStore.id}
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Active Ships</span>
-            <span class="val">{debugShipCount.toLocaleString()}</span>
-        </div>
-        <input
-            type="range"
-            min={0}
-            max={10000}
-            step={10}
-            value={debugShipCount}
-            oninput={(e) =>
-                updateDebugShipCount(
-                    parseInt((e.target as HTMLInputElement).value),
-                )}
-        />
-    </div>
-{:else}
-    <div class="var-row grayed">
-        <span class="future-desc">Select a star to adjust ship count</span>
-    </div>
-{/if}
 
 <style>
     @import "./panel-shared.css";

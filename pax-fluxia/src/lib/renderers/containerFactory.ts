@@ -13,8 +13,8 @@ import type { RenderContainers, RenderTextures } from './RenderContext';
  * Create the layered container hierarchy on the PIXI stage.
  * 
  * Z-order (bottom to top):
- *   linkGraphics → starsContainer → glowContainer → shipsContainer
- *   → connectionGraphics → labelsContainer → dragPreviewGraphics
+ *   connectionGraphics → starsContainer → glowContainer → shipsContainer
+ *   → linkGraphics → labelsContainer → dragPreviewGraphics
  */
 export function createContainers(stage: PIXI.Container): RenderContainers {
     // Territory alpha overlay (bottommost — below everything)
@@ -24,6 +24,10 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     // Voronoi contiguous territory (above halos, below link arrows)
     const voronoiContainer = new PIXI.Container();
     stage.addChild(voronoiContainer);
+
+    // Connections (below stars and ships so star systems stay visually on top)
+    const connectionGraphics = new PIXI.Graphics();
+    stage.addChild(connectionGraphics);
 
     // Star circles
     const starsContainer = new PIXI.Container();
@@ -47,11 +51,7 @@ export function createContainers(stage: PIXI.Container): RenderContainers {
     const selectionOverlayGraphics = new PIXI.Graphics();
     stage.addChild(selectionOverlayGraphics);
 
-    // Connections (above ships so lanes stay visible under dense clusters)
-    const connectionGraphics = new PIXI.Graphics();
-    stage.addChild(connectionGraphics);
-
-    // Order arrows (above lanes)
+    // Order arrows (above lanes and ship systems)
     const linkGraphics = new PIXI.Graphics();
     stage.addChild(linkGraphics);
 

@@ -5,7 +5,7 @@
 
 import { attachLaneWaypointsToConnections, type MapLaneMode } from '@pax/common/mapgen';
 import type { MapConnection } from '@pax/common/mapgen';
-import { log } from '$lib/utils/logger';
+import { log } from '../utils/logger';
 
 const cache = new Map<string, [number, number][]>();
 

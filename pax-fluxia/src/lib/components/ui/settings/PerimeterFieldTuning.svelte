@@ -1,8 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
-    import { perimeterFieldDebugPlaybackStore } from '$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore';
-
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
@@ -13,16 +11,12 @@
     type PerimeterFieldModuleId =
         | 'all'
         | 'none'
-        | 'source'
         | 'field'
-        | 'transition'
-        | 'diagnostics';
+        | 'transition';
 
     const PERIMETER_FIELD_MODULES = [
-        { id: 'source', label: 'Source' },
         { id: 'field', label: 'Field' },
         { id: 'transition', label: 'Transition' },
-        { id: 'diagnostics', label: 'Diagnostics' },
     ] as const;
 
     const PERIMETER_FIELD_MODULE_PANEL_KEY = 'perimeterFieldModuleVisibility';
@@ -47,21 +41,6 @@
         bumpTerritoryVisualConfig();
     }
 
-    function currentGeometrySource(): string {
-        return (
-            panel.perimeterFieldGeometrySource ??
-            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
-            'power_voronoi_0319'
-        ) as string;
-    }
-
-    function geometrySourceLabel(): string {
-        const source = currentGeometrySource();
-        if (source === 'power_voronoi_0319') return 'Power Voronoi (0319)';
-        if (source === 'canonical_vector') return 'Canonical Vector';
-        return source;
-    }
-
     function currentTransitionEngine(): 'legacy' | 'plan' {
         const value =
             panel.perimeterFieldTransitionEngine ??
@@ -72,77 +51,9 @@
 
     function transitionEngineLabel(): string {
         return currentTransitionEngine() === 'legacy'
-            ? 'Legacy Synthetic'
+            ? 'Synthetic Reference'
             : 'Topology Plan';
     }
-
-    let activeReplaySlot = $derived(
-        Math.max(
-            0,
-            Math.min(
-                3,
-                Math.round(
-                    panel.perimeterFieldDebugReplaySlot ??
-                        GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
-                        0,
-                ),
-            ),
-        ),
-    );
-
-    let availableScrubFrameCount = $derived(
-        activeReplaySlot > 0
-            ? ($perimeterFieldDebugPlaybackStore.replayFrameCounts[
-                  activeReplaySlot - 1
-              ] ?? 0)
-            : $perimeterFieldDebugPlaybackStore.liveFrameCount,
-    );
-
-    function currentScrubFrameIndex(): number {
-        const raw =
-            panel.perimeterFieldDebugScrubFrameIndex ??
-            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
-            0;
-        const maxIndex = Math.max(0, availableScrubFrameCount - 1);
-        return Math.max(0, Math.min(maxIndex, Math.round(raw)));
-    }
-
-    function setScrubFrameIndex(value: number): void {
-        const maxIndex = Math.max(0, availableScrubFrameCount - 1);
-        writeConfig(
-            'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
-            'perimeterFieldDebugScrubFrameIndex',
-            Math.max(0, Math.min(maxIndex, Math.round(value))),
-        );
-    }
-
-    function shiftScrubFrame(delta: number): void {
-        setScrubFrameIndex(currentScrubFrameIndex() + delta);
-    }
-
-    $effect(() => {
-        if (availableScrubFrameCount <= 0) {
-            if (
-                (panel.perimeterFieldDebugScrubFrameIndex ??
-                    GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
-                    0) !== 0
-            ) {
-                setScrubFrameIndex(0);
-            }
-            return;
-        }
-        const clamped = currentScrubFrameIndex();
-        if (
-            clamped !==
-            Math.round(
-                panel.perimeterFieldDebugScrubFrameIndex ??
-                    GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX ??
-                    0,
-            )
-        ) {
-            setScrubFrameIndex(clamped);
-        }
-    });
 </script>
 
 <div class="module-head">
@@ -178,320 +89,6 @@
         </button>
     {/each}
 </div>
-
-{#if showModule('source')}
-<div class="module-block">
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Which pre-existing territory geometry pipeline provides the source boundary that perimeter-field samples from."
-        >
-            Base Geometry Source
-        </span>
-        <span class="val">{geometrySourceLabel()}</span>
-    </div>
-    <div class="var-desc">
-        The source region geometry that the perimeter sampler traces before the field renderer reconstructs territory.
-    </div>
-    <select
-        class="mode-select"
-        value={currentGeometrySource()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('PERIMETER_FIELD_GEOMETRY_SOURCE', 'perimeterFieldGeometrySource', value);
-        }}
-    >
-        <option value="power_voronoi_0319">Power Voronoi (0319)</option>
-        <option value="canonical_vector">Canonical Vector</option>
-    </select>
-</div>
-
-<div class="sub-heading">Source Constraints</div>
-
-<div class="var-desc">
-    {geometrySourceLabel()} uses these source-geometry constraints. These are the actual MSR, CX lane-pair, and DX settings driving the underlying geometry for this mode.
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Minimum Star Region. This is the base radius/pressure around owned stars in the selected geometry source before perimeter-field derives vstars from the result."
-        >
-            Source MSR
-        </span>
-        <span class="val">{panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}px</span>
-    </div>
-    <div class="var-desc">
-        Minimum star territory size in the source geometry. Increase this if the source geometry is clipping too tightly around stars.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="180"
-        step="1"
-        value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('MODIFIED_VORONOI_STAR_MARGIN', 'starMargin', value);
-        }}
-    />
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.corridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('MODIFIED_VORONOI_CORRIDOR_ENABLED', 'corridorEnabled', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Enable CX corridor virtual sites in the selected source geometry."
-    >
-        Source CX Corridors
-    </span>
-    <span class="val">
-        {(panel.corridorEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ?? true) ? 'On' : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Adds corridor virtuals to the source geometry before perimeter-field samples the resulting region boundary.
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.cxContestMidpointVstars ?? GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('TERRITORY_CX_CONTEST_MIDPOINT_VSTARS', 'cxContestMidpointVstars', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Enable the contested lane midpoint pair construction in CX so opposed lanes get paired midpoint virtual stars."
-    >
-        Source CX Lane Pairs
-    </span>
-    <span class="val">
-        {(panel.cxContestMidpointVstars ?? GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true) ? 'On' : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Forces contested lanes to use the paired midpoint vstar construction in the source geometry.
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Number of paired midpoint samples per owner on contested lanes. Samples are distributed along the lane around the midpoint with approximately one MSR spacing."
-        >
-            Source CX Lane-Pair Count
-        </span>
-        <span class="val">{panel.cxContestPairCount ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1}</span>
-    </div>
-    <div class="var-desc">
-        Number of midpoint-pair samples per owner on contested lanes.
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="10"
-        step="1"
-        value={panel.cxContestPairCount ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_CX_CONTEST_PAIR_COUNT', 'cxContestPairCount', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Weight multiplier applied specifically to the contested midpoint-pair samples on cross-owner lanes."
-        >
-            Source CX Lane-Pair Weight
-        </span>
-        <span class="val">{(panel.cxContestPairWeight ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Strength of the contested midpoint-pair interface, separate from ordinary CX corridor weight.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.05"
-        value={panel.cxContestPairWeight ?? GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_CX_CONTEST_PAIR_WEIGHT', 'cxContestPairWeight', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="How many CX corridor samples are placed along each eligible lane when count mode is in use."
-        >
-            Source CX Count
-        </span>
-        <span class="val">{panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}</span>
-    </div>
-    <div class="var-desc">
-        Number of corridor samples per lane in the source geometry.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="1"
-        value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_CX_COUNT', 'cxCount', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Weight multiplier applied to CX virtual stars in the source geometry."
-        >
-            Source CX Weight
-        </span>
-        <span class="val">{(panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Strength of corridor virtuals in the source geometry.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.05"
-        value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_CX_WEIGHT', 'cxWeight', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Spacing between CX virtual stars along the lane in the selected source geometry."
-        >
-            Source CX Spacing
-        </span>
-        <span class="val">{panel.corridorSpacing ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60}px</span>
-    </div>
-    <div class="var-desc">
-        Physical spacing between CX samples in the source geometry.
-    </div>
-    <input
-        type="range"
-        min="8"
-        max="180"
-        step="1"
-        value={panel.corridorSpacing ?? GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('MODIFIED_VORONOI_CORRIDOR_SPACING', 'corridorSpacing', value);
-        }}
-    />
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.disconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('MODIFIED_VORONOI_DISCONNECT_ENABLED', 'disconnectEnabled', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Enable DX disconnect virtuals in the selected source geometry."
-    >
-        Source DX Disconnect
-    </span>
-    <span class="val">
-        {(panel.disconnectEnabled ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ?? true) ? 'On' : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Adds paired enemy disconnect virtuals around same-owner Euclidean midpoints in the source geometry.
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Weight multiplier applied to DX disconnect virtual stars in the selected source geometry."
-        >
-            Source DX Weight
-        </span>
-        <span class="val">{(panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3).toFixed(2)}</span>
-    </div>
-    <div class="var-desc">
-        Strength of DX virtuals in the source geometry.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.05"
-        value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_DX_WEIGHT', 'dxWeight', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Maximum star-to-star distance that still qualifies for DX virtual site insertion in the selected source geometry."
-        >
-            Source DX Distance
-        </span>
-        <span class="val">{panel.disconnectDistance ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400}px</span>
-    </div>
-    <div class="var-desc">
-        Distance threshold for DX insertion in the source geometry.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1000"
-        step="5"
-        value={panel.disconnectDistance ?? GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('MODIFIED_VORONOI_DISCONNECT_DISTANCE', 'disconnectDistance', value);
-        }}
-    />
-</div>
-
-</div>
-{/if}
 
 {#if showModule('field')}
 <div class="module-block">
@@ -608,14 +205,14 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="Choose between the legacy synthetic conquest samples and the new topology-driven transition plan."
+            title="Choose between the synthetic conquest samples and the topology-driven transition plan."
         >
             Transition Engine
         </span>
         <span class="val">{transitionEngineLabel()}</span>
     </div>
     <div class="var-desc">
-        Topology Plan is the new deterministic section-aware path. Legacy Synthetic keeps the previous transition implementation available for A/B comparison.
+        Topology Plan is the deterministic section-aware path. Synthetic keeps the previous transition implementation available for A/B comparison.
     </div>
     <select
         class="mode-select"
@@ -630,7 +227,7 @@
         }}
     >
         <option value="plan">Topology Plan</option>
-        <option value="legacy">Legacy Synthetic</option>
+        <option value="legacy">Synthetic Reference</option>
     </select>
 </div>
 
@@ -656,32 +253,6 @@
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('PERIMETER_FIELD_TRANSITION_RAY_COUNT', 'perimeterFieldTransitionRayCount', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Duration of the conquest handoff for this family. This writes the shared territory transition duration."
-        >
-            Transition Duration
-        </span>
-        <span class="val">{panel.territoryTransitionMs ?? GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400}ms</span>
-    </div>
-    <div class="var-desc">
-        Total time for the local boundary override to move from previous ownership to next ownership.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3000"
-        step="25"
-        value={panel.territoryTransitionMs ?? GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_TRANSITION_MS', 'territoryTransitionMs', value);
         }}
     />
 </div>
@@ -761,173 +332,6 @@
             writeConfig('PERIMETER_FIELD_NEW_BOUNDARY_GROW', 'perimeterFieldNewBoundaryGrow', value);
         }}
     />
-</div>
-
-</div>
-{/if}
-
-{#if showModule('diagnostics')}
-<div class="module-block">
-<div class="sub-heading">Diagnostics</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY', 'perimeterFieldDebugShowGeometry', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Draw the source geometry loops that the perimeter sampler is tracing."
-    >
-        Show Underlying Geometry
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Cyan shows the current base geometry. In paused scrub mode, magenta shows the next-state geometry as well.
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugShowVstars ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SHOW_VSTARS', 'perimeterFieldDebugShowVstars', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Draw the derived perimeter vstars and the conquest-local override points."
-    >
-        Show Perimeter Vstars
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugShowVstars ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    Vstars are filled with owner/player color. The surrounding halo shows debug state: cyan = current/base, magenta = next-state, yellow = moving transition override.
-</div>
-
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.perimeterFieldDebugScrubEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('PERIMETER_FIELD_DEBUG_SCRUB_ENABLED', 'perimeterFieldDebugScrubEnabled', value);
-        }}
-    />
-    <span
-        class="var-name"
-        title="Explicit diagnostic preview mode. When enabled, the game view can be replaced with captured transition frames for scrub/replay inspection. When disabled, pause only pauses."
-    >
-        Enable Transition Preview
-    </span>
-    <span class="val">
-        {(panel.perimeterFieldDebugScrubEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false)
-            ? 'On'
-            : 'Off'}
-    </span>
-</label>
-    <div class="var-desc">
-    Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. Turn it off for normal gameplay; pause alone will no longer switch views.
-    </div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Choose the active capture or one of the last three captured conquests for explicit preview mode."
-        >
-            Replay Source
-        </span>
-        <span class="val">
-            {#if (panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) === 0}
-                Live
-            {:else}
-                Replay {(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0)}
-            {/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        `Live` uses the currently active conquest. `Replay 1` is the most recent captured conquest, then `Replay 2` and `Replay 3`.
-    </div>
-    <select
-        class="mode-select"
-        value={(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0).toString()}
-        onchange={(event) => {
-            const value = parseFloat((event.target as HTMLSelectElement).value);
-            writeConfig('PERIMETER_FIELD_DEBUG_REPLAY_SLOT', 'perimeterFieldDebugReplaySlot', value);
-        }}
-    >
-        <option value="0">Live</option>
-        <option value="1">Replay 1 (most recent)</option>
-        <option value="2">Replay 2</option>
-        <option value="3">Replay 3</option>
-    </select>
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            title="Exact captured transition frame index for the live conquest or selected replay. Index 0 is PREV, the last index is NEXT."
-        >
-            Transition Scrub
-        </span>
-        <span class="val">
-            {#if availableScrubFrameCount > 0}
-                F{currentScrubFrameIndex()} / {availableScrubFrameCount - 1}
-            {:else}
-                No frames
-            {/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        In explicit preview mode, this steps through the exact captured gameplay frames for the live conquest or selected replay. Each +/- click moves exactly one conquest frame.
-    </div>
-    <div class="scrub-controls">
-        <button
-            type="button"
-            class="module-all-toggle scrub-step-btn"
-            disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() <= 0}
-            onclick={() => shiftScrubFrame(-1)}
-        >
-            -
-        </button>
-        <input
-            type="range"
-            min="0"
-            max={Math.max(0, availableScrubFrameCount - 1)}
-            step="1"
-            disabled={availableScrubFrameCount <= 0}
-            value={currentScrubFrameIndex()}
-            oninput={(event) => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
-                setScrubFrameIndex(value);
-            }}
-        />
-        <button
-            type="button"
-            class="module-all-toggle scrub-step-btn"
-            disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() >= availableScrubFrameCount - 1}
-            onclick={() => shiftScrubFrame(1)}
-        >
-            +
-        </button>
-    </div>
 </div>
 
 </div>
@@ -1018,19 +422,6 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-    }
-
-    .scrub-controls {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
-    }
-
-    .scrub-step-btn {
-        min-width: 32px;
-        min-height: 28px;
-        padding: 0 8px;
     }
 
     .var-desc {

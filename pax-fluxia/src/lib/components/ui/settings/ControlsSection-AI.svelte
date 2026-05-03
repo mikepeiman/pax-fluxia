@@ -80,43 +80,6 @@
     {/each}
 {/each}
 
-<h4 class="sub-heading">Future Strategies</h4>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Sniper</span>
-        <span class="val">planned</span>
-    </div>
-    <span class="future-desc">Prioritize exposed weak stars.</span>
-</div>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Turtle</span>
-        <span class="val">planned</span>
-    </div>
-    <span class="future-desc">Bias toward defense and retention.</span>
-</div>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Swarm</span>
-        <span class="val">planned</span>
-    </div>
-    <span class="future-desc">Coordinated mass attacks across fronts.</span>
-</div>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Chaos</span>
-        <span class="val">planned</span>
-    </div>
-    <span class="future-desc">Intentionally unstable target selection.</span>
-</div>
-<div class="var-row grayed">
-    <div class="row-top">
-        <span class="var-name">Diplomat</span>
-        <span class="val">planned</span>
-    </div>
-    <span class="future-desc">Expand economically before escalating.</span>
-</div>
-
 <style>
     @import "./panel-shared.css";
 </style>

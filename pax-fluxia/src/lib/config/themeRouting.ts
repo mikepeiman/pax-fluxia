@@ -1,8 +1,8 @@
-import { coerceVsTransitionModeForRenderMode } from '$lib/territory/transitions/territoryTransitionModes';
-import { TERRITORY_RENDER_MODE_CATALOG } from '$lib/territory/ui/territoryRenderModeCatalog';
+import { coerceVsTransitionModeForRenderMode } from '../territory/transitions/territoryTransitionModes';
+import { TERRITORY_RENDER_MODE_CATALOG } from '../territory/ui/territoryRenderModeCatalog';
 
 export type ThemeRenderFamilyId =
-    | 'canonical'
+    | 'layered-runtime'
     | 'engine'
     | 'voronoi-lineage'
     | 'distance-field'
@@ -16,7 +16,7 @@ export type ThemeRenderFamilyId =
 
 export type ThemeRoutingStatus =
     | 'wired'
-    | 'legacy-fallback'
+    | 'compat-inferred'
     | 'agnostic'
     | 'needs-editing';
 
@@ -56,10 +56,10 @@ export const THEME_RENDER_FAMILY_META: Record<
     ThemeRenderFamilyId,
     ThemeRenderFamilyMeta
 > = {
-    canonical: {
-        id: 'canonical',
-        label: 'Canonical',
-        description: 'Canonical layered territory route.',
+    'layered-runtime': {
+        id: 'layered-runtime',
+        label: 'Layered Runtime',
+        description: 'Layered direct-runtime territory route.',
         order: 10,
     },
     engine: {
@@ -71,7 +71,7 @@ export const THEME_RENDER_FAMILY_META: Record<
     'voronoi-lineage': {
         id: 'voronoi-lineage',
         label: 'Voronoi Lineage',
-        description: 'PVV, classic Voronoi, and related legacy territory styles.',
+        description: 'PVV, classic Voronoi, and related comparison territory styles.',
         order: 30,
     },
     'distance-field': {
@@ -177,7 +177,7 @@ export function resolveThemeRenderFamilyId(
 ): ThemeRenderFamilyId {
     switch (renderMode) {
         case 'territory_canonical':
-            return 'canonical';
+            return 'layered-runtime';
         case 'territory_engine':
             return 'engine';
         case 'vs_pvv3':
@@ -235,13 +235,13 @@ export function auditThemeRouting(
 
     if (!explicitMode) {
         notes.push(
-            `Saved theme omits TERRITORY_RENDER_MODE; without normalization it inherits the current renderer. The app now infers "${renderMode}" from the legacy boolean mode keys on apply.`,
+            `Saved theme omits TERRITORY_RENDER_MODE; without normalization it inherits the current renderer. The app now infers "${renderMode}" from the older boolean mode keys on apply.`,
         );
         return {
             renderMode,
             familyId,
             familyLabel,
-            status: 'legacy-fallback',
+            status: 'compat-inferred',
             notes,
         };
     }
@@ -261,7 +261,7 @@ export function auditThemeRouting(
 
     if (UI_HIDDEN_RENDER_MODES.has(renderMode)) {
         notes.push(
-            `Saved TERRITORY_RENDER_MODE="${renderMode}" is deprecated/hidden in the current UI.`,
+            `Saved TERRITORY_RENDER_MODE="${renderMode}" is hidden in the current UI and should be updated.`,
         );
         return {
             renderMode,

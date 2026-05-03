@@ -8,6 +8,9 @@ import type {
     FillTransitionPlan,
     TransitionSnapshot,
 } from '../../contracts/TransitionContracts';
+import type { CanonicalPowerVoronoiTransitionRuntime } from '../../pvCanonical/contracts';
+import { buildCanonicalPowerVoronoiTransitionRuntime } from '../../pvCanonical/planner';
+import { sampleCanonicalPowerVoronoiTransition } from '../../pvCanonical/sampler';
 import { SharedTransitionClock } from './SharedTransitionClock';
 import { FILL_TRANSITION_MODE_BY_ID } from './registry';
 import { planFillTransition } from './planners/TerritoryTransitionPlanner';
@@ -16,40 +19,51 @@ import {
     sampleActiveFrontTransition,
     type ActiveFrontTransitionPlan,
 } from './ActiveFrontTransition';
-import { log } from '$lib/utils/logger';
+import { log } from '../../../utils/logger';
+
+type FrontierTopology =
+    import('../../contracts/FrontierTopologyContracts').FrontierTopology;
 
 export interface TransitionCoordinatorInput {
     nowMs: number;
     tunables: TerritoryTunables;
     selection: TerritoryModeSelection;
     ownership: OwnershipSnapshot;
+    previousOwnership?: OwnershipSnapshot | null;
     geometry: GeometrySnapshot;
     previousGeometry?: GeometrySnapshot | null;
     previousTransition?: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
-    /** Prev topology snapshot preserved from when the transition started. */
-    transitionPrevTopology?: import('../../contracts/FrontierTopologyContracts').FrontierTopology | null;
+    activeCanonicalPvTransition?: CanonicalPowerVoronoiTransitionRuntime | null;
+    canonicalPowerVoronoiPair?: {
+        preGeometry: GeometrySnapshot;
+        postGeometry: GeometrySnapshot;
+        previousOwnership: OwnershipSnapshot;
+        nextOwnership: OwnershipSnapshot;
+    } | null;
+    transitionPrevTopology?: FrontierTopology | null;
 }
 
 export interface TransitionCoordinatorResult {
     snapshot: TransitionSnapshot;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
-    /** Prev topology to keep alive for the duration of the transition. */
-    transitionPrevTopology?: import('../../contracts/FrontierTopologyContracts').FrontierTopology | null;
+    activeCanonicalPvTransition?: CanonicalPowerVoronoiTransitionRuntime | null;
+    transitionPrevTopology?: FrontierTopology | null;
 }
 
 function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionFrame {
     return {
-        regions: geometry.territoryRegions,
+        regions: geometry.territoryRegions.map((region) => ({
+            ownerId: region.ownerId,
+            points: region.points,
+        })),
     };
 }
 
 function buildEmptyBorderFrame(): BorderTransitionFrame {
-    return {
-        frontiers: [],
-    };
+    return { frontiers: [] };
 }
 
 export class TransitionLayerCoordinator {
@@ -58,30 +72,23 @@ export class TransitionLayerCoordinator {
     compute(input: TransitionCoordinatorInput): TransitionCoordinatorResult {
         let activeFillPlan = input.activeFillPlan;
         let activeFrontPlan = input.activeFrontPlan ?? null;
+        let activeCanonicalPvTransition =
+            input.activeCanonicalPvTransition ?? null;
 
         const hasNewConquests = input.ownership.conquestEvents.length > 0;
         const hasGeometryDelta =
             input.previousGeometry?.version !== input.geometry.version;
-
         let envelope = input.previousTransition?.envelope ?? null;
 
-        // ── Unified active-front path — frontier-chain transitions ───────
-        // Fills are reconstructed from interpolated active-front geometry.
-        // Activated when user selects the topology-driven fill rebuild path.
-        const topologyFillRebuildSelected =
-            input.selection.fillTransitionMode === 'topology_fill_rebuild';
+        const topologyPathEnabled =
+            input.selection.fillTransitionMode === 'unified_topology';
+        const canonicalPvPathEnabled =
+            input.selection.fillTransitionMode === 'pv_frontline';
         const nextTopo = input.geometry.frontierTopology;
-
-        // For planning (conquest frame): use previousGeometry's topology
         const planPrevTopo = input.previousGeometry?.frontierTopology;
-        // For sampling (subsequent frames): use the stored topology from when
-        // the transition started — previousGeometry is overwritten every frame
-        // and would point to the NEW topology on frame 2+.
         let transitionPrevTopology = input.transitionPrevTopology ?? null;
         const samplePrevTopo = transitionPrevTopology ?? planPrevTopo;
-
-        const canPlanTopologyPath = topologyFillRebuildSelected && !!(planPrevTopo && nextTopo);
-        const canSampleTopologyPath = topologyFillRebuildSelected && !!(samplePrevTopo && nextTopo);
+        const canPlanTopologyPath = topologyPathEnabled && !!(planPrevTopo && nextTopo);
 
         if (hasNewConquests && hasGeometryDelta) {
             envelope = this.clock.buildEnvelope(
@@ -91,29 +98,68 @@ export class TransitionLayerCoordinator {
                 input.ownership.conquestEvents,
             );
 
-            if (canPlanTopologyPath) {
-                // ── UNIFIED ACTIVE-FRONT PATH ───────────────────────────
-                activeFrontPlan = planActiveFrontTransition(planPrevTopo!, nextTopo!, input.ownership);
+            if (canonicalPvPathEnabled) {
                 activeFillPlan = null;
-                // Snapshot the prev topology so it survives the state overwrite
+                if (input.canonicalPowerVoronoiPair) {
+                    activeCanonicalPvTransition =
+                        buildCanonicalPowerVoronoiTransitionRuntime({
+                            preGeometry: input.canonicalPowerVoronoiPair.preGeometry,
+                            postGeometry:
+                                input.canonicalPowerVoronoiPair.postGeometry,
+                            previousOwnership:
+                                input.canonicalPowerVoronoiPair.previousOwnership,
+                            nextOwnership:
+                                input.canonicalPowerVoronoiPair.nextOwnership,
+                            tunables: input.tunables,
+                        });
+                    activeFrontPlan =
+                        activeCanonicalPvTransition.activeFrontPlan;
+                    transitionPrevTopology =
+                        input.canonicalPowerVoronoiPair.preGeometry.frontierTopology;
+                    log.renderer(
+                        'TransitionCoordinator',
+                        `Using canonical PV frontline path: ${activeCanonicalPvTransition.plan.fronts.length} fronts`,
+                    );
+                } else {
+                    activeCanonicalPvTransition = null;
+                    activeFrontPlan = null;
+                    transitionPrevTopology = null;
+                    log.renderer(
+                        'TransitionCoordinator',
+                        'pv_frontline selected without paired PRE/POST geometry; snapping to steady geometry.',
+                    );
+                }
+            } else if (canPlanTopologyPath) {
+                activeCanonicalPvTransition = null;
+                activeFrontPlan = planActiveFrontTransition(
+                    planPrevTopo!,
+                    nextTopo!,
+                    input.ownership,
+                );
+                activeFillPlan = null;
                 transitionPrevTopology = planPrevTopo!;
-                log.renderer('TransitionCoordinator',
-                    `Using topology fill rebuild path: ${activeFrontPlan.fronts.length} fronts` +
-                    ` | prevTopo v=${planPrevTopo!.version.slice(0, 20)} nextTopo v=${nextTopo!.version.slice(0, 20)}`,
+                log.renderer(
+                    'TransitionCoordinator',
+                    `Using unified active-front path: ${activeFrontPlan.fronts.length} fronts`,
                 );
             } else {
-                // ── LEGACY INDEPENDENT PATH (fallback) ───────────────────
+                activeCanonicalPvTransition = null;
                 activeFrontPlan = null;
                 transitionPrevTopology = null;
 
-                if (topologyFillRebuildSelected) {
-                    log.renderer('TransitionCoordinator',
-                        `Topology fill rebuild selected but topology data unavailable ` +
-                        `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
+                if (topologyPathEnabled) {
+                    log.renderer(
+                        'TransitionCoordinator',
+                        `Unified topology selected but topology data unavailable ` +
+                            `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
                     );
                 }
 
-                if (input.selection.fillTransitionMode !== 'off' && !topologyFillRebuildSelected) {
+                if (
+                    input.selection.fillTransitionMode !== 'off' &&
+                    !topologyPathEnabled &&
+                    !canonicalPvPathEnabled
+                ) {
                     const fillMode = FILL_TRANSITION_MODE_BY_ID.get(
                         input.selection.fillTransitionMode,
                     );
@@ -131,14 +177,11 @@ export class TransitionLayerCoordinator {
             }
         }
 
-        // ── Tunable-only geometry change (no conquest) ───────────────────
-        // Cancel active transition so renderer snaps to new geometry.
-        // Without this, MSR/CX/DX changes are invisible mid-transition
-        // because the fill plan still holds old-tunable target regions.
         if (!hasNewConquests && hasGeometryDelta) {
             envelope = null;
             activeFillPlan = null;
             activeFrontPlan = null;
+            activeCanonicalPvTransition = null;
             transitionPrevTopology = null;
         }
 
@@ -146,12 +189,16 @@ export class TransitionLayerCoordinator {
             envelope.progress = this.clock.sampleProgress(envelope, input.nowMs);
         }
 
-        // ── Sample frames ────────────────────────────────────────────────
         let fillFrame: FillTransitionFrame;
         let borderFrame: BorderTransitionFrame;
 
-        if (envelope && activeFrontPlan && samplePrevTopo && nextTopo) {
-            // ── UNIFIED ACTIVE-FRONT SAMPLING ───────────────────────────
+        if (envelope && activeCanonicalPvTransition) {
+            fillFrame = sampleCanonicalPowerVoronoiTransition(
+                activeCanonicalPvTransition,
+                envelope.progress,
+            );
+            borderFrame = buildEmptyBorderFrame();
+        } else if (envelope && activeFrontPlan && samplePrevTopo && nextTopo) {
             fillFrame = sampleActiveFrontTransition(
                 activeFrontPlan,
                 samplePrevTopo,
@@ -160,42 +207,48 @@ export class TransitionLayerCoordinator {
             );
             borderFrame = buildEmptyBorderFrame();
         } else {
-            // ── LEGACY SAMPLING (independent fill + border) ──────────────
             const fillModeId = activeFillPlan?.sourceMode;
             const fillMode = fillModeId
                 ? FILL_TRANSITION_MODE_BY_ID.get(fillModeId)
                 : null;
-
             fillFrame =
                 envelope && activeFillPlan && fillMode
                     ? fillMode.sample(activeFillPlan, {
-                        nowMs: input.nowMs,
-                        progress: envelope.progress,
-                    })
+                          nowMs: input.nowMs,
+                          progress: envelope.progress,
+                      })
                     : buildFillFrameFromGeometry(input.geometry);
-
             borderFrame = buildEmptyBorderFrame();
         }
 
-        // ── CLR per-frame transition trace ───────────────────────────────
-        const pathUsed = activeFrontPlan ? 'topology_fill_rebuild'
-            : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
+        const pathUsed = activeCanonicalPvTransition
+            ? 'pv_frontline'
+            : activeFrontPlan
+              ? 'active_front'
+              : activeFillPlan
+                ? `fill:${activeFillPlan.sourceMode}`
+                : 'static';
         if (envelope) {
-            log.renderer('CLR:TRACE', JSON.stringify({
-                pathUsed,
-                progress: envelope.progress.toFixed(3),
-                regionCount: fillFrame.regions.length,
-                borderCount: borderFrame.frontiers.length,
-                hasNewConquests,
-                hasGeometryDelta,
-                topologyPathEnabled: topologyFillRebuildSelected,
-            }));
+            log.renderer(
+                'CLR:TRACE',
+                JSON.stringify({
+                    pathUsed,
+                    progress: envelope.progress.toFixed(3),
+                    regionCount: fillFrame.regions.length,
+                    borderCount: borderFrame.frontiers.length,
+                    hasNewConquests,
+                    hasGeometryDelta,
+                    topologyPathEnabled,
+                    canonicalPvPathEnabled,
+                }),
+            );
         }
 
         if (envelope && envelope.progress >= 1) {
             envelope = null;
             activeFillPlan = null;
             activeFrontPlan = null;
+            activeCanonicalPvTransition = null;
             transitionPrevTopology = null;
         }
 
@@ -208,6 +261,7 @@ export class TransitionLayerCoordinator {
             },
             activeFillPlan,
             activeFrontPlan,
+            activeCanonicalPvTransition,
             transitionPrevTopology,
         };
     }

@@ -11,6 +11,14 @@ export interface TerritoryRenderStatus {
     geometryReady: boolean | null;
     arrowRenderer: ArrowRendererMode;
     lastRenderFailure: string | null;
+    msrRequestedMarginPx: number | null;
+    msrStarBias: number | null;
+    msrAnchorCount: number;
+    msrIntervalCount: number;
+    msrViolatedIntervalCount: number;
+    msrAcceptedRepairCount: number;
+    msrRejectedRepairCount: number;
+    msrLastInvariantFailure: string | null;
     updatedAtMs: number;
 }
 
@@ -19,6 +27,14 @@ const initialStatus: TerritoryRenderStatus = {
     geometryReady: null,
     arrowRenderer: "overlay_canvas",
     lastRenderFailure: null,
+    msrRequestedMarginPx: null,
+    msrStarBias: null,
+    msrAnchorCount: 0,
+    msrIntervalCount: 0,
+    msrViolatedIntervalCount: 0,
+    msrAcceptedRepairCount: 0,
+    msrRejectedRepairCount: 0,
+    msrLastInvariantFailure: null,
     updatedAtMs: 0,
 };
 

@@ -15,26 +15,18 @@ describe('readTerritoryRuntimeSettings', () => {
             TERRITORY_BORDER_TRANSITION: 'pixi_mesh_rope',
         });
 
-        expect(settings.selection.fillTransitionMode).toBe('topology_fill_rebuild');
+        expect(settings.selection.fillTransitionMode).toBe('active_front');
         expect(settings.selection.borderTransitionMode).toBe('rope_morph');
     });
 
-    it('normalizes legacy fill transition ids onto precise current ids', () => {
-        expect(
-            readTerritoryRuntimeSettings({
-                TERRITORY_FILL_TRANSITION_MODE: 'active_front',
-            }).selection.fillTransitionMode,
-        ).toBe('legacy_fill_active_front');
-        expect(
-            readTerritoryRuntimeSettings({
-                TERRITORY_FILL_TRANSITION_MODE: 'crossfade',
-            }).selection.fillTransitionMode,
-        ).toBe('legacy_fill_crossfade');
-        expect(
-            readTerritoryRuntimeSettings({
-                TERRITORY_FILL_TRANSITION_MODE: 'unified_topology',
-            }).selection.fillTransitionMode,
-        ).toBe('topology_fill_rebuild');
+    it('preserves canonical PV geometry and fill transition ids when configured directly', () => {
+        const settings = readTerritoryRuntimeSettings({
+            TERRITORY_GEOMETRY_MODE: 'canonical_power_voronoi',
+            TERRITORY_FILL_TRANSITION_MODE: 'pv_frontline',
+        });
+
+        expect(settings.selection.geometryMode).toBe('canonical_power_voronoi');
+        expect(settings.selection.fillTransitionMode).toBe('pv_frontline');
     });
 
     it('maps render-mode aliases to clean style ids', () => {
@@ -74,17 +66,20 @@ describe('readTerritoryRuntimeSettings', () => {
             frontierResolution: 12,
             boundaryPad: 44,
             boundaryEps: 8,
-            starMargin: 45,
+            starCoreGuardRadius: 20,
+            starMargin: 75,
+            msrStarBias: 0,
             corridorEnabled: true,
-            corridorSpacing: 60,
+            corridorSpacing: 10,
             corridorCount: 0,
             corridorWeight: 0.5,
             cxContestMidpointVstars: true,
             cxContestPairCount: 1,
             cxContestPairWeight: 0.5,
-            disconnectEnabled: false,
-            disconnectDistance: 400,
-            disconnectWeight: 0.3,
+            cxContestPairSpacing: 75,
+            disconnectEnabled: true,
+            disconnectDistance: 295,
+            disconnectWeight: 3,
             clusterSplitThreshold: 0,
         });
 
@@ -100,5 +95,38 @@ describe('readTerritoryRuntimeSettings', () => {
             TERRITORY_TRANSITION_MS: 400,
         });
         expect(bound.tunables.transitionDurationMs).toBe(2000);
+    });
+
+    it('preserves surfaced topology maxima as real runtime geometry values', () => {
+        const settings = readTerritoryRuntimeSettings({
+            FRONTIER_RESOLUTION: 32,
+            TERRITORY_MSR_STAR_BIAS: 2,
+            TERRITORY_CX_COUNT: 20,
+            TERRITORY_CX_WEIGHT: 2,
+            TERRITORY_CX_CONTEST_PAIR_WEIGHT: 2,
+            TERRITORY_CX_CONTEST_PAIR_SPACING: 500,
+            TERRITORY_DX_WEIGHT: 5,
+        });
+
+        expect(settings.tunables.frontierResolution).toBe(32);
+        expect(settings.tunables.msrStarBias).toBe(2);
+        expect(settings.tunables.corridorCount).toBe(20);
+        expect(settings.tunables.corridorWeight).toBe(2);
+        expect(settings.tunables.cxContestPairWeight).toBe(2);
+        expect(settings.tunables.cxContestPairSpacing).toBe(500);
+        expect(settings.tunables.disconnectWeight).toBe(5);
+    });
+
+    it('derives normalized star bias from legacy saved star-power settings when needed', () => {
+        const settings = readTerritoryRuntimeSettings({
+            TERRITORY_MSR_STAR_POWER_ENABLED: true,
+            TERRITORY_MSR_STAR_POWER_MODE: 'linear',
+            TERRITORY_MSR_STAR_POWER_GAIN: 0.5,
+            TERRITORY_MSR_STAR_POWER_EXPONENT: 2,
+            TERRITORY_MSR_STAR_POWER_CAP_PX: 500,
+        });
+
+        expect(settings.tunables.msrStarBias).toBeGreaterThan(0);
+        expect(settings.tunables.msrStarBias).toBeLessThanOrEqual(2);
     });
 });

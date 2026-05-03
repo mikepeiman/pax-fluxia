@@ -1,5 +1,5 @@
-import type { StarState, StarConnection } from '$lib/types/game.types';
-import { GAME_CONFIG } from '$lib/config/game.config';
+import type { StarState, StarConnection } from '../types/game.types';
+import { GAME_CONFIG } from '../config/game.config';
 
 /**
  * Result of cluster analysis for a single star.

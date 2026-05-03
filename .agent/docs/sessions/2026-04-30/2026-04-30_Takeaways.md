@@ -16,3 +16,5 @@
 - Startup theme selection must be state-only unless explicitly requested; auto-applying a theme during shell boot creates hidden config writes and can trip unrelated side effects.
 - When the user asks to make current settings the new defaults, the correct fix is to update the owner default modules, not to overlay a captured snapshot at startup.
 - A built-in theme can mirror factory defaults, but it should derive from the same default source rather than creating a second source of truth.
+- If a dev artifact write path remains active during ordinary mount effects, Vite can still full-reload the route even after the artifact is no longer imported. Disable or gate the write path itself.
+- Do not push developer activation paths like URL params or localStorage toggles onto the user when a Diagnostics surface already exists. If a dev control is needed, surface it in the UI and keep the storage mechanism internal.

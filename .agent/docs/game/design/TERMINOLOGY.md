@@ -54,3 +54,31 @@
 | **Straight Line** | The direct line between two connected stars |
 | **Adjusted Lane** | A lane whose geometry changed to satisfy lane margin while preserving the same connection |
 | **Connectivity Restore** | An explicit connection added only when the feasible graph would otherwise be disconnected |
+
+### CX — Corridor Extension
+- **Expansion:** *distributed corridor virtual stars along lanes.*
+- **Purpose:** Ensure same-owner lanes remain fully within that owner's territory. On contested lanes, ensure the two contesting owners' fronts meet along the lane's midline (arc-length midpoint, not necessarily geometric center) and that no third player impinges on the corridor.
+- **Stage:** pre-metaball, in the geometry source pipeline. Mutates the site set fed to `power_voronoi_0319` / `computeGeometry0319`.
+- **Knobs:** `MODIFIED_VORONOI_CORRIDOR_ENABLED`, `MODIFIED_VORONOI_CORRIDOR_SPACING`, `TERRITORY_CX_COUNT` (explicit count overrides spacing when > 0), `TERRITORY_CX_WEIGHT`.
+- **Implementation:** `src/lib/territory/corridor/buildCorridorVirtualSites.ts` L1-288.
+
+### CP — Contested-lane midpoint Pair
+- **Expansion:** *paired virtual stars on either side of the midpoint of an enemy-owned (contested) lane.*
+- **Purpose:** CX's contested-case mechanism. The paired Vs pull the two contesting owners' regions forward toward the midline and block any third party from touching the lane.
+- **Stage:** pre-metaball, same pipeline as CX.
+- **Knobs:** `TERRITORY_CX_CONTEST_MIDPOINT_VSTARS` (on/off), `TERRITORY_CX_CONTEST_PAIR_COUNT`, `TERRITORY_CX_CONTEST_PAIR_WEIGHT`.
+- **Implementation:** `src/lib/territory/corridor/buildCorridorVirtualSites.ts` L183-242.
+- **Known bugs flagged externally (to audit/fix later):** one metaball-family wiring gap; short lanes can suppress pair emission entirely.
+
+### DX — Disconnect eXclusion
+- **Expansion:** *conditional enemy virtual stars between disconnected same-owner components.*
+- **Purpose:** Prevents territory rendering from visually suggesting star-star connections that don't exist as lanes.
+- **Stage:** pre-metaball, same pipeline. Conditional by design — on many maps legitimately produces nothing (no owner has ≥ 2 disconnected components).
+- **Knobs:** `MODIFIED_VORONOI_DISCONNECT_ENABLED`, `MODIFIED_VORONOI_DISCONNECT_DISTANCE`, `TERRITORY_DX_WEIGHT`.
+- **Implementation:** `src/lib/territory/disconnect/buildDisconnectVirtualSites.ts` L1-229+.
+
+### MSR — Minimum Star Range
+- **Expansion:** *margin around a star within which lanes that do not originate at that star should not pass.*
+- **Current implementation:** power-diagram site-weight term (`MODIFIED_VORONOI_STAR_MARGIN`, internally squared) in `powerVoronoiTerritoryGeometryGenerator.ts` L110-125. Not a hard "push geometry inward" stage — a weighting nudge. Can feel weak or ambiguous rather than presenting as a clean visible moat.
+- **Semantics vs. implementation gap:** the *correct* semantic is a constraint on lane routing: lanes whose endpoints are neither endpoint of a given star must stay outside that star's MSR. A lane-level enforcement filter in `src/lib/lanes/**` is currently **missing**. The power-diagram weighting is the only MSR effect today.
+- **Moat clarification:** the visible "moat" around stars at high MSR values is a side effect of the weighting scheme (uncovered regions in the power-diagram), not a requested feature. The fallback in `buildGridClassification.ts` L63-88 (`resolveOwnerByNearestStar` + `coverageRadiusPxSq`) exists to mask it by attributing uncovered cells to the nearest owned star.

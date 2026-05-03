@@ -60,10 +60,12 @@ describe('buildMetaballCacheFingerprint', () => {
     it('changes when contested midpoint-pair settings change', () => {
         const originalCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT;
         const originalWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT;
+        const originalSpacing = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING;
 
         try {
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = 1;
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = 0.25;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING = 45;
             const base = buildMetaballCacheFingerprint({
                 stars: TEST_STARS,
                 gameTick: 10,
@@ -72,6 +74,7 @@ describe('buildMetaballCacheFingerprint', () => {
 
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = 3;
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = 0.8;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING = 180;
             const next = buildMetaballCacheFingerprint({
                 stars: TEST_STARS,
                 gameTick: 10,
@@ -82,6 +85,7 @@ describe('buildMetaballCacheFingerprint', () => {
         } finally {
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT = originalCount;
             GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT = originalWeight;
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING = originalSpacing;
         }
     });
 });

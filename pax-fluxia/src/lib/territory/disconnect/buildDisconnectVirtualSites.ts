@@ -30,8 +30,8 @@ interface EnemyCandidate {
 }
 
 function clampWeight(weight: number, fallback: number): number {
-    if (!Number.isFinite(weight) || weight <= 0) return fallback;
-    return weight;
+    if (!Number.isFinite(weight)) return fallback;
+    return Math.max(0, weight);
 }
 
 function normalizeConnections(connections: readonly StarConnection[]): NormalizedConnection[] {

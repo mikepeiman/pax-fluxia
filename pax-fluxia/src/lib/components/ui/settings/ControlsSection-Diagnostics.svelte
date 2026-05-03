@@ -1,6 +1,8 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
@@ -13,6 +15,8 @@
         getRulerMeasurement,
         rulerTool,
     } from "$lib/territory/devtools/rulerTool";
+    import TerritoryEngineTraceDiagnostics from "./TerritoryEngineTraceDiagnostics.svelte";
+    import SettingsDumpDiagnosticsControls from "./SettingsDumpDiagnosticsControls.svelte";
     import {
         transitionSnapshotRecorder,
         transitionSnapshotRecorderStore,
@@ -28,10 +32,11 @@
 
     interface Props {
         panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
 
-    let { panel, syncFromConfig }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
 
     const hasAuthoredMeasurements = $derived(
         activeGameStore.mapDiagnostics.measurements.length > 0,
@@ -52,7 +57,19 @@
     );
     const showMetaballGridDiagnostics = $derived(
         liveRenderMode === "metaball_grid" ||
-            liveRenderMode === "metaball_grid_phase_edges",
+            liveRenderMode === "metaball_grid_phase_edges" ||
+            liveRenderMode === "metaball_grid_phase_field",
+    );
+    const showTerritoryEngineTraceDiagnostics = $derived(
+        liveRenderMode === "territory_engine"
+        || activeRenderMode === "territory_engine",
+    );
+    const showUnderlyingGeometrySupported = $derived(
+        liveRenderMode === "perimeter_field" ||
+            liveRenderMode === "metaball" ||
+            liveRenderMode === "metaball_grid" ||
+            liveRenderMode === "metaball_grid_phase_edges" ||
+            liveRenderMode === "metaball_grid_phase_field",
     );
     const bundleList = $derived(
         [...$transitionSnapshotRecorderStore.bundles].reverse(),
@@ -89,6 +106,13 @@
     function togglePolylineSamples(): void {
         overlayConfig.showPolylineSamples = !overlayConfig.showPolylineSamples;
         syncOverlayState();
+    }
+
+    function toggleUnderlyingGeometry(event: Event): void {
+        const value = (event.currentTarget as HTMLInputElement).checked;
+        GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY = value;
+        updatePanel("perimeterFieldDebugShowGeometry", value);
+        bumpTerritoryVisualConfig();
     }
 
     function toggleAuthoredMeasurements(): void {
@@ -261,10 +285,70 @@
     function formatPhaseEdgesSemanticsNote(): string {
         return "Phase Edges now runs as its own session-overlay renderer inside the metaball family. Idle frames can still look close to base Metaball Grid when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures and wave timing instead of collapsing into one retained frontier.";
     }
+
+    function formatPhaseFieldSemanticsNote(): string {
+        return "Phase Field runs as its own metaball-grid family variant. It keeps the shared deterministic cell classifier and frontier timing, but replaces metaball presentation with conquest-local PRE/POST territory compositing plus a highlighted frontier pass.";
+    }
+
 </script>
 
 <section data-subsection-id="overlays">
     <h4 class="sub-heading">Overlays</h4>
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={panel.showHexGrid}
+            onchange={(event) => {
+                const value = (event.currentTarget as HTMLInputElement).checked;
+                GAME_CONFIG.SHOW_HEX_GRID = value;
+                updatePanel("showHexGrid", value);
+            }}
+        />
+        <span class="var-name">🔷 Show Hex Grid</span>
+    </label>
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={typeof localStorage !== "undefined" &&
+                localStorage.getItem("pax-show-star-info") === "true"}
+            onchange={(event) => {
+                const value = (event.currentTarget as HTMLInputElement).checked;
+                localStorage.setItem("pax-show-star-info", value ? "true" : "false");
+                window.dispatchEvent(
+                    new CustomEvent("pax-star-info-toggle", {
+                        detail: value,
+                    }),
+                );
+            }}
+        />
+        <span
+            class="var-name"
+            data-setting-config-key="local.ui.starInspectorVisible"
+            data-setting-description="Local-only toggle persisted in localStorage as pax-show-star-info."
+        >
+            🔍 Star Inspector
+        </span>
+        <span class="debug-hint">click star to inspect</span>
+    </label>
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={mapTranspose.active}
+            onchange={(event) => {
+                const value = (event.currentTarget as HTMLInputElement).checked;
+                mapTranspose.active = value;
+                window.dispatchEvent(new Event("resize"));
+            }}
+        />
+        <span
+            class="var-name"
+            data-setting-config-key="local.mapTranspose.active"
+            data-setting-description="Local-only transpose flag that swaps display axes without mutating star data."
+        >
+            🔄 Rotate Map (Transpose)
+        </span>
+        <span class="debug-hint">Flip X↔Y axes</span>
+    </label>
     <label class="toggle-row">
         <input type="checkbox" checked={overlayEnabled} onchange={toggleOverlay} />
         <span class="var-name">{overlayEnabled ? "Overlay ON" : "Overlay OFF"}</span>
@@ -491,8 +575,27 @@
     </div>
 </section>
 
+<SettingsDumpDiagnosticsControls />
+
 <section data-subsection-id="mode-diagnostics">
     <h4 class="sub-heading">Mode Diagnostics</h4>
+    <label
+        class="toggle-row"
+        class:is-disabled={!showUnderlyingGeometrySupported}
+    >
+        <input
+            type="checkbox"
+            checked={panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false}
+            disabled={!showUnderlyingGeometrySupported}
+            onchange={toggleUnderlyingGeometry}
+        />
+        <span class="var-name">Show Underlying Geometry</span>
+        <span class="debug-hint">
+            {showUnderlyingGeometrySupported
+                ? "Draw active territory geometry truth"
+                : "Unavailable for this mode"}
+        </span>
+    </label>
     <div class="status-grid">
         <div><span>Mode</span><code>{getTerritoryRenderModeLabel($territoryRenderStatus.territoryMode)}</code></div>
         <div><span>Geometry</span><span>{$territoryRenderStatus.geometryReady === null ? "pending" : $territoryRenderStatus.geometryReady ? "ready" : "missing"}</span></div>
@@ -507,10 +610,50 @@
                       : "idle"}
             </span>
         </div>
+        <div>
+            <span>Requested MSR</span>
+            <span>
+                {$territoryRenderStatus.msrRequestedMarginPx === null
+                    ? "n/a"
+                    : `${$territoryRenderStatus.msrRequestedMarginPx}px`}
+            </span>
+        </div>
+        <div>
+            <span>Star Bias</span>
+            <span>
+                {$territoryRenderStatus.msrStarBias === null
+                    ? "n/a"
+                    : $territoryRenderStatus.msrStarBias.toFixed(2)}
+            </span>
+        </div>
+        <div>
+            <span>Stars Affecting Frontier</span>
+            <span>{$territoryRenderStatus.msrAnchorCount}</span>
+        </div>
+        <div>
+            <span>Intervals Needing Clearance</span>
+            <span>
+                {$territoryRenderStatus.msrViolatedIntervalCount}/{$territoryRenderStatus.msrIntervalCount}
+                active
+            </span>
+        </div>
+        <div>
+            <span>Local Repairs</span>
+            <span>
+                {$territoryRenderStatus.msrAcceptedRepairCount} accepted /
+                {$territoryRenderStatus.msrRejectedRepairCount} rejected
+            </span>
+        </div>
         {#if $territoryRenderStatus.lastRenderFailure}
             <div class="status-grid__failure">
                 <span>Failure</span>
                 <span>{$territoryRenderStatus.lastRenderFailure}</span>
+            </div>
+        {/if}
+        {#if $territoryRenderStatus.msrLastInvariantFailure}
+            <div class="status-grid__failure">
+                <span>Last Rejection Reason</span>
+                <span>{$territoryRenderStatus.msrLastInvariantFailure}</span>
             </div>
         {/if}
         {#if activeRenderMode !== liveRenderMode}
@@ -520,6 +663,9 @@
             </div>
         {/if}
     </div>
+    {#if showTerritoryEngineTraceDiagnostics}
+        <TerritoryEngineTraceDiagnostics {panel} {updatePanel} />
+    {/if}
     {#if showMetaballGridDiagnostics}
         <div class="status-grid">
             <div><span>Family</span><code>{$metaballGridStats.familyLabel}</code></div>
@@ -543,8 +689,14 @@
         {#if liveRenderMode === "metaball_grid_phase_edges"}
             <div class="readout">
                 {formatPhaseEdgesSemanticsNote()}
-                Expected locked defaults: <code>pre_to_post_frontier</code>,
-                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30.
+                Default visual starting point: <code>pre_to_post_frontier</code>,
+                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
+            </div>
+        {/if}
+        {#if liveRenderMode === "metaball_grid_phase_field"}
+            <div class="readout">
+                {formatPhaseFieldSemanticsNote()}
+                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
     {/if}

@@ -155,7 +155,11 @@ function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
  * `contributingSiteIds`.
  */
 function isVirtualSiteId(id: string): boolean {
-    return id.startsWith('corridor_') || id.startsWith('disconnect_');
+    return (
+        id.startsWith('corridor_') ||
+        id.startsWith('disconnect_') ||
+        id.startsWith('msr_support_')
+    );
 }
 
 /**
@@ -307,6 +311,7 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
             topologyReliable: topologyResult.topologyReliable,
             identityReliable: true,
             closureReliable: topologyResult.topologyReliable,
+            minStarMargin: params.geometry.minStarMarginDiagnostics,
             notes: [
                 'Perimeter-field base geometry synthesized from Power-Voronoi render-layer geometry',
                 ...topologyResult.notes,

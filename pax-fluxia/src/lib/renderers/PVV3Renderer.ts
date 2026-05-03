@@ -29,6 +29,16 @@ import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
 import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
+import {
+    buildTerritoryGeometryCacheKeyParts,
+    readNormalizedTerritoryGeometryTunables,
+    type TerritoryGeometryTunables,
+} from '$lib/territory/geometry/geometryTuning';
+import {
+    buildRealSiteWeight,
+    buildVirtualSiteWeight,
+} from '$lib/territory/compiler/powerVoronoiWeights';
+import { resolvePerStarMinStarMarginPx } from '$lib/territory/geometry/minStarMargin';
 
 // ── Re-exported geometry modules ──────────────────────────────────────────
 import type {
@@ -113,21 +123,23 @@ let changedSiteIds: Set<string> | null = null; // stars that changed owner in th
 // Diagnostic logging - enable in browser console: window.__PVV3_DIAG = true
 const isPVV3Diag = () => typeof globalThis !== 'undefined' && (globalThis as any).__PVV3_DIAG;
 
+function readNormalizedGeometryTunables(): TerritoryGeometryTunables {
+    return readNormalizedTerritoryGeometryTunables(
+        GAME_CONFIG as unknown as Record<string, unknown>,
+    );
+}
+
 
 
 // ── Fingerprint ────────────────────────────────────────────────────────────
 
 function buildShapeFingerprint(stars: StarState[]): string {
+    const tunables = readNormalizedGeometryTunables();
     let fp = 'shape:';
     for (const s of stars) {
         fp += `${s.id}:${s.ownerId ?? ''}|`;
     }
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
-    fp += `:${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}`;
-    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}`;
+    fp += `:${buildTerritoryGeometryCacheKeyParts(tunables).join(':')}`;
     return fp;
 }
 
@@ -216,29 +228,52 @@ export function renderPVV3(
     const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const tunables = readNormalizedGeometryTunables();
+    const starMargin = tunables.starMargin;
 
     // ── Stage 0: Build site array ──────────────────────────────────────────
     const ownedStars = stars.filter(s => s.ownerId);
     if (ownedStars.length < 2) return;
 
+    const localStarMargins = resolvePerStarMinStarMarginPx({
+        stars: ownedStars,
+        requestedMarginPx: starMargin,
+        worldWidth,
+        worldHeight,
+    });
     const sites: PowerSite[] = ownedStars.map(s => ({
         x: s.x,
         y: s.y,
-        weight: starMargin * starMargin,    // power diagram weight
+        weight: buildRealSiteWeight(
+            localStarMargins.get(s.id) ?? starMargin,
+            tunables.msrStarBias,
+        ),
         ownerId: s.ownerId!,
         starId: s.id,
     }));
 
     // Corridor virtual sites (shared module)
-    if (GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED && connections) {
-        const spacing = GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60;
-        const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, spacing, 0.5);
+    if (tunables.corridorEnabled && connections) {
+        const spacing = tunables.corridorSpacing;
+        const corridorVirtuals = computeCorridorVirtuals(
+            ownedStars,
+            connections,
+            spacing,
+            tunables.corridorWeight,
+            tunables.corridorCount || undefined,
+            undefined,
+            tunables.cxContestMidpointVstars,
+            true,
+            true,
+            tunables.cxContestPairWeight,
+            tunables.cxContestPairCount,
+            tunables.cxContestPairSpacing,
+        );
         for (const cv of corridorVirtuals) {
             sites.push({
                 x: cv.x,
                 y: cv.y,
-                weight: starMargin * starMargin * cv.weight,
+                weight: buildVirtualSiteWeight(cv.weight),
                 ownerId: cv.ownerId,
                 starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                 virtual: 'corridor',
@@ -247,14 +282,20 @@ export function renderPVV3(
     }
 
     // Disconnect virtual enemy sites (shared module)
-    if (GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED && connections) {
-        const maxDist = GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400;
-        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, maxDist, 0.3);
+    if (tunables.disconnectEnabled && connections) {
+        const maxDist = tunables.disconnectDistance;
+        const disconnectVirtuals = computeDisconnectVirtuals(
+            ownedStars,
+            stars,
+            connections,
+            maxDist,
+            tunables.disconnectWeight,
+        );
         for (const dv of disconnectVirtuals) {
             sites.push({
                 x: dv.x,
                 y: dv.y,
-                weight: starMargin * starMargin * dv.weight,
+                weight: buildVirtualSiteWeight(dv.weight),
                 ownerId: DISCONNECT_OWNER_ID,
                 starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                 virtual: 'disconnect',
@@ -370,9 +411,14 @@ export function renderPVV3(
         }
         // Virtual corridor sites inherit source star cluster
         for (const site of sites) {
-            if (site.virtual === 'corridor') {
-                const sourceId = site.starId.split('_')[1]; // corridor_{sourceId}_{targetId}_{step}
-                const srcCluster = clusterMap.get(sourceId);
+            if (site.virtual === 'corridor' || site.virtual === 'msr_support') {
+                const sourceId =
+                    site.sourceStarId ??
+                    (site.virtual === 'corridor'
+                        ? site.starId.split('_')[1]
+                        : undefined);
+                const srcCluster =
+                    sourceId !== undefined ? clusterMap.get(sourceId) : undefined;
                 if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
             }
         }

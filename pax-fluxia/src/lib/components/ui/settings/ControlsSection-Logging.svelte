@@ -1,23 +1,14 @@
 <script lang="ts">
-    import { GAME_CONFIG } from "$lib/config/game.config";
     import { logFlags } from "$lib/utils/logger";
-    import { exportConfigJSON as exportConfigJSONBase } from "../panelSync";
 
     // ControlsSection-LOGGING -- Logging controls (extracted from GameSettingsPanel.svelte)
 
     interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
         logCategories: readonly any[] | any[];
         logRefresh: number;
-        exportConfigMD: () => void;
-        importConfigJSON: (e: Event) => void;
-        configStatus: string;
-        configStatusColor: string;
         syncFromConfig?: () => void;
     }
-    let { panel, updatePanel, logCategories, logRefresh,
-          exportConfigMD, importConfigJSON, configStatus, configStatusColor, syncFromConfig }: Props = $props();
+    let { logCategories, logRefresh, syncFromConfig }: Props = $props();
     import CategoryThemeBar from './CategoryThemeBar.svelte';
 </script>
 
@@ -68,47 +59,6 @@
         </label>
     {/key}
 {/each}
-
-<!-- ── Config Import/Export ── -->
-<h4 class="sub-heading" style="margin-top: 10px;">
-    ⚙️ Config
-</h4>
-<div class="log-actions" style="flex-wrap: wrap;">
-    <button
-        class="btn-xs btn-export"
-        onclick={() => { exportConfigJSONBase(); }}
-        >📥 Export JSON</button
-    >
-    <button
-        class="btn-xs btn-export"
-        onclick={() => exportConfigMD()}
-        >📄 Export MD</button
-    >
-    <button
-        class="btn-xs btn-import"
-        onclick={() => {
-            const inp = document.getElementById(
-                "config-import-input",
-            ) as HTMLInputElement;
-            if (inp) inp.click();
-        }}>📤 Import JSON</button
-    >
-</div>
-<input
-    id="config-import-input"
-    type="file"
-    accept=".json"
-    style="display:none;"
-    onchange={(e) => importConfigJSON(e)}
-/>
-{#if configStatus}
-    <div
-        class="config-status"
-        style="color:{configStatusColor};font-size:9px;padding:2px 4px;margin-top:2px;"
-    >
-        {configStatus}
-    </div>
-{/if}
 
 <style>
     @import './panel-shared.css';

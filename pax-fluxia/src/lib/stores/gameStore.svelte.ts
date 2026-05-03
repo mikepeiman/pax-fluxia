@@ -2150,7 +2150,7 @@ function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: b
     };
     measurePerf('game.order.issue.engine', () => {
         SharedEngine.processInput(state!, input, {
-            ALLOW_OPPOSING_ORDERS: GAME_CONFIG.ALLOW_OPPOSING_ORDERS,
+            ALLOW_OPPOSING_ORDERS: false,
         });
     }, {
         sourceId,
@@ -2387,11 +2387,11 @@ function updateConfig(): void {
 }
 
 function toggleRetainOrderOnConquest(): void {
-    GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = !GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST;
+    GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = true;
 }
 
 function toggleAllowOpposingOrders(): void {
-    GAME_CONFIG.ALLOW_OPPOSING_ORDERS = !GAME_CONFIG.ALLOW_OPPOSING_ORDERS;
+    GAME_CONFIG.ALLOW_OPPOSING_ORDERS = false;
 }
 
 function debugSetStarShips(starId: string, count: number): void {
@@ -2433,8 +2433,8 @@ export const gameStore = {
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
-    get retainOrderOnConquest() { return GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST; },
-    get allowOpposingOrders() { return GAME_CONFIG.ALLOW_OPPOSING_ORDERS; },
+    get retainOrderOnConquest() { return true; },
+    get allowOpposingOrders() { return false; },
 
     // Actions
     setView,

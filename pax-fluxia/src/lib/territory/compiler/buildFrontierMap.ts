@@ -20,7 +20,7 @@ import type {
     CanonicalLoopValidity,
     TerritoryFrontierMap,
 } from './canonicalTypes';
-import { log } from '$lib/utils/logger';
+import { log } from '../../utils/logger';
 
 // ---------------------------------------------------------------------------
 // Helpers

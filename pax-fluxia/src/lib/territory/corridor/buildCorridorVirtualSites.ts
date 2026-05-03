@@ -85,8 +85,8 @@ function normalizeConnections(connections: StarConnection[]): NormalizedConn[] {
 }
 
 function clampWeight(weight: number, fallback: number): number {
-    if (!Number.isFinite(weight) || weight <= 0) return fallback;
-    return weight;
+    if (!Number.isFinite(weight)) return fallback;
+    return Math.max(0, weight);
 }
 
 function pointAlongConnection(
@@ -122,6 +122,7 @@ export function buildCorridorVirtualSites(
     crossOwnerMidpointPairWeight = weightMultiplier,
     crossOwnerMidpointPairCount = 1,
     crossOwnerMidpointPairSpacing = 45,
+    endpointExclusionPx = 0,
 ): BuiltCorridorVirtualSite[] {
     if (ownedStars.length === 0 || connections.length === 0) return [];
 
@@ -146,6 +147,10 @@ export function buildCorridorVirtualSites(
         crossOwnerMidpointPairSpacing > 0
             ? crossOwnerMidpointPairSpacing
             : 45;
+    const endpointExclusion =
+        Number.isFinite(endpointExclusionPx) && endpointExclusionPx > 0
+            ? endpointExclusionPx
+            : 0;
 
     const sites: BuiltCorridorVirtualSite[] = [];
 
@@ -165,6 +170,8 @@ export function buildCorridorVirtualSites(
 
         const pathLen = usePoly ? polylineArcLength(poly) : chordDist;
         if (pathLen <= EPSILON) continue;
+        const interiorStart = Math.min(endpointExclusion, pathLen * 0.5);
+        const interiorEnd = Math.max(interiorStart, pathLen - endpointExclusion);
 
         const nSites =
             countMode != null
@@ -190,13 +197,16 @@ export function buildCorridorVirtualSites(
                 const laneShift =
                     (pairIndex - centeredOffsetCount) * midpointPairSpacingPx;
                 const leftDistance = Math.max(
-                    pathLen * 0.1,
-                    Math.min(pathLen * 0.9, midpointDistance - midpointOffset + laneShift),
+                    interiorStart,
+                    Math.min(interiorEnd, midpointDistance - midpointOffset + laneShift),
                 );
                 const rightDistance = Math.max(
-                    pathLen * 0.1,
-                    Math.min(pathLen * 0.9, midpointDistance + midpointOffset + laneShift),
+                    interiorStart,
+                    Math.min(interiorEnd, midpointDistance + midpointOffset + laneShift),
                 );
+                if (rightDistance - leftDistance <= EPSILON) {
+                    continue;
+                }
                 const leftPoint = pointAlongConnection(
                     leftDistance / pathLen,
                     usePoly,
@@ -246,11 +256,17 @@ export function buildCorridorVirtualSites(
             const t = i / (nSites + 1);
             if (!sameOwner && !includeCrossOwnerDistributedSamples) continue;
             if (!sameOwner && Math.abs(t - 0.5) < 0.16) continue;
+            const along = t * pathLen;
+            if (
+                along <= interiorStart + EPSILON ||
+                along >= interiorEnd - EPSILON
+            ) {
+                continue;
+            }
             let x: number;
             let y: number;
             let crossT: number;
             if (usePoly) {
-                const along = t * pathLen;
                 const p = pointOnPolylineAtArcLength(poly, along);
                 x = p.x;
                 y = p.y;

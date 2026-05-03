@@ -30,33 +30,51 @@ export const GEOMETRY_MODE_CATALOG: Readonly<Record<GeometryModeId, ModeDescript
         summary:
             'Consolidated vector geometry mode using the canonical compiler with world borders, shell classification, and frontier topology.',
     },
+    canonical_power_voronoi: {
+        id: 'canonical_power_voronoi',
+        name: 'Power Voronoi 0427 Geometry',
+        summary:
+            'Exact Power Voronoi geometry path compiled from paired ownership snapshots for PVV4 transitions.',
+    },
 };
 
 export const FILL_TRANSITION_MODE_CATALOG: Readonly<
     Record<FillTransitionModeId, ModeDescriptor>
 > = {
-    legacy_fill_active_front: {
-        id: 'legacy_fill_active_front',
-        name: 'Legacy Active-Front Fill Only',
+    frontier_morph: {
+        id: 'frontier_morph',
+        name: 'Frontier Topology Morph Fill',
         summary:
-            'Legacy fill-only fallback that interpolates changed frontier spans, but does not provide unified border output.',
+            'Morphs fill geometry along frontier topology progression during ownership changes.',
     },
-    topology_fill_rebuild: {
-        id: 'topology_fill_rebuild',
-        name: 'Topology Fill Rebuild',
+    active_front: {
+        id: 'active_front',
+        name: 'Active Front Interpolation',
         summary:
-            'Routes through topology snapshots plus active-front planning, then rebuilds fills from the sampled topology transition without border transition output.',
+            'Gap-free transitions by interpolating only changed frontier spans in the shared frontier graph, then rebuilding region loops from frozen + interpolated sections.',
     },
-    legacy_fill_crossfade: {
-        id: 'legacy_fill_crossfade',
-        name: 'Legacy Alpha Crossfade Fill Only',
+    unified_topology: {
+        id: 'unified_topology',
+        name: 'Unified Topology',
         summary:
-            'Legacy fill-only alpha crossfade fallback with no unified border output.',
+            'Fills and borders derived from the same interpolated frontier sections. Eliminates fill/border divergence by construction.',
+    },
+    pv_frontline: {
+        id: 'pv_frontline',
+        name: 'PVV4 Frontline',
+        summary:
+            'Conquest-local Power Voronoi frontier transition with paired PRE and POST geometry truth and exact endpoint reconstruction.',
+    },
+    crossfade: {
+        id: 'crossfade',
+        name: 'Alpha Crossfade Fill',
+        summary:
+            'Blends from previous to next fill geometry with alpha-weighted interpolation.',
     },
     off: {
         id: 'off',
-        name: 'Snap To Target Fill',
-        summary: 'Disables fill interpolation and snaps directly to the target fill geometry each frame.',
+        name: 'Fill Transition Disabled',
+        summary: 'Disables fill interpolation and snaps to target geometry each frame.',
     },
 };
 

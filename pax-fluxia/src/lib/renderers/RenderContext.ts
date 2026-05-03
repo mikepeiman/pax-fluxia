@@ -10,10 +10,10 @@ import * as PIXI from 'pixi.js';
 
 // ── Container Hierarchy ─────────────────────────────────────────────────────
 // Mirrors the z-order in GameCanvas.svelte onMount:
-//   stage → links → stars → glow → ships(particles+orb) → connections → labels → drag
+//   stage → lanes → stars → glow → ships(particles+orb) → arrows → labels → drag
 
 export interface RenderContainers {
-    /** Order arrow graphics (below stars) */
+    /** Order arrow graphics (above lanes and ship systems) */
     linkGraphics: PIXI.Graphics;
     /** Star circle container */
     starsContainer: PIXI.Container;
@@ -27,7 +27,7 @@ export interface RenderContainers {
     orbGraphics: PIXI.Graphics;
     /** Selection highlight overlay (above ships) */
     selectionOverlayGraphics: PIXI.Graphics;
-    /** Lane connection graphics (above ships) */
+    /** Lane connection graphics (beneath stars and ships) */
     connectionGraphics: PIXI.Graphics;
     /** Star labels (ship counts, star IDs) */
     labelsContainer: PIXI.Container;

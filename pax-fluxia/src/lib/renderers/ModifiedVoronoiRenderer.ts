@@ -58,6 +58,11 @@ function buildFingerprint(stars: StarState[]): string {
     fp += `:${GAME_CONFIG.VORONOI_GRADIENT_BLEND}:${GAME_CONFIG.VORONOI_BLEND_WIDTH}`;
     // F-138 specific config keys
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}`;
+    fp += `:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ? 1 : 0}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT}:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT}`;
+    fp += `:${GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ?? 75}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_ARC_STRENGTH}:${GAME_CONFIG.MODIFIED_VORONOI_ARC_THRESHOLD}`;
     fp += `:${GAME_CONFIG.MODIFIED_VORONOI_ARC_MIN_SEGMENT}:${GAME_CONFIG.MODIFIED_VORONOI_ARC_MAX_SEGMENTS}`;
     return fp;
@@ -829,6 +834,11 @@ export function renderModifiedVoronoi(
             contestMidpointEnabled,
             corridorEnabled,
             corridorEnabled,
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? cxWeight,
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+            GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
+                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
+                45,
         );
         let virtualIdx = 0;
         for (const site of corridorSites) {

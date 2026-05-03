@@ -11,7 +11,7 @@ describe('themeRouting', () => {
         expect(resolveThemeRenderMode({ SHIP_BASE_SIZE: 3 })).toBeNull();
     });
 
-    it('mirrors the runtime legacy fallback order', () => {
+    it('mirrors the runtime compatibility inference order', () => {
         expect(
             resolveThemeRenderMode({
                 TERRITORY_GRAPH: true,
@@ -20,7 +20,7 @@ describe('themeRouting', () => {
         ).toBe('metaball');
     });
 
-    it('normalizes legacy themes to an explicit TERRITORY_RENDER_MODE', () => {
+    it('normalizes older boolean themes to an explicit TERRITORY_RENDER_MODE', () => {
         expect(
             normalizeThemeValues({
                 TERRITORY_GRAPH: true,
@@ -54,14 +54,14 @@ describe('themeRouting', () => {
         expect(audit.familyId).toBe('agnostic');
     });
 
-    it('marks legacy boolean themes as legacy-fallback and documents normalization', () => {
+    it('marks older boolean themes as compat-inferred and documents normalization', () => {
         const audit = auditThemeRouting({
             TERRITORY_GRAPH: true,
             SHIP_BASE_SIZE: 3,
         });
 
         expect(audit.renderMode).toBe('graph');
-        expect(audit.status).toBe('legacy-fallback');
+        expect(audit.status).toBe('compat-inferred');
         expect(audit.familyId).toBe('graph');
         expect(audit.notes.join(' ')).toContain('without normalization');
     });

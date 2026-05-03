@@ -1,6 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
-    import PerimeterFieldTuning from '$lib/components/ui/settings/PerimeterFieldTuning.svelte';
+    import PerimeterFieldDiagnosticsControls from '$lib/components/ui/settings/PerimeterFieldDiagnosticsControls.svelte';
     import { setSetting } from '$lib/components/ui/settingsState';
     import {
         panelDefaultsFromConfig,
@@ -40,7 +40,7 @@
         </button>
     </div>
 
-    <PerimeterFieldTuning {panel} {updatePanel} />
+    <PerimeterFieldDiagnosticsControls {panel} {updatePanel} />
 </div>
 
 <style>

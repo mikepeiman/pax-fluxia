@@ -340,6 +340,15 @@ export function hydrateConfigFromPersistedUiSettings(): {
         GAME_CONFIG.TERRITORY_TRANSITION_MS = panel.territoryTransitionMs;
     }
 
+    if (panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true) {
+        GAME_CONFIG.SURGE_PULSE_DURATION_MS = tickInterval;
+    } else if (
+        typeof panel.surgePulseDurationMs === 'number'
+        && Number.isFinite(panel.surgePulseDurationMs)
+    ) {
+        GAME_CONFIG.SURGE_PULSE_DURATION_MS = panel.surgePulseDurationMs;
+    }
+
     const visuals = loadVisuals();
     applyVisuals(visuals);
 

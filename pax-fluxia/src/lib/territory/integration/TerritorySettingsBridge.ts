@@ -3,7 +3,7 @@ import {
     type TerritoryModeSelection,
 } from '../contracts/TerritoryModeSelection';
 import type { TerritoryTunables } from '../contracts/TerritoryFrameInput';
-import { readTerritoryGeometryTunables } from '../geometry/geometryTuning';
+import { readNormalizedTerritoryGeometryTunables } from '../geometry/geometryTuning';
 
 export interface TerritoryRuntimeSettingsSnapshot {
     selection: TerritoryModeSelection;
@@ -19,7 +19,9 @@ function asString(value: unknown, fallback: string): string {
 }
 
 function resolveGeometryMode(_rawValue: unknown): TerritoryModeSelection['geometryMode'] {
-    // All geometry modes are now unified. Any legacy string is silently normalized.
+    const raw = asString(_rawValue, DEFAULT_TERRITORY_MODE_SELECTION.geometryMode);
+    if (raw === 'canonical_power_voronoi') return 'canonical_power_voronoi';
+    // All other geometry modes are normalized onto the maintained unified compiler path.
     return 'unified_vector';
 }
 
@@ -29,19 +31,11 @@ function resolveFillTransitionMode(config: Record<string, unknown>): TerritoryMo
         DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode,
     );
     if (raw === 'none' || raw === 'off') return 'off';
-    if (raw === 'legacy_fill_active_front' || raw === 'active_front') {
-        return 'legacy_fill_active_front';
-    }
-    if (raw === 'topology_fill_rebuild' || raw === 'unified_topology') {
-        return 'topology_fill_rebuild';
-    }
-    if (raw === 'legacy_fill_crossfade' || raw === 'crossfade') {
-        return 'legacy_fill_crossfade';
-    }
-    // Broken legacy frontier morph configs migrate to the topology-driven path.
-    if (raw === 'frontier' || raw === 'frontier_morph') {
-        return 'topology_fill_rebuild';
-    }
+    if (raw === 'active_front') return 'active_front';
+    if (raw === 'unified_topology') return 'unified_topology';
+    if (raw === 'pv_frontline') return 'pv_frontline';
+    if (raw === 'crossfade') return 'crossfade';
+    if (raw === 'frontier' || raw === 'frontier_morph') return 'active_front';
     return DEFAULT_TERRITORY_MODE_SELECTION.fillTransitionMode;
 }
 
@@ -72,7 +66,7 @@ function resolveStyleMode(config: Record<string, unknown>): TerritoryModeSelecti
 export function readTerritoryRuntimeSettings(
     config: Record<string, unknown>,
 ): TerritoryRuntimeSettingsSnapshot {
-    const geometryTunables = readTerritoryGeometryTunables(config);
+    const geometryTunables = readNormalizedTerritoryGeometryTunables(config);
     return {
         selection: {
             ownershipMode: DEFAULT_TERRITORY_MODE_SELECTION.ownershipMode,

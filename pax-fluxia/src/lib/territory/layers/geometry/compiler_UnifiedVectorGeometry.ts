@@ -48,8 +48,8 @@ import {
     summarizeConnections,
     summarizeOwnership,
     summarizeStars,
-} from '$lib/perf/pipelineTelemetry';
-import { log } from '$lib/utils/logger';
+} from '../../../perf/pipelineTelemetry';
+import { log } from '../../../utils/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +57,12 @@ interface CompileResult {
     snapshot: CanonicalGeometrySnapshot;
     /** Raw compiler output for debugging — NOT part of the contract. */
     _rawGeometry?: TerritoryGeometryData;
+}
+
+interface CompileVectorGeometryOptions {
+    sourceMode?: GeometryLayerInput['ownership'] extends never
+        ? never
+        : CanonicalGeometrySnapshot['sourceMode'];
 }
 
 function serializeTunables(
@@ -99,7 +105,10 @@ function serializeSharedFrontierMap(
  * Error fallback: returns an empty typed snapshot with
  * diagnostics.topologyReliable = false. NO legacyGeometryBridge.
  */
-export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeometrySnapshot {
+export function compileVectorGeometry(
+    input: GeometryLayerInput,
+    options: CompileVectorGeometryOptions = {},
+): CanonicalGeometrySnapshot {
     log.renderer('Compiler', `compileVectorGeometry() — ownership v${input.ownership.version}, ${input.stars.length} stars`);
     logPipelineStage({
         channel: 'renderer',
@@ -136,8 +145,9 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
     });
 
     const settings = buildGeneratorSettings(input.world, input.tunables);
+    const sourceMode = options.sourceMode ?? 'unified_vector';
     const version = buildGeometryVersion(
-        'unified_vector',
+        sourceMode,
         input.stars,
         settings,
         input.ownership.version,
@@ -152,7 +162,7 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
 
     if (isCompileError(result)) {
         log.renderer('Compiler', `computeGeometry0319 returned error — producing empty snapshot`);
-        return buildEmptySnapshot(version, input);
+        return buildEmptySnapshot(version, input, sourceMode);
     }
 
     const geometry = result as TerritoryGeometryData;
@@ -284,7 +294,7 @@ export function compileVectorGeometry(input: GeometryLayerInput): CanonicalGeome
     const snapshot: CanonicalGeometrySnapshot = {
         // Identity
         version,
-        sourceMode: 'unified_vector',
+        sourceMode,
         sourceStyle: input.styleMode,
         ownershipVersion: input.ownership.version,
 
@@ -610,10 +620,11 @@ function buildDiagnostics(
 function buildEmptySnapshot(
     version: string,
     input: GeometryLayerInput,
+    sourceMode: CanonicalGeometrySnapshot['sourceMode'],
 ): CanonicalGeometrySnapshot {
     return {
         version,
-        sourceMode: 'unified_vector',
+        sourceMode,
         sourceStyle: input.styleMode,
         ownershipVersion: input.ownership.version,
         geometryFamily: 'vector-native',

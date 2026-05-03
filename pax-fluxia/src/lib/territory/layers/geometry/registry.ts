@@ -1,4 +1,5 @@
 import type { GeometryMode } from './GeometryMode';
+import { CanonicalPowerVoronoiGeometryMode } from './modes/CanonicalPowerVoronoiGeometryMode';
 import { UnifiedVectorGeometryMode } from './modes/UnifiedVectorGeometryMode';
 
 /**
@@ -8,6 +9,7 @@ import { UnifiedVectorGeometryMode } from './modes/UnifiedVectorGeometryMode';
  */
 export const GEOMETRY_MODES: readonly GeometryMode[] = [
     new UnifiedVectorGeometryMode(),
+    new CanonicalPowerVoronoiGeometryMode(),
 ];
 
 export const GEOMETRY_MODE_BY_ID: ReadonlyMap<GeometryMode['id'], GeometryMode> =

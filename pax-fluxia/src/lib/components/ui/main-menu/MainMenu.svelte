@@ -79,8 +79,6 @@
     let maxLinks = $state(loadSetting("maxLinks", 6));
     let starSpacing = $state(loadSetting("starSpacing", 1.0));
     let mapBoardFit = $state(loadSetting("mapBoardFit", 0.55));
-    let retainOrderOnConquest = $state(loadSetting("retainOrderOnConquest", true));
-    let allowOpposingOrders = $state(loadSetting("allowOpposingOrders", false));
     let neutralStarCount = $state(loadSetting("neutralStarCount", 0));
     let neutralShipsPerStar = $state(loadSetting("neutralShipsPerStar", 10));
     let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
@@ -652,8 +650,6 @@
         saveSetting("maxLinks", maxLinks);
         saveSetting("starSpacing", starSpacing);
         saveSetting("mapBoardFit", mapBoardFit);
-        saveSetting("retainOrderOnConquest", retainOrderOnConquest);
-        saveSetting("allowOpposingOrders", allowOpposingOrders);
         saveSetting("neutralStarCount", neutralStarCount);
         saveSetting("neutralShipsPerStar", neutralShipsPerStar);
         saveSetting("specialStarPercentage", specialStarPercentage);
@@ -704,8 +700,8 @@
         GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
         GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
         GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
-        GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = retainOrderOnConquest;
-        GAME_CONFIG.ALLOW_OPPOSING_ORDERS = allowOpposingOrders;
+        GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = true;
+        GAME_CONFIG.ALLOW_OPPOSING_ORDERS = false;
         GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
         GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
         GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
@@ -807,7 +803,7 @@
             mapBoardFit,
             minLinks,
             maxLinks,
-            retainOrderOnConquest,
+            retainOrderOnConquest: true,
             gameplayConfig,
             playerColors: getConfiguredPlayerColors(playerCount),
         });

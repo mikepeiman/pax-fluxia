@@ -1,9 +1,9 @@
-import type { StarState, StarConnection } from '$lib/types/game.types';
-import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
-import type { DisconnectPairSide } from '$lib/territory/disconnect/buildDisconnectVirtualSites';
-import { buildDisconnectVirtualSites } from '$lib/territory/disconnect/buildDisconnectVirtualSites';
-import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
-import { GAME_CONFIG } from '$lib/config/game.config';
+import type { StarState, StarConnection } from '../types/game.types';
+import { buildCorridorVirtualSites } from '../territory/corridor/buildCorridorVirtualSites';
+import type { DisconnectPairSide } from '../territory/disconnect/buildDisconnectVirtualSites';
+import { buildDisconnectVirtualSites } from '../territory/disconnect/buildDisconnectVirtualSites';
+import { getLanePolyline } from '../lanes/lanePolylineCache';
+import { GAME_CONFIG } from '../config/game.config';
 
 export interface VirtualSite {
     id?: string;
@@ -64,7 +64,9 @@ export function computeCorridorVirtuals(
     includeCrossOwnerDistributedSamples = true,
     crossOwnerMidpointPairWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? weightMultiplier,
     crossOwnerMidpointPairCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-    crossOwnerMidpointPairSpacing = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+    crossOwnerMidpointPairSpacing =
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ?? 75,
+    endpointExclusionPx = GAME_CONFIG.STAR_RENDER_RADIUS ?? 20,
 ): VirtualSite[] {
     const built = buildCorridorVirtualSites(
         ownedStars,
@@ -79,6 +81,7 @@ export function computeCorridorVirtuals(
         crossOwnerMidpointPairWeight,
         crossOwnerMidpointPairCount,
         crossOwnerMidpointPairSpacing,
+        endpointExclusionPx,
     );
     return canonicalizeVirtualSites(built as VirtualSite[]);
 }
