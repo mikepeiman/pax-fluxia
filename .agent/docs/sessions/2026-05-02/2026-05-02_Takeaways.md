@@ -65,3 +65,7 @@
 - Animated frontier FX needs paint invalidation from `nowMs`; otherwise the visuals will silently freeze behind a valid draw-cache signature.
 - The next major task remains the end-transition 1-3 frame pop.
   - do not let the new FX work distract from that handoff audit
+- UI drift can silently remove core controls without deleting them.
+  - In this case `Cell Spacing` and `Grid Density` still existed, but bad applicability gates marked them `.disabled`
+  - because shared panel CSS uses `pointer-events: none` there, they were effectively gone
+  - core lattice controls for Metaball Grid / Phase Edges must never be gated as if they are only control-path knobs

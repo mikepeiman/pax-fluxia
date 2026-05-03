@@ -442,10 +442,7 @@
     Master switch for the metaball-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Metaball grid".
 </div>
 
-<div
-    class="var-row"
-    class:disabled={!isPhaseEdgesMode() || currentFrontierTechnique() !== 'control'}
->
+<div class="var-row">
     <div class="row-top">
         <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
             Cell Spacing
@@ -468,10 +465,7 @@
     />
 </div>
 
-<div
-    class="var-row"
-    class:disabled={!isPhaseEdgesMode() || !isControlFrontierTechnique() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
->
+<div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
             Grid Density

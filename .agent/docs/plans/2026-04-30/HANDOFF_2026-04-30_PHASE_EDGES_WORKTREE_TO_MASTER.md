@@ -1171,3 +1171,20 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 #### Next queued task
 
 - The next major task after this FX slice is still the end-of-transition 1-3 frame pop / jank audit.
+
+### 2026-05-02 - Phase Edges UI audit: missing cell size
+
+- User reported that the basic cell-size control appeared missing after the Frontier FX work landed.
+- Audit result:
+  - the runtime tunable was not missing
+  - `METABALL_GRID_SPACING_PX` and its density alias were still present in `MetaballGridTuning.svelte`
+  - they were incorrectly gated as if they only applied to `Frontier Technique = control`
+- Because shared settings CSS disables pointer events on `.var-row.disabled`, this was a real UI removal, not just dimmed styling.
+- Fixed by removing those bad gates from:
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+- Audit conclusion for merge:
+  - no other unconditional core Phase Edges controls were dropped in the same way in this pass
+  - remaining disabled controls are technique-specific or distribution-specific by design
+- Merge caution:
+  - do not reintroduce applicability gates on lattice-owner controls such as spacing/density
+  - those controls affect all Metaball Grid / Phase Edges frontier techniques, not only the old control/shared-edge path

@@ -89,3 +89,19 @@
   - inspect the final 1-3 transition frames vs the first steady-state frame
   - check continuity first, then timing/clock handoff, then easing
   - only add a terminal hold if the underlying handoff is already continuous
+
+## Addendum - Phase Edges UI audit: missing cell size
+
+- Audited the live `metaball_grid_phase_edges` tuning surface after the `Frontier FX` section landed.
+- Found one real UI regression class:
+  - `Cell Spacing`
+  - `Grid Density`
+- Cause:
+  - both controls still lived in `MetaballGridTuning.svelte`
+  - but they were incorrectly gated as if they only applied to the old `Frontier Technique = control` shared-edge path
+  - in reality they are core lattice controls for the whole Metaball Grid / Phase Edges family
+- Fix:
+  - removed the bad applicability gates so both controls are always available again on the Grid module
+- Audit result:
+  - no other unconditional core Phase Edges controls were dropped in the same way
+  - remaining disabled controls are mode-specific by design, such as jitter-only, triangle-only, shader-only, or shared-edge-only controls
