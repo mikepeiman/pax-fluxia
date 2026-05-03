@@ -391,6 +391,16 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Metaball Grid Enabled': { key: 'METABALL_GRID_ENABLED' },
         'Cell Spacing': { key: 'METABALL_GRID_SPACING_PX' },
+        'Base Resolution': {
+            key: 'METABALL_GRID_SPACING_PX',
+            description:
+                'Phase Field scheduler-grid spacing; the authoritative base resolution size for takeover timing.',
+        },
+        'Transition Spacing': {
+            key: 'METABALL_GRID_SPACING_PX',
+            description:
+                'Phase Field scheduler-grid spacing; the authoritative base resolution size for takeover timing.',
+        },
         'Pattern Spacing': { key: 'METABALL_GRID_PATTERN_SPACING_PX' },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
@@ -402,8 +412,14 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
+        'Singular blended territory border': {
+            key: 'METABALL_GRID_BORDER_BLEND',
+        },
         'Shared Edge Smoothing': {
             key: 'METABALL_GRID_EDGE_SMOOTHING_PASSES',
+        },
+        'Shared Edge Trim': {
+            key: 'METABALL_GRID_EDGE_TRIM_PX',
         },
         'Shared Edge Trim (px)': {
             key: 'METABALL_GRID_EDGE_TRIM_PX',

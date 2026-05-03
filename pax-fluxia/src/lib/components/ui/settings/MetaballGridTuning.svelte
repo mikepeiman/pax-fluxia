@@ -65,13 +65,23 @@
         );
     }
 
+    function currentModeLockNote(): string | null {
+        if (isPhaseEdgesMode()) {
+            return 'Phase Edges is built for edge-forward conquest. Choose how the takeover spreads, then tune the border character.';
+        }
+        if (isPhaseFieldMode()) {
+            return 'Phase Field is built for fill-first conquest. Choose how the takeover spreads, then tune the cell look, border feel, and finish timing.';
+        }
+        return null;
+    }
+
     function currentPlannerSpacingLabel(): string {
-        return isPhaseFieldMode() ? 'Transition Spacing' : 'Cell Spacing';
+        return isPhaseFieldMode() ? 'Base Resolution' : 'Cell Spacing';
     }
 
     function currentPlannerSpacingDescription(): string {
         if (isPhaseFieldMode()) {
-            return 'Spacing of the conquest scheduler grid. Smaller = denser takeover timing and heavier CPU. This does not set the visible fill-pattern size.';
+            return 'Authoritative scheduler-grid spacing for phase field. Smaller = denser takeover timing and heavier CPU. This is the real base resolution size; it does not set the visible fill-pattern size.';
         }
         return 'Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)x(worldHeight/spacing).';
     }
@@ -120,8 +130,15 @@
         );
     }
 
+    function usesGridEdgeShapingControls(): boolean {
+        return (
+            currentBorderMode() === 'territory_edge' &&
+            !usesSingularCenterlineTerritoryBorders()
+        );
+    }
+
     function showGridEdgeShapingControls(): boolean {
-        return currentBorderMode() === 'territory_edge' && !usesSingularCenterlineTerritoryBorders();
+        return !isPhaseEdgesMode() && usesGridEdgeShapingControls();
     }
 
     function usesBorderChaikinControl(): boolean {
@@ -390,6 +407,12 @@
     </div>
 </div>
 
+{#if currentModeLockNote()}
+    <div class="mode-lock-note">
+        {currentModeLockNote()}
+    </div>
+{/if}
+
 <div class="module-nav">
     {#each METABALL_GRID_MODULES as module}
         <button
@@ -449,6 +472,32 @@
         }}
     />
 </div>
+
+{#if isPhaseFieldMode()}
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
+            Pattern Spacing
+        </span>
+        <span class="val">{currentPatternSpacingPx()}px</span>
+    </div>
+    <div class="var-desc">
+        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
+    </div>
+    <input
+        type="range"
+        min="1"
+        max="64"
+        step="1"
+        value={currentPatternSpacingPx()}
+        oninput={(event) => {
+            const raw = parseFloat((event.target as HTMLInputElement).value);
+            const value = snapPatternSpacingPx(raw);
+            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
+        }}
+    />
+</div>
+{/if}
 
 <div class="var-row">
     <div class="row-top">
@@ -761,106 +810,89 @@
 </div>
 {/if}
 
-{#if usesBorderChaikinControl()}
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
-            Border Chaikin Passes
-        </span>
-        <span class="val">{currentBorderChaikinPasses()}</span>
-    </div>
-    <div class="var-desc">
-        Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        disabled={isPhaseEdgesMode()}
-        value={currentBorderChaikinPasses()}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
-        }}
-    />
-</div>
-{/if}
-
-{#if isPhaseFieldMode()}
-{#if usesSharedEdgeSmoothingControl()}
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Visible fill-pattern spacing in pixels. Larger = larger presentation cells. Smaller = denser presentation pattern.">
-            Pattern Spacing
-        </span>
-        <span class="val">{currentPatternSpacingPx()}px</span>
-    </div>
-    <div class="var-desc">
-        Visible fill-pattern spacing. This changes the rendered territory pattern and does not change conquest timing density.
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="64"
-        step="1"
-        value={currentPatternSpacingPx()}
-        oninput={(event) => {
-            const raw = parseFloat((event.target as HTMLInputElement).value);
-            const value = snapPatternSpacingPx(raw);
-            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
-        }}
-    />
-</div>
-{/if}
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
-            Shared Edge Smoothing
-        </span>
-        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
-    </div>
-    <div class="var-desc">
-        {sharedEdgeSmoothingDescription()}
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
-        }}
-    />
-</div>
-{/if}
-
 {#if showGridEdgeShapingControls()}
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
-            Shared Edge Trim
-        </span>
-        <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+    {#if usesBorderChaikinControl()}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
+                    Border Chaikin Passes
+                </span>
+                <span class="val">{currentBorderChaikinPasses()}</span>
+            </div>
+            <div class="var-desc">
+                Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="4"
+                step="1"
+                disabled={isPhaseEdgesMode()}
+                value={currentBorderChaikinPasses()}
+                oninput={(event) => {
+                    const value = parseInt((event.target as HTMLInputElement).value, 10);
+                    writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+                }}
+            />
+        </div>
+    {/if}
+
+    {#if usesSharedEdgeSmoothingControl()}
+        <div class="var-row">
+            <div class="row-top">
+                <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
+                    Shared Edge Smoothing
+                </span>
+                <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+            </div>
+            <div class="var-desc">
+                {sharedEdgeSmoothingDescription()}
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="4"
+                step="1"
+                value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+                oninput={(event) => {
+                    const value = parseInt((event.target as HTMLInputElement).value, 10);
+                    writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+                }}
+            />
+        </div>
+    {/if}
+
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
+                Shared Edge Trim
+            </span>
+            <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+        </div>
+        <div class="var-desc">
+            {sharedEdgeTrimDescription()}
+        </div>
+        <input
+            type="range"
+            min="0"
+            max="12"
+            step="0.5"
+            value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+            oninput={(event) => {
+                const value = parseFloat((event.target as HTMLInputElement).value);
+                writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+            }}
+        />
     </div>
+    {#if isPhaseFieldMode() && currentCellShape() !== 'square'}
+        <div class="var-desc">
+            Shared Edge Smoothing is only used with square cells in Phase Field.
+        </div>
+    {/if}
+{:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
     <div class="var-desc">
-        {sharedEdgeTrimDescription()}
+        Singular blended territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="0.5"
-        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
-        }}
-    />
-</div>
 {/if}
 </div>
 {/if}
@@ -1365,6 +1397,13 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+    }
+
+    .mode-lock-note {
+        margin: 0 0 10px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.72);
     }
 
     .module-all-toggle {
