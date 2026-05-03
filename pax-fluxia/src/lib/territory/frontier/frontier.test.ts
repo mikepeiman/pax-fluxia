@@ -169,9 +169,9 @@ describe('territory frontier utility', () => {
         expect(contourMatched.geometryFamily).toBe('phase_contour');
         expect(contourMatched.stableGeometryFamily).toBe('phase_contour');
         expect(contourMatched.transitionGeometryFamily).toBe('phase_contour');
-        expect(contourMatched.fillSource).toBe('phase_surface');
+        expect(contourMatched.fillSource).toBe('scene_cells');
         expect(contourMatched.borderSource).toBe('contour');
-        expect(contourMatched.usesPhaseFill).toBe(true);
+        expect(contourMatched.usesPhaseFill).toBe(false);
         expect(contourMatched.invariantViolation).toBeNull();
 
         const shaderBand = resolveTerritoryFrontierSurfaceRecipe({
