@@ -804,10 +804,10 @@
 </div>
 {/if}
 
-{#if false}
+{#if isPhaseFieldMode() && showModule('grid')}
 <div class="module-block">
 <div class="var-desc">
-    Presentation controls moved to Territory Styles.
+    Phase Field keeps its cell-primitive, fill-boundary, and border-path controls local to the mode so fill-first tuning stays in one place.
 </div>
 <div class="var-row">
     <div class="row-top">
@@ -858,6 +858,29 @@
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
             writeConfig('METABALL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name" title="Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.">
+            Inward Offset
+        </span>
+        <span class="val">{(panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0).toFixed(0)}px</span>
+    </div>
+    <div class="var-desc">
+        Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="24"
+        step="1"
+        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
         }}
     />
 </div>

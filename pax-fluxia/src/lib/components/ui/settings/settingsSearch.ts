@@ -70,26 +70,65 @@ function isTerritoryTopologyRecord(record: SearchableSettingRecord): boolean {
     );
 }
 
-function isTerritorySystemRecord(record: SearchableSettingRecord): boolean {
+function isTerritoryRenderModeRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return key === "TERRITORY_RENDER_MODE" || label.includes("render mode");
+}
+
+function isTerritoryRuntimeRecord(record: SearchableSettingRecord): boolean {
     const key = record.key;
     const label = record.label.toLowerCase();
     return (
-        key === "TERRITORY_RENDER_MODE" ||
         key === "TERRITORY_GEOMETRY_MODE" ||
         key === "TERRITORY_ENGINE_MODE" ||
         key === "TERRITORY_ENGINE_STATIC_METHOD" ||
         key === "TERRITORY_ENGINE_DYNAMIC_METHOD" ||
         key === "TERRITORY_ENGINE_HYBRID_PLAN" ||
-        label.includes("render mode") ||
+        key === "TERRITORY_FILL_TRANSITION_MODE" ||
+        key === "TERRITORY_FILL_TRANSITION" ||
+        key === "TERRITORY_BORDER_TRANSITION_MODE" ||
+        key === "TERRITORY_BORDER_TRANSITION" ||
+        key === "VS_TRANSITION_MODE" ||
         label.includes("geometry mode") ||
-        label.includes("engine mode")
+        label.includes("engine mode") ||
+        label.includes("fill transition") ||
+        label.includes("border transition") ||
+        label.includes("transition mode")
     );
 }
 
-function resolveSectionTarget(record: SearchableSettingRecord): {
+function isTerritoryFrontierFxRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return key.startsWith("TERRITORY_FRONTIER_FX_") || label.includes("frontier fx");
+}
+
+function isTerritoryFrontierRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return (
+        key.startsWith("TERRITORY_FRONTIER_") &&
+        !key.startsWith("TERRITORY_FRONTIER_FX_")
+    ) || label.includes("frontier technique")
+        || label.includes("phase sampling")
+        || label.includes("blur passes")
+        || label.includes("triangle diagonal")
+        || label.includes("frontier chaikin")
+        || label.includes("shader softness")
+        || label.includes("band width")
+        || label.includes("outer border")
+        || label.includes("junction render")
+        || label.includes("junction radius");
+}
+
+function resolveSectionTarget(
+    record: SearchableSettingRecord,
+    activeTerritoryRenderMode?: string | null,
+): {
     sectionId: SettingsSectionId;
     subsectionId?: string;
-} {
+} | null {
     switch (record.scope) {
         case "ai":
             return { sectionId: "ai" };
@@ -116,8 +155,40 @@ function resolveSectionTarget(record: SearchableSettingRecord): {
             if (isTerritoryTopologyRecord(record)) {
                 return { sectionId: "territory_tuning" };
             }
-            if (isTerritorySystemRecord(record)) {
-                return { sectionId: "territory_modes" };
+            if (isTerritoryRenderModeRecord(record)) {
+                return null;
+            }
+            if (isTerritoryFrontierFxRecord(record)) {
+                return { sectionId: "frontier_fx" };
+            }
+            if (isTerritoryRuntimeRecord(record)) {
+                return { sectionId: "territory_tuning" };
+            }
+            if (isTerritoryFrontierRecord(record)) {
+                return {
+                    sectionId:
+                        activeTerritoryRenderMode === "metaball_grid_phase_edges"
+                            ? "territory_phase_edges"
+                            : "territory_styles",
+                };
+            }
+            if (record.key.startsWith("METABALL_GRID_PHASE_FIELD_")) {
+                return { sectionId: "territory_phase_field" };
+            }
+            if (
+                activeTerritoryRenderMode === "metaball_grid_phase_edges" &&
+                (record.key.startsWith("METABALL_GRID_") ||
+                    record.key.startsWith("METABALL_") ||
+                    record.key.startsWith("VORONOI_"))
+            ) {
+                return { sectionId: "territory_phase_edges" };
+            }
+            if (
+                activeTerritoryRenderMode === "metaball_grid_phase_field" &&
+                (record.key.startsWith("METABALL_GRID_") ||
+                    record.key.startsWith("METABALL_"))
+            ) {
+                return { sectionId: "territory_phase_field" };
             }
             return { sectionId: "territory_styles" };
         case "timing":
@@ -138,20 +209,27 @@ type ResolvedSettingRecord = SearchableSettingRecord & {
     sectionLabel: string;
 };
 
-function getResolvedSettingRecords(): ResolvedSettingRecord[] {
-    return getSearchableSettingRecords().map((record) => {
-        const target = resolveSectionTarget(record);
-        return {
-            ...record,
-            sectionId: target.sectionId,
-            subsectionId: target.subsectionId,
-            sectionLabel: SECTION_LABEL_BY_ID[target.sectionId],
-        };
+function getResolvedSettingRecords(
+    activeTerritoryRenderMode?: string | null,
+): ResolvedSettingRecord[] {
+    return getSearchableSettingRecords().flatMap((record) => {
+        const target = resolveSectionTarget(record, activeTerritoryRenderMode);
+        if (!target) return [];
+        return [
+            {
+                ...record,
+                sectionId: target.sectionId,
+                subsectionId: target.subsectionId,
+                sectionLabel: SECTION_LABEL_BY_ID[target.sectionId],
+            },
+        ];
     });
 }
 
-function buildSettingEntries(): SearchIndexEntry[] {
-    return getResolvedSettingRecords().map((record) => {
+function buildSettingEntries(
+    activeTerritoryRenderMode?: string | null,
+): SearchIndexEntry[] {
+    return getResolvedSettingRecords(activeTerritoryRenderMode).map((record) => {
         const searchText = [
             record.sectionLabel,
             record.label,
@@ -195,9 +273,37 @@ function buildSettingEntries(): SearchIndexEntry[] {
     });
 }
 
-function buildSectionEntries(): SearchIndexEntry[] {
-    const resolvedRecords = getResolvedSettingRecords();
+function buildSectionEntries(
+    activeTerritoryRenderMode?: string | null,
+): SearchIndexEntry[] {
+    const resolvedRecords = getResolvedSettingRecords(activeTerritoryRenderMode);
     return SETTINGS_SECTIONS.flatMap((section) => {
+        if (
+            section.id === "territory_phase_field" &&
+            activeTerritoryRenderMode !== "metaball_grid_phase_field"
+        ) {
+            return [];
+        }
+        if (
+            section.id === "territory_phase_edges" &&
+            activeTerritoryRenderMode !== "metaball_grid_phase_edges"
+        ) {
+            return [];
+        }
+        if (
+            section.id === "territory_styles" &&
+            (activeTerritoryRenderMode === "metaball_grid_phase_field" ||
+                activeTerritoryRenderMode === "metaball_grid_phase_edges")
+        ) {
+            return [];
+        }
+        if (
+            section.id === "frontier_fx" &&
+            activeTerritoryRenderMode !== "metaball_grid_phase_edges" &&
+            activeTerritoryRenderMode !== "metaball_grid"
+        ) {
+            return [];
+        }
         const subsectionLabels = (section.subsections ?? []).map((subsection) => subsection.label);
         const sectionRecords = resolvedRecords.filter((record) => record.sectionId === section.id);
         const sectionText = [
@@ -236,8 +342,6 @@ function buildSectionEntries(): SearchIndexEntry[] {
     });
 }
 
-const SEARCH_INDEX = [...buildSettingEntries(), ...buildSectionEntries()];
-
 function scoreEntry(entry: SearchIndexEntry, query: string, tokens: string[]): number {
     let score = entry.priority * 100;
     if (entry.normalizedTitle === query) score += 90;
@@ -254,12 +358,17 @@ function scoreEntry(entry: SearchIndexEntry, query: string, tokens: string[]): n
 export function searchSettings(
     query: string,
     limit = 24,
+    activeTerritoryRenderMode?: string | null,
 ): SettingsSearchResult[] {
     const normalizedQuery = normalizeSearchText(query);
     if (!normalizedQuery) return [];
 
     const tokens = normalizedQuery.split(" ").filter(Boolean);
-    return SEARCH_INDEX.filter((entry) =>
+    const searchIndex = [
+        ...buildSettingEntries(activeTerritoryRenderMode),
+        ...buildSectionEntries(activeTerritoryRenderMode),
+    ];
+    return searchIndex.filter((entry) =>
         tokens.every((token) => entry.normalizedText.includes(token))
     )
         .map((entry) => ({

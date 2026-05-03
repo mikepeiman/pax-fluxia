@@ -55,9 +55,10 @@
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
-    import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
-    import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
+    import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
+    import TerritoryGeometrySourceTuning from "./settings/TerritoryGeometrySourceTuning.svelte";
+    import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -827,13 +828,39 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             | string
             | null,
     );
+    const TERRITORY_MODE_SECTION_BY_RENDER_MODE: Partial<
+        Record<string, SectionId>
+    > = {
+        metaball_grid_phase_field: "territory_phase_field",
+        metaball_grid_phase_edges: "territory_phase_edges",
+    };
+
+    const TERRITORY_MODE_SECTION_IDS = new Set<SectionId>([
+        "territory_phase_field",
+        "territory_phase_edges",
+    ]);
+
+    let activeTerritoryModeSectionId = $derived(
+        activeTerritoryRenderMode
+            ? (TERRITORY_MODE_SECTION_BY_RENDER_MODE[
+                  activeTerritoryRenderMode
+              ] ?? null)
+            : null,
+    );
+
     function isSectionVisible(section: SettingsSectionDefinition): boolean {
         if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
-        if (section.id === "territory_phase_field") {
-            return activeTerritoryRenderMode === "metaball_grid_phase_field";
+        if (TERRITORY_MODE_SECTION_IDS.has(section.id as SectionId)) {
+            return section.id === activeTerritoryModeSectionId;
+        }
+        if (section.id === "frontier_fx") {
+            return (
+                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
+                activeTerritoryRenderMode === "metaball_grid"
+            );
         }
         if (section.id === "territory_styles") {
-            return activeTerritoryRenderMode !== "metaball_grid_phase_field";
+            return activeTerritoryModeSectionId === null;
         }
         return true;
     }
@@ -861,18 +888,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         openSection(forceOpenSection);
     });
 
-    let phaseFieldSectionAutoOpened = $state(false);
+    let activeModeSectionAutoOpened = $state<SectionId | null>(null);
     $effect(() => {
-        const phaseFieldVisible =
-            activeTerritoryRenderMode === "metaball_grid_phase_field";
-        if (!phaseFieldVisible) {
-            phaseFieldSectionAutoOpened = false;
+        if (!activeTerritoryModeSectionId) {
+            activeModeSectionAutoOpened = null;
             return;
         }
-        if (phaseFieldSectionAutoOpened) return;
-        phaseFieldSectionAutoOpened = true;
-        if (!sectionOrder.includes("territory_phase_field")) {
-            openSection("territory_phase_field");
+        if (activeModeSectionAutoOpened === activeTerritoryModeSectionId) return;
+        activeModeSectionAutoOpened = activeTerritoryModeSectionId;
+        if (!sectionOrder.includes(activeTerritoryModeSectionId)) {
+            openSection(activeTerritoryModeSectionId);
         }
     });
 
@@ -890,22 +915,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const SEARCH_TARGET_SELECTOR =
         ".var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]";
 
-    function resolveSectionSubsections(section: SettingsSectionDefinition): SubsectionChip[] {
+    function resolveSectionSubsections(
+        section: SettingsSectionDefinition,
+    ): SubsectionChip[] {
         const subsections = [...((section.subsections ?? []) as SubsectionChip[])];
         if (section.id !== "territory_styles") return subsections;
-
-        const activeTerritoryRenderMode =
-            panel.territoryRenderMode ??
-            GAME_CONFIG.TERRITORY_RENDER_MODE ??
-            "territory_canonical";
-
         if (
-            activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
-            activeTerritoryRenderMode === "metaball_grid"
+            activeTerritoryRenderMode === "metaball_grid" ||
+            activeTerritoryRenderMode === "metaball_grid_phase_edges"
         ) {
             return subsections.filter((subsection) => subsection.id !== "finish");
         }
-
         return subsections;
     }
 
@@ -921,7 +941,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let settingsSearchQuery = $state("");
     const sectionBodyNodes = new Map<SectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
-        searchSettings(settingsSearchQuery),
+        searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode),
     );
     let matchedSectionIds = $derived.by(() =>
         settingsSearchQuery.trim()
@@ -1387,7 +1407,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "territory_modes"}
+                {:else if sec.id === "territory_tuning"}
+                    <TerritoryTopologyTuning
+                        {panel}
+                        {updatePanel}
+                    />
+                    <TerritoryGeometrySourceTuning
+                        {panel}
+                        {updatePanel}
+                    />
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1401,16 +1429,29 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                         view="modes"
-                    />
-                {:else if sec.id === "territory_tuning"}
-                    <TerritoryTopologyTuning
-                        {panel}
-                        {updatePanel}
+                        hideRenderModeSelector={true}
+                        systemTitle="Territory Runtime"
                     />
                 {:else if sec.id === "territory_phase_field"}
                     <TerritoryPhaseFieldSettings
                         {panel}
                         {updatePanel}
+                    />
+                {:else if sec.id === "territory_phase_edges"}
+                    <ControlsSectionTerritory
+                        {panel}
+                        {updatePanel}
+                        {animLockModes}
+                        {animLockRatios}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
+                        syncFromConfig={syncAllFromConfig}
+                        view="styles"
+                        activeSubsection={activeSubsections[sec.id] ?? "all"}
                     />
                 {:else if sec.id === "territory_styles"}
                     <ControlsSectionTerritory
@@ -1426,6 +1467,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
+                        showCategoryThemeBar={true}
                         activeSubsection={activeSubsections[sec.id] ?? "all"}
                     />
                 {:else if sec.id === "frontier_fx"}
