@@ -169,7 +169,7 @@
 ### 2026-05-03 - Added a dedicated worktree rule and started the tracked handoff
 
 - Action:
-  - creating:
+  - created:
     - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\rules\worktree-protocols.md`
     - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\worktree-handoffs\2026-05-03_pvv4-transition-bets_handoff.md`
 - Purpose:
@@ -178,7 +178,22 @@
 - Result:
   - this rule and handoff file become part of the branch's operating protocol
 - Validation:
-  - file creation in progress in this checkpoint
+  - files were created successfully
+
+### 2026-05-03 - Created and pushed the first branch checkpoint
+
+- Action:
+  - committed:
+    - `b8e0c1ae0` - `Add PVV4 worktree protocol and handoff`
+  - pushed:
+    - `origin/codex/render-infra/pvv4-transition-bets`
+- Purpose:
+  - create a resumable remote checkpoint before any PVV4 behavior changes
+  - ensure the branch now carries its own documented operating protocol and handoff log
+- Result:
+  - the branch now exists on the remote and is tracking `origin/codex/render-infra/pvv4-transition-bets`
+- Validation:
+  - `git push -u origin codex/render-infra/pvv4-transition-bets` succeeded
 
 ## Current Files Most Likely To Matter
 

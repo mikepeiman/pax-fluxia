@@ -59,6 +59,7 @@ Every action entry must state:
   - commit message
   - push status
   - purpose of that checkpoint
+- If the commit hash is not available until after the checkpoint is created, record that checkpoint in the next handoff update immediately after the push.
 
 ## Branch Focus Discipline
 
