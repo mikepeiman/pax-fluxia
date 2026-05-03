@@ -44,8 +44,11 @@ export function resolveTerritoryFrontierSurfaceRecipe(
                     : 'shared_edge'
               : 'phase_contour';
 
+    // Contour-matched Phase Edges keeps the crisp scene-cell fill and only
+    // derives the border seam from contour geometry. Only the shader band path
+    // should replace the fill with a generated phase surface.
     const fillSource: TerritoryFrontierSurfaceFillSource =
-        geometryFamily === 'shared_edge' ? 'scene_cells' : 'phase_surface';
+        geometryFamily === 'phase_band' ? 'phase_surface' : 'scene_cells';
     const borderSource: TerritoryFrontierSurfaceBorderSource =
         geometryFamily === 'shared_edge'
             ? 'shared_edge'
@@ -53,7 +56,7 @@ export function resolveTerritoryFrontierSurfaceRecipe(
               ? 'frontier_band'
               : 'contour';
     const usesBaseSceneBorders = geometryFamily === 'shared_edge';
-    const usesPhaseFill = geometryFamily !== 'shared_edge';
+    const usesPhaseFill = geometryFamily === 'phase_band';
     const usesPhaseBorder = geometryFamily !== 'shared_edge';
 
     const stableGeometryFamily = geometryFamily;
