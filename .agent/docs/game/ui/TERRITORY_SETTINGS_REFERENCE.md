@@ -5,8 +5,8 @@ Updated: 2026-05-03
 ## IA Rules
 
 - Territory mode selection lives in the topbar, not in Settings.
-- `Phase Field` and `Phase Edges` are separate mode-local settings sections.
-- `Territory Topology` owns shared ownership / geometry-source rules.
+- `Phase Field`, `Phase Edges`, and `Ember Lattice` are separate mode-local settings sections.
+- `Territory Topology` owns shared ownership and geometry-source rules.
 - `Territory Styles` owns shared surface styling when no dedicated mode-local wrapper is active.
 - `Frontier FX` owns cross-mode inward seam effects for frontier-enabled metaball-grid renderers.
 - `Diagnostics` owns overlays, measurement helpers, recorder/export tools, and mode-status readouts.
@@ -15,6 +15,7 @@ Updated: 2026-05-03
 
 - `Phase Field`
 - `Phase Edges`
+- `Ember Lattice`
 - `Frontier FX`
 - `Territory Topology`
 - `Territory Styles`
@@ -23,8 +24,8 @@ Updated: 2026-05-03
 
 Notes:
 
-- `Territory Styles` is intentionally hidden while `Phase Field` or `Phase Edges` is active, because those mode-local sections surface their own relevant territory controls inline.
-- `Frontier FX` is visible when the active render mode supports the shared frontier-distance seam path: currently `metaball_grid` and `metaball_grid_phase_edges`.
+- `Territory Styles` is intentionally hidden while `Phase Field`, `Phase Edges`, or `Ember Lattice` is active, because those mode-local sections surface their own relevant territory controls inline.
+- `Frontier FX` is visible when the active render mode supports the shared frontier-distance seam path: currently `metaball_grid` and `metaball_grid_ember_lattice`.
 
 ## Phase Field
 
@@ -72,8 +73,8 @@ File surface:
 ### Wave
 
 - `Adjacency`
-- `Wave Geometry`
-- `Wave Seeding`
+- `Propagation Shape`
+- `Propagation Source`
 
 ### Flip
 
@@ -108,6 +109,65 @@ File surface:
 - `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\MetaballGridTuning.svelte`
 - `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\TerritorySurfaceStyleTuning.svelte`
 
+Purpose:
+
+- simpler edge-forward metaball-grid mode
+- no contour/frontier comparison block
+- shared grid, wave, flip, and inline style/border controls only
+
+### Shared Surface Controls Inline In Phase Edges
+
+These remain visible in the Phase Edges section because they define the mode's edge-forward read without Ember Lattice's contour-derived seam stack.
+
+#### Fill
+
+- `Territory fill`
+  - `Saturation`
+  - `Lightness`
+  - `Alpha`
+- `Cell Shape`
+- `Cell Inset`
+- `Square Corner`
+- `Flush Boundary Fill`
+- `Inward Offset`
+
+#### Border
+
+- `Territory border`
+  - `Show border`
+  - `Width`
+  - `Saturation`
+  - `Lightness`
+  - `Alpha`
+- `Border Mode`
+- `Centered-blended borders`
+- `Border Chaikin Passes`
+- `Shared Edge Smoothing`
+- `Shared Edge Trim`
+
+### Wave / Flip / Perf
+
+- `Adjacency`
+- `Wave Geometry`
+- `Wave Seeding`
+- `Flip Transition`
+- `Flip Window`
+- `Wave Easing`
+- `FlipTime Jitter`
+- grid perf diagnostics
+
+## Ember Lattice
+
+File surface:
+- `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\MetaballGridTuning.svelte`
+- `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\TerritorySurfaceStyleTuning.svelte`
+- `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-FrontierFx.svelte`
+
+Purpose:
+
+- dense square-lattice territory renderer with contour-derived, blended frontiers
+- branch-derived renderer separated from generic Phase Edges so both modes can evolve independently
+
 ### Frontier / Comparison Controls
 
 - `Preset Rows`
@@ -119,9 +179,9 @@ File surface:
 - `Shader Softness`
 - `Band Width`
 
-### Shared Surface Controls Inline In Phase Edges
+### Shared Surface Controls Inline In Ember Lattice
 
-These remain visible in the Phase Edges section because they materially define the mode’s visible seam.
+These remain visible in Ember Lattice because they materially define the branch renderer's visible seam.
 
 #### Fill
 
@@ -154,8 +214,6 @@ These remain visible in the Phase Edges section because they materially define t
 - `Junction Bubble Radius`
 
 ### Wave / Flip / Perf
-
-The common metaball-grid timing and readout modules still exist in the Phase Edges section:
 
 - `Adjacency`
 - `Wave Geometry`
@@ -232,7 +290,7 @@ Belongs here:
 
 Does not belong here:
 - regular map-layout tuning
-- phase-field / phase-edges styling
+- phase-field / phase-edges / ember-lattice styling
 - topology ownership rules
 
 ## Regression Checklist
@@ -240,8 +298,9 @@ Does not belong here:
 When territory settings regress, verify these first:
 
 1. `Phase Field` still contains `Inward Offset` and the grid/border-path controls listed above.
-2. `Phase Edges` still exposes the frontier-technique comparison block.
-3. `Frontier FX` still exists as its own top-level section.
-4. `Territory Topology` still includes `Base Geometry Source`.
-5. `Diagnostics` still contains `Show Hex Grid`, `Star Inspector`, and `Rotate Map (Transpose)`.
-6. `Territory Styles` subsections remain `Fill`, `Border`, and `Finish`.
+2. `Phase Edges` remains the simpler edge-forward mode and does not silently absorb Ember-only contour/frontier controls.
+3. `Ember Lattice` still exposes the frontier-technique comparison block.
+4. `Frontier FX` still exists as its own top-level section.
+5. `Territory Topology` still includes `Base Geometry Source`.
+6. `Diagnostics` still contains `Show Hex Grid`, `Star Inspector`, and `Rotate Map (Transpose)`.
+7. `Territory Styles` subsections remain `Fill`, `Border`, and `Finish`.

@@ -12,10 +12,10 @@ export type SettingsSectionId =
     | "map_options"
     | "territory_phase_field"
     | "territory_phase_edges"
+    | "territory_ember_lattice"
     | "frontier_fx"
     | "territory_tuning"
     | "territory_styles"
-    | "frontier_fx"
     | "fleet_star_visuals"
     | "audio"
     | "diagnostics"
@@ -126,6 +126,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "territory",
     },
     {
+        id: "territory_ember_lattice",
+        icon: "✦",
+        label: "Ember Lattice",
+        color: "#fb923c",
+        tier: "basic",
+        scope: "territory",
+    },
+    {
         id: "frontier_fx",
         icon: "FX",
         label: "Frontier FX",
@@ -218,6 +226,7 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     territory: "territory_tuning",
     territory_modes: "territory_tuning",
     frontier_fx: "frontier_fx",
+    ember_lattice: "territory_ember_lattice",
     ships: "fleet_star_visuals",
     visuals: "map_options",
     logging: "logging",

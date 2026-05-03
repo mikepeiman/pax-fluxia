@@ -166,14 +166,19 @@ function resolveSectionTarget(
             }
             if (isTerritoryFrontierRecord(record)) {
                 return {
-                    sectionId:
-                        activeTerritoryRenderMode === "metaball_grid_phase_edges"
-                            ? "territory_phase_edges"
-                            : "territory_styles",
+                    sectionId: "territory_ember_lattice",
                 };
             }
             if (record.key.startsWith("METABALL_GRID_PHASE_FIELD_")) {
                 return { sectionId: "territory_phase_field" };
+            }
+            if (
+                activeTerritoryRenderMode === "metaball_grid_ember_lattice" &&
+                (record.key.startsWith("METABALL_GRID_") ||
+                    record.key.startsWith("METABALL_") ||
+                    record.key.startsWith("VORONOI_"))
+            ) {
+                return { sectionId: "territory_ember_lattice" };
             }
             if (
                 activeTerritoryRenderMode === "metaball_grid_phase_edges" &&
@@ -291,15 +296,22 @@ function buildSectionEntries(
             return [];
         }
         if (
+            section.id === "territory_ember_lattice" &&
+            activeTerritoryRenderMode !== "metaball_grid_ember_lattice"
+        ) {
+            return [];
+        }
+        if (
             section.id === "territory_styles" &&
             (activeTerritoryRenderMode === "metaball_grid_phase_field" ||
-                activeTerritoryRenderMode === "metaball_grid_phase_edges")
+                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
+                activeTerritoryRenderMode === "metaball_grid_ember_lattice")
         ) {
             return [];
         }
         if (
             section.id === "frontier_fx" &&
-            activeTerritoryRenderMode !== "metaball_grid_phase_edges" &&
+            activeTerritoryRenderMode !== "metaball_grid_ember_lattice" &&
             activeTerritoryRenderMode !== "metaball_grid"
         ) {
             return [];

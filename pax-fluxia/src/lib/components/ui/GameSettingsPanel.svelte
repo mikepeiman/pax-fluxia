@@ -833,11 +833,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     > = {
         metaball_grid_phase_field: "territory_phase_field",
         metaball_grid_phase_edges: "territory_phase_edges",
+        metaball_grid_ember_lattice: "territory_ember_lattice",
     };
 
     const TERRITORY_MODE_SECTION_IDS = new Set<SectionId>([
         "territory_phase_field",
         "territory_phase_edges",
+        "territory_ember_lattice",
     ]);
 
     let activeTerritoryModeSectionId = $derived(
@@ -855,7 +857,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
         if (section.id === "frontier_fx") {
             return (
-                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
+                activeTerritoryRenderMode === "metaball_grid_ember_lattice" ||
                 activeTerritoryRenderMode === "metaball_grid"
             );
         }
@@ -1438,6 +1440,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updatePanel}
                     />
                 {:else if sec.id === "territory_phase_edges"}
+                    <ControlsSectionTerritory
+                        {panel}
+                        {updatePanel}
+                        {animLockModes}
+                        {animLockRatios}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
+                        syncFromConfig={syncAllFromConfig}
+                        view="styles"
+                        activeSubsection={activeSubsections[sec.id] ?? "all"}
+                    />
+                {:else if sec.id === "territory_ember_lattice"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}

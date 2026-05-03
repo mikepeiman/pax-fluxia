@@ -324,6 +324,13 @@
 
     .mode-shortcut[data-appearance="phase_edges"]::before {
         background:
+            linear-gradient(120deg, rgba(244, 114, 182, 0.16), transparent 46%),
+            radial-gradient(circle at 74% 24%, rgba(192, 132, 252, 0.24), transparent 34%),
+            linear-gradient(135deg, rgba(126, 34, 206, 0.9), rgba(15, 23, 42, 0.88));
+    }
+
+    .mode-shortcut[data-appearance="ember"]::before {
+        background:
             linear-gradient(120deg, rgba(248, 113, 113, 0.18), transparent 48%),
             radial-gradient(circle at 76% 20%, rgba(251, 146, 60, 0.28), transparent 34%),
             linear-gradient(135deg, rgba(190, 24, 93, 0.92), rgba(15, 23, 42, 0.88));

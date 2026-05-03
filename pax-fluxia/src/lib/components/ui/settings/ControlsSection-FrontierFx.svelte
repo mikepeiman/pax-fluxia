@@ -54,7 +54,7 @@
 
     function supportsFrontierFx(): boolean {
         const mode = currentRenderMode();
-        return mode === "metaball_grid_phase_edges" || mode === "metaball_grid";
+        return mode === "metaball_grid_ember_lattice" || mode === "metaball_grid";
     }
 
     function currentMode(): FrontierFxMode {
@@ -101,11 +101,11 @@
 </script>
 
 {#if !supportsFrontierFx()}
-    <div class="axis-note">
-        Frontier FX currently applies to <strong>Metaball Grid</strong> and
-        <strong>Metaball Grid Phase Edges</strong>. Switch the territory render
-        mode there first, then return here.
-    </div>
+        <div class="axis-note">
+            Frontier FX currently applies to <strong>Metaball Grid</strong> and
+            <strong>Ember Lattice</strong>. Switch the territory render
+            mode there first, then return here.
+        </div>
 {:else}
     <div class="frontier-fx-card">
         <div class="territory-card__header">

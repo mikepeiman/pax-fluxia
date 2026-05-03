@@ -18,6 +18,7 @@ export type TerritoryModeShortcutAppearance =
     | 'metaball'
     | 'grid'
     | 'phase_edges'
+    | 'ember'
     | 'phase_field';
 
 export type TerritoryModeShortcutOption = ResolvedTerritoryRenderModeOption & {
@@ -61,6 +62,12 @@ const TOPBAR_MODE_DEFS: ReadonlyArray<{
         shortLabel: 'Edges',
         displayLabel: 'Phase Edges',
         appearance: 'phase_edges',
+    },
+    {
+        id: 'metaball_grid_ember_lattice',
+        shortLabel: 'Ember',
+        displayLabel: 'Ember Lattice',
+        appearance: 'ember',
     },
     {
         id: 'metaball_grid_phase_field',

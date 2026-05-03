@@ -41,9 +41,39 @@
         (panel[METABALL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
     );
 
+    function currentRenderMode(): string | null {
+        return (
+            panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            null
+        );
+    }
+
+    function isPhaseEdgesMode(): boolean {
+        return currentRenderMode() === 'metaball_grid_phase_edges';
+    }
+
+    function isEmberLatticeMode(): boolean {
+        return currentRenderMode() === 'metaball_grid_ember_lattice';
+    }
+
+    function isPhaseFieldMode(): boolean {
+        return currentRenderMode() === 'metaball_grid_phase_field';
+    }
+
+    function isEdgeForwardMode(): boolean {
+        return isPhaseEdgesMode() || isEmberLatticeMode();
+    }
+
+    function visibleModules() {
+        return METABALL_GRID_MODULES.filter(
+            (module) => module.id !== 'frontier' || isEmberLatticeMode(),
+        );
+    }
+
     $effect(() => {
         if (activeModule === 'all' || activeModule === 'none') return;
-        if (!METABALL_GRID_MODULES.some((module) => module.id === activeModule)) {
+        if (!visibleModules().some((module) => module.id === activeModule)) {
             updatePanel(METABALL_GRID_MODULE_PANEL_KEY, 'all');
         }
     });
@@ -53,7 +83,7 @@
     }
 
     function showFrontierControls(): boolean {
-        return isPhaseEdgesMode() || showModule('frontier');
+        return isEmberLatticeMode() && showModule('frontier');
     }
 
     function setActiveModule(value: MetaballGridModuleId): void {
@@ -72,23 +102,12 @@
             .replace(/_([a-z0-9])/g, (_, value: string) => value.toUpperCase());
     }
 
-    function isPhaseEdgesMode(): boolean {
-        return (
-            (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) ===
-            'metaball_grid_phase_edges'
-        );
-    }
-
-    function isPhaseFieldMode(): boolean {
-        return (
-            (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) ===
-            'metaball_grid_phase_field'
-        );
-    }
-
     function currentModeLockNote(): string | null {
+        if (isEmberLatticeMode()) {
+            return 'Ember Lattice keeps the dense square ownership mass but derives a softer blended frontier seam from contour/frontier extraction. Tune the seam locally here.';
+        }
         if (isPhaseEdgesMode()) {
-            return 'Phase Edges is built for edge-forward conquest. Choose how the takeover spreads, then tune the border character.';
+            return 'Phase Edges is the simpler edge-forward conquest mode. Tune grid, wave, and border behavior here without Ember Lattice contour/seam overrides.';
         }
         if (isPhaseFieldMode()) {
             return 'Phase Field is built for fill-first conquest. Choose how the takeover spreads, then tune the cell look, border feel, and finish timing.';
@@ -159,7 +178,7 @@
     }
 
     function showGridEdgeShapingControls(): boolean {
-        return !isPhaseEdgesMode() && usesGridEdgeShapingControls();
+        return !isEmberLatticeMode() && usesGridEdgeShapingControls();
     }
 
     function usesBorderChaikinControl(): boolean {
@@ -222,7 +241,7 @@
         const raw =
             panel.metaballGridWaveGeometry ??
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
-            (isPhaseEdgesMode()
+            (isEmberLatticeMode()
                 ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY
                 : 'grid_bfs');
         if (raw === 'conquered_star_radial') return 'conquered_star_radial';
@@ -265,7 +284,7 @@
     }
 
     function currentBorderMode(): 'off' | 'per_cell' | 'territory_edge' {
-        const modeDefault = isPhaseEdgesMode()
+        const modeDefault = isEmberLatticeMode()
             ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE
             : isPhaseFieldMode()
               ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_MODE
@@ -280,7 +299,7 @@
     }
 
     function currentBorderBlend(): boolean {
-        const modeDefault = isPhaseEdgesMode()
+        const modeDefault = isEmberLatticeMode()
             ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND
             : isPhaseFieldMode()
               ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_BLEND
@@ -289,7 +308,7 @@
     }
 
     function currentBorderChaikinPasses(): number {
-        const modeDefault = isPhaseEdgesMode()
+        const modeDefault = isEmberLatticeMode()
             ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
             : isPhaseFieldMode()
               ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
@@ -442,7 +461,7 @@
         const raw =
             panel.territoryFrontierBorderGeometryMode ??
             GAME_CONFIG.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE ??
-            (isPhaseEdgesMode()
+            (isEmberLatticeMode()
                 ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
                 : 'shared_edge');
         return raw === 'contour_matched' ? 'contour_matched' : 'shared_edge';
@@ -500,8 +519,8 @@
         );
     }
 
-    function canUsePhaseFieldFrontierTechnique(): boolean {
-        return isPhaseEdgesMode() && currentDistribution() === 'square';
+    function canUseEmberFrontierTechnique(): boolean {
+        return isEmberLatticeMode() && currentDistribution() === 'square';
     }
 
     function isControlFrontierTechnique(): boolean {
@@ -510,7 +529,7 @@
 
     function canUseControlFrontierBorderGeometry(): boolean {
         return (
-            isPhaseEdgesMode() &&
+            isEmberLatticeMode() &&
             isControlFrontierTechnique() &&
             currentDistribution() === 'square' &&
             currentBorderMode() === 'territory_edge' &&
@@ -579,6 +598,7 @@
 
 <div class="module-nav">
     {#each METABALL_GRID_MODULES as module}
+        {#if module.id !== 'frontier' || isEmberLatticeMode()}
         <button
             type="button"
             class="module-chip"
@@ -589,6 +609,7 @@
         >
             {module.label}
         </button>
+        {/if}
     {/each}
 </div>
 
@@ -596,9 +617,9 @@
     <strong>Panel Sections:</strong> Grid, Frontier, Wave, Flip, and Perf only change which controls are shown in this settings panel. They do not switch the renderer or apply a visual effect by themselves.
 </div>
 
-{#if isPhaseEdgesMode() && !showModule('frontier')}
+{#if isEmberLatticeMode() && !showModule('frontier')}
 <div class="mode-lock-note">
-    Frontier remains a module label in this panel, but the actual Phase Edges comparison controls are rendered below even if that chip is not selected.
+    Frontier remains a module label in this panel, but the Ember Lattice comparison controls are kept visible below even if that chip is not selected.
 </div>
 {/if}
 
@@ -925,7 +946,7 @@
     <select
         class="mode-select"
         value={currentBorderMode()}
-        disabled={isPhaseEdgesMode() && currentFrontierTechnique() !== 'control'}
+        disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
@@ -939,11 +960,11 @@
 
 <label
     class="toggle-row"
-    class:disabled={(isPhaseEdgesMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
+    class:disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
 >
     <input
         type="checkbox"
-        disabled={(isPhaseEdgesMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
+        disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
         checked={currentBorderBlend()}
         onchange={(event) => {
             const value = (event.target as HTMLInputElement).checked;
@@ -1063,7 +1084,7 @@
             }}
         />
     </div>
-{:else if isPhaseEdgesMode()}
+{:else if isEmberLatticeMode()}
 <div class="var-row" class:disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}>
     <div class="row-top">
         <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
@@ -1152,17 +1173,17 @@
 {#if showFrontierControls()}
 <div class="module-block">
 <div class="var-desc">
-    Frontier Techniques compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly in Phase Edges on the square lattice. Surface styling and border-geometry controls live in Territory Styles.
+    Ember Lattice compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly on the square lattice. Surface styling and border-geometry controls live in Territory Styles.
 </div>
 
-<div class="var-row" class:disabled={!isPhaseEdgesMode()}>
+<div class="var-row" class:disabled={!isEmberLatticeMode()}>
     <div class="row-top">
         <span class="var-name" title="Benchmark comparison rows matching the frontier technique matrix.">
             Preset Rows
         </span>
         <span class="val">
-            {#if !isPhaseEdgesMode()}Phase Edges only
-            {:else if !canUsePhaseFieldFrontierTechnique()}Square lattice required
+            {#if !isEmberLatticeMode()}Ember Lattice only
+            {:else if !canUseEmberFrontierTechnique()}Square lattice required
             {:else}Tap to apply{/if}
         </span>
     </div>
@@ -1175,7 +1196,7 @@
                 type="button"
                 class="preset-chip"
                 class:active={isFrontierPresetSelected(preset)}
-                disabled={!isPhaseEdgesMode()}
+                disabled={!isEmberLatticeMode()}
                 title={preset.description}
                 onclick={() => applyFrontierPreset(preset)}
             >
@@ -1185,7 +1206,7 @@
     </div>
 </div>
 
-<div class="var-row" class:disabled={!isPhaseEdgesMode()}>
+<div class="var-row" class:disabled={!isEmberLatticeMode()}>
     <div class="row-top">
         <span class="var-name" title="Requested frontier implementation. Control = existing shared-edge path. Shader band = linear sampled phase texture. The contour options extract explicit geometry from the phase field.">
             Frontier Technique
@@ -1201,11 +1222,11 @@
         </span>
     </div>
     <div class="var-desc">
-        Control keeps the current square-cell shared-edge baseline. The new options use a shared frontier utility layer and are gated to Phase Edges.
+        Control keeps the current square-cell shared-edge baseline. The new options use a shared frontier utility layer and are gated to Ember Lattice.
     </div>
     <select
         class="mode-select"
-        disabled={!isPhaseEdgesMode()}
+        disabled={!isEmberLatticeMode()}
         value={currentFrontierTechnique()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
@@ -1222,7 +1243,7 @@
     </select>
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name" title="Sampling mode for the phase texture used by the shader frontier band.">
             Phase Sampling
@@ -1234,7 +1255,7 @@
     </div>
     <select
         class="mode-select"
-        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
         value={currentFrontierPhaseSampling()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
@@ -1246,7 +1267,7 @@
     </select>
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || currentFrontierTechnique() === 'control'}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || currentFrontierTechnique() === 'control'}>
     <div class="row-top">
         <span class="var-name" title="Number of separable 3-tap blur passes applied to the scalar phase field before the frontier is rendered or contoured.">
             Blur Passes
@@ -1261,7 +1282,7 @@
         min="0"
         max="2"
         step="1"
-        disabled={!canUsePhaseFieldFrontierTechnique() || currentFrontierTechnique() === 'control'}
+        disabled={!canUseEmberFrontierTechnique() || currentFrontierTechnique() === 'control'}
         value={currentFrontierBlurPasses()}
         oninput={(event) => {
             const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -1270,7 +1291,7 @@
     />
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isTriangleFrontierTechnique()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name" title="How marching triangles chooses the square-split diagonal.">
             Triangle Diagonal
@@ -1286,7 +1307,7 @@
     </div>
     <select
         class="mode-select"
-        disabled={!canUsePhaseFieldFrontierTechnique() || !isTriangleFrontierTechnique()}
+        disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}
         value={currentFrontierTriangleDiagonalPolicy()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
@@ -1303,7 +1324,7 @@
     </select>
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isContourFrontierTechnique()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isContourFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name" title="Post-contour Chaikin smoothing passes.">
             Frontier Chaikin
@@ -1318,7 +1339,7 @@
         min="0"
         max="3"
         step="1"
-        disabled={!canUsePhaseFieldFrontierTechnique() || !isContourFrontierTechnique()}
+        disabled={!canUseEmberFrontierTechnique() || !isContourFrontierTechnique()}
         value={currentFrontierChaikinPasses()}
         oninput={(event) => {
             const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -1327,7 +1348,7 @@
     />
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name" title="Additional softness on the shader frontier band, in world pixels before conversion to phase-space width.">
             Shader Softness
@@ -1342,7 +1363,7 @@
         min="0.5"
         max="20"
         step="0.5"
-        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
         value={currentFrontierShaderSoftnessPx()}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);
@@ -1355,7 +1376,7 @@
     />
 </div>
 
-<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name" title="Half-width of the shader frontier band, in world pixels before conversion to phase-space width.">
             Band Width
@@ -1370,7 +1391,7 @@
         min="0.5"
         max="12"
         step="0.5"
-        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
         value={currentFrontierBandWidthPx()}
         oninput={(event) => {
             const value = parseFloat((event.target as HTMLInputElement).value);

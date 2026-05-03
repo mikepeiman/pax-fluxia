@@ -11,6 +11,7 @@
         | "shared"
         | "metaball_grid"
         | "metaball_grid_phase_edges"
+        | "metaball_grid_ember_lattice"
         | "perimeter_field";
 
     interface Props {
@@ -79,12 +80,21 @@
     function isMetaballGridFamily(): boolean {
         return (
             styleFamily === "metaball_grid" ||
-            styleFamily === "metaball_grid_phase_edges"
+            styleFamily === "metaball_grid_phase_edges" ||
+            styleFamily === "metaball_grid_ember_lattice"
         );
     }
 
     function isPhaseEdgesFamily(): boolean {
         return styleFamily === "metaball_grid_phase_edges";
+    }
+
+    function isEmberLatticeFamily(): boolean {
+        return styleFamily === "metaball_grid_ember_lattice";
+    }
+
+    function usesEdgeForwardDefaults(): boolean {
+        return isPhaseEdgesFamily() || isEmberLatticeFamily();
     }
 
     function isPerimeterFieldFamily(): boolean {
@@ -115,7 +125,7 @@
     }
 
     function currentBorderMode(): "off" | "per_cell" | "territory_edge" {
-        const fallback = isPhaseEdgesFamily()
+        const fallback = usesEdgeForwardDefaults()
             ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE
             : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_MODE;
         const raw = stringVal(
@@ -132,7 +142,7 @@
         return boolVal(
             "metaballGridBorderBlend",
             "METABALL_GRID_BORDER_BLEND",
-            isPhaseEdgesFamily()
+            usesEdgeForwardDefaults()
                 ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND
                 : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_BLEND,
         );
@@ -170,7 +180,7 @@
         const raw = stringVal(
             "territoryFrontierBorderGeometryMode",
             "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
-            isPhaseEdgesFamily()
+            isEmberLatticeFamily()
                 ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
                 : "shared_edge",
         );
@@ -190,7 +200,7 @@
         return boolVal(
             "territoryFrontierOuterBorderEnabled",
             "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
-            isPhaseEdgesFamily()
+            isEmberLatticeFamily()
                 ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED
                 : false,
         );
@@ -200,7 +210,7 @@
         return boolVal(
             "metaballGridBoundaryFillFlush",
             "METABALL_GRID_BOUNDARY_FILL_FLUSH",
-            isPhaseEdgesFamily()
+            usesEdgeForwardDefaults()
                 ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH
                 : metaballGridFamilyConfigDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH,
         );
@@ -208,7 +218,7 @@
 
     function canEditFrontierBorderGeometry(): boolean {
         return (
-            isPhaseEdgesFamily() &&
+            isEmberLatticeFamily() &&
             currentFrontierTechnique() === "control" &&
             currentDistribution() === "square" &&
             currentBorderMode() === "territory_edge" &&
@@ -228,8 +238,8 @@
     }
 
     function sharedEdgeControlGateReason(): string | null {
-        if (!isPhaseEdgesFamily()) {
-            return "Only applies to Metaball Grid Phase Edges.";
+        if (!isEmberLatticeFamily()) {
+            return "Only applies to Ember Lattice.";
         }
         if (currentFrontierTechnique() !== "control") {
             return "Requires Frontier Technique = Current control.";
@@ -498,7 +508,7 @@
                 <div class="var-desc">
                     These controls own the visible border strategy for Metaball Grid surfaces. They no longer live in the tuning cards.
                 </div>
-                {#if isPhaseEdgesFamily()}
+                {#if usesEdgeForwardDefaults()}
                     <div class="var-desc">
                         Related fill control: <strong>Inward Offset</strong> lives in the <strong>Fill</strong> subsection because it changes the visible fill frontier rather than the stroke itself.
                     </div>
@@ -561,47 +571,49 @@
                     When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. The fill surface stays on the same geometry either way; this toggle only changes how the frontier stroke is presented.
                 </div>
 
-                <label
-                    class="toggle-row"
-                    class:disabled={currentBorderMode() === "off"}
-                    title="Draw the owner-vs-world perimeter around the outside of the filled map area. Off means only inter-owner frontiers are stroked."
-                >
-                    <input
-                        type="checkbox"
-                        disabled={currentBorderMode() === "off"}
-                        checked={currentFrontierOuterBorderEnabled()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLInputElement).checked;
-                            onUpdate(
-                                "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
-                                "territoryFrontierOuterBorderEnabled",
-                                value,
-                            );
-                        }}
-                    />
-                    <span class="var-name">Outer perimeter border</span>
-                    <span class="val">{currentFrontierOuterBorderEnabled() ? "On" : "Off"}</span>
-                </label>
-                <div class="var-desc">
-                    First-class owner-vs-world perimeter toggle. This is not the same as the internal faction frontiers.
-                </div>
+                {#if isEmberLatticeFamily()}
+                    <label
+                        class="toggle-row"
+                        class:disabled={currentBorderMode() === "off"}
+                        title="Draw the owner-vs-world perimeter around the outside of the filled map area. Off means only inter-owner frontiers are stroked."
+                    >
+                        <input
+                            type="checkbox"
+                            disabled={currentBorderMode() === "off"}
+                            checked={currentFrontierOuterBorderEnabled()}
+                            onchange={(event) => {
+                                const value = (event.target as HTMLInputElement).checked;
+                                onUpdate(
+                                    "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
+                                    "territoryFrontierOuterBorderEnabled",
+                                    value,
+                                );
+                            }}
+                        />
+                        <span class="var-name">Outer perimeter border</span>
+                        <span class="val">{currentFrontierOuterBorderEnabled() ? "On" : "Off"}</span>
+                    </label>
+                    <div class="var-desc">
+                        First-class owner-vs-world perimeter toggle. This is not the same as the internal faction frontiers.
+                    </div>
+                {/if}
 
                 <div class="var-row">
                     <div class="row-top">
                         <span class="var-name" title="Chaikin passes applied to the visible border polyline.">
                             Border Chaikin Passes
                         </span>
-                        <span class="val">{Math.round(numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", isPhaseEdgesFamily() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES))}</span>
+                        <span class="val">{Math.round(numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES))}</span>
                     </div>
                     <div class="var-desc">
-                        Global visible border smoothing. In Phase Edges this applies to whichever border geometry family is currently selected.
+                        Global visible border smoothing. In Ember Lattice this also applies to whichever border geometry family is currently selected.
                     </div>
                     <input
                         type="range"
                         min="0"
                         max="4"
                         step="1"
-                        value={numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", isPhaseEdgesFamily() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES)}
+                        value={numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES)}
                         oninput={(event) => {
                             const value = parseInt((event.target as HTMLInputElement).value, 10);
                             onUpdate(
@@ -614,8 +626,8 @@
                 </div>
             {/if}
 
-            {#if isPhaseEdgesFamily()}
-                <div class="sub-heading territory-style-subheading">Phase Edges Border Geometry</div>
+            {#if isEmberLatticeFamily()}
+                <div class="sub-heading territory-style-subheading">Ember Lattice Border Geometry</div>
 
                 <div
                     class="var-row"
@@ -631,7 +643,7 @@
                         </span>
                     </div>
                     <div class="var-desc">
-                        Only applies on the Phase Edges control path with Square distribution, Territory edge borders, and Centered-blended borders enabled.
+                        Only applies on the Ember Lattice control path with Square distribution, Territory edge borders, and Centered-blended borders enabled.
                     </div>
                     <select
                         class="mode-select"

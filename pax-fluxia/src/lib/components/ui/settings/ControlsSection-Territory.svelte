@@ -173,7 +173,7 @@
     | "fill"
     | "border"
     | "finish" {
-    if (isMetaballGridPhaseEdgesStyle() && activeSubsection === "finish") {
+    if (isEdgeForwardMetaballGridStyle() && activeSubsection === "finish") {
       return "all";
     }
     return activeSubsection === "fill" ||
@@ -189,8 +189,11 @@
   }
 
   function sharedSurfaceStyleHeading(): string {
+    if (isEmberLatticeStyle()) {
+      return "Ember Lattice Surface";
+    }
     if (isMetaballGridPhaseEdgesStyle()) {
-      return "Metaball Grid Phase Edges Surface";
+      return "Phase Edges Surface";
     }
     if (isMetaballGridStyle()) {
       return "Metaball Grid Surface";
@@ -199,8 +202,11 @@
   }
 
   function sharedSurfaceStyleIntro(): string {
+    if (isEmberLatticeStyle()) {
+      return "Visible fill, border, and inward seam presentation for Ember Lattice. The contour-derived frontier technique, border-geometry path, and seam FX stay local to this mode; the shared surface shape knobs live here.";
+    }
     if (isMetaballGridPhaseEdgesStyle()) {
-      return "Visible fill, border, and edge-presentation controls for Phase Edges. Upstream geometry and frontier technique selection stay in Territory Tuning & Constraints; the live surface shape knobs are owned here.";
+      return "Visible fill and border presentation for the simpler Phase Edges mode. It keeps the edge-forward conquest read without Ember Lattice's contour/frontier comparison surface.";
     }
     if (isMetaballGridStyle()) {
       return "Visible fill and border presentation for Metaball Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
@@ -455,7 +461,7 @@
     } else if (resolveActiveFillTransitionId() === "pv_frontline") {
       selectFrontierTransition("active_front");
     }
-    if (styleId === "metaball_grid_phase_edges") {
+    if (styleId === "metaball_grid_ember_lattice") {
       primeMetaballGridPhaseEdgesTunables();
     }
     setActiveRendererModule("all");
@@ -529,21 +535,30 @@
     return resolveActiveStyleId() === "power_voronoi_canonical";
   }
 
-    function isMetaballGridStyle(): boolean {
-      const activeStyle = resolveActiveStyleId();
-      return (
-        activeStyle === "metaball_grid" ||
+  function isMetaballGridStyle(): boolean {
+    const activeStyle = resolveActiveStyleId();
+    return (
+      activeStyle === "metaball_grid" ||
       activeStyle === "metaball_grid_phase_edges" ||
+      activeStyle === "metaball_grid_ember_lattice" ||
       activeStyle === "metaball_grid_phase_field"
-      );
-    }
+    );
+  }
 
   function isMetaballGridPhaseEdgesStyle(): boolean {
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
   }
 
+  function isEmberLatticeStyle(): boolean {
+    return resolveActiveStyleId() === "metaball_grid_ember_lattice";
+  }
+
+  function isEdgeForwardMetaballGridStyle(): boolean {
+    return isMetaballGridPhaseEdgesStyle() || isEmberLatticeStyle();
+  }
+
   $effect(() => {
-    if (isMetaballGridPhaseEdgesStyle()) {
+    if (isEmberLatticeStyle()) {
       primeMetaballGridPhaseEdgesTunables();
     }
   });
@@ -1975,15 +1990,19 @@
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
-        {isMetaballGridPhaseEdgesStyle()
-          ? "Metaball Grid Phase Edges (Experimental)"
+        {isEmberLatticeStyle()
+          ? "Ember Lattice"
+          : isMetaballGridPhaseEdgesStyle()
+            ? "Phase Edges"
           : "Metaball Grid (Experimental)"}
       </h4>
       <p class="territory-card__intro">
-        {#if isMetaballGridPhaseEdgesStyle()}
-          Separate metaball-grid mode with a fixed frontier-shaped wave and
-          territory-edge border treatment, so the base grid renderer stays
-          intact.
+        {#if isEmberLatticeStyle()}
+          Dense square-lattice territory renderer with contour-derived,
+          faction-blended frontiers and inward heat grading.
+        {:else if isMetaballGridPhaseEdgesStyle()}
+          Simpler edge-forward metaball-grid mode. It keeps the tactical grid
+          read without Ember Lattice's contour-derived seam pipeline.
         {:else}
           Ownership-geometry underlayer plus a world-anchored grid of
           metaball cells. Conquest transitions flip cells cell-by-cell in a
@@ -1994,10 +2013,13 @@
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
-      {#if isMetaballGridPhaseEdgesStyle()}
-        Two-layer family: ownership geometry stays truth while the separate
-        Phase Edges variant locks its defining wave and border defaults to keep
-        it distinct from base Metaball Grid.
+      {#if isEmberLatticeStyle()}
+        Ember Lattice keeps crisp square territory mass while deriving a softer
+        centered-blended frontier seam from the contour/frontier layer. This is
+        the branch renderer split out as its own public mode.
+      {:else if isMetaballGridPhaseEdgesStyle()}
+        Phase Edges keeps the simpler edge-forward conquest family separate
+        from Ember Lattice so both modes can now evolve independently.
       {:else}
         Two-layer family: ownership geometry stays truth; the visible grid
         layer is re-composited per frame as the wave crosses each cell's
@@ -2021,7 +2043,11 @@
       fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
       borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
       activeSection={resolveActiveStyleSubsection()}
-      styleFamily={isMetaballGridPhaseEdgesStyle() ? "metaball_grid_phase_edges" : "metaball_grid"} />
+      styleFamily={isEmberLatticeStyle()
+        ? "metaball_grid_ember_lattice"
+        : isMetaballGridPhaseEdgesStyle()
+          ? "metaball_grid_phase_edges"
+          : "metaball_grid"} />
   </div>
 {/if}
 
@@ -2238,20 +2264,26 @@
           intro=""
           activeSection={resolvedStyleSubsection()}
           showFinishSection={resolveActiveStyleId() === "perimeter_field"}
-          styleFamily={isMetaballGridPhaseEdgesStyle()
-            ? "metaball_grid_phase_edges"
-            : isMetaballGridStyle()
-              ? "metaball_grid"
-              : "perimeter_field"}
+          styleFamily={isEmberLatticeStyle()
+            ? "metaball_grid_ember_lattice"
+            : isMetaballGridPhaseEdgesStyle()
+              ? "metaball_grid_phase_edges"
+              : isMetaballGridStyle()
+                ? "metaball_grid"
+                : "perimeter_field"}
           fillHelp={isMetaballGridStyle()
-            ? isMetaballGridPhaseEdgesStyle()
-              ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
-              : "Fill visibility, color energy, cell paint, and boundary inset for the Metaball Grid surface."
+            ? isEmberLatticeStyle()
+              ? "Fill visibility, color energy, cell paint, and boundary inset for the Ember Lattice surface."
+              : isMetaballGridPhaseEdgesStyle()
+                ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
+                : "Fill visibility, color energy, cell paint, and boundary inset for the Metaball Grid surface."
             : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
           borderHelp={isMetaballGridStyle()
-            ? isMetaballGridPhaseEdgesStyle()
-              ? "Border visibility, width, color energy, geometry family, smoothing, and trim for the Phase Edges surface."
-              : "Border visibility, width, color energy, and paint strategy for the Metaball Grid surface."
+            ? isEmberLatticeStyle()
+              ? "Border visibility, width, color energy, geometry family, contour seam, smoothing, and trim for the Ember Lattice surface."
+              : isMetaballGridPhaseEdgesStyle()
+                ? "Border visibility, width, color energy, and paint strategy for the Phase Edges surface."
+                : "Border visibility, width, color energy, and paint strategy for the Metaball Grid surface."
             : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
       </div>
     {/if}

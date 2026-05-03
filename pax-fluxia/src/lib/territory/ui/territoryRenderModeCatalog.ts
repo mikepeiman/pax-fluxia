@@ -84,7 +84,14 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     },
     {
         id: 'metaball_grid_phase_edges',
-        label: 'Phase Edges: Ember Lattice',
+        label: 'Phase Edges',
+        shortDescription:
+            'Edge-forward square-lattice conquest mode with blended owner boundaries and shared grid-driven wave controls',
+        legacyDispatch: true,
+    },
+    {
+        id: 'metaball_grid_ember_lattice',
+        label: 'Ember Lattice',
         shortDescription:
             'Dense square-lattice territory renderer with contour-derived blended frontiers and inward heat grading',
         legacyDispatch: true,

@@ -33,6 +33,7 @@ const LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER = 0.02;
 const SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER = 0;
 const LEGACY_TERRITORY_TRANSITION_MS = 400;
 const TERRITORY_TRANSITION_POLICY_VERSION = 1;
+const TERRITORY_MODE_SPLIT_POLICY_VERSION = 1;
 
 function resolveStoredTickInterval(stored: Record<string, any>): number {
     if (
@@ -214,10 +215,42 @@ function migrateLegacyMetaballGridPanelSettings(
     return changed;
 }
 
+function migrateLegacyTerritoryModeSplit(
+    stored: Record<string, any>,
+): boolean {
+    let changed = false;
+    const splitPolicyUnversioned =
+        stored.territoryModeSplitPolicyVersion !==
+        TERRITORY_MODE_SPLIT_POLICY_VERSION;
+
+    if (
+        splitPolicyUnversioned &&
+        stored.territoryRenderMode === 'metaball_grid_phase_edges'
+    ) {
+        stored.territoryRenderMode = 'metaball_grid_ember_lattice';
+        changed = true;
+    }
+
+    if (splitPolicyUnversioned) {
+        stored.territoryModeSplitPolicyVersion =
+            TERRITORY_MODE_SPLIT_POLICY_VERSION;
+        changed = true;
+    }
+
+    return changed;
+}
+
 function normalizeMetaballGridSmoothnessDefaults(
     panel: Record<string, any>,
 ): boolean {
-    return migrateLegacyMetaballGridPanelSettings(panel);
+    let changed = false;
+    if (migrateLegacyMetaballGridPanelSettings(panel)) {
+        changed = true;
+    }
+    if (migrateLegacyTerritoryModeSplit(panel)) {
+        changed = true;
+    }
+    return changed;
 }
 
 export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T {

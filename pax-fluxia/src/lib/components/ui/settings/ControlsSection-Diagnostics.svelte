@@ -58,6 +58,7 @@
     const showMetaballGridDiagnostics = $derived(
         liveRenderMode === "metaball_grid" ||
             liveRenderMode === "metaball_grid_phase_edges" ||
+            liveRenderMode === "metaball_grid_ember_lattice" ||
             liveRenderMode === "metaball_grid_phase_field",
     );
     const showTerritoryEngineTraceDiagnostics = $derived(
@@ -69,6 +70,7 @@
             liveRenderMode === "metaball" ||
             liveRenderMode === "metaball_grid" ||
             liveRenderMode === "metaball_grid_phase_edges" ||
+            liveRenderMode === "metaball_grid_ember_lattice" ||
             liveRenderMode === "metaball_grid_phase_field",
     );
     const bundleList = $derived(
@@ -282,8 +284,8 @@
         return `0-0.1 ${bins["0-0.1"]} / 0.1-0.25 ${bins["0.1-0.25"]} / 0.25-0.5 ${bins["0.25-0.5"]} / 0.5-0.75 ${bins["0.5-0.75"]} / 0.75-1 ${bins["0.75-1"]}`;
     }
 
-    function formatPhaseEdgesSemanticsNote(): string {
-        return "Phase Edges now runs as its own session-overlay renderer inside the metaball family. Idle frames can still look close to base Metaball Grid when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures and wave timing instead of collapsing into one retained frontier.";
+    function formatEmberLatticeSemanticsNote(): string {
+        return "Ember Lattice is the dedicated session-overlay renderer inside the metaball family. Idle frames can still look close to other grid modes when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures, contour-derived blended seams, and frontier timing instead of collapsing into one retained frontier.";
     }
 
     function formatPhaseFieldSemanticsNote(): string {
@@ -622,6 +624,7 @@
             <span>Star Bias</span>
             <span>
                 {$territoryRenderStatus.msrStarBias === null
+                    || !Number.isFinite($territoryRenderStatus.msrStarBias)
                     ? "n/a"
                     : $territoryRenderStatus.msrStarBias.toFixed(2)}
             </span>
@@ -686,9 +689,9 @@
             <div><span>Flip Pcts</span><span>{formatFlipPercentiles()}</span></div>
             <div><span>Flip Bins</span><span>{formatFlipBins()}</span></div>
         </div>
-        {#if liveRenderMode === "metaball_grid_phase_edges"}
+        {#if liveRenderMode === "metaball_grid_ember_lattice"}
             <div class="readout">
-                {formatPhaseEdgesSemanticsNote()}
+                {formatEmberLatticeSemanticsNote()}
                 Default visual starting point: <code>pre_to_post_frontier</code>,
                 <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
             </div>

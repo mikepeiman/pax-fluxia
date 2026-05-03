@@ -897,8 +897,8 @@ function strokeSquareBounds(
  * RenderFamily implementation for metaball-grid.
  */
 export class MetaballGridPhaseEdgesFamily implements RenderFamily {
-    readonly id = 'metaball_grid_phase_edges';
-    readonly label = 'Metaball Grid Phase Edges';
+    readonly id = 'metaball_grid_ember_lattice';
+    readonly label = 'Ember Lattice';
     readonly tunableKeys: readonly string[] = METABALL_GRID_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
@@ -4830,7 +4830,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     }
 }
 
-export function createMetaballGridPhaseEdgesFamily(
+export function createMetaballGridEmberLatticeFamily(
     colorUtils: ColorUtils,
 ): MetaballGridPhaseEdgesFamily {
     return new MetaballGridPhaseEdgesFamily(colorUtils);

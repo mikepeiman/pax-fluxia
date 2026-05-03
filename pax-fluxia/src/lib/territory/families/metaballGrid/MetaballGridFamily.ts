@@ -85,7 +85,6 @@ import {
     resetMetaballGridStats,
     updateMetaballGridStats,
 } from './metaballGridStats';
-import { createMetaballGridPhaseEdgesFamily as createSeparateMetaballGridPhaseEdgesFamily } from './MetaballGridPhaseEdgesFamily';
 import {
     computeDualPassBlendAlphas,
     findActiveFrontierRange,
@@ -274,7 +273,7 @@ const DEFAULT_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
 
 const PHASE_EDGE_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
     id: 'metaball_grid_phase_edges',
-    label: 'Metaball Grid Phase Edges',
+    label: 'Phase Edges',
     defaultWaveGeometry:
         metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY,
     defaultBorderMode:
@@ -3346,10 +3345,8 @@ export function createMetaballGridFamily(colorUtils: ColorUtils): MetaballGridFa
     return new MetaballGridFamily(colorUtils, DEFAULT_METABALL_GRID_VARIANT);
 }
 
-export function createMetaballGridPhaseEdgesFamily(
+export function createMetaballGridPhaseEdgesVariantFamily(
     colorUtils: ColorUtils,
 ): MetaballGridFamily {
-    return createSeparateMetaballGridPhaseEdgesFamily(
-        colorUtils,
-    ) as unknown as MetaballGridFamily;
+    return new MetaballGridFamily(colorUtils, PHASE_EDGE_METABALL_GRID_VARIANT);
 }
