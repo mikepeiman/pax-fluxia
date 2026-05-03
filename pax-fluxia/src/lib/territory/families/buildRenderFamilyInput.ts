@@ -48,6 +48,8 @@ export function buildRenderFamilyInput(params: {
     lanes: StarConnection[];
     worldWidth: number;
     worldHeight: number;
+    worldMinX?: number;
+    worldMinY?: number;
     nowMs: number;
     paused?: boolean;
     gameTick?: number;
@@ -73,7 +75,12 @@ export function buildRenderFamilyInput(params: {
         gameTick: params.gameTick,
         stars: params.stars,
         lanes: params.lanes,
-        world: { width: params.worldWidth, height: params.worldHeight },
+        world: {
+            width: params.worldWidth,
+            height: params.worldHeight,
+            minX: params.worldMinX ?? 0,
+            minY: params.worldMinY ?? 0,
+        },
         tunables,
         configSource:
             params.configSource ??

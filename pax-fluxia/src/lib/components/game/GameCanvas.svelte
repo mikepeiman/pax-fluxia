@@ -184,6 +184,18 @@
         setTerritoryRenderStatus,
     } from "$lib/stores/territoryRenderStatusStore";
     import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
+    import {
+        buildTerritoryPresentationFrameKey,
+        getTerritoryPresentationSpaceDiagnostics,
+        localizeCanonicalGeometrySnapshot,
+        localizeTerritoryPresentationStars,
+        type TerritoryPresentationFrame,
+    } from "$lib/components/game/territoryPresentationSpace";
+    import {
+        resolveCenteredViewportFrame,
+        resolveContentFitWorldRect,
+        resolveViewportWorldRect,
+    } from "$lib/components/game/worldRect";
 
     // ============================================================================
     // PixiJS Application
@@ -411,6 +423,7 @@
     let territoryPresentationLastYieldRequestId = 0;
     let territoryPresentationLastYieldReason = "";
     let territoryPresentationLastScheduleMode = "";
+    let territoryPresentationLastCommittedSignature = "";
     let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
         null;
     let territoryPresentationDelayTimer: ReturnType<typeof setTimeout> | null =
@@ -1832,6 +1845,7 @@
         isPaused: boolean;
         currentTick: number | null | undefined;
         territoryConfigFp: string;
+        territoryPresentationFrameKey: string;
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
         transitionPresentationSignature: string;
     }): string {
@@ -1848,6 +1862,7 @@
             params.currentTick ?? -1,
             pendingConquestSig,
             params.transitionPresentationSignature,
+            params.territoryPresentationFrameKey,
             params.territoryConfigFp,
         ].join("::");
     }
@@ -1910,7 +1925,6 @@
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesGeometryDefaults,
-            ...metaballGridPhaseEdgesModeDefaults,
         };
     }
 
@@ -2196,7 +2210,12 @@
         if (!app?.renderer) return null;
         const extracted = app.renderer.extract.canvas({
             target: params.family.displayRoot,
-            frame: new PIXI.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+            frame: new PIXI.Rectangle(
+                0,
+                0,
+                territoryWorldWidth,
+                territoryWorldHeight,
+            ),
             clearColor: "#000000",
         }) as HTMLCanvasElement;
         return {
@@ -2383,8 +2402,8 @@
         perimeterFieldReplaySprite.texture = perimeterFieldReplayTexture;
         perimeterFieldReplaySprite.x = 0;
         perimeterFieldReplaySprite.y = 0;
-        perimeterFieldReplaySprite.width = GAME_WIDTH;
-        perimeterFieldReplaySprite.height = GAME_HEIGHT;
+        perimeterFieldReplaySprite.width = territoryWorldWidth;
+        perimeterFieldReplaySprite.height = territoryWorldHeight;
         perimeterFieldReplaySprite.visible = true;
         params.liveRoot.visible = false;
         perimeterFieldDebugSnapshotOverride = selected.debugSnapshot;
@@ -2478,8 +2497,8 @@
                 },
                 nowMs: params.nowMs,
                 starPositions: buildStarPositionsMap(params.stars),
-                worldWidth: GAME_WIDTH,
-                worldHeight: GAME_HEIGHT,
+                worldWidth: territoryWorldWidth,
+                worldHeight: territoryWorldHeight,
             },
             prevCanvas: session.previousFrame.canvas,
             nextCanvas: params.frame.canvas,
@@ -2619,6 +2638,8 @@
         stars: StarState[],
         runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
         activeMode: string,
+        worldWidth: number = GAME_WIDTH,
+        worldHeight: number = GAME_HEIGHT,
     ): TerritoryFrameInput {
         const selection: TerritoryModeSelection =
             activeMode === "power_voronoi_canonical"
@@ -2640,8 +2661,8 @@
                     id: player.id,
                 })) ?? [],
             world: {
-                width: GAME_WIDTH,
-                height: GAME_HEIGHT,
+                width: worldWidth,
+                height: worldHeight,
             },
             selection,
             tunables: runtimeSettings.tunables,
@@ -2887,7 +2908,12 @@
         if (!app?.renderer) return null;
         const extracted = app.renderer.extract.canvas({
             target: params.target,
-            frame: new PIXI.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+            frame: new PIXI.Rectangle(
+                0,
+                0,
+                territoryWorldWidth,
+                territoryWorldHeight,
+            ),
             clearColor: "#000000",
         }) as HTMLCanvasElement;
         return {
@@ -3042,8 +3068,8 @@
                                 starPositions: buildStarPositionsMap(
                                     params.stars,
                                 ),
-                                worldWidth: GAME_WIDTH,
-                                worldHeight: GAME_HEIGHT,
+                                worldWidth: territoryWorldWidth,
+                                worldHeight: territoryWorldHeight,
                             },
                             prevCanvas: session.previousFrame.canvas,
                             nextCanvas: liveFrame.canvas,
@@ -3248,6 +3274,7 @@
             const cw = app.screen.width;
             const ch = app.screen.height;
             baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+            updateTerritoryViewportFrame();
         }
         // First call snaps instantly (no animation from 0,0)
         if (!cameraInitialized) {
@@ -3777,49 +3804,111 @@
     // Rendering
     // ============================================================================
 
-    // Content bounding box (dynamic — computed from star positions)
-    // These describe the actual star content area, NOT starting at (0,0)
+    // Camera-fit rect for the star map.
     let contentMinX = 0;
     let contentMinY = 0;
     let contentWidth = 1600;
     let contentHeight = 900;
-    // Legacy aliases used by bg sprite sizing
+    // Stable coordinate-space map extents rooted at (0,0).
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
+    // Territory fill frame that is viewport-aligned but centered on the star map.
+    let territoryWorldMinX = 0;
+    let territoryWorldMinY = 0;
+    let territoryWorldWidth = 1600;
+    let territoryWorldHeight = 900;
 
-    /** Recompute world bounds from display positions (respects transpose) */
+    function getTerritoryPresentationFrame(): TerritoryPresentationFrame {
+        return {
+            minX: territoryWorldMinX,
+            minY: territoryWorldMinY,
+            width: territoryWorldWidth,
+            height: territoryWorldHeight,
+        };
+    }
+
+    /** Resolve configured map extents for the current display orientation. */
+    function getConfiguredMapWorldSize(): {
+        width?: number;
+        height?: number;
+    } {
+        const configuredWidth =
+            typeof GAME_CONFIG._MAP_WIDTH === "number" &&
+            Number.isFinite(GAME_CONFIG._MAP_WIDTH) &&
+            GAME_CONFIG._MAP_WIDTH > 0
+                ? GAME_CONFIG._MAP_WIDTH
+                : undefined;
+        const configuredHeight =
+            typeof GAME_CONFIG._MAP_HEIGHT === "number" &&
+            Number.isFinite(GAME_CONFIG._MAP_HEIGHT) &&
+            GAME_CONFIG._MAP_HEIGHT > 0
+                ? GAME_CONFIG._MAP_HEIGHT
+                : undefined;
+        if (!configuredWidth || !configuredHeight) {
+            return {};
+        }
+        return mapTranspose.active
+            ? {
+                  width: configuredHeight,
+                  height: configuredWidth,
+              }
+            : {
+                  width: configuredWidth,
+                  height: configuredHeight,
+              };
+    }
+
     function updateWorldBounds() {
         const currentStars = activeGameStore.stars as StarState[];
         if (!currentStars || currentStars.length === 0) return;
-        let minX = Infinity,
-            minY = Infinity;
-        let maxX = -Infinity,
-            maxY = -Infinity;
-        for (const s of currentStars) {
-            const dx = mapTranspose.x(s);
-            const dy = mapTranspose.y(s);
-            if (dx < minX) minX = dx;
-            if (dy < minY) minY = dy;
-            if (dx > maxX) maxX = dx;
-            if (dy > maxY) maxY = dy;
-        }
-        // Add padding (star radius + orbits)
-        const pad = 80;
-        contentMinX = minX - pad;
-        contentMinY = minY - pad;
-        contentWidth = maxX - minX + 2 * pad;
-        contentHeight = maxY - minY + 2 * pad;
-        // Legacy — used by bg sprite and territory renderers
-        GAME_WIDTH = maxX + pad;
-        GAME_HEIGHT = maxY + pad;
+        const displayPoints = currentStars.map((star) => ({
+            x: mapTranspose.x(star),
+            y: mapTranspose.y(star),
+        }));
+        const fitRect = resolveContentFitWorldRect(displayPoints);
+        const configuredWorldSize = getConfiguredMapWorldSize();
+        const worldRect = resolveViewportWorldRect({
+            points: displayPoints,
+            configuredWidth: configuredWorldSize.width,
+            configuredHeight: configuredWorldSize.height,
+        });
+
+        contentMinX = fitRect.minX;
+        contentMinY = fitRect.minY;
+        contentWidth = fitRect.width;
+        contentHeight = fitRect.height;
+        GAME_WIDTH = worldRect.width;
+        GAME_HEIGHT = worldRect.height;
 
         log.canvas(
             "WorldBounds",
-            `stars=${currentStars.length} min=(${minX.toFixed(0)},${minY.toFixed(0)}) max=(${maxX.toFixed(0)},${maxY.toFixed(0)}) content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) transpose=${mapTranspose.active}`,
+            `stars=${currentStars.length} fit=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) map=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} required=${worldRect.requiredWidth.toFixed(0)}x${worldRect.requiredHeight.toFixed(0)} source=${worldRect.source} transpose=${mapTranspose.active}`,
         );
+
     }
 
-    /** DEBUG: Draw a bright yellow rectangle showing content bounds */
+    function updateTerritoryViewportFrame() {
+        if (!app) return;
+        const fitScale = Math.max(baseScale, 0.000001);
+        const contentCenterX = contentMinX + contentWidth / 2;
+        const contentCenterY = contentMinY + contentHeight / 2;
+        const viewportFrame = resolveCenteredViewportFrame({
+            centerX: contentCenterX,
+            centerY: contentCenterY,
+            viewportWidthPx: app.screen.width,
+            viewportHeightPx: app.screen.height,
+            scale: fitScale,
+        });
+        territoryWorldMinX = viewportFrame.minX;
+        territoryWorldMinY = viewportFrame.minY;
+        territoryWorldWidth = viewportFrame.width;
+        territoryWorldHeight = viewportFrame.height;
+        if (voronoiContainer) {
+            voronoiContainer.x = territoryWorldMinX;
+            voronoiContainer.y = territoryWorldMinY;
+        }
+    }
+
     function drawDebugWorldBounds() {
         if (!app) return;
         let dbg = (app as any)._debugBoundsGfx as PIXI.Graphics | undefined;
@@ -3948,6 +4037,7 @@
             containerWidth / contentWidth,
             containerHeight / contentHeight,
         );
+        updateTerritoryViewportFrame();
 
         // Size nebula background to cover visible viewport (not just game world)
         const bgSprite = (app as any)._nebulaBgSprite as
@@ -4700,6 +4790,7 @@
                         );
                     },
                 );
+                territoryPresentationLastCommittedSignature = request.signature;
                 territoryPresentationLastFinishedAtMs = performance.now();
                 territoryPresentationLastCommitLagMs =
                     territoryPresentationLastFinishedAtMs - request.enqueuedAtMs;
@@ -4993,6 +5084,7 @@
             territoryPresentationLastYieldRequestId = 0;
             territoryPresentationLastYieldReason = "";
             territoryPresentationLastScheduleMode = "";
+            territoryPresentationLastCommittedSignature = "";
             if (territoryPresentationDelayTimer) {
                 clearTimeout(territoryPresentationDelayTimer);
                 territoryPresentationDelayTimer = null;
@@ -5086,9 +5178,8 @@
             }
         }
 
-        // Skip territory re-rendering when paused — nothing changes, saves
-        // 200-300 log lines/sec from the fingerprint checks and stage logs.
-        // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
+        // While paused, only skip territory presentation when the already
+        // committed or queued semantic scene signature is unchanged.
         const isPausedNow = activeGameStore.isPaused;
         const activeTerritoryMode = resolveActiveTerritoryMode();
         const territoryGeometryFp = buildTerritoryGeometryCacheKeyParts(
@@ -5096,6 +5187,9 @@
                 GAME_CONFIG as unknown as Record<string, unknown>,
             ),
         ).join(":");
+        const territoryPresentationFrame = getTerritoryPresentationFrame();
+        const territoryPresentationFrameKey =
+            buildTerritoryPresentationFrameKey(territoryPresentationFrame);
         const territoryConfigFp =
             `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${territoryGeometryFp}:` +
@@ -5119,103 +5213,103 @@
             (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
         if (configChanged) resetTerritoryRenderCaches();
 
-        if (
-            isPausedNow &&
-            (globalThis as any).__territoryRenderedWhilePaused &&
-            !configChanged
-        ) {
-            // Territory already rendered once since pause and config unchanged — skip
-        } else if (voronoiContainer) {
-            const territoryScheduler = shouldThrottleTerritoryCadence({
-                nowMs: performance.now(),
-                isPaused: isPausedNow,
-                configChanged,
-                activeMode: activeTerritoryMode,
-                pendingConquests: pendingTickEvents?.conquests?.length ?? 0,
-            });
-            const deferTerritoryUpdate =
-                !isPausedNow && territoryScheduler.defer;
-            if (deferTerritoryUpdate) {
-                deferredTerritoryFrameCount += 1;
-                territoryCadenceSkipCount += 1;
-                if (!territoryDeferralActive) {
-                    territoryDeferralActive = true;
-                    deferredTerritoryReason = territoryScheduler.reason;
-                    recordPerfEvent("game.territory.defer.start", {
-                        lastTerritoryUpdateCostMs,
-                        reason: territoryScheduler.reason,
-                        cadenceMs: territoryScheduler.cadenceMs,
-                        staleMs: territoryScheduler.staleMs,
-                    });
-                    logPipelineStage({
-                        channel: "input",
-                        context: "GameCanvas",
-                        stage: "territory_defer_start",
-                        from: "Input pressure window",
-                        to: "Territory renderer scheduler",
-                        purpose: "Prioritize order input and camera interaction over heavy territory updates",
-                        summary:
-                            `reason=${territoryScheduler.reason} ` +
-                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
-                            `cadenceMs=${territoryScheduler.cadenceMs} ` +
-                            `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
-                    });
-                }
-            } else {
-                if (territoryDeferralActive) {
-                    recordPerfEvent("game.territory.defer.stop", {
-                        deferredFrames: deferredTerritoryFrameCount,
-                        cadenceSkips: territoryCadenceSkipCount,
-                        lastTerritoryUpdateCostMs,
-                        reason: deferredTerritoryReason,
-                        cadenceMs: territoryScheduler.cadenceMs,
-                        staleMs: territoryScheduler.staleMs,
-                    });
-                    logPipelineStage({
-                        channel: "input",
-                        context: "GameCanvas",
-                        stage: "territory_defer_stop",
-                        from: "Territory renderer scheduler",
-                        to: "Normal territory cadence",
-                        purpose: "Resume heavier territory updates after interactive pressure subsides",
-                        summary:
-                            `deferredFrames=${deferredTerritoryFrameCount} ` +
-                            `cadenceSkips=${territoryCadenceSkipCount} ` +
-                            `reason=${deferredTerritoryReason} ` +
-                            `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
-                    });
-                    territoryDeferralActive = false;
-                    deferredTerritoryFrameCount = 0;
-                    territoryCadenceSkipCount = 0;
-                    deferredTerritoryReason = "";
-                }
-                if (isPausedNow)
-                    (globalThis as any).__territoryRenderedWhilePaused = true;
-                if (!isPausedNow)
-                    (globalThis as any).__territoryRenderedWhilePaused = false;
-                voronoiContainer.visible = true;
-                const renderFamilyTransitionState =
-                    buildRenderFamilyTransitionState(
-                        fxOrchestrator.gameTime,
-                        activeGameStore.effectiveTickMs,
-                        pendingTickEvents?.conquests ?? [],
-                    );
-                queueTerritoryPresentation({
-                    signature: buildTerritoryPresentationRequestSignature({
-                        activeMode: activeTerritoryMode,
-                        isPaused: isPausedNow,
-                        currentTick: activeGameStore.currentTick,
-                        territoryConfigFp,
-                        pendingConquests: pendingTickEvents?.conquests ?? [],
-                        transitionPresentationSignature:
-                            renderFamilyTransitionState.transitionPresentationSignature,
-                    }),
+        if (voronoiContainer) {
+            const renderFamilyTransitionState =
+                buildRenderFamilyTransitionState(
+                    fxOrchestrator.gameTime,
+                    activeGameStore.effectiveTickMs,
+                    pendingTickEvents?.conquests ?? [],
+                );
+            const territoryPresentationSignature =
+                buildTerritoryPresentationRequestSignature({
                     activeMode: activeTerritoryMode,
                     isPaused: isPausedNow,
-                    stars,
+                    currentTick: activeGameStore.currentTick,
+                    territoryConfigFp,
+                    territoryPresentationFrameKey,
                     pendingConquests: pendingTickEvents?.conquests ?? [],
-                    territoryScheduler,
-                    run: () => {
+                    transitionPresentationSignature:
+                        renderFamilyTransitionState.transitionPresentationSignature,
+                });
+            const pausedPresentationAlreadyCurrent =
+                isPausedNow &&
+                (territoryPresentationLastCommittedSignature ===
+                    territoryPresentationSignature ||
+                    territoryPresentationPendingRequest?.signature ===
+                        territoryPresentationSignature);
+            if (!pausedPresentationAlreadyCurrent) {
+                const territoryScheduler = shouldThrottleTerritoryCadence({
+                    nowMs: performance.now(),
+                    isPaused: isPausedNow,
+                    configChanged,
+                    activeMode: activeTerritoryMode,
+                    pendingConquests: pendingTickEvents?.conquests?.length ?? 0,
+                });
+                const deferTerritoryUpdate =
+                    !isPausedNow && territoryScheduler.defer;
+                if (deferTerritoryUpdate) {
+                    deferredTerritoryFrameCount += 1;
+                    territoryCadenceSkipCount += 1;
+                    if (!territoryDeferralActive) {
+                        territoryDeferralActive = true;
+                        deferredTerritoryReason = territoryScheduler.reason;
+                        recordPerfEvent("game.territory.defer.start", {
+                            lastTerritoryUpdateCostMs,
+                            reason: territoryScheduler.reason,
+                            cadenceMs: territoryScheduler.cadenceMs,
+                            staleMs: territoryScheduler.staleMs,
+                        });
+                        logPipelineStage({
+                            channel: "input",
+                            context: "GameCanvas",
+                            stage: "territory_defer_start",
+                            from: "Input pressure window",
+                            to: "Territory renderer scheduler",
+                            purpose: "Prioritize order input and camera interaction over heavy territory updates",
+                            summary:
+                                `reason=${territoryScheduler.reason} ` +
+                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
+                                `cadenceMs=${territoryScheduler.cadenceMs} ` +
+                                `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
+                        });
+                    }
+                } else {
+                    if (territoryDeferralActive) {
+                        recordPerfEvent("game.territory.defer.stop", {
+                            deferredFrames: deferredTerritoryFrameCount,
+                            cadenceSkips: territoryCadenceSkipCount,
+                            lastTerritoryUpdateCostMs,
+                            reason: deferredTerritoryReason,
+                            cadenceMs: territoryScheduler.cadenceMs,
+                            staleMs: territoryScheduler.staleMs,
+                        });
+                        logPipelineStage({
+                            channel: "input",
+                            context: "GameCanvas",
+                            stage: "territory_defer_stop",
+                            from: "Territory renderer scheduler",
+                            to: "Normal territory cadence",
+                            purpose: "Resume heavier territory updates after interactive pressure subsides",
+                            summary:
+                                `deferredFrames=${deferredTerritoryFrameCount} ` +
+                                `cadenceSkips=${territoryCadenceSkipCount} ` +
+                                `reason=${deferredTerritoryReason} ` +
+                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
+                        });
+                        territoryDeferralActive = false;
+                        deferredTerritoryFrameCount = 0;
+                        territoryCadenceSkipCount = 0;
+                        deferredTerritoryReason = "";
+                    }
+                    voronoiContainer.visible = true;
+                    queueTerritoryPresentation({
+                        signature: territoryPresentationSignature,
+                        activeMode: activeTerritoryMode,
+                        isPaused: isPausedNow,
+                        stars,
+                        pendingConquests: pendingTickEvents?.conquests ?? [],
+                        territoryScheduler,
+                        run: () => {
             territoryLastMode = activeTerritoryMode;
             recordPerfEvent("game.territory.schedule.run", {
                 mode: activeTerritoryMode,
@@ -5226,6 +5320,29 @@
 
             // Hide all children first — only the active renderer will re-show its own
             const activeVoronoiContainer = voronoiContainer!;
+            const territoryPresentationWorldWidth =
+                territoryPresentationFrame.width;
+            const territoryPresentationWorldHeight =
+                territoryPresentationFrame.height;
+            // The territory container is positioned at the viewport-aligned
+            // frame min. Every territory renderer must therefore consume
+            // presentation-local coordinates, not the stable map-space truth.
+            const territoryPresentationStars =
+                localizeTerritoryPresentationStars(
+                    stars,
+                    territoryPresentationFrame,
+                );
+            const localizePresentationGeometry = (
+                geometry: CanonicalGeometrySnapshot | null | undefined,
+            ): CanonicalGeometrySnapshot | null =>
+                geometry
+                    ? localizeCanonicalGeometrySnapshot(
+                          geometry,
+                          territoryPresentationFrame,
+                      )
+                    : null;
+            activeVoronoiContainer.x = territoryPresentationFrame.minX;
+            activeVoronoiContainer.y = territoryPresentationFrame.minY;
             for (const child of activeVoronoiContainer.children) {
                 child.visible = false;
             }
@@ -5267,6 +5384,8 @@
                 let transitionDiagnosticFrameInput:
                     | TransitionDiagnosticFrameInput
                     | null = null;
+                const transitionDiagnosticCaptureEnabled =
+                    transitionSnapshotRecorder.isEnabled();
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -5341,11 +5460,11 @@
                 switch (activeMode) {
                     case "territory_engine":
                         renderTerritoryEngine({
-                            stars,
+                            stars: territoryPresentationStars,
                             container: activeVoronoiContainer,
                             colorUtils,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
+                            worldWidth: territoryPresentationWorldWidth,
+                            worldHeight: territoryPresentationWorldHeight,
                             connections:
                                 activeGameStore.connections as StarConnection[],
                             renderer: app?.renderer ?? undefined,
@@ -5360,11 +5479,11 @@
                                   "game.renderFrame.fg2DataPipeline.vs_pvv3",
                                   () =>
                                       runFG2DataPipeline({
-                                          stars,
+                                          stars: territoryPresentationStars,
                                            container: activeVoronoiContainer,
                                           colorUtils,
-                                          worldWidth: GAME_WIDTH,
-                                          worldHeight: GAME_HEIGHT,
+                                          worldWidth: territoryPresentationWorldWidth,
+                                          worldHeight: territoryPresentationWorldHeight,
                                           connections:
                                               activeGameStore.connections as StarConnection[],
                                           gameNowMs: fxOrchestrator.gameTime,
@@ -5372,23 +5491,25 @@
                               )
                             : null;
                         renderPVV3Module(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                             fg2Artifacts
                                 ? extractCanonicalData(fg2Artifacts)
                                 : undefined,
                             pvv3Invalidation,
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     }
                     case "power_voronoi": {
@@ -5396,22 +5517,22 @@
                             "game.renderFrame.fg2DataPipeline.power_voronoi",
                             () =>
                                 runFG2DataPipeline({
-                                    stars,
+                                    stars: territoryPresentationStars,
                                     container: activeVoronoiContainer,
                                     colorUtils,
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
                                     connections:
                                         activeGameStore.connections as StarConnection[],
                                     gameNowMs: fxOrchestrator.gameTime,
                                 }),
                         );
                         renderPowerVoronoiModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                             extractCanonicalData(fg2ArtifactsPV),
                         );
@@ -5419,48 +5540,50 @@
                     }
                     case "distance_field":
                         renderDistanceFieldTerritoryModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                             app?.renderer ?? undefined,
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition: activeRenderFamilyTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition: activeRenderFamilyTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     case "modified_voronoi":
                         renderModifiedVoronoiModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
                     case "pvv2_dy4":
                         renderPVV2DY4Module(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
                     case "voronoi":
                         renderVoronoiModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
@@ -5478,33 +5601,39 @@
                             "game.renderFrame.ownership.metaball",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    stars,
+                                    territoryPresentationStars,
                                     activeTransition,
                                 ),
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars,
+                                    stars: territoryPresentationStars,
                                     lanes,
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry,
-                                    prevGeometry:
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
+                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
@@ -5524,14 +5653,16 @@
                             geometry,
                             configSource: renderFamilyConfigSource,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "metaball_grid": {
@@ -5548,33 +5679,39 @@
                             "game.renderFrame.ownership.metaball_grid",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    stars,
+                                    territoryPresentationStars,
                                     activeTransition,
                                 ),
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mgInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball_grid",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars,
+                                    stars: territoryPresentationStars,
                                     lanes,
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry,
-                                    prevGeometry:
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
+                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
@@ -5598,14 +5735,16 @@
                             geometry,
                             configSource: renderFamilyConfigSource,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "metaball_grid_phase_edges": {
@@ -5622,33 +5761,39 @@
                             "game.renderFrame.ownership.metaball_grid_phase_edges",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    stars,
+                                    territoryPresentationStars,
                                     activeTransition,
                                 ),
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mgInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball_grid_phase_edges",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars,
+                                    stars: territoryPresentationStars,
                                     lanes,
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry,
-                                    prevGeometry:
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
+                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
@@ -5674,14 +5819,16 @@
                             configSource: renderFamilyConfigSource,
                             freezeDuringActiveTransition: true,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "metaball_grid_phase_field": {
@@ -5778,33 +5925,39 @@
                             "game.renderFrame.ownership.perimeter_field",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    stars,
+                                    territoryPresentationStars,
                                     activeTransition,
                                 ),
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const pfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.perimeter_field",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars,
+                                    stars: territoryPresentationStars,
                                     lanes,
-                                    worldWidth: GAME_WIDTH,
-                                    worldHeight: GAME_HEIGHT,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry,
-                                    prevGeometry:
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
+                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
@@ -5839,7 +5992,7 @@
                             family: pf,
                             input: pfInput,
                             activeTransition: captureTransition,
-                            stars,
+                            stars: territoryPresentationStars,
                             nowMs: fxOrchestrator.gameTime,
                         });
                         applyPerimeterFieldReplayPresentation({
@@ -5850,37 +6003,39 @@
                     }
                     case "pixel":
                         renderPixelTerritoryModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition: activeRenderFamilyTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition: activeRenderFamilyTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     case "graph":
                         renderLaneTerritoryModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
                     case "contour":
                         renderContourTerritoryModule(
-                            stars,
+                            territoryPresentationStars,
                             activeVoronoiContainer,
                             colorUtils,
-                            GAME_WIDTH,
-                            GAME_HEIGHT,
+                            territoryPresentationWorldWidth,
+                            territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
@@ -5897,9 +6052,11 @@
                         }
                         canonicalBridge?.update(
                             buildCanonicalBridgeInput(
-                                stars,
+                                territoryPresentationStars,
                                 runtimeSettings,
                                 activeMode,
+                                territoryPresentationWorldWidth,
+                                territoryPresentationWorldHeight,
                             ),
                         );
                         canonicalBridge?.consumeVFXCommands();
@@ -5934,9 +6091,11 @@
                                 try {
                                     canonicalBridge.update(
                                         buildCanonicalBridgeInput(
-                                            stars,
+                                            territoryPresentationStars,
                                             runtimeSettings,
                                             activeMode,
+                                            territoryPresentationWorldWidth,
+                                            territoryPresentationWorldHeight,
                                         ),
                                     );
                                     canonicalBridge.consumeVFXCommands();
@@ -6007,12 +6166,14 @@
                             const { state, transitionPlan } =
                                 canonicalController.update(
                                     {
-                                        stars,
+                                        stars: territoryPresentationStars,
                                         connections:
                                             activeGameStore.connections as StarConnection[],
                                         playerIds,
-                                        worldWidth: GAME_WIDTH,
-                                        worldHeight: GAME_HEIGHT,
+                                        worldWidth:
+                                            territoryPresentationWorldWidth,
+                                        worldHeight:
+                                            territoryPresentationWorldHeight,
                                         config: { family: "straight" },
                                     },
                                     fxOrchestrator.gameTime,
@@ -6261,8 +6422,9 @@
                         cadenceMs: connectionsScheduler.cadenceMs,
                         staleMs: connectionsScheduler.staleMs,
                         reason: connectionsScheduler.reason,
-                    },
-                });
+                        },
+                    });
+                }
             }
         }
 
@@ -6319,7 +6481,7 @@
                     processTickEvents(
                         stars,
                         tickEvents,
-                        connections || [],
+                        (activeGameStore.connections as StarConnection[]) || [],
                         starsById,
                     );
                 },
@@ -6653,6 +6815,8 @@
             territoryPresentationLastQueueWaitMs,
             territoryPresentationLastCommitLagMs,
             territoryPresentationLastRequestId,
+            territoryPresentationSpace:
+                getTerritoryPresentationSpaceDiagnostics(),
             territoryPresentationYieldCount,
             territoryPresentationForcedCount,
             territoryPresentationLastYieldAtMs,

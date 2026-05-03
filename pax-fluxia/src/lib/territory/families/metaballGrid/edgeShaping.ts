@@ -5,6 +5,44 @@ export interface SharedBoundaryCornerRadiusParams {
     readonly smoothingPasses: number;
 }
 
+export interface ComputeBoundaryInsetParams {
+    readonly insetMax: number;
+    readonly cellInsetPx: number;
+    readonly inwardOffsetPx: number;
+    readonly edgeTrimPx: number;
+    readonly flushBoundaryFill: boolean;
+}
+
+export interface SquareCellEdgeInsets {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+}
+
+export interface ComputeSquareCellEdgeInsetsParams {
+    readonly ix: number;
+    readonly iy: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly colorIdx: number;
+    readonly colorIdxByGridIdx: Int32Array | null;
+    readonly nativeInsetPx: number;
+    readonly boundaryInsetPx: number;
+    readonly useSharedEdgeBorders: boolean;
+    readonly useOuterBorder: boolean;
+}
+
+export interface OwnershipBoundaryCellParams {
+    readonly ix: number;
+    readonly iy: number;
+    readonly cols: number;
+    readonly rows: number;
+    readonly colorIdx: number;
+    readonly colorIdxByGridIdx: Int32Array | null;
+    readonly includeWorldEdge: boolean;
+}
+
 export function computeSharedBoundaryCornerRadius(
     params: SharedBoundaryCornerRadiusParams,
 ): number {
@@ -20,6 +58,109 @@ export function computeSharedBoundaryCornerRadius(
         clampedHalf * Math.min(0.85, smoothingPasses * 0.18),
     );
     return Math.max(baseRadius, smoothingRadius);
+}
+
+export function computeBoundaryInset(
+    params: ComputeBoundaryInsetParams,
+): number {
+    const legacyInset = computeBoundaryOffsetTargetPx(params);
+    return Math.min(
+        legacyInset,
+        Math.max(0, params.insetMax),
+    );
+}
+
+export function computeBoundaryOffsetTargetPx(
+    params: Omit<ComputeBoundaryInsetParams, 'insetMax'>,
+): number {
+    const explicitInset = Math.max(0, params.inwardOffsetPx);
+    const legacyInset =
+        Math.max(0, params.cellInsetPx) +
+        explicitInset +
+        Math.max(0, params.edgeTrimPx);
+    return params.flushBoundaryFill ? explicitInset : legacyInset;
+}
+
+export function computeSquareCellEdgeInsets(
+    params: ComputeSquareCellEdgeInsetsParams,
+): SquareCellEdgeInsets {
+    const {
+        ix,
+        iy,
+        cols,
+        rows,
+        colorIdx,
+        colorIdxByGridIdx,
+        nativeInsetPx,
+        boundaryInsetPx,
+        useSharedEdgeBorders,
+        useOuterBorder,
+    } = params;
+
+    if (!colorIdxByGridIdx || (!useSharedEdgeBorders && !useOuterBorder)) {
+        return {
+            left: nativeInsetPx,
+            right: nativeInsetPx,
+            top: nativeInsetPx,
+            bottom: nativeInsetPx,
+        };
+    }
+
+    const sideInset = (nx: number, ny: number): number => {
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) {
+            return useOuterBorder ? boundaryInsetPx : nativeInsetPx;
+        }
+        const neighborColorIdx = colorIdxByGridIdx[ny * cols + nx];
+        if (neighborColorIdx < 0) {
+            return useOuterBorder ? boundaryInsetPx : nativeInsetPx;
+        }
+        if (neighborColorIdx !== colorIdx) {
+            return useSharedEdgeBorders ? boundaryInsetPx : nativeInsetPx;
+        }
+        return nativeInsetPx;
+    };
+
+    return {
+        left: sideInset(ix - 1, iy),
+        right: sideInset(ix + 1, iy),
+        top: sideInset(ix, iy - 1),
+        bottom: sideInset(ix, iy + 1),
+    };
+}
+
+export function isOwnershipBoundaryCell(
+    params: OwnershipBoundaryCellParams,
+): boolean {
+    const {
+        ix,
+        iy,
+        cols,
+        rows,
+        colorIdx,
+        colorIdxByGridIdx,
+        includeWorldEdge,
+    } = params;
+
+    if (!colorIdxByGridIdx) return false;
+    if (ix < 0 || ix >= cols || iy < 0 || iy >= rows) return false;
+
+    const neighborDiffers = (nx: number, ny: number): boolean => {
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) {
+            return includeWorldEdge;
+        }
+        const neighborColorIdx = colorIdxByGridIdx[ny * cols + nx];
+        if (neighborColorIdx < 0) {
+            return includeWorldEdge;
+        }
+        return neighborColorIdx !== colorIdx;
+    };
+
+    return (
+        neighborDiffers(ix - 1, iy) ||
+        neighborDiffers(ix + 1, iy) ||
+        neighborDiffers(ix, iy - 1) ||
+        neighborDiffers(ix, iy + 1)
+    );
 }
 
 function trimEndpoint(

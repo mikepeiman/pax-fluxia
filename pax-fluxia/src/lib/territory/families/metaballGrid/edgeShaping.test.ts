@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+    computeBoundaryInset,
+    computeSquareCellEdgeInsets,
     computeSharedBoundaryCornerRadius,
+    isOwnershipBoundaryCell,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 
@@ -53,5 +56,129 @@ describe('trimOpenPolylineEndpoints', () => {
 
     it('leaves short paths alone when there is not enough geometry to trim', () => {
         expect(trimOpenPolylineEndpoints([0, 0, 10, 0], 3)).toEqual([0, 0, 10, 0]);
+    });
+});
+
+describe('computeBoundaryInset', () => {
+    it('keeps boundary fill flush when explicit pullback is zero', () => {
+        expect(
+            computeBoundaryInset({
+                insetMax: 12,
+                cellInsetPx: 2,
+                inwardOffsetPx: 0,
+                edgeTrimPx: 3,
+                flushBoundaryFill: true,
+            }),
+        ).toBe(0);
+    });
+
+    it('preserves legacy inherited inset behavior when flush mode is off', () => {
+        expect(
+            computeBoundaryInset({
+                insetMax: 12,
+                cellInsetPx: 2,
+                inwardOffsetPx: 1,
+                edgeTrimPx: 3,
+                flushBoundaryFill: false,
+            }),
+        ).toBe(6);
+    });
+});
+
+describe('computeSquareCellEdgeInsets', () => {
+    it('keeps same-owner interior sides on the native inset while flushing frontier sides', () => {
+        const grid = Int32Array.from([
+            1, 2,
+            1, 1,
+        ]);
+        expect(
+            computeSquareCellEdgeInsets({
+                ix: 0,
+                iy: 0,
+                cols: 2,
+                rows: 2,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                nativeInsetPx: 2,
+                boundaryInsetPx: 0,
+                useSharedEdgeBorders: true,
+                useOuterBorder: true,
+            }),
+        ).toEqual({
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 2,
+        });
+    });
+
+    it('falls back to native inset when shared-edge and outer-border ownership are both off', () => {
+        expect(
+            computeSquareCellEdgeInsets({
+                ix: 0,
+                iy: 0,
+                cols: 1,
+                rows: 1,
+                colorIdx: 1,
+                colorIdxByGridIdx: Int32Array.from([1]),
+                nativeInsetPx: 2,
+                boundaryInsetPx: 0,
+                useSharedEdgeBorders: false,
+                useOuterBorder: false,
+            }),
+        ).toEqual({
+            left: 2,
+            right: 2,
+            top: 2,
+            bottom: 2,
+        });
+    });
+});
+
+describe('isOwnershipBoundaryCell', () => {
+    it('detects cross-owner frontiers from the ownership grid', () => {
+        const grid = Int32Array.from([
+            1, 2,
+            1, 1,
+        ]);
+
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 2,
+                rows: 2,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('can ignore world edges when only interior frontiers should count', () => {
+        const grid = Int32Array.from([1]);
+
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 1,
+                rows: 1,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: false,
+            }),
+        ).toBe(false);
+        expect(
+            isOwnershipBoundaryCell({
+                ix: 0,
+                iy: 0,
+                cols: 1,
+                rows: 1,
+                colorIdx: 1,
+                colorIdxByGridIdx: grid,
+                includeWorldEdge: true,
+            }),
+        ).toBe(true);
     });
 });

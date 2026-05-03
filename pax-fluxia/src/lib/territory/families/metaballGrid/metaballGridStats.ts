@@ -42,6 +42,54 @@ export interface MetaballGridStats {
     readonly disconnectDistance: number;
     /** Effective DX weight in the upstream geometry path. */
     readonly dxWeight: number;
+    /** Requested shared frontier technique. */
+    readonly frontierRequestedTechnique: string;
+    /** Technique actually applied after gating/fallback. */
+    readonly frontierTechnique: string;
+    /** Requested control-path border geometry mode. */
+    readonly frontierRequestedBorderGeometryMode: string;
+    /** Effective control-path border geometry mode. */
+    readonly frontierBorderGeometryMode: string;
+    /** Control-path border geometry fallback reason, if any. */
+    readonly frontierBorderGeometryFallbackReason: string | null;
+    /** Shared surface geometry family selected for both fill and border. */
+    readonly frontierSurfaceGeometryFamily: string;
+    /** Stable-area surface geometry family. */
+    readonly frontierStableGeometryFamily: string;
+    /** Transition-area surface geometry family. */
+    readonly frontierTransitionGeometryFamily: string;
+    /** Invariant violation reason if steady/transition surface families diverge. */
+    readonly frontierSurfaceInvariantViolation: string | null;
+    /** Frontier phase sampling/filtering mode. */
+    readonly frontierPhaseSampling: string;
+    /** Number of scalar blur passes applied to the phase field. */
+    readonly frontierBlurPasses: number;
+    /** Active marching-triangle diagonal policy. */
+    readonly frontierTriangleDiagonalPolicy: string;
+    /** Active frontier Chaikin passes. */
+    readonly frontierChaikinPasses: number;
+    /** Shader frontier softness. */
+    readonly frontierShaderSoftnessPx: number;
+    /** Shader frontier band width. */
+    readonly frontierBandWidthPx: number;
+    /** Requested technique fallback reason, if any. */
+    readonly frontierFallbackReason: string | null;
+    /** Number of phase-field layers processed this frame. */
+    readonly frontierPhaseLayerCount: number;
+    /** Widest processed phase grid. */
+    readonly frontierPhaseGridCols: number;
+    /** Tallest processed phase grid. */
+    readonly frontierPhaseGridRows: number;
+    /** Scalar blur time (ms). */
+    readonly frontierBlurMs: number;
+    /** Contour extraction time (ms). */
+    readonly frontierContourExtractionMs: number;
+    /** Post-contour smoothing time (ms). */
+    readonly frontierSmoothingMs: number;
+    /** Contour/polyline count emitted this frame. */
+    readonly frontierPolylineCount: number;
+    /** Frontier vertices emitted this frame. */
+    readonly frontierEmittedVertexCount: number;
     /** Active conquest events driving this family update. */
     readonly transitionEventCount: number;
     /** Requested cell spacing from config (px). */
@@ -178,6 +226,30 @@ const INITIAL: MetaballGridStats = {
     disconnectEnabled: false,
     disconnectDistance: 0,
     dxWeight: 0,
+    frontierRequestedTechnique: 'control',
+    frontierTechnique: 'control',
+    frontierRequestedBorderGeometryMode: 'shared_edge',
+    frontierBorderGeometryMode: 'shared_edge',
+    frontierBorderGeometryFallbackReason: null,
+    frontierSurfaceGeometryFamily: 'shared_edge',
+    frontierStableGeometryFamily: 'shared_edge',
+    frontierTransitionGeometryFamily: 'shared_edge',
+    frontierSurfaceInvariantViolation: null,
+    frontierPhaseSampling: 'nearest',
+    frontierBlurPasses: 0,
+    frontierTriangleDiagonalPolicy: 'fixed',
+    frontierChaikinPasses: 0,
+    frontierShaderSoftnessPx: 0,
+    frontierBandWidthPx: 0,
+    frontierFallbackReason: null,
+    frontierPhaseLayerCount: 0,
+    frontierPhaseGridCols: 0,
+    frontierPhaseGridRows: 0,
+    frontierBlurMs: 0,
+    frontierContourExtractionMs: 0,
+    frontierSmoothingMs: 0,
+    frontierPolylineCount: 0,
+    frontierEmittedVertexCount: 0,
     transitionEventCount: 0,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,

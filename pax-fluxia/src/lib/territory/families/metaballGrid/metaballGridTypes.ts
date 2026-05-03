@@ -108,9 +108,17 @@ export interface GridVStar {
  * produce identical outputs.
  */
 export interface GridClassification {
-    /** Column count: `ceil(width / spacing)`. */
+    /**
+     * Column count of the phase-preserving localized grid. This may exceed
+     * `ceil(width / spacing)` by one when the localized viewport frame begins
+     * mid-cell in the underlying world-anchored grid.
+     */
     readonly cols: number;
-    /** Row count: `ceil(height / spacing)`. */
+    /**
+     * Row count of the phase-preserving localized grid. This may exceed
+     * `ceil(height / spacing)` by one when the localized viewport frame begins
+     * mid-cell in the underlying world-anchored grid.
+     */
     readonly rows: number;
     /**
      * Spacing actually used to build this classification, in world px. Equal to
@@ -281,7 +289,7 @@ export interface GridOwnedStar {
 }
 
 export interface BuildGridClassificationParams {
-    readonly world: { width: number; height: number };
+    readonly world: { width: number; height: number; minX?: number; minY?: number };
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
     readonly prevGeometry: CanonicalGeometrySnapshot;

@@ -322,6 +322,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
+        'Geometry Source': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
   'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
   'Star Bias': { key: 'TERRITORY_MSR_STAR_BIAS' },
@@ -461,6 +462,24 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Frontier Fade End': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+        },
+        'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
+        'Frontier Border Geometry': {
+            key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',
+        },
+        'Phase Sampling': { key: 'TERRITORY_FRONTIER_PHASE_SAMPLING' },
+        'Frontier Blur Passes': { key: 'TERRITORY_FRONTIER_BLUR_PASSES' },
+        'Triangle Diagonal Policy': {
+            key: 'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
+        },
+        'Frontier Chaikin Passes': {
+            key: 'TERRITORY_FRONTIER_CHAIKIN_PASSES',
+        },
+        'Frontier Shader Softness': {
+            key: 'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
+        },
+        'Frontier Band Width': {
+            key: 'TERRITORY_FRONTIER_BAND_WIDTH_PX',
         },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },

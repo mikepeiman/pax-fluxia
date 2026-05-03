@@ -1,0 +1,166 @@
+# Feature And Task Queue - 2026-05-01
+
+## Active
+- Complete a full `metaball_grid_phase_edges` value/control contract audit:
+- enumerate every direct family tunable and every inherited geometry/topology tunable that changes the live render
+- identify which keys are surfaced in UI, which are duplicated across UI surfaces, and which still affect the mode without any reachable UI
+- specifically confirm the likely hidden-affecting keys behind the user's "mystery value" suspicion
+- Live user verification that the preferred Phase Edges mode remains centered by the star-fit rect.
+- Live user verification that `Outer perimeter border` now produces a real owner-vs-world perimeter pass in the preferred rounded path instead of remaining inert behind the shared-edge blended branch.
+- Live user verification that `Border Mode = off` now leaves no surviving underlying border draw in Phase Edges.
+- Live user verification that `Border Mode = territory_edge` no longer stacks a second border path under the intended blended shared-edge border.
+- Continue Phase Edges acceptance work from 2026-04-30 after the viewport/world-rect correction:
+- no structural fill/border divergence
+- no stable-area steady-state vs transition border divergence
+- Queue the next acceptance pass after centering/perimeter verification:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition
+  - test whether the end-state snap is skipping or collapsing the final few presentation frames
+
+## Completed
+- Audited the map/viewport defect as a world-rect ownership bug, not a CSS-only issue.
+- Added `pax-fluxia/src/lib/components/game/worldRect.ts` to resolve one authoritative map rectangle for camera fit and territory world sizing.
+- Rewired `GameCanvas.svelte` to separate:
+  - star-fit camera rect
+  - stable authored/display map rect
+  - viewport-aligned territory presentation frame
+- Added fallback protection so stale configured map extents cannot clip a live star field.
+- Added debug/saved-map metadata seeding in `gameStore.svelte.ts` so non-standard map flows also provide map extents to the viewport logic.
+- Added `pax-fluxia/src/lib/components/game/worldRect.test.ts`.
+- Corrected the failed first viewport fix by adding `pax-fluxia/src/lib/components/game/territoryPresentationSpace.ts`, which localizes stars and canonical geometry into the viewport-aligned territory frame before rendering.
+- Added `pax-fluxia/src/lib/components/game/territoryPresentationSpace.test.ts`.
+- Added territory presentation frame invalidation to the paused/live territory render signature so a resized/recentered viewport frame cannot reuse a stale fill render.
+- Re-audited the second viewport theory after live user rejection and retired the idea that a viewport-sized territory presentation frame should own the visible map fill.
+- Added `resolveMapFitWorldRect()` to `pax-fluxia/src/lib/components/game/worldRect.ts`.
+- Rewired `GameCanvas.svelte` so stage fit, centering, zoom anchoring, and pan clamping now use the authoritative map rect instead of the star-fit rect.
+- Re-locked the territory presentation frame to the authoritative map rect so stars, fills, and borders share the same map ownership contract again.
+- Added a first-class `TERRITORY_FRONTIER_OUTER_BORDER_ENABLED` toggle and surfaced it in `Territory Styles > Border` as `Outer perimeter border`.
+- Corrected the Phase Edges centered-blended edge path so owner-vs-world perimeter edges are drawn by an explicit perimeter pass instead of leaking asymmetrically from the owner-owner adjacency pass.
+- Rejected the map-rect centering theory after live user feedback and restored star-fit centering in `GameCanvas.svelte` while keeping the explicit outer-perimeter toggle/path.
+- Corrected the remaining localized Phase Edges sampling defect by preserving the global grid phase through the viewport-local presentation frame:
+  - `RenderFamilyInput.world` now carries presentation-frame `minX/minY`
+  - `buildRenderFamilyInput()` now freezes those values into the family contract
+  - `buildGridClassification()` now preserves world-grid phase for localized presentation frames instead of rebuilding as a fresh `0`-anchored grid every time
+  - `MetaballGridFamily.ts`, `MetaballGridPhaseEdgesFamily.ts`, and the plan-worker request all now propagate that phase-preserving world contract
+- Replaced the old optional outer-perimeter border leak path with a real clipped-frame perimeter pass in `MetaballGridPhaseEdgesFamily.ts`:
+  - owner-vs-world perimeter is now derived from the actual presentation-frame boundary
+  - not from whichever sampled grid column happened to be last
+  - this keeps `Outer perimeter border` a first-class optional feature rather than a right-edge artifact
+- Added regression coverage in `pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.test.ts` for localized frame phase preservation.
+- Corrected Phase Edges border-layer ownership in `MetaballGridPhaseEdgesFamily.ts`:
+  - dormant contour/shader border layers are now cleared and hidden every frame instead of being allowed to survive under shared-edge control
+  - phase-derived border presentation is now gated by `borderMode !== 'off'` and active border alpha/width, so `Border Mode = off` no longer leaves a hidden secondary border path alive
+  - centered-blended shared-edge borders now only run when the selected frontier border source is actually `shared_edge`, preventing contour/shared-edge stacking in control mode
+  - clipped-frame outer-perimeter collection now treats exact frame-edge contact as inclusive, so the right side does not disappear when the last owner column lands exactly on the frame boundary
+- Added regression coverage in `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts` for:
+  - clearing stale border layers when `Border Mode = off`
+  - keeping shared-edge `territory_edge` borders on the base border layer only
+- Validated the current delta with:
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/buildGridClassification.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
+  - `bun ./node_modules/vitest/vitest.mjs run src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts src/lib/territory/families/metaballGrid/buildGridClassification.test.ts`
+  - `bun x vite build`
+- Completed a first-pass Phase Edges contract audit:
+  - confirmed the direct Phase Edges family tunables in `MetaballGridPhaseEdgesFamily.ts`
+  - confirmed the inherited geometry/topology tunables consumed through `buildPerimeterFieldRenderFamilyGeometry()` and `readTerritoryGeometryTunables()`
+  - confirmed that `CHAIKIN_BOUNDARY_PAD`, `CHAIKIN_BOUNDARY_EPS`, `TERRITORY_CLUSTER_SPLIT`, and `VORONOI_BORDER_SMOOTH` still affect the current Phase Edges render path without a reachable Phase Edges UI control
+  - confirmed that `FRONTIER_RESOLUTION` does affect Phase Edges and is currently surfaced under `Territory Tuning & Constraints > Border Transition`, which is semantically misleading but wired
+  - confirmed that several live Phase Edges surface controls remain duplicated between `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
+- Corrected a newly exposed Phase Edges contract bug:
+  - `Outer perimeter border` was not truly broken in state propagation
+  - it was structurally orphaned behind the centered-blended shared-edge branch in `MetaballGridPhaseEdgesFamily.ts`
+  - the explicit perimeter pass now runs as its own border path whenever border mode is active, border width/alpha are positive, and the square-grid path is in play
+- Improved the Phase Edges style-surface UX:
+  - `Junction Render`, `Shared Edge Smoothing`, and `Junction Gap Trim` now expose their unmet gating reason directly when disabled instead of looking like random dead controls
+
+## Next
+- User confirms the live result in the running worktree.
+- Deliver the user-facing contract audit report for `metaball_grid_phase_edges`, including:
+  - every affecting value
+  - UI location if present
+  - duplicate/misleading placement if applicable
+  - hidden/non-UI affecting values
+- If the right-side fill margin still remains after the border-layer ownership fix, inspect whether any fill suppression/occupancy layer is still dropping the last visible owner column rather than a border-path problem.
+- If the outer perimeter still fails live after the branch-ownership correction, inspect whether the clipped-frame interval collector is not covering the contour-matched rounded path rather than a state propagation problem.
+- After those two live checks pass, start the queued transition end-jank investigation.
+
+## Addendum - 2026-05-01 boundary-fill ownership and fullscreen perimeter correction
+- Live user report after the last border pass:
+  - normal window now shows outer borders on all four sides
+  - Chrome `F11` fullscreen loses top/bottom borders
+  - fill still does not match border at map edges
+  - fill still pulls back from borders within territories even with `Inward Offset = 0`
+- Current task focus:
+  - keep outer perimeter visible in fullscreen because it should derive from occupied map coverage, not the resized fullscreen frame
+  - make fill flush to the border by default
+  - make `Inward Offset` the explicit frontier pullback control
+  - expose a direct on/off-style control for flush boundary fill instead of silently inheriting pullback from other knobs
+- Implemented:
+  - added `computeBoundaryInset(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` to the live config contract and surfaced it in `Territory Styles > Fill` as `Flush Boundary Fill`
+  - set `metaball_grid_phase_edges` default boundary fill behavior to flush
+  - rewired `MetaballGridFamily.ts` and `MetaballGridPhaseEdgesFamily.ts` so boundary fill no longer secretly inherits `Cell Inset` and `Junction Gap Trim` when flush mode is enabled
+  - rewired the Phase Edges outer perimeter pass so it derives from occupied territory bounds rather than fullscreen/local presentation-frame dimensions
+- Live verification needed:
+  - top and bottom outer borders remain visible in Chrome `F11` fullscreen
+  - `Flush Boundary Fill` keeps fills flush by default
+  - `Inward Offset` now visibly pulls the fill back only when you explicitly raise it above `0`
+  - fill at map edges aligns more closely with the outer perimeter border
+- Still queued after this acceptance pass:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition
+
+## Addendum - 2026-05-01 directional boundary fill for shared-edge borders
+- Live user report after the shared-edge fill-suppression correction:
+  - still no visible change
+  - `Flush Boundary Fill` still appeared inert
+  - `Inward Offset` still appeared inert
+  - the user explicitly narrowed the comparison again:
+    - `Centered-blended borders = Off` => fills look correct
+    - `Centered-blended borders = On` => fills are inset
+- Updated diagnosis:
+  - the remaining mismatch was no longer phase-fill overlay ownership
+  - square-cell fill geometry was still using a uniform four-sided inset
+  - centered blended borders draw on the true shared edge
+  - with nonzero `Cell Inset`, that guarantees a visible gap whenever the border leaves the per-cell stroke path and moves to the true ownership edge
+- Implemented:
+  - added `computeSquareCellEdgeInsets(...)` in `pax-fluxia/src/lib/territory/families/metaballGrid/edgeShaping.ts`
+  - square-cell fill now uses per-edge inset ownership instead of uniform shrink in:
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+    - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridFamily.ts`
+  - same-owner sides keep `Cell Inset`
+  - frontier-facing sides and outer-perimeter sides now use boundary inset ownership, so `Flush Boundary Fill` and `Inward Offset` can visibly affect the actual shared/world edge instead of fighting a uniform shrink
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Live verification needed:
+  - with `Centered-blended borders = On`, the inset gap should finally collapse
+  - `Flush Boundary Fill` should now visibly matter
+  - `Inward Offset` should now visibly pull the fill back from the true shared edge
+
+## Addendum - 2026-05-01 centered-blended shared-edge fill ownership correction
+- Live user report after the boundary-fill flush/perimeter correction:
+  - there was still an inset gap
+  - `Inward Offset` still looked inert
+  - comparison isolated the defect cleanly:
+    - `Centered-blended borders = Off` => fills were correct
+    - `Centered-blended borders = On` => fills became inset
+- Diagnosis:
+  - the shared-edge recipe still advertised `usesPhaseFill = true`
+  - so the centered-blended shared-edge branch was still enabling phase fill replacement/suppression
+  - that made a border-color/style toggle silently own fill geometry
+- Implemented:
+  - corrected `pax-fluxia/src/lib/territory/frontier/surface.ts` so the shared-edge recipe now uses:
+    - `fillSource = scene_cells`
+    - `usesPhaseFill = false`
+  - updated `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts` so shared-edge centered-blended borders no longer build/render the phase fill overlay path
+  - added `METABALL_GRID_BOUNDARY_FILL_FLUSH` into the paint signatures of both:
+    - `MetaballGridFamily.ts`
+    - `MetaballGridPhaseEdgesFamily.ts`
+    so toggling the boundary-fill mode cannot be skipped by the dirty-frame gate
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/edgeShaping.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Live verification needed:
+  - `Centered-blended borders = On` should no longer introduce the inset gap
+  - `Inward Offset` should now visibly control fill pullback again
+- Still queued after this acceptance pass:
+  - investigate end-of-transition jank/disjointness in the preferred Phase Edges transition

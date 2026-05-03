@@ -1,0 +1,53 @@
+# Takeaways - 2026-05-01
+
+- Star extents are not the map contract. They are one input into presentation, not the authoritative world rectangle.
+- Camera fit and territory renderers must consume the same map frame. If either side infers its own extents, asymmetry is inevitable.
+- Using configured map width/height when available, with expansion fallback when live stars exceed them, is a safer invariant than star-bbox-only fitting.
+- Debug maps and saved maps should seed the same world metadata as standard generated maps, or viewport bugs will reappear in non-standard flows.
+- One authoritative world rect is not enough for this surface. The correct model here is:
+  - star-fit camera rect
+  - stable authored/display map rect
+  - viewport-aligned territory presentation frame
+- If the territory container is shifted into a viewport-aligned frame, the renderer inputs must be localized into that same frame. Offsetting the container alone is structurally wrong.
+- Presentation invalidation must include the territory frame key. Otherwise a paused or quiescent scene can legally reuse a stale fill render even when the viewport-aligned territory frame changed.
+- A viewport-aligned territory frame is not automatically the right presentation owner. If the authored map rect is supposed to fill and center the visible map area, enlarging the territory domain to the viewport will manufacture margins whenever geometry only covers the real map rect.
+- For this preferred Phase Edges mode, the correct ownership is stricter than the earlier three-rect theory:
+- star-fit remains useful for diagnostics and gameplay reasoning
+- authoritative map rect owns visible fit/centering
+- territory presentation must share that same map rect
+- Outer borders must never be inferred as a side effect of interior owner-owner edge collection. Owner-vs-world perimeter is its own rendering contract and needs its own toggle and pass.
+- The user then corrected that ownership model again: for this surface, star-fit owns centering, while the territory fill frame must expand symmetrically around that centered star-fit view.
+- The durable rule is narrower than either extreme:
+  - do not let authored map extents replace star-fit as the centering owner when the user is evaluating centered playfield composition
+  - do not let territory fills remain anchored to the raw map rect when the centered star-fit view is the thing the player is visually composing against
+- Once a territory renderer localizes geometry into a presentation frame, the grid classifier must preserve the underlying world-grid phase. Rebuilding the localized frame as a fresh `0`-anchored grid will manufacture one-sided gaps and make centering bugs look worse than they are.
+- Optional outer-perimeter borders must be derived from the clipped presentation-frame boundary, not from whichever sampled grid edge happened to be last. Sampling artifacts and frame-edge clipping will otherwise show up as “only one side has a border.”
+- `bun x vitest` is currently unreliable in this Windows worktree because of a temp-path `vite/dist/client/client.mjs` resolution failure. The repo-local runner `bun ./node_modules/vitest/vitest.mjs run ...` is the reliable path here.
+- Border mode must own every visible border path. If `Border Mode = off` still leaves a visible line, a second border-producing layer is escaping the contract.
+- Shared-edge and phase-derived contour/band borders are mutually exclusive geometry families in control mode. If both render in the same frame, the defect is layer ownership, not styling.
+- Clipped-frame perimeter tests need inclusive edge contact, not strict overrun tests. When a grid cell lands exactly on the frame boundary, strict inequality can drop a whole side even though the presentation frame itself is correct.
+- For `metaball_grid_phase_edges`, the real render contract is two-layered:
+  - direct family tunables in `MetaballGridPhaseEdgesFamily.ts`
+  - inherited geometry/topology tunables in `buildPerimeterFieldRenderFamilyGeometry()` / `readTerritoryGeometryTunables()`
+- A settings key being present in `settingsDefs.ts` is not evidence that the user can actually reach it in the current mode. `TERRITORY_CLUSTER_SPLIT` is currently mapped in panel plumbing but not rendered as a Phase Edges UI control.
+- `CHAIKIN_BOUNDARY_PAD` and `CHAIKIN_BOUNDARY_EPS` currently affect the geometry Phase Edges consumes, but there is no live UI surface for them in the current mode.
+- `VORONOI_BORDER_SMOOTH` still affects the Phase Edges underlayer geometry, but its current UI exposure is tied to runtime surface cards rather than the active shared-surface Phase Edges path.
+- `FRONTIER_RESOLUTION` affects Phase Edges, but its current home under `Border Transition` is semantically misleading; it is really a geometry/frontier sampling resolution input.
+- Duplicated UI controls are still a structural problem in the current Phase Edges surfaces:
+  - several border/cell-paint keys are exposed in both `MetaballGridTuning.svelte` and `TerritorySurfaceStyleTuning.svelte`
+  - duplicated controls with different applicability gating are a reliable way to recreate "this slider does nothing" regressions
+- `Outer perimeter border` was another example of a control whose state existed but whose consumer was owned by the wrong branch. The fix was not about default values; it was about moving the perimeter draw pass out of the centered-blended shared-edge branch and making it a first-class border pass.
+- Disabled controls need explicit unmet-requirement messaging. `Junction Render` was technically disabled for a valid reason, but without surfacing that reason the control reads like dead UI.
+- `Inward Offset` was not the true owner of boundary fill pullback. Boundary fill was still inheriting `Cell Inset` and `Junction Gap Trim`, which created a hidden second pullback path and made zero-offset fills look broken.
+- Boundary fill needs its own explicit ownership rule:
+  - flush by default for the preferred Phase Edges surface
+  - explicit pullback only from `Inward Offset`
+  - optional legacy inherited behavior only when deliberately enabled
+- Fullscreen perimeter bugs are a strong signal that the outer border is owned by the local/fullscreen frame instead of the occupied map coverage. For owner-vs-world perimeter, occupied territory bounds are the stable contract.
+- When the user explicitly asks for a feature, the default posture should be implementation ownership. If the current branch/gating does not expose it, the next move is to extend that branch or ask whether to do so, not to defend the current limitation.
+- A surface recipe must not advertise phase fill ownership when the visible behavior is supposed to be border-only. In this case, `shared_edge + centered-blended borders` was still enabling phase fill replacement, which made a border-style toggle silently inset the fill.
+- Dirty-frame signatures must include every newly added live surface control. `METABALL_GRID_BOUNDARY_FILL_FLUSH` initially worked in code but was absent from the paint signatures, which would have allowed repaint skipping to hide the toggle.
+- For square-cell territory fills, `Cell Inset` cannot stay a uniform four-sided shrink if the visible border moves onto the true shared/world edge. The fill geometry has to become per-edge:
+  - same-owner sides use the interior cell inset
+  - frontier-facing and world-facing sides use the boundary inset contract
+- If a user says a control still does nothing, diff the exact visual branches instead of assuming the last conceptual fix must be the right one. In this case, the true delta was between per-cell-border geometry and true-edge-border geometry, not only between phase-fill enabled/disabled.

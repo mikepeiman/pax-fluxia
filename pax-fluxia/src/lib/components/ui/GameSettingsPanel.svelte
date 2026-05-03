@@ -57,6 +57,7 @@
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
     import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
+    import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -889,11 +890,30 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const SEARCH_TARGET_SELECTOR =
         ".var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]";
 
+    function resolveSectionSubsections(section: SettingsSectionDefinition): SubsectionChip[] {
+        const subsections = [...((section.subsections ?? []) as SubsectionChip[])];
+        if (section.id !== "territory_styles") return subsections;
+
+        const activeTerritoryRenderMode =
+            panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "territory_canonical";
+
+        if (
+            activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
+            activeTerritoryRenderMode === "metaball_grid"
+        ) {
+            return subsections.filter((subsection) => subsection.id !== "finish");
+        }
+
+        return subsections;
+    }
+
     let sectionSubsections = $derived.by(() =>
         Object.fromEntries(
             sections.map((section) => [
                 section.id,
-                (section.subsections ?? []) as SubsectionChip[],
+                resolveSectionSubsections(section),
             ]),
         ) as Record<string, SubsectionChip[]>,
     );
@@ -908,6 +928,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             ? new Set(settingsSearchResults.map((result) => result.sectionId))
             : null,
     );
+
+    $effect(() => {
+        let next = activeSubsections;
+        let changed = false;
+        for (const section of sections) {
+            const active = activeSubsections[section.id] ?? "all";
+            if (active === "all") continue;
+            const allowed = sectionSubsections[section.id] ?? [];
+            if (allowed.some((subsection) => subsection.id === active)) continue;
+            next = { ...next, [section.id]: "all" };
+            changed = true;
+        }
+        if (changed) {
+            activeSubsections = next;
+        }
+    });
 
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
         return sections.find((section) => section.id === sectionId) ?? sections[0];
@@ -1390,7 +1426,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
-                        showCategoryThemeBar={true}
+                        activeSubsection={activeSubsections[sec.id] ?? "all"}
+                    />
+                {:else if sec.id === "frontier_fx"}
+                    <ControlsSectionFrontierFx
+                        {panel}
+                        {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "fleet_star_visuals"}
                     <ControlsSectionShips

@@ -14,6 +14,7 @@ export type SettingsSectionId =
     | "territory_phase_field"
     | "territory_tuning"
     | "territory_styles"
+    | "frontier_fx"
     | "fleet_star_visuals"
     | "audio"
     | "diagnostics"
@@ -139,6 +140,19 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         color: "#93c5fd",
         tier: "basic",
         scope: "territory",
+        subsections: [
+            { id: "fill", label: "Fill", icon: "◌" },
+            { id: "border", label: "Border", icon: "◇" },
+            { id: "finish", label: "Finish", icon: "✦" },
+        ],
+    },
+    {
+        id: "frontier_fx",
+        icon: "FX",
+        label: "Frontier FX",
+        color: "#f97316",
+        tier: "advanced",
+        scope: "territory",
     },
     {
         id: "fleet_star_visuals",
@@ -202,6 +216,7 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     conquest_effects: "conquest",
     conquest: "conquest",
     territory: "territory_modes",
+    frontier_fx: "frontier_fx",
     ships: "fleet_star_visuals",
     visuals: "map_options",
     logging: "logging",

@@ -20,7 +20,7 @@ export interface MetaballGridPlanWorkerStarPosition {
 export interface MetaballGridPlanWorkerRequest {
     readonly requestId: number;
     readonly planKey: string;
-    readonly world: { width: number; height: number };
+    readonly world: { width: number; height: number; minX?: number; minY?: number };
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
     readonly distribution: GridDistribution;
