@@ -1,5 +1,9 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
+    import {
+        TERRITORY_FRONTIER_BENCHMARK_PRESETS,
+        type TerritoryFrontierBenchmarkPreset,
+    } from '$lib/territory/frontier';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import {
         metaballGridPhaseEdgesModeDefaults,
@@ -18,14 +22,14 @@
         | 'all'
         | 'none'
         | 'grid'
-        | 'shape'
+        | 'frontier'
         | 'wave'
         | 'flip'
         | 'perf';
 
     const METABALL_GRID_MODULES = [
         { id: 'grid', label: 'Grid' },
-        { id: 'shape', label: 'Shape' },
+        { id: 'frontier', label: 'Frontier' },
         { id: 'wave', label: 'Wave' },
         { id: 'flip', label: 'Flip' },
         { id: 'perf', label: 'Perf' },
@@ -37,8 +41,19 @@
         (panel[METABALL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
     );
 
+    $effect(() => {
+        if (activeModule === 'all' || activeModule === 'none') return;
+        if (!METABALL_GRID_MODULES.some((module) => module.id === activeModule)) {
+            updatePanel(METABALL_GRID_MODULE_PANEL_KEY, 'all');
+        }
+    });
+
     function showModule(id: Exclude<MetaballGridModuleId, 'all' | 'none'>): boolean {
         return activeModule === 'all' || activeModule === id;
+    }
+
+    function showFrontierControls(): boolean {
+        return isPhaseEdgesMode() || showModule('frontier');
     }
 
     function setActiveModule(value: MetaballGridModuleId): void {
@@ -49,6 +64,12 @@
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
         bumpTerritoryVisualConfig();
+    }
+
+    function panelKeyFromConfig(configKey: string): string {
+        return configKey
+            .toLowerCase()
+            .replace(/_([a-z0-9])/g, (_, value: string) => value.toUpperCase());
     }
 
     function isPhaseEdgesMode(): boolean {
@@ -198,13 +219,12 @@
         | 'euclidean_band'
         | 'conquered_star_radial'
         | 'pre_to_post_frontier' {
-        if (isPhaseEdgesMode()) {
-            return metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY;
-        }
         const raw =
             panel.metaballGridWaveGeometry ??
             GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
-            'grid_bfs';
+            (isPhaseEdgesMode()
+                ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY
+                : 'grid_bfs');
         if (raw === 'conquered_star_radial') return 'conquered_star_radial';
         if (raw === 'pre_to_post_frontier') return 'pre_to_post_frontier';
         return raw === 'euclidean_band' ? 'euclidean_band' : 'grid_bfs';
@@ -390,6 +410,150 @@
         const safe = Math.max(0.05, multiplier);
         return METABALL_GRID_BASELINE_SPACING_PX / Math.sqrt(safe);
     }
+
+    function currentFrontierTechnique():
+        | 'control'
+        | 'shader_frontier_band'
+        | 'marching_squares_midpoint'
+        | 'marching_squares_scalar'
+        | 'marching_triangles_fixed'
+        | 'marching_triangles_checkerboard'
+        | 'marching_triangles_gradient' {
+        const raw =
+            panel.territoryFrontierTechnique ??
+            GAME_CONFIG.TERRITORY_FRONTIER_TECHNIQUE ??
+            'control';
+        if (
+            raw === 'shader_frontier_band' ||
+            raw === 'marching_squares_midpoint' ||
+            raw === 'marching_squares_scalar' ||
+            raw === 'marching_triangles_fixed' ||
+            raw === 'marching_triangles_checkerboard' ||
+            raw === 'marching_triangles_gradient'
+        ) {
+            return raw;
+        }
+        return 'control';
+    }
+
+    function currentFrontierBorderGeometryMode():
+        | 'shared_edge'
+        | 'contour_matched' {
+        const raw =
+            panel.territoryFrontierBorderGeometryMode ??
+            GAME_CONFIG.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE ??
+            (isPhaseEdgesMode()
+                ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
+                : 'shared_edge');
+        return raw === 'contour_matched' ? 'contour_matched' : 'shared_edge';
+    }
+
+    function currentFrontierPhaseSampling(): 'nearest' | 'linear' {
+        const raw =
+            panel.territoryFrontierPhaseSampling ??
+            GAME_CONFIG.TERRITORY_FRONTIER_PHASE_SAMPLING ??
+            'nearest';
+        return raw === 'linear' ? 'linear' : 'nearest';
+    }
+
+    function currentFrontierTriangleDiagonalPolicy():
+        | 'fixed'
+        | 'checkerboard'
+        | 'gradient' {
+        const raw =
+            panel.territoryFrontierTriangleDiagonalPolicy ??
+            GAME_CONFIG.TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY ??
+            'fixed';
+        if (raw === 'checkerboard' || raw === 'gradient') return raw;
+        return 'fixed';
+    }
+
+    function currentFrontierBlurPasses(): number {
+        return (
+            panel.territoryFrontierBlurPasses ??
+            GAME_CONFIG.TERRITORY_FRONTIER_BLUR_PASSES ??
+            0
+        );
+    }
+
+    function currentFrontierChaikinPasses(): number {
+        return (
+            panel.territoryFrontierChaikinPasses ??
+            GAME_CONFIG.TERRITORY_FRONTIER_CHAIKIN_PASSES ??
+            0
+        );
+    }
+
+    function currentFrontierShaderSoftnessPx(): number {
+        return (
+            panel.territoryFrontierShaderSoftnessPx ??
+            GAME_CONFIG.TERRITORY_FRONTIER_SHADER_SOFTNESS_PX ??
+            5
+        );
+    }
+
+    function currentFrontierBandWidthPx(): number {
+        return (
+            panel.territoryFrontierBandWidthPx ??
+            GAME_CONFIG.TERRITORY_FRONTIER_BAND_WIDTH_PX ??
+            2
+        );
+    }
+
+    function canUsePhaseFieldFrontierTechnique(): boolean {
+        return isPhaseEdgesMode() && currentDistribution() === 'square';
+    }
+
+    function isControlFrontierTechnique(): boolean {
+        return currentFrontierTechnique() === 'control';
+    }
+
+    function canUseControlFrontierBorderGeometry(): boolean {
+        return (
+            isPhaseEdgesMode() &&
+            isControlFrontierTechnique() &&
+            currentDistribution() === 'square' &&
+            currentBorderMode() === 'territory_edge' &&
+            currentBorderBlend()
+        );
+    }
+
+    function isShaderFrontierTechnique(): boolean {
+        return currentFrontierTechnique() === 'shader_frontier_band';
+    }
+
+    function isContourFrontierTechnique(): boolean {
+        return (
+            currentFrontierTechnique() === 'marching_squares_midpoint' ||
+            currentFrontierTechnique() === 'marching_squares_scalar' ||
+            currentFrontierTechnique() === 'marching_triangles_fixed' ||
+            currentFrontierTechnique() === 'marching_triangles_checkerboard' ||
+            currentFrontierTechnique() === 'marching_triangles_gradient'
+        );
+    }
+
+    function isTriangleFrontierTechnique(): boolean {
+        return (
+            currentFrontierTechnique() === 'marching_triangles_fixed' ||
+            currentFrontierTechnique() === 'marching_triangles_checkerboard' ||
+            currentFrontierTechnique() === 'marching_triangles_gradient'
+        );
+    }
+
+    function applyFrontierPreset(preset: TerritoryFrontierBenchmarkPreset): void {
+        for (const [configKey, value] of Object.entries(preset.values)) {
+            writeConfig(configKey, panelKeyFromConfig(configKey), value);
+        }
+    }
+
+    function isFrontierPresetSelected(preset: TerritoryFrontierBenchmarkPreset): boolean {
+        return Object.entries(preset.values).every(([configKey, value]) => {
+            const panelValue = panel[panelKeyFromConfig(configKey)];
+            const configValue =
+                (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+            return (panelValue ?? configValue) === value;
+        });
+    }
 </script>
 
 <div class="module-head">
@@ -427,6 +591,16 @@
         </button>
     {/each}
 </div>
+
+<div class="var-desc module-nav-note">
+    <strong>Panel Sections:</strong> Grid, Frontier, Wave, Flip, and Perf only change which controls are shown in this settings panel. They do not switch the renderer or apply a visual effect by themselves.
+</div>
+
+{#if isPhaseEdgesMode() && !showModule('frontier')}
+<div class="mode-lock-note">
+    Frontier remains a module label in this panel, but the actual Phase Edges comparison controls are rendered below even if that chip is not selected.
+</div>
+{/if}
 
 {#if showModule('grid')}
 <div class="module-block">
@@ -627,34 +801,14 @@
     />
 </div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Extra inset applied only to non-native (boundary / in-transition) cells on top of Cell Inset. Visually pulls the territory edge inward from its classified extent. 0 = no extra offset.">
-            Inward Offset
-        </span>
-        <span class="val">{panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}px</span>
-    </div>
-    <div class="var-desc">
-        Extra inset on non-native cells (boundary + in-transition). Adds to the base Cell Inset, so boundary cells render smaller than interior-territory cells. 0 = no extra offset.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="24"
-        step="1"
-        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
-        }}
-    />
-</div>
-
 </div>
 {/if}
 
-{#if showModule('shape')}
+{#if isPhaseFieldMode() && showModule('grid')}
 <div class="module-block">
+<div class="var-desc">
+    Phase Field keeps its cell-primitive, fill-boundary, and border-path controls local to the mode so fill-first tuning stays in one place.
+</div>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name" title="Per-cell primitive. Square tiles the grid cleanly; circle and diamond create visible inter-cell gaps naturally.">
@@ -710,6 +864,29 @@
 
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name" title="Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.">
+            Inward Offset
+        </span>
+        <span class="val">{(panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0).toFixed(0)}px</span>
+    </div>
+    <div class="var-desc">
+        Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="24"
+        step="1"
+        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
+        }}
+    />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
         <span class="var-name" title="Rounded-corner radius for square cells only. Circle/diamond ignore this knob.">
             Square Corner (px)
         </span>
@@ -748,7 +925,7 @@
     <select
         class="mode-select"
         value={currentBorderMode()}
-        disabled={isPhaseEdgesMode()}
+        disabled={isPhaseEdgesMode() && currentFrontierTechnique() !== 'control'}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
@@ -760,10 +937,13 @@
     </select>
 </div>
 
-<label class="toggle-row" class:disabled={isPhaseEdgesMode() || currentBorderMode() !== 'territory_edge'}>
+<label
+    class="toggle-row"
+    class:disabled={(isPhaseEdgesMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
+>
     <input
         type="checkbox"
-        disabled={isPhaseEdgesMode() || currentBorderMode() !== 'territory_edge'}
+        disabled={(isPhaseEdgesMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
         checked={currentBorderBlend()}
         onchange={(event) => {
             const value = (event.target as HTMLInputElement).checked;
@@ -827,7 +1007,6 @@
                 min="0"
                 max="4"
                 step="1"
-                disabled={isPhaseEdgesMode()}
                 value={currentBorderChaikinPasses()}
                 oninput={(event) => {
                     const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -884,16 +1063,321 @@
             }}
         />
     </div>
-    {#if isPhaseFieldMode() && currentCellShape() !== 'square'}
-        <div class="var-desc">
-            Shared Edge Smoothing is only used with square cells in Phase Field.
-        </div>
-    {/if}
+{:else if isPhaseEdgesMode()}
+<div class="var-row" class:disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}>
+    <div class="row-top">
+        <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
+            Border Chaikin Passes
+        </span>
+        <span class="val">{currentBorderChaikinPasses()}</span>
+    </div>
+    <div class="var-desc">
+        Smoothing for territory-edge boundaries. In <strong>Straight shared edge</strong> mode it smooths the shared-edge polyline; in <strong>Rounded contour-matched</strong> mode it smooths the contour-derived border so the fill and border stay coupled.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="4"
+        step="1"
+        disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}
+        value={currentBorderChaikinPasses()}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+        }}
+    />
+</div>
+
+<div
+    class="var-row"
+    class:disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+>
+    <div class="row-top">
+        <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
+            Shared Edge Smoothing
+        </span>
+        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
+    </div>
+    <div class="var-desc">
+        Additional shared-edge softening for the straight control border path. Rounded contour-matched mode does not use this knob.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="4"
+        step="1"
+        disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+        }}
+    />
+</div>
+
+<div
+    class="var-row"
+    class:disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+>
+    <div class="row-top">
+        <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
+            Shared Edge Trim
+        </span>
+        <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
+    </div>
+    <div class="var-desc">
+        Endpoint trim for open shared-edge chains. Rounded contour-matched mode does not use this path.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="12"
+        step="0.5"
+        disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+        }}
+    />
+</div>
 {:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
     <div class="var-desc">
         Singular blended territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
     </div>
 {/if}
+</div>
+{/if}
+
+{#if showFrontierControls()}
+<div class="module-block">
+<div class="var-desc">
+    Frontier Techniques compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly in Phase Edges on the square lattice. Surface styling and border-geometry controls live in Territory Styles.
+</div>
+
+<div class="var-row" class:disabled={!isPhaseEdgesMode()}>
+    <div class="row-top">
+        <span class="var-name" title="Benchmark comparison rows matching the frontier technique matrix.">
+            Preset Rows
+        </span>
+        <span class="val">
+            {#if !isPhaseEdgesMode()}Phase Edges only
+            {:else if !canUsePhaseFieldFrontierTechnique()}Square lattice required
+            {:else}Tap to apply{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        These presets apply the planned benchmark rows directly so effect and performance can be compared without manually dialing each knob.
+    </div>
+    <div class="preset-grid">
+        {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
+            <button
+                type="button"
+                class="preset-chip"
+                class:active={isFrontierPresetSelected(preset)}
+                disabled={!isPhaseEdgesMode()}
+                title={preset.description}
+                onclick={() => applyFrontierPreset(preset)}
+            >
+                {preset.label}
+            </button>
+        {/each}
+    </div>
+</div>
+
+<div class="var-row" class:disabled={!isPhaseEdgesMode()}>
+    <div class="row-top">
+        <span class="var-name" title="Requested frontier implementation. Control = existing shared-edge path. Shader band = linear sampled phase texture. The contour options extract explicit geometry from the phase field.">
+            Frontier Technique
+        </span>
+        <span class="val">
+            {#if currentFrontierTechnique() === 'control'}Control
+            {:else if currentFrontierTechnique() === 'shader_frontier_band'}Shader band
+            {:else if currentFrontierTechnique() === 'marching_squares_midpoint'}MS midpoint
+            {:else if currentFrontierTechnique() === 'marching_squares_scalar'}MS scalar
+            {:else if currentFrontierTechnique() === 'marching_triangles_fixed'}MT fixed
+            {:else if currentFrontierTechnique() === 'marching_triangles_checkerboard'}MT checker
+            {:else}MT gradient{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Control keeps the current square-cell shared-edge baseline. The new options use a shared frontier utility layer and are gated to Phase Edges.
+    </div>
+    <select
+        class="mode-select"
+        disabled={!isPhaseEdgesMode()}
+        value={currentFrontierTechnique()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('TERRITORY_FRONTIER_TECHNIQUE', 'territoryFrontierTechnique', value);
+        }}
+    >
+        <option value="control">Current control</option>
+        <option value="shader_frontier_band">Shader frontier band</option>
+        <option value="marching_squares_midpoint">Marching squares (midpoint)</option>
+        <option value="marching_squares_scalar">Marching squares (scalar)</option>
+        <option value="marching_triangles_fixed">Marching triangles (fixed)</option>
+        <option value="marching_triangles_checkerboard">Marching triangles (checkerboard)</option>
+        <option value="marching_triangles_gradient">Marching triangles (gradient)</option>
+    </select>
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+    <div class="row-top">
+        <span class="var-name" title="Sampling mode for the phase texture used by the shader frontier band.">
+            Phase Sampling
+        </span>
+        <span class="val">{currentFrontierPhaseSampling() === 'linear' ? 'Linear' : 'Nearest'}</span>
+    </div>
+    <div class="var-desc">
+        Linear filtering is the cheapest visual softening step from the source document. It only affects the scalar phase texture, never owner IDs.
+    </div>
+    <select
+        class="mode-select"
+        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        value={currentFrontierPhaseSampling()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig('TERRITORY_FRONTIER_PHASE_SAMPLING', 'territoryFrontierPhaseSampling', value);
+        }}
+    >
+        <option value="nearest">Nearest</option>
+        <option value="linear">Linear</option>
+    </select>
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || currentFrontierTechnique() === 'control'}>
+    <div class="row-top">
+        <span class="var-name" title="Number of separable 3-tap blur passes applied to the scalar phase field before the frontier is rendered or contoured.">
+            Blur Passes
+        </span>
+        <span class="val">{currentFrontierBlurPasses()}</span>
+    </div>
+    <div class="var-desc">
+        Each pass is a tiny [0.25, 0.5, 0.25] horizontal + vertical blur. Use 0 for raw frontier geometry, 1 for the recommended cheap smoothing pass.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="1"
+        disabled={!canUsePhaseFieldFrontierTechnique() || currentFrontierTechnique() === 'control'}
+        value={currentFrontierBlurPasses()}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('TERRITORY_FRONTIER_BLUR_PASSES', 'territoryFrontierBlurPasses', value);
+        }}
+    />
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isTriangleFrontierTechnique()}>
+    <div class="row-top">
+        <span class="var-name" title="How marching triangles chooses the square-split diagonal.">
+            Triangle Diagonal
+        </span>
+        <span class="val">
+            {#if currentFrontierTriangleDiagonalPolicy() === 'fixed'}Fixed
+            {:else if currentFrontierTriangleDiagonalPolicy() === 'checkerboard'}Checkerboard
+            {:else}Gradient{/if}
+        </span>
+    </div>
+    <div class="var-desc">
+        Fixed is the cheapest prototype. Checkerboard reduces directional bias. Gradient chooses the diagonal from the local phase slope.
+    </div>
+    <select
+        class="mode-select"
+        disabled={!canUsePhaseFieldFrontierTechnique() || !isTriangleFrontierTechnique()}
+        value={currentFrontierTriangleDiagonalPolicy()}
+        onchange={(event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            writeConfig(
+                'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
+                'territoryFrontierTriangleDiagonalPolicy',
+                value,
+            );
+        }}
+    >
+        <option value="fixed">Fixed</option>
+        <option value="checkerboard">Checkerboard</option>
+        <option value="gradient">Gradient chosen</option>
+    </select>
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isContourFrontierTechnique()}>
+    <div class="row-top">
+        <span class="var-name" title="Post-contour Chaikin smoothing passes.">
+            Frontier Chaikin
+        </span>
+        <span class="val">{currentFrontierChaikinPasses()}</span>
+    </div>
+    <div class="var-desc">
+        Applied after contour extraction only. One pass is the recommended first test; two gets smoother and more rounded.
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="1"
+        disabled={!canUsePhaseFieldFrontierTechnique() || !isContourFrontierTechnique()}
+        value={currentFrontierChaikinPasses()}
+        oninput={(event) => {
+            const value = parseInt((event.target as HTMLInputElement).value, 10);
+            writeConfig('TERRITORY_FRONTIER_CHAIKIN_PASSES', 'territoryFrontierChaikinPasses', value);
+        }}
+    />
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+    <div class="row-top">
+        <span class="var-name" title="Additional softness on the shader frontier band, in world pixels before conversion to phase-space width.">
+            Shader Softness
+        </span>
+        <span class="val">{currentFrontierShaderSoftnessPx().toFixed(1)}px</span>
+    </div>
+    <div class="var-desc">
+        Softens the `abs(phase - progress)` band after linear sampling. Larger values broaden the feather.
+    </div>
+    <input
+        type="range"
+        min="0.5"
+        max="20"
+        step="0.5"
+        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        value={currentFrontierShaderSoftnessPx()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig(
+                'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
+                'territoryFrontierShaderSoftnessPx',
+                value,
+            );
+        }}
+    />
+</div>
+
+<div class="var-row" class:disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}>
+    <div class="row-top">
+        <span class="var-name" title="Half-width of the shader frontier band, in world pixels before conversion to phase-space width.">
+            Band Width
+        </span>
+        <span class="val">{currentFrontierBandWidthPx().toFixed(1)}px</span>
+    </div>
+    <div class="var-desc">
+        Controls how thick the shader frontier band reads on screen. The contour techniques still use the existing border width control for stroke thickness.
+    </div>
+    <input
+        type="range"
+        min="0.5"
+        max="12"
+        step="0.5"
+        disabled={!canUsePhaseFieldFrontierTechnique() || !isShaderFrontierTechnique()}
+        value={currentFrontierBandWidthPx()}
+        oninput={(event) => {
+            const value = parseFloat((event.target as HTMLInputElement).value);
+            writeConfig('TERRITORY_FRONTIER_BAND_WIDTH_PX', 'territoryFrontierBandWidthPx', value);
+        }}
+    />
+</div>
 </div>
 {/if}
 
@@ -940,7 +1424,6 @@
     <select
         class="mode-select"
         value={currentWaveGeometry()}
-        disabled={isPhaseEdgesMode()}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('METABALL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
@@ -1134,6 +1617,73 @@
     <div class="perf-value">
         {$metaballGridStats.lastUpdateMs.toFixed(2)} ms
         <span class="perf-sub">/ {$metaballGridStats.emaUpdateMs.toFixed(2)} ms</span>
+    </div>
+
+    <div class="perf-label">Frontier technique</div>
+    <div class="perf-value">
+        {$metaballGridStats.frontierTechnique}
+        {#if $metaballGridStats.frontierTechnique !== $metaballGridStats.frontierRequestedTechnique}
+            <span class="perf-sub">
+                requested {$metaballGridStats.frontierRequestedTechnique}
+                {#if $metaballGridStats.frontierFallbackReason}
+                    ({$metaballGridStats.frontierFallbackReason})
+                {/if}
+            </span>
+        {/if}
+    </div>
+
+    <div class="perf-label">Border geometry</div>
+    <div class="perf-value">
+        {$metaballGridStats.frontierBorderGeometryMode}
+        {#if $metaballGridStats.frontierBorderGeometryMode !== $metaballGridStats.frontierRequestedBorderGeometryMode}
+            <span class="perf-sub">
+                requested {$metaballGridStats.frontierRequestedBorderGeometryMode}
+                {#if $metaballGridStats.frontierBorderGeometryFallbackReason}
+                    ({$metaballGridStats.frontierBorderGeometryFallbackReason})
+                {/if}
+            </span>
+        {:else if $metaballGridStats.frontierBorderGeometryFallbackReason}
+            <span class="perf-sub">
+                ({$metaballGridStats.frontierBorderGeometryFallbackReason})
+            </span>
+        {/if}
+    </div>
+
+    <div class="perf-label">Surface family</div>
+    <div class="perf-value">
+        {$metaballGridStats.frontierSurfaceGeometryFamily}
+        <span class="perf-sub">
+            steady {$metaballGridStats.frontierStableGeometryFamily}
+            / transition {$metaballGridStats.frontierTransitionGeometryFamily}
+            {#if $metaballGridStats.frontierSurfaceInvariantViolation}
+                ({$metaballGridStats.frontierSurfaceInvariantViolation})
+            {/if}
+        </span>
+    </div>
+
+    <div class="perf-label">Phase grid (layers / max dims)</div>
+    <div class="perf-value">
+        {$metaballGridStats.frontierPhaseLayerCount}
+        <span class="perf-sub">
+            / {$metaballGridStats.frontierPhaseGridCols} × {$metaballGridStats.frontierPhaseGridRows}
+        </span>
+    </div>
+
+    <div class="perf-label">Frontier timings</div>
+    <div class="perf-value">
+        blur {$metaballGridStats.frontierBlurMs.toFixed(2)} ms
+        <span class="perf-sub">
+            contour {$metaballGridStats.frontierContourExtractionMs.toFixed(2)} ms
+            / smooth {$metaballGridStats.frontierSmoothingMs.toFixed(2)} ms
+        </span>
+    </div>
+
+    <div class="perf-label">Frontier geometry</div>
+    <div class="perf-value">
+        {$metaballGridStats.frontierPolylineCount.toLocaleString()} polylines
+        <span class="perf-sub">
+            / {$metaballGridStats.frontierEmittedVertexCount.toLocaleString()} vertices
+        </span>
     </div>
 
     <div class="perf-label">Plan build (classify / wave / total)</div>
@@ -1476,6 +2026,48 @@
         display: flex;
         flex-direction: column;
         gap: 0;
+    }
+
+    .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 4px 0 2px;
+    }
+
+    .preset-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(7, 12, 24, 0.45);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: 0.03em;
+        text-align: center;
+        cursor: pointer;
+        transition:
+            border-color 0.15s ease,
+            background 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .preset-chip.active {
+        border-color: rgba(95, 211, 255, 0.42);
+        background: rgba(49, 105, 164, 0.26);
+        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
+        color: rgba(248, 250, 252, 0.98);
+    }
+
+    .preset-chip:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
 
     .var-desc {

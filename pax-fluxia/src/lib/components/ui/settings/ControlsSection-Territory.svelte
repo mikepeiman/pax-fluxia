@@ -37,7 +37,10 @@
     lockRatioToTick: (key: string) => void;
     lockRatioToAnimSpeed: (key: string) => void;
     view?: "modes" | "tuning" | "styles" | "all";
+    activeSubsection?: string;
     showCategoryThemeBar?: boolean;
+    hideRenderModeSelector?: boolean;
+    systemTitle?: string;
   }
 
   let {
@@ -53,12 +56,27 @@
     lockRatioToTick,
     lockRatioToAnimSpeed,
     view = "all",
+    activeSubsection = "all",
     showCategoryThemeBar = false,
+    hideRenderModeSelector = false,
+    systemTitle = "Territory System",
   }: Props = $props();
 
   const showModesView = $derived(view === "all" || view === "modes");
   const showTuningView = $derived(view === "all" || view === "tuning");
   const showStylesView = $derived(view === "all" || view === "styles");
+  type TerritoryStyleSubsectionId = "all" | "fill" | "border" | "finish";
+
+  function resolveActiveStyleSubsection(): TerritoryStyleSubsectionId {
+    if (
+      activeSubsection === "fill" ||
+      activeSubsection === "border" ||
+      activeSubsection === "finish"
+    ) {
+      return activeSubsection;
+    }
+    return "all";
+  }
 
   /** CX/DX sub-sliders stay visible when off; these drive disabled + dim styling. */
   let cxOn = $derived(
@@ -120,7 +138,11 @@
   function visibleSystemModules(): Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > {
-    return TERRITORY_SYSTEM_MODULES;
+    return TERRITORY_SYSTEM_MODULES.map((module) =>
+      hideRenderModeSelector && module.id === "render-mode"
+        ? { ...module, label: "Transition" }
+        : module,
+    );
   }
 
   $effect(() => {
@@ -488,7 +510,7 @@
 {#if showModesView}
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
-    <h4 class="sub-heading territory-section-title">Territory System</h4>
+    <h4 class="sub-heading territory-section-title">{systemTitle}</h4>
     <div
       class="territory-scope-toggle"
       role="group"
@@ -531,32 +553,39 @@
     {#if showSystemModule("render-mode")}
       <div class="axis-card territory-module-card">
         <div class="territory-card__header">
-      <h4 class="axis-card-title">Mode</h4>
+      <h4 class="axis-card-title">{hideRenderModeSelector ? "Transition" : "Mode"}</h4>
           <p class="territory-card__intro">
-            Choose the active renderer family and expose deprecated modes only
-            when you intentionally need to compare against them.
+            {#if hideRenderModeSelector}
+              Runtime transition controls for the render mode currently selected
+              from the topbar.
+            {:else}
+              Choose the active renderer family and expose deprecated modes only
+              when you intentionally need to compare against them.
+            {/if}
           </p>
         </div>
-        <div
-          class="axis-row"
-          style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)">
-          <span class="axis-label">Render mode</span>
-          <div class="axis-buttons axis-buttons-wrap">
-            {#each getRenderModeOptions() as opt}
-              <button
-                type="button"
-                class="axis-btn"
-                class:active={resolveActiveStyleId() === opt.id}
-                disabled={!opt.selectable}
-                title={opt.disabledReason ?? opt.shortDescription ?? opt.label}
-                onclick={() => {
-                  if (opt.selectable) selectTerritoryStyle(opt.id);
-                }}>{opt.label}</button>
-            {/each}
+        {#if !hideRenderModeSelector}
+          <div
+            class="axis-row"
+            style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)">
+            <span class="axis-label">Render mode</span>
+            <div class="axis-buttons axis-buttons-wrap">
+              {#each getRenderModeOptions() as opt}
+                <button
+                  type="button"
+                  class="axis-btn"
+                  class:active={resolveActiveStyleId() === opt.id}
+                  disabled={!opt.selectable}
+                  title={opt.disabledReason ?? opt.shortDescription ?? opt.label}
+                  onclick={() => {
+                    if (opt.selectable) selectTerritoryStyle(opt.id);
+                  }}>{opt.label}</button>
+              {/each}
+            </div>
           </div>
-        </div>
+        {/if}
 
-        {#if isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
+        {#if !hideRenderModeSelector && isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
           <div
             class="axis-note"
             style="border-left: 3px solid #f59e0b; padding: 8px 10px; margin: 4px 0 8px; background: rgba(245,158,11,0.08);">
@@ -1774,7 +1803,8 @@
       sectionHeading="Style"
       intro="Shared surface styling for perimeter-field output. These controls affect the displayed fill and border only; they do not change the ownership geometry source."
       fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
+      borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
+      activeSection={resolveActiveStyleSubsection()} />
   </div>
 {/if}
 
@@ -1825,7 +1855,9 @@
       sectionHeading="Style"
       intro="Shared surface styling for metaball-grid output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
       fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely." />
+      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
+      activeSection={resolveActiveStyleSubsection()}
+      styleFamily={isMetaballGridPhaseEdgesStyle() ? "metaball_grid_phase_edges" : "metaball_grid"} />
   </div>
 {/if}
 

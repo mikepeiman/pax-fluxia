@@ -8,6 +8,14 @@ import type {
     MetaballBurstBoundaryBasis,
     VsTransitionModeId,
 } from '../territory/transitions/territoryTransitionModes';
+import type {
+    TerritoryFrontierBorderGeometryMode,
+    TerritoryFrontierFxMode,
+    TerritoryFrontierJunctionRenderMode,
+    TerritoryFrontierPhaseSamplingMode,
+    TerritoryFrontierTechniqueId,
+    TerritoryFrontierTriangleDiagonalPolicy,
+} from '../territory/frontier/types';
 import { aiConfigDefaults } from './ai.config';
 import { audioConfigDefaults } from './audio.config';
 import { gameplayConfigDefaults } from './gameplay.config';
@@ -406,13 +414,14 @@ interface GameConfigType {
     METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
     METABALL_GRID_MAX_CELLS: number; // Optional planner cap; coarsens spacing upward when exceeded
     METABALL_GRID_INWARD_OFFSET_PX: number; // Extra inset applied to boundary / in-transition cells
+    METABALL_GRID_BOUNDARY_FILL_FLUSH: boolean; // Keep owner-boundary fills flush to the visible border unless explicit inward pullback is requested
     METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Primitive painted for each cell
     METABALL_GRID_CELL_INSET_PX: number; // Base inset applied to all cells
     METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
     METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
     METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
     METABALL_GRID_EDGE_SMOOTHING_PASSES: number; // Extra smoothing applied to shared boundary corners
-    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim and boundary inset for shared edges
+    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim for shared-edge chains and junction shaping
     METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
     METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
     METABALL_GRID_WAVE_GEOMETRY:
@@ -433,10 +442,38 @@ interface GameConfigType {
     METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
+    TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
+    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched
+    TERRITORY_FRONTIER_PHASE_SAMPLING: TerritoryFrontierPhaseSamplingMode; // Texture filtering strategy for shader frontier bands
+    TERRITORY_FRONTIER_BLUR_PASSES: number; // Number of 3-tap separable blur passes on scalar phase fields
+    TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY: TerritoryFrontierTriangleDiagonalPolicy; // Marching-triangles diagonal selection policy
+    TERRITORY_FRONTIER_CHAIKIN_PASSES: number; // Post-contour Chaikin smoothing passes
+    TERRITORY_FRONTIER_SHADER_SOFTNESS_PX: number; // Softness of shader frontier band in phase-distance units
+    TERRITORY_FRONTIER_BAND_WIDTH_PX: number; // Half-width of the shader frontier band in phase-distance units
+    TERRITORY_FRONTIER_JUNCTION_RENDER_MODE: TerritoryFrontierJunctionRenderMode; // Shared-junction presentation on straight shared-edge frontiers
+    TERRITORY_FRONTIER_JUNCTION_RADIUS_PX: number; // Bubble radius for multi-owner shared-edge junction markers
+    TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: boolean; // Draw owner-vs-world outer perimeter borders instead of limiting strokes to inter-owner frontiers
+    TERRITORY_FRONTIER_FX_MODE: TerritoryFrontierFxMode; // Border-inward frontier surface FX mode
+    TERRITORY_FRONTIER_FX_WIDTH_PX: number; // Width of the inward frontier FX region in px
+    TERRITORY_FRONTIER_FX_STRENGTH: number; // Intensity of the selected frontier FX mode
+    TERRITORY_FRONTIER_FX_STEPS: number; // Quantized bands for stepped moat mode
+    TERRITORY_FRONTIER_FX_SOFTNESS: number; // Falloff power for smooth inward frontier effects
+    TERRITORY_FRONTIER_FX_PULSE_SPEED: number; // Pulse speed for animated plasma rim mode
+    TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE: boolean; // Apply frontier FX when no conquest transition is active
+    TERRITORY_FRONTIER_FX_APPLY_TRANSITION: boolean; // Apply frontier FX during conquest transitions
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
-    TERRITORY_FILL_TRANSITION_MODE: 'frontier_morph' | 'active_front' | 'unified_topology' | 'pv_frontline' | 'crossfade' | 'off'; // Clean-arch fill transition selector
+    TERRITORY_FILL_TRANSITION_MODE:
+        | 'frontier_morph'
+        | 'active_front'
+        | 'unified_topology'
+        | 'pv_frontline'
+        | 'crossfade'
+        | 'legacy_fill_active_front'
+        | 'topology_fill_rebuild'
+        | 'legacy_fill_crossfade'
+        | 'off'; // Fill transition selector spanning legacy and clean-arch ids
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
     TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
@@ -578,9 +615,10 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
-    METABALL_BORDER_ENABLED: boolean;   // Master visibility toggle for the metaball-family border surface
+    METABALL_FILL_ENABLED: boolean;     // Master fill visibility gate for metaball-style territory surfaces
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
+    METABALL_BORDER_ENABLED: boolean;   // Master border visibility gate for metaball-style territory surfaces
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
     METABALL_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
     METABALL_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)

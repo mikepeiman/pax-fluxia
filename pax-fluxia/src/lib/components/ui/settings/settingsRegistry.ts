@@ -10,8 +10,9 @@ export type SettingsSectionId =
     | "conquest"
     | "effects"
     | "map_options"
-    | "territory_modes"
     | "territory_phase_field"
+    | "territory_phase_edges"
+    | "frontier_fx"
     | "territory_tuning"
     | "territory_styles"
     | "fleet_star_visuals"
@@ -102,32 +103,39 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "visuals",
         subsections: [
             { id: "background", label: "Background", icon: "◈" },
-            { id: "overlays", label: "Overlays", icon: "⌁" },
             { id: "map-layout", label: "Map Layout", icon: "⬡" },
             { id: "labels-inspector", label: "Labels & Inspector", icon: "⌁" },
             { id: "connections", label: "Connections", icon: "➠" },
         ],
     },
     {
-        id: "territory_modes",
-        icon: "🌍",
-        label: "Territory System",
-        color: "#66ccaa",
+        id: "territory_phase_field",
+        icon: "◌",
+        label: "Phase Field",
+        color: "#8ab4ff",
         tier: "basic",
         scope: "territory",
     },
     {
-        id: "territory_phase_field",
-        icon: "🫧",
-        label: "Phase Field",
-        color: "#7dd3fc",
+        id: "territory_phase_edges",
+        icon: "◍",
+        label: "Phase Edges",
+        color: "#fda4af",
         tier: "basic",
+        scope: "territory",
+    },
+    {
+        id: "frontier_fx",
+        icon: "FX",
+        label: "Frontier FX",
+        color: "#f97316",
+        tier: "advanced",
         scope: "territory",
     },
     {
         id: "territory_tuning",
         icon: "🧭",
-        label: "Frontier Topology",
+        label: "Territory Topology",
         color: "#6ee7b7",
         tier: "basic",
         scope: "territory",
@@ -135,10 +143,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "territory_styles",
         icon: "🎨",
-        label: "Render Families",
+        label: "Territory Styles",
         color: "#93c5fd",
         tier: "basic",
         scope: "territory",
+        subsections: [
+            { id: "fill", label: "Fill", icon: "◌" },
+            { id: "border", label: "Border", icon: "◇" },
+            { id: "finish", label: "Finish", icon: "✦" },
+        ],
     },
     {
         id: "fleet_star_visuals",
@@ -201,7 +214,9 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     effects: "effects",
     conquest_effects: "conquest",
     conquest: "conquest",
-    territory: "territory_modes",
+    territory: "territory_tuning",
+    territory_modes: "territory_tuning",
+    frontier_fx: "frontier_fx",
     ships: "fleet_star_visuals",
     visuals: "map_options",
     logging: "logging",

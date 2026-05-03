@@ -7,6 +7,7 @@ export const metaballGridFamilyConfigDefaults = {
     METABALL_GRID_POSITION_JITTER: 0,
     METABALL_GRID_MAX_CELLS: 0,
     METABALL_GRID_INWARD_OFFSET_PX: 0,
+    METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
     METABALL_GRID_CELL_SHAPE: 'square' as const,
     METABALL_GRID_CELL_INSET_PX: 0,
     METABALL_GRID_CELL_CORNER_PX: 0,
@@ -35,18 +36,21 @@ export const metaballGridFamilyConfigDefaults = {
 } as const;
 
 export const metaballGridPhaseEdgesModeDefaults = {
-    METABALL_GRID_WAVE_GEOMETRY: 'euclidean_band' as const,
+    METABALL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
     METABALL_GRID_BORDER_MODE: 'territory_edge' as const,
     METABALL_GRID_BORDER_BLEND: true,
     METABALL_GRID_EDGE_SMOOTHING_PASSES: 0,
     METABALL_GRID_EDGE_TRIM_PX: 0,
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
+    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
+    TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'contour_matched' as const,
+    TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: false,
 } as const;
 
 export const metaballGridPhaseEdgesGeometryDefaults = {
     MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
-    TERRITORY_DX_WEIGHT: 3,
+    TERRITORY_DX_WEIGHT: 0.3,
 } as const;
 
 export const metaballGridPhaseFieldModeDefaults = {

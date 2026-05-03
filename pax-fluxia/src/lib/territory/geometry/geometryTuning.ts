@@ -19,6 +19,20 @@ export interface TerritoryGeometryTunables {
     clusterSplitThreshold: number;
 }
 
+export const TERRITORY_GEOMETRY_LIMITS = {
+    starMargin: { min: 0, max: 500 },
+    msrStarBias: { min: 0, max: 2 },
+    frontierResolution: { min: 1, max: 32 },
+    corridorSpacing: { min: 10, max: 200 },
+    corridorCount: { min: 0, max: 20 },
+    corridorWeight: { min: 0, max: 2 },
+    cxContestPairCount: { min: 1, max: 10 },
+    cxContestPairSpacing: { min: 10, max: 500 },
+    cxContestPairWeight: { min: 0, max: 2 },
+    disconnectDistance: { min: 0, max: 1000 },
+    disconnectWeight: { min: 0, max: 5 },
+} as const;
+
 function asNumber(value: unknown, fallback: number): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
@@ -116,6 +130,14 @@ export function normalizeTerritoryGeometryTunables(
             Math.min(1, tunables.clusterSplitThreshold ?? 0),
         ),
     };
+}
+
+export function readNormalizedTerritoryGeometryTunables(
+    config: Record<string, unknown>,
+): TerritoryGeometryTunables {
+    return normalizeTerritoryGeometryTunables(
+        readTerritoryGeometryTunables(config),
+    );
 }
 
 export function buildTerritoryGeneratorSettingsFromTunables(params: {

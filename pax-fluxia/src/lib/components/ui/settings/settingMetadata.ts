@@ -406,13 +406,20 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             description:
                 'Visible interior fill-pattern spacing for settled and masked PRE/NEXT fills; changes pattern density but not conquest timing density or active frontier cell size.',
         },
+        'Grid Density': {
+            key: 'METABALL_GRID_SPACING_PX',
+            description:
+                'Density alias for transition spacing. Higher density means more cells, sharper ownership edges, and heavier CPU.',
+        },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
         'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },
         'Max Cells': { key: 'METABALL_GRID_MAX_CELLS' },
         'Inward Offset': { key: 'METABALL_GRID_INWARD_OFFSET_PX' },
         'Cell Shape': { key: 'METABALL_GRID_CELL_SHAPE' },
+        'Cell Inset': { key: 'METABALL_GRID_CELL_INSET_PX' },
         'Cell Inset (px)': { key: 'METABALL_GRID_CELL_INSET_PX' },
+        'Square Corner': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Square Corner (px)': { key: 'METABALL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'METABALL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'METABALL_GRID_BORDER_BLEND' },
@@ -434,6 +441,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         Adjacency: { key: 'METABALL_GRID_ADJACENCY' },
         'Wave Geometry': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
         'Wave Seeding': { key: 'METABALL_GRID_WAVE_SEEDING' },
+        'Propagation Shape': { key: 'METABALL_GRID_WAVE_GEOMETRY' },
+        'Propagation Source': { key: 'METABALL_GRID_WAVE_SEEDING' },
         'Flip Transition': { key: 'METABALL_GRID_FLIP_TRANSITION' },
         'Flip Window': { key: 'METABALL_GRID_FLIP_WINDOW' },
         'Wave Easing': { key: 'METABALL_GRID_WAVE_EASE' },
@@ -456,11 +465,53 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Final Cell Size (px)': {
             key: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
         },
+        'Final Cell Size': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+        },
         'Frontier Fade Start': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
         },
         'Frontier Fade End': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+        },
+        'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
+        'Frontier Border Geometry': {
+            key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',
+        },
+        'Phase Sampling': { key: 'TERRITORY_FRONTIER_PHASE_SAMPLING' },
+        'Blur Passes': { key: 'TERRITORY_FRONTIER_BLUR_PASSES' },
+        'Triangle Diagonal': {
+            key: 'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
+        },
+        'Frontier Chaikin': { key: 'TERRITORY_FRONTIER_CHAIKIN_PASSES' },
+        'Shader Softness': { key: 'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX' },
+        'Band Width': { key: 'TERRITORY_FRONTIER_BAND_WIDTH_PX' },
+        'Outer perimeter border': {
+            key: 'TERRITORY_FRONTIER_OUTER_BORDER_ENABLED',
+        },
+        'Junction Render': {
+            key: 'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
+        },
+        'Junction Gap Trim': { key: 'METABALL_GRID_EDGE_TRIM_PX' },
+        'Junction Radius': {
+            key: 'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
+        },
+        'Junction Bubble Radius': {
+            key: 'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
+        },
+        'Frontier FX Mode': { key: 'TERRITORY_FRONTIER_FX_MODE' },
+        'Frontier FX Width': { key: 'TERRITORY_FRONTIER_FX_WIDTH_PX' },
+        'Frontier FX Strength': { key: 'TERRITORY_FRONTIER_FX_STRENGTH' },
+        'Frontier FX Softness': { key: 'TERRITORY_FRONTIER_FX_SOFTNESS' },
+        'Frontier FX Steps': { key: 'TERRITORY_FRONTIER_FX_STEPS' },
+        'Frontier FX Pulse Speed': {
+            key: 'TERRITORY_FRONTIER_FX_PULSE_SPEED',
+        },
+        'Apply in steady state': {
+            key: 'TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE',
+        },
+        'Apply during transition': {
+            key: 'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
         },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },

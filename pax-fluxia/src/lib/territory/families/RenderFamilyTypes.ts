@@ -66,7 +66,7 @@ export interface RenderFamilyInput {
     gameTick?: number;
     stars: ReadonlyArray<StarState>;
     lanes: ReadonlyArray<StarConnection>;
-    world: { width: number; height: number };
+    world: { width: number; height: number; minX?: number; minY?: number };
     tunables: ReadonlyMap<string, RenderFamilyTunableValue>;
     configSource?: Readonly<Record<string, unknown>>;
     renderer?: PIXI.Renderer;
