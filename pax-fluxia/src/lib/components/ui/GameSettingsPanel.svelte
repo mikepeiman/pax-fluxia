@@ -840,13 +840,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         sections.filter((section) => isSectionVisible(section)),
     );
 
-    // Most recently opened sections first
+    // Most recently opened visible sections first.
     let orderedOpenSections = $derived(
         [...sectionOrder]
             .reverse()
             .map((id) => visibleSections.find((section) => section.id === id))
             .filter(Boolean) as typeof sections,
     );
+    let hasVisibleOpenSections = $derived(orderedOpenSections.length > 0);
 
     let lastForceOpenSectionNonce = $state(-1);
     $effect(() => {
@@ -1220,7 +1221,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     </div>
 
     <!-- Icon Toolbar -->
-    <div class="icon-toolbar" class:has-active={openSections.size > 0}>
+    <div class="icon-toolbar" class:has-active={hasVisibleOpenSections}>
         {#each visibleSections as s}
             <button
                 class="icon-btn"
@@ -1232,7 +1233,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 title={s.label}
             >
                 <span class="icon-emoji">{s.icon}</span>
-                {#if openSections.size === 0}
+                {#if !hasVisibleOpenSections}
                     <span class="icon-label">{s.label}</span>
                 {/if}
             </button>
@@ -1243,7 +1244,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             onclick={resetToDefaults}
         >
             <span class="icon-emoji">↺</span>
-            {#if openSections.size === 0}
+            {#if !hasVisibleOpenSections}
                 <span class="icon-label">Reset</span>
             {/if}
         </button>
