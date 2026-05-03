@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     applyTerritoryFrontierFxToFill,
+    applyTerritoryFrontierFxFieldToFill,
     buildTerritoryFrontierFxSampleField,
+    createTerritoryFrontierFxSampleField,
     evaluateTerritoryFrontierFxSample,
     isTerritoryFrontierFxActive,
     type TerritoryFrontierFxTuning,
@@ -126,12 +128,13 @@ describe('frontier FX helpers', () => {
             tuning: BASE_TUNING,
             nowMs: 0,
             hasActiveTransition: false,
+            reuseField: createTerritoryFrontierFxSampleField(3),
         });
 
         expect(samples).not.toBeNull();
         expect(samples!.length).toBe(3);
-        expect(samples![0]).not.toBeNull();
-        expect(samples![1]).not.toBeNull();
+        expect(samples!.activeMaskByCell[0]).toBe(1);
+        expect(samples!.activeMaskByCell[1]).toBe(1);
     });
 
     it('applies a visible color change when the sample is active', () => {
@@ -146,6 +149,28 @@ describe('frontier FX helpers', () => {
         });
         const base = 0x3366ff;
         const next = applyTerritoryFrontierFxToFill(base, sample);
+        expect(next).not.toBe(base);
+    });
+
+    it('applies a visible color change from the typed sample field', () => {
+        const distanceField = buildOwnershipGridFrontierDistanceField({
+            cols: 1,
+            rows: 1,
+            ownerIndexByCell: Int32Array.from([0]),
+            spacingPx: 12,
+            includeWorldEdge: true,
+        });
+        const field = buildTerritoryFrontierFxSampleField({
+            distanceField,
+            tuning: {
+                ...BASE_TUNING,
+                mode: 'plasma_rim',
+            },
+            nowMs: 0,
+            hasActiveTransition: false,
+        });
+        const base = 0x3366ff;
+        const next = applyTerritoryFrontierFxFieldToFill(base, field, 0);
         expect(next).not.toBe(base);
     });
 });

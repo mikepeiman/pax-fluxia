@@ -5317,6 +5317,8 @@
                 let transitionDiagnosticFrameInput:
                     | TransitionDiagnosticFrameInput
                     | null = null;
+                const transitionDiagnosticCaptureEnabled =
+                    transitionSnapshotRecorder.isEnabled();
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -5420,12 +5422,14 @@
                                 : undefined,
                             pvv3Invalidation,
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     }
                     case "power_voronoi": {
@@ -5464,12 +5468,14 @@
                             activeGameStore.connections as StarConnection[],
                             app?.renderer ?? undefined,
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition: activeRenderFamilyTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition: activeRenderFamilyTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     case "modified_voronoi":
                         renderModifiedVoronoiModule(
@@ -5521,12 +5527,14 @@
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball",
                             () =>
@@ -5565,14 +5573,16 @@
                             geometry,
                             configSource: renderFamilyConfigSource,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "metaball_grid": {
@@ -5595,12 +5605,14 @@
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mgInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball_grid",
                             () =>
@@ -5643,14 +5655,16 @@
                             geometry,
                             configSource: renderFamilyConfigSource,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "metaball_grid_phase_edges": {
@@ -5673,12 +5687,14 @@
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const mgInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.metaball_grid_phase_edges",
                             () =>
@@ -5723,14 +5739,16 @@
                             configSource: renderFamilyConfigSource,
                             freezeDuringActiveTransition: true,
                         });
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            ownership,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "perimeter_field": {
@@ -5758,12 +5776,14 @@
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            });
+                            transitionDiagnosticCaptureEnabled
+                                ? getTransitionDiagnosticPrevFrame({
+                                      activeMode,
+                                      activeTransition,
+                                      stars,
+                                      lanes,
+                                  })
+                                : null;
                         const pfInput = measurePerf(
                             "game.renderFrame.renderFamilyInput.perimeter_field",
                             () =>
@@ -5835,12 +5855,14 @@
                             territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                         );
-                        transitionDiagnosticFrameInput = {
-                            activeMode,
-                            activeTransition: activeRenderFamilyTransition,
-                            stars,
-                            lanes,
-                        };
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition: activeRenderFamilyTransition,
+                                stars,
+                                lanes,
+                            };
+                        }
                         break;
                     case "graph":
                         renderLaneTerritoryModule(

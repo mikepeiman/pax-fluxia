@@ -193,6 +193,34 @@ export class TransitionSnapshotRecorder {
         });
     }
 
+    private releaseCanvas(canvas: HTMLCanvasElement | null | undefined): void {
+        if (!canvas) return;
+        canvas.width = 1;
+        canvas.height = 1;
+    }
+
+    private releaseBundle(bundle: TransitionDebugBundle): void {
+        this.releaseCanvas(bundle.prevCanvas);
+        this.releaseCanvas(bundle.nextCanvas);
+        const frames = bundle.transitionFrames;
+        if (frames) {
+            for (const frame of frames) {
+                this.releaseCanvas(frame.canvas);
+            }
+            frames.length = 0;
+        }
+    }
+
+    private pushBundle(bundle: TransitionDebugBundle): void {
+        this.bundles.push(bundle);
+        while (this.bundles.length > this.maxBundles) {
+            const evicted = this.bundles.shift();
+            if (evicted) {
+                this.releaseBundle(evicted);
+            }
+        }
+    }
+
     /** Enable/disable the recorder */
     setEnabled(enabled: boolean): void {
         this.enabled = enabled;
@@ -364,10 +392,7 @@ export class TransitionSnapshotRecorder {
             meta,
         };
 
-        this.bundles.push(bundle);
-        if (this.bundles.length > this.maxBundles) {
-            this.bundles.shift();
-        }
+        this.pushBundle(bundle);
         this.emitState();
 
         console.log(
@@ -462,10 +487,7 @@ export class TransitionSnapshotRecorder {
             meta,
         };
 
-        this.bundles.push(bundle);
-        if (this.bundles.length > this.maxBundles) {
-            this.bundles.shift();
-        }
+        this.pushBundle(bundle);
         this.emitState();
 
         console.log(
@@ -491,6 +513,9 @@ export class TransitionSnapshotRecorder {
 
     /** Clear all bundles */
     clear(): void {
+        for (const bundle of this.bundles) {
+            this.releaseBundle(bundle);
+        }
         this.bundles = [];
         console.log('[SnapshotRecorder] cleared all bundles');
         this.emitState();

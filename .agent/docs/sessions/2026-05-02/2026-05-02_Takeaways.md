@@ -69,3 +69,13 @@
   - In this case `Cell Spacing` and `Grid Density` still existed, but bad applicability gates marked them `.disabled`
   - because shared panel CSS uses `pointer-events: none` there, they were effectively gone
   - core lattice controls for Metaball Grid / Phase Edges must never be gated as if they are only control-path knobs
+- The 6px perf/memory problem is not just expensive math.
+  - diagnostic capture prep was happening even when the recorder was off
+  - localized geometry cache needed bounds
+  - frontier FX object-per-cell sampling was unnecessary heap pressure
+  - per-owner occupancy grids in Phase Edges were still allocating large full-grid arrays every active frame
+- The right stabilization order is:
+  - kill retention risks
+  - reuse large buffers and occupancy grids
+  - stabilize semantic plan caching
+  - then re-profile to see what true hot paths remain

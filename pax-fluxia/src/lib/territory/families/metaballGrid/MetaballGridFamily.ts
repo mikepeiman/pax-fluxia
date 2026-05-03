@@ -28,13 +28,15 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
-    applyTerritoryFrontierFxToFill,
+    applyTerritoryFrontierFxFieldToFill,
     buildTerritoryFrontierFxSampleField,
     buildOwnershipGridFrontierDistanceField,
+    createOwnershipGridFrontierDistanceFieldBuffers,
     computeVisibleSquareBoundsFromDistance,
     isTerritoryFrontierFxActive,
     TERRITORY_FRONTIER_FX_TUNABLE_KEYS,
-    type TerritoryFrontierFxSample,
+    type OwnershipGridFrontierDistanceFieldBuffers,
+    type TerritoryFrontierFxSampleField,
 } from '$lib/territory/frontier';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
@@ -401,12 +403,8 @@ interface CachedPlan {
     readonly classificationBuildMs: number;
     readonly wavePlanBuildMs: number;
     readonly planBuildMs: number;
-    /**
-     * Reference to the NEXT geometry the plan was built against. When upstream
-     * caches invalidate (e.g. a territory source-shaping knob edit yields a
-     * new snapshot object), we detect the reference change and rebuild.
-     */
-    readonly nextGeometryRef: CanonicalGeometrySnapshot;
+    readonly prevGeometryVersion: string;
+    readonly nextGeometryVersion: string;
 }
 
 interface MetaballGridPlanSettings {
@@ -632,6 +630,14 @@ export class MetaballGridFamily implements RenderFamily {
     private activeVisualTransition: MetaballGridVisualTransitionTiming | null = null;
     private pendingTransitionPlan: PendingMetaballGridTransitionPlan | null = null;
     private activeFrontierState: ActiveFrontierState | null = null;
+    private effectiveColorIdxScratch: Int32Array | null = null;
+    private visibleSquareBoundsScratch:
+        | Array<VisibleSquareCellBounds | null>
+        | null = null;
+    private frontierDistanceFieldBuffers:
+        | OwnershipGridFrontierDistanceFieldBuffers
+        | null = null;
+    private frontierFxSampleField: TerritoryFrontierFxSampleField | null = null;
     private readonly variant: MetaballGridFamilyVariant;
 
     constructor(
@@ -682,6 +688,10 @@ export class MetaballGridFamily implements RenderFamily {
         this.queuedPlanWorker = null;
         this.activeVisualTransition = null;
         this.pendingTransitionPlan = null;
+        this.effectiveColorIdxScratch = null;
+        this.visibleSquareBoundsScratch = null;
+        this.frontierDistanceFieldBuffers = null;
+        this.frontierFxSampleField = null;
         this.resetActiveFrontierState();
         resetMetaballGridStats();
     }
@@ -818,6 +828,35 @@ export class MetaballGridFamily implements RenderFamily {
             layer.addChild(sprite);
             pool.push(sprite);
         }
+    }
+
+    private ensureEffectiveColorIdxScratch(size: number): Int32Array {
+        if (!this.effectiveColorIdxScratch || this.effectiveColorIdxScratch.length !== size) {
+            this.effectiveColorIdxScratch = new Int32Array(size);
+        }
+        return this.effectiveColorIdxScratch;
+    }
+
+    private ensureVisibleSquareBoundsScratch(
+        size: number,
+    ): Array<VisibleSquareCellBounds | null> {
+        if (!this.visibleSquareBoundsScratch || this.visibleSquareBoundsScratch.length !== size) {
+            this.visibleSquareBoundsScratch = new Array<VisibleSquareCellBounds | null>(size).fill(null);
+        }
+        return this.visibleSquareBoundsScratch;
+    }
+
+    private ensureFrontierDistanceFieldBuffers(
+        size: number,
+    ): OwnershipGridFrontierDistanceFieldBuffers {
+        if (
+            !this.frontierDistanceFieldBuffers ||
+            this.frontierDistanceFieldBuffers.leftDistancePxByCell.length !== size
+        ) {
+            this.frontierDistanceFieldBuffers =
+                createOwnershipGridFrontierDistanceFieldBuffers(size);
+        }
+        return this.frontierDistanceFieldBuffers;
     }
 
     private hideUnusedSprites(pool: PIXI.Sprite[], fromIndex: number): void {
@@ -1204,10 +1243,11 @@ export class MetaballGridFamily implements RenderFamily {
             classification: response.classification,
             wavePlan: response.wavePlan,
             prevGeometry: meta.prevGeometry,
+            prevGeometryVersion: meta.prevGeometry.version,
             classificationBuildMs: response.classificationBuildMs,
             wavePlanBuildMs: response.wavePlanBuildMs,
             planBuildMs: response.planBuildMs,
-            nextGeometryRef: meta.nextGeometryRef,
+            nextGeometryVersion: meta.nextGeometryRef.version,
         };
         if (this.pendingTransitionPlan?.planKey === response.planKey) {
             this.beginVisualTransition(
@@ -1575,10 +1615,11 @@ export class MetaballGridFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry,
+            prevGeometryVersion: prevGeometry.version,
             classificationBuildMs,
             wavePlanBuildMs,
             planBuildMs: classificationBuildMs + wavePlanBuildMs,
-            nextGeometryRef: currentGeometry,
+            nextGeometryVersion: currentGeometry.version,
         };
     }
 
@@ -1632,10 +1673,11 @@ export class MetaballGridFamily implements RenderFamily {
             classification,
             wavePlan,
             prevGeometry: currentGeometry,
+            prevGeometryVersion: currentGeometry.version,
             classificationBuildMs,
             wavePlanBuildMs,
             planBuildMs: classificationBuildMs + wavePlanBuildMs,
-            nextGeometryRef: currentGeometry,
+            nextGeometryVersion: currentGeometry.version,
         };
     }
 
@@ -1795,9 +1837,14 @@ export class MetaballGridFamily implements RenderFamily {
                     | string
                     | undefined) ?? null,
         };
+        const prevGeoRef = input.prevGeometry ?? null;
+        const geometryVersionForPlan =
+            transitionKey && prevGeoRef
+                ? `${prevGeoRef.version}->${currentGeometry.version}`
+                : currentGeometry.version;
         const planKey = buildMetaballGridPlanKey({
             transitionKey: transitionKey ?? 'steady',
-            geometryVersion: currentGeometry.version,
+            geometryVersion: geometryVersionForPlan,
             geometrySource: settings.geometrySource,
             spacingPx: settings.spacingPx,
             originMode: settings.originMode,
@@ -1809,17 +1856,14 @@ export class MetaballGridFamily implements RenderFamily {
             waveSeeding: transitionKey ? settings.waveSeeding : undefined,
         });
 
-        // Rebuild the plan when the plan key or input geometry reference changes.
-        // The extra geometry-reference checks preserve the Phase C behavior:
-        // if GameCanvas invalidates and recomputes PREV/NEXT geometry without a
-        // new conquest key, this family still rebuilds against the new truth.
-        const prevGeoRef = input.prevGeometry ?? null;
+        // Rebuild from semantic geometry identity rather than object identity.
+        // Localized snapshots can be freshly allocated while still describing
+        // the same plan truth; the plan key carries authoritative geometry
+        // versions.
         if (transitionKey) {
             if (
                 !this.cachedPlan
                 || this.cachedPlan.planKey !== planKey
-                || this.cachedPlan.nextGeometryRef !== currentGeometry
-                || (prevGeoRef !== null && this.cachedPlan.prevGeometry !== prevGeoRef)
             ) {
                 if (!this.hasPendingPlanRequest(planKey)) {
                     const prevGeometry = this.resolvePrevGeometryForTransition({
@@ -1873,7 +1917,6 @@ export class MetaballGridFamily implements RenderFamily {
                 && (
                     !this.cachedPlan
                     || this.cachedPlan.planKey !== planKey
-                    || this.cachedPlan.nextGeometryRef !== currentGeometry
                 )
             ) {
                 const ownedStars = toOwnedStars(input.stars);
@@ -2559,7 +2602,7 @@ export class MetaballGridFamily implements RenderFamily {
             scene &&
             shouldUseSceneCellBoundaryClassification
         ) {
-            effectiveColorIdxByGridIdx = new Int32Array(vstarCount);
+            effectiveColorIdxByGridIdx = this.ensureEffectiveColorIdxScratch(vstarCount);
             effectiveColorIdxByGridIdx.fill(-1);
             // Seed with NEXT owner as the baseline, so cells whose scene
             // entry was culled (alpha <= 0) still participate in neighbour
@@ -2584,7 +2627,7 @@ export class MetaballGridFamily implements RenderFamily {
             }
         }
         let visibleSquareBoundsByGridIdx: Array<VisibleSquareCellBounds | null> | null = null;
-        let frontierFxSamples: Array<TerritoryFrontierFxSample | null> | null = null;
+        let frontierFxSamples: TerritoryFrontierFxSampleField | null = null;
         if (
             effectiveColorIdxByGridIdx &&
             (cellShape === 'square' || frontierFxActiveForFrame)
@@ -2595,6 +2638,7 @@ export class MetaballGridFamily implements RenderFamily {
                 ownerIndexByCell: effectiveColorIdxByGridIdx,
                 spacingPx,
                 includeWorldEdge: true,
+                reuseBuffers: this.ensureFrontierDistanceFieldBuffers(vstarCount),
             });
             if (frontierFxActiveForFrame) {
                 frontierFxSamples = buildTerritoryFrontierFxSampleField({
@@ -2602,10 +2646,13 @@ export class MetaballGridFamily implements RenderFamily {
                     tuning: frontierFxTuning,
                     nowMs: input.nowMs,
                     hasActiveTransition: !!input.activeTransition,
+                    reuseField: this.frontierFxSampleField,
                 });
+                this.frontierFxSampleField = frontierFxSamples;
             }
             if (cellShape === 'square') {
-                visibleSquareBoundsByGridIdx = new Array<VisibleSquareCellBounds | null>(vstarCount);
+                visibleSquareBoundsByGridIdx =
+                    this.ensureVisibleSquareBoundsScratch(vstarCount);
                 for (let i = 0; i < vstarCount; i++) {
                     const colorIdx = effectiveColorIdxByGridIdx[i];
                     if (colorIdx < 0) {
@@ -2621,6 +2668,7 @@ export class MetaballGridFamily implements RenderFamily {
                         boundaryOffsetPx: boundaryOffsetTargetPx,
                         cellIndex: i,
                         distanceField,
+                        reuseBounds: visibleSquareBoundsByGridIdx[i],
                     });
                 }
             }
@@ -2766,13 +2814,17 @@ export class MetaballGridFamily implements RenderFamily {
                 const cellIndex = iy * cols + ix;
                 const fillHex = fillHexByColorIdx[c.colorIdx];
                 if (fillHex === undefined) continue;
-                const fxSample = frontierFxSamples?.[cellIndex] ?? null;
-                const styledFillHex = applyTerritoryFrontierFxToFill(
+                const styledFillHex = applyTerritoryFrontierFxFieldToFill(
                     fillHex,
-                    fxSample,
+                    frontierFxSamples,
+                    cellIndex,
                 );
+                const fxAlphaMultiplier =
+                    frontierFxSamples?.activeMaskByCell[cellIndex]
+                        ? (frontierFxSamples.alphaMultiplierByCell[cellIndex] ?? 1)
+                        : 1;
                 const alpha =
-                    c.alpha * fillAlphaMult * (fxSample?.alphaMultiplier ?? 1);
+                    c.alpha * fillAlphaMult * fxAlphaMultiplier;
                 if (alpha <= 0) continue;
 
                 // Trust the scene cell's (x, y) — classification already applied

@@ -105,3 +105,41 @@
 - Audit result:
   - no other unconditional core Phase Edges controls were dropped in the same way
   - remaining disabled controls are mode-specific by design, such as jitter-only, triangle-only, shader-only, or shared-edge-only controls
+
+## Addendum - Phase Edges 6px perf + memory stabilization slice 1
+
+- Implemented the first structural stabilization pass on the live `metaball_grid_phase_edges` path without changing the accepted look.
+- Completed in this slice:
+  - gated transition diagnostic capture prep in `GameCanvas.svelte`
+  - bounded localized geometry cache in `territoryPresentationSpace.ts`
+  - added release-on-evict / release-on-clear to `TransitionSnapshotRecorder.ts`
+  - replaced object-per-cell frontier FX arrays with typed sample fields in `frontier/fx.ts`
+  - added reusable frontier distance-field buffers in `frontier/distance.ts`
+  - reused effective owner index buffers and visible square-bound arrays in both Metaball Grid families
+  - changed plan reuse in both families to key from semantic geometry versions instead of fresh localized object refs
+- Validation:
+  - `bun x vitest run src/lib/territory/frontier/fx.test.ts src/lib/territory/frontier/distance.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts`
+  - `bun x vite build`
+- Remaining queue under the same perf/memory initiative:
+  - re-profile the live 6px settings after this slice
+  - inspect whether `buildPlanForCapturedSession(...)` still appears during stable active playback
+  - reduce duplicated owner/pair/mirrored phase-layer allocation if the profile still points there
+  - then move to the queued end-transition 1-3 frame pop audit
+
+## Addendum - Phase Edges 6px perf + memory stabilization slice 2
+
+- Added another heap-churn reduction in `MetaballGridPhaseEdgesFamily.ts`:
+  - pooled per-owner scene occupancy grids
+  - reused a stable active-owner occupancy view map
+- Why:
+  - after slice 1, owner occupancy was still allocating full-grid `Float32Array`s per owner per active frame
+  - at 6px that remains expensive enough to matter for Chrome stability
+- Revalidated with:
+  - `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\fx.test.ts src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+  - `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
+  - `bun x vite build`
+- Remaining queue after slice 2:
+  - live ordinary-play and heap re-profile at the exact 6px settings
+  - confirm whether `buildPlanForCapturedSession(...)` is now absent or only rare during stable playback
+  - if still hot, reduce duplicate pair-layer / mirrored-layer construction next
+  - then proceed to the queued end-transition 1-3 frame pop audit

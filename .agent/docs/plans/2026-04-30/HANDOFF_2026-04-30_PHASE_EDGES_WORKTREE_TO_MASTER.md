@@ -1188,3 +1188,43 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - Merge caution:
   - do not reintroduce applicability gates on lattice-owner controls such as spacing/density
   - those controls affect all Metaball Grid / Phase Edges frontier techniques, not only the old control/shared-edge path
+
+### 2026-05-02 - Phase Edges 6px perf + memory stabilization slice 2
+
+- Continued the same stabilization effort with one additional heap-churn reduction in the active Phase Edges renderer.
+
+#### What changed
+
+- File:
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+- Added pooled per-owner occupancy grids:
+  - stable scratch map keyed by `colorIdx`
+  - stable active-owner view map
+  - previous-frame active-owner clear/reuse instead of fresh full-grid `Float32Array` allocation per owner per frame
+
+#### Why it matters
+
+- After slice 1, one obvious allocation source still remained:
+  - `buildSceneOwnerOccupancy(...)` could allocate one large full-grid `Float32Array` per owner on active frames
+- At `6px`, those arrays are large enough to matter for heap churn and Chrome stability.
+- This does not alter the accepted look:
+  - no fill/border contract change
+  - no topology change
+  - no deliberate quality downgrade
+
+#### Validation
+
+- `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\fx.test.ts src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+- `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
+- `bun x vite build`
+
+#### Remaining queue after slice 2
+
+- Live re-profile at the real 6px settings:
+  - ordinary play with DevTools closed
+  - Performance recording without screenshots
+  - Memory/heap recording
+- Confirm whether `buildPlanForCapturedSession(...)` is now absent or only rare during stable playback.
+- If the profile still points at the scene-surface path, next likely target:
+  - duplicate pair-layer / mirrored-layer construction
+- After perf/memory stabilization is good enough, return to the queued end-transition 1-3 frame pop audit.

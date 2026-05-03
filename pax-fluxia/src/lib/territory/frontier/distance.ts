@@ -4,6 +4,7 @@ export interface BuildOwnershipGridFrontierDistanceFieldParams {
     readonly ownerIndexByCell: Int32Array;
     readonly spacingPx: number;
     readonly includeWorldEdge: boolean;
+    readonly reuseBuffers?: OwnershipGridFrontierDistanceFieldBuffers | null;
 }
 
 export interface OwnershipGridFrontierDistanceField {
@@ -19,6 +20,15 @@ export interface OwnershipGridFrontierDistanceField {
     readonly bandIndexByCell: Int32Array;
 }
 
+export interface OwnershipGridFrontierDistanceFieldBuffers {
+    leftDistancePxByCell: Float32Array;
+    rightDistancePxByCell: Float32Array;
+    topDistancePxByCell: Float32Array;
+    bottomDistancePxByCell: Float32Array;
+    nearestBoundaryPxByCell: Float32Array;
+    bandIndexByCell: Int32Array;
+}
+
 export interface ComputeVisibleSquareBoundsFromDistanceParams {
     readonly x: number;
     readonly y: number;
@@ -27,6 +37,7 @@ export interface ComputeVisibleSquareBoundsFromDistanceParams {
     readonly boundaryOffsetPx: number;
     readonly cellIndex: number;
     readonly distanceField: OwnershipGridFrontierDistanceField;
+    readonly reuseBounds?: VisibleSquareBounds | null;
 }
 
 export interface VisibleSquareBounds {
@@ -38,6 +49,33 @@ export interface VisibleSquareBounds {
 
 const INF = 1_000_000_000;
 
+function ensureFloat32Buffer(
+    buffer: Float32Array | undefined,
+    size: number,
+): Float32Array {
+    return buffer && buffer.length === size ? buffer : new Float32Array(size);
+}
+
+function ensureInt32Buffer(
+    buffer: Int32Array | undefined,
+    size: number,
+): Int32Array {
+    return buffer && buffer.length === size ? buffer : new Int32Array(size);
+}
+
+export function createOwnershipGridFrontierDistanceFieldBuffers(
+    size: number,
+): OwnershipGridFrontierDistanceFieldBuffers {
+    return {
+        leftDistancePxByCell: new Float32Array(size),
+        rightDistancePxByCell: new Float32Array(size),
+        topDistancePxByCell: new Float32Array(size),
+        bottomDistancePxByCell: new Float32Array(size),
+        nearestBoundaryPxByCell: new Float32Array(size),
+        bandIndexByCell: new Int32Array(size),
+    };
+}
+
 function isExteriorNeighbor(ownerIndex: number): boolean {
     return ownerIndex < 0;
 }
@@ -46,12 +84,31 @@ export function buildOwnershipGridFrontierDistanceField(
     params: BuildOwnershipGridFrontierDistanceFieldParams,
 ): OwnershipGridFrontierDistanceField {
     const size = params.cols * params.rows;
-    const leftDistancePxByCell = new Float32Array(size);
-    const rightDistancePxByCell = new Float32Array(size);
-    const topDistancePxByCell = new Float32Array(size);
-    const bottomDistancePxByCell = new Float32Array(size);
-    const nearestBoundaryPxByCell = new Float32Array(size);
-    const bandIndexByCell = new Int32Array(size);
+    const reuseBuffers = params.reuseBuffers ?? null;
+    const leftDistancePxByCell = ensureFloat32Buffer(
+        reuseBuffers?.leftDistancePxByCell,
+        size,
+    );
+    const rightDistancePxByCell = ensureFloat32Buffer(
+        reuseBuffers?.rightDistancePxByCell,
+        size,
+    );
+    const topDistancePxByCell = ensureFloat32Buffer(
+        reuseBuffers?.topDistancePxByCell,
+        size,
+    );
+    const bottomDistancePxByCell = ensureFloat32Buffer(
+        reuseBuffers?.bottomDistancePxByCell,
+        size,
+    );
+    const nearestBoundaryPxByCell = ensureFloat32Buffer(
+        reuseBuffers?.nearestBoundaryPxByCell,
+        size,
+    );
+    const bandIndexByCell = ensureInt32Buffer(
+        reuseBuffers?.bandIndexByCell,
+        size,
+    );
 
     leftDistancePxByCell.fill(INF);
     rightDistancePxByCell.fill(INF);
@@ -215,6 +272,21 @@ export function computeVisibleSquareBoundsFromDistance(
 
     if (!(right > left) || !(bottom > top)) {
         return null;
+    }
+
+    const reuseBounds = params.reuseBounds;
+    if (reuseBounds) {
+        const mutableBounds = reuseBounds as {
+            left: number;
+            right: number;
+            top: number;
+            bottom: number;
+        };
+        mutableBounds.left = left;
+        mutableBounds.right = right;
+        mutableBounds.top = top;
+        mutableBounds.bottom = bottom;
+        return reuseBounds;
     }
 
     return { left, right, top, bottom };

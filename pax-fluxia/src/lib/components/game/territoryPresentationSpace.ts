@@ -21,6 +21,7 @@ export interface TerritoryPresentationFrame {
 
 const FRAME_KEY_PRECISION = 1000;
 const ZERO_EPSILON = 0.000001;
+const MAX_LOCALIZED_FRAME_CACHE_ENTRIES = 4;
 
 const localizedGeometryCache = new WeakMap<
     CanonicalGeometrySnapshot,
@@ -204,6 +205,8 @@ export function localizeCanonicalGeometrySnapshot(
     }
     const cached = frameCache.get(frameKey);
     if (cached) {
+        frameCache.delete(frameKey);
+        frameCache.set(frameKey, cached);
         return cached;
     }
 
@@ -251,5 +254,10 @@ export function localizeCanonicalGeometrySnapshot(
         ),
     };
     frameCache.set(frameKey, localized);
+    while (frameCache.size > MAX_LOCALIZED_FRAME_CACHE_ENTRIES) {
+        const oldestFrameKey = frameCache.keys().next().value;
+        if (!oldestFrameKey) break;
+        frameCache.delete(oldestFrameKey);
+    }
     return localized;
 }
