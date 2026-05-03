@@ -1228,3 +1228,56 @@ The build/tests pass, but the user is the source of truth for the live scene. An
 - If the profile still points at the scene-surface path, next likely target:
   - duplicate pair-layer / mirrored-layer construction
 - After perf/memory stabilization is good enough, return to the queued end-transition 1-3 frame pop audit.
+
+### 2026-05-03 - Phase Edges diagnostics continuation and scene clone cut
+
+- Continued the same perf/memory effort without changing the accepted look.
+
+#### Diagnostics added
+
+- `pax-fluxia/src/lib/components/game/territoryPresentationSpace.ts`
+  - exports territory-presentation cache diagnostics:
+    - hit count
+    - miss count
+    - eviction count
+    - last / max inner frame-cache size
+    - last frame key
+    - last geometry version
+- `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - includes those diagnostics in `getBenchmarkTerritorySchedulerSnapshot()`
+- `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily.ts`
+  - records captured-session plan rebuild events
+  - records captured-session plan build duration
+  - records scene owner occupancy duration
+  - records owner-layer duration
+  - records pair-layer duration
+  - exposes those values through the Phase Edges debug snapshot
+
+#### Why it matters
+
+- The next live browser profile now has direct hooks for:
+  - whether captured-session plans are still rebuilding
+  - whether scene occupancy or pair-layer construction remains dominant
+  - whether localized geometry cache churn is behaving as expected
+- This reduces guesswork in the next profiling round.
+
+#### Additional safe runtime cut
+
+- In `MetaballGridPhaseEdgesFamily.ts`, the base scene-cell array is no longer cloned unless captured-session overlay cells are actually appended.
+- This preserves identical output while removing one unnecessary allocation on non-overlay frames.
+
+#### Validation
+
+- `bun .\node_modules\vitest\vitest.mjs run src\lib\territory\frontier\fx.test.ts src\lib\territory\frontier\distance.test.ts src\lib\territory\families\metaballGrid\MetaballGridFamily.test.ts`
+- `bun x vitest run tools/debug/benchmark-frontier-techniques.test.ts`
+- `bun x vite build`
+
+#### Current note
+
+- The current live settings file at the time of this slice was no longer the original 6px repro:
+  - `METABALL_GRID_SPACING_PX = 14`
+  - `TERRITORY_FRONTIER_TECHNIQUE = marching_triangles_gradient`
+  - `METABALL_GRID_BORDER_MODE = territory_edge`
+  - `METABALL_GRID_BORDER_BLEND = true`
+  - `TERRITORY_FRONTIER_FX_MODE = plasma_rim`
+- That does not invalidate the structural work, but the next explicit 6px acceptance pass needs to repro the original density again on purpose.

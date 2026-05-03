@@ -19,6 +19,16 @@ export interface TerritoryPresentationFrame {
     height: number;
 }
 
+export interface TerritoryPresentationSpaceDiagnostics {
+    cacheHitCount: number;
+    cacheMissCount: number;
+    cacheEvictionCount: number;
+    lastFrameCacheSize: number;
+    maxFrameCacheSize: number;
+    lastFrameKey: string | null;
+    lastGeometryVersion: string | null;
+}
+
 const FRAME_KEY_PRECISION = 1000;
 const ZERO_EPSILON = 0.000001;
 const MAX_LOCALIZED_FRAME_CACHE_ENTRIES = 4;
@@ -27,6 +37,15 @@ const localizedGeometryCache = new WeakMap<
     CanonicalGeometrySnapshot,
     Map<string, CanonicalGeometrySnapshot>
 >();
+const presentationSpaceDiagnostics: TerritoryPresentationSpaceDiagnostics = {
+    cacheHitCount: 0,
+    cacheMissCount: 0,
+    cacheEvictionCount: 0,
+    lastFrameCacheSize: 0,
+    maxFrameCacheSize: 0,
+    lastFrameKey: null,
+    lastGeometryVersion: null,
+};
 
 function quantizeFrameValue(value: number): number {
     return Math.round(value * FRAME_KEY_PRECISION) / FRAME_KEY_PRECISION;
@@ -164,6 +183,11 @@ export function buildTerritoryPresentationFrameKey(
     ].join(":");
 }
 
+export function getTerritoryPresentationSpaceDiagnostics():
+    TerritoryPresentationSpaceDiagnostics {
+    return { ...presentationSpaceDiagnostics };
+}
+
 export function localizeTerritoryPresentationStars(
     stars: ReadonlyArray<StarState>,
     frame: TerritoryPresentationFrame,
@@ -187,6 +211,8 @@ export function localizeCanonicalGeometrySnapshot(
     frame: TerritoryPresentationFrame,
 ): CanonicalGeometrySnapshot {
     const frameKey = buildTerritoryPresentationFrameKey(frame);
+    presentationSpaceDiagnostics.lastFrameKey = frameKey;
+    presentationSpaceDiagnostics.lastGeometryVersion = geometry.version;
     const { dx, dy } = buildOffset(frame);
     const currentBounds = geometry.frontierTopology.worldBounds;
     const alreadyLocal =
@@ -205,8 +231,14 @@ export function localizeCanonicalGeometrySnapshot(
     }
     const cached = frameCache.get(frameKey);
     if (cached) {
+        presentationSpaceDiagnostics.cacheHitCount += 1;
         frameCache.delete(frameKey);
         frameCache.set(frameKey, cached);
+        presentationSpaceDiagnostics.lastFrameCacheSize = frameCache.size;
+        presentationSpaceDiagnostics.maxFrameCacheSize = Math.max(
+            presentationSpaceDiagnostics.maxFrameCacheSize,
+            frameCache.size,
+        );
         return cached;
     }
 
@@ -258,6 +290,13 @@ export function localizeCanonicalGeometrySnapshot(
         const oldestFrameKey = frameCache.keys().next().value;
         if (!oldestFrameKey) break;
         frameCache.delete(oldestFrameKey);
+        presentationSpaceDiagnostics.cacheEvictionCount += 1;
     }
+    presentationSpaceDiagnostics.cacheMissCount += 1;
+    presentationSpaceDiagnostics.lastFrameCacheSize = frameCache.size;
+    presentationSpaceDiagnostics.maxFrameCacheSize = Math.max(
+        presentationSpaceDiagnostics.maxFrameCacheSize,
+        frameCache.size,
+    );
     return localized;
 }

@@ -97,6 +97,10 @@ import {
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 import {
+    recordPerfDuration,
+    recordPerfEvent,
+} from '$lib/perf/perfProbe';
+import {
     resetMetaballGridStats,
     updateMetaballGridStats,
 } from './metaballGridStats';
@@ -963,6 +967,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     private readonly ownerOccupancyViewByColor = new Map<number, Float32Array>();
     private readonly ownerOccupancyActiveColors: number[] = [];
     private ownerOccupancyScratchSize = 0;
+    private lastSceneOwnerOccupancyBuildMs = 0;
+    private lastSceneOwnerOccupancyActiveColorCount = 0;
+    private lastSceneOwnerOccupancyCellCount = 0;
+    private lastSceneOwnerLayerBuildMs = 0;
+    private lastScenePairLayerBuildMs = 0;
+    private lastSceneSurfacePhaseLayerSourceKind: 'scene_pairs' | 'scene_owners' | 'none' = 'none';
+    private lastCapturedSessionPlanBuildMs = 0;
+    private capturedSessionPlanRebuildCount = 0;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -1023,6 +1035,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         this.ownerOccupancyViewByColor.clear();
         this.ownerOccupancyActiveColors.length = 0;
         this.ownerOccupancyScratchSize = 0;
+        this.lastSceneOwnerOccupancyBuildMs = 0;
+        this.lastSceneOwnerOccupancyActiveColorCount = 0;
+        this.lastSceneOwnerOccupancyCellCount = 0;
+        this.lastSceneOwnerLayerBuildMs = 0;
+        this.lastScenePairLayerBuildMs = 0;
+        this.lastSceneSurfacePhaseLayerSourceKind = 'none';
+        this.lastCapturedSessionPlanBuildMs = 0;
+        this.capturedSessionPlanRebuildCount = 0;
         resetMetaballGridStats();
     }
 
@@ -1551,6 +1571,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         session: CapturedTransitionSession;
     }): CachedPlan {
         const { input, planKey, settings, session } = params;
+        const startedAt = performance.now();
         const conquestEvents = session.conquestEvents;
         const starById = new Map<string, StarState>();
         for (const s of input.stars) starById.set(s.id, s);
@@ -1590,6 +1611,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             resolveStarPosition,
         });
         const wavePlanBuildMs = performance.now() - wavePlanStartMs;
+        const totalBuildMs = performance.now() - startedAt;
+        this.lastCapturedSessionPlanBuildMs = totalBuildMs;
+        recordPerfDuration(
+            'territory.phaseEdges.buildPlanForCapturedSession',
+            totalBuildMs,
+            {
+                planKey,
+                cols: classification.cols,
+                rows: classification.rows,
+                eventCount: session.events.length,
+                emittableCells: classification.emittableVstars.length,
+            },
+            startedAt,
+        );
 
         return {
             planKey,
@@ -1599,7 +1634,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             prevGeometryVersion: session.prevGeometry.version,
             classificationBuildMs,
             wavePlanBuildMs,
-            planBuildMs: classificationBuildMs + wavePlanBuildMs,
+            planBuildMs: totalBuildMs,
             nextGeometryVersion: session.nextGeometry.version,
         };
     }
@@ -1730,6 +1765,29 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             scene: {
                 cellCount: scene.cells.length,
                 byOwner: sceneByOwner,
+            },
+            perf: {
+                transitionPlanCacheSize: this.transitionPlanCache.size,
+                capturedTransitionSessionCount: this.capturedTransitionSessions.size,
+                capturedSessionPlanRebuildCount: this.capturedSessionPlanRebuildCount,
+                lastCapturedSessionPlanBuildMs: this.lastCapturedSessionPlanBuildMs,
+                lastSceneOwnerOccupancyBuildMs: this.lastSceneOwnerOccupancyBuildMs,
+                lastSceneOwnerOccupancyActiveColorCount:
+                    this.lastSceneOwnerOccupancyActiveColorCount,
+                lastSceneOwnerOccupancyCellCount:
+                    this.lastSceneOwnerOccupancyCellCount,
+                lastSceneOwnerLayerBuildMs: this.lastSceneOwnerLayerBuildMs,
+                lastScenePairLayerBuildMs: this.lastScenePairLayerBuildMs,
+                lastSceneSurfacePhaseLayerSourceKind:
+                    this.lastSceneSurfacePhaseLayerSourceKind,
+                ownerOccupancyScratchColorCount:
+                    this.ownerOccupancyScratchByColor.size,
+                ownerOccupancyScratchSize: this.ownerOccupancyScratchSize,
+                frontierDistanceFieldBufferSize:
+                    this.frontierDistanceFieldBuffers
+                        ?.leftDistancePxByCell.length ?? 0,
+                frontierFxSampleFieldLength:
+                    this.frontierFxSampleField?.length ?? 0,
             },
         };
     }
@@ -1975,10 +2033,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         scene: GridMetaballScene;
         classification: GridClassification;
     }): Map<number, Float32Array> {
+        const startedAt = performance.now();
         const cellCount =
             params.classification.cols * params.classification.rows;
         const occupancyByColor = this.prepareOwnerOccupancyScratch(cellCount);
-        const activeColors = new Set<number>();
         for (const cell of params.scene.cells) {
             if (cell.alpha <= 0) continue;
             if (
@@ -1994,14 +2052,28 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 values = new Float32Array(cellCount);
                 this.ownerOccupancyScratchByColor.set(cell.colorIdx, values);
             }
-            if (!activeColors.has(cell.colorIdx)) {
-                activeColors.add(cell.colorIdx);
+            if (!occupancyByColor.has(cell.colorIdx)) {
                 this.ownerOccupancyActiveColors.push(cell.colorIdx);
                 occupancyByColor.set(cell.colorIdx, values);
             }
             const index = cell.iy * params.classification.cols + cell.ix;
             values[index] = Math.max(values[index], cell.alpha);
         }
+        const elapsed = performance.now() - startedAt;
+        this.lastSceneOwnerOccupancyBuildMs = elapsed;
+        this.lastSceneOwnerOccupancyActiveColorCount = occupancyByColor.size;
+        this.lastSceneOwnerOccupancyCellCount = cellCount;
+        recordPerfDuration(
+            'territory.phaseEdges.buildSceneOwnerOccupancy',
+            elapsed,
+            {
+                cols: params.classification.cols,
+                rows: params.classification.rows,
+                sceneCellCount: params.scene.cells.length,
+                activeOwnerColors: occupancyByColor.size,
+            },
+            startedAt,
+        );
         return occupancyByColor;
     }
 
@@ -2009,6 +2081,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         classification: GridClassification;
         occupancyByColor: ReadonlyMap<number, Float32Array>;
     }): TerritoryFrontierPhaseFieldLayer[] {
+        const startedAt = performance.now();
         const layers: TerritoryFrontierPhaseFieldLayer[] = [];
         for (const [colorIdx, values] of params.occupancyByColor) {
             let minIx = params.classification.cols;
@@ -2060,6 +2133,19 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 opposingOwnerIndex: null,
             });
         }
+        const elapsed = performance.now() - startedAt;
+        this.lastSceneOwnerLayerBuildMs = elapsed;
+        recordPerfDuration(
+            'territory.phaseEdges.buildFrontierPhaseLayersFromOccupancy',
+            elapsed,
+            {
+                cols: params.classification.cols,
+                rows: params.classification.rows,
+                occupancyOwners: params.occupancyByColor.size,
+                layerCount: layers.length,
+            },
+            startedAt,
+        );
         return layers;
     }
 
@@ -2078,6 +2164,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         occupancyByColor: ReadonlyMap<number, Float32Array>;
         effectiveColorIdxByGridIdx: Int32Array;
     }): TerritoryFrontierPhaseFieldLayer[] {
+        const startedAt = performance.now();
         interface PairCells {
             readonly ownerIndex: number;
             readonly opposingOwnerIndex: number;
@@ -2206,6 +2293,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             });
         }
 
+        const elapsed = performance.now() - startedAt;
+        this.lastScenePairLayerBuildMs = elapsed;
+        recordPerfDuration(
+            'territory.phaseEdges.buildScenePairFrontierPhaseLayers',
+            elapsed,
+            {
+                cols,
+                rows,
+                occupancyOwners: params.occupancyByColor.size,
+                pairCount: pairs.size,
+                layerCount: layers.length,
+            },
+            startedAt,
+        );
         return layers;
     }
 
@@ -2263,6 +2364,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 effectiveColorIdxByGridIdx: params.effectiveColorIdxByGridIdx,
             });
             if (pairLayers.length > 0) {
+                this.lastSceneSurfacePhaseLayerSourceKind = 'scene_pairs';
                 return {
                     fillLayers: ownerLayers,
                     borderLayers: pairLayers,
@@ -2271,6 +2373,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             }
         }
         if (ownerLayers.length > 0) {
+            this.lastSceneSurfacePhaseLayerSourceKind = 'scene_owners';
             return {
                 fillLayers: ownerLayers,
                 borderLayers: ownerLayers,
@@ -2278,6 +2381,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             };
         }
 
+        this.lastSceneSurfacePhaseLayerSourceKind = 'none';
         return {
             fillLayers: [],
             borderLayers: [],
@@ -2900,6 +3004,13 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     !sessionPlan
                     || sessionPlan.planKey !== sessionPlanKey
                 ) {
+                    this.capturedSessionPlanRebuildCount += 1;
+                    recordPerfEvent('territory.phaseEdges.capturedSessionPlanRebuild', {
+                        sessionKey: session.sessionKey,
+                        cause: sessionPlan ? 'plan_key_changed' : 'cache_miss',
+                        planKey: sessionPlanKey,
+                        eventCount: session.events.length,
+                    });
                     sessionPlan = this.buildPlanForCapturedSession({
                         input,
                         planKey: sessionPlanKey,
@@ -3579,7 +3690,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // build a shadow map when jitter > 0; the scene builder reads through
         // the same ReadonlyMap contract.
         const sceneStartMs = performance.now();
-        const sceneCells = renderMetaballGridScene({
+        const baseSceneCells = renderMetaballGridScene({
             classification: cached.classification,
             wavePlan: applyFlipTimeJitter(cached.wavePlan, flipTimeJitter),
             progress: activeSessionPlans.length > 0 ? 1 : progress,
@@ -3589,7 +3700,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             inwardOffsetPx,
             ownerColorIdx,
             omitVIds: suppressedBaseVIds.size > 0 ? suppressedBaseVIds : undefined,
-        }).cells.slice();
+        }).cells;
+        const sceneCells =
+            activeSessionPlans.length > 0
+                ? baseSceneCells.slice()
+                : baseSceneCells;
         for (const { session, plan } of activeSessionPlans) {
             const sessionProgress = easeProgress(waveEase, session.rawProgress);
             const overlay = renderMetaballGridScene({

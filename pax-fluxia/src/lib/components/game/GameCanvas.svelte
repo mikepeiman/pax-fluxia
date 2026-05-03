@@ -175,6 +175,7 @@
     } from "$lib/stores/territoryRenderStatusStore";
     import {
         buildTerritoryPresentationFrameKey,
+        getTerritoryPresentationSpaceDiagnostics,
         localizeCanonicalGeometrySnapshot,
         localizeTerritoryPresentationStars,
         type TerritoryPresentationFrame,
@@ -6618,6 +6619,8 @@
             territoryPresentationLastQueueWaitMs,
             territoryPresentationLastCommitLagMs,
             territoryPresentationLastRequestId,
+            territoryPresentationSpace:
+                getTerritoryPresentationSpaceDiagnostics(),
             territoryPresentationYieldCount,
             territoryPresentationForcedCount,
             territoryPresentationLastYieldAtMs,
