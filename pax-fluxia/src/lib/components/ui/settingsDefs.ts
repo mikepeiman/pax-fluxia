@@ -204,6 +204,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'ATTACK_SURGE_FORCE_COFACTOR' },
     { configKey: 'ATTACK_SURGE_RAMP_MS' },
     { configKey: 'ATTACK_SURGE_SHAPE' },
+    { configKey: 'SURGE_PULSE_BIND_TO_TICK' },
     { configKey: 'CONQUEST_TRAVEL_SPEED' },
     { configKey: 'CONQUEST_LERP_DELAY_MS' },
     { configKey: 'CONQUEST_COLOR_DELAY_TICKS' },
@@ -330,6 +331,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DEBUG_DY4_FORCE_TRANSITION_START' },
     // Territory invariants (MSR / CX / DX)
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
+    {
+        panelKey: 'msrStarBias',
+        configKey: 'TERRITORY_MSR_STAR_BIAS',
+    },
     { panelKey: 'corridorEnabled', configKey: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
     { panelKey: 'corridorSpacing', configKey: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
     { panelKey: 'cxCount', configKey: 'TERRITORY_CX_COUNT' },
@@ -337,11 +342,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'cxContestMidpointVstars', configKey: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS' },
     { panelKey: 'cxContestPairCount', configKey: 'TERRITORY_CX_CONTEST_PAIR_COUNT' },
     { panelKey: 'cxContestPairWeight', configKey: 'TERRITORY_CX_CONTEST_PAIR_WEIGHT' },
+    { panelKey: 'cxContestPairSpacing', configKey: 'TERRITORY_CX_CONTEST_PAIR_SPACING' },
     { panelKey: 'disconnectEnabled', configKey: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
     { panelKey: 'disconnectDistance', configKey: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
     { panelKey: 'dxWeight', configKey: 'TERRITORY_DX_WEIGHT' },
-    // Clean-architecture selectors
-    { configKey: 'TERRITORY_ARCHITECTURE_PATH' },
+    // Territory transition / style selectors
     { configKey: 'TERRITORY_FILL_TRANSITION_MODE' },
     { configKey: 'TERRITORY_BORDER_TRANSITION_MODE' },
     { configKey: 'TERRITORY_STYLE_MODE' },
@@ -551,9 +556,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'CONQUEST_SLOWMO_DURATION_MS' },
     { configKey: 'CONQUEST_DAMAGED_CAPTURE_RATE' },
     { configKey: 'CONQUEST_DAMAGED_DESTROY_RATE' },
-    { configKey: 'ORDERS_PERSIST_AFTER_CONQUEST' },
-    { configKey: 'RETAIN_ORDER_ON_CONQUEST' },
-    { configKey: 'ALLOW_OPPOSING_ORDERS' },
     // VS Transition (F-165)
     { configKey: 'VS_VICTOR_TRAVEL_MS' },
     { configKey: 'VS_LOSER_TRAVEL_MS' },
@@ -581,6 +583,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS' },
     { configKey: 'METABALL_GRID_ENABLED' },
     { configKey: 'METABALL_GRID_SPACING_PX' },
+    { configKey: 'METABALL_GRID_PATTERN_SPACING_PX' },
     { configKey: 'METABALL_GRID_ORIGIN_MODE' },
     { configKey: 'METABALL_GRID_DISTRIBUTION' },
     { configKey: 'METABALL_GRID_POSITION_JITTER' },
@@ -601,6 +604,17 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_FLIP_WINDOW' },
     { configKey: 'METABALL_GRID_WAVE_EASE' },
     { configKey: 'METABALL_GRID_FLIP_WINDOW_JITTER' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX' },
+    {
+        panelKey: 'metaballGridPhaseFieldFrontierHighlight',
+        configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+    },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START' },
+    { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END' },
     // Arrow appearance
     { configKey: 'ARROW_HEAD_SIZE' },
     { configKey: 'ARROW_SHAFT_WIDTH' },

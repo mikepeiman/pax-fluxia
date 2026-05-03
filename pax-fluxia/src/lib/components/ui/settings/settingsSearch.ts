@@ -1,0 +1,273 @@
+import type { SettingsSectionId } from "./settingsRegistry";
+import { SETTINGS_SECTIONS } from "./settingsRegistry";
+import type { SearchableSettingRecord } from "./settingMetadata";
+import { getSearchableSettingRecords } from "./settingMetadata";
+
+type SearchResultKind = "setting" | "section";
+
+export type SettingsSearchResult = {
+    id: string;
+    kind: SearchResultKind;
+    sectionId: SettingsSectionId;
+    subsectionId?: string;
+    sectionLabel: string;
+    title: string;
+    snippet: string;
+    configKey?: string;
+    panelKey?: string;
+    anchorText?: string;
+};
+
+type SearchIndexEntry = SettingsSearchResult & {
+    normalizedText: string;
+    normalizedTitle: string;
+    normalizedSection: string;
+    normalizedConfig: string;
+    priority: number;
+    sourceText: string;
+};
+
+const SECTION_LABEL_BY_ID = Object.fromEntries(
+    SETTINGS_SECTIONS.map((section) => [section.id, section.label]),
+) as Record<SettingsSectionId, string>;
+
+function normalizeSearchText(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/[^\p{L}\p{N}\s.]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function makeSnippet(sourceText: string, query: string, fallback: string): string {
+    if (!sourceText) return fallback;
+    const sourceLower = sourceText.toLowerCase();
+    const queryLower = query.toLowerCase();
+    const matchIndex = sourceLower.indexOf(queryLower);
+    if (matchIndex < 0) {
+        return sourceText.slice(0, 180).trim();
+    }
+    const start = Math.max(0, matchIndex - 64);
+    const end = Math.min(sourceText.length, matchIndex + Math.max(query.length, 24) + 96);
+    const snippet = sourceText.slice(start, end).trim();
+    return `${start > 0 ? "…" : ""}${snippet}${end < sourceText.length ? "…" : ""}`;
+}
+
+function isTerritoryTopologyRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return (
+        key === "FRONTIER_RESOLUTION" ||
+        key.startsWith("MODIFIED_VORONOI_") ||
+        key.startsWith("TERRITORY_CX_") ||
+        key.startsWith("TERRITORY_DX_") ||
+        label.includes("margin") ||
+        label.includes("corridor") ||
+        label.includes("disconnect") ||
+        label.includes("midpoint") ||
+        label.includes("frontier resolution")
+    );
+}
+
+function isTerritorySystemRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return (
+        key === "TERRITORY_RENDER_MODE" ||
+        key === "TERRITORY_GEOMETRY_MODE" ||
+        key === "TERRITORY_ENGINE_MODE" ||
+        key === "TERRITORY_ENGINE_STATIC_METHOD" ||
+        key === "TERRITORY_ENGINE_DYNAMIC_METHOD" ||
+        key === "TERRITORY_ENGINE_HYBRID_PLAN" ||
+        label.includes("render mode") ||
+        label.includes("geometry mode") ||
+        label.includes("engine mode")
+    );
+}
+
+function resolveSectionTarget(record: SearchableSettingRecord): {
+    sectionId: SettingsSectionId;
+    subsectionId?: string;
+} {
+    switch (record.scope) {
+        case "ai":
+            return { sectionId: "ai" };
+        case "audio":
+            return { sectionId: "audio" };
+        case "battle":
+            return { sectionId: "combat_tuning" };
+        case "conquest":
+            return { sectionId: "conquest" };
+        case "debug":
+        case "diagnostics":
+            return { sectionId: "diagnostics" };
+        case "economy":
+            return { sectionId: "economy" };
+        case "logging":
+            return { sectionId: "logging" };
+        case "players":
+            return { sectionId: "players" };
+        case "ships":
+            return { sectionId: "fleet_star_visuals" };
+        case "surge":
+            return { sectionId: "effects" };
+        case "territory":
+            if (isTerritoryTopologyRecord(record)) {
+                return { sectionId: "territory_tuning" };
+            }
+            if (isTerritorySystemRecord(record)) {
+                return { sectionId: "territory_modes" };
+            }
+            return { sectionId: "territory_styles" };
+        case "timing":
+        case "rules":
+            return { sectionId: "match_flow" };
+        case "travel":
+            return { sectionId: "travel_orders" };
+        case "visuals":
+            return { sectionId: "map_options" };
+        default:
+            return { sectionId: "match_flow" };
+    }
+}
+
+type ResolvedSettingRecord = SearchableSettingRecord & {
+    sectionId: SettingsSectionId;
+    subsectionId?: string;
+    sectionLabel: string;
+};
+
+function getResolvedSettingRecords(): ResolvedSettingRecord[] {
+    return getSearchableSettingRecords().map((record) => {
+        const target = resolveSectionTarget(record);
+        return {
+            ...record,
+            sectionId: target.sectionId,
+            subsectionId: target.subsectionId,
+            sectionLabel: SECTION_LABEL_BY_ID[target.sectionId],
+        };
+    });
+}
+
+function buildSettingEntries(): SearchIndexEntry[] {
+    return getResolvedSettingRecords().map((record) => {
+        const searchText = [
+            record.sectionLabel,
+            record.label,
+            record.key,
+            record.key.replace(/_/g, " "),
+            record.panelKey,
+            record.panelKey.replace(/([A-Z])/g, " $1"),
+            record.description ?? "",
+        ]
+            .filter(Boolean)
+            .join(" ");
+
+        return {
+            id: `setting:${record.sectionId}:${record.key}:${record.label}`,
+            kind: "setting",
+            sectionId: record.sectionId,
+            subsectionId: record.subsectionId,
+            sectionLabel: record.sectionLabel,
+            title: record.label,
+            snippet: record.description || record.key.replace(/_/g, " "),
+            configKey: record.key,
+            panelKey: record.panelKey,
+            anchorText: record.label,
+            normalizedText: normalizeSearchText(searchText),
+            normalizedTitle: normalizeSearchText(record.label),
+            normalizedSection: normalizeSearchText(record.sectionLabel),
+            normalizedConfig: normalizeSearchText(
+                `${record.key} ${record.key.replace(/_/g, " ")} ${record.panelKey}`,
+            ),
+            priority: 3,
+            sourceText: [
+                record.label,
+                record.description ?? "",
+                record.key,
+                record.key.replace(/_/g, " "),
+                record.panelKey,
+            ]
+                .filter(Boolean)
+                .join(" "),
+        };
+    });
+}
+
+function buildSectionEntries(): SearchIndexEntry[] {
+    const resolvedRecords = getResolvedSettingRecords();
+    return SETTINGS_SECTIONS.flatMap((section) => {
+        const subsectionLabels = (section.subsections ?? []).map((subsection) => subsection.label);
+        const sectionRecords = resolvedRecords.filter((record) => record.sectionId === section.id);
+        const sectionText = [
+            section.label,
+            ...subsectionLabels,
+            ...sectionRecords.flatMap((record) => [
+                record.label,
+                record.description ?? "",
+                record.key,
+                record.key.replace(/_/g, " "),
+            ]),
+        ]
+            .filter(Boolean)
+            .join(" ");
+        const snippet =
+            subsectionLabels.join(" · ")
+            || sectionRecords.slice(0, 4).map((record) => record.label).join(" · ")
+            || section.label;
+
+        return [
+            {
+                id: `section:${section.id}`,
+                kind: "section" as const,
+                sectionId: section.id,
+                sectionLabel: section.label,
+                title: section.label,
+                snippet,
+                normalizedText: normalizeSearchText(sectionText),
+                normalizedTitle: normalizeSearchText(section.label),
+                normalizedSection: normalizeSearchText(section.label),
+                normalizedConfig: "",
+                priority: 1,
+                sourceText: sectionText,
+            },
+        ];
+    });
+}
+
+const SEARCH_INDEX = [...buildSettingEntries(), ...buildSectionEntries()];
+
+function scoreEntry(entry: SearchIndexEntry, query: string, tokens: string[]): number {
+    let score = entry.priority * 100;
+    if (entry.normalizedTitle === query) score += 90;
+    if (entry.normalizedTitle.includes(query)) score += 45;
+    if (entry.normalizedConfig.includes(query)) score += 35;
+    if (entry.normalizedSection.includes(query)) score += 20;
+    const tokenBoost = tokens.reduce(
+        (total, token) => total + (entry.normalizedText.includes(token) ? 4 : 0),
+        0,
+    );
+    return score + tokenBoost;
+}
+
+export function searchSettings(
+    query: string,
+    limit = 24,
+): SettingsSearchResult[] {
+    const normalizedQuery = normalizeSearchText(query);
+    if (!normalizedQuery) return [];
+
+    const tokens = normalizedQuery.split(" ").filter(Boolean);
+    return SEARCH_INDEX.filter((entry) =>
+        tokens.every((token) => entry.normalizedText.includes(token))
+    )
+        .map((entry) => ({
+            ...entry,
+            snippet: makeSnippet(entry.sourceText, normalizedQuery, entry.snippet),
+            score: scoreEntry(entry, normalizedQuery, tokens),
+        }))
+        .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
+        .slice(0, limit)
+        .map(({ normalizedText: _normalizedText, normalizedTitle: _normalizedTitle, normalizedSection: _normalizedSection, normalizedConfig: _normalizedConfig, priority: _priority, sourceText: _sourceText, score: _score, ...result }) => result);
+}

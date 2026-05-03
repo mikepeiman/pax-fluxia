@@ -117,8 +117,14 @@
         createMetaballGridPhaseEdgesFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily";
     import {
+        MetaballGridPhaseFieldFamily,
+        createMetaballGridPhaseFieldFamily,
+    } from "$lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily";
+    import {
         metaballGridPhaseEdgesGeometryDefaults,
         metaballGridPhaseEdgesModeDefaults,
+        metaballGridPhaseFieldGeometryDefaults,
+        metaballGridPhaseFieldModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
     import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
@@ -140,6 +146,10 @@
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
+    import {
+        buildTerritoryGeometryCacheKeyParts,
+        readNormalizedTerritoryGeometryTunables,
+    } from "$lib/territory/geometry/geometryTuning";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -173,6 +183,7 @@
         resetTerritoryRenderStatus,
         setTerritoryRenderStatus,
     } from "$lib/stores/territoryRenderStatusStore";
+    import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
 
     // ============================================================================
     // PixiJS Application
@@ -222,6 +233,13 @@
     let fpsLastTime = performance.now();
     let currentFps = $state(0);
     let totalVisualShips = $state(0);
+
+    $effect(() => {
+        gameHudStatsStore.setStats({
+            fps: currentFps,
+            visualShips: totalVisualShips,
+        });
+    });
 
     // Ship Spawn Animation Tracking
     // Key: `${starId}-${shipIndex}`, Value: spawnTimestamp
@@ -1896,12 +1914,34 @@
         };
     }
 
+    function buildPhaseFieldRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...metaballGridPhaseFieldGeometryDefaults,
+            ...metaballGridPhaseFieldModeDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+        };
+    }
+
     function getRenderFamilyModeConfigSource(
         mode: string,
     ): Record<string, unknown> | undefined {
-        return mode === "metaball_grid_phase_edges"
-            ? buildPhaseEdgesRenderFamilyConfigSource()
-            : undefined;
+        if (mode === "metaball_grid_phase_edges") {
+            return buildPhaseEdgesRenderFamilyConfigSource();
+        }
+        if (mode === "metaball_grid_phase_field") {
+            return buildPhaseFieldRenderFamilyConfigSource();
+        }
+        return undefined;
+    }
+
+    function modeUsesSharedRenderFamilyGeometry(mode: string): boolean {
+        return (
+            mode === "perimeter_field" ||
+            mode === "metaball" ||
+            mode === "metaball_grid" ||
+            mode === "metaball_grid_phase_edges" ||
+            mode === "metaball_grid_phase_field"
+        );
     }
 
     function updateLiveMetaballGridTransitionDiagnostics(params: {
@@ -2616,14 +2656,12 @@
         const source =
             configSource ??
             (GAME_CONFIG as unknown as Record<string, unknown>);
+        const geometryTunables =
+            readNormalizedTerritoryGeometryTunables(source);
         let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
-        key += `${source.PERIMETER_FIELD_GEOMETRY_SOURCE}:`;
-        key += `${source.MODIFIED_VORONOI_STAR_MARGIN}:${source.MODIFIED_VORONOI_CORRIDOR_ENABLED}:`;
-        key += `${source.MODIFIED_VORONOI_CORRIDOR_SPACING}:${source.TERRITORY_CX_COUNT}:${source.TERRITORY_CX_WEIGHT}:`;
-        key += `${source.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS}:${source.TERRITORY_CX_CONTEST_PAIR_COUNT}:${source.TERRITORY_CX_CONTEST_PAIR_WEIGHT}:${source.MODIFIED_VORONOI_DISCONNECT_ENABLED}:`;
-        key += `${source.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${source.TERRITORY_DX_WEIGHT}:`;
-        key += `${source.TERRITORY_CLUSTER_SPLIT}:${source.VORONOI_BORDER_SMOOTH}:`;
-        key += `${source.CHAIKIN_BOUNDARY_PAD}:${source.CHAIKIN_BOUNDARY_EPS}:`;
+        key += `${source.PERIMETER_FIELD_GEOMETRY_SOURCE}:${source.TERRITORY_GEOMETRY_MODE ?? ""}:`;
+        key += `${source.TERRITORY_ENGINE_METHOD ?? ""}:${(source as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:`;
+        key += `${buildTerritoryGeometryCacheKeyParts(geometryTunables).join(":")}:`;
         for (const star of stars) {
             key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
         }
@@ -2822,12 +2860,14 @@
     ): Record<string, unknown> | null {
         if (
             mode === "metaball_grid" ||
-            mode === "metaball_grid_phase_edges"
+            mode === "metaball_grid_phase_edges" ||
+            mode === "metaball_grid_phase_field"
         ) {
             const family = getRenderFamily(mode);
             if (
                 family instanceof MetaballGridFamily ||
-                family instanceof MetaballGridPhaseEdgesFamily
+                family instanceof MetaballGridPhaseEdgesFamily ||
+                family instanceof MetaballGridPhaseFieldFamily
             ) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
@@ -3372,14 +3412,15 @@
         if (isDeferred) {
             // For deferred orders, allow one per enemy star
             removeQueuedOrderEntriesFromSource(sourceId, deferredOrders);
+            pendingOrders.delete(`${targetId}|${sourceId}`);
+            deferredOrders.delete(`${targetId}|${sourceId}`);
             deferredOrders.add(key);
         } else {
             // Remove any old order from source (source can only have one target)
             removeQueuedOrderEntriesFromSource(sourceId, pendingOrders);
-            // Remove opposite flow for same-owner stars (A→B cancels B→A) unless opposing allowed
-            if (!GAME_CONFIG.ALLOW_OPPOSING_ORDERS) {
-                pendingOrders.delete(`${targetId}|${sourceId}`);
-            }
+            // Same-owner lane exclusivity is fixed behavior.
+            pendingOrders.delete(`${targetId}|${sourceId}`);
+            deferredOrders.delete(`${targetId}|${sourceId}`);
             // Add new order
             pendingOrders.add(key);
         }
@@ -3596,6 +3637,7 @@
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
+        gameHudStatsStore.reset();
 
         window.removeEventListener("resize", handleResize);
         window.removeEventListener(
@@ -4325,46 +4367,65 @@
         }
     }
 
-    function renderPerimeterFieldDebugOverlay(activeMode: string): void {
-        if (activeMode !== "perimeter_field" || !debugGraphics) return;
+    function renderPerimeterFieldDebugOverlay(
+        activeMode: string,
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): void {
+        if (!debugGraphics) return;
         const showGeometry =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
         const showVstars =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
         if (!showGeometry && !showVstars) return;
 
-        const family = getRenderFamily("perimeter_field");
-        if (!(family instanceof PerimeterFieldFamily)) return;
-        const snapshot =
-            perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
-        if (!snapshot) return;
-
-        const scrubEnabled =
-            (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
-            Boolean(snapshot.transitionTargetGeometry);
-
         if (showGeometry) {
-            for (const points of getPerimeterDebugLoops(
-                snapshot.displayGeometry,
-            )) {
-                drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
+            if (modeUsesSharedRenderFamilyGeometry(activeMode)) {
+                const geometry = getCurrentRenderFamilyGeometry(
+                    stars,
+                    lanes,
+                    getRenderFamilyModeConfigSource(activeMode),
+                );
+                for (const points of getPerimeterDebugLoops(geometry)) {
+                    drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
+                }
             }
-            if (scrubEnabled && snapshot.transitionTargetGeometry) {
-                for (const points of getPerimeterDebugLoops(
-                    snapshot.transitionTargetGeometry,
-                )) {
-                    drawClosedPolyline(
-                        debugGraphics,
-                        points,
-                        0xff5bd1,
-                        0.65,
-                        2,
-                    );
+
+            if (activeMode === "perimeter_field") {
+                const family = getRenderFamily("perimeter_field");
+                if (family instanceof PerimeterFieldFamily) {
+                    const snapshot =
+                        perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
+                    const scrubEnabled =
+                        Boolean(snapshot?.transitionTargetGeometry) &&
+                        (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+                        Boolean(snapshot?.transitionTargetGeometry);
+                    if (scrubEnabled && snapshot?.transitionTargetGeometry) {
+                        for (const points of getPerimeterDebugLoops(
+                            snapshot.transitionTargetGeometry,
+                        )) {
+                            drawClosedPolyline(
+                                debugGraphics,
+                                points,
+                                0xff5bd1,
+                                0.65,
+                                2,
+                            );
+                        }
+                    }
                 }
             }
         }
 
-        if (showVstars) {
+        if (showVstars && activeMode === "perimeter_field") {
+            const family = getRenderFamily("perimeter_field");
+            if (!(family instanceof PerimeterFieldFamily)) return;
+            const snapshot =
+                perimeterFieldDebugSnapshotOverride ?? family.debugSnapshot;
+            if (!snapshot) return;
+            const scrubEnabled =
+                (GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false) &&
+                Boolean(snapshot.transitionTargetGeometry);
             drawPerimeterSampleTrajectories(
                 debugGraphics,
                 snapshot.transitionSamples,
@@ -5030,10 +5091,14 @@
         // We allow re-render when: (a) first frame after pause, or (b) config changed while paused.
         const isPausedNow = activeGameStore.isPaused;
         const activeTerritoryMode = resolveActiveTerritoryMode();
+        const territoryGeometryFp = buildTerritoryGeometryCacheKeyParts(
+            readNormalizedTerritoryGeometryTunables(
+                GAME_CONFIG as unknown as Record<string, unknown>,
+            ),
+        ).join(":");
         const territoryConfigFp =
-            `${GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN}:${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED}:` +
-            `${GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING}:${GAME_CONFIG.TERRITORY_CX_COUNT}:${GAME_CONFIG.TERRITORY_CX_WEIGHT}:` +
-            `${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED}:${GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE}:${GAME_CONFIG.TERRITORY_DX_WEIGHT}:` +
+            `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
+            `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${territoryGeometryFp}:` +
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
             `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
@@ -5175,6 +5240,7 @@
                     activeMode === "metaball" ||
                     activeMode === "metaball_grid" ||
                     activeMode === "metaball_grid_phase_edges" ||
+                    activeMode === "metaball_grid_phase_field" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
@@ -5256,6 +5322,19 @@
                 ) {
                     activeVoronoiContainer.removeChild(
                         metaballGridPhaseEdgesFamily.displayRoot,
+                    );
+                }
+                const metaballGridPhaseFieldFamily =
+                    getRenderFamily("metaball_grid_phase_field");
+                if (
+                    activeMode !== "metaball_grid_phase_field" &&
+                    metaballGridPhaseFieldFamily instanceof
+                        MetaballGridPhaseFieldFamily &&
+                    metaballGridPhaseFieldFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        metaballGridPhaseFieldFamily.displayRoot,
                     );
                 }
 
@@ -5605,6 +5684,81 @@
                         };
                         break;
                     }
+                    case "metaball_grid_phase_field": {
+                        let fam = getRenderFamily("metaball_grid_phase_field");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createMetaballGridPhaseFieldFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("metaball_grid_phase_field")!;
+                        }
+                        const mg = fam as MetaballGridPhaseFieldFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.metaball_grid_phase_field",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    stars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = readFamilyGeometry();
+                        const diagnosticPrevFrame =
+                            getTransitionDiagnosticPrevFrame({
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                            });
+                        const mgInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.metaball_grid_phase_field",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars,
+                                    lanes,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry,
+                                    prevGeometry:
+                                        diagnosticPrevFrame?.geometry ?? null,
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
+                                    tunableKeys: mg.tunableKeys,
+                                    configSource: renderFamilyConfigSource,
+                                }),
+                        );
+                        mg.update(mgInput);
+                        updateLiveMetaballGridTransitionDiagnostics({
+                            activeTransition,
+                            effectiveTickMs: activeGameStore.effectiveTickMs,
+                        });
+                        if (mg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(mg.displayRoot);
+                        }
+                        mg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            configSource: renderFamilyConfigSource,
+                        });
+                        transitionDiagnosticFrameInput = {
+                            activeMode,
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            ownership,
+                        };
+                        break;
+                    }
                     case "perimeter_field": {
                         let fam = getRenderFamily("perimeter_field");
                         if (!fam) {
@@ -5909,11 +6063,47 @@
                             `${activeMode} requires canonical geometry, but none was supplied`;
                         log.error("GameCanvas", lastRenderFailure);
                     }
+                    const msrDiagnostics = modeUsesSharedRenderFamilyGeometry(
+                        activeMode,
+                    )
+                        ? getCurrentRenderFamilyGeometry(
+                              stars,
+                              activeGameStore.connections as StarConnection[],
+                              getRenderFamilyModeConfigSource(activeMode),
+                          ).diagnostics.minStarMargin
+                        : null;
+                    const msrStarBias = modeUsesSharedRenderFamilyGeometry(
+                        activeMode,
+                    )
+                        ? readNormalizedTerritoryGeometryTunables(
+                              getRenderFamilyModeConfigSource(activeMode) ??
+                                  (GAME_CONFIG as unknown as Record<
+                                      string,
+                                      unknown
+                                  >),
+                          ).msrStarBias
+                        : null;
                     setTerritoryRenderStatus({
                         territoryMode: activeMode,
                         geometryReady,
                         arrowRenderer: "overlay_canvas",
                         lastRenderFailure,
+                        msrRequestedMarginPx:
+                            msrDiagnostics?.summary.requestedMarginPx ?? null,
+                        msrStarBias,
+                        msrAnchorCount:
+                            msrDiagnostics?.summary.anchorCount ?? 0,
+                        msrIntervalCount:
+                            msrDiagnostics?.summary.intervalCount ?? 0,
+                        msrViolatedIntervalCount:
+                            msrDiagnostics?.summary.violatedIntervalCount ?? 0,
+                        msrAcceptedRepairCount:
+                            msrDiagnostics?.summary.acceptedRepairCount ?? 0,
+                        msrRejectedRepairCount:
+                            msrDiagnostics?.summary.rejectedRepairCount ?? 0,
+                        msrLastInvariantFailure:
+                            msrDiagnostics?.summary.invariantFailures.at(-1) ??
+                            null,
                     });
                     if (transitionDiagnosticFrameInput) {
                         measurePerf(
@@ -5953,7 +6143,11 @@
         }
 
         measurePerf("game.renderFrame.perimeterDebugOverlay", () => {
-            renderPerimeterFieldDebugOverlay(activeTerritoryMode);
+            renderPerimeterFieldDebugOverlay(
+                activeTerritoryMode,
+                stars,
+                activeGameStore.connections as StarConnection[],
+            );
         });
 
         // Render stars (static elements)
@@ -6354,14 +6548,16 @@
             const ownerId = star.ownerId ?? "__unowned__";
             ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
         }
-        const metaballGridFamily = getRenderFamily(
-            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges"
-                ? "metaball_grid_phase_edges"
-                : "metaball_grid",
-        );
+        const benchmarkMetaballGridMode =
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges" ||
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_field"
+                ? GAME_CONFIG.TERRITORY_RENDER_MODE
+                : "metaball_grid";
+        const metaballGridFamily = getRenderFamily(benchmarkMetaballGridMode);
         const metaballGridDebug =
             metaballGridFamily instanceof MetaballGridFamily ||
-            metaballGridFamily instanceof MetaballGridPhaseEdgesFamily
+            metaballGridFamily instanceof MetaballGridPhaseEdgesFamily ||
+            metaballGridFamily instanceof MetaballGridPhaseFieldFamily
                 ? metaballGridFamily.getDebugSnapshot()
                 : null;
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
@@ -7859,22 +8055,6 @@
     }
 
     .fps-overlay {
-        position: fixed;
-        top: 8px;
-        left: 8px;
-        z-index: 9999;
-        font-family: "Consolas", "Monaco", monospace;
-        font-size: 11px;
-        color: #0f0;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 3px 8px;
-        border-radius: 4px;
-        pointer-events: none;
-        user-select: none;
-    }
-    @media (max-width: 1024px) {
-        .fps-overlay {
-            display: none;
-        }
+        display: none;
     }
 </style>

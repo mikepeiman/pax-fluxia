@@ -400,6 +400,7 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
     METABALL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
     METABALL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
+    METABALL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
     METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
     METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
     METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
@@ -424,6 +425,14 @@ interface GameConfigType {
     METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time
     METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Easing applied to transition progress before cell flips
     METABALL_GRID_FLIP_WINDOW_JITTER: number; // Deterministic per-cell flip-time jitter
+    METABALL_GRID_PHASE_FIELD_FINISH_FADE_START: number; // Normalized conquest time when PRE-cell fade-out begins
+    METABALL_GRID_PHASE_FIELD_FINISH_FADE_END: number; // Normalized conquest time when PRE-cell fade-out finishes
+    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START: number; // Normalized conquest time when transition cells begin shrinking
+    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END: number; // Normalized conquest time when transition cells finish shrinking
+    METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX: number; // Final cell size in px at the end of the phase-field completion tail
+    METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
+    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
+    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
     TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
@@ -450,7 +459,7 @@ interface GameConfigType {
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
-    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'pixel' | 'graph' | 'contour'
+    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_phase_field' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
     USE_RENDER_FAMILIES: boolean;
     TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode
@@ -497,21 +506,28 @@ interface GameConfigType {
     DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
-    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory ownership boundary margin from star centers (px, 0–500); not used for mapgen lane clearance
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory/frontier breathing room around owned stars (px, 0–500); also becomes fallback lane margin when dedicated lane margin is disabled
+    TERRITORY_MSR_STAR_BIAS: number;           // Optional advanced solve-time star resistance against corridor / lane-pair / disconnect shaping (0.0-2.0, default 0.0)
+    TERRITORY_MSR_STAR_POWER_ENABLED: boolean; // Legacy compatibility only; replaced in surfaced UI by TERRITORY_MSR_STAR_BIAS
+    TERRITORY_MSR_STAR_POWER_MODE: string;     // Legacy compatibility only; old MSR star-power conversion mode ('linear'|'squared'|'exponent')
+    TERRITORY_MSR_STAR_POWER_GAIN: number;     // Legacy compatibility only; old gain before converting MSR into real-star power
+    TERRITORY_MSR_STAR_POWER_EXPONENT: number; // Legacy compatibility only; old exponent used when mode='exponent'
+    TERRITORY_MSR_STAR_POWER_CAP_PX: number;   // Legacy compatibility only; old max MSR value in px allowed to feed star-power conversion
     MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
     MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
     MODIFIED_VORONOI_ARC_MAX_SEGMENTS: number; // Cap Bézier samples per corner (4-64, higher=smoother/slower)
     MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
-    MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (20-200)
-    TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing)
-    TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier vs starMargin² (0.0-2.0, default 0.5)
+    MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (10-200)
+    TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing, range 0-20)
+    TERRITORY_CX_WEIGHT: number;    // Corridor vstar weight multiplier against the fixed virtual-site reference weight (0.0-2.0, default 0.5)
     TERRITORY_CX_CONTEST_MIDPOINT_VSTARS: boolean; // Add paired midpoint contest vstars on cross-owner lanes
-    TERRITORY_CX_CONTEST_PAIR_COUNT: number; // Number of paired midpoint samples per owner on contested lanes
-    TERRITORY_CX_CONTEST_PAIR_WEIGHT: number; // Weight multiplier for contested midpoint-pair vstars
+    TERRITORY_CX_CONTEST_PAIR_COUNT: number; // Number of paired midpoint samples per owner on contested lanes (1-10)
+    TERRITORY_CX_CONTEST_PAIR_WEIGHT: number; // Weight multiplier for contested midpoint-pair vstars (0.0-2.0, default 0.5)
+    TERRITORY_CX_CONTEST_PAIR_SPACING: number; // Spacing in px used to offset contested midpoint pairs around the lane midpoint (10-500)
     MODIFIED_VORONOI_DISCONNECT_ENABLED: boolean; // Inject enemy virtual sites to separate non-connected same-owner territories
-    MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px)
-    TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier vs starMargin² (0.0-2.0, default 0.3)
+    MODIFIED_VORONOI_DISCONNECT_DISTANCE: number; // Max distance between same-owner stars for disconnect injection (px, 0-1000)
+    TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier against the fixed virtual-site reference weight (0.0-5.0, default 3.0)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
     SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
@@ -529,7 +545,7 @@ interface GameConfigType {
     BORDER_TRANS_RESAMPLE_N: number; // Number of resample points per polyline for morphing (8-64, default 32)
     BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
     TERRITORY_BORDER_TRANSITION: string; // Border transition mode ('pixi_graphics_morph'|'pixi_mesh_rope'|'smooth_morph'|'none')
-    FRONTIER_RESOLUTION: number;     // Frontier vertex spacing in pixels (1-20, default 5). Lower = denser vertices = smoother morphing
+    FRONTIER_RESOLUTION: number;     // Frontier vertex spacing in pixels (1-32, default 1). Lower = denser vertices = smoother morphing
     TERRITORY_GEOMETRY_MODE: string;  // Geometry data mode: 'power_voronoi' (dual-path) | 'unified_polygon' (single-path dense resampled)
     VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
     VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
@@ -562,6 +578,7 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
+    METABALL_BORDER_ENABLED: boolean;   // Master visibility toggle for the metaball-family border surface
     METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)

@@ -34,6 +34,14 @@ type SettingMeta = {
 
 type SettingMetaMap = Record<string, SettingMeta>;
 
+export type SearchableSettingRecord = {
+    scope: SettingScope;
+    label: string;
+    key: string;
+    panelKey: string;
+    description?: string;
+};
+
 type LabelScopeMap = Partial<Record<SettingScope, SettingMetaMap>>;
 
 function normalizeLabel(label: string): string {
@@ -168,6 +176,11 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             description:
                 'Overrides DY4 transition gating checks so the transition path always starts.',
         },
+        'Continuous Settings Dump': {
+            key: 'local.settingsDump.enabled',
+            description:
+                'Dev-only automatic dump of live settings changes to common/resources/settings-live/current-settings.json.',
+        },
     },
     debug: {
         'Morph Slow-Mo': {
@@ -222,10 +235,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
                 'Persisted local palette lightness used when generating player colors.',
         },
     },
-    rules: {
-        'Retain Orders After Conquest': { key: 'RETAIN_ORDER_ON_CONQUEST' },
-        'Allow Opposing Orders': { key: 'ALLOW_OPPOSING_ORDERS' },
-    },
+    rules: {},
     ships: {
         ...STAR_LABEL_META,
         ...DENSITY_META,
@@ -312,8 +322,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
-        'Derived Geometry Input': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+  'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
+  'Star Bias': { key: 'TERRITORY_MSR_STAR_BIAS' },
         'Corridor Virtual Sites (CX)': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
         'Lane Midpoint Pairs': {
             key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',
@@ -323,6 +334,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Lane Midpoint Pair Weight': {
             key: 'TERRITORY_CX_CONTEST_PAIR_WEIGHT',
+        },
+        'Lane Midpoint Pair Spacing': {
+            key: 'TERRITORY_CX_CONTEST_PAIR_SPACING',
         },
         'Corridor Sample Count': { key: 'TERRITORY_CX_COUNT' },
         'Corridor Weight': { key: 'TERRITORY_CX_WEIGHT' },
@@ -377,6 +391,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Metaball Grid Enabled': { key: 'METABALL_GRID_ENABLED' },
         'Cell Spacing': { key: 'METABALL_GRID_SPACING_PX' },
+        'Pattern Spacing': { key: 'METABALL_GRID_PATTERN_SPACING_PX' },
         'Origin Mode': { key: 'METABALL_GRID_ORIGIN_MODE' },
         Distribution: { key: 'METABALL_GRID_DISTRIBUTION' },
         'Position Jitter': { key: 'METABALL_GRID_POSITION_JITTER' },
@@ -403,6 +418,30 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Flip Window': { key: 'METABALL_GRID_FLIP_WINDOW' },
         'Wave Easing': { key: 'METABALL_GRID_WAVE_EASE' },
         'FlipTime Jitter': { key: 'METABALL_GRID_FLIP_WINDOW_JITTER' },
+        'Frontier Highlight': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+        },
+        'Finish Fade Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
+        },
+        'Finish Fade End': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
+        },
+        'Size Collapse Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
+        },
+        'Size Collapse End': {
+            key: 'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
+        },
+        'Final Cell Size (px)': {
+            key: 'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+        },
+        'Frontier Fade Start': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
+        },
+        'Frontier Fade End': {
+            key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+        },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
@@ -434,6 +473,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'DX Disconnect': { key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
         'DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
         'DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+        'Fill Path': { key: 'TERRITORY_FILL_TRANSITION_MODE' },
+        'Border Path': { key: 'TERRITORY_BORDER_TRANSITION' },
         'Transition Easing': { key: 'BORDER_TRANS_EASING' },
         'Morph Control Points': { key: 'TERRITORY_MORPH_CONTROL_POINTS' },
         'Morph Easing': { key: 'DF_MORPH_EASING' },
@@ -555,23 +596,13 @@ function buildFallbackDescription(label: string, meta: SettingMeta): string {
     if (meta.key.startsWith('local.')) {
         return `Local-only control for ${label}.`;
     }
-    return `Controls ${label}. Writes GAME_CONFIG.${meta.key}.`;
+    return `Controls ${label}.`;
 }
 
 function resolvePanelKey(configKey: string, explicitPanelKey?: string): string {
     if (explicitPanelKey) return explicitPanelKey;
     if (configKey.startsWith('local.')) return configKey;
     return CONFIG_TO_PANEL_KEY[configKey] ?? derivePanelKey(configKey);
-}
-
-function buildTooltipText(
-    panelKey: string,
-    configKey: string,
-    description?: string,
-): string {
-    const lines = [`panel: ${panelKey}`, `config: ${configKey}`];
-    if (description) lines.push(description);
-    return lines.join('\n');
 }
 
 function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
@@ -595,9 +626,7 @@ function enhanceTarget(target: HTMLElement, scope: SettingScope): void {
         target.dataset.settingDescription
         || findExistingDescription(target)
         || buildFallbackDescription(normalizedLabel, scopedMeta);
-    const panelKey = resolvePanelKey(scopedMeta.key, scopedMeta.panelKey);
-
-    target.title = buildTooltipText(panelKey, scopedMeta.key, description);
+    target.title = description;
 }
 
 export function enhanceSettingMetadata(
@@ -629,4 +658,25 @@ export function enhanceSettingMetadata(
             observer.disconnect();
         },
     };
+}
+
+export function getSearchableSettingRecords(): SearchableSettingRecord[] {
+    const records: SearchableSettingRecord[] = [];
+
+    for (const [scope, labelMap] of Object.entries(SCOPE_LABEL_META) as Array<
+        [SettingScope, SettingMetaMap | undefined]
+    >) {
+        if (!labelMap) continue;
+        for (const [label, meta] of Object.entries(labelMap)) {
+            records.push({
+                scope,
+                label,
+                key: meta.key,
+                panelKey: resolvePanelKey(meta.key, meta.panelKey),
+                description: meta.description || buildFallbackDescription(label, meta),
+            });
+        }
+    }
+
+    return records;
 }

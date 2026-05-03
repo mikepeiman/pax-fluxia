@@ -15,7 +15,6 @@
     import { log, logFlags } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
-    import { resolveTerritoryRenderModeOptions } from "$lib/territory/ui/territoryRenderModeCatalog";
     import {
         LOG_CATEGORIES,
     } from "./settingsDefs";
@@ -56,6 +55,8 @@
     import ControlsSectionSurge from "./settings/ControlsSection-Surge.svelte";
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
+    import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
+    import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -95,6 +96,10 @@
     ) as Record<string, unknown>;
 
     onMount(() => {
+        const handleExternalConfigSync = () => {
+            syncAllFromConfig();
+        };
+
         warnOnMissingTerritorySchemaCoverage();
         // Restore saved panel values INTO GAME_CONFIG before syncAllFromConfig
         // reads GAME_CONFIG back into panel. Without this, compile-time defaults
@@ -104,8 +109,20 @@
         syncAllFromConfig();
         themeStore.registerApplyCallback(applyThemeValues);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);
+        if (typeof window !== "undefined") {
+            window.addEventListener(
+                "pax-settings-config-sync-requested",
+                handleExternalConfigSync,
+            );
+        }
 
         return () => {
+            if (typeof window !== "undefined") {
+                window.removeEventListener(
+                    "pax-settings-config-sync-requested",
+                    handleExternalConfigSync,
+                );
+            }
             themeStore.registerApplyCallback(null);
             registerCategoryPresetApplyCallback(null);
         };
@@ -124,76 +141,6 @@
 
     function isTickRelativeSlider(def?: AnimSliderDef): boolean {
         return def?.unit === "×tick" || def?.unit === "ticks";
-    }
-
-    const QUICK_TERRITORY_RENDER_MODE_IDS = new Set([
-        "territory_canonical",
-        "power_voronoi_canonical",
-        "territory_engine",
-        "power_voronoi",
-        "perimeter_field",
-        "metaball",
-        "metaball_grid",
-        "metaball_grid_phase_edges",
-    ]);
-
-    const TERRITORY_STYLE_TO_BOOLEAN: Record<string, string> = {
-        vs_pvv3: "territoryPVV3",
-        power_voronoi: "territoryPowerVoronoi",
-        modified_voronoi: "territoryModifiedVoronoi",
-        distance_field: "territoryDistanceField",
-        voronoi: "territoryVoronoi",
-        metaball: "territoryMetaball",
-        pixel: "territoryPixel",
-        graph: "territoryGraph",
-        contour: "territoryContour",
-        territory_engine: "territoryEngine",
-    };
-
-    let quickTerritoryRenderModeOptions = $derived(
-        resolveTerritoryRenderModeOptions().filter(
-            (option) =>
-                option.selectable &&
-                QUICK_TERRITORY_RENDER_MODE_IDS.has(option.id),
-        ),
-    );
-
-    function resolveActiveTerritoryRenderModeId(): string {
-        return (
-            panel.territoryRenderMode ??
-            GAME_CONFIG.TERRITORY_RENDER_MODE ??
-            "territory_canonical"
-        );
-    }
-
-    function resolveActiveFillTransitionId(): string {
-        const raw =
-            panel.territoryFillTransitionMode ??
-            panel.territoryFillTransition ??
-            GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
-            GAME_CONFIG.TERRITORY_FILL_MODE ??
-            "active_front";
-        if (raw === "frontier" || raw === "frontier_morph") return "active_front";
-        if (raw === "none") return "off";
-        return raw;
-    }
-
-    function selectQuickTerritoryRenderMode(modeId: string) {
-        updatePanel("territoryRenderMode", modeId);
-
-        if (modeId === "power_voronoi_canonical") {
-            updatePanel("territoryFillTransitionMode", "pv_frontline");
-            updatePanel("territoryBorderTransitionMode", "off");
-            updatePanel("territoryBorderTransition", "none");
-        } else if (resolveActiveFillTransitionId() === "pv_frontline") {
-            updatePanel("territoryFillTransitionMode", "active_front");
-        }
-
-        for (const [styleId, panelKey] of Object.entries(TERRITORY_STYLE_TO_BOOLEAN)) {
-            updatePanel(panelKey, modeId !== "none" && styleId === modeId);
-        }
-
-        (globalThis as any).__RENDER_MODE_LOGGED = false;
     }
 
     function applyTimingBindingsAndLocks() {
@@ -866,14 +813,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         persistSectionOrder();
     }
 
-    // Most recently opened sections first
-    let orderedOpenSections = $derived(
-        [...sectionOrder]
-            .reverse()
-            .map((id) => sections.find((s) => s.id === id))
-            .filter(Boolean) as typeof sections,
-    );
-
     const sections = SETTINGS_SECTIONS;
 
     // Filter sections by active tier (basic shows basic, advanced shows basic+advanced, developer shows all)
@@ -882,8 +821,31 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         advanced: 1,
         developer: 2,
     };
+    let activeTerritoryRenderMode = $derived(
+        (panel.territoryRenderMode ?? GAME_CONFIG.TERRITORY_RENDER_MODE ?? null) as
+            | string
+            | null,
+    );
+    function isSectionVisible(section: SettingsSectionDefinition): boolean {
+        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
+        if (section.id === "territory_phase_field") {
+            return activeTerritoryRenderMode === "metaball_grid_phase_field";
+        }
+        if (section.id === "territory_styles") {
+            return activeTerritoryRenderMode !== "metaball_grid_phase_field";
+        }
+        return true;
+    }
     let visibleSections = $derived(
-        sections.filter((s) => TIER_RANK[s.tier] <= TIER_RANK[activeTier]),
+        sections.filter((section) => isSectionVisible(section)),
+    );
+
+    // Most recently opened sections first
+    let orderedOpenSections = $derived(
+        [...sectionOrder]
+            .reverse()
+            .map((id) => visibleSections.find((section) => section.id === id))
+            .filter(Boolean) as typeof sections,
     );
 
     let lastForceOpenSectionNonce = $state(-1);
@@ -895,6 +857,21 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             setTier("developer");
         }
         openSection(forceOpenSection);
+    });
+
+    let phaseFieldSectionAutoOpened = $state(false);
+    $effect(() => {
+        const phaseFieldVisible =
+            activeTerritoryRenderMode === "metaball_grid_phase_field";
+        if (!phaseFieldVisible) {
+            phaseFieldSectionAutoOpened = false;
+            return;
+        }
+        if (phaseFieldSectionAutoOpened) return;
+        phaseFieldSectionAutoOpened = true;
+        if (!sectionOrder.includes("territory_phase_field")) {
+            openSection("territory_phase_field");
+        }
     });
 
     interface SubsectionChip {
@@ -1272,30 +1249,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         </button>
     </div>
 
-    {#if orderedOpenSections.length > 0}
-        <div class="settings-render-mode-strip">
-            <div class="settings-render-mode-strip__label">Active Render Modes</div>
-            <div class="settings-render-mode-strip__chips">
-                {#each quickTerritoryRenderModeOptions as option}
-                    <button
-                        type="button"
-                        class="settings-render-mode-chip"
-                        class:active={resolveActiveTerritoryRenderModeId() === option.id}
-                        onclick={() => selectQuickTerritoryRenderMode(option.id)}
-                        title={option.shortDescription ?? option.label}
-                    >
-                        <span class="settings-render-mode-chip__title">{option.label}</span>
-                        {#if option.shortDescription}
-                            <span class="settings-render-mode-chip__meta">
-                                {option.shortDescription}
-                            </span>
-                        {/if}
-                    </button>
-                {/each}
-            </div>
-        </div>
-    {/if}
-
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
@@ -1413,19 +1366,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         view="modes"
                     />
                 {:else if sec.id === "territory_tuning"}
-                    <ControlsSectionTerritory
+                    <TerritoryTopologyTuning
                         {panel}
                         {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                        view="tuning"
+                    />
+                {:else if sec.id === "territory_phase_field"}
+                    <TerritoryPhaseFieldSettings
+                        {panel}
+                        {updatePanel}
                     />
                 {:else if sec.id === "territory_styles"}
                     <ControlsSectionTerritory
@@ -1571,71 +1519,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     /* ── Section Panel ── */
-    .settings-render-mode-strip {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px 0 2px;
-    }
-    .settings-render-mode-strip__label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.82);
-    }
-    .settings-render-mode-strip__chips {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 8px;
-    }
-    .settings-render-mode-chip {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-        min-height: 68px;
-        padding: 12px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background:
-            linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.62));
-        color: rgba(226, 232, 240, 0.92);
-        text-align: left;
-        cursor: pointer;
-        transition:
-            border-color 0.16s ease,
-            background 0.16s ease,
-            transform 0.16s ease,
-            box-shadow 0.16s ease;
-    }
-    .settings-render-mode-chip:hover {
-        transform: translateY(-1px);
-        border-color: rgba(96, 165, 250, 0.42);
-        background:
-            linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.74));
-        box-shadow: 0 10px 24px rgba(2, 6, 23, 0.2);
-    }
-    .settings-render-mode-chip.active {
-        border-color: rgba(96, 165, 250, 0.7);
-        background:
-            linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.84));
-        box-shadow:
-            0 0 0 1px rgba(96, 165, 250, 0.18),
-            0 14px 28px rgba(15, 23, 42, 0.28);
-    }
-    .settings-render-mode-chip__title {
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #f8fafc;
-    }
-    .settings-render-mode-chip__meta {
-        font-size: 11px;
-        line-height: 1.4;
-        color: rgba(191, 219, 254, 0.78);
-    }
     .section-panel {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.08);

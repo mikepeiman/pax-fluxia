@@ -127,6 +127,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'ATTACK_SURGE_RAMP_MS',
         'ATTACK_SURGE_SHAPE',
         'SURGE_PULSE_DURATION_MS',
+        'SURGE_PULSE_BIND_TO_TICK',
         // Orb travel VFX
         'ORB_TRAVEL',
         'ORB_DRAW_MODE',
@@ -223,6 +224,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'VORONOI_BLEND_WIDTH',
         // Modified Voronoi (F-138)
         'MODIFIED_VORONOI_STAR_MARGIN',
+        'TERRITORY_MSR_STAR_BIAS',
         'MODIFIED_VORONOI_ARC_STRENGTH',
         'MODIFIED_VORONOI_ARC_THRESHOLD',
         'MODIFIED_VORONOI_ARC_MIN_SEGMENT',
@@ -277,6 +279,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'METABALL_GRID_FLIP_WINDOW',
         'METABALL_GRID_WAVE_EASE',
         'METABALL_GRID_FLIP_WINDOW_JITTER',
+        'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
     ],
 
     ships: [
@@ -318,6 +321,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'MAPGEN_LANE_MODE',
         'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS',
         'MODIFIED_VORONOI_STAR_MARGIN',
+        'TERRITORY_MSR_STAR_BIAS',
         // Connections / Lanes
         'CONNECTION_MAX_DISTANCE',
         'CONNECTION_COLOR',
@@ -348,9 +352,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'CONQUEST_DAMAGED_CAPTURE_RATE',
         'CONQUEST_DAMAGED_DESTROY_RATE',
         'OVERWHELM_THRESHOLD',
-        'ORDERS_PERSIST_AFTER_CONQUEST',
-        'RETAIN_ORDER_ON_CONQUEST',
-        'ALLOW_OPPOSING_ORDERS',
         'RETREAT_CAPTURE_RATE',
         'SCATTER_CAPTURE_RATE',
         'SCATTER_DESTROY_RATE',

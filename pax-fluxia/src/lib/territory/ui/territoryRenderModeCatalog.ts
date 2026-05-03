@@ -23,6 +23,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         label: 'Layered Runtime',
         shortDescription: 'Direct-runtime territory route with comparison support',
         legacyDispatch: true,
+        uiHidden: true,
     },
     {
         id: 'power_voronoi_canonical',
@@ -35,6 +36,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         label: 'Engine (DY4 pipeline)',
         shortDescription: 'Modular territory engine router',
         legacyDispatch: true,
+        uiHidden: true,
     },
     { id: 'vs_pvv3', label: 'PVV3', shortDescription: 'Frontier-first PVV3', legacyDispatch: true },
     {
@@ -42,6 +44,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         label: 'PVV2 weighted',
         shortDescription: 'Weighted power Voronoi (current)',
         legacyDispatch: true,
+        uiHidden: true,
     },
     {
         id: 'modified_voronoi',
@@ -56,6 +59,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         label: 'PVV2 DY4 ref',
         shortDescription: 'Restored reference (8dce88c)',
         legacyDispatch: true,
+        uiHidden: true,
     },
     { id: 'voronoi', label: 'Voronoi', shortDescription: 'Basic Voronoi', legacyDispatch: true },
     {
@@ -83,6 +87,13 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
         label: 'Metaball grid phase edges',
         shortDescription:
             'Separate metaball-grid mode with phase-field wave geometry and territory-edge shaping controls',
+        legacyDispatch: true,
+    },
+    {
+        id: 'metaball_grid_phase_field',
+        label: 'Metaball grid phase field',
+        shortDescription:
+            'Fill-first conquest mode with conquest-local PRE/POST compositing, frontier emphasis, and finish-tail controls',
         legacyDispatch: true,
     },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },

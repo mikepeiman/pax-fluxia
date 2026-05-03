@@ -1,12 +1,6 @@
 <script lang="ts">
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
-    TERRITORY_PIPELINE_STAGE_ORDER,
-    type TerritoryPipelineArtifacts,
-    type TerritoryPipelineStageId,
-  } from "$lib/territory/orchestrator";
-  import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
-  import {
     isTerritoryRenderModeUiHidden,
     getTerritoryRenderModeLabel,
     resolveTerritoryRenderModeOptions,
@@ -19,7 +13,6 @@
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import MetaballGridTuning from "./MetaballGridTuning.svelte";
-  import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
@@ -27,6 +20,7 @@
     beginTerritoryTuningCompile,
     territoryTuningStatus,
   } from "$lib/stores/territoryTuningStatusStore";
+  import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -77,14 +71,12 @@
       GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
       false,
   );
+  const topologyLimits = TERRITORY_GEOMETRY_LIMITS;
 
   type TerritorySystemModuleId =
     | "all"
     | "none"
-    | "geometry"
-    | "render-mode"
-    | "architecture"
-    | "fill-transition";
+    | "render-mode";
   type TerritoryRendererModuleId =
     | "all"
     | "none"
@@ -92,7 +84,6 @@
     | "perimeter-field"
     | "metaball-grid"
     | "topology"
-    | "border-transition"
     | "surface";
 
   interface TerritoryModuleDef<T extends string> {
@@ -110,10 +101,7 @@
   const TERRITORY_SYSTEM_MODULES: Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > = [
-    { id: "geometry", label: "Geometry", icon: "◫" },
     { id: "render-mode", label: "Mode", icon: "◎" },
-    { id: "architecture", label: "Architecture", icon: "⬢" },
-    { id: "fill-transition", label: "Fill", icon: "◌" },
   ];
 
   const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
@@ -132,21 +120,7 @@
   function visibleSystemModules(): Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > {
-    return TERRITORY_SYSTEM_MODULES.filter((module) => {
-      if (module.id === "geometry") return !isPowerVoronoi0427Mode();
-      if (module.id === "fill-transition") return !isPowerVoronoi0427Mode();
-      if (module.id === "architecture") {
-        return (
-          resolveActiveStyleId() === "territory_canonical" ||
-          isPowerVoronoi0427Mode()
-        );
-      }
-      return true;
-    }).map((module) =>
-      module.id === "architecture"
-        ? { ...module, label: "Runtime" }
-        : module,
-    );
+    return TERRITORY_SYSTEM_MODULES;
   }
 
   $effect(() => {
@@ -260,152 +234,6 @@
     topologyCommitTimeouts.set(configKey, timeoutId);
   }
 
-  function formatTraceValue(value: unknown): string {
-    if (Array.isArray(value)) return `[${value.length}]`;
-    if (typeof value === "number")
-      return Number.isInteger(value) ? `${value}` : value.toFixed(2);
-    if (typeof value === "boolean") return value ? "true" : "false";
-    if (typeof value === "string") return value;
-    if (value && typeof value === "object") {
-      return `{${Object.keys(value as Record<string, unknown>).length}}`;
-    }
-    return String(value ?? "null");
-  }
-
-  function summarizeTraceRecord(
-    record: Record<string, unknown> | undefined,
-    limit = 6,
-  ): string[] {
-    if (!record) return [];
-    return Object.entries(record)
-      .filter(([, value]) => value !== undefined)
-      .slice(0, limit)
-      .map(([key, value]) => `${key}=${formatTraceValue(value)}`);
-  }
-
-  function getTraceArtifactEntries(
-    artifacts: TerritoryPipelineArtifacts | undefined,
-  ): Array<{
-    stageId: TerritoryPipelineStageId;
-    artifact: Record<string, unknown>;
-  }> {
-    if (!artifacts) return [];
-    return TERRITORY_PIPELINE_STAGE_ORDER.flatMap((stageId) => {
-      const artifact = artifacts[stageId];
-      if (!artifact) return [];
-      return [{ stageId, artifact: artifact as Record<string, unknown> }];
-    });
-  }
-
-  function getNextTraceStageLabel(stepCount: number): string {
-    return TERRITORY_PIPELINE_STAGE_ORDER[stepCount] ?? "complete";
-  }
-
-  function getOwnerRegionLoopPreviewEntries(
-    artifacts: TerritoryPipelineArtifacts | undefined,
-  ): Array<{ id: string; summary: string }> {
-    const ownerRegionLoops = ((
-      artifacts?.loop as
-        | { ownerRegionLoops?: Array<Record<string, unknown>> }
-        | undefined
-    )?.ownerRegionLoops ?? []) as Array<Record<string, unknown>>;
-    return ownerRegionLoops.slice(0, 4).map((loop, index) => {
-      const ownerId = typeof loop.ownerId === "string" ? loop.ownerId : "?";
-      const opposingOwnerId =
-        typeof loop.opposingOwnerId === "string" ? loop.opposingOwnerId : "?";
-      return {
-        id:
-          typeof loop.regionLoopId === "string"
-            ? loop.regionLoopId
-            : `owner-region-${index}`,
-        summary:
-          `${ownerId} vs ${opposingOwnerId} | ` +
-          `area=${formatTraceValue(loop.absArea)} | ` +
-          `conf=${formatTraceValue(loop.confidence)}`,
-      };
-    });
-  }
-
-  function getOwnerShellPreviewEntries(
-    artifacts: TerritoryPipelineArtifacts | undefined,
-  ): Array<{ id: string; summary: string }> {
-    const ownerShells = ((
-      artifacts?.loop as
-        | { ownerShells?: Array<Record<string, unknown>> }
-        | undefined
-    )?.ownerShells ?? []) as Array<Record<string, unknown>>;
-    return ownerShells.slice(0, 4).map((shell, index) => {
-      const ownerId = typeof shell.ownerId === "string" ? shell.ownerId : "?";
-      const holeCount = Array.isArray(shell.holeLoopIds)
-        ? shell.holeLoopIds.length
-        : 0;
-      return {
-        id:
-          typeof shell.shellId === "string"
-            ? shell.shellId
-            : `owner-shell-${index}`,
-        summary:
-          `${ownerId} | ` +
-          `area=${formatTraceValue(shell.absArea)} | ` +
-          `holes=${formatTraceValue(holeCount)} | ` +
-          `conf=${formatTraceValue(shell.confidence)}`,
-      };
-    });
-  }
-
-  function getOwnerHoldingTransitionSummary(
-    artifacts: TerritoryPipelineArtifacts | undefined,
-  ): string[] {
-    const animation = (artifacts?.animation ?? undefined) as
-      | Record<string, unknown>
-      | undefined;
-    if (!animation) return [];
-
-    return [
-      `transitions=${formatTraceValue(animation.ownerShellTransitionCount)}`,
-      `matched=${formatTraceValue(animation.matchedOwnerShellCount)}`,
-      `spawn=${formatTraceValue(animation.spawnedOwnerShellCount)}`,
-      `vanish=${formatTraceValue(animation.vanishedOwnerShellCount)}`,
-      `grow=${formatTraceValue(animation.grewOwnerShellCount)}`,
-      `shrink=${formatTraceValue(animation.shrankOwnerShellCount)}`,
-      `split=${formatTraceValue(animation.splitAnchoredSpawnCount)}`,
-      `merge=${formatTraceValue(animation.mergeAnchoredVanishCount)}`,
-      `fallback=${formatTraceValue(animation.ownerShellGeometryFallbackCount)}`,
-      `holeTransitions=${formatTraceValue(animation.ownerShellHoleTransitionCount)}`,
-    ];
-  }
-
-  function getOwnerHoldingTransitionPreviewEntries(
-    artifacts: TerritoryPipelineArtifacts | undefined,
-  ): Array<{ id: string; summary: string }> {
-    const transitions = ((
-      artifacts?.animation as
-        | { ownerShellTransitions?: Array<Record<string, unknown>> }
-        | undefined
-    )?.ownerShellTransitions ?? []) as Array<Record<string, unknown>>;
-    return transitions.slice(0, 6).map((transition, index) => {
-      const ownerId =
-        typeof transition.ownerId === "string" ? transition.ownerId : "?";
-      const kind = typeof transition.kind === "string" ? transition.kind : "?";
-      const anchorRelation =
-        typeof transition.anchorRelation === "string"
-          ? transition.anchorRelation
-          : "none";
-      const relationLabel =
-        anchorRelation !== "none" ? `/${anchorRelation}` : "";
-      return {
-        id:
-          typeof transition.transitionId === "string"
-            ? transition.transitionId
-            : `owner-shell-transition-${index}`,
-        summary:
-          `${ownerId} | ${kind}${relationLabel} | ` +
-          `conf=${formatTraceValue(transition.confidence)} | ` +
-          `contour=${formatTraceValue(transition.meanContourDistance)}/${formatTraceValue(transition.maxContourDistance)} | ` +
-          `holes=${formatTraceValue(transition.previousHoleCount)}->${formatTraceValue(transition.currentHoleCount)}`,
-      };
-    });
-  }
   const TERRITORY_KEYS = [
     "territoryVoronoi",
     "territoryModifiedVoronoi",
@@ -445,25 +273,6 @@
     return resolveTerritoryRenderModeOptions();
   }
 
-  const TERRITORY_ARCHITECTURE_PATH_OPTIONS = [
-    { id: "clean", label: "Clean Runtime" },
-    { id: "legacy", label: "Comparison Runtime" },
-  ] as const;
-
-  const FILL_TRANSITION_OPTIONS = [
-    { id: "off", label: "Off" },
-    { id: "pv_frontline", label: "PVV4 Frontline" },
-    { id: "unified_topology", label: "Unified Topology" },
-    { id: "active_front", label: "Active Front Interpolation" },
-    { id: "frontier_morph", label: "Frontier Topology Morph" },
-    { id: "crossfade", label: "Alpha Crossfade Fill" },
-  ] as const;
-
-  const GEOMETRY_OPTIONS = [
-    { id: "unified_vector", label: "Unified Vector Geometry" },
-    { id: "canonical_power_voronoi", label: "Power Voronoi 0427 Geometry" },
-  ] as const;
-
   /** Map style IDs to old boolean flag panel keys (backward compat) */
   const STYLE_TO_BOOLEAN: Record<string, string> = {
     vs_pvv3: "territoryPVV3",
@@ -484,6 +293,11 @@
       "territoryRenderMode",
       styleId,
     );
+    if (styleId === "power_voronoi_canonical") {
+      selectFrontierTransition("pv_frontline");
+    } else if (resolveActiveFillTransitionId() === "pv_frontline") {
+      selectFrontierTransition("active_front");
+    }
     setActiveRendererModule("all");
     // Reset diagnostic so it logs on next render frame
     (globalThis as any).__RENDER_MODE_LOGGED = false;
@@ -491,10 +305,6 @@
     for (const [mode, panelKey] of Object.entries(STYLE_TO_BOOLEAN)) {
       updatePanel(panelKey, styleId !== "none" && mode === styleId);
     }
-  }
-
-  function selectFillTransition(transitionId: string) {
-    updatePanel("territoryFillTransitionMode", transitionId);
   }
 
   function resolveActiveStyleId(): string {
@@ -505,8 +315,23 @@
     );
   }
 
-  function resolveActiveFillTransitionId(): string {
+  function resolveSelectedGeometryModeId(): string {
     if (resolveActiveStyleId() === "power_voronoi_canonical") {
+      return "canonical_power_voronoi";
+    }
+    return (
+      panel.territoryGeometryMode ??
+      GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
+      "unified_vector"
+    ) as string;
+  }
+
+  function usesCanonicalPvGeometry(): boolean {
+    return resolveSelectedGeometryModeId() === "canonical_power_voronoi";
+  }
+
+  function resolveActiveFillTransitionId(): string {
+    if (usesCanonicalPvGeometry()) {
       return "pv_frontline";
     }
     const raw =
@@ -514,34 +339,47 @@
       panel.territoryFillTransition ??
       GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
       GAME_CONFIG.TERRITORY_FILL_MODE ??
-      "frontier_morph";
-    if (raw === "frontier") return "frontier_morph";
+      "active_front";
+    if (raw === "frontier" || raw === "frontier_morph") return "active_front";
     if (raw === "none") return "off";
     return raw;
+  }
+
+  function selectFrontierTransition(transitionId: string) {
+    debouncedConfigUpdate(
+      "TERRITORY_FILL_TRANSITION_MODE",
+      "territoryFillTransitionMode",
+      transitionId,
+    );
+    if (transitionId === "pv_frontline") {
+      debouncedConfigUpdate(
+        "TERRITORY_BORDER_TRANSITION_MODE",
+        "territoryBorderTransitionMode",
+        "off",
+      );
+      debouncedConfigUpdate(
+        "TERRITORY_BORDER_TRANSITION",
+        "territoryBorderTransition",
+        "none",
+      );
+    }
   }
 
   function isPowerVoronoi0427Mode(): boolean {
     return resolveActiveStyleId() === "power_voronoi_canonical";
   }
 
-  function isMetaballGridStyle(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "metaball_grid" ||
-      activeStyle === "metaball_grid_phase_edges"
-    );
-  }
+    function isMetaballGridStyle(): boolean {
+      const activeStyle = resolveActiveStyleId();
+      return (
+        activeStyle === "metaball_grid" ||
+      activeStyle === "metaball_grid_phase_edges" ||
+      activeStyle === "metaball_grid_phase_field"
+      );
+    }
 
   function isMetaballGridPhaseEdgesStyle(): boolean {
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
-  }
-
-  function showsDerivedGeometryInput(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "perimeter_field" ||
-      isMetaballGridStyle()
-    );
   }
 
   function resolveActiveTransitionModeId(): string {
@@ -555,7 +393,11 @@
 
   function showReferenceVsTransitionModeSelector(): boolean {
     const activeStyle = resolveActiveStyleId();
-    return activeStyle === "power_voronoi" || activeStyle === "pvv2_dy4";
+    return (
+      activeStyle === "power_voronoi" ||
+      activeStyle === "pvv2_dy4" ||
+      activeStyle === "metaball"
+    );
   }
 
   function rendererModules(): Array<
@@ -585,14 +427,6 @@
       });
     }
 
-    if (!isPowerVoronoi0427Mode()) {
-      modules.push({
-        id: "border-transition",
-        label: "Borders",
-        icon: "◇",
-      });
-    }
-
     if (
       resolveActiveStyleId() === "territory_engine" ||
       resolveActiveStyleId() === "territory_canonical" ||
@@ -601,12 +435,12 @@
       modules.push({ id: "surface", label: "Surface", icon: "✦" });
     }
 
-    if (view === "styles") {
-      return modules.filter((module) => module.id === "surface");
+    if (view === "tuning") {
+      return modules.filter((module) => module.id === "topology");
     }
 
-    if (view === "tuning") {
-      return modules.filter((module) => module.id !== "surface");
+    if (view === "styles") {
+      return modules.filter((module) => module.id !== "topology");
     }
 
     return modules;
@@ -645,27 +479,6 @@
     }
   });
 
-  /**
-   * Handle geometry mode button clicks.
-   * The geometry route is pinned for Power Voronoi 0427, so this simply
-   * sets the config key and bumps the refresh token.
-   */
-  function selectGeometryMode(modeId: string) {
-    debouncedConfigUpdate(
-      "TERRITORY_GEOMETRY_MODE",
-      "territoryGeometryMode",
-      modeId,
-    );
-    // Bump refresh token on every click — even re-clicking same mode forces recompute
-    (GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN =
-      ((GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0) + 1;
-    // Single mode: always set engine method to match
-    debouncedConfigUpdate(
-      "TERRITORY_ENGINE_METHOD",
-      "territoryEngineMethod",
-      "new_frontiers_0319",
-    );
-  }
 </script>
 
 {#if showCategoryThemeBar}
@@ -675,7 +488,7 @@
 {#if showModesView}
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
-    <h4 class="sub-heading territory-section-title">Territory Modes &amp; Transition</h4>
+    <h4 class="sub-heading territory-section-title">Territory System</h4>
     <div
       class="territory-scope-toggle"
       role="group"
@@ -715,33 +528,6 @@
     {/each}
   </div>
   <div class="territory-module-grid">
-{#if showSystemModule("geometry") && !isPowerVoronoi0427Mode()}
-      <div class="axis-card territory-module-card">
-        <div class="territory-card__header">
-          <h4 class="axis-card-title">Geometry</h4>
-          <p class="territory-card__intro">
-            Select the geometry pipeline that all maintained territory visuals
-            route through.
-          </p>
-        </div>
-        <div
-          class="axis-row"
-          style="--accent: #2dd4bf; --accent-bg: rgba(45,212,191,0.15)">
-          <span class="axis-label">Geometry</span>
-          <div class="axis-buttons">
-            {#each GEOMETRY_OPTIONS as opt}
-              <button
-                class="axis-btn"
-                class:active={(panel.territoryGeometryMode ??
-                  GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-                  "unified_vector") === opt.id}
-                onclick={() => selectGeometryMode(opt.id)}>{opt.label}</button>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {/if}
-
     {#if showSystemModule("render-mode")}
       <div class="axis-card territory-module-card">
         <div class="territory-card__header">
@@ -836,7 +622,7 @@
                 {/each}
               </select>
               <div class="axis-note">
-                Transition mode for the active Voronoi reference renderer.
+                Conquest transition mode for the active render family.
               </div>
             </div>
           </div>
@@ -852,85 +638,12 @@
             {lockRatioToTick}
             {lockRatioToAnimSpeed}
             activeRenderMode={resolveActiveStyleId()}
-            helperText="Timing and influence tuning for the active Voronoi reference transition mode."
+            helperText="Timing and influence tuning for the active conquest transition mode."
           />
         {/if}
       </div>
     {/if}
 
-    {#if showSystemModule("architecture")}
-      <div class="axis-card territory-module-card">
-        <div class="territory-card__header">
-          <h4 class="axis-card-title">Runtime</h4>
-          <p class="territory-card__intro">
-            Control whether the current direct-runtime territory mode follows the
-            clean runtime path or the comparison runtime path.
-          </p>
-        </div>
-        {#if isPowerVoronoi0427Mode()}
-          <div
-            class="axis-row"
-            style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)">
-            <span class="axis-label">Route</span>
-            <div class="axis-note">Clean runtime</div>
-          </div>
-          <div class="axis-note">
-            Geometry: Power Voronoi 0427 · Fill transition: PVV4 Frontline ·
-            Border transition: Off
-          </div>
-        {:else}
-          <div
-            class="axis-row"
-            style="--accent: #60a5fa; --accent-bg: rgba(96,165,250,0.15)">
-            <span class="axis-label">Runtime</span>
-            <div class="axis-buttons">
-              {#each TERRITORY_ARCHITECTURE_PATH_OPTIONS as opt}
-                <button
-                  class="axis-btn"
-                  class:active={(panel.territoryArchitecturePath ??
-                    GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH ??
-                    "clean") === opt.id}
-                  onclick={() => updatePanel("territoryArchitecturePath", opt.id)}
-                  >{opt.label}</button>
-              {/each}
-            </div>
-          </div>
-          <div class="axis-note">
-            Runtime choice applies when the active mode supports both direct-runtime routes.
-          </div>
-        {/if}
-        {#if resolveActiveStyleId() !== "territory_canonical" && resolveActiveStyleId() !== "power_voronoi_canonical" && resolveActiveStyleId() !== "none"}
-          <div class="axis-note">
-            This render mode does not use the direct-runtime route selector.
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-{#if showSystemModule("fill-transition") && !isPowerVoronoi0427Mode()}
-      <div class="axis-card territory-module-card">
-        <div class="territory-card__header">
-          <h4 class="axis-card-title">Fill Transition</h4>
-          <p class="territory-card__intro">
-            Decide how ownership fills interpolate through conquest and front
-            changes.
-          </p>
-        </div>
-        <div
-          class="axis-row"
-          style="--accent: #fbbf24; --accent-bg: rgba(251,191,36,0.15)">
-          <span class="axis-label">Fill Transition</span>
-          <div class="axis-buttons">
-            {#each FILL_TRANSITION_OPTIONS as opt}
-              <button
-                class="axis-btn"
-                class:active={resolveActiveFillTransitionId() === opt.id}
-                onclick={() => selectFillTransition(opt.id)}>{opt.label}</button>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {/if}
   </div>
 </div>
 {/if}
@@ -939,68 +652,59 @@
 <div class="territory-section-shell territory-section-shell--renderer">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">
-      {showStylesView ? "Territory Styles" : "Territory Tuning &amp; Constraints"}
+      {showStylesView ? "Render Families" : "Frontier Topology"}
     </h4>
-    <div
-      class="territory-scope-toggle"
-      role="group"
-      aria-label="Territory rendering subsection visibility">
-      <button
-        type="button"
-        class="territory-all-toggle"
-        class:active={activeRendererModule === "all"}
-        aria-label="Show all territory rendering modules"
-        onclick={() => {
-          setActiveRendererModule("all");
-        }}>All</button>
-      <button
-        type="button"
-        class="territory-all-toggle"
-        class:active={activeRendererModule === "none"}
-        aria-label="Hide all territory rendering modules"
-        onclick={() => {
-          setActiveRendererModule("none");
-        }}>None</button>
+    {#if showStylesView}
+      <div
+        class="territory-scope-toggle"
+        role="group"
+        aria-label="Territory rendering subsection visibility">
+        <button
+          type="button"
+          class="territory-all-toggle"
+          class:active={activeRendererModule === "all"}
+          aria-label="Show all territory rendering modules"
+          onclick={() => {
+            setActiveRendererModule("all");
+          }}>All</button>
+        <button
+          type="button"
+          class="territory-all-toggle"
+          class:active={activeRendererModule === "none"}
+          aria-label="Hide all territory rendering modules"
+          onclick={() => {
+            setActiveRendererModule("none");
+          }}>None</button>
+      </div>
+    {/if}
+  </div>
+  {#if showStylesView}
+    <div class="territory-module-nav">
+      {#each rendererModules() as module}
+        <button
+          type="button"
+          class="territory-module-chip"
+          class:active={activeRendererModule === module.id}
+          onclick={() => {
+            setActiveRendererModule(
+              activeRendererModule === module.id ? "all" : module.id,
+            );
+          }}>
+          <span class="territory-module-chip__icon">{module.icon}</span>
+          <span>{module.label}</span>
+        </button>
+      {/each}
     </div>
-  </div>
-  <div class="territory-module-nav">
-    {#each rendererModules() as module}
-      <button
-        type="button"
-        class="territory-module-chip"
-        class:active={activeRendererModule === module.id}
-        onclick={() => {
-          setActiveRendererModule(
-            activeRendererModule === module.id ? "all" : module.id,
-          );
-        }}>
-        <span class="territory-module-chip__icon">{module.icon}</span>
-        <span>{module.label}</span>
-      </button>
-    {/each}
-  </div>
+  {/if}
   <div class="territory-module-grid">
 
 {#if showStylesView && rendererModules().length === 0}
   <div class="axis-note">
-    This territory mode does not expose separate surface-style controls.
+    This territory mode does not expose dedicated render-family controls.
   </div>
 {/if}
 
-{#if showTuningView && activeRendererModule !== "none" && showsDerivedGeometryInput()}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Derived Geometry Input</h4>
-      <p class="territory-card__intro">
-        Select the upstream geometry path used by render-family territory
-        modes that derive their visible output from another territory shape.
-      </p>
-    </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
-  </div>
-{/if}
-
-{#if showRendererModule("metaball") && resolveActiveStyleId() === "metaball"}
+{#if showStylesView && showRendererModule("metaball") && resolveActiveStyleId() === "metaball"}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Metaball (CPU grid)</h4>
@@ -1009,46 +713,13 @@
         metaball renderer.
       </p>
     </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Transition Mode</span>
-        <span class="val">{resolveActiveTransitionModeId()}</span>
-      </div>
-      <select
-        class="mode-select"
-        value={resolveActiveTransitionModeId()}
-        onchange={(event) => {
-          const value = (event.target as HTMLSelectElement).value;
-          debouncedConfigUpdate("VS_TRANSITION_MODE", "vsTransitionMode", value);
-        }}>
-        {#each getTransitionModeOptionsForRenderMode("metaball") as option}
-          <option value={option.id}>{option.label}</option>
-        {/each}
-      </select>
-    </div>
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin-bottom:10px;">
-      Larger <strong>Cell size</strong> → fewer grid cells, better FPS (typical
-      8–16). <strong>Territory Tuning</strong> below:
-      <strong>Corridor Virtual Sites</strong> add lane influence for Metaball;
-      <strong>Disconnect Gaps</strong> insert paired enemy virtuals around the
-      Euclidean midpoint of disconnected same-owner stars.
+      Larger <strong>Cell size</strong> means fewer grid cells and better FPS.
+      Frontier rules live in <strong>Frontier Topology</strong>. Transition
+      timing lives in <strong>Territory System</strong>.
     </div>
-    <TerritoryTransitionTuning
-      {panel}
-      {updatePanel}
-      {animLockModes}
-      {animLockRatios}
-      {getAnimValue}
-      {setAnimValue}
-      {formatAnimValue}
-      {pinValueToTickDuration}
-      {lockRatioToTick}
-      {lockRatioToAnimSpeed}
-      activeRenderMode="metaball"
-      helperText="Conquest transition timing and influence tuning for the active Metaball mode."
-    />
     <div class="var-row">
       <div class="row-top">
         <span class="var-name">Cell size (px)</span><span class="val"
@@ -1405,16 +1076,17 @@
   </div>
 {/if}
 
-{#if showRendererModule("topology")}
+{#if showTuningView}
 <div class="territory-module-card territory-module-stack">
-<h5 class="territory-inline-heading">Territory Tuning</h5>
+<h5 class="territory-inline-heading">Frontier Topology</h5>
 <!-- Territory Topology Rules (MSR / CX / DX) -->
 <div class="engine-control-group">
   <div class="territory-card__header">
     <h4 class="axis-card-title">Topology Rules</h4>
     <p class="territory-card__intro">
-      Set the minimum owned footprint and the connection rules that determine
-      how fronts stay linked or deliberately split apart.
+      Set the canonical owned footprint, frontier sampling density, and the
+      connection rules that determine how fronts stay linked or deliberately
+      split apart.
     </p>
   </div>
   <div class="axis-note">
@@ -1435,7 +1107,7 @@
   <!-- MSR — Minimum Star Region -->
   <div
     class="var-row"
-    title="Metaball: each cell inside this radius of a real star is assigned to that star’s cluster (nearest star wins), so every owned star keeps a disc of territory. Voronoi/engine paths use the same value for geometric margins.">
+    title="Sets the target minimum frontier distance around owned stars. This value shapes territory geometry upstream and also acts as the fallback lane margin when dedicated lane margin is disabled.">
     <div class="row-top">
       <span class="var-name">Minimum Star Margin</span><span class="val"
         >{panel.starMargin ??
@@ -1444,8 +1116,8 @@
     </div>
     <input
       type="range"
-      min="0"
-      max="500"
+      min={topologyLimits.starMargin.min}
+      max={topologyLimits.starMargin.max}
       step="5"
       value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
       oninput={(e) => {
@@ -1455,6 +1127,69 @@
           "starMargin",
           v,
           "Minimum Star Margin",
+        );
+      }} />
+  </div>
+
+  <h5 class="territory-inline-heading">MSR as star power</h5>
+
+  <div
+    class="var-row"
+    title="Optional advanced solve-time star resistance against corridor, lane-pair, and disconnect shaping. 0 keeps MSR as pure local frontier clearance.">
+    <div class="row-top">
+      <span class="var-name">Star Bias</span><span class="val"
+        >{(
+          panel.msrStarBias ??
+          (GAME_CONFIG as any).TERRITORY_MSR_STAR_BIAS ??
+          0
+        ).toFixed(2)}</span>
+    </div>
+    <div class="row-hint">
+      Relative star resistance against corridor, lane-pair, and disconnect shaping during the Power Voronoi solve. <strong>0</strong> leaves baseline MSR as pure post-solve local clearance.
+    </div>
+    <input
+      type="range"
+      min={topologyLimits.msrStarBias.min}
+      max={topologyLimits.msrStarBias.max}
+      step="0.05"
+      value={panel.msrStarBias ?? (GAME_CONFIG as any).TERRITORY_MSR_STAR_BIAS ?? 0}
+      oninput={(e) => {
+        const v = +(e.target as HTMLInputElement).value;
+        queueTopologySliderUpdate(
+          "TERRITORY_MSR_STAR_BIAS",
+          "msrStarBias",
+          v,
+          "Star Bias",
+        );
+      }} />
+  </div>
+
+  <h5 class="territory-inline-heading">Frontier Sampling</h5>
+
+  <div class="var-row">
+    <div class="row-top">
+      <span class="var-name">Frontier Resolution</span><span class="val"
+        >{panel.frontierResolution ??
+          GAME_CONFIG.FRONTIER_RESOLUTION ??
+          5}px</span>
+    </div>
+    <div class="row-hint">
+      Vertex spacing for real frontier geometry that still feeds maintained
+      compiler paths. Lower values produce denser frontiers.
+    </div>
+    <input
+      type="range"
+      min={topologyLimits.frontierResolution.min}
+      max={topologyLimits.frontierResolution.max}
+      step="1"
+      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
+      oninput={(e) => {
+        const v = +(e.target as HTMLInputElement).value;
+        queueTopologySliderUpdate(
+          "FRONTIER_RESOLUTION",
+          "frontierResolution",
+          v,
+          "Frontier Resolution",
         );
       }} />
   </div>
@@ -1526,8 +1261,8 @@
     </div>
     <input
       type="range"
-      min="1"
-      max="10"
+      min={topologyLimits.cxContestPairCount.min}
+      max={topologyLimits.cxContestPairCount.max}
       step="1"
       disabled={!cxOn}
       value={panel.cxContestPairCount ??
@@ -1548,6 +1283,35 @@
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
+      <span class="var-name">Lane Midpoint Pair Spacing</span><span class="val"
+        >{panel.cxContestPairSpacing ??
+          GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
+          75}</span>
+    </div>
+    <input
+      type="range"
+      min={topologyLimits.cxContestPairSpacing.min}
+      max={topologyLimits.cxContestPairSpacing.max}
+      step="5"
+      disabled={!cxOn}
+      value={panel.cxContestPairSpacing ??
+        GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
+        75}
+      oninput={(e) => {
+        const v = +(e.target as HTMLInputElement).value;
+        queueTopologySliderUpdate(
+          "TERRITORY_CX_CONTEST_PAIR_SPACING",
+          "cxContestPairSpacing",
+          v,
+          "Lane Midpoint Pair Spacing",
+        );
+      }} />
+  </div>
+  <div
+    class="var-row indent"
+    class:disabled={!cxOn}
+    title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
+    <div class="row-top">
       <span class="var-name">Lane Midpoint Pair Weight</span><span class="val"
         >{(
           panel.cxContestPairWeight ??
@@ -1557,8 +1321,8 @@
     </div>
     <input
       type="range"
-      min="0"
-      max="1"
+      min={topologyLimits.cxContestPairWeight.min}
+      max={topologyLimits.cxContestPairWeight.max}
       step="0.05"
       disabled={!cxOn}
       value={panel.cxContestPairWeight ??
@@ -1586,8 +1350,8 @@
     </div>
     <input
       type="range"
-      min="0"
-      max="20"
+      min={topologyLimits.corridorCount.min}
+      max={topologyLimits.corridorCount.max}
       step="1"
       disabled={!cxOn}
       value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
@@ -1613,8 +1377,8 @@
     </div>
     <input
       type="range"
-      min="0"
-      max="2"
+      min={topologyLimits.corridorWeight.min}
+      max={topologyLimits.corridorWeight.max}
       step="0.05"
       disabled={!cxOn}
       value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
@@ -1640,8 +1404,8 @@
     </div>
     <input
       type="range"
-      min="10"
-      max="200"
+      min={topologyLimits.corridorSpacing.min}
+      max={topologyLimits.corridorSpacing.max}
       step="5"
       disabled={!cxOn}
       value={panel.corridorSpacing ??
@@ -1699,8 +1463,8 @@
     </div>
     <input
       type="range"
-      min="0"
-      max="2"
+      min={topologyLimits.disconnectWeight.min}
+      max={topologyLimits.disconnectWeight.max}
       step="0.05"
       disabled={!dxOn}
       value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
@@ -1726,8 +1490,8 @@
     </div>
     <input
       type="range"
-      min="50"
-      max="1000"
+      min={topologyLimits.disconnectDistance.min}
+      max={topologyLimits.disconnectDistance.max}
       step="25"
       disabled={!dxOn}
       value={panel.disconnectDistance ??
@@ -1747,115 +1511,9 @@
 </div>
 {/if}
 
-<!-- Border Transition Tuning -->
-{#if showRendererModule("border-transition")}
-<div class="engine-control-group territory-module-card">
-  <div class="territory-card__header">
-    <h4 class="axis-card-title">Border Transition</h4>
-    <p class="territory-card__intro">
-      Control how frontiers resample, ease, and overshoot while borders react
-      to ownership changes.
-    </p>
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Transition Easing</span>
-    </div>
-    <select
-      class="mode-select"
-      value={panel.borderTransEasing ??
-        GAME_CONFIG.BORDER_TRANS_EASING ??
-        "linear"}
-      onchange={(e) => {
-        debouncedConfigUpdate(
-          "BORDER_TRANS_EASING",
-          "borderTransEasing",
-          (e.target as HTMLSelectElement).value,
-        );
-      }}>
-      <option value="linear">1. Linear (constant speed)</option>
-      <option value="cubic">2. Cubic (smooth, no overshoot)</option>
-      <option value="ease-out">3. Ease-out (decelerate)</option>
-      <option value="ease-out-quad">4. Ease-out Quad (lighter)</option>
-      <option value="sine">5. Sine (gentle S-curve)</option>
-      <option value="back">6. Back (overshoot)</option>
-      <option value="elastic">7. Elastic (bouncy)</option>
-    </select>
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Resample Points</span><span class="val"
-        >{panel.borderTransResampleN ??
-          GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
-          32}</span>
-    </div>
-    <input
-      type="range"
-      min="8"
-      max="64"
-      step="4"
-      value={panel.borderTransResampleN ??
-        GAME_CONFIG.BORDER_TRANS_RESAMPLE_N ??
-        32}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate(
-          "BORDER_TRANS_RESAMPLE_N",
-          "borderTransResampleN",
-          v,
-        );
-      }} />
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Frontier Resolution</span><span class="val"
-        >{panel.frontierResolution ??
-          GAME_CONFIG.FRONTIER_RESOLUTION ??
-          5}px</span>
-    </div>
-    <input
-      type="range"
-      min="1"
-      max="20"
-      step="1"
-      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("FRONTIER_RESOLUTION", "frontierResolution", v);
-      }} />
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Back Overshoot</span><span class="val"
-        >{(
-          panel.borderTransOvershoot ??
-          GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
-          0
-        ).toFixed(2)}</span>
-    </div>
-    <input
-      type="range"
-      min="0"
-      max="5"
-      step="0.1"
-      value={panel.borderTransOvershoot ??
-        GAME_CONFIG.BORDER_TRANS_OVERSHOOT ??
-        0}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate(
-          "BORDER_TRANS_OVERSHOOT",
-          "borderTransOvershoot",
-          v,
-        );
-      }} />
-  </div>
-</div>
-{/if}
-
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
-{#if showRendererModule("surface") &&
+{#if showStylesView && showRendererModule("surface") &&
   (resolveActiveStyleId() === "territory_engine" ||
     resolveActiveStyleId() === "territory_canonical" ||
     resolveActiveStyleId() === "power_voronoi_canonical")}
@@ -1869,8 +1527,8 @@
             : "Layered Runtime Surface"}
       </h4>
       <p class="territory-card__intro">
-        Refine fill, border, and diagnostic behavior for the active
-        territory surface.
+        Refine fill, border, and shape behavior for the active territory
+        surface.
       </p>
     </div>
 
@@ -1878,20 +1536,12 @@
       <div
         class="row-bottom"
         style="font-size: 10px; opacity: 0.7; padding: 2px 4px;">
-        This mode always runs exact Power Voronoi geometry with the PVV4
-        frontline transition and disables reference border-transition paths.
+        This mode always runs exact Power Voronoi geometry with its fixed
+        frontline transition path.
       </div>
     {/if}
 
     {#if resolveActiveStyleId() === "territory_engine"}
-      <h5 class="territory-inline-heading">Engine Diagnostics</h5>
-      <div
-        class="row-bottom"
-        style="font-size: 10px; opacity: 0.6; padding: 2px 4px;">
-        Geometry engine computes territory boundaries from game state. All visual
-        styles consume its output.
-      </div>
-
       <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
 
       <div class="var-row">
@@ -2098,164 +1748,10 @@
         debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
       }} />
   </div>
-    {#if resolveActiveStyleId() === "territory_engine"}
-      <h5 class="territory-inline-heading">Trace Inspector</h5>
-
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Trace Mode</span>
-        <label class="toggle-switch">
-          <input
-            type="checkbox"
-            checked={panel.territoryEngineTraceMode ??
-              GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE}
-            onchange={(e) => {
-              const v = (e.target as HTMLInputElement).checked;
-              updatePanel("territoryEngineTraceMode", v);
-            }} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Step Mode</span>
-        <label class="toggle-switch">
-          <input
-            type="checkbox"
-            checked={panel.territoryEngineStepMode ??
-              GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
-            onchange={(e) => {
-              const v = (e.target as HTMLInputElement).checked;
-              updatePanel("territoryEngineStepMode", v);
-            }} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-    {#if panel.territoryEngineStepMode ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
-      <div class="var-row compact">
-        <div class="row-top">
-          <span class="var-name">Advance Stage</span>
-          <span class="val"
-            >{panel.territoryEngineStepAdvanceToken ??
-              GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button
-            class="mini-btn"
-            onclick={() => {
-              const nextToken =
-                (panel.territoryEngineStepAdvanceToken ??
-                  GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) + 1;
-              updatePanel("territoryEngineStepAdvanceToken", nextToken);
-            }}>Advance</button>
-          <button
-            class="mini-btn"
-            onclick={() => {
-              updatePanel("territoryEngineStepAdvanceToken", 0);
-            }}>Reset</button>
-        </div>
-      </div>
-      {/if}
-      <div class="trace-panel">
-      <div class="row-top">
-        <span class="var-name">Trace Inspector</span>
-        {#if $territoryTraceRun}
-          <span class="val">run {$territoryTraceRun.runId}</span>
-        {:else}
-          <span class="val">no trace</span>
-        {/if}
-      </div>
-      {#if $territoryTraceRun}
-        <div class="trace-chip-row">
-          <span class="trace-chip"
-            >steps {$territoryTraceRun.steps
-              .length}/{TERRITORY_PIPELINE_STAGE_ORDER.length}</span>
-          <span class="trace-chip"
-            >next {getNextTraceStageLabel(
-              $territoryTraceRun.steps.length,
-            )}</span>
-          <span class="trace-chip"
-            >mode {$territoryTraceRun.selection.mode}</span>
-          <span class="trace-chip"
-            >static {$territoryTraceRun.selection.staticMethodId}</span>
-          <span class="trace-chip">{$territoryTraceRun.totalDurationMs}ms</span>
-        </div>
-
-        <div class="trace-section">
-          <div class="trace-section-title">Meta</div>
-          <div class="trace-summary">
-            {summarizeTraceRecord($territoryTraceRun.meta, 8).join(" | ")}
-          </div>
-        </div>
-
-        <div class="trace-section">
-          <div class="trace-section-title">Owner Region Loops</div>
-          {#each getOwnerRegionLoopPreviewEntries($territoryTraceRun.artifacts) as entry}
-            <div class="trace-detail-line">{entry.summary}</div>
-          {/each}
-        </div>
-
-        <div class="trace-section">
-          <div class="trace-section-title">Owner Shells</div>
-          {#each getOwnerShellPreviewEntries($territoryTraceRun.artifacts) as entry}
-            <div class="trace-detail-line">{entry.summary}</div>
-          {/each}
-        </div>
-
-        <div class="trace-section">
-          <div class="trace-section-title">Holding Transitions</div>
-          <div class="trace-summary">
-            {getOwnerHoldingTransitionSummary(
-              $territoryTraceRun.artifacts,
-            ).join(" | ")}
-          </div>
-          {#each getOwnerHoldingTransitionPreviewEntries($territoryTraceRun.artifacts) as entry}
-            <div class="trace-detail-line">{entry.summary}</div>
-          {/each}
-        </div>
-        <div class="trace-section">
-          <div class="trace-section-title">Artifacts</div>
-          {#each getTraceArtifactEntries($territoryTraceRun.artifacts) as entry}
-            <div class="trace-entry">
-              <div class="trace-entry-head">
-                <span class="trace-badge">{entry.stageId}</span>
-                <span class="val"
-                  >{Object.keys(entry.artifact).length} keys</span>
-              </div>
-              <div class="trace-summary">
-                {summarizeTraceRecord(entry.artifact, 8).join(" | ")}
-              </div>
-            </div>
-          {/each}
-        </div>
-
-        <div class="trace-section">
-          <div class="trace-section-title">Steps</div>
-          {#each $territoryTraceRun.steps as step}
-            <div class="trace-entry">
-              <div class="trace-entry-head">
-                <span class="trace-badge">{step.stageId}</span>
-                <span class="val">{step.durationMs}ms</span>
-              </div>
-              <div class="trace-summary">
-                {summarizeTraceRecord(step.summary, 8).join(" | ")}
-              </div>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="trace-empty">
-          Enable Trace Mode or Step Mode to capture a territory-engine run here.
-        </div>
-      {/if}
-      </div>
-    {/if}
   </div>
 {/if}
 
-{#if showRendererModule("perimeter-field") && resolveActiveStyleId() === "perimeter_field"}
+{#if showStylesView && showRendererModule("perimeter-field") && resolveActiveStyleId() === "perimeter_field"}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
@@ -2282,7 +1778,7 @@
   </div>
 {/if}
 
-{#if showRendererModule("metaball-grid") && isMetaballGridStyle()}
+{#if showStylesView && showRendererModule("metaball-grid") && isMetaballGridStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
@@ -2319,12 +1815,10 @@
     <div
       class="row-bottom"
       style="font-size:11px;opacity:0.75;margin:10px 0 2px;">
-      <strong>Territory tuning inputs</strong> — corridor virtual sites along
-      lanes, lane midpoint pairs on contested lanes, disconnect virtual sites
-      between same-owner components, and minimum star margin. These shape the
-      underlying territory regions that Metaball Grid classifies against.
+      <strong>Frontier Topology</strong> shapes the underlying ownership
+      regions that Metaball Grid classifies against. This panel stays focused
+      on grid behavior and surface output.
     </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
@@ -2670,88 +2164,5 @@
   }
   .engine-control-group.reference-only {
     opacity: 0.78;
-  }
-  .engine-route-hint {
-    font-size: 10px;
-    line-height: 1.35;
-    color: rgba(255, 255, 255, 0.58);
-    padding: 1px 0 4px;
-  }
-  .trace-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin: 8px 4px 0;
-    padding: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.03);
-  }
-  .trace-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .trace-chip {
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: rgba(74, 222, 128, 0.12);
-    border: 1px solid rgba(74, 222, 128, 0.2);
-    color: #9ae6b4;
-    font-size: 10px;
-    font-family: monospace;
-  }
-  .trace-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .trace-section-title {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #8fb7ff;
-  }
-  .trace-entry {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.04);
-  }
-  .trace-entry-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .trace-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(147, 197, 253, 0.12);
-    color: #bfdbfe;
-    font-size: 10px;
-    font-family: monospace;
-  }
-  .trace-summary {
-    font-size: 10px;
-    line-height: 1.4;
-    color: rgba(255, 255, 255, 0.72);
-    font-family: monospace;
-    word-break: break-word;
-  }
-  .trace-detail-line {
-    font-size: 10px;
-    line-height: 1.35;
-    color: rgba(255, 255, 255, 0.68);
-    font-family: monospace;
-  }
-  .trace-empty {
-    font-size: 10px;
-    line-height: 1.4;
-    color: rgba(255, 255, 255, 0.58);
   }
 </style>

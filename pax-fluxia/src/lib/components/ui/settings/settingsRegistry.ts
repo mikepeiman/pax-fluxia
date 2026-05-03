@@ -7,9 +7,11 @@ export type SettingsSectionId =
     | "combat_tuning"
     | "economy"
     | "travel_orders"
-    | "conquest_effects"
+    | "conquest"
+    | "effects"
     | "map_options"
     | "territory_modes"
+    | "territory_phase_field"
     | "territory_tuning"
     | "territory_styles"
     | "fleet_star_visuals"
@@ -46,14 +48,10 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "match_flow",
         icon: "⚡",
-        label: "Match Flow",
+        label: "Timing",
         color: "#ffcc00",
         tier: "basic",
         scope: null,
-        subsections: [
-            { id: "timing", label: "Timing", icon: "◷" },
-            { id: "rules", label: "Rules", icon: "⚖" },
-        ],
     },
     {
         id: "combat_tuning",
@@ -80,16 +78,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "travel",
     },
     {
-        id: "conquest_effects",
+        id: "conquest",
         icon: "🏰",
-        label: "Conquest & Effects",
+        label: "Conquest",
         color: "#ff66aa",
         tier: "advanced",
-        scope: null,
-        subsections: [
-            { id: "conquest", label: "Conquest", icon: "◈" },
-            { id: "effects", label: "Effects", icon: "✦" },
-        ],
+        scope: "conquest",
+    },
+    {
+        id: "effects",
+        icon: "✦",
+        label: "Effects",
+        color: "#f472b6",
+        tier: "advanced",
+        scope: "surge",
     },
     {
         id: "map_options",
@@ -109,15 +111,23 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "territory_modes",
         icon: "🌍",
-        label: "Territory Modes & Transition",
+        label: "Territory System",
         color: "#66ccaa",
+        tier: "basic",
+        scope: "territory",
+    },
+    {
+        id: "territory_phase_field",
+        icon: "🫧",
+        label: "Phase Field",
+        color: "#7dd3fc",
         tier: "basic",
         scope: "territory",
     },
     {
         id: "territory_tuning",
         icon: "🧭",
-        label: "Territory Tuning & Constraints",
+        label: "Frontier Topology",
         color: "#6ee7b7",
         tier: "basic",
         scope: "territory",
@@ -125,7 +135,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "territory_styles",
         icon: "🎨",
-        label: "Territory Styles",
+        label: "Render Families",
         color: "#93c5fd",
         tier: "basic",
         scope: "territory",
@@ -187,8 +197,10 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     economy: "economy",
     ai: "ai",
     travel: "travel_orders",
-    surge: "conquest_effects",
-    conquest: "conquest_effects",
+    surge: "effects",
+    effects: "effects",
+    conquest_effects: "conquest",
+    conquest: "conquest",
     territory: "territory_modes",
     ships: "fleet_star_visuals",
     visuals: "map_options",

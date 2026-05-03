@@ -6,6 +6,7 @@ import type { OwnershipSnapshot } from './OwnershipContracts';
 import type { TerritoryTunables, TerritoryWorldBounds } from './TerritoryFrameInput';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import type { FrontierTopology } from './FrontierTopologyContracts';
+import type { MinStarMarginDiagnostics } from '../geometry/minStarMargin';
 
 // ─── Family & Method Discrimination ────────────────────────────────────────
 
@@ -155,8 +156,44 @@ export interface GeometryDiagnostics {
     identityReliable: boolean;
     /** Whether all region loops are properly closed. */
     closureReliable: boolean;
+    /** Optional stage-explicit geometry ladder for diagnostics and artifact export. */
+    stageLadder?: GeometryStageLadder;
+    /** Local MSR repair diagnostics from the universal geometry layer. */
+    minStarMargin?: MinStarMarginDiagnostics;
     /** Free-form diagnostic notes. */
     notes: string[];
+}
+
+export type GeometryDebugStageId =
+    | 'raw_shared_frontiers'
+    | 'raw_world_borders'
+    | 'resolved_shared_boundary_frontiers'
+    | 'resolved_regions'
+    | 'display_borders';
+
+export interface GeometryStageLadder {
+    /** Stable fingerprint for the resolved shared-boundary authority seam. */
+    authoritativeSeamFingerprint: string;
+    /** Stable fingerprint for the final display-border chain set derived from the seam. */
+    displayBorderFingerprint: string;
+    /** Effective MSR margin applied when resolving the shared seam. */
+    appliedMarginPx: number;
+    /** Raw inter-owner frontiers emitted upstream of shared-boundary resolution. */
+    rawSharedFrontiers: readonly CanonicalFrontierPolyline[];
+    /** Raw owner-vs-world borders emitted upstream of shared-boundary resolution. */
+    rawWorldBorders: readonly CanonicalFrontierPolyline[];
+    /** Resolved inter-owner frontiers after shared-boundary authority resolution. */
+    resolvedSharedBoundaryFrontiers: readonly CanonicalFrontierPolyline[];
+    /** Resolved owner-vs-world borders after shared-boundary authority resolution. */
+    resolvedWorldBorders: readonly CanonicalFrontierPolyline[];
+    /** Resolved territory regions reconstructed from the shared-boundary seam. */
+    resolvedRegions: readonly TerritoryRegionShape[];
+    /** Final display frontier chains derived from the resolved regions. */
+    displayFrontierPolylines: readonly CanonicalFrontierPolyline[];
+    /** Final display world-border chains derived from the resolved regions. */
+    displayWorldBorderPolylines: readonly CanonicalFrontierPolyline[];
+    /** Notes clarifying stage ownership and authority. */
+    notes: readonly string[];
 }
 
 // ─── Canonical Geometry Snapshot ─────────────────────────────────────────────
