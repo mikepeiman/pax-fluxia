@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
-import { resolveConstraintAlignedTerritoryGeometry } from './resolveConstraintAlignedTerritoryGeometry';
+import {
+    buildDisplayFillRegionsFromConstraintAlignedGeometry,
+    resolveConstraintAlignedTerritoryGeometry,
+} from './resolveConstraintAlignedTerritoryGeometry';
 
 function makeGeometry(
     overrides: Partial<CanonicalGeometrySnapshot>,
@@ -41,6 +44,40 @@ function makeGeometry(
         },
         ...overrides,
     };
+}
+
+function canonicalizeRing(
+    points: ReadonlyArray<[number, number]>,
+): string {
+    const open =
+        points.length > 1 &&
+        points[0]?.[0] === points[points.length - 1]?.[0] &&
+        points[0]?.[1] === points[points.length - 1]?.[1]
+            ? points.slice(0, -1)
+            : [...points];
+    if (open.length === 0) return '[]';
+
+    const serialize = (ring: ReadonlyArray<[number, number]>) =>
+        JSON.stringify([...ring, ring[0]]);
+    const rotateToSmallest = (ring: ReadonlyArray<[number, number]>) => {
+        let bestIndex = 0;
+        for (let index = 1; index < ring.length; index++) {
+            const [ax, ay] = ring[index]!;
+            const [bx, by] = ring[bestIndex]!;
+            if (ax < bx || (ax === bx && ay < by)) {
+                bestIndex = index;
+            }
+        }
+        return ring
+            .slice(bestIndex)
+            .concat(ring.slice(0, bestIndex)) as [number, number][];
+    };
+
+    const forward = rotateToSmallest(open);
+    const reversed = rotateToSmallest([...open].reverse());
+    const forwardKey = serialize(forward);
+    const reversedKey = serialize(reversed);
+    return forwardKey < reversedKey ? forwardKey : reversedKey;
 }
 
 describe('resolveConstraintAlignedTerritoryGeometry', () => {
@@ -638,5 +675,32 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
             [5, 0],
             [5, 10],
         ]);
+
+        const rebuiltRegions = buildDisplayFillRegionsFromConstraintAlignedGeometry(
+            fromSharedFrontiers,
+        );
+        expect(rebuiltRegions).toHaveLength(2);
+        expect(
+            rebuiltRegions.map((region) => canonicalizeRing(region.points)).sort(),
+        ).toEqual(
+            [
+                [
+                    [0, 0],
+                    [5, 0],
+                    [5, 10],
+                    [0, 10],
+                    [0, 0],
+                ],
+                [
+                    [5, 0],
+                    [10, 0],
+                    [10, 10],
+                    [5, 10],
+                    [5, 0],
+                ],
+            ]
+                .map(canonicalizeRing)
+                .sort(),
+        );
     });
 });

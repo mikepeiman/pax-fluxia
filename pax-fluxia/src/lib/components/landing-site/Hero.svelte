@@ -113,15 +113,16 @@
 <style>
   .hero {
     position: relative;
-    height: 100vh;
-    min-height: 800px; /* Give room for form */
+    min-height: 100vh;
+    min-height: 100svh;
     width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     overflow: hidden;
-    padding-top: 80px; /* Navbar height */
+    padding: 80px var(--space-6) var(--space-8);
   }
 
   /* Background Layers */
@@ -175,6 +176,8 @@
   /* Content */
   .hero-content {
     max-width: 900px;
+    width: 100%;
+    box-sizing: border-box;
     padding: var(--space-8);
     display: flex;
     flex-direction: column;
@@ -263,7 +266,7 @@
     width: 100%;
     padding: var(--space-4);
     border-radius: 12px;
-    height: 8ch;
+    min-height: 8ch;
   }
 
   .input-group {
@@ -356,6 +359,10 @@
   }
 
   @media (max-width: 600px) {
+    .hero {
+      padding: 88px var(--space-4) var(--space-6);
+    }
+
     .primary-actions {
       flex-direction: column;
     }

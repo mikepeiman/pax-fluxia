@@ -263,6 +263,58 @@ function toSharedPolyline(
     };
 }
 
+function summarizeOwnerRegionCounts(
+    regions: ReadonlyArray<TerritoryRegionShape>,
+): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const region of regions) {
+        counts.set(region.ownerId, (counts.get(region.ownerId) ?? 0) + 1);
+    }
+    return counts;
+}
+
+function hasMatchingRegionOwnershipShape(
+    candidate: ReadonlyArray<TerritoryRegionShape>,
+    baseline: ReadonlyArray<TerritoryRegionShape>,
+): boolean {
+    if (candidate.length !== baseline.length) return false;
+    const candidateCounts = summarizeOwnerRegionCounts(candidate);
+    const baselineCounts = summarizeOwnerRegionCounts(baseline);
+    if (candidateCounts.size !== baselineCounts.size) return false;
+    for (const [ownerId, count] of baselineCounts) {
+        if ((candidateCounts.get(ownerId) ?? 0) !== count) return false;
+    }
+    return true;
+}
+
+export function buildDisplayFillRegionsFromConstraintAlignedGeometry(
+    geometry: ConstraintAlignedTerritoryGeometry,
+): readonly TerritoryRegionShape[] {
+    if (
+        geometry.displayFrontierPolylines.length === 0 &&
+        geometry.displayWorldBorderPolylines.length === 0
+    ) {
+        return geometry.territoryRegions;
+    }
+
+    const reconstructed = constructFillsFromFrontierChain(
+        geometry.displayFrontierPolylines.map(toSharedPolyline),
+        geometry.displayWorldBorderPolylines.map(toSharedPolyline),
+    ).map((territory, index) => ({
+        regionId: `display-fill:${territory.ownerId}:${index}`,
+        ownerId: territory.ownerId,
+        points: territory.points.map(([x, y]) => [x, y] as [number, number]),
+        confidence: 1,
+    }));
+
+    return hasMatchingRegionOwnershipShape(
+        reconstructed,
+        geometry.territoryRegions,
+    )
+        ? reconstructed
+        : geometry.territoryRegions;
+}
+
 function normalizeClosedRing(
     points: ReadonlyArray<[number, number]>,
 ): readonly [number, number][] {

@@ -11,6 +11,7 @@ import {
     buildPerimeterFieldRenderFamilyGeometry,
 } from '../buildFamilyGeometry';
 import {
+    buildDisplayFillRegionsFromConstraintAlignedGeometry,
     readConstraintAlignedTerritoryGeometryFromSnapshot,
     resolveConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedTerritoryGeometry,
@@ -1065,10 +1066,6 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         geometry: ConstraintAlignedTerritoryGeometry,
         inwardOffsetPx: number,
     ): GeometryFillSource {
-        if (inwardOffsetPx <= 0) {
-            return geometry;
-        }
-
         let cache = this.fillMaskGeometryCache.get(geometry);
         if (!cache) {
             cache = new Map<string, GeometryFillSource>();
@@ -1081,11 +1078,16 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             return cached;
         }
 
+        const territoryRegions =
+            buildDisplayFillRegionsFromConstraintAlignedGeometry(geometry);
         const fillGeometry = {
-            territoryRegions: buildInsetTerritoryRegions({
-                territoryRegions: geometry.territoryRegions,
-                insetPx: inwardOffsetPx,
-            }),
+            territoryRegions:
+                inwardOffsetPx > 0
+                    ? buildInsetTerritoryRegions({
+                          territoryRegions,
+                          insetPx: inwardOffsetPx,
+                      })
+                    : territoryRegions,
         } satisfies GeometryFillSource;
         cache.set(key, fillGeometry);
         return fillGeometry;
