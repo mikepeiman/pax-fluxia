@@ -307,6 +307,13 @@ import LandingPage from "$lib/components/landing-site";
     };
   });
 
+  $effect(() => {
+    if (typeof window === "undefined" || showGame) return;
+    // Landing must never inherit the game shell's scroll lock if a mount/unmount
+    // cycle was interrupted by a failed import or HMR edge case.
+    window.document.body.classList.remove("game-active");
+  });
+
   onMount(() => {
     audioManager.init();
     resetHomeRouteDiagnostics();

@@ -578,6 +578,8 @@ function paintCellScene(params: {
     cellSpacingPx: number;
     cellInsetPx: number;
     cellCornerPx: number;
+    inwardOffsetPx: number;
+    sharedEdgeSmoothingPasses: number;
     alphaMultiplier: number;
 }): number {
     const g = params.graphics;
@@ -589,29 +591,43 @@ function paintCellScene(params: {
 
     const spacingPx = params.cellSpacingPx;
     const insetMax = spacingPx * 0.45;
-    const cellInset = Math.min(params.cellInsetPx, insetMax);
-    const cellSize = Math.max(1, spacingPx - cellInset * 2);
-    const cellHalf = cellSize * 0.5;
-    const cellCornerR =
+    const nativeInset = Math.min(params.cellInsetPx, insetMax);
+    const boundaryInset = Math.min(
+        params.cellInsetPx + Math.max(0, params.inwardOffsetPx),
+        insetMax,
+    );
+    const nativeSize = Math.max(1, spacingPx - nativeInset * 2);
+    const nativeHalf = nativeSize * 0.5;
+    const nativeCornerR =
         params.cellShape === 'square'
-            ? Math.min(params.cellCornerPx, Math.max(0, cellHalf - 0.5))
+            ? Math.min(params.cellCornerPx, Math.max(0, nativeHalf - 0.5))
             : 0;
-    const cellHexR = cellSize / SQRT3;
+    const nativeHexR = nativeSize / SQRT3;
+    const boundarySize = Math.max(1, spacingPx - boundaryInset * 2);
+    const boundaryHalf = boundarySize * 0.5;
+    const boundaryCornerR = computeSharedBoundaryCornerRadius({
+        cellShape: params.cellShape,
+        baseCornerPx: params.cellCornerPx,
+        halfSizePx: boundaryHalf,
+        smoothingPasses: params.sharedEdgeSmoothingPasses,
+    });
+    const boundaryHexR = boundarySize / SQRT3;
 
     let painted = 0;
     for (const cell of params.sceneCells) {
         if (cell.alpha <= 0) continue;
         const fillHex = params.fillHexByColorIdx[cell.colorIdx];
         if (fillHex === undefined) continue;
+        const isBoundary = cell.role !== 'native';
         drawFilledGridCell(
             g,
             params.cellShape,
             cell.x,
             cell.y,
-            cellHalf,
-            cellSize,
-            cellCornerR,
-            cellHexR,
+            isBoundary ? boundaryHalf : nativeHalf,
+            isBoundary ? boundarySize : nativeSize,
+            isBoundary ? boundaryCornerR : nativeCornerR,
+            isBoundary ? boundaryHexR : nativeHexR,
             fillHex,
             clamp01(cell.alpha * params.alphaMultiplier),
         );
@@ -625,6 +641,7 @@ function buildTransitionCellMetrics(params: {
     schedulerSpacingPx: number;
     cellShape: GridCellShape;
     cellCornerPx: number;
+    sharedEdgeSmoothingPasses: number;
     finalCellSizePx: number;
     finishSizeMix: number;
 }): {
@@ -639,7 +656,12 @@ function buildTransitionCellMetrics(params: {
     const half = size * 0.5;
     const cornerR =
         params.cellShape === 'square'
-            ? Math.min(params.cellCornerPx, Math.max(0, half - 0.5))
+            ? computeSharedBoundaryCornerRadius({
+                  cellShape: params.cellShape,
+                  baseCornerPx: params.cellCornerPx,
+                  halfSizePx: half,
+                  smoothingPasses: params.sharedEdgeSmoothingPasses,
+              })
             : 0;
     return {
         size,
@@ -1082,6 +1104,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         cellSpacingPx: number;
         cellInsetPx: number;
         cellCornerPx: number;
+        inwardOffsetPx: number;
+        sharedEdgeSmoothingPasses: number;
         alphaMultiplier: number;
     }): number {
         const painted = paintCellScene({
@@ -1092,6 +1116,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             cellSpacingPx: params.cellSpacingPx,
             cellInsetPx: params.cellInsetPx,
             cellCornerPx: params.cellCornerPx,
+            inwardOffsetPx: params.inwardOffsetPx,
+            sharedEdgeSmoothingPasses: params.sharedEdgeSmoothingPasses,
             alphaMultiplier: params.alphaMultiplier,
         });
         drawGeometryFill({
@@ -2048,6 +2074,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 schedulerSpacingPx: cached.classification.spacingPx,
                 cellShape,
                 cellCornerPx,
+                sharedEdgeSmoothingPasses,
                 finalCellSizePx: phaseFieldFinalCellSizePx,
                 finishSizeMix,
             });
@@ -2077,6 +2104,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
                     inwardOffsetPx.toFixed(2),
+                    sharedEdgeSmoothingPasses,
                 ].join('|');
                 if (this.prevTexture && this.lastPrevTextureSig !== prevTextureSig) {
                     this.renderPatternTexture({
@@ -2092,6 +2120,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
+                        inwardOffsetPx,
+                        sharedEdgeSmoothingPasses,
                         alphaMultiplier: fillAlpha,
                     });
                     this.lastPrevTextureSig = prevTextureSig;
@@ -2110,6 +2140,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
                     inwardOffsetPx.toFixed(2),
+                    sharedEdgeSmoothingPasses,
                 ].join('|');
                 if (this.nextTexture && this.lastNextTextureSig !== nextTextureSig) {
                     paintedCells = this.renderPatternTexture({
@@ -2125,6 +2156,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
+                        inwardOffsetPx,
+                        sharedEdgeSmoothingPasses,
                         alphaMultiplier: fillAlpha,
                     });
                     this.lastNextTextureSig = nextTextureSig;
@@ -2174,6 +2207,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
+                    inwardOffsetPx,
+                    sharedEdgeSmoothingPasses,
                     alphaMultiplier: fillAlpha,
                 });
                 drawGeometryFill({
@@ -2293,6 +2328,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
                     inwardOffsetPx.toFixed(2),
+                    sharedEdgeSmoothingPasses,
                 ].join('|');
                 if (this.nextTexture && this.lastNextTextureSig !== nextTextureSig) {
                     paintedCells = this.renderPatternTexture({
@@ -2308,6 +2344,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         cellSpacingPx: patternClassification.spacingPx,
                         cellInsetPx,
                         cellCornerPx,
+                        inwardOffsetPx,
+                        sharedEdgeSmoothingPasses,
                         alphaMultiplier: fillAlpha,
                     });
                     this.lastNextTextureSig = nextTextureSig;
@@ -2324,6 +2362,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     cellSpacingPx: patternClassification.spacingPx,
                     cellInsetPx,
                     cellCornerPx,
+                    inwardOffsetPx,
+                    sharedEdgeSmoothingPasses,
                     alphaMultiplier: fillAlpha,
                 });
                 drawGeometryFill({
