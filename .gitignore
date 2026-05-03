@@ -11,4 +11,3 @@ vite.config.ts.timestamp-*
 .pi/sessions/
 .agent-harness/context-cache/
 .agent-harness/metrics/
-sessions/

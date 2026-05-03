@@ -910,7 +910,7 @@ export function renderStars(
             // Vertical stacked mode (legacy)
             const layoutKey = [
                 layout,
-                lineH.toFixed(2),
+                lineHeight.toFixed(2),
                 idText2.visible ? 1 : 0,
                 activeText.visible ? 1 : 0,
                 damagedText.visible ? 1 : 0,
@@ -924,10 +924,10 @@ export function renderStars(
                 idText2.anchor.set(0.5, 0.5);
                 idText2.position.set(0, 0);
                 activeText.anchor.set(0.5, 0.5);
-                activeText.position.set(0, lineH);
+                activeText.position.set(0, lineHeight);
                 damagedText.anchor.set(0.5, 0.5);
-                damagedText.position.set(0, lineH * 2);
-                label.pivot.set(0, lineH);
+                damagedText.position.set(0, lineHeight * 2);
+                label.pivot.set(0, lineHeight);
                 labelView.lastLayoutKey = layoutKey;
                 labelContentDirty = true;
             }

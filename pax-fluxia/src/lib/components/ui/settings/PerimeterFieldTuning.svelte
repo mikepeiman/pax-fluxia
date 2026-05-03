@@ -122,32 +122,6 @@
     <div class="row-top">
         <span
             class="var-name"
-            title="How far inward from the source boundary each perimeter vstar is placed. Higher values move the samples deeper into the region interior."
-        >
-            Perimeter Inward Offset
-        </span>
-        <span class="val">{panel.perimeterFieldInwardOffsetPx ?? GAME_CONFIG.PERIMETER_FIELD_INWARD_OFFSET_PX ?? 10}px</span>
-    </div>
-    <div class="var-desc">
-        Moves derived perimeter vstars inside the region instead of sitting exactly on the boundary.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="60"
-        step="1"
-        value={panel.perimeterFieldInwardOffsetPx ?? GAME_CONFIG.PERIMETER_FIELD_INWARD_OFFSET_PX ?? 10}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('PERIMETER_FIELD_INWARD_OFFSET_PX', 'perimeterFieldInwardOffsetPx', value);
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
             title="Influence radius for each derived perimeter vstar in the displayed field. Higher values make the boundary shell thicker and more blobby."
         >
             Perimeter Vstar Radius

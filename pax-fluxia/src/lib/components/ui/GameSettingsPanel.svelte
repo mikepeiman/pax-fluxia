@@ -949,6 +949,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             : null,
     );
 
+    $effect(() => {
+        let next = activeSubsections;
+        let changed = false;
+        for (const section of sections) {
+            const active = activeSubsections[section.id] ?? "all";
+            if (active === "all") continue;
+            const allowed = sectionSubsections[section.id] ?? [];
+            if (allowed.some((subsection) => subsection.id === active)) continue;
+            next = { ...next, [section.id]: "all" };
+            changed = true;
+        }
+        if (changed) {
+            activeSubsections = next;
+        }
+    });
+
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
         return sections.find((section) => section.id === sectionId) ?? sections[0];
     }
@@ -1458,6 +1474,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <ControlsSectionFrontierFx
                         {panel}
                         {updatePanel}
+                        syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec.id === "fleet_star_visuals"}
                     <ControlsSectionShips

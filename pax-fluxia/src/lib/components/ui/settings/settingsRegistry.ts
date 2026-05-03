@@ -15,6 +15,7 @@ export type SettingsSectionId =
     | "frontier_fx"
     | "territory_tuning"
     | "territory_styles"
+    | "frontier_fx"
     | "fleet_star_visuals"
     | "audio"
     | "diagnostics"

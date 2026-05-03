@@ -984,6 +984,12 @@ function rebuildConnectionsFromLaneClearance(): void {
 /** Debug A: 4 stars in triangle + dead-end (matches server initDebugMap) */
 function initDebugMap(playerIds: string[], variant: string): void {
     measurePerf('game.initDebugMap', () => {
+    const isPortrait =
+        typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    GAME_CONFIG._MAP_WIDTH = isPortrait ? 900 : 1600;
+    GAME_CONFIG._MAP_HEIGHT = isPortrait ? 1600 : 900;
+    GAME_CONFIG._MAP_PADDING_X = 0;
+    GAME_CONFIG._MAP_PADDING_Y = 0;
     const cx = 800, cy = 450, spread = 250;
     const humanId = playerIds[0] || 'human-player';
     const aiId = playerIds[1] || 'ai-1';
@@ -1751,6 +1757,13 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
         star.lastCombatTick = -1;
         state!.stars.set(star.id, star);
     });
+    const runtimeStars = [...state!.stars.values()];
+    const runtimeMaxX = Math.max(0, ...runtimeStars.map((star) => star.x));
+    const runtimeMaxY = Math.max(0, ...runtimeStars.map((star) => star.y));
+    GAME_CONFIG._MAP_WIDTH = Math.ceil(needsScale ? targetW : runtimeMaxX + 80);
+    GAME_CONFIG._MAP_HEIGHT = Math.ceil(needsScale ? targetH : runtimeMaxY + 80);
+    GAME_CONFIG._MAP_PADDING_X = Math.ceil(offsetX);
+    GAME_CONFIG._MAP_PADDING_Y = Math.ceil(offsetY);
     for (const conn of map.connections) {
         addDebugConnection(conn.sourceId, conn.targetId);
     }
