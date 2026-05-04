@@ -1025,3 +1025,30 @@
 - Expected user-visible result:
   - PVV4 transitions should return to the pre-pin-bet behavior
   - the geometry overlay issue remains isolated as a separate follow-up fix
+
+## Update: 2026-05-04 - Fix Canonical Underlying-Geometry Overlay Selection
+
+- Trigger:
+  - immediately after the transition revert, the separate geometry-overlay complaint still needed its own fix:
+    - `Show underlying geometry` in PVV4 was drawing only 1-2 partial outlines
+- Root cause:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - canonical/PVV4 geometry had been routed through the same helper used by perimeter-field diagnostics:
+    - `getPerimeterDebugLoops()`
+  - that helper prefers `shellLoops`
+  - canonical runtime snapshots can have shell-loop structure that is useful for shell diagnostics but not for “show me the full underlying territory geometry”
+  - result:
+    - the overlay could collapse to a few shell fragments instead of full region outlines
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+      - added mode-aware underlying-geometry loop selection
+      - canonical modes now draw from `territoryRegions`
+      - perimeter-field family modes still use shell-loop-oriented debug selection
+- Purpose:
+  - make `Show underlying geometry` in PVV4 actually useful for whole-map inspection
+  - keep perimeter-field diagnostics unchanged while fixing the canonical/PVV4 path
+- Validation:
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - in `Settings -> Diagnostics`, turning on `Show underlying geometry` while PVV4 is active should now draw cyan region outlines across the whole map rather than just 1-2 partial shell fragments

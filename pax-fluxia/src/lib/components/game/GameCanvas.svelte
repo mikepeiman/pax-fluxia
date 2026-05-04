@@ -4188,6 +4188,18 @@
             .map((region) => region.points);
     }
 
+    function getUnderlyingGeometryLoops(
+        mode: string,
+        geometry: CanonicalGeometrySnapshot,
+    ): ReadonlyArray<ReadonlyArray<[number, number]>> {
+        if (modeUsesCanonicalRuntimeGeometry(mode)) {
+            return geometry.territoryRegions
+                .filter((region) => Boolean(region.ownerId))
+                .map((region) => region.points);
+        }
+        return getPerimeterDebugLoops(geometry);
+    }
+
     function drawClosedPolyline(
         g: PIXI.Graphics,
         points: ReadonlyArray<[number, number]>,
@@ -4417,7 +4429,7 @@
                   ? canonicalDebugGeometrySnapshot
                   : null;
             if (geometry) {
-                for (const points of getPerimeterDebugLoops(geometry)) {
+                for (const points of getUnderlyingGeometryLoops(activeMode, geometry)) {
                     drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
                 }
             }

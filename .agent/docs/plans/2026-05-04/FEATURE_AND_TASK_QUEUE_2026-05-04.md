@@ -137,9 +137,10 @@
   - user-visible regressions reported:
     - ghost-region flying/transforming on island capture
     - broader section translation/morph than the pre-bet baseline
-- Isolated a separate canonical/PVV4 underlying-geometry overlay bug:
-  - canonical runtime geometry is still using the perimeter-field shell-loop selector
-  - that selector can collapse the overlay down to 1-2 partial shells instead of full region outlines
+- Fixed the separate canonical/PVV4 underlying-geometry overlay bug:
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - canonical runtime geometry now draws full `territoryRegions` loops for `Show underlying geometry`
+  - perimeter-field family modes keep the shell-loop diagnostic behavior they were already using
 
 ## Current Best Read
 
@@ -182,4 +183,4 @@
   - specific pair-level skip mixes
 - Export a fresh dual-conquest package after the naming patch and verify that the extracted `debug/` JSON files now preserve the conquest-aware datetime prefix in their filenames.
 - Only after that evidence exists, decide whether the first fix bet belongs in stable-anchor matching, split handling, or change-span detection.
-- Fix `Show underlying geometry` in PVV4 by switching canonical overlay drawing from shell loops to full territory-region loops.
+- Verify `Show underlying geometry` in PVV4 now draws full-map region outlines rather than 1-2 partial shell fragments.
