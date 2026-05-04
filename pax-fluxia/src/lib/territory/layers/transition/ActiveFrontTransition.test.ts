@@ -298,7 +298,66 @@ describe('ActiveFrontTransition', () => {
             [8, 0],
             [10, 0],
         ]);
-        expect(sampledSection?.[2]?.[1]).toBe(2);
-        expect(sampledSection?.[3]?.[1]).toBe(2);
+        expect(sampledSection?.[2]?.[1]).toBeGreaterThan(1.8);
+        expect(sampledSection?.[2]?.[1]).toBeLessThan(2.2);
+        expect(sampledSection?.[3]?.[1]).toBeGreaterThan(1.8);
+        expect(sampledSection?.[3]?.[1]).toBeLessThan(2.2);
+    });
+
+    it('interpolates from the local change-anchor window instead of the full stable-anchor chain', () => {
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const prev = makeLongSectionTopology('prev', [
+            [0, 0],
+            [1, 1],
+            [2, -1],
+            [3, 1],
+            [4, 0],
+            [6, 0],
+            [8, 0],
+            [10, 0],
+        ]);
+        const next = makeLongSectionTopology('next', [
+            [0, 0],
+            [2, 0],
+            [4, 0],
+            [6, 4],
+            [8, 4],
+            [10, 0],
+        ]);
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            stableAnchorEps: 2,
+            changeSpanEps: 1.1,
+            changeSpanPadPoints: 0,
+        });
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.fronts[0].changeSpan).toEqual({
+            base: 'next',
+            startIndex: 3,
+            endIndex: 4,
+        });
+        expect(plan.fronts[0].localChangeWindow).toEqual({
+            nextAnchorStartIndex: 2,
+            nextAnchorEndIndex: 5,
+            prevStartParam: expect.any(Number),
+            prevEndParam: expect.any(Number),
+        });
+
+        const sampled = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sampledSection = sampled.get(SECTION_ID);
+        expect(sampledSection).toBeDefined();
+        expect(sampledSection?.[2]).toEqual([4, 0]);
+        expect(sampledSection?.[5]).toEqual([10, 0]);
+        expect(sampledSection?.[3]?.[0]).toBeCloseTo(6, 5);
+        expect(sampledSection?.[4]?.[0]).toBeCloseTo(8, 5);
+        expect(sampledSection?.[3]?.[1]).toBeCloseTo(2, 5);
+        expect(sampledSection?.[4]?.[1]).toBeCloseTo(2, 5);
     });
 });

@@ -8,7 +8,6 @@ import type {
 } from '../../contracts/FrontierTopologyContracts';
 import type { FillTransitionFrame } from '../../contracts/TransitionContracts';
 import { rebuildLoopPoints } from '../../compiler/buildFrontierTopology';
-import { log } from '$lib/utils/logger';
 
 type Vec2 = [number, number];
 
@@ -40,6 +39,7 @@ interface ActiveFrontPlan {
     prevPaths: ChainPath[];
     nextPaths: ChainPath[];
     changeSpan: { startIndex: number; endIndex: number; base: 'prev' | 'next' };
+    localChangeWindow: LocalChangeWindow | null;
     sectionSpans: Map<string, {
         startIndex: number;
         endIndex: number;
@@ -56,6 +56,13 @@ interface CollapseTarget {
     ownerId: string;
     center: Vec2;
     points: Vec2[];
+}
+
+interface LocalChangeWindow {
+    nextAnchorStartIndex: number;
+    nextAnchorEndIndex: number;
+    prevStartParam: number;
+    prevEndParam: number;
 }
 
 export interface ActiveFrontPairDiagnostic {
@@ -80,6 +87,12 @@ export interface ActiveFrontPairDiagnostic {
         base: 'prev' | 'next';
         startIndex: number;
         endIndex: number;
+    } | null;
+    changeAnchorWindow: {
+        nextAnchorStartIndex: number;
+        nextAnchorEndIndex: number;
+        prevStartParam: number;
+        prevEndParam: number;
     } | null;
     activeSectionIds: string[];
 }
@@ -183,6 +196,7 @@ export function planActiveFrontTransition(
             outcome: 'skipped_topology_gap',
             rawChangeSpan: null,
             paddedChangeSpan: null,
+            changeAnchorWindow: null,
             activeSectionIds: [],
         };
 
@@ -219,6 +233,19 @@ export function planActiveFrontTransition(
             continue;
         }
 
+        const localChangeWindow = buildLocalChangeWindow(
+            prevPaths,
+            nextPaths,
+            splitMode,
+            { base, startIndex, endIndex },
+        );
+        pairDiagnostic.changeAnchorWindow = localChangeWindow;
+        if (!localChangeWindow) {
+            pairDiagnostic.outcome = 'skipped_no_change_span';
+            pairDiagnostics.push(pairDiagnostic);
+            continue;
+        }
+
         const { sectionSpans, activeSectionIds, sectionReversed } = buildSectionSpans(
             nextPaths,
             splitMode,
@@ -233,6 +260,7 @@ export function planActiveFrontTransition(
             prevPaths,
             nextPaths,
             changeSpan: { startIndex, endIndex, base },
+            localChangeWindow,
             sectionSpans,
             activeSectionIds,
             sectionReversed,
@@ -342,6 +370,7 @@ export function compactActiveFrontTransitionPlan(
             anchorEndId: front.anchorEndId,
             splitMode: front.splitMode,
             changeSpan: front.changeSpan,
+            changeAnchorWindow: front.localChangeWindow,
             activeSectionIds: [...front.activeSectionIds].sort(),
             prevPaths: front.prevPaths.map((path) => ({
                 anchorStartId: path.anchorStartId,
@@ -371,7 +400,7 @@ export function compactActiveFrontTransitionPlan(
 
 export function sampleActiveFrontSectionGeometry(
     plan: ActiveFrontTransitionPlan,
-    prev: FrontierTopology,
+    _prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
 ): ReadonlyMap<string, [number, number][]> {
@@ -385,18 +414,13 @@ export function sampleActiveFrontSectionGeometry(
 
     // Apply active fronts
     for (const front of plan.fronts) {
-        const interpolatedPaths = buildInterpolatedPaths(front, prev, next, t);
+        const sampledPaths = buildSampledNextPaths(front, t);
 
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
-            const pathPoints = interpolatedPaths[span.pathIndex];
-            const nextPathPoints = front.nextPaths[span.pathIndex]?.points;
-            if (!pathPoints || !nextPathPoints) continue;
-            const slice = sampleActiveFrontSectionPoints(
-                nextPathPoints,
-                pathPoints,
-                span,
-            );
+            const pathPoints = sampledPaths[span.pathIndex];
+            if (!pathPoints) continue;
+            const slice = sliceSampledSectionPoints(pathPoints, span);
             const reversed = front.sectionReversed.get(sectionId);
             sectionGeometry.set(sectionId, reversed ? [...slice].reverse() : slice);
         }
@@ -407,12 +431,12 @@ export function sampleActiveFrontSectionGeometry(
 
 export function sampleActiveFrontTransition(
     plan: ActiveFrontTransitionPlan,
-    prev: FrontierTopology,
+    _prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
 ): FillTransitionFrame {
     const t = Math.min(Math.max(progress, 0), 1);
-    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, t);
+    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, _prev, next, t);
 
     const regions: { ownerId: string; points: Vec2[] }[] = [];
 
@@ -835,42 +859,108 @@ function buildSectionSpans(
 // Helper: interpolation
 // ---------------------------------------------------------------------------
 
-function buildInterpolatedPaths(
-    plan: ActiveFrontPlan,
-    prev: FrontierTopology,
-    next: FrontierTopology,
-    t: number,
-): Vec2[][] {
-    if (plan.splitMode === 'none') {
-        const prevChain = concatSections(prev, plan.prevPaths[0].sectionIds, plan.prevPaths[0].anchorStartId);
-        const nextChain = concatSections(next, plan.nextPaths[0].sectionIds, plan.nextPaths[0].anchorStartId);
-        if (prevChain.length === 0 || nextChain.length === 0) {
-            log.renderer('ActiveFrontTransition',
-                `Warning: empty chain in splitMode=none (prev=${prevChain.length}, next=${nextChain.length})`);
-        }
-        return [lerpArcAligned(prevChain, nextChain, t)];
+function buildLocalChangeWindow(
+    prevPaths: ChainPath[],
+    nextPaths: ChainPath[],
+    splitMode: SplitMode,
+    changeSpan: { base: 'prev' | 'next'; startIndex: number; endIndex: number },
+): LocalChangeWindow | null {
+    if (splitMode !== 'none' || changeSpan.base !== 'next') {
+        return null;
     }
-    if (plan.splitMode === '1to2') {
-        const prevChain = concatSections(prev, plan.prevPaths[0].sectionIds, plan.prevPaths[0].anchorStartId);
-        const nextA = concatSections(next, plan.nextPaths[0].sectionIds, plan.nextPaths[0].anchorStartId);
-        const nextB = concatSections(next, plan.nextPaths[1].sectionIds, plan.nextPaths[1].anchorStartId);
-        const { prevForNext0, prevForNext1 } = splitByNearest(prevChain, nextA, nextB);
-        return [
-            lerpArcAligned(prevForNext0, nextA, t),
-            lerpArcAligned(prevForNext1, nextB, t),
-        ];
+
+    const prevPath = prevPaths[0]?.points;
+    const nextPath = nextPaths[0]?.points;
+    if (!prevPath || !nextPath || prevPath.length < 2 || nextPath.length < 2) {
+        return null;
     }
-    // splitMode === '2to1'
-    const prevA = concatSections(prev, plan.prevPaths[0].sectionIds, plan.prevPaths[0].anchorStartId);
-    const prevB = concatSections(prev, plan.prevPaths[1].sectionIds, plan.prevPaths[1].anchorStartId);
-    const nextChain = concatSections(next, plan.nextPaths[0].sectionIds, plan.nextPaths[0].anchorStartId);
-    const mergedPrev = mergeByNearest(prevA, prevB, nextChain);
-    return [lerpArcAligned(mergedPrev, nextChain, t)];
+
+    const nextAnchorStartIndex = Math.max(
+        0,
+        Math.min(changeSpan.startIndex - 1, nextPath.length - 1),
+    );
+    const nextAnchorEndIndex = Math.max(
+        0,
+        Math.min(changeSpan.endIndex + 1, nextPath.length - 1),
+    );
+    if (nextAnchorEndIndex <= nextAnchorStartIndex) {
+        return null;
+    }
+
+    const nextStartPoint = nextPath[nextAnchorStartIndex];
+    const nextEndPoint = nextPath[nextAnchorEndIndex];
+    if (!nextStartPoint || !nextEndPoint) {
+        return null;
+    }
+
+    const prevStartProjection = projectPointToPolyline(nextStartPoint, prevPath);
+    const prevEndProjection = projectPointToPolylineWithParamFloor(
+        nextEndPoint,
+        prevPath,
+        prevStartProjection.param,
+    );
+    if (prevEndProjection.param <= prevStartProjection.param) {
+        return null;
+    }
+
+    return {
+        nextAnchorStartIndex,
+        nextAnchorEndIndex,
+        prevStartParam: prevStartProjection.param,
+        prevEndParam: prevEndProjection.param,
+    };
 }
 
-function sampleActiveFrontSectionPoints(
-    stablePathPoints: Vec2[],
-    movingPathPoints: Vec2[],
+function buildSampledNextPaths(
+    plan: ActiveFrontPlan,
+    t: number,
+): Vec2[][] {
+    if (
+        plan.splitMode !== 'none' ||
+        plan.changeSpan.base !== 'next' ||
+        !plan.localChangeWindow
+    ) {
+        return plan.nextPaths.map((path) => path.points.map(([x, y]) => [x, y] as Vec2));
+    }
+
+    const prevPath = plan.prevPaths[0]?.points;
+    const nextPath = plan.nextPaths[0]?.points;
+    if (!prevPath || !nextPath) {
+        return plan.nextPaths.map((path) => path.points.map(([x, y]) => [x, y] as Vec2));
+    }
+
+    const sampledPath = nextPath.map(([x, y]) => [x, y] as Vec2);
+    const {
+        nextAnchorStartIndex,
+        nextAnchorEndIndex,
+        prevStartParam,
+        prevEndParam,
+    } = plan.localChangeWindow;
+    const localNextSegment = nextPath.slice(nextAnchorStartIndex, nextAnchorEndIndex + 1);
+    if (localNextSegment.length < 3) {
+        return [sampledPath];
+    }
+
+    const localPrevSegment = samplePolylineBetweenParams(
+        prevPath,
+        prevStartParam,
+        prevEndParam,
+        localNextSegment.length,
+    );
+    for (let localIndex = 1; localIndex < localNextSegment.length - 1; localIndex += 1) {
+        const globalIndex = nextAnchorStartIndex + localIndex;
+        sampledPath[globalIndex] = lerpPoint(
+            localPrevSegment[localIndex],
+            localNextSegment[localIndex],
+            t,
+        );
+    }
+
+    return [sampledPath];
+}
+
+function sliceSampledSectionPoints(
+    sampledPathPoints: Vec2[],
     span: {
         startIndex: number;
         endIndex: number;
@@ -879,35 +969,19 @@ function sampleActiveFrontSectionPoints(
     },
 ): Vec2[] {
     const realStart = span.startIndex > 0 ? span.startIndex - 1 : span.startIndex;
-    const stableSlice = stablePathPoints
+    return sampledPathPoints
         .slice(realStart, span.endIndex + 1)
         .map(([x, y]) => [x, y] as Vec2);
-
-    if (
-        span.activeStartIndex === -1 ||
-        span.activeEndIndex === -1 ||
-        stableSlice.length === 0
-    ) {
-        return stableSlice;
-    }
-
-    const movingSlice = movingPathPoints.slice(realStart, span.endIndex + 1);
-    const localStart = Math.max(0, span.activeStartIndex - realStart);
-    const localEnd = Math.min(stableSlice.length - 1, span.activeEndIndex - realStart);
-
-    for (let i = localStart; i <= localEnd; i += 1) {
-        const point = movingSlice[i];
-        if (!point) continue;
-        stableSlice[i] = [point[0], point[1]];
-    }
-
-    return stableSlice;
 }
 
 export function getActiveFrontChangeAnchors(
     front: ActiveFrontTransitionPlan['fronts'][number],
 ): ActiveFrontChangeAnchors | null {
-    if (front.splitMode !== 'none' || front.changeSpan.base !== 'next') {
+    if (
+        front.splitMode !== 'none' ||
+        front.changeSpan.base !== 'next' ||
+        !front.localChangeWindow
+    ) {
         return null;
     }
 
@@ -916,14 +990,8 @@ export function getActiveFrontChangeAnchors(
         return null;
     }
 
-    const startIndex = Math.max(
-        0,
-        Math.min(front.changeSpan.startIndex - 1, basePath.length - 1),
-    );
-    const endIndex = Math.max(
-        0,
-        Math.min(front.changeSpan.endIndex + 1, basePath.length - 1),
-    );
+    const { nextAnchorStartIndex: startIndex, nextAnchorEndIndex: endIndex } =
+        front.localChangeWindow;
     const startPoint = basePath[startIndex];
     const endPoint = basePath[endIndex];
     if (!startPoint || !endPoint) {
@@ -934,66 +1002,6 @@ export function getActiveFrontChangeAnchors(
         startPoint: [startPoint[0], startPoint[1]],
         endPoint: [endPoint[0], endPoint[1]],
     };
-}
-
-function concatSections(topo: FrontierTopology, sectionIds: string[], anchorStartId?: string): Vec2[] {
-    const points: Vec2[] = [];
-    let currentVertex: string | null = anchorStartId ?? null;
-    for (const sectionId of sectionIds) {
-        const section = topo.sections.get(sectionId);
-        if (!section) continue;
-        const fromVertex = currentVertex ?? section.startVertexId;
-        const oriented = getOrientedSectionPoints(section, fromVertex);
-        appendPolyline(points, oriented);
-        currentVertex = otherVertex(section, fromVertex);
-    }
-    return points;
-}
-
-function lerpArcAligned(prev: Vec2[], next: Vec2[], t: number): Vec2[] {
-    if (next.length === 0) return [];
-    // If the prev chain failed to concatenate (missing sections / ID mismatch),
-    // sampling an empty prev used to return [0,0] per sample → vertices pile at
-    // world origin (top-left), then lerp toward real positions. Fall back to `next`
-    // as both endpoints so we never inject a synthetic origin.
-    const prevChain = prev.length > 0 ? prev : next;
-    if (prev.length === 0 && next.length > 0) {
-        log.renderer('ActiveFrontTransition',
-            `Warning: empty prev chain in lerpArcAligned (nextLen=${next.length}, t=${t.toFixed(3)}) — using next as fallback`);
-    }
-    const prevTable = buildArcLengthTable(prevChain);
-    const nextTable = buildArcLengthTable(next);
-    const out: Vec2[] = new Array(next.length);
-    for (let i = 0; i < next.length; i += 1) {
-        const u = nextTable.total <= 0 ? 0 : nextTable.cumulative[i] / nextTable.total;
-        const prevAt = samplePolylineAtParam(prevChain, prevTable, u);
-        out[i] = lerpPoint(prevAt, next[i], t);
-    }
-    return out;
-}
-
-function splitByNearest(prev: Vec2[], nextA: Vec2[], nextB: Vec2[]): {
-    prevForNext0: Vec2[];
-    prevForNext1: Vec2[];
-} {
-    const mid = Math.floor(prev.length / 2);
-    const firstHalf = prev.slice(0, Math.max(1, mid + 1));
-    const secondHalf = prev.slice(Math.max(1, mid + 1));
-
-    const firstToA = averageDistanceToPolyline(firstHalf, nextA);
-    const firstToB = averageDistanceToPolyline(firstHalf, nextB);
-
-    if (firstToA <= firstToB) {
-        return { prevForNext0: firstHalf, prevForNext1: secondHalf };
-    }
-    return { prevForNext0: secondHalf, prevForNext1: firstHalf };
-}
-
-function mergeByNearest(prevA: Vec2[], prevB: Vec2[], next: Vec2[]): Vec2[] {
-    const projA = prevA.map(p => projectPointToPolyline(p, next));
-    const projB = prevB.map(p => projectPointToPolyline(p, next));
-    const merged = [...projA, ...projB].sort((a, b) => a.param - b.param);
-    return merged.map(m => m.point);
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,11 +1077,73 @@ function projectPointToPolyline(p: Vec2, poly: Vec2[]): { param: number; point: 
     return { param: bestParam, point: bestPoint };
 }
 
-function averageDistanceToPolyline(points: Vec2[], poly: Vec2[]): number {
-    if (points.length === 0) return 0;
-    let sum = 0;
-    for (const p of points) sum += distancePointToPolyline(p, poly);
-    return sum / points.length;
+function projectPointToPolylineWithParamFloor(
+    p: Vec2,
+    poly: Vec2[],
+    minParam: number,
+): { param: number; point: Vec2 } {
+    if (poly.length === 0) return { param: minParam, point: p };
+    if (poly.length === 1) return { param: minParam, point: poly[0] };
+
+    const clampedMinParam = Math.min(Math.max(minParam, 0), 1);
+    const table = buildArcLengthTable(poly);
+    const minAbsolute = clampedMinParam * table.total;
+    let bestDist = Infinity;
+    let bestParam = clampedMinParam;
+    let bestPoint: Vec2 = samplePolylineAtParam(poly, table, clampedMinParam);
+
+    for (let i = 1; i < poly.length; i += 1) {
+        const a = poly[i - 1];
+        const b = poly[i];
+        const segStart = table.cumulative[i - 1];
+        const segEnd = table.cumulative[i];
+        if (segEnd < minAbsolute) continue;
+
+        const abx = b[0] - a[0];
+        const aby = b[1] - a[1];
+        const apx = p[0] - a[0];
+        const apy = p[1] - a[1];
+        const abLen2 = abx * abx + aby * aby;
+        const minT =
+            segEnd <= segStart || minAbsolute <= segStart
+                ? 0
+                : Math.min(1, Math.max(0, (minAbsolute - segStart) / (segEnd - segStart)));
+        const projectedT =
+            abLen2 <= 1e-9 ? minT : Math.max(minT, Math.min(1, (apx * abx + apy * aby) / abLen2));
+        const proj: Vec2 = [a[0] + projectedT * abx, a[1] + projectedT * aby];
+        const d = distance(p, proj);
+        if (d < bestDist) {
+            bestDist = d;
+            const absolute = segStart + projectedT * (segEnd - segStart);
+            bestParam = table.total <= 0 ? clampedMinParam : absolute / table.total;
+            bestPoint = proj;
+        }
+    }
+
+    return { param: bestParam, point: bestPoint };
+}
+
+function samplePolylineBetweenParams(
+    points: Vec2[],
+    startParam: number,
+    endParam: number,
+    sampleCount: number,
+): Vec2[] {
+    if (sampleCount <= 0) return [];
+    if (sampleCount === 1) {
+        const table = buildArcLengthTable(points);
+        return [samplePolylineAtParam(points, table, startParam)];
+    }
+
+    const clampedStart = Math.min(Math.max(startParam, 0), 1);
+    const clampedEnd = Math.min(Math.max(endParam, clampedStart), 1);
+    const table = buildArcLengthTable(points);
+    const out: Vec2[] = new Array(sampleCount);
+    for (let i = 0; i < sampleCount; i += 1) {
+        const u = clampedStart + ((clampedEnd - clampedStart) * i) / (sampleCount - 1);
+        out[i] = samplePolylineAtParam(points, table, u);
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------

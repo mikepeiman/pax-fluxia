@@ -1234,3 +1234,54 @@
   - bias future fixes toward smaller-scope, fail-safe local transport
   - when an ambiguous split or change-anchor case cannot be bounded cleanly, prefer skip/snap rather than a broader animated guess
   - treat "more conquests animate" as a non-goal unless the added coverage preserves minimal transport
+
+## Update: 2026-05-04 - Make Change Anchors The Runtime Transport Primitive
+
+- Trigger:
+  - user explicitly redirected the branch toward the key concept:
+    - change anchors are the correct governing primitive
+    - the goal is not broader animation coverage
+    - the goal is minimal border transport inside the bounded changed frontier span
+- State / diagnosis:
+  - after the minimal-transport reset, the branch still had one important conceptual leak:
+    - planning detected a point-level local `changeSpan`
+    - runtime still built moving points from a whole-chain stable-anchor morph
+    - then it only masked that broad morph down to the active section output
+  - that meant the unchanged tails could remain visually static while the interior moving points were still being influenced by the full stable-anchor chain
+  - this is exactly the wrong hierarchy:
+    - stable anchors should bound the frontier chain
+    - change anchors should bound the transport window inside it
+    - the transport should be generated from the change-anchor window itself
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - added `localChangeWindow` to each planned active front:
+        - `nextAnchorStartIndex`
+        - `nextAnchorEndIndex`
+        - `prevStartParam`
+        - `prevEndParam`
+      - planning now constructs that window directly from the clamped local `changeSpan`
+      - if the local anchor window cannot be constructed monotonically on the PREV path, the pair is skipped rather than broad-animated
+      - removed the remaining whole-chain interpolation runtime for admissible `1 -> 1` pairs
+      - runtime now:
+        - starts from the stable NEXT path
+        - samples the PREV polyline only between the projected local change anchors
+        - interpolates only the interior points inside that local anchor window
+      - exported compact diagnostics now include `changeAnchorWindow`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - kept the pinned-tail regression
+      - added a new regression where a noisy-but-stable prefix would previously drag the changed interior off its local corridor
+      - the new regression asserts the changed points stay centered inside the local anchor window instead of being pulled by the full stable-anchor chain
+- Purpose:
+  - make change anchors the actual transport primitive instead of a post-hoc diagnostic description
+  - ensure runtime behavior matches the branch doctrine:
+    - local change window first
+    - skip/snap if that local window cannot be built safely
+    - never broaden transport just to keep animation coverage
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - long-front `animated_fronts` cases should now be less likely to have their interior points dragged by distant stable-tail geometry
+  - `AF` markers still show the local window endpoints, but now they also correspond to the runtime interpolation window
+  - if a case cannot support a safe local anchor window, the branch should prefer snap/skip over broad deformation

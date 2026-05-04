@@ -223,6 +223,11 @@
   - snap transition is preferable to grossly deformed transition
   - mildly distorted transition is only acceptable if it is clearly better than a snap in the specific case
   - any future bet that reintroduces broad transport, whole-section drift, or ghost-region motion should be rejected even if it increases animation coverage
+- Change anchors are now the governing transition primitive, not just a diagnostic overlay:
+  - planning now derives a local change-anchor window for each admissible `1 -> 1` frontier pair
+  - runtime no longer builds moving points from the full stable-anchor chain and then masks them
+  - runtime now samples a PREV segment only between the projected local change anchors and interpolates only that window
+  - if a safe local anchor window cannot be built, the pair should skip/snap rather than broaden transport
 
 ## Next
 
@@ -246,3 +251,7 @@
   - prefer local correctness over animation coverage
   - prefer snap over gross deformation
   - only accept mild distortion when it wins visually against the corresponding snap
+- Specifically inspect whether the new local-window path improved the long-front class:
+  - unchanged tails should stay fixed
+  - the changed interior should move within the `AF` window instead of being dragged by the whole stable-anchor chain
+  - if a case still looks broad, the next fix should target anchor construction itself, not revert to broader interpolation
