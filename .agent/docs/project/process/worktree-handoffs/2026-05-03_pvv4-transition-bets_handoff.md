@@ -994,3 +994,34 @@
     - `15-27-15---056_<conquest-group>_topology.json`
     - `15-27-15---056_<conquest-group>_geometry_snapshot.json`
   - the user-supplied package still has the old internal names because it was exported before this patch
+
+## Update: 2026-05-04 - Revert Local-Span Pinning Bet After Regression Report
+
+- Trigger:
+  - user reported that the previous local-span pinning experiment made visible behavior worse:
+    - `Show underlying geometry` in PVV4 was only drawing a couple of partial outlines instead of the whole map
+    - island/sole-star captures were again showing ghost-region flying/transforming behavior
+    - some transitions were translating or transforming larger frontier sections than the user considered acceptable
+  - user explicitly advised that it was likely best to revert the last transition change and rethink the problem-solution
+- Root-cause read:
+  - the transition regressions were on the local-span pinning experiment from:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+  - the overlay regression was separate and isolated for follow-up:
+    - canonical/PVV4 geometry was reusing the perimeter-field debug loop selector
+    - that selector prefers `shellLoops` over `territoryRegions`
+    - on canonical snapshots this can collapse the overlay down to only a few shell fragments instead of full region outlines
+- Code changes:
+  - reverted the local-span pinning experiment:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+    - removed `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Purpose:
+  - get the branch back to the previously better visual baseline instead of continuing to stack regressions
+  - preserve the diagnostics/naming/export improvements while backing out the failed motion experiment
+  - separate the failed transition experiment from the unrelated overlay bug so each can be addressed cleanly
+- Validation:
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - PVV4 transitions should return to the pre-pin-bet behavior
+  - the geometry overlay issue remains isolated as a separate follow-up fix

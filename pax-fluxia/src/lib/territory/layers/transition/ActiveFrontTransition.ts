@@ -112,11 +112,6 @@ export interface ActiveFrontTransitionPlan {
     diagnostics: ActiveFrontPlanDiagnostics;
 }
 
-export interface ActiveFrontChangeAnchors {
-    startPoint: [number, number];
-    endPoint: [number, number];
-}
-
 const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
     'junction_3way',
     'world_intersection',
@@ -201,9 +196,9 @@ export function planActiveFrontTransition(
             changeSpanEps,
         );
         pairDiagnostic.rawChangeSpan = { ...rawChangeSpan };
-        const { base, startIndex, endIndex } = clampChangeSpanToStableEndpoints(
-            applyChangeSpanPadding(rawChangeSpan, changeSpanPadPoints),
-            rawChangeSpan.basePointCount,
+        const { base, startIndex, endIndex } = applyChangeSpanPadding(
+            rawChangeSpan,
+            changeSpanPadPoints,
         );
         pairDiagnostic.paddedChangeSpan = { base, startIndex, endIndex };
 
@@ -326,7 +321,6 @@ export function compactActiveFrontTransitionPlan(
         nextVersion: plan.nextVersion,
         diagnostics: plan.diagnostics,
         fronts: plan.fronts.map((front) => ({
-            changeAnchors: getActiveFrontChangeAnchors(front),
             anchorStartId: front.anchorStartId,
             anchorEndId: front.anchorEndId,
             splitMode: front.splitMode,
@@ -358,13 +352,14 @@ export function compactActiveFrontTransitionPlan(
 // Sampling
 // ---------------------------------------------------------------------------
 
-export function sampleActiveFrontSectionGeometry(
+export function sampleActiveFrontTransition(
     plan: ActiveFrontTransitionPlan,
     prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
-): ReadonlyMap<string, [number, number][]> {
+): FillTransitionFrame {
     const t = Math.min(Math.max(progress, 0), 1);
+
     const sectionGeometry = new Map<string, Vec2[]>();
 
     // Start with static passthrough (next topology)
@@ -374,11 +369,11 @@ export function sampleActiveFrontSectionGeometry(
 
     // Apply active fronts
     for (const front of plan.fronts) {
-        const sampledPaths = buildSampledFrontPaths(front, prev, next, t);
+        const interpolatedPaths = buildInterpolatedPaths(front, prev, next, t);
 
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
-            const pathPoints = sampledPaths[span.pathIndex];
+            const pathPoints = interpolatedPaths[span.pathIndex];
             // Chain building deduplicates junction vertices between sections
             // (appendPolyline skips the first point if it matches the previous
             // section's last point). Sections after the first in a chain are
@@ -390,18 +385,6 @@ export function sampleActiveFrontSectionGeometry(
             sectionGeometry.set(sectionId, reversed ? slice.reverse() : slice);
         }
     }
-
-    return sectionGeometry;
-}
-
-export function sampleActiveFrontTransition(
-    plan: ActiveFrontTransitionPlan,
-    prev: FrontierTopology,
-    next: FrontierTopology,
-    progress: number,
-): FillTransitionFrame {
-    const t = Math.min(Math.max(progress, 0), 1);
-    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, t);
 
     const regions: { ownerId: string; points: Vec2[] }[] = [];
 
@@ -697,37 +680,6 @@ function applyChangeSpanPadding(
     };
 }
 
-function clampChangeSpanToStableEndpoints(
-    changeSpan: { base: 'prev' | 'next'; startIndex: number; endIndex: number },
-    basePointCount: number,
-): { base: 'prev' | 'next'; startIndex: number; endIndex: number } {
-    if (
-        changeSpan.startIndex === -1 ||
-        changeSpan.endIndex === -1 ||
-        basePointCount <= 0
-    ) {
-        return changeSpan;
-    }
-
-    const interiorStart = basePointCount > 1 ? 1 : 0;
-    const interiorEnd = basePointCount > 1 ? basePointCount - 2 : 0;
-    const startIndex = Math.max(changeSpan.startIndex, interiorStart);
-    const endIndex = Math.min(changeSpan.endIndex, interiorEnd);
-    if (endIndex < startIndex) {
-        return {
-            base: changeSpan.base,
-            startIndex: -1,
-            endIndex: -1,
-        };
-    }
-
-    return {
-        base: changeSpan.base,
-        startIndex,
-        endIndex,
-    };
-}
-
 function findChangeSpan(
     basePoints: Vec2[],
     comparePolylines: Vec2[][],
@@ -845,70 +797,6 @@ function buildInterpolatedPaths(
     const nextChain = concatSections(next, plan.nextPaths[0].sectionIds, plan.nextPaths[0].anchorStartId);
     const mergedPrev = mergeByNearest(prevA, prevB, nextChain);
     return [lerpArcAligned(mergedPrev, nextChain, t)];
-}
-
-function buildSampledFrontPaths(
-    plan: ActiveFrontPlan,
-    prev: FrontierTopology,
-    next: FrontierTopology,
-    t: number,
-): Vec2[][] {
-    const interpolatedPaths = buildInterpolatedPaths(plan, prev, next, t);
-    if (plan.splitMode !== 'none' || plan.changeSpan.base !== 'next') {
-        return interpolatedPaths;
-    }
-
-    return interpolatedPaths.map((pathPoints, pathIndex) => {
-        const nextPath = plan.nextPaths[pathIndex];
-        if (!nextPath || nextPath.points.length !== pathPoints.length) {
-            return pathPoints;
-        }
-        return composePinnedPath(nextPath.points, pathPoints, plan.changeSpan);
-    });
-}
-
-function composePinnedPath(
-    stablePoints: Vec2[],
-    movingPoints: Vec2[],
-    changeSpan: { startIndex: number; endIndex: number },
-): Vec2[] {
-    if (stablePoints.length !== movingPoints.length || stablePoints.length === 0) {
-        return movingPoints;
-    }
-
-    const out = stablePoints.map(([x, y]) => [x, y] as Vec2);
-    const startIndex = Math.max(0, Math.min(changeSpan.startIndex, out.length - 1));
-    const endIndex = Math.max(0, Math.min(changeSpan.endIndex, out.length - 1));
-    if (endIndex < startIndex) {
-        return out;
-    }
-
-    for (let i = startIndex; i <= endIndex; i += 1) {
-        const point = movingPoints[i];
-        if (!point) continue;
-        out[i] = point;
-    }
-    return out;
-}
-
-export function getActiveFrontChangeAnchors(
-    front: ActiveFrontTransitionPlan['fronts'][number],
-): ActiveFrontChangeAnchors | null {
-    if (front.splitMode !== 'none') return null;
-    const basePath =
-        front.changeSpan.base === 'next' ? front.nextPaths[0]?.points : front.prevPaths[0]?.points;
-    if (!basePath || basePath.length === 0) return null;
-
-    const startIndex = Math.max(0, Math.min(front.changeSpan.startIndex - 1, basePath.length - 1));
-    const endIndex = Math.max(0, Math.min(front.changeSpan.endIndex + 1, basePath.length - 1));
-    const startPoint = basePath[startIndex];
-    const endPoint = basePath[endIndex];
-    if (!startPoint || !endPoint) return null;
-
-    return {
-        startPoint: [startPoint[0], startPoint[1]],
-        endPoint: [endPoint[0], endPoint[1]],
-    };
 }
 
 function concatSections(topo: FrontierTopology, sectionIds: string[], anchorStartId?: string): Vec2[] {

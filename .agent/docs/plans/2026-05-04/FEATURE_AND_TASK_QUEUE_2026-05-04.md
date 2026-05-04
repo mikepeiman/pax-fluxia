@@ -120,23 +120,6 @@
     - `hh:mm:ss---mmm`
 - Wrote post-mortem for the false-positive toggle restore and poor artifact request:
   - `.agent/docs/project/post-mortems/2026-05-04_diagnostics-toggle-and-artifact-ask.md`
-- Fixed a real PVV4 active-front overextension bug and corrected the frame-render diagnostics so exported artifacts match runtime behavior:
-  - runtime/sampling changes:
-    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
-      - active-front sampling now pins unchanged tails inside long sections instead of replacing an entire overlapping section with fully interpolated geometry
-      - final change spans are clamped away from matched stable-anchor endpoints so stable anchors do not enter the moving interval
-      - compact diagnostic output now includes explicit `changeAnchors`
-  - artifact renderer changes:
-    - `pax-fluxia/src/lib/territory/devtools/TransitionFrontierFrameRenderer.ts`
-      - active-section overlays now draw the real sampled section geometry instead of a naive full-section `prev -> next` lerp
-      - stable-anchor labels are now `SA*`
-      - change-anchor labels are now `AF*`
-  - targeted coverage:
-    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
-      - asserts that near-identical section tails remain pinned while only the interior moving span morphs
-- Validation:
-  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
-  - `bun run build` succeeds end to end
 - Fixed generic JSON filenames inside zipped transition diagnostic packages:
   - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
   - package-internal `debug/` JSON files now carry the same conquest-aware datetime prefix as the bundle itself:
@@ -147,6 +130,16 @@
   - README now lists the prefixed debug filenames instead of generic `diagnostic.json` / `topology.json` / `geometry_snapshot.json`
 - Validation:
   - `bun run build` succeeds end to end
+- Reverted the PVV4 local-span pinning experiment after user regression report:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionFrontierFrameRenderer.ts`
+  - removed `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - user-visible regressions reported:
+    - ghost-region flying/transforming on island capture
+    - broader section translation/morph than the pre-bet baseline
+- Isolated a separate canonical/PVV4 underlying-geometry overlay bug:
+  - canonical runtime geometry is still using the perimeter-field shell-loop selector
+  - that selector can collapse the overlay down to 1-2 partial shells instead of full region outlines
 
 ## Current Best Read
 
@@ -162,10 +155,6 @@
   1. timing feel
   2. moving-span isolation
   3. only then consider anti-kink smoothing or correspondence work
-- The newly supplied `15-28-02---366_transition-diagnostic-package` is an `animated_fronts` case, but it exposed a genuine active-front bug:
-  - the planner found one changed span on a long `ai-5|human-player` section
-  - sampling and diagnostics were both overextending that local span across the full overlapping section
-  - the latest fix narrows the moving geometry back to the local change interval and marks stable anchors separately from change anchors
 - The newly supplied `15-27-15---056_transition-diagnostic-package` is a true dual-conquest `animated_fronts` case:
   - two conquest events at the same timestamp:
     - `star-26: ai-5 -> ai-4`
@@ -177,18 +166,20 @@
     - `skippedTopologyGapCount = 3`
     - `skippedUnsupportedSplitCount = 4`
     - `skippedNoChangeSpanCount = 22`
-  - that package predates the latest local-span pinning fix, so its frames still show the older diagnostic artifact style and should not be treated as post-fix output
+  - it remains a useful reference for multi-front classification and naming, but not as proof that the reverted local-span pinning bet was correct
+- The newly supplied `15-28-02---366_transition-diagnostic-package` remains the key evidence package for the local-span problem:
+  - the planner found one changed span on a long `ai-5|human-player` section
+  - the attempted pinning fix regressed runtime behavior enough that it has now been backed out
+  - the problem still needs a new, smaller-scope solution
 
 ## Next
 
-- Re-export the same or similar `animated_fronts` conquest package after this fix.
-- Check whether the exported debug frames now show:
-  - active geometry only in the local changed span
-  - `SA*` labels at stable anchor pair endpoints
-  - `AF*` labels at the pinned local change anchors
-- If the runtime still shows endpoint drift after this fix, inspect the remaining change-span detection itself, not just section replacement.
-- Continue comparing snapped packages separately:
+- Run real conquest cases in `power_voronoi_canonical + pv_frontline` with the recorder enabled.
+- Inspect `Settings -> Diagnostics` for the live `AF Eval` / skip-count readout during snapped cases.
+- Export diagnostic packages and compare which snapped cases are classifying as:
   - `snap_no_fronts`
   - `topology_unavailable`
   - specific pair-level skip mixes
 - Export a fresh dual-conquest package after the naming patch and verify that the extracted `debug/` JSON files now preserve the conquest-aware datetime prefix in their filenames.
+- Only after that evidence exists, decide whether the first fix bet belongs in stable-anchor matching, split handling, or change-span detection.
+- Fix `Show underlying geometry` in PVV4 by switching canonical overlay drawing from shell loops to full territory-region loops.
