@@ -5,7 +5,10 @@ import type {
     PerimeterFieldDebugSnapshot,
 } from '../families/perimeterField/buildPerimeterFieldScene';
 import { compactPerimeterFieldDebugSnapshot } from '../families/perimeterField/perimeterFieldDiagnostics';
-import { filePrefixFromIsoTimestamp } from './snapshotExport';
+import {
+    filePrefixFromIsoTimestamp,
+    formatLocalCaptureTimeFromIsoTimestamp,
+} from './snapshotExport';
 
 type SamplePoint = {
     x: number;
@@ -648,7 +651,11 @@ function renderContactSheetCanvas(args: {
     ctx.fillText(args.label, 14, 17);
     ctx.font = '12px monospace';
     ctx.fillStyle = 'rgba(215, 230, 243, 0.72)';
-    ctx.fillText(args.timestamp, 14, 31);
+    ctx.fillText(
+        formatLocalCaptureTimeFromIsoTimestamp(args.timestamp),
+        14,
+        31,
+    );
 
     for (let i = 0; i < args.frames.length; i++) {
         const frame = args.frames[i]!;
@@ -760,7 +767,8 @@ export async function downloadPerimeterFieldConquestPackage(
             '# Perimeter Field Conquest Package',
             '',
             `Label: ${params.label}`,
-            `Timestamp: ${params.timestamp}`,
+            `Captured: ${formatLocalCaptureTimeFromIsoTimestamp(params.timestamp)}`,
+            `Captured ISO: ${params.timestamp}`,
             `Frames exported: ${frameEntries.length}`,
             '',
             'Contents:',

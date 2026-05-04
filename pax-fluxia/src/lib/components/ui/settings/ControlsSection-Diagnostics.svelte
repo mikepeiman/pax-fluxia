@@ -28,6 +28,7 @@
         downloadBundle,
         downloadDiagnosticPackage,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
+    import { formatLocalCaptureTimeFromIsoTimestamp } from "$lib/territory/devtools/snapshotExport";
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
 
     interface Props {
@@ -231,7 +232,7 @@
     }
 
     function timeLabel(bundle: TransitionDebugBundle): string {
-        return bundle.timestamp.slice(11, 19);
+        return formatLocalCaptureTimeFromIsoTimestamp(bundle.timestamp);
     }
 
     function frameLabel(bundle: TransitionDebugBundle): string {

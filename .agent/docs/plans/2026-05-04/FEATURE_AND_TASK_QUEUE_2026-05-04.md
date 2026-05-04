@@ -81,6 +81,15 @@
   - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
   - exports can now be written straight to a chosen folder via the browser File System
     Access API, with browser-download fallback when unsupported or unset
+- Changed diagnostic artifact timestamps to human-readable local capture time:
+  - `pax-fluxia/src/lib/territory/devtools/snapshotExport.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+  - `pax-fluxia/src/lib/territory/devtools/PerimeterFieldConquestPackage.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - filenames now use file-safe local time:
+    - `hh-mm-ss---mmm`
+  - visible labels / README text now use:
+    - `hh:mm:ss---mmm`
 - Wrote post-mortem for the false-positive toggle restore and poor artifact request:
   - `.agent/docs/project/post-mortems/2026-05-04_diagnostics-toggle-and-artifact-ask.md`
 

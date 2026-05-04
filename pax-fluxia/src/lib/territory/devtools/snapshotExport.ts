@@ -161,14 +161,22 @@ export function compactGeometrySnapshotForExport(geo: GeometrySnapshot | null | 
     };
 }
 
-/** `2026-04-07-143052` local time from ISO timestamp string. */
-export function filePrefixFromIsoTimestamp(iso: string): string {
+/** `hh:mm:ss---mmm` local time from ISO timestamp string, for human-readable labels. */
+export function formatLocalCaptureTimeFromIsoTimestamp(iso: string): string {
     const d = new Date(iso);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
     const ss = String(d.getSeconds()).padStart(2, '0');
-    return `${y}-${m}-${day}-${hh}${mm}${ss}`;
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    return `${hh}:${mm}:${ss}---${ms}`;
+}
+
+/**
+ * File-safe local capture time. Windows filenames cannot contain `:`, so use
+ * the same human layout with `-` substituted for the separators.
+ *
+ * Example: `14-30-52---187`
+ */
+export function filePrefixFromIsoTimestamp(iso: string): string {
+    return formatLocalCaptureTimeFromIsoTimestamp(iso).replace(/:/g, '-');
 }

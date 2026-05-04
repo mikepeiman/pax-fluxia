@@ -770,3 +770,33 @@
 - Expected user-visible result:
   - in PVV4, `Settings -> Diagnostics -> Show underlying geometry` should now draw cyan canonical geometry loops instead of doing nothing
   - in Diagnostics -> Exports, the user can choose a diagnostics folder once and future exports will write there directly instead of dumping into `Downloads`
+
+## Update: 2026-05-04 - Human-Readable Diagnostic Capture Timestamps
+
+- Trigger:
+  - user asked that debug files stop using hard-to-read timestamp formatting and instead use human-readable capture times
+- Change made:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\snapshotExport.ts`
+      - added `formatLocalCaptureTimeFromIsoTimestamp()`
+      - changed shared file prefix generation to use file-safe local capture time
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+      - package README now shows:
+        - `Captured: hh:mm:ss---mmm`
+        - `Captured ISO: ...`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\PerimeterFieldConquestPackage.ts`
+      - contact sheet timestamp and README timestamp now use human-readable local capture time
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - bundle list timestamps now show the same human-readable local capture time
+- Timestamp format:
+  - visible labels:
+    - `hh:mm:ss---mmm`
+  - filenames:
+    - `hh-mm-ss---mmm`
+  - reason:
+    - Windows filenames cannot contain `:`, so the filename form preserves the same readable layout with safe separators
+- Purpose:
+  - make exported diagnostics readable at a glance in the filesystem and in package summaries
+  - avoid forcing the user to mentally parse compact or machine-oriented timestamps
+- Validation:
+  - `bun run build` passes end to end after the shared formatter change

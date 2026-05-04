@@ -5,6 +5,7 @@ import {
     compactFrontierTopologyForExport,
     compactGeometrySnapshotForExport,
     filePrefixFromIsoTimestamp,
+    formatLocalCaptureTimeFromIsoTimestamp,
 } from './snapshotExport';
 import {
     resolveTransitionDiagnosticsExportAdapter,
@@ -500,7 +501,8 @@ function buildDiagnosticReadme(
         '# Transition Diagnostic Package',
         '',
         `Bundle ID: ${bundle.id}`,
-        `Timestamp: ${bundle.timestamp}`,
+        `Captured: ${formatLocalCaptureTimeFromIsoTimestamp(bundle.timestamp)}`,
+        `Captured ISO: ${bundle.timestamp}`,
         conquestLine,
         '',
         'Directories:',
