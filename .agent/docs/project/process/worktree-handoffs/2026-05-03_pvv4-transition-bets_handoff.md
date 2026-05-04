@@ -522,25 +522,136 @@
   - the code is ready for in-app verification
   - performance judgment still requires the user to exercise real conquest cases in the live game
 
+### 2026-05-04 - Instrumented PVV4 active-front diagnostics for snapped-vs-transitioned conquests
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\GameCanvasTerritoryBridge.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\stores\territoryRenderStatusStore.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.test.ts`
+- Purpose:
+  - instrument the exact seam the user called out: which conquests actually receive planned active fronts and which ones visually snap because the plan is empty or unavailable
+  - produce both in-game readouts and exported diagnostic package JSON/images from the same planner truth instead of relying on vague visual guesses or console-only traces
+- Exact change:
+  - `ActiveFrontTransition.ts`
+    - added per-anchor-pair planning diagnostics
+    - every anchor pair now records:
+      - `prevPathCount`
+      - `nextPathCount`
+      - path point counts
+      - section ids
+      - chosen split mode or lack of one
+      - raw and padded change spans
+      - active section ids when planned
+      - pair outcome
+    - added plan-level summary/classification:
+      - `animated_fronts`
+      - `collapse_only`
+      - `snap_no_fronts`
+    - added pair-level skip reasons:
+      - `skipped_topology_gap`
+      - `skipped_unsupported_split_mode`
+      - `skipped_no_change_span`
+    - added `compactActiveFrontTransitionPlan()` for export-safe JSON payloads
+  - `TransitionLayerCoordinator.ts`
+    - now computes a typed live `activeFrontDebug` summary every frame
+    - summary includes:
+      - evaluation
+      - selected path
+      - transition-active status
+      - topology availability
+      - front count
+      - collapse count
+      - sampled progress
+      - compact plan summary
+  - `TerritoryRuntimeCoordinator.ts`
+    - recorder captures on conquest now include:
+      - `kind: "active_front_live_capture"`
+      - live `activeFrontDebug`
+      - compact active-front plan JSON
+    - conquest log line now prints the active-front evaluation category
+  - `GameCanvasTerritoryBridge.ts`
+    - bridge update now returns the runtime output so the game canvas can surface live canonical diagnostics instead of treating the bridge as write-only
+  - `GameCanvas.svelte`
+    - canonical bridge output is now captured per frame
+    - live transition diagnostic state exports now include canonical PVV4 active-front diagnostics even when the non-canonical screenshot recorder path is inactive
+    - `setTerritoryRenderStatus()` now carries `activeFrontDiagnostics`
+  - `ControlsSection-Diagnostics.svelte`
+    - added a live `AF Eval` readout block in Settings -> Diagnostics
+    - it now shows:
+      - evaluation
+      - path used
+      - transition-active status
+      - sampled progress
+      - front/collapse counts
+      - topology-availability booleans
+      - stable-anchor / pair / skip-count summary when available
+  - `TransitionDiagnosticsAdapters.ts`
+    - added an `active_front_live_capture` export adapter
+    - exported package JSON now preserves the compact active-front diagnostic payload
+    - exported package images now get a visible active-front summary HUD panel overlaid onto the render frame
+  - `TransitionDiagnosticsAdapters.test.ts`
+    - removed stale dependency on missing `pvCanonical` module files
+    - replaced the adapter test with local mock-based coverage for both:
+      - `power_voronoi_canonical`
+      - `active_front_live_capture`
+- Result:
+  - this branch can now tell the difference between:
+    - conquests that actually animate with planned fronts
+    - conquests that only collapse removed loops
+    - conquests that snap because no active fronts were planned
+    - conquests that never received a topology plan because required topology snapshots were unavailable
+  - the diagnostic package path now carries the same planner truth that the live UI shows
+  - the benchmark bridge / canvas diagnostic state can now expose canonical PVV4 active-front status instead of returning only the older render-family capture state
+- What this should let the user see:
+  - in `Settings -> Diagnostics`, a live PVV4 active-front summary while reproducing snapped conquests
+  - in exported diagnostic packages, a summary panel on the render frame plus JSON for:
+    - plan classification
+    - stable-anchor counts
+    - pair counts
+    - skip counts
+    - compact per-front / per-pair planner data
+- Best current hypothesis:
+  - the dominant snap cases are likely to land in one of two buckets:
+    - `snap_no_fronts` because all candidate pairs are being skipped, most likely by `skipped_no_change_span`
+    - `topology_unavailable` if the planner is not receiving the topology pair it expects on the conquest frame
+  - this is now an evidence question instead of a guess; the next user run should tell us which bucket is actually dominant
+- Validation:
+  - `bun run build` completes successfully end to end in:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+  - targeted tests pass:
+    - `bunx vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts`
+  - the unrelated local settings file remains dirty and was not touched:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\common\resources\settings-live\current-settings.json`
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-PVV4Transition.svelte`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsRegistry.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settingsDefs.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\stores\territoryRenderStatusStore.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\GameCanvasTerritoryBridge.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
-- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
-- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\SharedTransitionClock.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.test.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\geometryTuning.ts`
 
 ## Current Risks
 
 - The easiest failure mode is over-fixing a mode that the user already considers close.
+- The new diagnostics are strong enough to tempt large planner rewrites; that remains the wrong move until real conquest runs show a dominant skip category.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
 - Older worktrees or branches that predate the `GameContainer.svelte` cleanup but include the diagnostics-shell migration can still recur with the same stale import unless they absorb this fix or the later master integration.
 - Older worktrees or branches that predate the local `geometryTuning.ts` contract update can likewise recur with the same missing-export failure unless they absorb this fix.
@@ -548,5 +659,6 @@
 
 ## Next Intended Step
 
-- Resume PVV4 visual verification once the current branch is run in dev with both game-shell import blockers removed.
-- Keep transition bets isolated; do not widen this into a general UI integration cleanup unless the next blocker is directly on the PVV4 path.
+- Run live conquest cases with the recorder enabled and read the new `AF Eval` diagnostics in-game.
+- Export at least a few snapped and a few animated conquest bundles and compare their active-front classifications / skip counts.
+- Only after that evidence is gathered, place the first repair bet on the dominant failure class instead of stacking speculative motion edits.

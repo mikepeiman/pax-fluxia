@@ -15,6 +15,7 @@ import {
     planActiveFrontTransition,
     sampleActiveFrontTransition,
     type ActiveFrontTransitionPlan,
+    type ActiveFrontPlanDiagnosticsSummary,
 } from './ActiveFrontTransition';
 import { log } from '$lib/utils/logger';
 
@@ -36,8 +37,35 @@ export interface TransitionCoordinatorResult {
     snapshot: TransitionSnapshot;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
+    activeFrontDebug: ActiveFrontRuntimeDebugState;
     /** Prev topology to keep alive for the duration of the transition. */
     transitionPrevTopology?: import('../../contracts/FrontierTopologyContracts').FrontierTopology | null;
+}
+
+export interface ActiveFrontRuntimeDebugState {
+    evaluation:
+        | 'idle'
+        | 'animated_fronts'
+        | 'collapse_only'
+        | 'snap_no_fronts'
+        | 'topology_unavailable'
+        | 'legacy_fill'
+        | 'static';
+    pathUsed: string;
+    transitionActive: boolean;
+    transitionSelected: boolean;
+    topologyPathSelected: boolean;
+    hasNewConquests: boolean;
+    hasGeometryDelta: boolean;
+    topologyAvailable: {
+        planPrev: boolean;
+        next: boolean;
+        samplePrev: boolean;
+    };
+    frontCount: number;
+    collapseTargetCount: number;
+    sampledProgress: number | null;
+    planSummary: ActiveFrontPlanDiagnosticsSummary | null;
 }
 
 function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionFrame {
@@ -242,9 +270,34 @@ export class TransitionLayerCoordinator {
         // ── CLR per-frame transition trace ───────────────────────────────
         const pathUsed = activeFrontPlan ? (pvFrontlineSelected ? 'pv_frontline' : 'topology_fill_rebuild')
             : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
+        const activeFrontDebug: ActiveFrontRuntimeDebugState = {
+            evaluation: !topologyFillRebuildSelected
+                ? (activeFillPlan ? 'legacy_fill' : 'static')
+                : activeFrontPlan
+                  ? activeFrontPlan.diagnostics.summary.classification
+                  : hasNewConquests && hasGeometryDelta && !canPlanTopologyPath
+                    ? 'topology_unavailable'
+                    : 'idle',
+            pathUsed,
+            transitionActive: Boolean(envelope),
+            transitionSelected: pvFrontlineSelected,
+            topologyPathSelected: topologyFillRebuildSelected,
+            hasNewConquests,
+            hasGeometryDelta,
+            topologyAvailable: {
+                planPrev: Boolean(planPrevTopo),
+                next: Boolean(nextTopo),
+                samplePrev: Boolean(samplePrevTopo),
+            },
+            frontCount: activeFrontPlan?.fronts.length ?? 0,
+            collapseTargetCount: activeFrontPlan?.collapseTargets.length ?? 0,
+            sampledProgress: envelope ? sampledProgress : null,
+            planSummary: activeFrontPlan?.diagnostics.summary ?? null,
+        };
         if (envelope) {
             log.renderer('CLR:TRACE', JSON.stringify({
                 pathUsed,
+                evaluation: activeFrontDebug.evaluation,
                 progress: envelope.progress.toFixed(3),
                 sampledProgress: sampledProgress.toFixed(3),
                 regionCount: fillFrame.regions.length,
@@ -271,6 +324,7 @@ export class TransitionLayerCoordinator {
             },
             activeFillPlan,
             activeFrontPlan,
+            activeFrontDebug,
             transitionPrevTopology,
         };
     }

@@ -103,6 +103,7 @@
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
     import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
+    import type { TerritoryRuntimeOutput } from "$lib/territory/runtime/TerritoryRuntimeCoordinator";
     import {
         getRenderFamily,
         registerRenderFamily,
@@ -150,6 +151,7 @@
         buildTerritoryGeometryCacheKeyParts,
         readNormalizedTerritoryGeometryTunables,
     } from "$lib/territory/geometry/geometryTuning";
+    import { compactActiveFrontTransitionPlan } from "$lib/territory/layers/transition/ActiveFrontTransition";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -5267,6 +5269,8 @@
                 let transitionDiagnosticFrameInput:
                     | TransitionDiagnosticFrameInput
                     | null = null;
+                let canonicalRuntimeOutput: TerritoryRuntimeOutput | null =
+                    null;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -5895,7 +5899,7 @@
                                     colorUtils.getPlayerColor(ownerId),
                             );
                         }
-                        canonicalBridge?.update(
+                        canonicalRuntimeOutput = canonicalBridge?.update(
                             buildCanonicalBridgeInput(
                                 stars,
                                 runtimeSettings,
@@ -5932,7 +5936,8 @@
 
                             if (canonicalBridge) {
                                 try {
-                                    canonicalBridge.update(
+                                    canonicalRuntimeOutput =
+                                        canonicalBridge.update(
                                         buildCanonicalBridgeInput(
                                             stars,
                                             runtimeSettings,
@@ -6088,6 +6093,8 @@
                         geometryReady,
                         arrowRenderer: "overlay_canvas",
                         lastRenderFailure,
+                        activeFrontDiagnostics:
+                            canonicalRuntimeOutput?.activeFrontDebug ?? null,
                         msrRequestedMarginPx:
                             msrDiagnostics?.summary.requestedMarginPx ?? null,
                         msrStarBias,
@@ -6105,6 +6112,17 @@
                             msrDiagnostics?.summary.invariantFailures.at(-1) ??
                             null,
                     });
+                    if (canonicalRuntimeOutput) {
+                        transitionDiagnosticCaptureState = {
+                            status: "canonical_runtime",
+                            activeMode,
+                            activeFrontDebug:
+                                canonicalRuntimeOutput.activeFrontDebug,
+                            activeFrontPlan: compactActiveFrontTransitionPlan(
+                                canonicalRuntimeOutput.activeFrontPlan,
+                            ),
+                        };
+                    }
                     if (transitionDiagnosticFrameInput) {
                         measurePerf(
                             "game.renderFrame.territory.transitionDiagnosticSync",
@@ -6115,10 +6133,13 @@
                             },
                         );
                     } else if (
-                        transitionDiagnosticStableFrame ||
-                        transitionDiagnosticCaptureSession ||
-                        transitionDiagnosticPrevGeometry ||
-                        transitionDiagnosticPrevOwnership
+                        !canonicalRuntimeOutput &&
+                        (transitionDiagnosticStableFrame ||
+                            transitionDiagnosticCaptureSession ||
+                            transitionDiagnosticPrevGeometry ||
+                            transitionDiagnosticPrevOwnership ||
+                            transitionDiagnosticCaptureState?.status ===
+                                "canonical_runtime")
                     ) {
                         resetTransitionDiagnosticCaptureState();
                         transitionDiagnosticPrevKey = null;

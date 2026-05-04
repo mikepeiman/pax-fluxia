@@ -57,6 +57,12 @@
     const bundleList = $derived(
         [...$transitionSnapshotRecorderStore.bundles].reverse(),
     );
+    const activeFrontDiagnostics = $derived(
+        $territoryRenderStatus.activeFrontDiagnostics,
+    );
+    const activeFrontPlanSummary = $derived(
+        activeFrontDiagnostics?.planSummary ?? null,
+    );
 
     let overlayEnabled = $state(overlayConfig.enabled);
     let overlayShowVertices = $state(overlayConfig.showAllVertices);
@@ -260,6 +266,19 @@
 
     function formatPhaseEdgesSemanticsNote(): string {
         return "Phase Edges now runs as its own session-overlay renderer inside the metaball family. Idle frames can still look close to base Metaball Grid when shared settings align; the meaningful difference is that consecutive conquest sessions preserve their own PRE/NEXT captures and wave timing instead of collapsing into one retained frontier.";
+    }
+
+    function formatDiagnosticLabel(value: string | null | undefined): string {
+        if (!value) return "n/a";
+        return value.replace(/_/g, " ");
+    }
+
+    function formatDiagnosticBool(value: boolean | null | undefined): string {
+        return value ? "yes" : "no";
+    }
+
+    function formatDiagnosticProgress(value: number | null | undefined): string {
+        return typeof value === "number" ? value.toFixed(3) : "n/a";
     }
 </script>
 
@@ -513,13 +532,39 @@
                 <span>{$territoryRenderStatus.lastRenderFailure}</span>
             </div>
         {/if}
-        {#if activeRenderMode !== liveRenderMode}
-            <div>
-                <span>Configured</span>
-                <code>{getTerritoryRenderModeLabel(activeRenderMode)}</code>
-            </div>
-        {/if}
+    {#if activeRenderMode !== liveRenderMode}
+        <div>
+            <span>Configured</span>
+            <code>{getTerritoryRenderModeLabel(activeRenderMode)}</code>
+        </div>
+    {/if}
     </div>
+    {#if activeFrontDiagnostics}
+        <div class="status-grid status-grid--active-front">
+            <div><span>AF Eval</span><code>{formatDiagnosticLabel(activeFrontDiagnostics.evaluation)}</code></div>
+            <div><span>Path</span><code>{activeFrontDiagnostics.pathUsed}</code></div>
+            <div><span>Transition</span><span>{formatDiagnosticBool(activeFrontDiagnostics.transitionActive)}</span></div>
+            <div><span>Sampled</span><span>{formatDiagnosticProgress(activeFrontDiagnostics.sampledProgress)}</span></div>
+            <div><span>Fronts</span><span>{activeFrontDiagnostics.frontCount}</span></div>
+            <div><span>Collapses</span><span>{activeFrontDiagnostics.collapseTargetCount}</span></div>
+            <div><span>Plan Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.planPrev)}</span></div>
+            <div><span>Next Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.next)}</span></div>
+            <div><span>Sample Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.samplePrev)}</span></div>
+            {#if activeFrontPlanSummary}
+                <div><span>Stable Anchors</span><span>{activeFrontPlanSummary.stableAnchorCount}</span></div>
+                <div><span>Pairs</span><span>{activeFrontPlanSummary.pairCount}</span></div>
+                <div><span>Planned Pairs</span><span>{activeFrontPlanSummary.plannedPairCount}</span></div>
+                <div><span>Active Sections</span><span>{activeFrontPlanSummary.activeSectionCount}</span></div>
+                <div><span>Gap Skips</span><span>{activeFrontPlanSummary.skippedTopologyGapCount}</span></div>
+                <div><span>Split Skips</span><span>{activeFrontPlanSummary.skippedUnsupportedSplitCount}</span></div>
+                <div><span>No-Span Skips</span><span>{activeFrontPlanSummary.skippedNoChangeSpanCount}</span></div>
+            {/if}
+        </div>
+        <div class="readout">
+            Active-front diagnostics are live planner truth for the current PVV4 path.
+            `snap no fronts` means the topology path ran but produced no animated front sections for this conquest.
+        </div>
+    {/if}
     {#if showMetaballGridDiagnostics}
         <div class="status-grid">
             <div><span>Family</span><code>{$metaballGridStats.familyLabel}</code></div>
@@ -698,6 +743,10 @@
         font-size: 0.68rem;
         line-height: 1.45;
         color: rgba(160, 160, 180, 0.72);
+    }
+
+    .status-grid--active-front {
+        margin-top: 10px;
     }
 
     .status-grid {

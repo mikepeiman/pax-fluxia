@@ -17,6 +17,7 @@ import { GeometryLayerCoordinator } from '../layers/geometry/GeometryLayerCoordi
 import { TransitionLayerCoordinator } from '../layers/transition/TransitionLayerCoordinator';
 import { PresentationLayerCoordinator } from '../layers/presentation/PresentationLayerCoordinator';
 import { TerritoryWorker } from './TerritoryWorker';
+import { compactActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
 
 function shouldEmitGeometrySnapshotDump(): boolean {
     return Boolean(
@@ -29,6 +30,7 @@ export interface TerritoryRuntimeOutput {
     geometry: GeometrySnapshot;
     transition: TransitionSnapshot;
     activeFrontPlan: import('../layers/transition/ActiveFrontTransition').ActiveFrontTransitionPlan | null;
+    activeFrontDebug: import('../layers/transition/TransitionLayerCoordinator').ActiveFrontRuntimeDebugState;
     presentation: TerritoryPresentationFrame;
     diagnostics: TerritoryRuntimeDiagnostics;
 }
@@ -188,7 +190,8 @@ export class TerritoryRuntimeCoordinator {
             log.renderer('Territory',
                 `CONQUEST: ${ownership.conquestEvents.length} event(s)` +
                 ` | geom: ${geometry.territoryRegions.length} regions, ${geometry.frontierPolylines.length} frontiers` +
-                ` | version: ${geometry.version.slice(0, 50)}`,
+                ` | version: ${geometry.version.slice(0, 50)}` +
+                ` | activeFront=${transition.activeFrontDebug.evaluation}`,
             );
             if (shouldEmitGeometrySnapshotDump()) {
                 this.dumpGeometrySnapshots(
@@ -217,6 +220,13 @@ export class TerritoryRuntimeCoordinator {
                 starPositions,
                 worldWidth: input.world.width,
                 worldHeight: input.world.height,
+                extraDiagnostics: {
+                    kind: 'active_front_live_capture',
+                    activeFrontDebug: transition.activeFrontDebug,
+                    activeFrontPlan: compactActiveFrontTransitionPlan(
+                        transition.activeFrontPlan ?? null,
+                    ),
+                },
             });
         }
         if (envelope && !this.state.previousTransition?.envelope) {
@@ -259,6 +269,7 @@ export class TerritoryRuntimeCoordinator {
             geometry,
             transition: transition.snapshot,
             activeFrontPlan: transition.activeFrontPlan ?? null,
+            activeFrontDebug: transition.activeFrontDebug,
             presentation,
             diagnostics,
         };

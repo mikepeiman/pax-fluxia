@@ -12,7 +12,17 @@ import { log } from '$lib/utils/logger';
 
 type Vec2 = [number, number];
 
-type SplitMode = 'none' | '1to2' | '2to1';
+export type ActiveFrontSplitMode = 'none' | '1to2' | '2to1';
+type SplitMode = ActiveFrontSplitMode;
+export type ActiveFrontPairOutcome =
+    | 'planned'
+    | 'skipped_topology_gap'
+    | 'skipped_unsupported_split_mode'
+    | 'skipped_no_change_span';
+export type ActiveFrontPlanClassification =
+    | 'animated_fronts'
+    | 'collapse_only'
+    | 'snap_no_fronts';
 
 interface ChainPath {
     anchorStartId: string;
@@ -42,11 +52,64 @@ interface CollapseTarget {
     points: Vec2[];
 }
 
+export interface ActiveFrontPairDiagnostic {
+    anchorKey: string;
+    anchorStartId: string;
+    anchorEndId: string;
+    prevPathCount: number;
+    nextPathCount: number;
+    prevPathPointCounts: number[];
+    nextPathPointCounts: number[];
+    prevPathSectionIds: string[][];
+    nextPathSectionIds: string[][];
+    splitMode: ActiveFrontSplitMode | null;
+    outcome: ActiveFrontPairOutcome;
+    rawChangeSpan: {
+        base: 'prev' | 'next';
+        startIndex: number;
+        endIndex: number;
+        basePointCount: number;
+    } | null;
+    paddedChangeSpan: {
+        base: 'prev' | 'next';
+        startIndex: number;
+        endIndex: number;
+    } | null;
+    activeSectionIds: string[];
+}
+
+export interface ActiveFrontPlanDiagnosticsSummary {
+    classification: ActiveFrontPlanClassification;
+    stableAnchorCount: number;
+    prevChainCount: number;
+    nextChainCount: number;
+    pairCount: number;
+    plannedPairCount: number;
+    skippedTopologyGapCount: number;
+    skippedUnsupportedSplitCount: number;
+    skippedNoChangeSpanCount: number;
+    frontCount: number;
+    activeSectionCount: number;
+    collapseTargetCount: number;
+}
+
+export interface ActiveFrontPlanDiagnostics {
+    tunables: {
+        stableAnchorEps: number;
+        changeSpanEps: number;
+        changeSpanPadPoints: number;
+    };
+    stableAnchorIds: string[];
+    pairDiagnostics: ActiveFrontPairDiagnostic[];
+    summary: ActiveFrontPlanDiagnosticsSummary;
+}
+
 export interface ActiveFrontTransitionPlan {
     prevVersion: string;
     nextVersion: string;
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
+    diagnostics: ActiveFrontPlanDiagnostics;
 }
 
 const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
@@ -88,19 +151,43 @@ export function planActiveFrontTransition(
     const nextByKey = groupChainsByAnchorPair(nextChains);
 
     const fronts: ActiveFrontPlan[] = [];
+    const pairDiagnostics: ActiveFrontPairDiagnostic[] = [];
 
     const allKeys = new Set<string>([...prevByKey.keys(), ...nextByKey.keys()]);
     for (const key of allKeys) {
         const prevPaths = prevByKey.get(key) ?? [];
         const nextPaths = nextByKey.get(key) ?? [];
+        const [anchorStartId = '', anchorEndId = ''] = key.split('|');
+        const pairDiagnostic: ActiveFrontPairDiagnostic = {
+            anchorKey: key,
+            anchorStartId,
+            anchorEndId,
+            prevPathCount: prevPaths.length,
+            nextPathCount: nextPaths.length,
+            prevPathPointCounts: prevPaths.map((path) => path.points.length),
+            nextPathPointCounts: nextPaths.map((path) => path.points.length),
+            prevPathSectionIds: prevPaths.map((path) => [...path.sectionIds]),
+            nextPathSectionIds: nextPaths.map((path) => [...path.sectionIds]),
+            splitMode: null,
+            outcome: 'skipped_topology_gap',
+            rawChangeSpan: null,
+            paddedChangeSpan: null,
+            activeSectionIds: [],
+        };
 
         if (prevPaths.length === 0 || nextPaths.length === 0) {
+            pairDiagnostics.push(pairDiagnostic);
             // Topology gap — skip until diagnostics/logging added
             continue;
         }
 
         const splitMode = detectSplitMode(prevPaths.length, nextPaths.length);
-        if (!splitMode) continue;
+        pairDiagnostic.splitMode = splitMode;
+        if (!splitMode) {
+            pairDiagnostic.outcome = 'skipped_unsupported_split_mode';
+            pairDiagnostics.push(pairDiagnostic);
+            continue;
+        }
 
         const rawChangeSpan = findChangeSpanForPaths(
             prevPaths,
@@ -108,13 +195,16 @@ export function planActiveFrontTransition(
             splitMode,
             changeSpanEps,
         );
+        pairDiagnostic.rawChangeSpan = { ...rawChangeSpan };
         const { base, startIndex, endIndex } = applyChangeSpanPadding(
             rawChangeSpan,
             changeSpanPadPoints,
         );
+        pairDiagnostic.paddedChangeSpan = { base, startIndex, endIndex };
 
         if (startIndex === -1 || endIndex === -1) {
-            // No change detected for this anchor pair
+            pairDiagnostic.outcome = 'skipped_no_change_span';
+            pairDiagnostics.push(pairDiagnostic);
             continue;
         }
 
@@ -136,15 +226,125 @@ export function planActiveFrontTransition(
             activeSectionIds,
             sectionReversed,
         });
+        pairDiagnostic.outcome = 'planned';
+        pairDiagnostic.activeSectionIds = [...activeSectionIds].sort();
+        pairDiagnostics.push(pairDiagnostic);
     }
 
     const collapseTargets = planCollapseTargets(prev, next, ownership, ownership.conquestEvents);
+    const diagnostics = buildActiveFrontPlanDiagnostics({
+        stableAnchorIds: [...anchors].sort(),
+        prevChainCount: prevChains.length,
+        nextChainCount: nextChains.length,
+        pairDiagnostics,
+        fronts,
+        collapseTargets,
+        stableAnchorEps,
+        changeSpanEps,
+        changeSpanPadPoints,
+    });
 
     return {
         prevVersion: prev.version,
         nextVersion: next.version,
         fronts,
         collapseTargets,
+        diagnostics,
+    };
+}
+
+function buildActiveFrontPlanDiagnostics(input: {
+    stableAnchorIds: string[];
+    prevChainCount: number;
+    nextChainCount: number;
+    pairDiagnostics: ActiveFrontPairDiagnostic[];
+    fronts: ActiveFrontPlan[];
+    collapseTargets: CollapseTarget[];
+    stableAnchorEps: number;
+    changeSpanEps: number;
+    changeSpanPadPoints: number;
+}): ActiveFrontPlanDiagnostics {
+    const activeSectionCount = input.fronts.reduce(
+        (total, front) => total + front.activeSectionIds.size,
+        0,
+    );
+    const plannedPairCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'planned',
+    ).length;
+    const skippedTopologyGapCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'skipped_topology_gap',
+    ).length;
+    const skippedUnsupportedSplitCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'skipped_unsupported_split_mode',
+    ).length;
+    const skippedNoChangeSpanCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'skipped_no_change_span',
+    ).length;
+    const classification: ActiveFrontPlanClassification =
+        input.fronts.length > 0
+            ? 'animated_fronts'
+            : input.collapseTargets.length > 0
+              ? 'collapse_only'
+              : 'snap_no_fronts';
+
+    return {
+        tunables: {
+            stableAnchorEps: input.stableAnchorEps,
+            changeSpanEps: input.changeSpanEps,
+            changeSpanPadPoints: input.changeSpanPadPoints,
+        },
+        stableAnchorIds: input.stableAnchorIds,
+        pairDiagnostics: input.pairDiagnostics,
+        summary: {
+            classification,
+            stableAnchorCount: input.stableAnchorIds.length,
+            prevChainCount: input.prevChainCount,
+            nextChainCount: input.nextChainCount,
+            pairCount: input.pairDiagnostics.length,
+            plannedPairCount,
+            skippedTopologyGapCount,
+            skippedUnsupportedSplitCount,
+            skippedNoChangeSpanCount,
+            frontCount: input.fronts.length,
+            activeSectionCount,
+            collapseTargetCount: input.collapseTargets.length,
+        },
+    };
+}
+
+export function compactActiveFrontTransitionPlan(
+    plan: ActiveFrontTransitionPlan | null | undefined,
+): Record<string, unknown> | null {
+    if (!plan) return null;
+    return {
+        prevVersion: plan.prevVersion,
+        nextVersion: plan.nextVersion,
+        diagnostics: plan.diagnostics,
+        fronts: plan.fronts.map((front) => ({
+            anchorStartId: front.anchorStartId,
+            anchorEndId: front.anchorEndId,
+            splitMode: front.splitMode,
+            changeSpan: front.changeSpan,
+            activeSectionIds: [...front.activeSectionIds].sort(),
+            prevPaths: front.prevPaths.map((path) => ({
+                anchorStartId: path.anchorStartId,
+                anchorEndId: path.anchorEndId,
+                sectionIds: [...path.sectionIds],
+                pointCount: path.points.length,
+            })),
+            nextPaths: front.nextPaths.map((path) => ({
+                anchorStartId: path.anchorStartId,
+                anchorEndId: path.anchorEndId,
+                sectionIds: [...path.sectionIds],
+                pointCount: path.points.length,
+            })),
+        })),
+        collapseTargets: plan.collapseTargets.map((target) => ({
+            loopId: target.loopId,
+            ownerId: target.ownerId,
+            center: target.center,
+            pointCount: target.points.length,
+        })),
     };
 }
 

@@ -3,6 +3,7 @@ import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
 import type { TransitionSnapshot } from '../contracts/TransitionContracts';
 import type { TerritoryVFXCommand } from '../vfx/VFXContracts';
 import { TerritoryRuntimeCoordinator } from '../runtime/TerritoryRuntimeCoordinator';
+import type { TerritoryRuntimeOutput } from '../runtime/TerritoryRuntimeCoordinator';
 import { PixiTerritoryPresenter } from '../adapters/pixi/PixiTerritoryPresenter';
 import { PixiTerritoryDebugOverlay } from '../adapters/pixi/PixiTerritoryDebugOverlay';
 import { TerritoryVFXBridge } from './TerritoryVFXBridge';
@@ -19,6 +20,7 @@ export class GameCanvasTerritoryBridge {
     private readonly vfxBridge: TerritoryVFXBridge;
     private previousTransition: TransitionSnapshot | null = null;
     private pendingVFXCommands: TerritoryVFXCommand[] = [];
+    private lastOutput: TerritoryRuntimeOutput | null = null;
 
     constructor(
         container: PIXI.Container,
@@ -47,8 +49,9 @@ export class GameCanvasTerritoryBridge {
         return overlayConfig;
     }
 
-    update(input: TerritoryFrameInput): void {
+    update(input: TerritoryFrameInput): TerritoryRuntimeOutput {
         const output = this.runtime.update(input);
+        this.lastOutput = output;
         this.presenter.present(output.presentation);
 
         // Live debug overlay — updates from topology + plan each frame
@@ -71,6 +74,11 @@ export class GameCanvasTerritoryBridge {
             ),
         );
         this.previousTransition = output.transition;
+        return output;
+    }
+
+    getLatestRuntimeOutput(): TerritoryRuntimeOutput | null {
+        return this.lastOutput;
     }
 
     consumeVFXCommands(): TerritoryVFXCommand[] {
@@ -84,5 +92,6 @@ export class GameCanvasTerritoryBridge {
         this.presenter.reset();
         this.previousTransition = null;
         this.pendingVFXCommands = [];
+        this.lastOutput = null;
     }
 }

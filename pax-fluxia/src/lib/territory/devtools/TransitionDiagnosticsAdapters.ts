@@ -2,6 +2,7 @@ import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import type { PowerVoronoiDiagnosticBundle } from '../pvCanonical/contracts';
+import type { ActiveFrontRuntimeDebugState } from '../layers/transition/TransitionLayerCoordinator';
 import {
     boundsOf,
     compactFrontierTopologyForExport,
@@ -56,6 +57,12 @@ interface PerimeterFieldLiveCaptureDiagnostics {
     previousFrame: PerimeterFieldCaptureFrameDiagnostics;
     nextFrame: PerimeterFieldCaptureFrameDiagnostics;
     transitionFrames: PerimeterFieldCaptureTransitionDiagnostics[];
+}
+
+interface ActiveFrontLiveCaptureDiagnostics {
+    kind: 'active_front_live_capture';
+    activeFrontDebug: ActiveFrontRuntimeDebugState | null;
+    activeFrontPlan: Record<string, unknown> | null;
 }
 
 function roundCoord(value: number): number {
@@ -176,6 +183,57 @@ function renderPerimeterFieldExportCanvas(args: {
         showGeometry: true,
         showVstars: true,
     });
+}
+
+function cloneCanvas(baseCanvas: HTMLCanvasElement): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = baseCanvas.width;
+    canvas.height = baseCanvas.height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        ctx.drawImage(baseCanvas, 0, 0);
+    }
+    return canvas;
+}
+
+function renderActiveFrontDiagnosticCanvas(args: {
+    baseCanvas: HTMLCanvasElement | null;
+    diagnostics: ActiveFrontLiveCaptureDiagnostics;
+}): HTMLCanvasElement | null {
+    if (!args.baseCanvas) return null;
+    const canvas = cloneCanvas(args.baseCanvas);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const debug = args.diagnostics.activeFrontDebug;
+    const planSummary = debug?.planSummary ?? null;
+    const lines = [
+        `AF eval: ${debug?.evaluation ?? 'n/a'}`,
+        `path: ${debug?.pathUsed ?? 'n/a'}`,
+        `fronts: ${debug?.frontCount ?? 0} / collapses: ${debug?.collapseTargetCount ?? 0}`,
+        `sampled: ${typeof debug?.sampledProgress === 'number' ? debug.sampledProgress.toFixed(3) : 'n/a'}`,
+        `stable anchors: ${planSummary?.stableAnchorCount ?? 0} / pairs: ${planSummary?.pairCount ?? 0}`,
+        `planned: ${planSummary?.plannedPairCount ?? 0} / no-span: ${planSummary?.skippedNoChangeSpanCount ?? 0}`,
+        `gap skips: ${planSummary?.skippedTopologyGapCount ?? 0} / split skips: ${planSummary?.skippedUnsupportedSplitCount ?? 0}`,
+    ];
+    const panelWidth = 310;
+    const lineHeight = 16;
+    const panelHeight = lines.length * lineHeight + 18;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.74)';
+    ctx.fillRect(12, 12, panelWidth, panelHeight);
+    ctx.strokeStyle = 'rgba(103, 232, 249, 0.72)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 12, panelWidth, panelHeight);
+
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (let index = 0; index < lines.length; index += 1) {
+        ctx.fillStyle = index === 0 ? '#67e8f9' : '#f8fafc';
+        ctx.fillText(lines[index], 22, 22 + index * lineHeight);
+    }
+    return canvas;
 }
 
 function compactPowerVoronoiDiagnostics(
@@ -311,6 +369,48 @@ const perimeterFieldAdapter: TransitionDiagnosticsExportAdapter = {
     },
 };
 
+const activeFrontLiveCaptureAdapter: TransitionDiagnosticsExportAdapter = {
+    kind: 'active_front_live_capture',
+    matches(value: unknown): boolean {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            (value as { kind?: unknown }).kind === 'active_front_live_capture'
+        );
+    },
+    buildData(bundle) {
+        const diagnostics = bundle.extraDiagnostics as ActiveFrontLiveCaptureDiagnostics;
+        return {
+            exportKind: 'active_front_live_capture',
+            previousGeometry: compactGeometrySnapshotForExport(
+                bundle.context.previousGeometry ?? null,
+            ),
+            nextGeometry: compactGeometrySnapshotForExport(
+                bundle.context.nextGeometry,
+            ),
+            previousTopology: compactFrontierTopologyForExport(
+                bundle.context.previousGeometry?.frontierTopology ?? null,
+            ),
+            nextTopology: compactFrontierTopologyForExport(
+                bundle.context.nextGeometry?.frontierTopology ?? null,
+            ),
+            starPositions: Object.fromEntries(
+                [...bundle.starPositions.entries()].map(([starId, point]) => [
+                    starId,
+                    point,
+                ]),
+            ),
+            captureDiagnostics: diagnostics,
+        };
+    },
+    renderCanvas({ baseCanvas, diagnostics }) {
+        return renderActiveFrontDiagnosticCanvas({
+            baseCanvas,
+            diagnostics: diagnostics as ActiveFrontLiveCaptureDiagnostics,
+        });
+    },
+};
+
 const powerVoronoiCanonicalAdapter: TransitionDiagnosticsExportAdapter = {
     kind: 'power_voronoi_canonical',
     matches(value: unknown): boolean {
@@ -357,6 +457,7 @@ const powerVoronoiCanonicalAdapter: TransitionDiagnosticsExportAdapter = {
 
 const ADAPTERS: readonly TransitionDiagnosticsExportAdapter[] = [
     perimeterFieldAdapter,
+    activeFrontLiveCaptureAdapter,
     powerVoronoiCanonicalAdapter,
 ];
 

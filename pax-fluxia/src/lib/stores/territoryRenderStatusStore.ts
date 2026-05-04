@@ -3,6 +3,7 @@ import {
     completeTerritoryTuningCompile,
     resetTerritoryTuningStatus,
 } from "./territoryTuningStatusStore";
+import type { ActiveFrontRuntimeDebugState } from "$lib/territory/layers/transition/TransitionLayerCoordinator";
 
 export type ArrowRendererMode = "overlay_canvas" | "pixi_link_graphics" | "none";
 
@@ -11,6 +12,7 @@ export interface TerritoryRenderStatus {
     geometryReady: boolean | null;
     arrowRenderer: ArrowRendererMode;
     lastRenderFailure: string | null;
+    activeFrontDiagnostics: ActiveFrontRuntimeDebugState | null;
     updatedAtMs: number;
 }
 
@@ -19,6 +21,7 @@ const initialStatus: TerritoryRenderStatus = {
     geometryReady: null,
     arrowRenderer: "overlay_canvas",
     lastRenderFailure: null,
+    activeFrontDiagnostics: null,
     updatedAtMs: 0,
 };
 
