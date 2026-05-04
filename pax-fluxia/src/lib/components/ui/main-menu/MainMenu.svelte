@@ -2,6 +2,8 @@
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
     import {
+        BACKGROUND_MODE_CATALOG,
+        buildDefaultBackgroundSelection,
         buildLegacyImageSelection,
         extractLegacyBackgroundImage,
         normalizeBackgroundSelection,
@@ -15,6 +17,7 @@
         savePanelSettings,
         panelDefaultsFromConfig,
         loadVisuals,
+        VISUALS_STORAGE_KEY,
     } from "$lib/components/ui/panelSync";
     import type { GameSettings } from "$lib/types/game.types";
     import { multiplayerStore, type RoomListing } from "$lib/stores/multiplayerStore.svelte";
@@ -39,9 +42,10 @@
         normalizePlayerPaletteNudges,
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
-    import { BG_IMAGES, normalizeBgImagePath } from "$lib/config/bgManifest";
+    import { BG_IMAGES } from "$lib/config/bgManifest";
     import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
     import type { MainMenuPreviewRequest, MainMenuPreviewResult } from "$lib/utils/mainMenuPreview";
+    import MenuBackgroundCanvas from "./MenuBackgroundCanvas.svelte";
     import MenuUtilityTopbar from "./MenuUtilityTopbar.svelte";
     import GameMapPanel from "./GameMapPanel.svelte";
     import PlayersPanel from "./PlayersPanel.svelte";
@@ -169,6 +173,9 @@
     );
 
     const menuThemeCssVars = $derived(getMenuThemeCssVars(menuTheme));
+    const menuBackgroundModes = BACKGROUND_MODE_CATALOG.filter(
+        (definition) => definition.primary && definition.supportsMenu,
+    );
 
     $effect(() => {
         saveSetting("menuTheme", menuTheme);
@@ -386,6 +393,11 @@
                 LEGACY_MENU_THEME_BACKGROUNDS_KEY,
             );
             if (!legacyStored) {
+                if (!localStorage.getItem(VISUALS_STORAGE_KEY)) {
+                    return defaultMenuThemeBackgrounds(
+                        buildDefaultBackgroundSelection("menu", visuals.bgImage),
+                    );
+                }
                 return defaults;
             }
 
@@ -436,9 +448,7 @@
         setActiveMenuBackgroundSelection(resolveMenuThemeBackground(theme));
     }
 
-    function handleBackgroundSelect(image: string) {
-        const normalizedImage = normalizeBgImagePath(image);
-        const selection = buildLegacyImageSelection(normalizedImage);
+    function handleBackgroundSelect(selection: BackgroundSelection) {
         menuThemeBackgrounds[menuTheme] = selection;
         saveMenuThemeBackgrounds();
         setActiveMenuBackgroundSelection(selection);
@@ -956,10 +966,12 @@
         data-theme={menuTheme}
         style={menuThemeCssVars}
         transition:fade
-        style:background-image={bgImage ? `url(/assets/${bgImage})` : "none"}
-        style:background-size={bgImage ? "cover" : "auto"}
-        style:background-position={bgImage ? "center" : "auto"}
     >
+        <MenuBackgroundCanvas
+            selection={menuBackgroundSelection}
+            legacyImage={bgImage}
+            {menuTheme}
+        />
         <svg
             class="hex-grid-overlay"
             xmlns="http://www.w3.org/2000/svg"
@@ -996,8 +1008,10 @@
 
             <MenuUtilityTopbar
                 bgOpen={bgOpen}
-                bgImage={bgImage}
-                bgImages={BG_IMAGES}
+                selection={menuBackgroundSelection}
+                legacyImage={bgImage}
+                legacyImages={BG_IMAGES}
+                {menuBackgroundModes}
                 {menuTheme}
                 muted={audioManager.muted}
                 masterVolume={audioManager.masterVolume}

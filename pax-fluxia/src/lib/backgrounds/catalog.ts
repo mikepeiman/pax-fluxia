@@ -349,7 +349,7 @@ export const GAME_BACKGROUND_MODE_IDS = BACKGROUND_MODE_CATALOG.filter(
     (definition) => definition.primary && definition.supportsGame,
 ).map((definition) => definition.id);
 
-export const DEFAULT_MENU_BACKGROUND_MODE_ID: BackgroundModeId = 'legacy_image';
+export const DEFAULT_MENU_BACKGROUND_MODE_ID: BackgroundModeId = 'nebula_veil';
 export const DEFAULT_GAME_BACKGROUND_MODE_ID: BackgroundModeId = 'legacy_image';
 
 export const BACKGROUND_CAPABILITY_MATRIX: BackgroundCapabilityMatrix = {

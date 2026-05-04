@@ -17,13 +17,13 @@ describe('background selection helpers', () => {
         expect(selection.tunables).toEqual({});
     });
 
-    it('drops unsupported menu modes back to the menu default', () => {
+    it('drops unsupported menu modes back to the primary menu default', () => {
         const selection = normalizeBackgroundSelection(
             { modeId: 'storm_current', tunables: { chargeDensity: 1 } },
             { surface: 'menu' },
         );
 
-        expect(selection.modeId).toBe('legacy_image');
+        expect(selection.modeId).toBe('nebula_veil');
     });
 
     it('normalizes tunables for a supported primary mode', () => {

@@ -1,18 +1,24 @@
 <script lang="ts">
-import type { MenuTheme } from "./menuTheme";
+    import type {
+        BackgroundModeDefinition,
+        BackgroundSelection,
+    } from "$lib/backgrounds";
+    import type { MenuTheme } from "./menuTheme";
     import BackgroundSelectModal from "./BackgroundSelectModal.svelte";
     import MenuThemeRail from "./MenuThemeRail.svelte";
 
     interface Props {
         bgOpen: boolean;
-        bgImage: string;
-        bgImages: string[];
+        selection: BackgroundSelection;
+        legacyImage: string;
+        legacyImages: string[];
+        backgroundModes: readonly BackgroundModeDefinition[];
         menuTheme: MenuTheme;
         muted: boolean;
         masterVolume: number;
         onToggleBackgrounds: () => void;
         onCloseBackgrounds: () => void;
-        onSelectBackground: (image: string) => void;
+        onSelectBackground: (selection: BackgroundSelection) => void;
         onMenuThemeChange: (theme: MenuTheme) => void;
         onToggleMute: () => void;
         onSetVolume: (value: number) => void;
@@ -21,8 +27,10 @@ import type { MenuTheme } from "./menuTheme";
 
     let {
         bgOpen,
-        bgImage,
-        bgImages,
+        selection,
+        legacyImage,
+        legacyImages,
+        backgroundModes,
         menuTheme,
         muted,
         masterVolume,
@@ -88,8 +96,10 @@ import type { MenuTheme } from "./menuTheme";
 
 <BackgroundSelectModal
     visible={bgOpen}
-    {bgImage}
-    {bgImages}
+    {selection}
+    {legacyImage}
+    {legacyImages}
+    {backgroundModes}
     {menuTheme}
     onClose={onCloseBackgrounds}
     {onSelectBackground}
