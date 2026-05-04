@@ -246,6 +246,31 @@
   - there was no tracked lockfile drift left behind after the failed validation attempts
   - code changes remain limited to the two intended source files
 
+### 2026-05-03 - Implemented Approach A bet 1: PVV4-only sample-time easing
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+- Purpose:
+  - test the smallest plausible fluidity improvement before touching correspondence, moving-span selection, or special-case logic
+  - reduce the mechanical linear start/stop feel of PVV4 without changing endpoint parity or broadening the moving area
+- Exact change:
+  - added a PVV4-only sampled progress shaper:
+    - clamp
+    - `smoothstep`
+    - a blended easing pass (`blend = 0.4`)
+  - applied the shaped progress only when the selected public transition id is `pv_frontline`
+  - left raw envelope timing and completion semantics unchanged
+  - extended transition trace logging to include both raw `progress` and `sampledProgress`
+- Result:
+  - this is a narrowly scoped timing-profile bet on the active-front runtime path
+  - no other transition family is intentionally changed by this bet
+- Validation:
+  - `bun run build` now gets through the touched transition file path and fails later on an unrelated missing file:
+    - `src/lib/components/ui/TransitionDebugPanel.svelte`
+  - `bun run check` reports a large set of pre-existing repo type issues unrelated to this bet
+  - no reported validation error from `TransitionLayerCoordinator.ts` itself was surfaced by these runs
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
@@ -260,12 +285,9 @@
 - The easiest failure mode is over-fixing a mode that the user already considers close.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
 - Visual verification has not yet started for the new experiment sequence.
-- Local build/check validation is currently limited by missing worktree install/generated state.
+- Full repo validation is currently noisy due unrelated pre-existing build and typecheck failures outside this branch scope.
 
 ## Next Intended Step
 
-- Commit and push the PVV4 runtime-compatibility shim.
-- Then begin `Approach A` as the first implementation bet:
-  - time-profile refinement
-  - minimal scope
-  - exact endpoint preservation
+- Commit and push `Approach A` bet 1.
+- Then wait for visual verification before stacking a second motion idea.

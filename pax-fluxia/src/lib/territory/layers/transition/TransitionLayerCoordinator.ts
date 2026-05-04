@@ -52,6 +52,24 @@ function buildEmptyBorderFrame(): BorderTransitionFrame {
     };
 }
 
+function clamp01(value: number): number {
+    return Math.min(1, Math.max(0, value));
+}
+
+function smoothstep(value: number): number {
+    const t = clamp01(value);
+    return t * t * (3 - 2 * t);
+}
+
+function shapePvFrontlineProgress(rawProgress: number): number {
+    const clamped = clamp01(rawProgress);
+    // Keep the mid-transition timing recognizable while softening the
+    // linear start/stop feel that makes PVV4 motion read as mechanical.
+    const blend = 0.4;
+    const eased = smoothstep(clamped);
+    return clamped + (eased - clamped) * blend;
+}
+
 function isTopologyFillRebuildMode(fillTransitionMode: string): boolean {
     return (
         fillTransitionMode === 'topology_fill_rebuild' ||
@@ -78,6 +96,7 @@ export class TransitionLayerCoordinator {
         // ── Unified active-front path — frontier-chain transitions ───────
         // Fills are reconstructed from interpolated active-front geometry.
         // Activated when user selects the topology-driven fill rebuild path.
+        const pvFrontlineSelected = input.selection.fillTransitionMode === 'pv_frontline';
         const topologyFillRebuildSelected = isTopologyFillRebuildMode(
             input.selection.fillTransitionMode,
         );
@@ -160,6 +179,10 @@ export class TransitionLayerCoordinator {
         // ── Sample frames ────────────────────────────────────────────────
         let fillFrame: FillTransitionFrame;
         let borderFrame: BorderTransitionFrame;
+        const sampledProgress =
+            envelope && pvFrontlineSelected
+                ? shapePvFrontlineProgress(envelope.progress)
+                : envelope?.progress ?? 0;
 
         if (envelope && activeFrontPlan && samplePrevTopo && nextTopo) {
             // ── UNIFIED ACTIVE-FRONT SAMPLING ───────────────────────────
@@ -167,7 +190,7 @@ export class TransitionLayerCoordinator {
                 activeFrontPlan,
                 samplePrevTopo,
                 nextTopo,
-                envelope.progress,
+                sampledProgress,
             );
             borderFrame = buildEmptyBorderFrame();
         } else {
@@ -189,12 +212,13 @@ export class TransitionLayerCoordinator {
         }
 
         // ── CLR per-frame transition trace ───────────────────────────────
-        const pathUsed = activeFrontPlan ? 'topology_fill_rebuild'
+        const pathUsed = activeFrontPlan ? (pvFrontlineSelected ? 'pv_frontline' : 'topology_fill_rebuild')
             : (activeFillPlan ? `fill:${activeFillPlan.sourceMode}` : 'static');
         if (envelope) {
             log.renderer('CLR:TRACE', JSON.stringify({
                 pathUsed,
                 progress: envelope.progress.toFixed(3),
+                sampledProgress: sampledProgress.toFixed(3),
                 regionCount: fillFrame.regions.length,
                 borderCount: borderFrame.frontiers.length,
                 hasNewConquests,

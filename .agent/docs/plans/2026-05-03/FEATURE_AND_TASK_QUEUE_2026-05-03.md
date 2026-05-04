@@ -21,6 +21,9 @@
 - Added prerequisite PVV4 runtime-compatibility shim:
   - `pax-fluxia/src/lib/territory/layers/geometry/registry.ts`
   - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+- Implemented `Approach A` / bet 1:
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+  - PVV4-only sample-time easing with exact endpoint preservation
 - Key intended experiment order:
   1. time-profile refinement
   2. motion-isolation tightening
@@ -28,4 +31,6 @@
   4. correspondence stabilization
   5. special-case polish
 - Validation note:
-  - normal `bun run build` / `bunx vite build` / `bunx svelte-check` are currently blocked by missing local install/generated state in this worktree
+  - local dependency resolution is now present, but repo validation remains noisy due unrelated failures
+  - `bun run build` currently fails later on missing `src/lib/components/ui/TransitionDebugPanel.svelte`
+  - `bun run check` currently reports broad pre-existing type errors outside this branch scope
