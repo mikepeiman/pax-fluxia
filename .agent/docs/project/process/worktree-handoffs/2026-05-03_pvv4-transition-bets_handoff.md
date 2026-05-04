@@ -1216,3 +1216,21 @@
 - Supersession note:
   - the previous section titled `Add Explicit Loop Birth/Death Transition Targets For PVV4` is now historical only
   - its whole-loop birth/grow thesis is explicitly rejected by the current branch state and by user direction
+
+## Update: 2026-05-04 - Clarify Acceptance Hierarchy For PVV4 Transition Quality
+
+- Trigger:
+  - user explicitly clarified the evaluation priority for this branch:
+    - snap-transition is preferable to grossly deformed transition
+    - mildly distorted transition may or may not be preferable to snap, depending on the specific visual result
+- Branch doctrine impact:
+  - animation coverage is not a goal by itself
+  - the branch should not broaden transport just to avoid a snap
+  - any future PVV4 bet must be judged with this hierarchy:
+    1. reject gross deformation even if it animates
+    2. accept snap when the alternative is broad drift, ghost motion, or whole-section/region distortion
+    3. only keep mild distortion if it is demonstrably better than the equivalent snap in the actual conquest case
+- Practical consequence for upcoming work:
+  - bias future fixes toward smaller-scope, fail-safe local transport
+  - when an ambiguous split or change-anchor case cannot be bounded cleanly, prefer skip/snap rather than a broader animated guess
+  - treat "more conquests animate" as a non-goal unless the added coverage preserves minimal transport

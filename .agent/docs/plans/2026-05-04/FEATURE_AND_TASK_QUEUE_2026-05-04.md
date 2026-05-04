@@ -219,6 +219,10 @@
     - point-level `changeSpan`
     - section-level activation that used to over-transport
     - now replaced with sub-section sampling so only the interior moving interval changes
+- Transition evaluation priority is now explicit:
+  - snap transition is preferable to grossly deformed transition
+  - mildly distorted transition is only acceptable if it is clearly better than a snap in the specific case
+  - any future bet that reintroduces broad transport, whole-section drift, or ghost-region motion should be rejected even if it increases animation coverage
 
 ## Next
 
@@ -238,3 +242,7 @@
   - frontier split handling
   - stronger local change-anchor pinning
   - dedicated multi-event choreography for dual conquests
+- Use the acceptance hierarchy during that read:
+  - prefer local correctness over animation coverage
+  - prefer snap over gross deformation
+  - only accept mild distortion when it wins visually against the corresponding snap
