@@ -9,7 +9,13 @@
 
     let { panel, updatePanel }: Props = $props();
 
-    type FrontierFxMode = "off" | "soft_fade" | "stepped_moat" | "plasma_rim";
+    type FrontierFxMode =
+        | "off"
+        | "soft_fade"
+        | "stepped_moat"
+        | "plasma_rim"
+        | "ion_drift"
+        | "geometry_strip";
 
     function stringVal(panelKey: string, configKey: string, def: string): string {
         const pv = panel[panelKey];
@@ -54,7 +60,7 @@
 
     function supportsFrontierFx(): boolean {
         const mode = currentRenderMode();
-        return mode === "metaball_grid_ember_lattice" || mode === "metaball_grid";
+        return mode === "metaball_grid_phase_edges" || mode === "metaball_grid_ember_lattice";
     }
 
     function currentMode(): FrontierFxMode {
@@ -63,7 +69,13 @@
             "TERRITORY_FRONTIER_FX_MODE",
             "off",
         );
-        if (raw === "soft_fade" || raw === "stepped_moat" || raw === "plasma_rim") {
+        if (
+            raw === "soft_fade"
+            || raw === "stepped_moat"
+            || raw === "plasma_rim"
+            || raw === "ion_drift"
+            || raw === "geometry_strip"
+        ) {
             return raw;
         }
         return "off";
@@ -77,6 +89,10 @@
                 return "Stepped moat";
             case "plasma_rim":
                 return "Plasma rim";
+            case "ion_drift":
+                return "Ion drift";
+            case "geometry_strip":
+                return "Geometry strip";
             default:
                 return "Off";
         }
@@ -90,6 +106,10 @@
                 return "Quantized inward square bands. Creates a deliberate pixellated moat instead of a smooth gradient.";
             case "plasma_rim":
                 return "Animated hot rim hugging the frontier. Pulses a warm emissive band inward from the border on the shared distance field.";
+            case "ion_drift":
+                return "Frontier-local sparks and ion drift. Uses the same presented frontier distance field, but gates bright moving cells with particle density instead of a continuous ribbon.";
+            case "geometry_strip":
+                return "Animated procedural seam strip. Sweeps a geometric energy band across quantized frontier bands without changing the underlying border path.";
             default:
                 return "Off. The fill remains stable and flush; no extra inward frontier VFX modulation is applied.";
         }
@@ -98,11 +118,30 @@
     function isModeEnabled(): boolean {
         return currentMode() !== "off";
     }
+
+    function usesSteppedControls(): boolean {
+        const mode = currentMode();
+        return mode === "stepped_moat" || mode === "geometry_strip";
+    }
+
+    function usesPulseControls(): boolean {
+        const mode = currentMode();
+        return mode === "plasma_rim" || mode === "ion_drift" || mode === "geometry_strip";
+    }
+
+    function usesEmissiveControls(): boolean {
+        const mode = currentMode();
+        return mode === "plasma_rim" || mode === "ion_drift" || mode === "geometry_strip";
+    }
+
+    function usesParticleDensityControls(): boolean {
+        return currentMode() === "ion_drift";
+    }
 </script>
 
 {#if !supportsFrontierFx()}
         <div class="axis-note">
-            Frontier FX currently applies to <strong>Metaball Grid</strong> and
+            Frontier FX currently applies to <strong>Phase Edges</strong> and
             <strong>Ember Lattice</strong>. Switch the territory render
             mode there first, then return here.
         </div>
@@ -138,6 +177,8 @@
                 <option value="soft_fade">Soft fade</option>
                 <option value="stepped_moat">Stepped moat</option>
                 <option value="plasma_rim">Plasma rim</option>
+                <option value="ion_drift">Ion drift</option>
+                <option value="geometry_strip">Geometry strip</option>
             </select>
         </div>
 
@@ -191,18 +232,18 @@
             />
         </div>
 
-        <div class="var-row" class:disabled={!isModeEnabled() || currentMode() === "stepped_moat"}>
+        <div class="var-row" class:disabled={!isModeEnabled() || usesSteppedControls()}>
             <div class="row-top">
                 <span class="var-name">Softness</span>
                 <span class="val">{numVal("territoryFrontierFxSoftness", "TERRITORY_FRONTIER_FX_SOFTNESS", 1.2).toFixed(2)}</span>
             </div>
-            <div class="var-desc">Falloff power for the smooth fade and plasma rim modes.</div>
+            <div class="var-desc">Falloff power for smooth frontier effects. Stepped moat and geometry strip use explicit banding instead.</div>
             <input
                 type="range"
                 min="0.35"
                 max="2.5"
                 step="0.05"
-                disabled={!isModeEnabled() || currentMode() === "stepped_moat"}
+                disabled={!isModeEnabled() || usesSteppedControls()}
                 value={numVal("territoryFrontierFxSoftness", "TERRITORY_FRONTIER_FX_SOFTNESS", 1.2)}
                 oninput={(event) => {
                     const value = parseFloat((event.target as HTMLInputElement).value);
@@ -215,18 +256,18 @@
             />
         </div>
 
-        <div class="var-row" class:disabled={!isModeEnabled() || currentMode() !== "stepped_moat"}>
+        <div class="var-row" class:disabled={!isModeEnabled() || !usesSteppedControls()}>
             <div class="row-top">
                 <span class="var-name">Steps</span>
                 <span class="val">{Math.round(numVal("territoryFrontierFxSteps", "TERRITORY_FRONTIER_FX_STEPS", 4))}</span>
             </div>
-            <div class="var-desc">Quantized inward bands for the pixellated moat mode.</div>
+            <div class="var-desc">Quantized bands for stepped moat and the moving geometry strip seam.</div>
             <input
                 type="range"
                 min="2"
-                max="8"
+                max="10"
                 step="1"
-                disabled={!isModeEnabled() || currentMode() !== "stepped_moat"}
+                disabled={!isModeEnabled() || !usesSteppedControls()}
                 value={numVal("territoryFrontierFxSteps", "TERRITORY_FRONTIER_FX_STEPS", 4)}
                 oninput={(event) => {
                     const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -239,18 +280,66 @@
             />
         </div>
 
-        <div class="var-row" class:disabled={!isModeEnabled() || currentMode() !== "plasma_rim"}>
+        <div class="var-row" class:disabled={!isModeEnabled() || !usesEmissiveControls()}>
+            <div class="row-top">
+                <span class="var-name">Glow / Emissive</span>
+                <span class="val">{numVal("territoryFrontierFxEmissive", "TERRITORY_FRONTIER_FX_EMISSIVE", 1).toFixed(2)}</span>
+            </div>
+            <div class="var-desc">Extra hot-blend weighting for plasma, ion, and geometry-strip modes.</div>
+            <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                disabled={!isModeEnabled() || !usesEmissiveControls()}
+                value={numVal("territoryFrontierFxEmissive", "TERRITORY_FRONTIER_FX_EMISSIVE", 1)}
+                oninput={(event) => {
+                    const value = parseFloat((event.target as HTMLInputElement).value);
+                    updateConfig(
+                        "TERRITORY_FRONTIER_FX_EMISSIVE",
+                        "territoryFrontierFxEmissive",
+                        value,
+                    );
+                }}
+            />
+        </div>
+
+        <div class="var-row" class:disabled={!isModeEnabled() || !usesParticleDensityControls()}>
+            <div class="row-top">
+                <span class="var-name">Particle Density</span>
+                <span class="val">{numVal("territoryFrontierFxParticleDensity", "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY", 0.45).toFixed(2)}</span>
+            </div>
+            <div class="var-desc">How densely ion-drift spark cells light up along the frontier.</div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                disabled={!isModeEnabled() || !usesParticleDensityControls()}
+                value={numVal("territoryFrontierFxParticleDensity", "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY", 0.45)}
+                oninput={(event) => {
+                    const value = parseFloat((event.target as HTMLInputElement).value);
+                    updateConfig(
+                        "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY",
+                        "territoryFrontierFxParticleDensity",
+                        value,
+                    );
+                }}
+            />
+        </div>
+
+        <div class="var-row" class:disabled={!isModeEnabled() || !usesPulseControls()}>
             <div class="row-top">
                 <span class="var-name">Pulse Speed</span>
                 <span class="val">{numVal("territoryFrontierFxPulseSpeed", "TERRITORY_FRONTIER_FX_PULSE_SPEED", 1).toFixed(2)}</span>
             </div>
-            <div class="var-desc">Animation speed for the plasma rim pulse.</div>
+            <div class="var-desc">Animation speed for the plasma, ion-drift, and geometry-strip frontier motion.</div>
             <input
                 type="range"
                 min="0.1"
                 max="4"
                 step="0.1"
-                disabled={!isModeEnabled() || currentMode() !== "plasma_rim"}
+                disabled={!isModeEnabled() || !usesPulseControls()}
                 value={numVal("territoryFrontierFxPulseSpeed", "TERRITORY_FRONTIER_FX_PULSE_SPEED", 1)}
                 oninput={(event) => {
                     const value = parseFloat((event.target as HTMLInputElement).value);

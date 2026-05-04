@@ -16,6 +16,8 @@ const BASE_TUNING: TerritoryFrontierFxTuning = {
     strength: 0.75,
     steps: 4,
     softness: 1.2,
+    emissive: 1,
+    particleDensity: 0.45,
     pulseSpeed: 1,
     applySteadyState: true,
     applyTransition: true,
@@ -89,6 +91,68 @@ describe('frontier FX helpers', () => {
         expect(early).not.toBeNull();
         expect(later).not.toBeNull();
         expect(later!.hotBlendAmount).not.toBe(early!.hotBlendAmount);
+    });
+
+    it('ion drift responds to particle density and time', () => {
+        const tuning: TerritoryFrontierFxTuning = {
+            ...BASE_TUNING,
+            mode: 'ion_drift',
+            particleDensity: 0.9,
+            pulseSpeed: 1.6,
+        };
+        const early = evaluateTerritoryFrontierFxSample({
+            tuning,
+            nearestBoundaryPx: 4,
+            nowMs: 0,
+            hasActiveTransition: true,
+            bandIndex: 0,
+            cellIndex: 3,
+            cols: 6,
+        });
+        const later = evaluateTerritoryFrontierFxSample({
+            tuning,
+            nearestBoundaryPx: 4,
+            nowMs: 220,
+            hasActiveTransition: true,
+            bandIndex: 0,
+            cellIndex: 3,
+            cols: 6,
+        });
+
+        expect(early).not.toBeNull();
+        expect(later).not.toBeNull();
+        expect(later).not.toEqual(early);
+    });
+
+    it('geometry strip animates a moving band over time', () => {
+        const tuning: TerritoryFrontierFxTuning = {
+            ...BASE_TUNING,
+            mode: 'geometry_strip',
+            steps: 6,
+            pulseSpeed: 1.8,
+        };
+        const early = evaluateTerritoryFrontierFxSample({
+            tuning,
+            nearestBoundaryPx: 8,
+            nowMs: 50,
+            hasActiveTransition: false,
+            bandIndex: 1,
+            cellIndex: 7,
+            cols: 6,
+        });
+        const later = evaluateTerritoryFrontierFxSample({
+            tuning,
+            nearestBoundaryPx: 8,
+            nowMs: 420,
+            hasActiveTransition: false,
+            bandIndex: 1,
+            cellIndex: 7,
+            cols: 6,
+        });
+
+        expect(early).not.toBeNull();
+        expect(later).not.toBeNull();
+        expect(later).not.toEqual(early);
     });
 
     it('respects steady/transition application toggles', () => {

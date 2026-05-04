@@ -458,6 +458,8 @@ interface GameConfigType {
     TERRITORY_FRONTIER_FX_STRENGTH: number; // Intensity of the selected frontier FX mode
     TERRITORY_FRONTIER_FX_STEPS: number; // Quantized bands for stepped moat mode
     TERRITORY_FRONTIER_FX_SOFTNESS: number; // Falloff power for smooth inward frontier effects
+    TERRITORY_FRONTIER_FX_EMISSIVE: number; // Extra glow / hot-blend weighting for animated frontier FX
+    TERRITORY_FRONTIER_FX_PARTICLE_DENSITY: number; // Spark / drift density for frontier FX modes that use procedural particles
     TERRITORY_FRONTIER_FX_PULSE_SPEED: number; // Pulse speed for animated plasma rim mode
     TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE: boolean; // Apply frontier FX when no conquest transition is active
     TERRITORY_FRONTIER_FX_APPLY_TRANSITION: boolean; // Apply frontier FX during conquest transitions

@@ -2979,6 +2979,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // Rebuild the plan from semantic geometry identity, not fresh object
         // identity. Localized geometry snapshots may be equivalent but newly
         // allocated; the plan key carries the authoritative geometry versions.
+        const shouldUseTerminalSteadyFallback =
+            transitionSessions.length === 0 &&
+            !!transitionKey &&
+            (input.activeTransition?.rawProgress ?? 0) >= 1;
+
         if (transitionSessions.length > 0) {
             if (
                 !this.cachedPlan
@@ -3033,7 +3038,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     plan: sessionPlan,
                 });
             }
-        } else if (transitionKey) {
+        } else if (transitionKey && !shouldUseTerminalSteadyFallback) {
             const prevGeometry = this.resolvePrevGeometryForTransition({
                 input,
                 settings,
@@ -3118,6 +3123,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             return { container: this.root };
         }
         const rawProgress = input.activeTransition?.progress ?? 1;
+        const visualSessionPlans = activeSessionPlans.filter(
+            ({ session }) => session.rawProgress < 1,
+        );
+        const visualSessionCount = visualSessionPlans.length;
 
         // ── Transition / flip knobs ──────────────────────────────────────────
         const flipTransition = readTunableString<GridFlipTransition>(
@@ -3274,7 +3283,14 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             input,
             'TERRITORY_FRONTIER_FX_MODE',
             GAME_CONFIG.TERRITORY_FRONTIER_FX_MODE ?? 'off',
-            ['off', 'soft_fade', 'stepped_moat', 'plasma_rim'],
+            [
+                'off',
+                'soft_fade',
+                'stepped_moat',
+                'plasma_rim',
+                'ion_drift',
+                'geometry_strip',
+            ],
         );
         const frontierFxWidthPx = Math.max(
             0,
@@ -3313,6 +3329,25 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 GAME_CONFIG.TERRITORY_FRONTIER_FX_SOFTNESS ?? 1.2,
             ),
         );
+        const frontierFxEmissive = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_FX_EMISSIVE',
+                GAME_CONFIG.TERRITORY_FRONTIER_FX_EMISSIVE ?? 1,
+            ),
+        );
+        const frontierFxParticleDensity = Math.max(
+            0,
+            Math.min(
+                1,
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_FX_PARTICLE_DENSITY',
+                    GAME_CONFIG.TERRITORY_FRONTIER_FX_PARTICLE_DENSITY ?? 0.45,
+                ),
+            ),
+        );
         const frontierFxPulseSpeed = Math.max(
             0.1,
             readTunableNumber(
@@ -3337,16 +3372,23 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             strength: frontierFxStrength,
             steps: frontierFxSteps,
             softness: frontierFxSoftness,
+            emissive: frontierFxEmissive,
+            particleDensity: frontierFxParticleDensity,
             pulseSpeed: frontierFxPulseSpeed,
             applySteadyState: frontierFxApplySteadyState,
             applyTransition: frontierFxApplyTransition,
         };
         const frontierFxActiveForFrame = isTerritoryFrontierFxActive(
             frontierFxTuning,
-            activeSessionPlans.length > 0,
+            visualSessionCount > 0,
         );
         const frontierFxAnimatedForFrame =
-            frontierFxActiveForFrame && frontierFxMode === 'plasma_rim';
+            frontierFxActiveForFrame
+            && (
+                frontierFxMode === 'plasma_rim'
+                || frontierFxMode === 'ion_drift'
+                || frontierFxMode === 'geometry_strip'
+            );
         const frontierFxPulseBucket = frontierFxAnimatedForFrame
             ? Math.floor(input.nowMs / 16)
             : 0;
@@ -3380,7 +3422,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             ownerIdByColorIdx[idx] = ownerId;
         }
         const suppressedBaseVIds = new Set<string>();
-        for (const { plan } of activeSessionPlans) {
+        for (const { plan } of visualSessionPlans) {
             for (const vId of plan.classification.byRole.dispossessed) {
                 suppressedBaseVIds.add(vId);
             }
@@ -3391,7 +3433,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 suppressedBaseVIds.add(vId);
             }
         }
-        const suppressedBaseSig = activeSessionPlans
+        const suppressedBaseSig = visualSessionPlans
             .map(({ plan }) => plan.planKey)
             .join('||');
         const captureDebug = shouldCaptureMetaballGridDebug();
@@ -3412,21 +3454,25 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         );
         const easedProgress = easeProgress(waveEase, rawProgress);
         const transitionSessionCount = activeSessionPlans.length;
+        const visualTransitionSessionCount = visualSessionCount;
         const transitionTotalCount = activeSessionPlans.reduce(
             (total, { plan }) => total + plan.wavePlan.orderedTransitionVIds.length,
             0,
         );
-        const activeWindowCount = activeSessionPlans.reduce((total, { session, plan }) => {
-            const sessionProgress = easeProgress(waveEase, session.rawProgress);
-            return (
-                total +
-                plan.wavePlan.orderedFlipTimes.filter(
-                    (flipTime) =>
-                        sessionProgress >= flipTime - flipWindow / 2 &&
-                        sessionProgress <= flipTime + flipWindow / 2,
-                ).length
-            );
-        }, 0);
+        const activeWindowCount = visualSessionPlans.reduce(
+            (total, { session, plan }) => {
+                const sessionProgress = easeProgress(waveEase, session.rawProgress);
+                return (
+                    total
+                    + plan.wavePlan.orderedFlipTimes.filter(
+                        (flipTime) =>
+                            sessionProgress >= flipTime - flipWindow / 2
+                            && sessionProgress <= flipTime + flipWindow / 2,
+                    ).length
+                );
+            },
+            0,
+        );
         let frontierTechnique = frontierRequestedTechnique;
         let frontierFallbackReason: string | null = null;
         if (frontierTechnique !== 'control') {
@@ -3531,9 +3577,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 0,
             planWorkerPending: false,
             holdingForPlan: false,
-            visualTransitionActive: transitionSessionCount > 0,
-            visibleFrameState: transitionSessionCount > 0 ? 'fallback_plan' : 'steady',
-            clockSource: transitionSessionCount > 0 ? 'scheduler' : 'none',
+            visualTransitionActive: visualTransitionSessionCount > 0,
+            visibleFrameState: visualTransitionSessionCount > 0 ? 'fallback_plan' : 'steady',
+            clockSource: visualTransitionSessionCount > 0 ? 'scheduler' : 'none',
             renderCacheMode: 'live_vectors',
             activeWindowCount,
             transitionTotalCount,
@@ -3542,7 +3588,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             transitionSpriteWrites: 0,
             fastPathUsed: false,
             fallbackReason:
-                transitionSessionCount > 0 ? 'session_overlay_renderer' : 'steady_scene',
+                visualTransitionSessionCount > 0 ? 'session_overlay_renderer' : 'steady_scene',
             activeTransitionDurationMs: input.activeTransition?.durationMs ?? null,
             activeTransitionStartedAtMs: input.activeTransition?.startedAtMs ?? null,
             schedulerRawProgress: input.activeTransition?.rawProgress ?? null,
@@ -3577,7 +3623,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         // reshaped — previously the gate could short-circuit paint even after
         // the plan rebuilt against a fresh snapshot, hiding visible changes.
         const territoryEpoch = getTerritoryVisualEpoch();
-        const activeSessionPaintSig = activeSessionPlans
+        const activeSessionPaintSig = visualSessionPlans
             .map(
                 ({ session, plan }) =>
                     `${plan.planKey}@${quantProgress(session.rawProgress)}`,
@@ -3626,6 +3672,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             frontierFxStrength.toFixed(3),
             frontierFxSteps,
             frontierFxSoftness.toFixed(3),
+            frontierFxEmissive.toFixed(3),
+            frontierFxParticleDensity.toFixed(3),
             frontierFxPulseSpeed.toFixed(3),
             frontierFxApplySteadyState ? '1' : '0',
             frontierFxApplyTransition ? '1' : '0',
@@ -3701,7 +3749,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         const baseSceneCells = renderMetaballGridScene({
             classification: cached.classification,
             wavePlan: applyFlipTimeJitter(cached.wavePlan, flipTimeJitter),
-            progress: activeSessionPlans.length > 0 ? 1 : progress,
+            progress: visualTransitionSessionCount > 0 ? 1 : progress,
             flipTransition,
             flipWindow,
             strength,
@@ -3710,10 +3758,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             omitVIds: suppressedBaseVIds.size > 0 ? suppressedBaseVIds : undefined,
         }).cells;
         const sceneCells =
-            activeSessionPlans.length > 0
+            visualTransitionSessionCount > 0
                 ? baseSceneCells.slice()
                 : baseSceneCells;
-        for (const { session, plan } of activeSessionPlans) {
+        for (const { session, plan } of visualSessionPlans) {
             const sessionProgress = easeProgress(waveEase, session.rawProgress);
             const overlay = renderMetaballGridScene({
                 classification: plan.classification,
@@ -3949,7 +3997,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     distanceField,
                     tuning: frontierFxTuning,
                     nowMs: input.nowMs,
-                    hasActiveTransition: activeSessionPlans.length > 0,
+                    hasActiveTransition: visualTransitionSessionCount > 0,
                     reuseField: this.frontierFxSampleField,
                 });
                 this.frontierFxSampleField = frontierFxSamples;

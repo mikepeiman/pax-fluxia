@@ -3,6 +3,7 @@ import type { OwnershipGridFrontierDistanceField } from './distance';
 import type { TerritoryFrontierFxMode } from './types';
 
 const PLASMA_HOT_HEX = 0xffc86b;
+const TWO_PI = Math.PI * 2;
 
 export interface TerritoryFrontierFxTuning {
     readonly mode: TerritoryFrontierFxMode;
@@ -10,6 +11,8 @@ export interface TerritoryFrontierFxTuning {
     readonly strength: number;
     readonly steps: number;
     readonly softness: number;
+    readonly emissive: number;
+    readonly particleDensity: number;
     readonly pulseSpeed: number;
     readonly applySteadyState: boolean;
     readonly applyTransition: boolean;
@@ -44,6 +47,14 @@ function clamp01(value: number): number {
     if (value <= 0) return 0;
     if (value >= 1) return 1;
     return value;
+}
+
+function resolveCellNoise(cellIndex: number, cols: number): number {
+    const safeCols = Math.max(1, cols);
+    const ix = cellIndex % safeCols;
+    const iy = Math.floor(cellIndex / safeCols);
+    const seed = Math.sin(ix * 12.9898 + iy * 78.233) * 43758.5453;
+    return seed - Math.floor(seed);
 }
 
 function resolveEdgeFactor(
@@ -98,18 +109,30 @@ function resolveTerritoryFrontierFxSampleValues(params: {
     readonly nearestBoundaryPx: number;
     readonly nowMs: number;
     readonly hasActiveTransition: boolean;
+    readonly bandIndex?: number;
+    readonly cellIndex?: number;
+    readonly cols?: number;
 }): TerritoryFrontierFxSample | null {
     const { tuning, nearestBoundaryPx, nowMs, hasActiveTransition } = params;
     if (!isTerritoryFrontierFxActive(tuning, hasActiveTransition)) return null;
 
     const widthPx = Math.max(1, tuning.widthPx);
     const strength = clamp01(tuning.strength);
+    const emissive = Math.max(0, tuning.emissive);
+    const particleDensity = clamp01(tuning.particleDensity);
     const edgeFactor = resolveEdgeFactor(
         nearestBoundaryPx,
         widthPx,
         tuning.softness,
     );
     if (edgeFactor <= 0) return null;
+
+    const bandIndex = Math.max(0, params.bandIndex ?? 0);
+    const cols = Math.max(1, params.cols ?? 1);
+    const cellIndex = Math.max(0, params.cellIndex ?? 0);
+    const ix = cellIndex % cols;
+    const iy = Math.floor(cellIndex / cols);
+    const noise = resolveCellNoise(cellIndex, cols);
 
     switch (tuning.mode) {
         case 'soft_fade':
@@ -142,9 +165,79 @@ function resolveTerritoryFrontierFxSampleValues(params: {
             return {
                 alphaMultiplier: Math.max(0, 1 - 0.18 * strength * edgeFactor),
                 saturationMultiplier: 1 + 0.26 * strength * edgeFactor,
-                lightnessMultiplier: 1 + 0.28 * strength * edgeFactor,
+                lightnessMultiplier:
+                    1 + 0.28 * strength * edgeFactor * (0.5 + 0.5 * emissive),
                 hotBlendAmount: clamp01(
-                    0.18 * strength * edgeFactor + 0.42 * strength * wave,
+                    (
+                        0.18 * strength * edgeFactor
+                        + 0.42 * strength * wave
+                    ) * emissive,
+                ),
+            };
+        }
+        case 'ion_drift': {
+            const pulseSpeed = Math.max(0.1, tuning.pulseSpeed);
+            const phase =
+                nowMs * 0.0035 * pulseSpeed
+                + ix * 0.61
+                + iy * 1.37
+                + bandIndex * 0.47
+                + noise * TWO_PI;
+            const drift = 0.5 + 0.5 * Math.sin(phase);
+            const threshold = 1 - particleDensity * 0.9;
+            const spark =
+                drift > threshold
+                    ? (drift - threshold) / Math.max(0.001, 1 - threshold)
+                    : 0;
+            return {
+                alphaMultiplier: Math.max(
+                    0,
+                    1 - (0.08 * edgeFactor + 0.12 * spark) * strength,
+                ),
+                saturationMultiplier:
+                    1
+                    + 0.1 * strength * edgeFactor
+                    + 0.34 * strength * spark,
+                lightnessMultiplier:
+                    1
+                    + 0.08 * strength * edgeFactor
+                    + 0.5 * strength * spark * (0.4 + 0.6 * emissive),
+                hotBlendAmount: clamp01(
+                    0.08 * strength * edgeFactor
+                    + 0.55 * strength * spark * emissive,
+                ),
+            };
+        }
+        case 'geometry_strip': {
+            const pulseSpeed = Math.max(0.1, tuning.pulseSpeed);
+            const steps = Math.max(2, Math.round(tuning.steps));
+            const bandPosition =
+                clamp01(nearestBoundaryPx / Math.max(1, widthPx)) * (steps - 1);
+            const travel = (nowMs * 0.0018 * pulseSpeed + noise * 0.65) % steps;
+            const directDistance = Math.abs(bandPosition - travel);
+            const wrappedDistance = Math.min(
+                directDistance,
+                Math.abs(directDistance - steps),
+            );
+            const strip = Math.max(
+                0,
+                1 - wrappedDistance / Math.max(0.8, tuning.softness + 0.35),
+            );
+            const quantized = Math.ceil(edgeFactor * steps) / steps;
+            const stripWeight = Math.max(quantized, strip);
+            return {
+                alphaMultiplier: Math.max(0, 1 - 0.38 * strength * stripWeight),
+                saturationMultiplier:
+                    1
+                    + 0.12 * strength * quantized
+                    + 0.24 * strength * strip,
+                lightnessMultiplier:
+                    1
+                    + 0.08 * strength * quantized
+                    + 0.3 * strength * strip * (0.5 + 0.5 * emissive),
+                hotBlendAmount: clamp01(
+                    0.08 * strength * quantized
+                    + 0.32 * strength * strip * emissive,
                 ),
             };
         }
@@ -159,6 +252,9 @@ export function evaluateTerritoryFrontierFxSample(params: {
     readonly nearestBoundaryPx: number;
     readonly nowMs: number;
     readonly hasActiveTransition: boolean;
+    readonly bandIndex?: number;
+    readonly cellIndex?: number;
+    readonly cols?: number;
 }): TerritoryFrontierFxSample | null {
     return resolveTerritoryFrontierFxSampleValues(params);
 }
@@ -199,77 +295,28 @@ export function buildTerritoryFrontierFxSampleField(
     samples.saturationMultiplierByCell.fill(1);
     samples.lightnessMultiplierByCell.fill(1);
     samples.hotBlendAmountByCell.fill(0);
+
     for (let i = 0; i < length; i++) {
         if (distanceField.bandIndexByCell[i] < 0) {
             continue;
         }
-        const nearestBoundaryPx =
-            distanceField.nearestBoundaryPxByCell[i] ?? Infinity;
-        const widthPx = Math.max(1, tuning.widthPx);
-        const strength = clamp01(tuning.strength);
-        const edgeFactor = resolveEdgeFactor(
-            nearestBoundaryPx,
-            widthPx,
-            tuning.softness,
-        );
-        if (edgeFactor <= 0) continue;
-
-        let alphaMultiplier = 1;
-        let saturationMultiplier = 1;
-        let lightnessMultiplier = 1;
-        let hotBlendAmount = 0;
-
-        switch (tuning.mode) {
-            case 'soft_fade':
-                alphaMultiplier = Math.max(
-                    0,
-                    1 - 0.42 * strength * edgeFactor,
-                );
-                saturationMultiplier = 1 + 0.08 * strength * edgeFactor;
-                lightnessMultiplier = 1 + 0.22 * strength * edgeFactor;
-                break;
-            case 'stepped_moat': {
-                const steps = Math.max(1, Math.round(tuning.steps));
-                const quantized = Math.ceil(edgeFactor * steps) / steps;
-                alphaMultiplier = Math.max(
-                    0,
-                    1 - 0.55 * strength * quantized,
-                );
-                saturationMultiplier = 1 + 0.08 * strength * quantized;
-                lightnessMultiplier = Math.max(
-                    0.05,
-                    1 - 0.32 * strength * quantized,
-                );
-                break;
-            }
-            case 'plasma_rim': {
-                const pulseSpeed = Math.max(0.1, tuning.pulseSpeed);
-                const phase =
-                    nowMs * 0.004 * pulseSpeed
-                    - (nearestBoundaryPx / Math.max(1, widthPx)) * Math.PI * 3;
-                const pulse = 0.5 + 0.5 * Math.sin(phase);
-                const wave = edgeFactor * (0.45 + 0.55 * pulse);
-                alphaMultiplier = Math.max(
-                    0,
-                    1 - 0.18 * strength * edgeFactor,
-                );
-                saturationMultiplier = 1 + 0.26 * strength * edgeFactor;
-                lightnessMultiplier = 1 + 0.28 * strength * edgeFactor;
-                hotBlendAmount = clamp01(
-                    0.18 * strength * edgeFactor + 0.42 * strength * wave,
-                );
-                break;
-            }
-            case 'off':
-            default:
-                continue;
-        }
+        const sample = resolveTerritoryFrontierFxSampleValues({
+            tuning,
+            nearestBoundaryPx:
+                distanceField.nearestBoundaryPxByCell[i] ?? Infinity,
+            nowMs,
+            hasActiveTransition,
+            bandIndex: distanceField.bandIndexByCell[i] ?? -1,
+            cellIndex: i,
+            cols: distanceField.cols,
+        });
+        if (!sample) continue;
 
         samples.activeMaskByCell[i] = 1;
-        samples.alphaMultiplierByCell[i] = alphaMultiplier;
-        samples.saturationMultiplierByCell[i] = saturationMultiplier;
-        samples.lightnessMultiplierByCell[i] = lightnessMultiplier;
-        samples.hotBlendAmountByCell[i] = hotBlendAmount;
+        samples.alphaMultiplierByCell[i] = sample.alphaMultiplier;
+        samples.saturationMultiplierByCell[i] = sample.saturationMultiplier;
+        samples.lightnessMultiplierByCell[i] = sample.lightnessMultiplier;
+        samples.hotBlendAmountByCell[i] = sample.hotBlendAmount;
     }
     return samples;
 }

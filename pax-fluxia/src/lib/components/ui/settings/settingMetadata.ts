@@ -518,6 +518,12 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Frontier FX Strength': { key: 'TERRITORY_FRONTIER_FX_STRENGTH' },
         'Frontier FX Softness': { key: 'TERRITORY_FRONTIER_FX_SOFTNESS' },
         'Frontier FX Steps': { key: 'TERRITORY_FRONTIER_FX_STEPS' },
+        'Frontier FX Glow / Emissive': {
+            key: 'TERRITORY_FRONTIER_FX_EMISSIVE',
+        },
+        'Frontier FX Particle Density': {
+            key: 'TERRITORY_FRONTIER_FX_PARTICLE_DENSITY',
+        },
         'Frontier FX Pulse Speed': {
             key: 'TERRITORY_FRONTIER_FX_PULSE_SPEED',
         },

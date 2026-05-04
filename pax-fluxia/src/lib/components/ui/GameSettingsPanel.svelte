@@ -857,8 +857,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
         if (section.id === "frontier_fx") {
             return (
-                activeTerritoryRenderMode === "metaball_grid_ember_lattice" ||
-                activeTerritoryRenderMode === "metaball_grid"
+                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
+                activeTerritoryRenderMode === "metaball_grid_ember_lattice"
             );
         }
         if (section.id === "territory_styles") {

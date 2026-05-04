@@ -38,7 +38,9 @@ export type TerritoryFrontierFxMode =
     | 'off'
     | 'soft_fade'
     | 'stepped_moat'
-    | 'plasma_rim';
+    | 'plasma_rim'
+    | 'ion_drift'
+    | 'geometry_strip';
 
 export interface TerritoryFrontierPhaseFieldLayer {
     readonly id: string;
