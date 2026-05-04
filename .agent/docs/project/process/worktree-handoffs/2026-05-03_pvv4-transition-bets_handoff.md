@@ -284,6 +284,30 @@
 - Validation:
   - push completed successfully
 
+### 2026-05-04 - Investigated home-route game shell import failure
+
+- Action:
+  - inspected:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\routes\+page.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\utils\homeRouteDiagnostics.ts`
+  - checked for presence of:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\TransitionDebugPanel.svelte`
+  - searched for all `TransitionDebugPanel` references under `src`
+- Purpose:
+  - explain the browser-reported `Failed to fetch dynamically imported module` error without guessing
+  - determine whether the failure is in the dynamic import itself or in `GameContainer.svelte`'s dependency graph
+- Result:
+  - the dynamic import wrapper in `+page.svelte` is functioning as designed; it retries and records diagnostics around `import("$lib/components/game/GameContainer.svelte")`
+  - the actual failure is downstream of that import: `GameContainer.svelte` imports `"$lib/components/ui/TransitionDebugPanel.svelte"` on line 23
+  - that file does not exist in the current worktree
+  - because Vite cannot resolve a direct dependency of `GameContainer.svelte`, the dev server cannot serve the compiled module, and the browser surfaces the generic fetch/import failure against `GameContainer.svelte`
+  - the `homeRouteDiagnostics.ts` console entry is only the normalized logging layer for that thrown import error, not a second independent fault
+- Validation:
+  - `Test-Path` for `src/lib/components/ui/TransitionDebugPanel.svelte` returned `False`
+  - repository search showed `TransitionDebugPanel` references only in `GameContainer.svelte`
+  - repository listing of `src/lib/components/ui` showed `PerimeterFieldDiagnosticsPanel.svelte` exists, but `TransitionDebugPanel.svelte` does not
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
@@ -297,10 +321,11 @@
 
 - The easiest failure mode is over-fixing a mode that the user already considers close.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
-- Visual verification has not yet started for the new experiment sequence.
+- `GameContainer.svelte` currently has an unresolved import to `TransitionDebugPanel.svelte`, which blocks loading the game shell in dev until it is removed, replaced, or restored.
+- Visual verification of PVV4 bets is blocked until the game shell import path is loadable again.
 - Full repo validation is currently noisy due unrelated pre-existing build and typecheck failures outside this branch scope.
 
 ## Next Intended Step
 
-- Commit and push `Approach A` bet 1.
-- Then wait for visual verification before stacking a second motion idea.
+- Repair the missing `TransitionDebugPanel.svelte` dependency path with the smallest change that restores `GameContainer.svelte` loading.
+- Then resume PVV4 visual verification before stacking a second motion idea.
