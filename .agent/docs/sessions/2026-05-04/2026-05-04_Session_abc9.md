@@ -75,3 +75,18 @@
   - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
   - `bun run build` passes in `pax-fluxia/`
   - `bun run check` still reports large amounts of pre-existing repo-wide type debt outside this feature lane
+
+## Sprint 4 - full gameplay mode set and tuning surface
+
+- Expanded the gameplay mode catalog in the visuals panel from the first four live modes to the full eight primary live modes.
+- Added mode-specific tuning sliders and reset-to-default behavior so the gameplay settings surface is a real tuning surface, not a hidden data knob.
+- Implemented the remaining gameplay modes in the shared presenter path:
+  - `leyline_flow`
+  - `ember_kingdom`
+  - `frost_veins`
+  - `storm_current`
+- Refactored the presenter into smaller runtime modules after the first implementation pass pushed the file over the repo's hard file-size limit.
+- Verification:
+  - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+  - `bun run build` passes in `pax-fluxia/`
+  - build warnings remain dominated by pre-existing unused-selector noise outside this feature lane

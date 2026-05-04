@@ -29,6 +29,10 @@
   - integrate a gameplay ambient presenter for the clean territory runtimes
   - support the first gameplay-capable modes: `nebula_veil`, `banner_light`, `shadow_mist`, `starlit_dust`
   - keep unsupported territory runtimes on explicit no-op behavior instead of mode-specific hacks
+- Sprint 4:
+  - extend gameplay support to all 8 primary live modes
+  - expose shared and mode-specific tuning controls in the gameplay settings surface
+  - keep the implementation modular enough to respect the repo's file-discipline limits while the renderer family grows
 
 ## Progress log
 
@@ -69,6 +73,23 @@
     - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
     - `bun run build` passes in `pax-fluxia/`
     - `bun run check` still reports large amounts of pre-existing repo-wide type debt outside this feature lane
+- Sprint 4 implemented:
+  - expanded the gameplay mode picker to all 8 primary live modes in `ControlsSection-Visuals.svelte`
+  - added shared + mode-specific tuning controls plus a reset-to-default action for the selected live mode
+  - extended the gameplay presenter to render:
+    - `leyline_flow`
+    - `ember_kingdom`
+    - `frost_veins`
+    - `storm_current`
+  - refactored the gameplay presenter into smaller modules to stay under the repo's file-size rule:
+    - `pax-fluxia/src/lib/backgrounds/runtime/GameAmbientBackgroundPresenter.ts`
+    - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientUtils.ts`
+    - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientInteriorDrawers.ts`
+    - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientParticleDrawers.ts`
+  - verification:
+    - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+    - `bun run build` passes in `pax-fluxia/`
+    - build still emits the same large pre-existing Svelte unused-selector warnings outside this feature lane
 
 ## Verification target
 

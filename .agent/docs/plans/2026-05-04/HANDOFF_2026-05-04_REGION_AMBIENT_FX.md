@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** Sprint 1 through Sprint 3 are now landed in this worktree; menu runtime is live, and gameplay runtime exists on the clean territory paths with the first four gameplay modes
+**Current state:** Sprint 1 through Sprint 4 are now landed in this worktree; menu runtime is live, gameplay runtime exists on the clean territory paths, and all 8 primary gameplay modes now render with a full live tuning surface
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -84,6 +84,28 @@ Implemented Sprint 3 of the background-mode system:
   - `banner_light`
   - `shadow_mist`
   - `starlit_dust`
+
+Implemented Sprint 4 of the background-mode system:
+
+- extended gameplay mode coverage to all 8 primary live modes:
+  - `leyline_flow`
+  - `ember_kingdom`
+  - `frost_veins`
+  - `storm_current`
+- upgraded the gameplay tuning surface in:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
+- added shared and mode-specific tuning sliders plus reset-to-default behavior for the selected gameplay mode
+- split the gameplay presenter into smaller runtime modules to avoid violating the repo's file-size rule:
+  - `pax-fluxia/src/lib/backgrounds/runtime/GameAmbientBackgroundPresenter.ts`
+  - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientUtils.ts`
+  - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientInteriorDrawers.ts`
+  - `pax-fluxia/src/lib/backgrounds/runtime/gameAmbientParticleDrawers.ts`
+- shared tunables now have actual renderer effect:
+  - `intensity`
+  - `animationSpeed`
+  - `scale`
+  - `edgeSoftness`
+  - `vignette`
 
 ## Objective locked in
 
@@ -173,24 +195,22 @@ Use `pax-fluxia/src/lib/backgrounds/` for:
 
 Do not reintroduce ad hoc string mode ids elsewhere.
 
-### 2. Extend the gameplay presenter to the remaining primary modes
+### 2. Add capability-aware UI gating and selective compatibility
 
-Next implementation target after Sprint 3:
+Next implementation target after Sprint 4:
 
-- `leyline_flow`
-- `ember_kingdom`
-- `frost_veins`
-- `storm_current`
+- disable unsupported gameplay modes based on the active territory runtime
+- preserve stored selections even when the current runtime cannot render them
+- keep unsupported modes on explicit no-op behavior instead of silently falling back
 
-Keep them as compositions of shared layer ideas instead of one-off renderer branches.
+### 3. Implement selective support for subset runtimes
 
-### 3. Add mode-specific gameplay tuning controls
+Sprint 5 should lock:
 
-The new gameplay tuning surface exists. The next pass should expose:
-
-- shared tunables for every primary live mode
-- mode-specific sliders with sane defaults
-- reset-to-default actions per mode
+- `distance_field`
+  - shared-subset support only if it can consume the shared input cleanly
+- `perimeter_field`
+  - frontier-forward support first
 
 ### 4. Keep clean-territory-first support as the v1 contract
 
@@ -270,4 +290,4 @@ When this work becomes code, port in this order:
 4. mode/tuning UI
 5. selective compatibility hardening
 
-Sprint 1 through Sprint 3 now cover steps 1 through 4 in partial form. The next merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the new runtime files under `pax-fluxia/src/lib/backgrounds/runtime/`.
+Sprint 1 through Sprint 4 now cover steps 1 through 4 in substantial form. The next merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the runtime support policy in `pax-fluxia/src/lib/backgrounds/catalog.ts`.

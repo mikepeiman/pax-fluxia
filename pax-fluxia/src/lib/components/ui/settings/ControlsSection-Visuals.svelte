@@ -31,13 +31,6 @@
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
-    const initialGameplayModeIds = new Set([
-        "nebula_veil",
-        "banner_light",
-        "shadow_mist",
-        "starlit_dust",
-    ]);
-
     let lanePathUiMode = $derived(
         (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
             | "straight"
@@ -69,10 +62,7 @@
     let bgImages = $state<string[]>(BG_IMAGES);
     let gameplayBackgroundModes = $derived(
         BACKGROUND_MODE_CATALOG.filter(
-            (definition) =>
-                definition.primary &&
-                definition.supportsGame &&
-                initialGameplayModeIds.has(definition.id),
+            (definition) => definition.primary && definition.supportsGame,
         ),
     );
     let currentBackgroundSelection = $derived(
@@ -89,6 +79,16 @@
     let sharedTunables = $derived(
         currentBackgroundDefinition?.sharedTunables ?? [],
     );
+    let modeTunables = $derived(
+        currentBackgroundDefinition?.modeTunables ?? [],
+    );
+
+    function formatTunableValue(tunable: BackgroundTunableDef): string {
+        const value =
+            currentBackgroundSelection.tunables[tunable.key] ??
+            tunable.defaultValue;
+        return tunable.step < 1 ? value.toFixed(2) : value.toFixed(0);
+    }
 
     function modeSwatchStyle(modeId: string): string {
         switch (modeId) {
@@ -100,6 +100,14 @@
                 return "background: radial-gradient(circle at 52% 22%, rgba(132, 164, 255, 0.26), transparent 38%), linear-gradient(180deg, #060914, #13162a 45%, #05070d 100%);";
             case "starlit_dust":
                 return "background: radial-gradient(circle at 24% 30%, rgba(255, 255, 255, 0.8) 0 2px, transparent 3px), radial-gradient(circle at 68% 44%, rgba(144, 224, 255, 0.86) 0 2px, transparent 3px), linear-gradient(180deg, #071525, #0f2540);";
+            case "leyline_flow":
+                return "background: linear-gradient(180deg, #071721, #0f3142), repeating-linear-gradient(165deg, rgba(120, 235, 255, 0.2) 0 2px, transparent 2px 14px), radial-gradient(circle at 58% 44%, rgba(91, 216, 255, 0.28), transparent 44%);";
+            case "ember_kingdom":
+                return "background: radial-gradient(circle at 50% 76%, rgba(255, 169, 82, 0.8), transparent 34%), radial-gradient(circle at 28% 38%, rgba(255, 231, 160, 0.24), transparent 26%), linear-gradient(180deg, #1c0b05, #3d160a 58%, #090305 100%);";
+            case "frost_veins":
+                return "background: linear-gradient(180deg, #071724, #143449), repeating-linear-gradient(150deg, rgba(194, 242, 255, 0.22) 0 2px, transparent 2px 18px), radial-gradient(circle at 32% 30%, rgba(218, 247, 255, 0.6), transparent 30%);";
+            case "storm_current":
+                return "background: linear-gradient(180deg, #06151f, #102d3e), repeating-linear-gradient(135deg, rgba(123, 229, 255, 0.18) 0 3px, transparent 3px 16px), radial-gradient(circle at 74% 30%, rgba(201, 249, 255, 0.55), transparent 24%);";
             default:
                 return "background: linear-gradient(180deg, #0b1120, #111827);";
         }
@@ -142,6 +150,14 @@
             },
         });
     }
+
+    function resetBackgroundModeDefaults() {
+        if (!currentBackgroundDefinition) return;
+        setBackgroundSelection({
+            modeId: currentBackgroundDefinition.id,
+            tunables: {},
+        });
+    }
 </script>
 
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
@@ -149,9 +165,10 @@
 <section data-subsection-id="background">
     <h4 class="sub-heading">Background</h4>
     <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-        Regional ambient backgrounds now have live gameplay modes. This first
-        pass wires the clean territory paths and keeps the legacy image set as a
-        compatibility fallback.
+        Regional ambient backgrounds now expose the full eight-mode gameplay
+        catalog on the clean territory paths. Shared tunables shape the whole
+        mode; the mode-specific sliders below are where each family earns its
+        identity.
     </p>
     <div class="var-row">
         <div class="row-top">
@@ -189,20 +206,25 @@
     </div>
     {#if currentBackgroundDefinition}
         <div class="background-tuning-panel">
-            <div class="row-top">
+            <div class="row-top background-tuning-panel__header">
                 <span class="var-name">Live Tuning</span>
-                <span class="val">Shared</span>
+                <div class="background-tuning-panel__actions">
+                    <span class="val">{currentBackgroundDefinition.label}</span>
+                    <button
+                        type="button"
+                        class="background-tuning-panel__reset"
+                        onclick={resetBackgroundModeDefaults}
+                    >
+                        Reset Mode
+                    </button>
+                </div>
             </div>
+            <div class="background-tuning-panel__group-label">Shared</div>
             {#each sharedTunables as tunable}
                 <div class="var-row">
                     <div class="row-top">
                         <span class="var-name">{tunable.label}</span>
-                        <span class="val"
-                            >{(
-                                currentBackgroundSelection.tunables[tunable.key] ??
-                                tunable.defaultValue
-                            ).toFixed(tunable.step < 1 ? 2 : 0)}</span
-                        >
+                        <span class="val">{formatTunableValue(tunable)}</span>
                     </div>
                     <input
                         type="range"
@@ -221,6 +243,35 @@
                     />
                 </div>
             {/each}
+            {#if modeTunables.length > 0}
+                <div class="background-tuning-panel__group-label">
+                    {currentBackgroundDefinition.label}
+                </div>
+                {#each modeTunables as tunable}
+                    <div class="var-row">
+                        <div class="row-top">
+                            <span class="var-name">{tunable.label}</span>
+                            <span class="val">{formatTunableValue(tunable)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={tunable.min}
+                            max={tunable.max}
+                            step={tunable.step}
+                            value={currentBackgroundSelection.tunables[
+                                tunable.key
+                            ] ?? tunable.defaultValue}
+                            oninput={(e) =>
+                                updateBackgroundTunable(
+                                    tunable,
+                                    parseFloat(
+                                        (e.target as HTMLInputElement).value,
+                                    ),
+                                )}
+                        />
+                    </div>
+                {/each}
+            {/if}
         </div>
     {/if}
     <div class="var-row">
@@ -743,6 +794,38 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
         background: rgba(11, 17, 32, 0.55);
+    }
+    .background-tuning-panel__header {
+        align-items: center;
+    }
+    .background-tuning-panel__actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .background-tuning-panel__reset {
+        margin: 0;
+        padding: 4px 8px;
+        min-height: 0;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #d7e2f0;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        cursor: pointer;
+    }
+    .background-tuning-panel__reset:hover {
+        background: rgba(125, 211, 252, 0.14);
+        border-color: rgba(125, 211, 252, 0.32);
+    }
+    .background-tuning-panel__group-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(199, 223, 245, 0.72);
     }
     .bg-thumb {
         width: 48px;
