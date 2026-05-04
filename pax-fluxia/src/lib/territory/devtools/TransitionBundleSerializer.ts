@@ -94,6 +94,11 @@ interface DiagnosticPackageManifest {
     timestamp: string;
     transitionId: string;
     conquestEvents: TransitionDebugBundle['conquestEvents'];
+    debugFiles: {
+        diagnostic: string;
+        topology: string;
+        geometrySnapshot: string;
+    };
     selectedFrames: DiagnosticPackageFrame[];
     notes: string[];
     modes: TransitionDebugBundle['meta']['modes'];
@@ -433,12 +438,24 @@ export function selectDiagnosticIntermediateFrames(
     return selected.sort((a, b) => a.progress - b.progress);
 }
 
+function buildDiagnosticDebugFileNames(
+    bundle: TransitionDebugBundle,
+): DiagnosticPackageManifest['debugFiles'] {
+    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    return {
+        diagnostic: `${prefix}_diagnostic.json`,
+        topology: `${prefix}_topology.json`,
+        geometrySnapshot: `${prefix}_geometry_snapshot.json`,
+    };
+}
+
 function buildDiagnosticManifest(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): DiagnosticPackageManifest {
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const adapterData = adapter?.buildData(bundle, selectedFrames);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle);
 
     return {
         exportKind: 'transition_diagnostic_package',
@@ -447,6 +464,7 @@ function buildDiagnosticManifest(
         timestamp: bundle.timestamp,
         transitionId: bundle.meta.transitionId,
         conquestEvents: bundle.conquestEvents,
+        debugFiles,
         selectedFrames: [...selectedFrames],
         notes: [
             'Package contains PREV, NEXT, and up to 5 evenly spaced intermediate transition frames.',
@@ -491,6 +509,7 @@ function buildDiagnosticReadme(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): string {
+    const debugFiles = buildDiagnosticDebugFileNames(bundle);
     const conquestLine = bundle.conquestEvents.length
         ? `Conquest: ${formatConquestEventGroupLabel(bundle.conquestEvents)}`
         : 'Conquest: unavailable';
@@ -519,11 +538,11 @@ function buildDiagnosticReadme(
         '- render/next.png',
         '',
         'Debug files:',
-        '- debug/diagnostic.json',
-        '- debug/topology.json',
-        '- debug/geometry_snapshot.json',
+        `- debug/${debugFiles.diagnostic}`,
+        `- debug/${debugFiles.topology}`,
+        `- debug/${debugFiles.geometrySnapshot}`,
         '',
-        'debug/diagnostic.json contains compact previous/next geometry, topology summaries, conquest metadata, modes, and capture diagnostics.',
+        `debug/${debugFiles.diagnostic} contains compact previous/next geometry, topology summaries, conquest metadata, modes, and capture diagnostics.`,
     ].join('\n');
 }
 
@@ -675,15 +694,16 @@ export async function downloadDiagnosticPackage(
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);
     const compactGeometry = buildCompactGeometryExport(bundle, selectedFrames);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle);
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
-    zip.file('debug/diagnostic.json', JSON.stringify(manifest, null, 2));
+    zip.file(`debug/${debugFiles.diagnostic}`, JSON.stringify(manifest, null, 2));
     zip.file(
-        'debug/topology.json',
+        `debug/${debugFiles.topology}`,
         JSON.stringify(serializeTopologyPairCompact(bundle), null, 2),
     );
     zip.file(
-        'debug/geometry_snapshot.json',
+        `debug/${debugFiles.geometrySnapshot}`,
         JSON.stringify(
             compactGeometry,
             (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),

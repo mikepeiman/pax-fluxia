@@ -934,3 +934,63 @@
 - Why this matters for the branch:
   - this is still a small-bet fix in the user's requested style
   - it preserves the existing mode and narrows one concrete visible defect instead of chasing planner purity
+
+## Update: 2026-05-04 - Preserve Conquest Context In Package-Internal Debug JSON Filenames
+
+- Trigger:
+  - user supplied another diagnostic package:
+    - `C:\Users\mikep\Downloads\15-27-15---056_transition-diagnostic-package\debug\diagnostic.json`
+    - companion `topology.json`, `geometry_snapshot.json`, and rendered frames
+  - user correctly called out two things:
+    - this is a dual-conquest event
+    - the JSON files inside the package are still named generically, which loses conquest context when extracted or shared
+- Diagnostic read from the supplied package:
+  - classification:
+    - `animated_fronts`
+  - conquest events at the same simulation timestamp:
+    - `star-26: ai-5 -> ai-4`
+    - `star-27: ai-4 -> ai-3`
+  - planner summary:
+    - `plannedPairCount = 2`
+    - `frontCount = 2`
+    - `activeSectionCount = 17`
+    - `skippedTopologyGapCount = 3`
+    - `skippedUnsupportedSplitCount = 4`
+    - `skippedNoChangeSpanCount = 22`
+  - interpretation:
+    - this package is a real two-front `animated_fronts` capture, not a snap
+    - the package itself predates the latest local-span pinning fix, so its frames still reflect the older artifact style
+- Root cause of the naming problem:
+  - conquest-aware filenames had already been fixed for top-level package names and direct-download JSON exports
+  - but `TransitionBundleSerializer.ts` was still hardcoding the package-internal extracted debug payload names as:
+    - `debug/diagnostic.json`
+    - `debug/topology.json`
+    - `debug/geometry_snapshot.json`
+  - that meant the extracted files lost both:
+    - capture datetime context
+    - conquest identity context
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+      - added `buildDiagnosticDebugFileNames(bundle)`
+      - package-internal `debug/` JSON files now use the conquest-aware datetime prefix:
+        - `{prefix}_diagnostic.json`
+        - `{prefix}_topology.json`
+        - `{prefix}_geometry_snapshot.json`
+      - manifest now records these exact filenames under `debugFiles`
+      - generated README now lists the prefixed debug filenames instead of the generic names
+- Purpose:
+  - keep extracted diagnostic JSON payloads self-describing when moved, compared, or shared outside the package directory
+  - preserve the same conquest-aware naming rule across:
+    - top-level package names
+    - direct JSON exports
+    - package-internal debug payloads
+- Validation:
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - newly exported diagnostic packages should no longer extract to generic debug filenames
+  - instead, `debug/` should contain files like:
+    - `15-27-15---056_<conquest-group>_diagnostic.json`
+    - `15-27-15---056_<conquest-group>_topology.json`
+    - `15-27-15---056_<conquest-group>_geometry_snapshot.json`
+  - the user-supplied package still has the old internal names because it was exported before this patch

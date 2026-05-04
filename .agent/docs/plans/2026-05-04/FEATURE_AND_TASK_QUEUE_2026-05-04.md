@@ -137,6 +137,16 @@
 - Validation:
   - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
   - `bun run build` succeeds end to end
+- Fixed generic JSON filenames inside zipped transition diagnostic packages:
+  - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+  - package-internal `debug/` JSON files now carry the same conquest-aware datetime prefix as the bundle itself:
+    - `{prefix}_diagnostic.json`
+    - `{prefix}_topology.json`
+    - `{prefix}_geometry_snapshot.json`
+  - manifest now records those exact debug filenames under `debugFiles`
+  - README now lists the prefixed debug filenames instead of generic `diagnostic.json` / `topology.json` / `geometry_snapshot.json`
+- Validation:
+  - `bun run build` succeeds end to end
 
 ## Current Best Read
 
@@ -156,6 +166,18 @@
   - the planner found one changed span on a long `ai-5|human-player` section
   - sampling and diagnostics were both overextending that local span across the full overlapping section
   - the latest fix narrows the moving geometry back to the local change interval and marks stable anchors separately from change anchors
+- The newly supplied `15-27-15---056_transition-diagnostic-package` is a true dual-conquest `animated_fronts` case:
+  - two conquest events at the same timestamp:
+    - `star-26: ai-5 -> ai-4`
+    - `star-27: ai-4 -> ai-3`
+  - planner summary in that package:
+    - `plannedPairCount = 2`
+    - `frontCount = 2`
+    - `activeSectionCount = 17`
+    - `skippedTopologyGapCount = 3`
+    - `skippedUnsupportedSplitCount = 4`
+    - `skippedNoChangeSpanCount = 22`
+  - that package predates the latest local-span pinning fix, so its frames still show the older diagnostic artifact style and should not be treated as post-fix output
 
 ## Next
 
@@ -169,3 +191,4 @@
   - `snap_no_fronts`
   - `topology_unavailable`
   - specific pair-level skip mixes
+- Export a fresh dual-conquest package after the naming patch and verify that the extracted `debug/` JSON files now preserve the conquest-aware datetime prefix in their filenames.
