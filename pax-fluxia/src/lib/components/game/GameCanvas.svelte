@@ -5334,6 +5334,9 @@
             // The territory container is positioned at the viewport-aligned
             // frame min. Every territory renderer must therefore consume
             // presentation-local coordinates, not the stable map-space truth.
+            // Keep the family-input world origin at (0,0) as well; otherwise
+            // grid planners subtract the presentation-frame offset a second
+            // time and the entire territory surface shifts off the stars.
             const territoryPresentationStars =
                 localizeTerritoryPresentationStars(
                     stars,
@@ -5641,8 +5644,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5719,8 +5722,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5801,8 +5804,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5887,8 +5890,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5969,8 +5972,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -6055,8 +6058,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldMinX: 0,
+                                    worldMinY: 0,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,

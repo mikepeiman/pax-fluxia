@@ -890,19 +890,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         openSection(forceOpenSection);
     });
 
-    let activeModeSectionAutoOpened = $state<SectionId | null>(null);
-    $effect(() => {
-        if (!activeTerritoryModeSectionId) {
-            activeModeSectionAutoOpened = null;
-            return;
-        }
-        if (activeModeSectionAutoOpened === activeTerritoryModeSectionId) return;
-        activeModeSectionAutoOpened = activeTerritoryModeSectionId;
-        if (!sectionOrder.includes(activeTerritoryModeSectionId)) {
-            openSection(activeTerritoryModeSectionId);
-        }
-    });
-
     interface SubsectionChip {
         id: string;
         label: string;
