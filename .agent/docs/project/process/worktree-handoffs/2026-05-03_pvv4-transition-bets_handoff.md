@@ -800,3 +800,72 @@
   - avoid forcing the user to mentally parse compact or machine-oriented timestamps
 - Validation:
   - `bun run build` passes end to end after the shared formatter change
+
+## Update: 2026-05-04 - Conquest Package Naming And Snap-Package Read
+
+- Trigger:
+  - user supplied a PVV4 transition diagnostic package and asked two things at once:
+    - determine whether the capture was a real snap conquest
+    - replace the vague package naming with an explicit conquest naming convention
+- Diagnostic read from the supplied package:
+  - inspected:
+    - `C:\Users\mikep\Downloads\2026-05-04-134444_transition-diagnostic-package\debug\diagnostic.json`
+    - companion render frames in the same package
+  - findings:
+    - classification: `snap_no_fronts`
+    - candidate pairs: `34`
+    - planned pairs: `0`
+    - front count: `0`
+    - active section count: `0`
+    - topology-gap skips: `4`
+    - unsupported-split skips: `13`
+    - no-change-span skips: `17`
+  - conclusion:
+    - this package is not a bad-looking animation; it is a true no-front snap where the active-front planner evaluated the conquest and produced zero animated fronts
+- Naming problem found:
+  - bundle ids and visible labels were still built from:
+    - `starId + previousOwner + newOwner`
+  - examples of the old ambiguity:
+    - Diagnostics bundle rows showed `★star old→new`
+    - transition package ids used `_previousOwner_to_newOwner`
+    - perimeter-field replay labels used `old -> new @ star`
+  - this did not identify the conquering star and therefore did not answer the user’s actual question: who conquered whom
+- Code changes:
+  - added:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.ts`
+      - shared conquest label + filename helper
+      - canonical display/file sentence:
+        - `attackerStar(newOwner)_conquers_targetStar(previousOwner)`
+      - file-safe fallback sanitization for exports
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+      - bundle ids now use the explicit conquest sentence prefix instead of `_previousOwner_to_newOwner`
+      - direct-export file prefixes now inherit the conquest sentence too
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+      - package manifest now includes `conquestLabel`
+      - README conquest line now uses the explicit sentence
+      - package and direct-download filenames now use the conquest sentence prefix
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\PerimeterFieldConquestPackage.ts`
+      - conquest package README/contact sheet label now use the explicit sentence
+      - conquest package zip and contact sheet filenames now use the conquest sentence prefix
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - bundle list labels now use the explicit conquest sentence
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+      - perimeter-field replay history labels now use the explicit conquest sentence
+- Attacker-metadata preservation changes:
+  - reason:
+    - the explicit naming rule depends on attacker star ids being preserved through conquest capture paths
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\contracts\OwnershipContracts.ts`
+      - added optional `attackerShipTransfers`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritoryFxBridge.ts`
+      - now carries `attackerStarId`, `attackerStarIds`, and `attackerShipTransfers`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+      - render-family ownership snapshot capture now preserves attacker metadata
+      - transition diagnostic conquest-event capture now falls back safely when only `attackerStarId` exists
+- Important note about the user-supplied package:
+  - the provided package predated this naming change and still lacked attacker-star fields in its exported manifest
+  - after this patch, regenerated packages should carry the attacker metadata on more paths, making the explicit naming convention stable instead of best-effort
+- Validation:
+  - `bun run build` passes end to end after the naming + metadata changes
+  - `bunx vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts` passes

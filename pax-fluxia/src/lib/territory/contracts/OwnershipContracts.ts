@@ -10,6 +10,7 @@ export interface TerritoryConquestEvent {
     atMs: number;
     attackerStarId?: string;
     attackerStarIds?: readonly string[];
+    attackerShipTransfers?: readonly number[];
 }
 
 /**

@@ -78,6 +78,34 @@
     now labels the control as current-mode geometry, not perimeter-field-only geometry
 - Added direct diagnostics export folder support:
   - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+- Analyzed a user-supplied PVV4 diagnostic package as a true snap case:
+  - capture showed:
+    - `AF eval: snap_no_fronts`
+    - `pairs: 34`
+    - `planned fronts: 0`
+    - `split skips: 13`
+    - `no-span skips: 17`
+    - `gap skips: 4`
+  - purpose:
+    - confirm that this conquest did not partially animate badly; it fully fell off the active-front planner and snapped
+- Replaced ambiguous conquest/package naming across diagnostics surfaces with explicit conquest sentences:
+  - new naming rule:
+    - `attackerStar(newOwner)_conquers_targetStar(previousOwner)`
+  - new shared helper:
+    - `pax-fluxia/src/lib/territory/devtools/conquestNaming.ts`
+  - updated surfaces:
+    - `pax-fluxia/src/lib/territory/devtools/TransitionSnapshotRecorder.ts`
+    - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+    - `pax-fluxia/src/lib/territory/devtools/PerimeterFieldConquestPackage.ts`
+    - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+    - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- Preserved attacker metadata on more conquest capture paths so the new naming has a stable source of truth:
+  - `pax-fluxia/src/lib/territory/contracts/OwnershipContracts.ts`
+  - `pax-fluxia/src/lib/territory/integration/TerritoryFxBridge.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- Validation:
+  - `bun run build` succeeds end to end
+  - `bunx vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts` passes
   - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
   - exports can now be written straight to a chosen folder via the browser File System
     Access API, with browser-download fallback when unsupported or unset

@@ -6,9 +6,12 @@ import type {
 } from '../families/perimeterField/buildPerimeterFieldScene';
 import { compactPerimeterFieldDebugSnapshot } from '../families/perimeterField/perimeterFieldDiagnostics';
 import {
-    filePrefixFromIsoTimestamp,
     formatLocalCaptureTimeFromIsoTimestamp,
 } from './snapshotExport';
+import {
+    buildConquestFilePrefix,
+    formatConquestEventGroupLabel,
+} from './conquestNaming';
 
 type SamplePoint = {
     x: number;
@@ -678,7 +681,10 @@ function renderContactSheetCanvas(args: {
 export async function downloadPerimeterFieldConquestPackage(
     params: PerimeterFieldConquestPackageParams,
 ): Promise<void> {
-    const prefix = filePrefixFromIsoTimestamp(params.timestamp);
+    const conquestLabel = params.conquestEvents.length
+        ? formatConquestEventGroupLabel(params.conquestEvents)
+        : params.label;
+    const prefix = buildConquestFilePrefix(params.timestamp, params.conquestEvents);
     const zip = new JSZip();
     const renderedFrames = buildRenderedConquestFrames(params);
     const diagnosticFrames = [
@@ -725,7 +731,7 @@ export async function downloadPerimeterFieldConquestPackage(
         await (await canvasToBlob(arcSummaryCanvas)).arrayBuffer(),
     );
     const contactSheetCanvas = renderContactSheetCanvas({
-        label: params.label,
+        label: conquestLabel,
         timestamp: params.timestamp,
         frames: renderedFrames,
     });
@@ -766,7 +772,7 @@ export async function downloadPerimeterFieldConquestPackage(
         [
             '# Perimeter Field Conquest Package',
             '',
-            `Label: ${params.label}`,
+            `Label: ${conquestLabel}`,
             `Captured: ${formatLocalCaptureTimeFromIsoTimestamp(params.timestamp)}`,
             `Captured ISO: ${params.timestamp}`,
             `Frames exported: ${frameEntries.length}`,
@@ -788,7 +794,7 @@ export async function downloadPerimeterFieldConquestPackage(
         JSON.stringify(
             {
                 exportKind: 'perimeter_field_conquest_package',
-                label: params.label,
+                label: conquestLabel,
                 timestamp: params.timestamp,
                 arrowWidth: params.arrowWidth,
                 selectedFrameIndex: params.selectedFrameIndex,
@@ -815,10 +821,13 @@ export async function downloadPerimeterFieldConquestPackage(
 export async function downloadPerimeterFieldConquestContactSheet(
     params: PerimeterFieldConquestPackageParams,
 ): Promise<void> {
-    const prefix = filePrefixFromIsoTimestamp(params.timestamp);
+    const conquestLabel = params.conquestEvents.length
+        ? formatConquestEventGroupLabel(params.conquestEvents)
+        : params.label;
+    const prefix = buildConquestFilePrefix(params.timestamp, params.conquestEvents);
     const renderedFrames = buildRenderedConquestFrames(params);
     const contactSheetCanvas = renderContactSheetCanvas({
-        label: params.label,
+        label: conquestLabel,
         timestamp: params.timestamp,
         frames: renderedFrames,
     });

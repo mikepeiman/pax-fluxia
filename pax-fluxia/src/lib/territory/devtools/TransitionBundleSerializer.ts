@@ -4,13 +4,16 @@ import { compositeOverlayOnScreenshot } from './TransitionDebugOverlay';
 import {
     compactFrontierTopologyForExport,
     compactGeometrySnapshotForExport,
-    filePrefixFromIsoTimestamp,
     formatLocalCaptureTimeFromIsoTimestamp,
 } from './snapshotExport';
 import {
     resolveTransitionDiagnosticsExportAdapter,
     type DiagnosticPackageFrameRef,
 } from './TransitionDiagnosticsAdapters';
+import {
+    buildConquestFilePrefix,
+    formatConquestEventGroupLabel,
+} from './conquestNaming';
 import { writable } from 'svelte/store';
 
 export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
@@ -87,6 +90,7 @@ let exportTargetLoadPromise: Promise<void> | null = null;
 interface DiagnosticPackageManifest {
     exportKind: 'transition_diagnostic_package';
     bundleId: string;
+    conquestLabel: string;
     timestamp: string;
     transitionId: string;
     conquestEvents: TransitionDebugBundle['conquestEvents'];
@@ -439,6 +443,7 @@ function buildDiagnosticManifest(
     return {
         exportKind: 'transition_diagnostic_package',
         bundleId: bundle.id,
+        conquestLabel: formatConquestEventGroupLabel(bundle.conquestEvents),
         timestamp: bundle.timestamp,
         transitionId: bundle.meta.transitionId,
         conquestEvents: bundle.conquestEvents,
@@ -486,9 +491,8 @@ function buildDiagnosticReadme(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): string {
-    const event = bundle.conquestEvents[0];
-    const conquestLine = event
-        ? `Conquest: ${event.starId} ${event.previousOwner} -> ${event.newOwner}`
+    const conquestLine = bundle.conquestEvents.length
+        ? `Conquest: ${formatConquestEventGroupLabel(bundle.conquestEvents)}`
         : 'Conquest: unavailable';
     const renderFrameLines = selectedFrames.length
         ? selectedFrames.map(
@@ -572,7 +576,7 @@ export async function downloadBundle(
     bundle: TransitionDebugBundle,
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
-    const prefix = filePrefixFromIsoTimestamp(bundle.timestamp);
+    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
     if (bundle.prevCanvas) {
@@ -666,7 +670,7 @@ export async function downloadBundle(
 export async function downloadDiagnosticPackage(
     bundle: TransitionDebugBundle,
 ): Promise<void> {
-    const prefix = filePrefixFromIsoTimestamp(bundle.timestamp);
+    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
     const zip = new JSZip();
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);

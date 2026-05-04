@@ -28,6 +28,7 @@
         downloadBundle,
         downloadDiagnosticPackage,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
+    import { formatConquestEventGroupLabel } from "$lib/territory/devtools/conquestNaming";
     import { formatLocalCaptureTimeFromIsoTimestamp } from "$lib/territory/devtools/snapshotExport";
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
 
@@ -228,7 +229,7 @@
     function conquestLabel(bundle: TransitionDebugBundle): string {
         const event = bundle.conquestEvents[0];
         if (!event) return "?";
-        return `★${event.starId} ${event.previousOwner}→${event.newOwner}`;
+        return formatConquestEventGroupLabel(bundle.conquestEvents);
     }
 
     function timeLabel(bundle: TransitionDebugBundle): string {

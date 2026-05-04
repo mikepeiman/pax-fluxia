@@ -17,7 +17,8 @@ import { renderGeometryToCanvas, renderGeometryWithConquestMarkers } from './Tra
 import type { OwnerColorResolver, GeometryRenderOptions } from './TransitionGeometryRenderer';
 import { renderTransitionFrameSeries } from './TransitionFrontierFrameRenderer';
 import type { FrameRenderOptions } from './TransitionFrontierFrameRenderer';
-import { compactGeometrySnapshotForExport, filePrefixFromIsoTimestamp } from './snapshotExport';
+import { compactGeometrySnapshotForExport } from './snapshotExport';
+import { buildConquestFilePrefix } from './conquestNaming';
 import { writable } from 'svelte/store';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -309,9 +310,9 @@ export class TransitionSnapshotRecorder {
         const timestamp = now.toISOString();
         const transitionId = ctx.transition.envelope?.transitionId ?? `snap:${ctx.nowMs}`;
 
-        const datePrefix = filePrefixFromIsoTimestamp(timestamp);
+        const exportPrefix = buildConquestFilePrefix(timestamp, ctx.conquestEvents);
         const frameFiles = transitionFrames?.map((f, i) =>
-            `${datePrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
+            `${exportPrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
         ) ?? [];
 
         const meta: TransitionDebugMeta = {
@@ -337,18 +338,18 @@ export class TransitionSnapshotRecorder {
                 affectedTerritoryCount,
             },
             files: [
-                `${datePrefix}_prev-geometry.png`,
-                `${datePrefix}_next-geometry.png`,
-                `${datePrefix}_frontier-diff-overlay.png`,
-                `${datePrefix}_composite.png`,
+                `${exportPrefix}_prev-geometry.png`,
+                `${exportPrefix}_next-geometry.png`,
+                `${exportPrefix}_frontier-diff-overlay.png`,
+                `${exportPrefix}_composite.png`,
                 ...frameFiles,
-                `${datePrefix}_meta.json`,
-                `${datePrefix}_topology.json`,
-                `${datePrefix}_geometry_snapshot.json`,
+                `${exportPrefix}_meta.json`,
+                `${exportPrefix}_topology.json`,
+                `${exportPrefix}_geometry_snapshot.json`,
             ],
         };
 
-        const bundleId = `${datePrefix}_${ctx.conquestEvents[0]?.starId ?? 'conquest'}_${ctx.conquestEvents[0]?.previousOwner ?? 'x'}_to_${ctx.conquestEvents[0]?.newOwner ?? 'y'}`;
+        const bundleId = exportPrefix;
 
         const bundle: TransitionDebugBundle = {
             id: bundleId,
@@ -406,9 +407,9 @@ export class TransitionSnapshotRecorder {
         const timestamp = now.toISOString();
         const transitionId = ctx.transition.envelope?.transitionId ?? `snap:${ctx.nowMs}`;
 
-        const datePrefix = filePrefixFromIsoTimestamp(timestamp);
+        const exportPrefix = buildConquestFilePrefix(timestamp, ctx.conquestEvents);
         const frameFiles = params.transitionFrames?.map((f, i) =>
-            `${datePrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
+            `${exportPrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
         ) ?? [];
 
         const meta: TransitionDebugMeta = {
@@ -436,18 +437,18 @@ export class TransitionSnapshotRecorder {
                 affectedTerritoryCount,
             },
             files: [
-                `${datePrefix}_prev-geometry.png`,
-                `${datePrefix}_next-geometry.png`,
-                `${datePrefix}_frontier-diff-overlay.png`,
-                `${datePrefix}_composite.png`,
+                `${exportPrefix}_prev-geometry.png`,
+                `${exportPrefix}_next-geometry.png`,
+                `${exportPrefix}_frontier-diff-overlay.png`,
+                `${exportPrefix}_composite.png`,
                 ...frameFiles,
-                `${datePrefix}_meta.json`,
-                `${datePrefix}_topology.json`,
-                `${datePrefix}_geometry_snapshot.json`,
+                `${exportPrefix}_meta.json`,
+                `${exportPrefix}_topology.json`,
+                `${exportPrefix}_geometry_snapshot.json`,
             ],
         };
 
-        const bundleId = `${datePrefix}_${ctx.conquestEvents[0]?.starId ?? 'conquest'}_${ctx.conquestEvents[0]?.previousOwner ?? 'x'}_to_${ctx.conquestEvents[0]?.newOwner ?? 'y'}`;
+        const bundleId = exportPrefix;
         const bundle: TransitionDebugBundle = {
             id: bundleId,
             timestamp,

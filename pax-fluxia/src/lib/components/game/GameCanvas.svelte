@@ -161,6 +161,7 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { formatConquestEventGroupLabel } from "$lib/territory/devtools/conquestNaming";
     import {
         buildRulerMeasurement,
         getRulerCssColor,
@@ -2003,6 +2004,16 @@
                     previousOwner: entry.event.previousOwner,
                     newOwner: entry.event.newOwner,
                     atMs: entry.startedAtMs,
+                    attackerStarId: entry.event.attackerStarId,
+                    attackerStarIds: entry.event.attackerStarIds?.length
+                        ? [...entry.event.attackerStarIds]
+                        : entry.event.attackerStarId
+                          ? [entry.event.attackerStarId]
+                          : undefined,
+                    attackerShipTransfers:
+                        entry.event.attackerShipTransfers?.length
+                            ? [...entry.event.attackerShipTransfers]
+                            : undefined,
                 })) ?? [],
             virtualStars: [],
         };
@@ -2175,8 +2186,14 @@
         return activeTransition.events
             .map((entry) => ({
                 ...entry.event,
-                attackerStarIds: [...entry.event.attackerStarIds],
-                attackerShipTransfers: [...entry.event.attackerShipTransfers],
+                attackerStarIds: entry.event.attackerStarIds?.length
+                    ? [...entry.event.attackerStarIds]
+                    : entry.event.attackerStarId
+                      ? [entry.event.attackerStarId]
+                      : undefined,
+                attackerShipTransfers: entry.event.attackerShipTransfers?.length
+                    ? [...entry.event.attackerShipTransfers]
+                    : undefined,
                 atMs: entry.startedAtMs,
             }))
             .sort((a, b) => {
@@ -2427,7 +2444,7 @@
             label:
                 session.conquestEvents[0] == null
                     ? "Replay"
-                    : `${session.conquestEvents[0].previousOwner} -> ${session.conquestEvents[0].newOwner} @ ${session.conquestEvents[0].starId}`,
+                    : formatConquestEventGroupLabel(session.conquestEvents),
             previousFrame: {
                 geometry: session.previousFrame.geometry,
                 ownership: session.previousFrame.ownership,

@@ -10,6 +10,15 @@ export class TerritoryFxBridge {
             previousOwner: event.previousOwner,
             newOwner: event.newOwner,
             atMs: nowMs,
+            attackerStarId: event.attackerStarId,
+            attackerStarIds: event.attackerStarIds
+                ? [...event.attackerStarIds]
+                : event.attackerStarId
+                  ? [event.attackerStarId]
+                  : undefined,
+            attackerShipTransfers: event.attackerShipTransfers
+                ? [...event.attackerShipTransfers]
+                : undefined,
         });
     }
 
