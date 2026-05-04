@@ -32,5 +32,7 @@
   5. special-case polish
 - Validation note:
   - local dependency resolution is now present, but repo validation remains noisy due unrelated failures
-  - `bun run build` currently fails later on missing `src/lib/components/ui/TransitionDebugPanel.svelte`
+  - recurring `TransitionDebugPanel.svelte` import failure was fixed in `GameContainer.svelte`
+  - recurrence cause: diagnostics-shell migration deleted the panel on some branch lines while older `GameContainer.svelte` consumers survived; later re-add on a separate branch masked the drift inconsistently across worktrees
+  - `bun run build` now fails later on unrelated `GameCanvas.svelte` import/export drift (`readNormalizedTerritoryGeometryTunables`)
   - `bun run check` currently reports broad pre-existing type errors outside this branch scope

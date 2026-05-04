@@ -308,6 +308,37 @@
   - repository search showed `TransitionDebugPanel` references only in `GameContainer.svelte`
   - repository listing of `src/lib/components/ui` showed `PerimeterFieldDiagnosticsPanel.svelte` exists, but `TransitionDebugPanel.svelte` does not
 
+### 2026-05-04 - Removed orphan TransitionDebugPanel wiring from GameContainer
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
+  - validated current and historical context with:
+    - `git blame` on the `GameContainer.svelte` import block
+    - `git log --all --follow -- pax-fluxia/src/lib/components/ui/TransitionDebugPanel.svelte`
+    - `git show master:pax-fluxia/src/lib/components/game/GameContainer.svelte`
+- Purpose:
+  - fix the repeated Vite import-analysis failure at the actual stale consumer instead of recreating a removed panel
+  - explain why the same error keeps reappearing across multiple worktrees
+- Exact change:
+  - removed the direct `TransitionDebugPanel.svelte` import from `GameContainer.svelte`
+  - removed the associated local visibility state, open handler, mount/unmount event wiring, and the conditional render block
+  - updated the forced settings-section literal from `"debug"` to `"diagnostics"` so this older branch line points at the current diagnostics shell terminology
+- Recurrence cause:
+  - `TransitionDebugPanel.svelte` was deleted by commit `1864360cd6a46fd0cd6f52590616657f642427be` (`feat: add diagnostics settings shell for territory transitions`)
+  - this branch still carried the older `GameContainer.svelte` import introduced on 2026-04-14, so it retained a consumer for a file that no longer existed
+  - `master` later cleaned up the `GameContainer.svelte` side in commit `b6b7bdbb56aaa98a67fcd67ec6b09e4bbe5a8a73`, but older worktrees branched before that integration continue to inherit the stale import path
+  - one separate branch later re-added `TransitionDebugPanel.svelte` on 2026-05-02, which masks the bug on that branch and makes the regression pattern look inconsistent across worktrees
+  - broad repo build/check noise let this unresolved import hide until runtime in branches that did not have the re-added file
+- Result:
+  - the recurring missing-panel import path is removed from this worktree branch
+  - the failure mode has advanced beyond `TransitionDebugPanel.svelte`; the next blocking build issue is unrelated and occurs later in `GameCanvas.svelte`
+- Validation:
+  - post-edit search found no remaining `TransitionDebugPanel`, `showTransitionDebugPanel`, or `pax-open-transition-debug-panel` references in `GameContainer.svelte`
+  - `bun run build` no longer fails on `TransitionDebugPanel.svelte`
+  - the current next build blocker is:
+    - `src/lib/components/game/GameCanvas.svelte` importing missing export `readNormalizedTerritoryGeometryTunables` from `src/lib/territory/geometry/geometryTuning.ts`
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
@@ -316,16 +347,17 @@
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\SharedTransitionClock.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
 
 ## Current Risks
 
 - The easiest failure mode is over-fixing a mode that the user already considers close.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
-- `GameContainer.svelte` currently has an unresolved import to `TransitionDebugPanel.svelte`, which blocks loading the game shell in dev until it is removed, replaced, or restored.
-- Visual verification of PVV4 bets is blocked until the game shell import path is loadable again.
+- Full repo validation is currently blocked later in the stack by an unrelated `GameCanvas.svelte` / `geometryTuning.ts` export mismatch.
+- Older worktrees or branches that predate the `GameContainer.svelte` cleanup but include the diagnostics-shell migration can still recur with the same stale import unless they absorb this fix or the later master integration.
 - Full repo validation is currently noisy due unrelated pre-existing build and typecheck failures outside this branch scope.
 
 ## Next Intended Step
 
-- Repair the missing `TransitionDebugPanel.svelte` dependency path with the smallest change that restores `GameContainer.svelte` loading.
-- Then resume PVV4 visual verification before stacking a second motion idea.
+- Resume PVV4 visual verification once the current branch is run in dev with the orphan import removed.
+- Keep transition bets isolated; do not widen this into a general UI integration cleanup unless the next blocker is directly on the PVV4 path.
