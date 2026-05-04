@@ -35,5 +35,6 @@
   - recurring `TransitionDebugPanel.svelte` import failure was fixed in `GameContainer.svelte`
   - recurrence cause: diagnostics-shell migration deleted the panel on some branch lines while older `GameContainer.svelte` consumers survived; later re-add on a separate branch masked the drift inconsistently across worktrees
   - recurring `geometryTuning.ts` named-export drift was fixed by restoring the local geometry-tuning contract expected by `GameCanvas.svelte` and the territory settings UI
+  - the intended bottom-right diagnostics icon shortcut is restored by wiring `TopBar` back to `openDiagnostics()` in `GameContainer.svelte`
   - `bun run build` now succeeds end to end in this worktree
   - `bun run check` currently reports broad pre-existing type errors outside this branch scope

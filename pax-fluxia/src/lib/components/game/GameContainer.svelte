@@ -126,6 +126,12 @@
     showAudioSettings = true;
   }
 
+  function openDiagnostics() {
+    diagnosticsUi.requestControlsOpen();
+    setSettingsPanelOpen(true);
+    revealSettingsSection("diagnostics");
+  }
+
   // ── In-game menu collapse ──
   let menuExpanded = $state(true);
 
@@ -273,9 +279,7 @@
     const nextEnabled = !rulerTool.getState().enabled;
     rulerTool.setEnabled(nextEnabled);
     if (nextEnabled) {
-      diagnosticsUi.requestControlsOpen();
-      setSettingsPanelOpen(true);
-      revealSettingsSection("diagnostics");
+      openDiagnostics();
       return;
     }
     diagnosticsUi.setOpen(false);
@@ -489,6 +493,9 @@
     onSettingsClick={gameStore.currentView !== "game"
       ? openAudioSettings
       : undefined}
+    onDiagnosticsClick={gameStore.currentView === "game"
+      ? openDiagnostics
+      : undefined}
     onHelpClick={() => alert("Help & controls guide coming soon!")}
     onFitViewport={gameStore.currentView === "game"
       ? () => gameCanvasRef?.centerAndFit?.()
@@ -496,6 +503,9 @@
     onRulerToggle={gameStore.currentView === "game"
       ? toggleRulerDiagnostics
       : undefined}
+    diagnosticsActive={gameStore.currentView === "game" &&
+      showSettingsPanel &&
+      forceOpenSettingsSection === "diagnostics"}
     rulerActive={gameStore.currentView === "game" ? $rulerTool.enabled : false}
   />
 

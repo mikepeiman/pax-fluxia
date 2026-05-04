@@ -386,6 +386,32 @@
   - no new module-resolution or named-export failures were surfaced after this patch
   - remaining output from the build is warning-level only (large chunks, unused CSS selectors, static/dynamic import chunking notice), not a failing error
 
+### 2026-05-04 - Restored bottom-right diagnostics icon shortcut wiring
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
+- Purpose:
+  - restore the persistent bottom-right diagnostics shortcut that should open the Diagnostics section inside the Settings UI
+  - keep the shortcut path stable on this older branch line instead of relying only on menu access or ruler-side effects
+- Exact change:
+  - added `openDiagnostics()` to:
+    - request diagnostics controls open through `diagnosticsUi`
+    - open the settings panel
+    - force the settings section id to `"diagnostics"`
+  - reused that helper inside the existing ruler toggle path
+  - passed `onDiagnosticsClick={openDiagnostics}` into `TopBar` when in game view so the existing `diagnostics-fab` path in `TopBar.svelte` is active again
+  - passed `diagnosticsActive` into `TopBar` so the icon highlights when the settings panel is open on the Diagnostics section
+- Result:
+  - the intended bottom-right diagnostics icon path is restored on this branch
+  - the icon opens the Settings UI directly to the Diagnostics section instead of requiring a separate panel or stale event path
+- Validation:
+  - `bun run build` still completes successfully after this wiring change
+  - `GameContainer.svelte` now contains:
+    - `openDiagnostics()` at line 129
+    - `onDiagnosticsClick` wiring at line 496
+    - `diagnosticsActive` wiring at line 506
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
