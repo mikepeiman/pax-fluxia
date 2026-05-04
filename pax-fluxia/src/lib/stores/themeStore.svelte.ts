@@ -6,6 +6,10 @@
 // ============================================================================
 
 import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
+import {
+    buildBackgroundChangeDetail,
+    buildLegacyImageSelection,
+} from '$lib/backgrounds';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { patchTouchesLaneTopology } from '$lib/lanes/laneMargin';
 import { GAME_CONFIG } from '$lib/config/game.config';
@@ -133,6 +137,7 @@ function applyThemeValuesFallback(
         shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
         shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
         bgImage: GAME_CONFIG.BG_IMAGE_URL,
+        backgroundSelection: buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
     };
     saveVisuals(nextVisuals);
     applyVisuals(nextVisuals);
@@ -164,9 +169,14 @@ function applyThemeValuesFallback(
     bumpTerritoryVisualConfig();
 
     if (typeof window !== 'undefined') {
+        const detail = buildBackgroundChangeDetail(
+            buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
+            'game',
+            normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+        );
         window.dispatchEvent(
             new CustomEvent('pax-bg-change', {
-                detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+                detail,
             }),
         );
         window.dispatchEvent(

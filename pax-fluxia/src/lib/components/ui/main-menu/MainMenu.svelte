@@ -1,6 +1,12 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
+    import {
+        buildLegacyImageSelection,
+        extractLegacyBackgroundImage,
+        normalizeBackgroundSelection,
+        type BackgroundSelection,
+    } from "$lib/backgrounds";
     import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
@@ -9,7 +15,6 @@
         savePanelSettings,
         panelDefaultsFromConfig,
         loadVisuals,
-        saveVisuals,
     } from "$lib/components/ui/panelSync";
     import type { GameSettings } from "$lib/types/game.types";
     import { multiplayerStore, type RoomListing } from "$lib/stores/multiplayerStore.svelte";
@@ -51,7 +56,8 @@
     type MapMode = "random" | "classic" | "custom";
     type MobileTab = "setup" | "players" | "multiplayer";
 
-    const MENU_THEME_BACKGROUNDS_KEY = "pax-fluxia-menu-theme-backgrounds";
+    const MENU_THEME_BACKGROUNDS_KEY = "pax-fluxia-menu-theme-backgrounds-v2";
+    const LEGACY_MENU_THEME_BACKGROUNDS_KEY = "pax-fluxia-menu-theme-backgrounds";
 
     let visible = $state(true);
     let showAudioSettings = $state(false);
@@ -63,8 +69,13 @@
     const visuals = loadVisuals();
     const initialMenuTheme = loadSetting<MenuTheme>("menuTheme", "imperial");
     let menuTheme = $state<MenuTheme>(initialMenuTheme);
-    const menuThemeBackgrounds = loadMenuThemeBackgrounds(visuals.bgImage);
-    let bgImage = $state(resolveMenuThemeBackground(initialMenuTheme));
+    const menuThemeBackgrounds = loadMenuThemeBackgrounds(
+        visuals.backgroundSelection,
+    );
+    let menuBackgroundSelection = $state<BackgroundSelection>(
+        resolveMenuThemeBackground(initialMenuTheme),
+    );
+    let bgImage = $state("");
     let activeMobileTab = $state<MobileTab>("setup");
 
     let mapMode = $state<MapMode>(loadSetting<MapMode>("mapMode", "random"));
@@ -160,13 +171,11 @@
     const menuThemeCssVars = $derived(getMenuThemeCssVars(menuTheme));
 
     $effect(() => {
-        visuals.bgImage = bgImage;
-        GAME_CONFIG.BG_IMAGE_URL = bgImage;
-        saveVisuals(visuals);
+        saveSetting("menuTheme", menuTheme);
     });
 
     $effect(() => {
-        saveSetting("menuTheme", menuTheme);
+        bgImage = extractLegacyBackgroundImage(menuBackgroundSelection);
     });
 
     $effect(() => {
@@ -316,8 +325,20 @@
         }
     }
 
-    function defaultMenuThemeBackgrounds(fallback: string): Record<MenuTheme, string> {
-        const normalizedFallback = normalizeBgImagePath(fallback);
+    function setActiveMenuBackgroundSelection(selection: BackgroundSelection) {
+        menuBackgroundSelection = normalizeBackgroundSelection(selection, {
+            surface: "menu",
+            fallbackLegacyImage: visuals.bgImage,
+        });
+    }
+
+    function defaultMenuThemeBackgrounds(
+        fallback: BackgroundSelection,
+    ): Record<MenuTheme, BackgroundSelection> {
+        const normalizedFallback = normalizeBackgroundSelection(fallback, {
+            surface: "menu",
+            fallbackLegacyImage: visuals.bgImage,
+        });
         return {
             imperial: normalizedFallback,
             neon: normalizedFallback,
@@ -325,7 +346,9 @@
         };
     }
 
-    function loadMenuThemeBackgrounds(fallback: string): Record<MenuTheme, string> {
+    function loadMenuThemeBackgrounds(
+        fallback: BackgroundSelection,
+    ): Record<MenuTheme, BackgroundSelection> {
         const defaults = defaultMenuThemeBackgrounds(fallback);
         if (typeof window === "undefined") {
             return defaults;
@@ -333,15 +356,52 @@
 
         try {
             const stored = localStorage.getItem(MENU_THEME_BACKGROUNDS_KEY);
-            if (!stored) {
+            if (stored) {
+                const parsed = JSON.parse(stored) as Partial<
+                    Record<MenuTheme, BackgroundSelection>
+                >;
+                return {
+                    imperial: normalizeBackgroundSelection(parsed.imperial, {
+                        surface: "menu",
+                        fallbackLegacyImage: extractLegacyBackgroundImage(
+                            defaults.imperial,
+                        ),
+                    }),
+                    neon: normalizeBackgroundSelection(parsed.neon, {
+                        surface: "menu",
+                        fallbackLegacyImage: extractLegacyBackgroundImage(
+                            defaults.neon,
+                        ),
+                    }),
+                    mythic: normalizeBackgroundSelection(parsed.mythic, {
+                        surface: "menu",
+                        fallbackLegacyImage: extractLegacyBackgroundImage(
+                            defaults.mythic,
+                        ),
+                    }),
+                };
+            }
+
+            const legacyStored = localStorage.getItem(
+                LEGACY_MENU_THEME_BACKGROUNDS_KEY,
+            );
+            if (!legacyStored) {
                 return defaults;
             }
 
-            const parsed = JSON.parse(stored) as Partial<Record<MenuTheme, string>>;
+            const parsed = JSON.parse(legacyStored) as Partial<
+                Record<MenuTheme, string>
+            >;
             return {
-                imperial: normalizeBgImagePath(parsed.imperial ?? defaults.imperial),
-                neon: normalizeBgImagePath(parsed.neon ?? defaults.neon),
-                mythic: normalizeBgImagePath(parsed.mythic ?? defaults.mythic),
+                imperial: buildLegacyImageSelection(
+                    parsed.imperial ?? extractLegacyBackgroundImage(defaults.imperial),
+                ),
+                neon: buildLegacyImageSelection(
+                    parsed.neon ?? extractLegacyBackgroundImage(defaults.neon),
+                ),
+                mythic: buildLegacyImageSelection(
+                    parsed.mythic ?? extractLegacyBackgroundImage(defaults.mythic),
+                ),
             };
         } catch {
             return defaults;
@@ -353,25 +413,35 @@
         localStorage.setItem(MENU_THEME_BACKGROUNDS_KEY, JSON.stringify(menuThemeBackgrounds));
     }
 
-    function resolveMenuThemeBackground(theme: MenuTheme): string {
-        return normalizeBgImagePath(menuThemeBackgrounds[theme] || visuals.bgImage);
+    function resolveMenuThemeBackground(theme: MenuTheme): BackgroundSelection {
+        return normalizeBackgroundSelection(menuThemeBackgrounds[theme], {
+            surface: "menu",
+            fallbackLegacyImage: visuals.bgImage,
+        });
     }
 
     function handleMenuThemeChange(theme: MenuTheme) {
         if (theme === menuTheme) return;
 
-        menuThemeBackgrounds[menuTheme] = normalizeBgImagePath(bgImage);
+        menuThemeBackgrounds[menuTheme] = normalizeBackgroundSelection(
+            menuBackgroundSelection,
+            {
+                surface: "menu",
+                fallbackLegacyImage: bgImage,
+            },
+        );
         saveMenuThemeBackgrounds();
 
         menuTheme = theme;
-        bgImage = resolveMenuThemeBackground(theme);
+        setActiveMenuBackgroundSelection(resolveMenuThemeBackground(theme));
     }
 
     function handleBackgroundSelect(image: string) {
         const normalizedImage = normalizeBgImagePath(image);
-        menuThemeBackgrounds[menuTheme] = normalizedImage;
+        const selection = buildLegacyImageSelection(normalizedImage);
+        menuThemeBackgrounds[menuTheme] = selection;
         saveMenuThemeBackgrounds();
-        bgImage = normalizedImage;
+        setActiveMenuBackgroundSelection(selection);
         bgOpen = false;
     }
 

@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import { get } from "svelte/store";
     import * as PIXI from "pixi.js";
+    import { readBackgroundChangeDetail } from "$lib/backgrounds";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
@@ -3598,13 +3599,17 @@
 
         // Live background swap via settings panel
         const handleBgChange = async (e: Event) => {
-            const img = normalizeBgImagePath(
-                (e as CustomEvent).detail as string,
+            const detail = readBackgroundChangeDetail(
+                (e as CustomEvent).detail,
+                "game",
+                GAME_CONFIG.BG_IMAGE_URL,
             );
+            const img = normalizeBgImagePath(detail.legacyImage);
             const sprite = (app as any)?._nebulaBgSprite as
                 | PIXI.Sprite
                 | undefined;
             if (!sprite) return;
+            (app as any)._backgroundSelection = detail.selection;
             if (!img) {
                 sprite.visible = false;
                 return;

@@ -7,6 +7,13 @@
  */
 
 import { GAME_CONFIG } from '$lib/config/game.config';
+import type { BackgroundSelection } from '$lib/backgrounds';
+import {
+    buildBackgroundChangeDetail,
+    buildLegacyImageSelection,
+    extractLegacyBackgroundImage,
+    normalizeBackgroundSelection,
+} from '$lib/backgrounds';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
@@ -114,23 +121,55 @@ export function saveCombatTuning(vals: Record<string, any>): void {
 
 // ── Visual Persistence ──────────────────────────────────────────────────────
 
-export const VISUAL_DEFAULTS = {
+export interface VisualSettings {
+    laneWidth: number;
+    laneAlpha: number;
+    shadowWidth: number;
+    shadowAlpha: number;
+    bgImage: string;
+    backgroundSelection: BackgroundSelection;
+}
+
+export const VISUAL_DEFAULTS: VisualSettings = {
     laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
     laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
     shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
     shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
     /** Basename under `/assets/` — see `bgManifest.normalizeBgImagePath` */
     bgImage: 'pax-fluxia-bg-25.jpg',
+    backgroundSelection: buildLegacyImageSelection('pax-fluxia-bg-25.jpg'),
 };
 
-export function loadVisuals(): typeof VISUAL_DEFAULTS {
+function normalizeStoredVisuals(
+    source: Record<string, any>,
+): VisualSettings {
+    const backgroundSelection = normalizeBackgroundSelection(
+        source.backgroundSelection,
+        {
+            surface: 'game',
+            fallbackLegacyImage: source.bgImage,
+        },
+    );
+    return {
+        laneWidth: source.laneWidth,
+        laneAlpha: source.laneAlpha,
+        shadowWidth: source.shadowWidth,
+        shadowAlpha: source.shadowAlpha,
+        bgImage: extractLegacyBackgroundImage(
+            backgroundSelection,
+            source.bgImage,
+        ),
+        backgroundSelection,
+    };
+}
+
+export function loadVisuals(): VisualSettings {
     if (typeof window === 'undefined') return { ...VISUAL_DEFAULTS };
     try {
         const s = localStorage.getItem(VISUALS_STORAGE_KEY);
         if (s) {
             const merged = { ...VISUAL_DEFAULTS, ...JSON.parse(s) };
-            merged.bgImage = normalizeBgImagePath(merged.bgImage);
-            return merged;
+            return normalizeStoredVisuals(merged);
         }
     } catch {
         /* ignore */
@@ -138,25 +177,36 @@ export function loadVisuals(): typeof VISUAL_DEFAULTS {
     return { ...VISUAL_DEFAULTS };
 }
 
-export function saveVisuals(vis: typeof VISUAL_DEFAULTS): void {
+export function saveVisuals(vis: VisualSettings): void {
     if (typeof window === 'undefined') return;
-    const toSave = { ...vis, bgImage: normalizeBgImagePath(vis.bgImage) };
+    const normalized = normalizeStoredVisuals(vis);
+    const toSave = {
+        ...normalized,
+        bgImage: normalizeBgImagePath(normalized.bgImage),
+    };
     localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(toSave));
     dumpSettings();
 }
 
-export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
+export function applyVisuals(vis: VisualSettings): void {
     GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
     GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
     GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
     GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
 
-    const bgPath = normalizeBgImagePath(vis.bgImage);
+    const detail = buildBackgroundChangeDetail(
+        vis.backgroundSelection ?? buildLegacyImageSelection(vis.bgImage),
+        'game',
+        vis.bgImage,
+    );
+    const bgPath = detail.legacyImage;
     // Live-update background image if it changes
     if (GAME_CONFIG.BG_IMAGE_URL !== bgPath) {
         GAME_CONFIG.BG_IMAGE_URL = bgPath;
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('pax-bg-change', { detail: bgPath }));
+            window.dispatchEvent(
+                new CustomEvent('pax-bg-change', { detail }),
+            );
         }
     }
 }
@@ -341,7 +391,7 @@ export function applyPanelToConfig(panel: Record<string, any>): void {
  */
 export function hydrateConfigFromPersistedUiSettings(): {
     panel: Record<string, any>;
-    visuals: typeof VISUAL_DEFAULTS;
+    visuals: VisualSettings;
 } {
     const panel = loadPanelSettings(panelDefaultsFromConfig());
     if (

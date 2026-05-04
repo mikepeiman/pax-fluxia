@@ -1,5 +1,10 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
+    import {
+        buildBackgroundChangeDetail,
+        buildLegacyImageSelection,
+        normalizeBackgroundSelection,
+    } from "$lib/backgrounds";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
@@ -200,6 +205,15 @@
 
     function updateVisual(key: string, value: any) {
         (vis as any)[key] = value;
+        if (key === "bgImage") {
+            (vis as any).backgroundSelection = buildLegacyImageSelection(value);
+        } else if (key === "backgroundSelection") {
+            (vis as any).backgroundSelection = normalizeBackgroundSelection(value, {
+                surface: "game",
+                fallbackLegacyImage: (vis as any).bgImage,
+            });
+            (vis as any).bgImage = (vis as any).backgroundSelection.legacyImage ?? "";
+        }
         saveVisuals(vis);
         applyVisuals(vis);
     }
@@ -214,6 +228,9 @@
             shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
             shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
             bgImage: configSource.BG_IMAGE_URL,
+            backgroundSelection: buildLegacyImageSelection(
+                configSource.BG_IMAGE_URL,
+            ),
         };
         vis = nextVis;
         saveVisuals(nextVis);
@@ -288,9 +305,13 @@
             (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }
         if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
+            const detail = buildBackgroundChangeDetail(
+                buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
+                "game",
+            );
             window.dispatchEvent(
                 new CustomEvent("pax-bg-change", {
-                    detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+                    detail,
                 }),
             );
         }
