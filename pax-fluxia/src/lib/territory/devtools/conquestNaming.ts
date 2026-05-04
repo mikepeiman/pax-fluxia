@@ -2,6 +2,7 @@ import type { TerritoryConquestEvent } from '../contracts/OwnershipContracts';
 import { filePrefixFromIsoTimestamp } from './snapshotExport';
 
 const INVALID_FILENAME_CHARS_RE = /[<>:"/\\|?*\x00-\x1F]/g;
+const FILE_LABEL_LIMIT = 72;
 
 function dedupeNonEmpty(values: ReadonlyArray<string | null | undefined>): string[] {
     const result: string[] = [];
@@ -33,12 +34,34 @@ export function formatConquestEventLabel(event: TerritoryConquestEvent): string 
     return `${formatAttackerStarToken(event)}(${event.newOwner})_conquers_${event.starId}(${event.previousOwner})`;
 }
 
+function abbreviateOwnerToken(ownerId: string): string {
+    if (ownerId === 'human-player') return 'hp';
+    if (ownerId === 'world') return 'w';
+    const aiMatch = /^ai-(\d+)$/i.exec(ownerId);
+    if (aiMatch) return `a${aiMatch[1]}`;
+    const cleaned = ownerId.replace(/[^a-zA-Z0-9]+/g, '').toLowerCase();
+    return cleaned.slice(0, 8) || 'u';
+}
+
+function abbreviateStarToken(starId: string): string {
+    const starMatch = /^star-(\d+)$/i.exec(starId);
+    if (starMatch) return `s${starMatch[1]}`;
+    const cleaned = sanitizeConquestLabelForFilename(starId)
+        .replace(/[_-]+/g, '')
+        .toLowerCase();
+    return cleaned.slice(0, 12) || 's';
+}
+
+function formatConquestEventFileCode(event: TerritoryConquestEvent): string {
+    return `${abbreviateStarToken(event.starId)}_${abbreviateOwnerToken(event.previousOwner)}-${abbreviateOwnerToken(event.newOwner)}`;
+}
+
 function collapseConquestLabels(labels: readonly string[], forFile: boolean): string {
-    if (labels.length === 0) return 'conquest';
+    if (labels.length === 0) return forFile ? 'cq' : 'conquest';
     if (labels.length === 1) return labels[0]!;
 
     const joined = forFile ? labels.join('__') : labels.join(' + ');
-    const limit = forFile ? 160 : 120;
+    const limit = forFile ? FILE_LABEL_LIMIT : 120;
     if (joined.length <= limit) return joined;
 
     const remainderCount = labels.length - 1;
@@ -72,10 +95,10 @@ export function buildConquestEventGroupFileLabel(
     conquestEvents: readonly TerritoryConquestEvent[],
 ): string {
     const label = collapseConquestLabels(
-        conquestEvents.map((event) => formatConquestEventLabel(event)),
+        conquestEvents.map((event) => formatConquestEventFileCode(event)),
         true,
     );
-    return sanitizeConquestLabelForFilename(label);
+    return sanitizeConquestLabelForFilename(`cq_${label}`);
 }
 
 export function buildConquestFilePrefix(

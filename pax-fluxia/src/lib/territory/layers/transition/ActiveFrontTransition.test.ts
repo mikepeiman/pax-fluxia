@@ -249,6 +249,31 @@ describe('ActiveFrontTransition', () => {
         expect(frameAtEnd.regions).toHaveLength(0);
     });
 
+    it('does not treat stable loops as disappearing when only loop ids churn', () => {
+        const prev = makeSquareTopology('prev', 'ai-1', 'stable', [30, 30], 12);
+        const next: FrontierTopology = {
+            ...prev,
+            version: 'next',
+            ownershipVersion: 'ownership:next',
+            loops: prev.loops.map((loop, index) => ({
+                ...loop,
+                id: `stable:loop:${index + 1}`,
+            })),
+        };
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership);
+        expect(plan.fronts).toHaveLength(0);
+        expect(plan.collapseTargets).toHaveLength(0);
+        expect(plan.diagnostics.summary.collapseTargetCount).toBe(0);
+    });
+
     it('pins unchanged tails inside a long active section', () => {
         const ownership: OwnershipSnapshot = {
             version: 'ownership:test',

@@ -228,6 +228,29 @@
   - runtime no longer builds moving points from the full stable-anchor chain and then masks them
   - runtime now samples a PREV segment only between the projected local change anchors and interpolates only that window
   - if a safe local anchor window cannot be built, the pair should skip/snap rather than broaden transport
+- The newly supplied `19-07-58---665` dual-conquest package exposed two distinct issues:
+  - immediate bug:
+    - `collapseTargetCount = 4` was wrong
+    - those four unrelated regions were being marked as disappearing only because loop ids churned between PREV and NEXT
+    - collapse planning now matches loops semantically:
+      - owner
+      - component
+      - outer vs hole
+      - centroid / area fallback
+    - raw `loop.id` equality is no longer used as the disappearance test
+  - still-open planner gap:
+    - this package also contains heavy `skippedUnsupportedSplitCount`
+    - `1:2` / `2:1` split handling remains incomplete
+    - 3-way junctions need to become default change-anchor candidates for those split cases
+    - until that exists, skip/snap remains preferable to broad or collapsing deformation
+- Diagnostic export/package naming is now deliberately short for Windows unzip safety:
+  - conquest file codes use compact tokens like `s14_hp-a5`
+  - transition package zip suffix is now `_tdp.zip`
+  - perimeter-field package zip suffix is now `_pfcp.zip`
+  - compact debug JSON names are now:
+    - `_diag.json`
+    - `_topo.json`
+    - `_geo.json`
 
 ## Next
 
@@ -255,3 +278,7 @@
   - unchanged tails should stay fixed
   - the changed interior should move within the `AF` window instead of being dragged by the whole stable-anchor chain
   - if a case still looks broad, the next fix should target anchor construction itself, not revert to broader interpolation
+- Use the `19-07-58---665` class as the next split-planning target:
+  - no unrelated region may collapse because of loop-id churn
+  - 3-way junctions should be considered default change anchors
+  - `1:2` / `2:1` split pairs should only animate when a bounded local transport plan exists

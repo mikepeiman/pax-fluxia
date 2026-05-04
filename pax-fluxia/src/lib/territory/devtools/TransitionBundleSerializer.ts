@@ -443,9 +443,9 @@ function buildDiagnosticDebugFileNames(
 ): DiagnosticPackageManifest['debugFiles'] {
     const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
     return {
-        diagnostic: `${prefix}_diagnostic.json`,
-        topology: `${prefix}_topology.json`,
-        geometrySnapshot: `${prefix}_geometry_snapshot.json`,
+        diagnostic: `${prefix}_diag.json`,
+        topology: `${prefix}_topo.json`,
+        geometrySnapshot: `${prefix}_geo.json`,
     };
 }
 
@@ -668,7 +668,7 @@ export async function downloadBundle(
         new Blob([JSON.stringify(serializeTopologyPairCompact(bundle), null, 2)], {
             type: 'application/json',
         }),
-        `${prefix}_topology.json`,
+        `${prefix}_topo.json`,
     );
 
     const compactGeometry = buildCompactGeometryExport(
@@ -682,7 +682,7 @@ export async function downloadBundle(
     );
     await saveExportBlob(
         new Blob([geometryString], { type: 'application/json' }),
-        `${prefix}_geometry_snapshot.json`,
+        `${prefix}_geo.json`,
     );
 }
 
@@ -739,7 +739,7 @@ export async function downloadDiagnosticPackage(
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
-    await saveExportBlob(blob, `${prefix}_transition-diagnostic-package.zip`);
+    await saveExportBlob(blob, `${prefix}_tdp.zip`);
 }
 
 export async function downloadAllBundles(

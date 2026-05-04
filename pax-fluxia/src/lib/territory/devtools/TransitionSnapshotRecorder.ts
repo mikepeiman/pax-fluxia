@@ -344,8 +344,8 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_composite.png`,
                 ...frameFiles,
                 `${exportPrefix}_meta.json`,
-                `${exportPrefix}_topology.json`,
-                `${exportPrefix}_geometry_snapshot.json`,
+                `${exportPrefix}_topo.json`,
+                `${exportPrefix}_geo.json`,
             ],
         };
 
@@ -443,8 +443,8 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_composite.png`,
                 ...frameFiles,
                 `${exportPrefix}_meta.json`,
-                `${exportPrefix}_topology.json`,
-                `${exportPrefix}_geometry_snapshot.json`,
+                `${exportPrefix}_topo.json`,
+                `${exportPrefix}_geo.json`,
             ],
         };
 

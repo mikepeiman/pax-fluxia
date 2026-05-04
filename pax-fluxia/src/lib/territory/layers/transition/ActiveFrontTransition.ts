@@ -58,6 +58,14 @@ interface CollapseTarget {
     points: Vec2[];
 }
 
+interface LoopMatchInfo {
+    loop: RegionLoop;
+    points: Vec2[];
+    centroid: Vec2;
+    areaAbs: number;
+    kind: 'outer' | 'hole';
+}
+
 interface LocalChangeWindow {
     nextAnchorStartIndex: number;
     nextAnchorEndIndex: number;
@@ -1198,12 +1206,33 @@ function planCollapseTargets(
     ownership: OwnershipSnapshot,
     conquestEvents: readonly TerritoryConquestEvent[],
 ): CollapseTarget[] {
-    const nextLoopIds = new Set(next.loops.map(l => l.id));
-    const disappearing = prev.loops.filter(l => !nextLoopIds.has(l.id));
+    const prevLoopInfos = buildLoopMatchInfos(prev);
+    const nextLoopInfos = buildLoopMatchInfos(next);
+    const matchedPrevLoopIds = new Set<string>();
+    const matchedNextLoopIds = new Set<string>();
+
+    matchPersistentLoops(
+        prevLoopInfos,
+        nextLoopInfos,
+        matchedPrevLoopIds,
+        matchedNextLoopIds,
+        true,
+    );
+    matchPersistentLoops(
+        prevLoopInfos,
+        nextLoopInfos,
+        matchedPrevLoopIds,
+        matchedNextLoopIds,
+        false,
+    );
+
+    const disappearing = prevLoopInfos.filter(
+        (loopInfo) => !matchedPrevLoopIds.has(loopInfo.loop.id),
+    );
     if (disappearing.length === 0) return [];
 
     const targets: CollapseTarget[] = [];
-    const remaining = new Set(disappearing.map(l => l.id));
+    const remaining = new Set(disappearing.map((loopInfo) => loopInfo.loop.id));
 
     for (const evt of conquestEvents) {
         const center = resolveConquestCenter(
@@ -1213,44 +1242,128 @@ function planCollapseTargets(
         );
         if (!center) continue;
 
-        let bestLoop: RegionLoop | null = null;
+        let bestLoop: LoopMatchInfo | null = null;
         let bestDist = Infinity;
-        for (const loop of disappearing) {
-            if (!remaining.has(loop.id)) continue;
-            if (loop.ownerId !== evt.previousOwner) continue;
-            const pts = rebuildLoopPoints(loop, prev.sections);
-            const centroid = polygonCentroid(pts);
-            const d = distance(centroid, center);
+        for (const loopInfo of disappearing) {
+            if (!remaining.has(loopInfo.loop.id)) continue;
+            if (loopInfo.loop.ownerId !== evt.previousOwner) continue;
+            const d = distance(loopInfo.centroid, center);
             if (d < bestDist) {
                 bestDist = d;
-                bestLoop = loop;
+                bestLoop = loopInfo;
             }
         }
 
         if (bestLoop) {
-            remaining.delete(bestLoop.id);
-            const pts = rebuildLoopPoints(bestLoop, prev.sections);
+            remaining.delete(bestLoop.loop.id);
             targets.push({
-                loopId: bestLoop.id,
-                ownerId: bestLoop.ownerId,
+                loopId: bestLoop.loop.id,
+                ownerId: bestLoop.loop.ownerId,
                 center,
-                points: pts,
+                points: bestLoop.points,
             });
         }
     }
 
-    for (const loop of disappearing) {
-        if (!remaining.has(loop.id)) continue;
-        const points = rebuildLoopPoints(loop, prev.sections);
+    for (const loopInfo of disappearing) {
+        if (!remaining.has(loopInfo.loop.id)) continue;
         targets.push({
-            loopId: loop.id,
-            ownerId: loop.ownerId,
-            center: polygonCentroid(points),
-            points,
+            loopId: loopInfo.loop.id,
+            ownerId: loopInfo.loop.ownerId,
+            center: loopInfo.centroid,
+            points: loopInfo.points,
         });
     }
 
     return targets;
+}
+
+function buildLoopMatchInfos(topology: FrontierTopology): LoopMatchInfo[] {
+    return topology.loops.map((loop) => {
+        const points = rebuildLoopPoints(loop, topology.sections);
+        return {
+            loop,
+            points,
+            centroid: polygonCentroid(points),
+            areaAbs: Math.abs(loop.signedArea),
+            kind: loop.signedArea < 0 ? 'hole' : 'outer',
+        };
+    });
+}
+
+function matchPersistentLoops(
+    prevLoopInfos: readonly LoopMatchInfo[],
+    nextLoopInfos: readonly LoopMatchInfo[],
+    matchedPrevLoopIds: Set<string>,
+    matchedNextLoopIds: Set<string>,
+    requireComponentMatch: boolean,
+): void {
+    for (const prevLoopInfo of prevLoopInfos) {
+        if (matchedPrevLoopIds.has(prevLoopInfo.loop.id)) continue;
+
+        let bestMatch: LoopMatchInfo | null = null;
+        let bestScore = Infinity;
+
+        for (const nextLoopInfo of nextLoopInfos) {
+            if (matchedNextLoopIds.has(nextLoopInfo.loop.id)) continue;
+            if (
+                !canMatchLoopInfos(
+                    prevLoopInfo,
+                    nextLoopInfo,
+                    requireComponentMatch,
+                )
+            ) {
+                continue;
+            }
+
+            const score = scoreLoopMatch(prevLoopInfo, nextLoopInfo);
+            if (score < bestScore) {
+                bestScore = score;
+                bestMatch = nextLoopInfo;
+            }
+        }
+
+        if (!bestMatch) continue;
+        matchedPrevLoopIds.add(prevLoopInfo.loop.id);
+        matchedNextLoopIds.add(bestMatch.loop.id);
+    }
+}
+
+function canMatchLoopInfos(
+    prevLoopInfo: LoopMatchInfo,
+    nextLoopInfo: LoopMatchInfo,
+    requireComponentMatch: boolean,
+): boolean {
+    if (prevLoopInfo.loop.ownerId !== nextLoopInfo.loop.ownerId) return false;
+    if (prevLoopInfo.kind !== nextLoopInfo.kind) return false;
+    if (
+        requireComponentMatch &&
+        prevLoopInfo.loop.componentId !== nextLoopInfo.loop.componentId
+    ) {
+        return false;
+    }
+
+    if (requireComponentMatch) return true;
+
+    const maxArea = Math.max(prevLoopInfo.areaAbs, nextLoopInfo.areaAbs, 1);
+    const areaDeltaRatio =
+        Math.abs(prevLoopInfo.areaAbs - nextLoopInfo.areaAbs) / maxArea;
+    if (areaDeltaRatio > 0.75) return false;
+
+    const sizeScale = Math.max(
+        Math.sqrt(prevLoopInfo.areaAbs),
+        Math.sqrt(nextLoopInfo.areaAbs),
+        1,
+    );
+    return distance(prevLoopInfo.centroid, nextLoopInfo.centroid) <= sizeScale * 1.5;
+}
+
+function scoreLoopMatch(prevLoopInfo: LoopMatchInfo, nextLoopInfo: LoopMatchInfo): number {
+    const centroidDistance = distance(prevLoopInfo.centroid, nextLoopInfo.centroid);
+    const maxArea = Math.max(prevLoopInfo.areaAbs, nextLoopInfo.areaAbs, 1);
+    const areaDeltaRatio =
+        Math.abs(prevLoopInfo.areaAbs - nextLoopInfo.areaAbs) / maxArea;
+    return centroidDistance + areaDeltaRatio * Math.sqrt(maxArea);
 }
 
 function resolveConquestCenter(

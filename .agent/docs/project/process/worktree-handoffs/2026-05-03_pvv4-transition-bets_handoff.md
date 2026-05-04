@@ -1285,3 +1285,75 @@
   - long-front `animated_fronts` cases should now be less likely to have their interior points dragged by distant stable-tail geometry
   - `AF` markers still show the local window endpoints, but now they also correspond to the runtime interpolation window
   - if a case cannot support a safe local anchor window, the branch should prefer snap/skip over broad deformation
+
+## Update: 2026-05-04 - Fix False Region Disappearances From Loop-Id Churn And Shorten Export Names
+
+- Trigger:
+  - user supplied package:
+    - `19-07-58---665_unknown-star(ai-5)_conquers_star-14(human-player)_unknown-star(ai-3)_conquers_star-21(ai-4)`
+  - user reported the visible disappearance of 4 of 6 regions and called out both:
+    - incorrect change-anchor placement around 3-way junctions / split cases
+    - overly long Windows-hostile package filenames
+- Package diagnosis:
+  - this package is a dual-conquest `animated_fronts` case, but the immediate catastrophic artifact was not only split skipping
+  - exported diagnostics showed:
+    - `frontCount = 2`
+    - `collapseTargetCount = 4`
+    - `skippedUnsupportedSplitCount = 15`
+  - inspecting the compact topology revealed that those 4 collapse targets were false positives:
+    - PREV loops like:
+      - `ai-5:3`
+      - `ai-3:4`
+      - `ai-2:5`
+      - `ai-1:6`
+    - became NEXT loops like:
+      - `ai-5:4`
+      - `ai-3:5`
+      - `ai-2:6`
+      - `ai-1:7`
+    - owner/component identity persisted, but raw loop ids changed
+  - root cause:
+    - `planCollapseTargets(...)` was deciding disappearance by `loop.id` membership only
+    - that made stable regions look like disappearing PREV-only loops whenever topology recompaction renumbered loop ids
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - replaced raw `nextLoopIds.has(loop.id)` disappearance logic
+      - added semantic loop matching before collapse planning:
+        - owner match
+        - outer vs hole match
+        - component-id match first pass
+        - centroid / area fallback pass
+      - only unmatched PREV loops are now eligible collapse targets
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - added regression:
+        - stable loop geometry with churned loop ids must not produce collapse targets
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.ts`
+      - changed export file-label construction to compact conquest codes:
+        - `star-14 / human-player -> ai-5` becomes `s14_hp-a5`
+      - file labels are now short `cq_*` strings instead of full sentence-style conquest labels
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+      - shortened transition package zip suffix to `_tdp.zip`
+      - shortened compact debug json names to:
+        - `_diag.json`
+        - `_topo.json`
+        - `_geo.json`
+      - shortened direct JSON export names to the same compact suffixes
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+      - updated recorded file lists to match `_topo.json` / `_geo.json`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\PerimeterFieldConquestPackage.ts`
+      - shortened perimeter-field package zip suffix to `_pfcp.zip`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.test.ts`
+      - added regression coverage for compact file-prefix generation
+- Purpose:
+  - stop unrelated stable regions from being collapsed purely because loop ids renumbered between PREV and NEXT
+  - make exported package and debug filenames short enough for normal Windows unzip behavior
+  - separate the immediate false-collapse bug from the still-open split/junction planner problem
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts pax-fluxia/src/lib/territory/devtools/conquestNaming.test.ts` passes
+  - `bun run build` passes
+- Remaining problem explicitly not solved by this checkpoint:
+  - the package still demonstrates that split handling remains insufficient:
+    - `1:2` / `2:1` pairs are still skipped
+    - 3-way junctions still need to be elevated into default change-anchor candidates for split planning
+  - this checkpoint removes false collapse artifacts first so that split-planning work can be judged cleanly

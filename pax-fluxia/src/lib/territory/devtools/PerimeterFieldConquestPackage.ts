@@ -815,7 +815,7 @@ export async function downloadPerimeterFieldConquestPackage(
     );
 
     const blob = await zip.generateAsync({ type: 'blob' });
-    triggerDownload(blob, `${prefix}_perimeter-field-conquest-package.zip`);
+    triggerDownload(blob, `${prefix}_pfcp.zip`);
 }
 
 export async function downloadPerimeterFieldConquestContactSheet(
