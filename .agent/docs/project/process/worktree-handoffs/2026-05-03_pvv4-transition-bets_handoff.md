@@ -339,6 +339,53 @@
   - the current next build blocker is:
     - `src/lib/components/game/GameCanvas.svelte` importing missing export `readNormalizedTerritoryGeometryTunables` from `src/lib/territory/geometry/geometryTuning.ts`
 
+### 2026-05-04 - Repaired geometryTuning export drift behind the next game-shell import failure
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\geometryTuning.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\Geometry_0319.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\renderers\PowerVoronoiRenderer.ts`
+  - inspected:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte`
+    - `git show master:pax-fluxia/src/lib/territory/geometry/geometryTuning.ts`
+- Purpose:
+  - fix the new browser error where `GameCanvas.svelte` imported `readNormalizedTerritoryGeometryTunables` from `geometryTuning.ts` but that export did not exist
+  - proactively repair the rest of the local geometry-tuning contract drift so the next failure would not just move one symbol later
+- Root cause:
+  - this branch's `geometryTuning.ts` was on an older contract surface
+  - current callers in this worktree expected:
+    - `readNormalizedTerritoryGeometryTunables`
+    - `TERRITORY_GEOMETRY_LIMITS`
+    - normalized tunables carrying `msrStarBias`
+    - normalized tunables carrying `cxContestPairSpacing`
+  - the browser surfaced the fault as a `GameContainer.svelte` dynamic import failure because `GameCanvas.svelte` is in that transitive module graph; the actual failure was ESM link-time rejection of a missing named export from `geometryTuning.ts`
+- Exact change:
+  - `geometryTuning.ts`
+    - exported `TERRITORY_GEOMETRY_LIMITS`
+    - added `readNormalizedTerritoryGeometryTunables`
+    - extended `TerritoryGeometryTunables` to include `msrStarBias` and `cxContestPairSpacing`
+    - normalized those fields and added them to geometry cache-key parts
+    - preserved existing branch defaults where possible rather than wholesale copying newer master defaults
+  - `powerVoronoiTerritoryGeometryGenerator.ts`
+    - extended `TerritoryGeneratorSettings` with optional `msrStarBias` and `cxContestPairSpacing`
+    - added midpoint-pair spacing to the geometry fingerprint
+    - threaded `cxContestPairSpacing` through the corridor virtual-site builder
+  - `Geometry_0319.ts`
+    - switched the contested midpoint-pair spacing argument from `starMargin` fallback to `cxContestPairSpacing ?? starMargin`
+  - `PowerVoronoiRenderer.ts`
+    - populated `msrStarBias` and `cxContestPairSpacing` on the direct renderer stage config so the non-family path does not stay behind the same contract
+- Result:
+  - the `geometryTuning.ts` export mismatch is repaired
+  - current `GameCanvas` and territory settings callers now match the local geometry-tuning module surface
+  - the contested midpoint-pair spacing config is no longer silently dropped on the compiler path touched here
+- Validation:
+  - `bun run build` now completes successfully end to end in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+  - no new module-resolution or named-export failures were surfaced after this patch
+  - remaining output from the build is warning-level only (large chunks, unused CSS selectors, static/dynamic import chunking notice), not a failing error
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
@@ -348,16 +395,17 @@
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\SharedTransitionClock.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\geometryTuning.ts`
 
 ## Current Risks
 
 - The easiest failure mode is over-fixing a mode that the user already considers close.
 - Source-level naming / path inconsistencies still exist in the territory stack; they should not become cleanup distractions unless a specific experiment proves they are on the hot path.
-- Full repo validation is currently blocked later in the stack by an unrelated `GameCanvas.svelte` / `geometryTuning.ts` export mismatch.
 - Older worktrees or branches that predate the `GameContainer.svelte` cleanup but include the diagnostics-shell migration can still recur with the same stale import unless they absorb this fix or the later master integration.
-- Full repo validation is currently noisy due unrelated pre-existing build and typecheck failures outside this branch scope.
+- Older worktrees or branches that predate the local `geometryTuning.ts` contract update can likewise recur with the same missing-export failure unless they absorb this fix.
+- `bun run build` is now green, but `bun run check` is still expected to be noisy with broader pre-existing type issues outside this focused fix path.
 
 ## Next Intended Step
 
-- Resume PVV4 visual verification once the current branch is run in dev with the orphan import removed.
+- Resume PVV4 visual verification once the current branch is run in dev with both game-shell import blockers removed.
 - Keep transition bets isolated; do not widen this into a general UI integration cleanup unless the next blocker is directly on the PVV4 path.

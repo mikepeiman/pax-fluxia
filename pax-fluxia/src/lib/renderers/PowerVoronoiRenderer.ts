@@ -1482,6 +1482,7 @@ export function renderPowerVoronoi(
 
             const stageConfig: TerritoryGeneratorSettings = {
                 starMargin: wlStarMargin,
+                msrStarBias: GAME_CONFIG.TERRITORY_MSR_STAR_BIAS ?? 0,
                 corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
                 corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
                 cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
@@ -1490,6 +1491,9 @@ export function renderPowerVoronoi(
                     GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
                 cxContestPairCount:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+                cxContestPairSpacing:
+                    GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
+                    wlStarMargin,
                 cxContestPairWeight:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
                 disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),

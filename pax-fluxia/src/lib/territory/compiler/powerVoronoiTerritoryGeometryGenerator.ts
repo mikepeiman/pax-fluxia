@@ -164,12 +164,14 @@ export interface FrontierLoop {
 
 export interface TerritoryGeneratorSettings {
     starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN — shared power-voronoi scale term for real-site weight, clip padding, and contested midpoint spacing
+    msrStarBias?: number;         // Optional solve-time star resistance telemetry/config surface
     corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
     corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
     cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)
     cxWeight: number;             // TERRITORY_CX_WEIGHT — weight multiplier (0.0-2.0)
     cxContestMidpointVstars: boolean; // TERRITORY_CX_CONTEST_MIDPOINT_VSTARS
     cxContestPairCount: number;       // TERRITORY_CX_CONTEST_PAIR_COUNT
+    cxContestPairSpacing?: number;    // TERRITORY_CX_CONTEST_PAIR_SPACING
     cxContestPairWeight: number;      // TERRITORY_CX_CONTEST_PAIR_WEIGHT
     disconnectEnabled: boolean;   // MODIFIED_VORONOI_DISCONNECT_ENABLED
     disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
@@ -918,6 +920,7 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
     fp += `:csp${config.corridorSpacing}`;
     fp += `:cxN${config.cxCount}`;
     fp += `:cxW${config.cxWeight}`;
+    fp += `:cxPS${config.cxContestPairSpacing ?? config.starMargin}`;
     fp += `:de${config.disconnectEnabled ? 1 : 0}`;
     fp += `:dd${config.disconnectDistance}`;
     fp += `:dxW${config.dxWeight}`;
@@ -963,7 +966,20 @@ export function generateVoronoiTerritoryGeometry(
         }));
 
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(ownedStars, connections, config.corridorSpacing, config.cxWeight, config.cxCount || undefined);
+            const corridorVirtuals = computeCorridorVirtuals(
+                ownedStars,
+                connections,
+                config.corridorSpacing,
+                config.cxWeight,
+                config.cxCount || undefined,
+                undefined,
+                config.cxContestMidpointVstars,
+                true,
+                true,
+                config.cxContestPairWeight,
+                config.cxContestPairCount,
+                config.cxContestPairSpacing ?? config.starMargin,
+            );
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,

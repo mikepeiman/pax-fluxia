@@ -164,7 +164,7 @@ export function computeGeometry0319(
                 true,
                 config.cxContestPairWeight,
                 config.cxContestPairCount,
-                config.starMargin,
+                config.cxContestPairSpacing ?? config.starMargin,
             );
             for (const cv of corridorVirtuals) {
                 sites.push({
