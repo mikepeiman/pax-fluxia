@@ -5,7 +5,11 @@
 
 import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
-import { sampleActiveFrontTransition } from '../layers/transition/ActiveFrontTransition';
+import {
+    getActiveFrontChangeAnchors,
+    sampleActiveFrontSectionGeometry,
+    sampleActiveFrontTransition,
+} from '../layers/transition/ActiveFrontTransition';
 import type { OwnerColorResolver } from './TransitionGeometryRenderer';
 
 export const FRAME_PROGRESS_VALUES = [0.0, 0.17, 0.33, 0.5, 0.67, 0.83, 1.0] as const;
@@ -55,22 +59,6 @@ function drawPolyline(
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
-}
-
-function lerpPts(
-    prev: readonly [number, number][],
-    next: readonly [number, number][],
-    t: number,
-): [number, number][] {
-    const len = Math.min(prev.length, next.length);
-    const out: [number, number][] = [];
-    for (let i = 0; i < len; i++) {
-        out.push([
-            prev[i][0] + (next[i][0] - prev[i][0]) * t,
-            prev[i][1] + (next[i][1] - prev[i][1]) * t,
-        ]);
-    }
-    return out;
 }
 
 /** Evenly spaced samples along polyline by arc-length (piecewise linear). */
@@ -202,12 +190,13 @@ export function renderTransitionFrame(
     const activeSectionIds = new Set<string>();
     const anchorIds = new Set<string>();
     const anchorLabel = new Map<string, string>();
+    const sampledSectionGeometry = sampleActiveFrontSectionGeometry(plan, prevTopo, nextTopo, progress);
     plan.fronts.forEach((front, fi) => {
         for (const id of front.activeSectionIds) activeSectionIds.add(id);
         anchorIds.add(front.anchorStartId);
         anchorIds.add(front.anchorEndId);
-        anchorLabel.set(front.anchorStartId, `AF${fi}-start`);
-        anchorLabel.set(front.anchorEndId, `AF${fi}-end`);
+        anchorLabel.set(front.anchorStartId, `SA${fi}-start`);
+        anchorLabel.set(front.anchorEndId, `SA${fi}-end`);
     });
 
     for (const [sectionId, section] of nextTopo.sections) {
@@ -216,12 +205,9 @@ export function renderTransitionFrame(
     }
 
     for (const sectionId of activeSectionIds) {
-        const prevSec = prevTopo.sections.get(sectionId);
         const nextSec = nextTopo.sections.get(sectionId);
-        if (!prevSec && !nextSec) continue;
-        const prev = prevSec?.points ?? nextSec!.points;
-        const next = nextSec?.points ?? prevSec!.points;
-        const curr = lerpPts(prev, next, progress);
+        const curr = sampledSectionGeometry.get(sectionId) ?? nextSec?.points;
+        if (!curr) continue;
         drawPolyline(ctx, curr, C.activeSection, 3.5);
 
         const samples = samplePolylineEven(curr, morphSamplesPerSection);
@@ -244,7 +230,16 @@ export function renderTransitionFrame(
         ctx.setLineDash([]);
         const mx = (a.point[0] + b.point[0]) / 2;
         const my = (a.point[1] + b.point[1]) / 2;
-        drawLabel(ctx, `AF${fi}  (${front.activeSectionIds.size} secs)`, mx - 10, my - 14, C.labelAf, 11);
+        drawLabel(ctx, `SA${fi}  (${front.activeSectionIds.size} secs)`, mx - 10, my - 14, C.labelAf, 11);
+
+        const changeAnchors = getActiveFrontChangeAnchors(front);
+        if (!changeAnchors) return;
+        const [sx, sy] = changeAnchors.startPoint;
+        const [ex, ey] = changeAnchors.endPoint;
+        drawCircle(ctx, sx, sy, 4.5, C.anchorFill);
+        drawCircle(ctx, ex, ey, 4.5, C.anchorFill);
+        drawLabel(ctx, `AF${fi}-start`, sx + 8, sy - 8, C.labelAf, 10);
+        drawLabel(ctx, `AF${fi}-end`, ex + 8, ey - 8, C.labelAf, 10);
     });
 
     if (showAllVertices) {

@@ -869,3 +869,68 @@
 - Validation:
   - `bun run build` passes end to end after the naming + metadata changes
   - `bunx vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts` passes
+
+## Update: 2026-05-04 - Fix Active-Front Section Overextension And Diagnostics Artifact Drift
+
+- Trigger:
+  - user supplied another diagnostic package:
+    - `C:\Users\mikep\Downloads\15-28-02---366_transition-diagnostic-package\debug\diagnostic.json`
+    - companion `topology.json`, `geometry_snapshot.json`, and rendered frames
+  - user correctly called out that this was not a snap case; it was an `animated_fronts` case where the active front was not pinned correctly with change anchors
+- Diagnostic read from the supplied package:
+  - classification:
+    - `animated_fronts`
+  - planner summary:
+    - `pairCount = 37`
+    - `plannedPairCount = 1`
+    - `stableAnchorCount = 30`
+    - `skippedUnsupportedSplitCount = 16`
+    - `skippedNoChangeSpanCount = 20`
+  - key planned front:
+    - `anchorStartId = -50,330.43`
+    - `anchorEndId = 794.42,392.78`
+    - `changeSpan = { base: "next", startIndex: 23, endIndex: 49 }`
+    - `activeSectionIds = ["794.42,392.78->-50,330.43:ai-5|human-player"]`
+  - important interpretation:
+    - the planner did find a local changed subspan on the long `ai-5|human-player` chain
+    - but both runtime sampling and exported frame overlays were still treating the whole overlapping section as the moving front
+    - this is exactly why the user saw motion traveling farther than needed
+- Root cause:
+  - `ActiveFrontTransition.ts` already computes a `changeSpan`, but section sampling used a full-chain interpolation slice for any section whose span overlapped that interval
+  - on a one-section chain, that effectively promoted a local changed subspan into a whole-section morph
+  - `TransitionFrontierFrameRenderer.ts` had a second independent drift:
+    - its highlighted active line was a naive `prev section -> next section` lerp
+    - its endpoint labels were showing stable-anchor endpoints as `AF-start` / `AF-end`
+    - so the artifact itself was overstating the moving front even before any runtime bug was considered
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - added `sampleActiveFrontSectionGeometry()`
+      - added sampled-path composition that keeps unchanged tails pinned to stable geometry while only the true changed span uses interpolated path points
+      - added `clampChangeSpanToStableEndpoints()` so matched stable anchors do not remain inside the final moving interval
+      - added `getActiveFrontChangeAnchors()` for diagnostics/exports
+      - added `changeAnchors` to compact diagnostic output
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+      - active-section overlays now draw the same sampled section geometry used by runtime fill reconstruction
+      - stable-anchor labels renamed to `SA*`
+      - local change-anchor labels added as `AF*`
+      - this removes the earlier artifact drift where the exported highlighted front could be broader than the actual sampled runtime front
+  - added:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - regression test covering a long single section with only a local changed span
+      - asserts that near-identical tails stay pinned while the interior span morphs
+- Purpose:
+  - keep PVV4 fixes local and visual instead of rewriting the planner wholesale
+  - make the runtime honor the planner's local changed span instead of letting overlap activate a whole section
+  - make exported diagnostic artifacts trustworthy enough for the user to reason from visually
+- Validation:
+  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - exported diagnostic frames for this class of `animated_fronts` case should no longer show the whole long frontier section behaving as one moving front
+  - the highlighted active geometry should stay local to the true changed interval
+  - stable anchor pair endpoints should read as `SA*`
+  - the local pinned change anchors should read as `AF*`
+- Why this matters for the branch:
+  - this is still a small-bet fix in the user's requested style
+  - it preserves the existing mode and narrows one concrete visible defect instead of chasing planner purity

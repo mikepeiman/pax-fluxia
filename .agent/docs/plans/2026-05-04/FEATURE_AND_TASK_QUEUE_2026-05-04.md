@@ -120,6 +120,23 @@
     - `hh:mm:ss---mmm`
 - Wrote post-mortem for the false-positive toggle restore and poor artifact request:
   - `.agent/docs/project/post-mortems/2026-05-04_diagnostics-toggle-and-artifact-ask.md`
+- Fixed a real PVV4 active-front overextension bug and corrected the frame-render diagnostics so exported artifacts match runtime behavior:
+  - runtime/sampling changes:
+    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+      - active-front sampling now pins unchanged tails inside long sections instead of replacing an entire overlapping section with fully interpolated geometry
+      - final change spans are clamped away from matched stable-anchor endpoints so stable anchors do not enter the moving interval
+      - compact diagnostic output now includes explicit `changeAnchors`
+  - artifact renderer changes:
+    - `pax-fluxia/src/lib/territory/devtools/TransitionFrontierFrameRenderer.ts`
+      - active-section overlays now draw the real sampled section geometry instead of a naive full-section `prev -> next` lerp
+      - stable-anchor labels are now `SA*`
+      - change-anchor labels are now `AF*`
+  - targeted coverage:
+    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+      - asserts that near-identical section tails remain pinned while only the interior moving span morphs
+- Validation:
+  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` succeeds end to end
 
 ## Current Best Read
 
@@ -135,13 +152,20 @@
   1. timing feel
   2. moving-span isolation
   3. only then consider anti-kink smoothing or correspondence work
+- The newly supplied `15-28-02---366_transition-diagnostic-package` is an `animated_fronts` case, but it exposed a genuine active-front bug:
+  - the planner found one changed span on a long `ai-5|human-player` section
+  - sampling and diagnostics were both overextending that local span across the full overlapping section
+  - the latest fix narrows the moving geometry back to the local change interval and marks stable anchors separately from change anchors
 
 ## Next
 
-- Run real conquest cases in `power_voronoi_canonical + pv_frontline` with the recorder enabled.
-- Inspect `Settings -> Diagnostics` for the live `AF Eval` / skip-count readout during snapped cases.
-- Export diagnostic packages and compare which snapped cases are classifying as:
+- Re-export the same or similar `animated_fronts` conquest package after this fix.
+- Check whether the exported debug frames now show:
+  - active geometry only in the local changed span
+  - `SA*` labels at stable anchor pair endpoints
+  - `AF*` labels at the pinned local change anchors
+- If the runtime still shows endpoint drift after this fix, inspect the remaining change-span detection itself, not just section replacement.
+- Continue comparing snapped packages separately:
   - `snap_no_fronts`
   - `topology_unavailable`
   - specific pair-level skip mixes
-- Only after that evidence exists, decide whether the first fix bet belongs in stable-anchor matching, split handling, or change-span detection.
