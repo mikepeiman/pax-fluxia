@@ -156,6 +156,26 @@ Then:
 
 Do not patch symptoms before understanding structure.
 
+### 4.1b Diagnostics Communication Rule
+
+When asking the user to help gather debug or diagnostics data:
+
+1. Give UI-anchored instructions, not code-path references.
+2. Name the exact visible entry point and labels the user should click.
+3. State the exact interaction sequence as numbered steps.
+4. State what visual or textual result the user should expect to see.
+5. State exactly what to send back:
+   - screenshot
+   - screen recording
+   - exported diagnostics package
+   - copied panel values
+   - console error text
+6. If asking for copied values, name the exact UI labels the user should read.
+7. Prefer exported artifacts over manual transcription when the UI supports export.
+8. Explain what each requested artifact will tell the agent.
+9. Never tell the user to inspect internal code paths, config keys, or architecture unless they explicitly asked for that level of detail.
+10. Never ask the user to interact with a new diagnostics surface without telling them exactly where it lives in the UI and what to do with it.
+
 ### 4.1a Plan / Spec / Status-First Rule
 
 Before investigating any bug, regression, deficiency, or "broken" behavior:

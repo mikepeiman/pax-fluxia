@@ -64,6 +64,12 @@
     - `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY`
     - `panel.perimeterFieldDebugShowGeometry`
   - the write path bumps the territory visual epoch so paused/live canvases refresh immediately
+- Added a dedicated rule for UI-anchored diagnostics communication:
+  - `.agent/rules/diagnostics-ui-communication.md`
+  - reinforced in:
+    - `.agent/AGENT.md`
+  - purpose:
+    - force future debug asks to tell the user exactly where to click, what to do, what to expect, what artifact to return, and what the artifact will tell the agent
 
 ## Current Best Read
 

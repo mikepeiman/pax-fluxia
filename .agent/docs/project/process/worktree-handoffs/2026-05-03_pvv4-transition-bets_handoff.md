@@ -697,3 +697,33 @@
   - `Settings -> Diagnostics` once again contains `Show underlying geometry`
   - turning it on should make perimeter-field debug geometry loops appear again
   - turning it off should remove those loops without needing a full reload
+
+## Update: 2026-05-04 - Add Diagnostics UI Communication Rule
+
+- Trigger:
+  - user called out that prior diagnostics guidance was not actionable because it referred to internal labels and code concepts instead of concrete UI steps and deliverable artifacts
+- Problem:
+  - previous communication told the user to look at textual diagnostics like `AF Eval` without clearly stating:
+    - where in the UI to find them
+    - what interaction to perform
+    - what exact data to send back
+    - how that data would help the agent
+- Change made:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\AGENT.md`
+  - added:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\rules\diagnostics-ui-communication.md`
+- Rule content added:
+  - all user-assisted diagnostics asks must be UI-anchored
+  - all such asks must include:
+    - where to click
+    - what to do
+    - what the user should see
+    - what to send back
+    - what the agent will learn
+  - exported artifacts are preferred over manual transcription when available
+  - internal code-path language is not allowed as the primary instruction surface
+- Purpose:
+  - make future diagnostics requests usable in one pass
+  - reduce ambiguity and user translation effort
+  - force the agent to request the highest-value artifact the UI can already produce
