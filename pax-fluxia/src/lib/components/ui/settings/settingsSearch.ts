@@ -86,6 +86,19 @@ function isTerritorySystemRecord(record: SearchableSettingRecord): boolean {
     );
 }
 
+function isPvv4TransitionRecord(record: SearchableSettingRecord): boolean {
+    const key = record.key;
+    const label = record.label.toLowerCase();
+    return (
+        key.startsWith("PVV4_") ||
+        label.includes("pvv4") ||
+        label.includes("active front") ||
+        label.includes("frontline progress") ||
+        label.includes("stable anchor") ||
+        label.includes("changed span")
+    );
+}
+
 function resolveSectionTarget(record: SearchableSettingRecord): {
     sectionId: SettingsSectionId;
     subsectionId?: string;
@@ -113,6 +126,9 @@ function resolveSectionTarget(record: SearchableSettingRecord): {
         case "surge":
             return { sectionId: "effects" };
         case "territory":
+            if (isPvv4TransitionRecord(record)) {
+                return { sectionId: "pvv4_transition" };
+            }
             if (isTerritoryTopologyRecord(record)) {
                 return { sectionId: "territory_tuning" };
             }

@@ -7,9 +7,20 @@ export interface TerritoryWorldBounds {
     height: number;
 }
 
+export type Pvv4ProgressProfileId =
+    | 'linear'
+    | 'smoothstep'
+    | 'ease_in_out_quad'
+    | 'ease_in_out_cubic';
+
 export interface TerritoryTunables extends TerritoryGeometryTunables {
     // --- Transition timing ---
     transitionDurationMs: number;
+    pvv4ProgressProfile: Pvv4ProgressProfileId;
+    pvv4ProgressBlend: number;
+    pvv4StableAnchorEps: number;
+    pvv4ChangeSpanEps: number;
+    pvv4ChangeSpanPadPoints: number;
 
     // --- Presentation ---
     borderWidth: number;

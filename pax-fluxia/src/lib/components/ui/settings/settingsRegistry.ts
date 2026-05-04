@@ -14,6 +14,7 @@ export type SettingsSectionId =
     | "territory_phase_field"
     | "territory_tuning"
     | "territory_styles"
+    | "pvv4_transition"
     | "fleet_star_visuals"
     | "audio"
     | "diagnostics"
@@ -141,6 +142,14 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "territory",
     },
     {
+        id: "pvv4_transition",
+        icon: "↔",
+        label: "PVV4 Transition",
+        color: "#67e8f9",
+        tier: "developer",
+        scope: "territory",
+    },
+    {
         id: "fleet_star_visuals",
         icon: "✨",
         label: "Fleet & Star Visuals",
@@ -202,6 +211,8 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     conquest_effects: "conquest",
     conquest: "conquest",
     territory: "territory_modes",
+    pvv4: "pvv4_transition",
+    pvv4_transition: "pvv4_transition",
     ships: "fleet_star_visuals",
     visuals: "map_options",
     logging: "logging",

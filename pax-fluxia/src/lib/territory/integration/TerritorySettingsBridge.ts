@@ -2,7 +2,10 @@ import {
     DEFAULT_TERRITORY_MODE_SELECTION,
     type TerritoryModeSelection,
 } from '../contracts/TerritoryModeSelection';
-import type { TerritoryTunables } from '../contracts/TerritoryFrameInput';
+import type {
+    Pvv4ProgressProfileId,
+    TerritoryTunables,
+} from '../contracts/TerritoryFrameInput';
 import { readTerritoryGeometryTunables } from '../geometry/geometryTuning';
 
 export interface TerritoryRuntimeSettingsSnapshot {
@@ -16,6 +19,21 @@ function asNumber(value: unknown, fallback: number): number {
 
 function asString(value: unknown, fallback: string): string {
     return typeof value === 'string' ? value : fallback;
+}
+
+function resolvePvv4ProgressProfile(
+    rawValue: unknown,
+): Pvv4ProgressProfileId {
+    const raw = asString(rawValue, 'smoothstep');
+    switch (raw) {
+        case 'linear':
+        case 'smoothstep':
+        case 'ease_in_out_quad':
+        case 'ease_in_out_cubic':
+            return raw;
+        default:
+            return 'smoothstep';
+    }
 }
 
 function resolveGeometryMode(_rawValue: unknown): TerritoryModeSelection['geometryMode'] {
@@ -90,6 +108,16 @@ export function readTerritoryRuntimeSettings(
                     ? Math.max(0, Math.round(tickMs))
                     : Math.max(0, Math.round(storedMs));
             })(),
+            pvv4ProgressProfile: resolvePvv4ProgressProfile(
+                config.PVV4_PROGRESS_PROFILE,
+            ),
+            pvv4ProgressBlend: asNumber(config.PVV4_PROGRESS_BLEND, 0.4),
+            pvv4StableAnchorEps: asNumber(config.PVV4_STABLE_ANCHOR_EPS, 2),
+            pvv4ChangeSpanEps: asNumber(config.PVV4_CHANGE_SPAN_EPS, 2),
+            pvv4ChangeSpanPadPoints: asNumber(
+                config.PVV4_CHANGE_SPAN_PAD_POINTS,
+                0,
+            ),
             borderWidth: asNumber(config.VORONOI_BORDER_WIDTH, 2),
             fillAlpha: asNumber(config.VORONOI_ALPHA, 0.2),
             borderAlpha: asNumber(config.VORONOI_BORDER_ALPHA, 0.5),

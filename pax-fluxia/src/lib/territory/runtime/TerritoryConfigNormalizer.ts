@@ -10,6 +10,20 @@ function normalizeTunables(t: TerritoryTunables): TerritoryTunables {
     return {
         // Transition timing
         transitionDurationMs: Math.max(0, Math.round(t.transitionDurationMs)),
+        pvv4ProgressProfile: t.pvv4ProgressProfile ?? 'smoothstep',
+        pvv4ProgressBlend: Math.max(0, Math.min(1, t.pvv4ProgressBlend ?? 0.4)),
+        pvv4StableAnchorEps: Math.max(
+            0,
+            Math.min(12, t.pvv4StableAnchorEps ?? 2),
+        ),
+        pvv4ChangeSpanEps: Math.max(
+            0,
+            Math.min(12, t.pvv4ChangeSpanEps ?? 2),
+        ),
+        pvv4ChangeSpanPadPoints: Math.max(
+            0,
+            Math.min(8, Math.round(t.pvv4ChangeSpanPadPoints ?? 0)),
+        ),
         // Presentation
         borderWidth: Math.max(0, t.borderWidth),
         fillAlpha: Math.min(1, Math.max(0, t.fillAlpha)),

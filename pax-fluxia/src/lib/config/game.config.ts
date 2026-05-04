@@ -8,6 +8,7 @@ import type {
     MetaballBurstBoundaryBasis,
     VsTransitionModeId,
 } from '../territory/transitions/territoryTransitionModes';
+import type { Pvv4ProgressProfileId } from '../territory/contracts/TerritoryFrameInput';
 import { aiConfigDefaults } from './ai.config';
 import { audioConfigDefaults } from './audio.config';
 import { gameplayConfigDefaults } from './gameplay.config';
@@ -373,6 +374,11 @@ interface GameConfigType {
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
+    PVV4_PROGRESS_PROFILE: Pvv4ProgressProfileId; // Sample-time progress profile for the PVV4 active-front path
+    PVV4_PROGRESS_BLEND: number; // Blend between linear progress and the selected PVV4 profile (0-1)
+    PVV4_STABLE_ANCHOR_EPS: number; // Stable-anchor matching tolerance for PVV4 active-front planning
+    PVV4_CHANGE_SPAN_EPS: number; // Changed-span detection tolerance for PVV4 active-front planning
+    PVV4_CHANGE_SPAN_PAD_POINTS: number; // Symmetric point padding applied to the detected PVV4 changed span
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)

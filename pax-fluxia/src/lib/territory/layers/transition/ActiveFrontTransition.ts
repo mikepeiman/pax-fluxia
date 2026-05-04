@@ -1,4 +1,5 @@
 import type { OwnershipSnapshot, TerritoryConquestEvent } from '../../contracts/OwnershipContracts';
+import type { TerritoryTunables } from '../../contracts/TerritoryFrameInput';
 import type {
     FrontierSection,
     FrontierTopology,
@@ -54,7 +55,15 @@ const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
     'world_corner',
 ]);
 
-const DEFAULT_CHANGE_EPS = 2;
+const DEFAULT_STABLE_ANCHOR_EPS = 2;
+const DEFAULT_CHANGE_SPAN_EPS = 2;
+const DEFAULT_CHANGE_SPAN_PAD_POINTS = 0;
+
+interface ActiveFrontPlanningTunables {
+    stableAnchorEps?: TerritoryTunables['pvv4StableAnchorEps'];
+    changeSpanEps?: TerritoryTunables['pvv4ChangeSpanEps'];
+    changeSpanPadPoints?: TerritoryTunables['pvv4ChangeSpanPadPoints'];
+}
 
 // ---------------------------------------------------------------------------
 // Planning
@@ -64,9 +73,14 @@ export function planActiveFrontTransition(
     prev: FrontierTopology,
     next: FrontierTopology,
     ownership: OwnershipSnapshot,
-    changeEps = DEFAULT_CHANGE_EPS,
+    tunables: ActiveFrontPlanningTunables = {},
 ): ActiveFrontTransitionPlan {
-    const anchors = findStableAnchors(prev, next, changeEps);
+    const stableAnchorEps = tunables.stableAnchorEps ?? DEFAULT_STABLE_ANCHOR_EPS;
+    const changeSpanEps = tunables.changeSpanEps ?? DEFAULT_CHANGE_SPAN_EPS;
+    const changeSpanPadPoints =
+        tunables.changeSpanPadPoints ?? DEFAULT_CHANGE_SPAN_PAD_POINTS;
+
+    const anchors = findStableAnchors(prev, next, stableAnchorEps);
     const prevChains = buildChainsBetweenAnchors(prev, anchors);
     const nextChains = buildChainsBetweenAnchors(next, anchors);
 
@@ -88,8 +102,16 @@ export function planActiveFrontTransition(
         const splitMode = detectSplitMode(prevPaths.length, nextPaths.length);
         if (!splitMode) continue;
 
-        const { base, startIndex, endIndex } =
-            findChangeSpanForPaths(prevPaths, nextPaths, splitMode, changeEps);
+        const rawChangeSpan = findChangeSpanForPaths(
+            prevPaths,
+            nextPaths,
+            splitMode,
+            changeSpanEps,
+        );
+        const { base, startIndex, endIndex } = applyChangeSpanPadding(
+            rawChangeSpan,
+            changeSpanPadPoints,
+        );
 
         if (startIndex === -1 || endIndex === -1) {
             // No change detected for this anchor pair
@@ -390,24 +412,72 @@ function findChangeSpanForPaths(
     nextPaths: ChainPath[],
     splitMode: SplitMode,
     eps: number,
-): { base: 'prev' | 'next'; startIndex: number; endIndex: number } {
+): {
+    base: 'prev' | 'next';
+    startIndex: number;
+    endIndex: number;
+    basePointCount: number;
+} {
     if (splitMode === 'none') {
         const base = 'next' as const;
         const basePoints = nextPaths[0].points;
         const compare = [prevPaths[0].points];
-        return { base, ...findChangeSpan(basePoints, compare, eps) };
+        return {
+            base,
+            basePointCount: basePoints.length,
+            ...findChangeSpan(basePoints, compare, eps),
+        };
     }
     if (splitMode === '1to2') {
         const base = 'prev' as const;
         const basePoints = prevPaths[0].points;
         const compare = [nextPaths[0].points, nextPaths[1].points];
-        return { base, ...findChangeSpan(basePoints, compare, eps) };
+        return {
+            base,
+            basePointCount: basePoints.length,
+            ...findChangeSpan(basePoints, compare, eps),
+        };
     }
     // splitMode === '2to1'
     const base = 'next' as const;
     const basePoints = nextPaths[0].points;
     const compare = [prevPaths[0].points, prevPaths[1].points];
-    return { base, ...findChangeSpan(basePoints, compare, eps) };
+    return {
+        base,
+        basePointCount: basePoints.length,
+        ...findChangeSpan(basePoints, compare, eps),
+    };
+}
+
+function applyChangeSpanPadding(
+    changeSpan: {
+        base: 'prev' | 'next';
+        startIndex: number;
+        endIndex: number;
+        basePointCount: number;
+    },
+    padPoints: number,
+): { base: 'prev' | 'next'; startIndex: number; endIndex: number } {
+    if (
+        changeSpan.startIndex === -1 ||
+        changeSpan.endIndex === -1 ||
+        padPoints <= 0 ||
+        changeSpan.basePointCount <= 0
+    ) {
+        return {
+            base: changeSpan.base,
+            startIndex: changeSpan.startIndex,
+            endIndex: changeSpan.endIndex,
+        };
+    }
+    return {
+        base: changeSpan.base,
+        startIndex: Math.max(0, changeSpan.startIndex - padPoints),
+        endIndex: Math.min(
+            changeSpan.basePointCount - 1,
+            changeSpan.endIndex + padPoints,
+        ),
+    };
 }
 
 function findChangeSpan(

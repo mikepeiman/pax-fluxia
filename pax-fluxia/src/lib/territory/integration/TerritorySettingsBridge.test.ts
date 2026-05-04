@@ -67,6 +67,11 @@ describe('readTerritoryRuntimeSettings', () => {
 
         expect(configured.tunables).toEqual({
             transitionDurationMs: 720,
+            pvv4ProgressProfile: 'smoothstep',
+            pvv4ProgressBlend: 0.4,
+            pvv4StableAnchorEps: 2,
+            pvv4ChangeSpanEps: 2,
+            pvv4ChangeSpanPadPoints: 0,
             borderWidth: 3.5,
             fillAlpha: 0.31,
             borderAlpha: 0.78,
@@ -75,12 +80,14 @@ describe('readTerritoryRuntimeSettings', () => {
             boundaryPad: 44,
             boundaryEps: 8,
             starMargin: 45,
+            msrStarBias: 0,
             corridorEnabled: true,
             corridorSpacing: 60,
             corridorCount: 0,
             corridorWeight: 0.5,
             cxContestMidpointVstars: true,
             cxContestPairCount: 1,
+            cxContestPairSpacing: 75,
             cxContestPairWeight: 0.5,
             disconnectEnabled: false,
             disconnectDistance: 400,
@@ -90,6 +97,8 @@ describe('readTerritoryRuntimeSettings', () => {
 
         const fallback = readTerritoryRuntimeSettings({});
         expect(fallback.tunables.transitionDurationMs).toBe(600);
+        expect(fallback.tunables.pvv4ProgressProfile).toBe('smoothstep');
+        expect(fallback.tunables.pvv4ProgressBlend).toBe(0.4);
         expect(fallback.tunables.borderWidth).toBe(2);
     });
 

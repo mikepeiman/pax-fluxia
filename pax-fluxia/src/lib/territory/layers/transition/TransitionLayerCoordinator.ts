@@ -61,12 +61,31 @@ function smoothstep(value: number): number {
     return t * t * (3 - 2 * t);
 }
 
-function shapePvFrontlineProgress(rawProgress: number): number {
+function easeInOutQuad(value: number): number {
+    const t = clamp01(value);
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function easeInOutCubic(value: number): number {
+    const t = clamp01(value);
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function shapePvFrontlineProgress(
+    rawProgress: number,
+    tunables: TerritoryTunables,
+): number {
     const clamped = clamp01(rawProgress);
-    // Keep the mid-transition timing recognizable while softening the
-    // linear start/stop feel that makes PVV4 motion read as mechanical.
-    const blend = 0.4;
-    const eased = smoothstep(clamped);
+    const blend = clamp01(tunables.pvv4ProgressBlend ?? 0.4);
+    const profile = tunables.pvv4ProgressProfile ?? 'smoothstep';
+    const eased =
+        profile === 'linear'
+            ? clamped
+            : profile === 'ease_in_out_quad'
+              ? easeInOutQuad(clamped)
+              : profile === 'ease_in_out_cubic'
+                ? easeInOutCubic(clamped)
+                : smoothstep(clamped);
     return clamped + (eased - clamped) * blend;
 }
 
@@ -123,7 +142,16 @@ export class TransitionLayerCoordinator {
 
             if (canPlanTopologyPath) {
                 // ── UNIFIED ACTIVE-FRONT PATH ───────────────────────────
-                activeFrontPlan = planActiveFrontTransition(planPrevTopo!, nextTopo!, input.ownership);
+                activeFrontPlan = planActiveFrontTransition(
+                    planPrevTopo!,
+                    nextTopo!,
+                    input.ownership,
+                    {
+                        stableAnchorEps: input.tunables.pvv4StableAnchorEps,
+                        changeSpanEps: input.tunables.pvv4ChangeSpanEps,
+                        changeSpanPadPoints: input.tunables.pvv4ChangeSpanPadPoints,
+                    },
+                );
                 activeFillPlan = null;
                 // Snapshot the prev topology so it survives the state overwrite
                 transitionPrevTopology = planPrevTopo!;
@@ -181,7 +209,7 @@ export class TransitionLayerCoordinator {
         let borderFrame: BorderTransitionFrame;
         const sampledProgress =
             envelope && pvFrontlineSelected
-                ? shapePvFrontlineProgress(envelope.progress)
+                ? shapePvFrontlineProgress(envelope.progress, input.tunables)
                 : envelope?.progress ?? 0;
 
         if (envelope && activeFrontPlan && samplePrevTopo && nextTopo) {

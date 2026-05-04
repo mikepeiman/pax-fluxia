@@ -57,6 +57,7 @@
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
     import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
+    import ControlsSectionPVV4Transition from "./settings/ControlsSection-PVV4Transition.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -1391,6 +1392,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
+                    />
+                {:else if sec.id === "pvv4_transition"}
+                    <ControlsSectionPVV4Transition
+                        {panel}
+                        {updatePanel}
                     />
                 {:else if sec.id === "fleet_star_visuals"}
                     <ControlsSectionShips

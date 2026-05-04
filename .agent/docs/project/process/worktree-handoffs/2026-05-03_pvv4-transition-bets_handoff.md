@@ -412,12 +412,127 @@
     - `onDiagnosticsClick` wiring at line 496
     - `diagnosticsActive` wiring at line 506
 
+### 2026-05-04 - Reframed the branch around a UI-first PVV4 experiment surface
+
+- Action:
+  - reviewed the existing PVV4 bet plan and the current settings architecture in:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsRegistry.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\GameSettingsPanel.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.ts`
+- Purpose:
+  - shift the branch from hidden code-only PVV4 experiments toward an in-game control surface the user can operate directly while evaluating transition quality
+  - keep future PVV4 bets inspectable and reversible without piling more one-off edits into unrelated territory panels
+- Result:
+  - the branch now treats the in-game `PVV4 Transition` section as the canonical experiment surface for Phase 1 timing and motion-isolation bets
+- Validation:
+  - implementation plan was traced against the current settings/render/runtime ownership paths before code changes were made
+
+### 2026-05-04 - Implemented the top-level PVV4 Transition settings section and Phase 1 tunables
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsRegistry.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsSearch.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\GameSettingsPanel.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-PVV4Transition.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settingsDefs.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\config\game.config.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\config\territory.config.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\contracts\TerritoryFrameInput.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryConfigNormalizer.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.test.ts`
+- Purpose:
+  - expose the current PVV4 timing bet and the next motion-isolation bet directly in the in-game UI
+  - keep the settings persistent through the normal panel/config path instead of inventing a branch-only side channel
+  - bind each surfaced control to the specific runtime seam that consumes it
+- Exact change:
+  - added a new developer-tier top-level settings section id:
+    - `pvv4_transition`
+  - mounted a dedicated `ControlsSection-PVV4Transition.svelte` body in `GameSettingsPanel.svelte`
+  - the new section now shows:
+    - current render mode
+    - geometry mode
+    - fill transition mode
+    - effective territory transition duration
+    - `PVV4 active` badge when `TERRITORY_RENDER_MODE === "power_voronoi_canonical"`
+    - `Switch to PVV4` action when inactive
+    - `Reset PVV4 Controls` action that resets only the five new PVV4 experiment keys
+  - added five new Phase 1 PVV4 config/tunable keys and persisted them through the existing panel path:
+    - `PVV4_PROGRESS_PROFILE`
+    - `PVV4_PROGRESS_BLEND`
+    - `PVV4_STABLE_ANCHOR_EPS`
+    - `PVV4_CHANGE_SPAN_EPS`
+    - `PVV4_CHANGE_SPAN_PAD_POINTS`
+  - updated settings search routing so `PVV4_*` controls land in the new top-level section instead of being buried under generic territory search results
+  - kept the shared `TERRITORY_TRANSITION_MS` and `TERRITORY_TRANSITION_BIND_TO_TICK` controls mirrored in the new section for direct PVV4 evaluation
+- Runtime effect:
+  - `TransitionLayerCoordinator.ts`
+    - the existing PVV4-only progress shaper is now driven by:
+      - `PVV4_PROGRESS_PROFILE`
+      - `PVV4_PROGRESS_BLEND`
+    - supported profiles:
+      - `linear`
+      - `smoothstep`
+      - `ease_in_out_quad`
+      - `ease_in_out_cubic`
+  - `ActiveFrontTransition.ts`
+    - stable-anchor acceptance is now driven by `PVV4_STABLE_ANCHOR_EPS`
+    - changed-span detection is now driven by `PVV4_CHANGE_SPAN_EPS`
+    - the detected changed span can now be widened symmetrically by `PVV4_CHANGE_SPAN_PAD_POINTS` before next-topology active sections are marked
+- Result:
+  - the branch now has a concrete UI-first PVV4 experiment surface for Bet A and Bet B
+  - non-PVV4 render families ignore these new keys
+  - the current live defaults preserve the branch's existing behavior:
+    - profile = `smoothstep`
+    - blend = `0.4`
+    - stable anchor epsilon = `2`
+    - change span epsilon = `2`
+    - change span pad = `0`
+- What this should let the user see:
+  - a new top-level `PVV4 Transition` settings section in developer tier
+  - an inactive banner plus `Switch to PVV4` button when another territory mode is active
+  - live Bet A timing controls that can change how the current PVV4 transition breathes mid-motion
+  - Bet B planning controls that only change the next conquest's changed-front isolation
+- Validation:
+  - `bun run build` completes successfully end to end in:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+  - targeted test passes:
+    - `bunx vitest run src/lib/territory/integration/TerritorySettingsBridge.test.ts`
+  - build output still contains pre-existing warning-level Svelte unused-selector noise and chunk-size warnings, but no new fatal errors from this implementation
+
+### 2026-05-04 - Current next step after the UI surface landed
+
+- Action:
+  - no further visual bet has been stacked yet beyond the previously landed PVV4 easing default
+- Purpose:
+  - keep the branch aligned with the user's request for isolated, inspectable bets
+- Result:
+  - the immediate next step is not more code churn
+  - the immediate next step is a user visual read of:
+    - the new `PVV4 Transition` section itself
+    - the default `smoothstep` / `0.4` timing profile
+    - `Stable Anchor Epsilon`
+    - `Changed Span Epsilon`
+    - `Changed Span Padding`
+- Validation:
+  - the code is ready for in-app verification
+  - performance judgment still requires the user to exercise real conquest cases in the live game
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-PVV4Transition.svelte`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsRegistry.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settingsDefs.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\GameCanvasTerritoryBridge.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+- `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\SharedTransitionClock.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameContainer.svelte`
