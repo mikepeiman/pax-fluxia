@@ -141,6 +141,32 @@
   - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
   - canonical runtime geometry now draws full `territoryRegions` loops for `Show underlying geometry`
   - perimeter-field family modes keep the shell-loop diagnostic behavior they were already using
+- Added a dedicated local loop birth/death path for PVV4 cases that have no usable active front but do have appearing/disappearing loops:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+    - new plan classification:
+      - `loop_targets_only`
+    - new plan outputs:
+      - `expandTargets`
+      - `expandTargetCount`
+    - disappearing loops now always get a local collapse target, with conquest-center matching first and centroid fallback second
+    - appearing loops now get a symmetric local grow target, with conquest-center matching first and centroid / same-owner fallback second
+    - sampling now expands new loops from their local center instead of forcing them to arrive only through the frontier path
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+    - runtime diagnostics now expose:
+      - `loop_targets_only`
+      - `expandTargetCount`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+    - Diagnostics UI now shows:
+      - `Grows`
+      - `Grow Targets`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionFrontierFrameRenderer.ts`
+    - exported overlays now draw grow-target lines / centers in addition to collapse/frontline diagnostics
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+    - regression test for a no-front, loop-birth/loop-death transition
+- Validation:
+  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` succeeds end to end
 
 ## Current Best Read
 
@@ -172,6 +198,13 @@
   - the planner found one changed span on a long `ai-5|human-player` section
   - the attempted pinning fix regressed runtime behavior enough that it has now been backed out
   - the problem still needs a new, smaller-scope solution
+- The branch now has a second transition primitive besides active-front interpolation:
+  - explicit local loop collapse / grow targets for disappearing and appearing loops
+  - this is the first post-revert change that actually broadens PVV4’s transition vocabulary instead of retuning the same frontier heuristic
+  - it is specifically aimed at:
+    - island / sole-star captures
+    - sliver births
+    - other cases where topology produces loop lifecycle changes more cleanly than a stable-anchor front pair
 
 ## Next
 
@@ -184,3 +217,10 @@
 - Export a fresh dual-conquest package after the naming patch and verify that the extracted `debug/` JSON files now preserve the conquest-aware datetime prefix in their filenames.
 - Only after that evidence exists, decide whether the first fix bet belongs in stable-anchor matching, split handling, or change-span detection.
 - Verify `Show underlying geometry` in PVV4 now draws full-map region outlines rather than 1-2 partial shell fragments.
+- Run new island / sole-star capture cases and classify them explicitly:
+  - if the diagnostics row shows `loop_targets_only`, the branch is using the new local loop path rather than snapping
+  - inspect whether the grow/collapse motion is visually local and whether it removes the worst ghost-region failure mode
+- Only after that read, decide whether the next deep fix belongs in:
+  - frontier split handling
+  - stronger local change-anchor pinning
+  - dedicated multi-event choreography for dual conquests

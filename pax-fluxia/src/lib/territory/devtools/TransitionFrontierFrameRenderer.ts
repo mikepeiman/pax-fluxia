@@ -32,9 +32,12 @@ const C = {
     afBridge:        'rgba(80, 255, 120, 0.95)',
     collapseLine:    'rgba(255, 80, 80, 0.85)',
     collapseCenter:  'rgba(255, 80, 80, 0.9)',
+    growLine:        'rgba(120, 255, 120, 0.85)',
+    growCenter:      'rgba(120, 255, 120, 0.9)',
     labelNormal:     '#9999cc',
     labelAnchor:     '#00ffff',
     labelCollapse:   'rgba(255, 160, 160, 1)',
+    labelGrow:       'rgba(170, 255, 170, 1)',
     labelAf:         '#66ff88',
     hudBg:           'rgba(0, 0, 0, 0.72)',
     hudText:         '#ffffff',
@@ -280,6 +283,18 @@ export function renderTransitionFrame(
         drawPolyline(ctx, [...collapsePts, collapsePts[0]], C.collapseLine, 2);
         drawCircle(ctx, cx, cy, 5, C.collapseCenter);
         drawLabel(ctx, `✕ ${target.ownerId}`, cx + 8, cy - 7, C.labelCollapse, 10);
+    }
+
+    for (const target of plan.expandTargets) {
+        if (target.points.length < 3) continue;
+        const [cx, cy] = target.center;
+        const expandPts = target.points.map(([px, py]): [number, number] => [
+            cx + (px - cx) * progress,
+            cy + (py - cy) * progress,
+        ]);
+        drawPolyline(ctx, [...expandPts, expandPts[0]], C.growLine, 2);
+        drawCircle(ctx, cx, cy, 5, C.growCenter);
+        drawLabel(ctx, `＋ ${target.ownerId}`, cx + 8, cy - 7, C.labelGrow, 10);
     }
 
     const pct = `t=${(progress * 100).toFixed(0).padStart(3)}%`;

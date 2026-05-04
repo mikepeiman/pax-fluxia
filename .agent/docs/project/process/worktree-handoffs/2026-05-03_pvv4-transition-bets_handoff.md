@@ -1052,3 +1052,89 @@
   - `bun run build` passes end to end
 - Expected user-visible result:
   - in `Settings -> Diagnostics`, turning on `Show underlying geometry` while PVV4 is active should now draw cyan region outlines across the whole map rather than just 1-2 partial shell fragments
+
+## Update: 2026-05-04 - Add Explicit Loop Birth/Death Transition Targets For PVV4
+
+- Trigger:
+  - after reverting the failed local-span pinning bet, the branch still needed a deeper transition improvement rather than another narrow heuristic tweak
+  - the current best read is that PVV4 has at least two different classes of transition problem:
+    - frontier deformation cases, where active-front interpolation is the right primitive
+    - loop lifecycle cases, where a region/sliver/island appears or disappears and forcing everything through front matching is brittle
+  - user direction for this branch remained clear:
+    - go deeper
+    - make the render mode genuinely strong rather than stopping at baseline preservation
+- Working thesis:
+  - a single “perfect active front” path is not enough
+  - PVV4 needs a separate local primitive for loop birth/death so island captures and sliver events do not depend entirely on stable-anchor pair planning
+  - this is a better foundation for future VFX because it gives the mode explicit knowledge of where new territory is born and where old territory dies
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - added new plan classification:
+        - `loop_targets_only`
+      - added new loop-growth target type:
+        - `ExpandTarget`
+      - `planActiveFrontTransition(...)` now computes:
+        - `collapseTargets`
+        - `expandTargets`
+      - `buildActiveFrontPlanDiagnostics(...)` now reports:
+        - `expandTargetCount`
+        - `loop_targets_only`
+      - `sampleActiveFrontTransition(...)` now:
+        - rebuilds NEXT loops normally
+        - but if a NEXT loop is an expand target and `t < 1`, it grows that loop outward from its local center instead of only appearing as a fully-formed final loop
+        - still collapses disappearing PREV loops toward their local center
+      - `planCollapseTargets(...)` now always tries to produce a local target:
+        - conquest-center match first
+        - centroid fallback second
+      - added `planExpandTargets(...)`:
+        - appearing loops are matched to conquest events by `newOwner`
+        - conquest-center match first
+        - same-owner collapse-center fallback or centroid fallback second
+      - added helpers:
+        - `resolveConquestCenter(...)`
+        - `nearestCenterToPoint(...)`
+        - `expandLoopFromPoint(...)`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+      - runtime diagnostics now expose:
+        - `loop_targets_only`
+        - `expandTargetCount`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - active-front diagnostics grid now shows:
+        - `Grows`
+        - `Grow Targets`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+      - exported overlay summary now includes grow-target counts
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+      - diagnostics overlay now draws grow-target geometry:
+        - grow center marker
+        - grow polyline preview
+        - `＋ ownerId` label
+  - added:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - regression test for a no-front case with one disappearing loop and one appearing loop
+      - asserts:
+        - classification becomes `loop_targets_only`
+        - `expandTargetCount === 1`
+        - the expanding loop is collapsed to its center at `t = 0`
+        - the final frame resolves cleanly to the NEXT loop at `t = 1`
+- Purpose:
+  - stop treating loop-lifecycle events as frontier-only problems
+  - give PVV4 a second explicit motion primitive that is local, deterministic, and VFX-friendly
+  - create a better base for later work on island capture polish, sliver behavior, and effect spawning around territory birth/death
+- Validation:
+  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` passes end to end
+- Expected user-visible result:
+  - some cases that previously had no usable active front should now classify as:
+    - `loop_targets_only`
+  - in those cases, the branch should animate local loop collapse/grow behavior instead of defaulting straight to a snap
+  - diagnostics should now make that obvious in both:
+    - `Settings -> Diagnostics`
+    - exported frame overlays / package JSON
+- Limits / open questions:
+  - this does not solve the long-front local change-anchor problem that caused the earlier failed pinning bet
+  - this is intentionally orthogonal:
+    - frontier deformation still uses the active-front path
+    - loop birth/death now has its own local path
+  - next visual read should focus on whether island/sole-star captures look more grounded and less like ghost territory teleporting in/out

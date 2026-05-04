@@ -643,6 +643,7 @@
             <div><span>Sampled</span><span>{formatDiagnosticProgress(activeFrontDiagnostics.sampledProgress)}</span></div>
             <div><span>Fronts</span><span>{activeFrontDiagnostics.frontCount}</span></div>
             <div><span>Collapses</span><span>{activeFrontDiagnostics.collapseTargetCount}</span></div>
+            <div><span>Grows</span><span>{activeFrontDiagnostics.expandTargetCount}</span></div>
             <div><span>Plan Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.planPrev)}</span></div>
             <div><span>Next Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.next)}</span></div>
             <div><span>Sample Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.samplePrev)}</span></div>
@@ -654,6 +655,7 @@
                 <div><span>Gap Skips</span><span>{activeFrontPlanSummary.skippedTopologyGapCount}</span></div>
                 <div><span>Split Skips</span><span>{activeFrontPlanSummary.skippedUnsupportedSplitCount}</span></div>
                 <div><span>No-Span Skips</span><span>{activeFrontPlanSummary.skippedNoChangeSpanCount}</span></div>
+                <div><span>Grow Targets</span><span>{activeFrontPlanSummary.expandTargetCount}</span></div>
             {/if}
         </div>
         <div class="readout">

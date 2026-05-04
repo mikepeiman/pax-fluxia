@@ -210,7 +210,7 @@ function renderActiveFrontDiagnosticCanvas(args: {
     const lines = [
         `AF eval: ${debug?.evaluation ?? 'n/a'}`,
         `path: ${debug?.pathUsed ?? 'n/a'}`,
-        `fronts: ${debug?.frontCount ?? 0} / collapses: ${debug?.collapseTargetCount ?? 0}`,
+        `fronts: ${debug?.frontCount ?? 0} / collapses: ${debug?.collapseTargetCount ?? 0} / grows: ${debug?.expandTargetCount ?? 0}`,
         `sampled: ${typeof debug?.sampledProgress === 'number' ? debug.sampledProgress.toFixed(3) : 'n/a'}`,
         `stable anchors: ${planSummary?.stableAnchorCount ?? 0} / pairs: ${planSummary?.pairCount ?? 0}`,
         `planned: ${planSummary?.plannedPairCount ?? 0} / no-span: ${planSummary?.skippedNoChangeSpanCount ?? 0}`,

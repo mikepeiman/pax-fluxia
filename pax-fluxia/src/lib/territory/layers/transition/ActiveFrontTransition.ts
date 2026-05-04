@@ -21,6 +21,7 @@ export type ActiveFrontPairOutcome =
     | 'skipped_no_change_span';
 export type ActiveFrontPlanClassification =
     | 'animated_fronts'
+    | 'loop_targets_only'
     | 'collapse_only'
     | 'snap_no_fronts';
 
@@ -46,6 +47,13 @@ interface ActiveFrontPlan {
 }
 
 interface CollapseTarget {
+    loopId: string;
+    ownerId: string;
+    center: Vec2;
+    points: Vec2[];
+}
+
+interface ExpandTarget {
     loopId: string;
     ownerId: string;
     center: Vec2;
@@ -91,6 +99,7 @@ export interface ActiveFrontPlanDiagnosticsSummary {
     frontCount: number;
     activeSectionCount: number;
     collapseTargetCount: number;
+    expandTargetCount: number;
 }
 
 export interface ActiveFrontPlanDiagnostics {
@@ -109,6 +118,7 @@ export interface ActiveFrontTransitionPlan {
     nextVersion: string;
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
+    expandTargets: ExpandTarget[];
     diagnostics: ActiveFrontPlanDiagnostics;
 }
 
@@ -231,7 +241,19 @@ export function planActiveFrontTransition(
         pairDiagnostics.push(pairDiagnostic);
     }
 
-    const collapseTargets = planCollapseTargets(prev, next, ownership, ownership.conquestEvents);
+    const collapseTargets = planCollapseTargets(
+        prev,
+        next,
+        ownership,
+        ownership.conquestEvents,
+    );
+    const expandTargets = planExpandTargets(
+        prev,
+        next,
+        ownership,
+        ownership.conquestEvents,
+        collapseTargets,
+    );
     const diagnostics = buildActiveFrontPlanDiagnostics({
         stableAnchorIds: [...anchors].sort(),
         prevChainCount: prevChains.length,
@@ -239,6 +261,7 @@ export function planActiveFrontTransition(
         pairDiagnostics,
         fronts,
         collapseTargets,
+        expandTargets,
         stableAnchorEps,
         changeSpanEps,
         changeSpanPadPoints,
@@ -249,6 +272,7 @@ export function planActiveFrontTransition(
         nextVersion: next.version,
         fronts,
         collapseTargets,
+        expandTargets,
         diagnostics,
     };
 }
@@ -260,6 +284,7 @@ function buildActiveFrontPlanDiagnostics(input: {
     pairDiagnostics: ActiveFrontPairDiagnostic[];
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
+    expandTargets: ExpandTarget[];
     stableAnchorEps: number;
     changeSpanEps: number;
     changeSpanPadPoints: number;
@@ -280,12 +305,15 @@ function buildActiveFrontPlanDiagnostics(input: {
     const skippedNoChangeSpanCount = input.pairDiagnostics.filter(
         (pair) => pair.outcome === 'skipped_no_change_span',
     ).length;
-    const classification: ActiveFrontPlanClassification =
-        input.fronts.length > 0
-            ? 'animated_fronts'
-            : input.collapseTargets.length > 0
-              ? 'collapse_only'
-              : 'snap_no_fronts';
+    const loopTargetCount =
+        input.collapseTargets.length + input.expandTargets.length;
+    const classification: ActiveFrontPlanClassification = input.fronts.length > 0
+        ? 'animated_fronts'
+        : loopTargetCount > 0
+          ? input.collapseTargets.length > 0 && input.expandTargets.length === 0
+            ? 'collapse_only'
+            : 'loop_targets_only'
+          : 'snap_no_fronts';
 
     return {
         tunables: {
@@ -308,6 +336,7 @@ function buildActiveFrontPlanDiagnostics(input: {
             frontCount: input.fronts.length,
             activeSectionCount,
             collapseTargetCount: input.collapseTargets.length,
+            expandTargetCount: input.expandTargets.length,
         },
     };
 }
@@ -340,6 +369,12 @@ export function compactActiveFrontTransitionPlan(
             })),
         })),
         collapseTargets: plan.collapseTargets.map((target) => ({
+            loopId: target.loopId,
+            ownerId: target.ownerId,
+            center: target.center,
+            pointCount: target.points.length,
+        })),
+        expandTargets: plan.expandTargets.map((target) => ({
             loopId: target.loopId,
             ownerId: target.ownerId,
             center: target.center,
@@ -388,9 +423,18 @@ export function sampleActiveFrontTransition(
 
     const regions: { ownerId: string; points: Vec2[] }[] = [];
 
+    const expandTargetsByLoopId = new Map(
+        plan.expandTargets.map((target) => [target.loopId, target] as const),
+    );
+
     // Rebuild loops from NEXT topology
     for (const loop of next.loops) {
-        const pts = rebuildLoopPointsFromGeometry(loop, sectionGeometry);
+        const basePts = rebuildLoopPointsFromGeometry(loop, sectionGeometry);
+        const expandTarget = expandTargetsByLoopId.get(loop.id);
+        const pts =
+            expandTarget && t < 1
+                ? expandLoopFromPoint(expandTarget.points, expandTarget.center, t)
+                : basePts;
         if (pts.length >= 3) {
             regions.push({ ownerId: loop.ownerId, points: pts });
         }
@@ -999,9 +1043,12 @@ function planCollapseTargets(
     const remaining = new Set(disappearing.map(l => l.id));
 
     for (const evt of conquestEvents) {
-        const star = ownership.virtualStars.find(v => v.starId === evt.starId && v.ownerId === evt.previousOwner);
-        if (!star) continue;
-        const center: Vec2 = [star.pos.x, star.pos.y];
+        const center = resolveConquestCenter(
+            ownership,
+            evt,
+            evt.previousOwner,
+        );
+        if (!center) continue;
 
         let bestLoop: RegionLoop | null = null;
         let bestDist = Infinity;
@@ -1029,7 +1076,117 @@ function planCollapseTargets(
         }
     }
 
+    for (const loop of disappearing) {
+        if (!remaining.has(loop.id)) continue;
+        const points = rebuildLoopPoints(loop, prev.sections);
+        targets.push({
+            loopId: loop.id,
+            ownerId: loop.ownerId,
+            center: polygonCentroid(points),
+            points,
+        });
+    }
+
     return targets;
+}
+
+function planExpandTargets(
+    prev: FrontierTopology,
+    next: FrontierTopology,
+    ownership: OwnershipSnapshot,
+    conquestEvents: readonly TerritoryConquestEvent[],
+    collapseTargets: readonly CollapseTarget[],
+): ExpandTarget[] {
+    const prevLoopIds = new Set(prev.loops.map((loop) => loop.id));
+    const appearing = next.loops.filter((loop) => !prevLoopIds.has(loop.id));
+    if (appearing.length === 0) return [];
+
+    const targets: ExpandTarget[] = [];
+    const remaining = new Set(appearing.map((loop) => loop.id));
+    const collapseCenterByOwner = new Map<string, Vec2[]>();
+    for (const target of collapseTargets) {
+        const centers = collapseCenterByOwner.get(target.ownerId) ?? [];
+        centers.push(target.center);
+        collapseCenterByOwner.set(target.ownerId, centers);
+    }
+
+    for (const evt of conquestEvents) {
+        const center =
+            resolveConquestCenter(ownership, evt, evt.newOwner) ??
+            resolveConquestCenter(ownership, evt, evt.previousOwner);
+        if (!center) continue;
+
+        let bestLoop: RegionLoop | null = null;
+        let bestDist = Infinity;
+        for (const loop of appearing) {
+            if (!remaining.has(loop.id)) continue;
+            if (loop.ownerId !== evt.newOwner) continue;
+            const points = rebuildLoopPoints(loop, next.sections);
+            const centroid = polygonCentroid(points);
+            const d = distance(centroid, center);
+            if (d < bestDist) {
+                bestDist = d;
+                bestLoop = loop;
+            }
+        }
+
+        if (bestLoop) {
+            remaining.delete(bestLoop.id);
+            const points = rebuildLoopPoints(bestLoop, next.sections);
+            targets.push({
+                loopId: bestLoop.id,
+                ownerId: bestLoop.ownerId,
+                center,
+                points,
+            });
+        }
+    }
+
+    for (const loop of appearing) {
+        if (!remaining.has(loop.id)) continue;
+        const points = rebuildLoopPoints(loop, next.sections);
+        const centroid = polygonCentroid(points);
+        const fallbackCenters = collapseCenterByOwner.get(loop.ownerId) ?? [];
+        const center =
+            nearestCenterToPoint(fallbackCenters, centroid) ?? centroid;
+        targets.push({
+            loopId: loop.id,
+            ownerId: loop.ownerId,
+            center,
+            points,
+        });
+    }
+
+    return targets;
+}
+
+function resolveConquestCenter(
+    ownership: OwnershipSnapshot,
+    event: TerritoryConquestEvent,
+    ownerId: string,
+): Vec2 | null {
+    const star = ownership.virtualStars.find(
+        (virtualStar) =>
+            virtualStar.starId === event.starId &&
+            virtualStar.ownerId === ownerId,
+    );
+    return star ? [star.pos.x, star.pos.y] : null;
+}
+
+function nearestCenterToPoint(
+    centers: readonly Vec2[],
+    point: Vec2,
+): Vec2 | null {
+    let best: Vec2 | null = null;
+    let bestDist = Infinity;
+    for (const center of centers) {
+        const d = distance(center, point);
+        if (d < bestDist) {
+            best = center;
+            bestDist = d;
+        }
+    }
+    return best;
 }
 
 function polygonCentroid(points: Vec2[]): Vec2 {
@@ -1050,6 +1207,18 @@ function collapseLoopToPoint(points: Vec2[], center: Vec2, t: number): Vec2[] {
         out[i] = [
             center[0] + (1 - t) * (p[0] - center[0]),
             center[1] + (1 - t) * (p[1] - center[1]),
+        ];
+    }
+    return out;
+}
+
+function expandLoopFromPoint(points: Vec2[], center: Vec2, t: number): Vec2[] {
+    const out: Vec2[] = new Array(points.length);
+    for (let i = 0; i < points.length; i += 1) {
+        const p = points[i];
+        out[i] = [
+            center[0] + t * (p[0] - center[0]),
+            center[1] + t * (p[1] - center[1]),
         ];
     }
     return out;
