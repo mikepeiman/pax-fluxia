@@ -46,7 +46,6 @@ export interface ActiveFrontRuntimeDebugState {
     evaluation:
         | 'idle'
         | 'animated_fronts'
-        | 'loop_targets_only'
         | 'collapse_only'
         | 'snap_no_fronts'
         | 'topology_unavailable'
@@ -65,7 +64,6 @@ export interface ActiveFrontRuntimeDebugState {
     };
     frontCount: number;
     collapseTargetCount: number;
-    expandTargetCount: number;
     sampledProgress: number | null;
     planSummary: ActiveFrontPlanDiagnosticsSummary | null;
 }
@@ -293,7 +291,6 @@ export class TransitionLayerCoordinator {
             },
             frontCount: activeFrontPlan?.fronts.length ?? 0,
             collapseTargetCount: activeFrontPlan?.collapseTargets.length ?? 0,
-            expandTargetCount: activeFrontPlan?.expandTargets.length ?? 0,
             sampledProgress: envelope ? sampledProgress : null,
             planSummary: activeFrontPlan?.diagnostics.summary ?? null,
         };

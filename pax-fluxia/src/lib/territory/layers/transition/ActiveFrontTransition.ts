@@ -21,7 +21,6 @@ export type ActiveFrontPairOutcome =
     | 'skipped_no_change_span';
 export type ActiveFrontPlanClassification =
     | 'animated_fronts'
-    | 'loop_targets_only'
     | 'collapse_only'
     | 'snap_no_fronts';
 
@@ -41,19 +40,18 @@ interface ActiveFrontPlan {
     prevPaths: ChainPath[];
     nextPaths: ChainPath[];
     changeSpan: { startIndex: number; endIndex: number; base: 'prev' | 'next' };
-    sectionSpans: Map<string, { startIndex: number; endIndex: number; pathIndex: number }>;
+    sectionSpans: Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathIndex: number;
+        activeStartIndex: number;
+        activeEndIndex: number;
+    }>;
     activeSectionIds: Set<string>;
     sectionReversed: Map<string, boolean>;
 }
 
 interface CollapseTarget {
-    loopId: string;
-    ownerId: string;
-    center: Vec2;
-    points: Vec2[];
-}
-
-interface ExpandTarget {
     loopId: string;
     ownerId: string;
     center: Vec2;
@@ -99,7 +97,6 @@ export interface ActiveFrontPlanDiagnosticsSummary {
     frontCount: number;
     activeSectionCount: number;
     collapseTargetCount: number;
-    expandTargetCount: number;
 }
 
 export interface ActiveFrontPlanDiagnostics {
@@ -118,8 +115,12 @@ export interface ActiveFrontTransitionPlan {
     nextVersion: string;
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
-    expandTargets: ExpandTarget[];
     diagnostics: ActiveFrontPlanDiagnostics;
+}
+
+export interface ActiveFrontChangeAnchors {
+    startPoint: [number, number];
+    endPoint: [number, number];
 }
 
 const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
@@ -193,7 +194,7 @@ export function planActiveFrontTransition(
 
         const splitMode = detectSplitMode(prevPaths.length, nextPaths.length);
         pairDiagnostic.splitMode = splitMode;
-        if (!splitMode) {
+        if (!splitMode || splitMode !== 'none') {
             pairDiagnostic.outcome = 'skipped_unsupported_split_mode';
             pairDiagnostics.push(pairDiagnostic);
             continue;
@@ -206,9 +207,9 @@ export function planActiveFrontTransition(
             changeSpanEps,
         );
         pairDiagnostic.rawChangeSpan = { ...rawChangeSpan };
-        const { base, startIndex, endIndex } = applyChangeSpanPadding(
-            rawChangeSpan,
-            changeSpanPadPoints,
+        const { base, startIndex, endIndex } = clampChangeSpanToStableEndpoints(
+            applyChangeSpanPadding(rawChangeSpan, changeSpanPadPoints),
+            rawChangeSpan.basePointCount,
         );
         pairDiagnostic.paddedChangeSpan = { base, startIndex, endIndex };
 
@@ -247,13 +248,6 @@ export function planActiveFrontTransition(
         ownership,
         ownership.conquestEvents,
     );
-    const expandTargets = planExpandTargets(
-        prev,
-        next,
-        ownership,
-        ownership.conquestEvents,
-        collapseTargets,
-    );
     const diagnostics = buildActiveFrontPlanDiagnostics({
         stableAnchorIds: [...anchors].sort(),
         prevChainCount: prevChains.length,
@@ -261,7 +255,6 @@ export function planActiveFrontTransition(
         pairDiagnostics,
         fronts,
         collapseTargets,
-        expandTargets,
         stableAnchorEps,
         changeSpanEps,
         changeSpanPadPoints,
@@ -272,7 +265,6 @@ export function planActiveFrontTransition(
         nextVersion: next.version,
         fronts,
         collapseTargets,
-        expandTargets,
         diagnostics,
     };
 }
@@ -284,7 +276,6 @@ function buildActiveFrontPlanDiagnostics(input: {
     pairDiagnostics: ActiveFrontPairDiagnostic[];
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
-    expandTargets: ExpandTarget[];
     stableAnchorEps: number;
     changeSpanEps: number;
     changeSpanPadPoints: number;
@@ -305,15 +296,12 @@ function buildActiveFrontPlanDiagnostics(input: {
     const skippedNoChangeSpanCount = input.pairDiagnostics.filter(
         (pair) => pair.outcome === 'skipped_no_change_span',
     ).length;
-    const loopTargetCount =
-        input.collapseTargets.length + input.expandTargets.length;
-    const classification: ActiveFrontPlanClassification = input.fronts.length > 0
-        ? 'animated_fronts'
-        : loopTargetCount > 0
-          ? input.collapseTargets.length > 0 && input.expandTargets.length === 0
-            ? 'collapse_only'
-            : 'loop_targets_only'
-          : 'snap_no_fronts';
+    const classification: ActiveFrontPlanClassification =
+        input.fronts.length > 0
+            ? 'animated_fronts'
+            : input.collapseTargets.length > 0
+              ? 'collapse_only'
+              : 'snap_no_fronts';
 
     return {
         tunables: {
@@ -336,7 +324,6 @@ function buildActiveFrontPlanDiagnostics(input: {
             frontCount: input.fronts.length,
             activeSectionCount,
             collapseTargetCount: input.collapseTargets.length,
-            expandTargetCount: input.expandTargets.length,
         },
     };
 }
@@ -350,6 +337,7 @@ export function compactActiveFrontTransitionPlan(
         nextVersion: plan.nextVersion,
         diagnostics: plan.diagnostics,
         fronts: plan.fronts.map((front) => ({
+            changeAnchors: getActiveFrontChangeAnchors(front),
             anchorStartId: front.anchorStartId,
             anchorEndId: front.anchorEndId,
             splitMode: front.splitMode,
@@ -374,12 +362,6 @@ export function compactActiveFrontTransitionPlan(
             center: target.center,
             pointCount: target.points.length,
         })),
-        expandTargets: plan.expandTargets.map((target) => ({
-            loopId: target.loopId,
-            ownerId: target.ownerId,
-            center: target.center,
-            pointCount: target.points.length,
-        })),
     };
 }
 
@@ -387,14 +369,13 @@ export function compactActiveFrontTransitionPlan(
 // Sampling
 // ---------------------------------------------------------------------------
 
-export function sampleActiveFrontTransition(
+export function sampleActiveFrontSectionGeometry(
     plan: ActiveFrontTransitionPlan,
     prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
-): FillTransitionFrame {
+): ReadonlyMap<string, [number, number][]> {
     const t = Math.min(Math.max(progress, 0), 1);
-
     const sectionGeometry = new Map<string, Vec2[]>();
 
     // Start with static passthrough (next topology)
@@ -409,32 +390,35 @@ export function sampleActiveFrontTransition(
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
             const pathPoints = interpolatedPaths[span.pathIndex];
-            // Chain building deduplicates junction vertices between sections
-            // (appendPolyline skips the first point if it matches the previous
-            // section's last point). Sections after the first in a chain are
-            // therefore missing their start vertex in the span. Restore it by
-            // including the point at startIndex-1 (the shared junction).
-            const realStart = span.startIndex > 0 ? span.startIndex - 1 : span.startIndex;
-            const slice = pathPoints.slice(realStart, span.endIndex + 1);
+            const nextPathPoints = front.nextPaths[span.pathIndex]?.points;
+            if (!pathPoints || !nextPathPoints) continue;
+            const slice = sampleActiveFrontSectionPoints(
+                nextPathPoints,
+                pathPoints,
+                span,
+            );
             const reversed = front.sectionReversed.get(sectionId);
-            sectionGeometry.set(sectionId, reversed ? slice.reverse() : slice);
+            sectionGeometry.set(sectionId, reversed ? [...slice].reverse() : slice);
         }
     }
 
-    const regions: { ownerId: string; points: Vec2[] }[] = [];
+    return sectionGeometry;
+}
 
-    const expandTargetsByLoopId = new Map(
-        plan.expandTargets.map((target) => [target.loopId, target] as const),
-    );
+export function sampleActiveFrontTransition(
+    plan: ActiveFrontTransitionPlan,
+    prev: FrontierTopology,
+    next: FrontierTopology,
+    progress: number,
+): FillTransitionFrame {
+    const t = Math.min(Math.max(progress, 0), 1);
+    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, t);
+
+    const regions: { ownerId: string; points: Vec2[] }[] = [];
 
     // Rebuild loops from NEXT topology
     for (const loop of next.loops) {
-        const basePts = rebuildLoopPointsFromGeometry(loop, sectionGeometry);
-        const expandTarget = expandTargetsByLoopId.get(loop.id);
-        const pts =
-            expandTarget && t < 1
-                ? expandLoopFromPoint(expandTarget.points, expandTarget.center, t)
-                : basePts;
+        const pts = rebuildLoopPointsFromGeometry(loop, sectionGeometry);
         if (pts.length >= 3) {
             regions.push({ ownerId: loop.ownerId, points: pts });
         }
@@ -724,6 +708,37 @@ function applyChangeSpanPadding(
     };
 }
 
+function clampChangeSpanToStableEndpoints(
+    changeSpan: { base: 'prev' | 'next'; startIndex: number; endIndex: number },
+    basePointCount: number,
+): { base: 'prev' | 'next'; startIndex: number; endIndex: number } {
+    if (
+        changeSpan.startIndex === -1 ||
+        changeSpan.endIndex === -1 ||
+        basePointCount <= 0
+    ) {
+        return changeSpan;
+    }
+
+    const interiorStart = basePointCount > 1 ? 1 : 0;
+    const interiorEnd = basePointCount > 1 ? basePointCount - 2 : 0;
+    const startIndex = Math.max(changeSpan.startIndex, interiorStart);
+    const endIndex = Math.min(changeSpan.endIndex, interiorEnd);
+    if (endIndex < startIndex) {
+        return {
+            base: changeSpan.base,
+            startIndex: -1,
+            endIndex: -1,
+        };
+    }
+
+    return {
+        base: changeSpan.base,
+        startIndex,
+        endIndex,
+    };
+}
+
 function findChangeSpan(
     basePoints: Vec2[],
     comparePolylines: Vec2[][],
@@ -757,49 +772,59 @@ function buildSectionSpans(
     base: 'prev' | 'next',
     changeSpan: { startIndex: number; endIndex: number },
 ): {
-    sectionSpans: Map<string, { startIndex: number; endIndex: number; pathIndex: number }>;
+    sectionSpans: Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathIndex: number;
+        activeStartIndex: number;
+        activeEndIndex: number;
+    }>;
     activeSectionIds: Set<string>;
     sectionReversed: Map<string, boolean>;
 } {
-    const sectionSpans = new Map<string, { startIndex: number; endIndex: number; pathIndex: number }>();
+    const sectionSpans = new Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathIndex: number;
+        activeStartIndex: number;
+        activeEndIndex: number;
+    }>();
     const activeSectionIds = new Set<string>();
     const sectionReversed = new Map<string, boolean>();
 
     for (let pathIndex = 0; pathIndex < nextPaths.length; pathIndex += 1) {
         const path = nextPaths[pathIndex];
         for (const [sectionId, span] of path.sectionSpans) {
-            sectionSpans.set(sectionId, { ...span, pathIndex });
+            sectionSpans.set(sectionId, {
+                ...span,
+                pathIndex,
+                activeStartIndex: -1,
+                activeEndIndex: -1,
+            });
         }
         for (const [sectionId, reversed] of path.sectionReversed) {
             sectionReversed.set(sectionId, reversed);
         }
     }
 
-    if (splitMode !== 'none') {
-        for (const path of nextPaths) {
-            for (const sectionId of path.sectionIds) {
-                activeSectionIds.add(sectionId);
-            }
-        }
-        return { sectionSpans, activeSectionIds, sectionReversed };
-    }
-
-    // splitMode === 'none' → use change span on NEXT
-    if (base !== 'next') {
-        for (const path of nextPaths) {
-            for (const sectionId of path.sectionIds) {
-                activeSectionIds.add(sectionId);
-            }
-        }
+    if (splitMode !== 'none' || base !== 'next') {
         return { sectionSpans, activeSectionIds, sectionReversed };
     }
 
     const [onlyPath] = nextPaths;
     for (const [sectionId, span] of onlyPath.sectionSpans) {
-        const overlaps =
-            span.endIndex >= changeSpan.startIndex && span.startIndex <= changeSpan.endIndex;
-        if (overlaps) {
+        const activeStartIndex = Math.max(changeSpan.startIndex, span.startIndex);
+        const activeEndIndex = Math.min(changeSpan.endIndex, span.endIndex);
+        if (activeEndIndex >= activeStartIndex) {
             activeSectionIds.add(sectionId);
+            const existing = sectionSpans.get(sectionId);
+            if (existing) {
+                sectionSpans.set(sectionId, {
+                    ...existing,
+                    activeStartIndex,
+                    activeEndIndex,
+                });
+            }
         }
     }
 
@@ -841,6 +866,74 @@ function buildInterpolatedPaths(
     const nextChain = concatSections(next, plan.nextPaths[0].sectionIds, plan.nextPaths[0].anchorStartId);
     const mergedPrev = mergeByNearest(prevA, prevB, nextChain);
     return [lerpArcAligned(mergedPrev, nextChain, t)];
+}
+
+function sampleActiveFrontSectionPoints(
+    stablePathPoints: Vec2[],
+    movingPathPoints: Vec2[],
+    span: {
+        startIndex: number;
+        endIndex: number;
+        activeStartIndex: number;
+        activeEndIndex: number;
+    },
+): Vec2[] {
+    const realStart = span.startIndex > 0 ? span.startIndex - 1 : span.startIndex;
+    const stableSlice = stablePathPoints
+        .slice(realStart, span.endIndex + 1)
+        .map(([x, y]) => [x, y] as Vec2);
+
+    if (
+        span.activeStartIndex === -1 ||
+        span.activeEndIndex === -1 ||
+        stableSlice.length === 0
+    ) {
+        return stableSlice;
+    }
+
+    const movingSlice = movingPathPoints.slice(realStart, span.endIndex + 1);
+    const localStart = Math.max(0, span.activeStartIndex - realStart);
+    const localEnd = Math.min(stableSlice.length - 1, span.activeEndIndex - realStart);
+
+    for (let i = localStart; i <= localEnd; i += 1) {
+        const point = movingSlice[i];
+        if (!point) continue;
+        stableSlice[i] = [point[0], point[1]];
+    }
+
+    return stableSlice;
+}
+
+export function getActiveFrontChangeAnchors(
+    front: ActiveFrontTransitionPlan['fronts'][number],
+): ActiveFrontChangeAnchors | null {
+    if (front.splitMode !== 'none' || front.changeSpan.base !== 'next') {
+        return null;
+    }
+
+    const basePath = front.nextPaths[0]?.points;
+    if (!basePath || basePath.length === 0) {
+        return null;
+    }
+
+    const startIndex = Math.max(
+        0,
+        Math.min(front.changeSpan.startIndex - 1, basePath.length - 1),
+    );
+    const endIndex = Math.max(
+        0,
+        Math.min(front.changeSpan.endIndex + 1, basePath.length - 1),
+    );
+    const startPoint = basePath[startIndex];
+    const endPoint = basePath[endIndex];
+    if (!startPoint || !endPoint) {
+        return null;
+    }
+
+    return {
+        startPoint: [startPoint[0], startPoint[1]],
+        endPoint: [endPoint[0], endPoint[1]],
+    };
 }
 
 function concatSections(topo: FrontierTopology, sectionIds: string[], anchorStartId?: string): Vec2[] {
@@ -1090,76 +1183,6 @@ function planCollapseTargets(
     return targets;
 }
 
-function planExpandTargets(
-    prev: FrontierTopology,
-    next: FrontierTopology,
-    ownership: OwnershipSnapshot,
-    conquestEvents: readonly TerritoryConquestEvent[],
-    collapseTargets: readonly CollapseTarget[],
-): ExpandTarget[] {
-    const prevLoopIds = new Set(prev.loops.map((loop) => loop.id));
-    const appearing = next.loops.filter((loop) => !prevLoopIds.has(loop.id));
-    if (appearing.length === 0) return [];
-
-    const targets: ExpandTarget[] = [];
-    const remaining = new Set(appearing.map((loop) => loop.id));
-    const collapseCenterByOwner = new Map<string, Vec2[]>();
-    for (const target of collapseTargets) {
-        const centers = collapseCenterByOwner.get(target.ownerId) ?? [];
-        centers.push(target.center);
-        collapseCenterByOwner.set(target.ownerId, centers);
-    }
-
-    for (const evt of conquestEvents) {
-        const center =
-            resolveConquestCenter(ownership, evt, evt.newOwner) ??
-            resolveConquestCenter(ownership, evt, evt.previousOwner);
-        if (!center) continue;
-
-        let bestLoop: RegionLoop | null = null;
-        let bestDist = Infinity;
-        for (const loop of appearing) {
-            if (!remaining.has(loop.id)) continue;
-            if (loop.ownerId !== evt.newOwner) continue;
-            const points = rebuildLoopPoints(loop, next.sections);
-            const centroid = polygonCentroid(points);
-            const d = distance(centroid, center);
-            if (d < bestDist) {
-                bestDist = d;
-                bestLoop = loop;
-            }
-        }
-
-        if (bestLoop) {
-            remaining.delete(bestLoop.id);
-            const points = rebuildLoopPoints(bestLoop, next.sections);
-            targets.push({
-                loopId: bestLoop.id,
-                ownerId: bestLoop.ownerId,
-                center,
-                points,
-            });
-        }
-    }
-
-    for (const loop of appearing) {
-        if (!remaining.has(loop.id)) continue;
-        const points = rebuildLoopPoints(loop, next.sections);
-        const centroid = polygonCentroid(points);
-        const fallbackCenters = collapseCenterByOwner.get(loop.ownerId) ?? [];
-        const center =
-            nearestCenterToPoint(fallbackCenters, centroid) ?? centroid;
-        targets.push({
-            loopId: loop.id,
-            ownerId: loop.ownerId,
-            center,
-            points,
-        });
-    }
-
-    return targets;
-}
-
 function resolveConquestCenter(
     ownership: OwnershipSnapshot,
     event: TerritoryConquestEvent,
@@ -1171,22 +1194,6 @@ function resolveConquestCenter(
             virtualStar.ownerId === ownerId,
     );
     return star ? [star.pos.x, star.pos.y] : null;
-}
-
-function nearestCenterToPoint(
-    centers: readonly Vec2[],
-    point: Vec2,
-): Vec2 | null {
-    let best: Vec2 | null = null;
-    let bestDist = Infinity;
-    for (const center of centers) {
-        const d = distance(center, point);
-        if (d < bestDist) {
-            best = center;
-            bestDist = d;
-        }
-    }
-    return best;
 }
 
 function polygonCentroid(points: Vec2[]): Vec2 {
@@ -1207,18 +1214,6 @@ function collapseLoopToPoint(points: Vec2[], center: Vec2, t: number): Vec2[] {
         out[i] = [
             center[0] + (1 - t) * (p[0] - center[0]),
             center[1] + (1 - t) * (p[1] - center[1]),
-        ];
-    }
-    return out;
-}
-
-function expandLoopFromPoint(points: Vec2[], center: Vec2, t: number): Vec2[] {
-    const out: Vec2[] = new Array(points.length);
-    for (let i = 0; i < points.length; i += 1) {
-        const p = points[i];
-        out[i] = [
-            center[0] + t * (p[0] - center[0]),
-            center[1] + t * (p[1] - center[1]),
         ];
     }
     return out;

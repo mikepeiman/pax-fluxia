@@ -1138,3 +1138,81 @@
     - frontier deformation still uses the active-front path
     - loop birth/death now has its own local path
   - next visual read should focus on whether island/sole-star captures look more grounded and less like ghost territory teleporting in/out
+
+## Update: 2026-05-04 - Purge Whole-Loop Birth And Reground PVV4 On Minimal Frontier Transport
+
+- Trigger:
+  - user explicitly rejected the entire “new loop should grow from a local center” concept as invalid:
+    - it never represents a real conquest
+    - it reintroduced whole-region birthing / morphing
+    - it violates the core change-anchor intent of minimal transport
+  - user restated the governing rule:
+    - no whole-region morphs or moves
+    - isolate the minimum changed frontier span
+    - keep change-anchor endpoints pinned
+- State / trace:
+  - the concrete source of the bad behavior was not abstract; it was the runtime sampler introduced in commit `e9f47b81a`
+  - `ActiveFrontTransition.ts` had started doing this during NEXT-loop reconstruction:
+    - look up `expandTargets`
+    - replace a full NEXT loop with `expandLoopFromPoint(...)`
+    - this synthesized a whole appearing region from a center before any anchored frontier justified it
+  - the earlier frontier bug remained separate and still real:
+    - `findChangeSpan(...)` computes a point-level changed interval
+    - `buildSectionSpans(...)` used overlap to activate whole sections
+    - runtime then replaced the whole overlapping section slice
+    - that is where minimal transport was being violated even without the loop-birth path
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - removed:
+        - `ExpandTarget`
+        - `expandTargets`
+        - `expandTargetCount`
+        - `loop_targets_only`
+        - `planExpandTargets(...)`
+        - `nearestCenterToPoint(...)`
+        - `expandLoopFromPoint(...)`
+      - kept disappearance-only whole-loop fallback:
+        - `collapseTargets`
+        - conquest-center first, centroid fallback second
+      - reintroduced only the useful local-span work:
+        - `clampChangeSpanToStableEndpoints(...)`
+        - `sampleActiveFrontSectionGeometry(...)`
+        - `getActiveFrontChangeAnchors(...)`
+      - changed section sampling semantics:
+        - section overlap no longer means whole-section replacement
+        - each overlapping section now stores a local active interval derived from the global `changeSpan`
+        - runtime starts from stable NEXT section geometry and swaps in interpolated points only for the interior moving interval
+        - unchanged tails remain pinned
+      - fail-safe split handling:
+        - `1to2` / `2to1` pairs are now skipped instead of broad-animating
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+      - removed grow-path runtime diagnostics
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - removed:
+        - `Grows`
+        - `Grow Targets`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+      - removed grow counts from exported active-front overlay text
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+      - removed all grow-path overlay rendering
+      - overlays now draw sampled active sections from the same helper used by runtime fill reconstruction
+      - stable anchors are labeled `SA*`
+      - local change anchors are labeled `AF*`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - replaced the grow-path regression with two direct rules:
+        - collapse-only disappearing region
+        - pinned long single-section frontier
+- Purpose:
+  - remove the invalid concept entirely rather than trying to “tune” it
+  - keep only admissible motion primitives:
+    - anchored frontier transport
+    - shrink-to-nothing for genuinely disappearing PREV-only loops
+  - move the branch back onto the real problem:
+    - point-level change spans must produce point-level local motion, not whole-section transport
+- Validation:
+  - `bunx vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts` passes
+  - `bun run build` passes end to end
+- Supersession note:
+  - the previous section titled `Add Explicit Loop Birth/Death Transition Targets For PVV4` is now historical only
+  - its whole-loop birth/grow thesis is explicitly rejected by the current branch state and by user direction

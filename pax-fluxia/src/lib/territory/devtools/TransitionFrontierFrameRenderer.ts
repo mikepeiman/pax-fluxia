@@ -1,11 +1,15 @@
-// ── Territory Transition Frame Renderer ──────────────────────────────────────
+// Territory Transition Frame Renderer
 // Renders debug frames at progress t: polylines, structural vertices, change
-// anchors, active-front bridge, evenly sampled morph points along active sections.
-// No territory fills / no swept motion-trail fills (debug clarity).
+// anchors, active-front bridge, and evenly sampled morph points along active
+// sections. No territory fills or swept motion-trail fills.
 
 import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
-import { sampleActiveFrontTransition } from '../layers/transition/ActiveFrontTransition';
+import {
+    getActiveFrontChangeAnchors,
+    sampleActiveFrontSectionGeometry,
+    sampleActiveFrontTransition,
+} from '../layers/transition/ActiveFrontTransition';
 import type { OwnerColorResolver } from './TransitionGeometryRenderer';
 
 export const FRAME_PROGRESS_VALUES = [0.0, 0.17, 0.33, 0.5, 0.67, 0.83, 1.0] as const;
@@ -17,30 +21,26 @@ export interface FrameRenderOptions {
     fillAlpha?: number;
     showVertexLabels?: boolean;
     showAllVertices?: boolean;
-    /** Dots along interpolated active-section polylines (morph sampling). */
     morphSamplesPerSection?: number;
 }
 
 const C = {
-    bg:              '#111111',
-    staticSection:   'rgba(110, 110, 140, 0.6)',
-    activeSection:   'rgba(255, 175, 0, 0.95)',
-    morphSample:     'rgba(255, 100, 200, 0.95)',
-    vertex:          'rgba(160, 160, 210, 0.85)',
-    anchorFill:      'rgba(0, 255, 255, 0.95)',
-    anchorStroke:    '#ffffff',
-    afBridge:        'rgba(80, 255, 120, 0.95)',
-    collapseLine:    'rgba(255, 80, 80, 0.85)',
-    collapseCenter:  'rgba(255, 80, 80, 0.9)',
-    growLine:        'rgba(120, 255, 120, 0.85)',
-    growCenter:      'rgba(120, 255, 120, 0.9)',
-    labelNormal:     '#9999cc',
-    labelAnchor:     '#00ffff',
-    labelCollapse:   'rgba(255, 160, 160, 1)',
-    labelGrow:       'rgba(170, 255, 170, 1)',
-    labelAf:         '#66ff88',
-    hudBg:           'rgba(0, 0, 0, 0.72)',
-    hudText:         '#ffffff',
+    bg: '#111111',
+    staticSection: 'rgba(110, 110, 140, 0.6)',
+    activeSection: 'rgba(255, 175, 0, 0.95)',
+    morphSample: 'rgba(255, 100, 200, 0.95)',
+    vertex: 'rgba(160, 160, 210, 0.85)',
+    anchorFill: 'rgba(0, 255, 255, 0.95)',
+    anchorStroke: '#ffffff',
+    afBridge: 'rgba(80, 255, 120, 0.95)',
+    collapseLine: 'rgba(255, 80, 80, 0.85)',
+    collapseCenter: 'rgba(255, 80, 80, 0.9)',
+    labelNormal: '#9999cc',
+    labelAnchor: '#00ffff',
+    labelCollapse: 'rgba(255, 160, 160, 1)',
+    labelAf: '#66ff88',
+    hudBg: 'rgba(0, 0, 0, 0.72)',
+    hudText: '#ffffff',
 } as const;
 
 function drawPolyline(
@@ -52,7 +52,9 @@ function drawPolyline(
     if (pts.length < 2) return;
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    for (let i = 1; i < pts.length; i += 1) {
+        ctx.lineTo(pts[i][0], pts[i][1]);
+    }
     ctx.strokeStyle = style;
     ctx.lineWidth = width;
     ctx.lineCap = 'round';
@@ -60,23 +62,6 @@ function drawPolyline(
     ctx.stroke();
 }
 
-function lerpPts(
-    prev: readonly [number, number][],
-    next: readonly [number, number][],
-    t: number,
-): [number, number][] {
-    const len = Math.min(prev.length, next.length);
-    const out: [number, number][] = [];
-    for (let i = 0; i < len; i++) {
-        out.push([
-            prev[i][0] + (next[i][0] - prev[i][0]) * t,
-            prev[i][1] + (next[i][1] - prev[i][1]) * t,
-        ]);
-    }
-    return out;
-}
-
-/** Evenly spaced samples along polyline by arc-length (piecewise linear). */
 function samplePolylineEven(
     pts: readonly [number, number][],
     numSamples: number,
@@ -84,38 +69,41 @@ function samplePolylineEven(
     if (pts.length < 2 || numSamples < 2) return [...pts];
     const segLen: number[] = [];
     let total = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
+    for (let i = 0; i < pts.length - 1; i += 1) {
         const dx = pts[i + 1][0] - pts[i][0];
         const dy = pts[i + 1][1] - pts[i][1];
-        const L = Math.sqrt(dx * dx + dy * dy);
-        segLen.push(L);
-        total += L;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        segLen.push(length);
+        total += length;
     }
     if (total < 1e-6) return [pts[0]];
+
     const out: [number, number][] = [];
-    for (let s = 0; s < numSamples; s++) {
+    for (let s = 0; s < numSamples; s += 1) {
         const target = (s / (numSamples - 1)) * total;
         let acc = 0;
         let seg = 0;
         while (seg < segLen.length && acc + segLen[seg] < target) {
             acc += segLen[seg];
-            seg++;
+            seg += 1;
         }
         if (seg >= segLen.length) {
             out.push(pts[pts.length - 1]);
             continue;
         }
-        const t = segLen[seg] > 1e-6 ? (target - acc) / segLen[seg] : 0;
+        const localT = segLen[seg] > 1e-6 ? (target - acc) / segLen[seg] : 0;
         const [x0, y0] = pts[seg];
         const [x1, y1] = pts[seg + 1];
-        out.push([x0 + t * (x1 - x0), y0 + t * (y1 - y0)]);
+        out.push([x0 + localT * (x1 - x0), y0 + localT * (y1 - y0)]);
     }
     return out;
 }
 
 function drawCircle(
     ctx: CanvasRenderingContext2D,
-    x: number, y: number, r: number,
+    x: number,
+    y: number,
+    r: number,
     fill: string,
 ): void {
     ctx.beginPath();
@@ -126,8 +114,11 @@ function drawCircle(
 
 function drawDiamond(
     ctx: CanvasRenderingContext2D,
-    x: number, y: number, size: number,
-    fill: string, stroke?: string,
+    x: number,
+    y: number,
+    size: number,
+    fill: string,
+    stroke?: string,
 ): void {
     ctx.beginPath();
     ctx.moveTo(x, y - size);
@@ -137,13 +128,19 @@ function drawDiamond(
     ctx.closePath();
     ctx.fillStyle = fill;
     ctx.fill();
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+    if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
 }
 
 function drawLabel(
     ctx: CanvasRenderingContext2D,
-    text: string, x: number, y: number,
-    color: string = '#ffffff',
+    text: string,
+    x: number,
+    y: number,
+    color = '#ffffff',
     fontSize = 9,
 ): void {
     ctx.font = `${fontSize}px monospace`;
@@ -163,7 +160,8 @@ export function renderTransitionFrame(
     options: FrameRenderOptions,
 ): HTMLCanvasElement {
     const {
-        width, height,
+        width,
+        height,
         showVertexLabels = true,
         showAllVertices = true,
         morphSamplesPerSection = 14,
@@ -177,7 +175,6 @@ export function renderTransitionFrame(
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw territory fills if a color resolver is provided
     const { resolveColor, fillAlpha = 0.35 } = options;
     if (resolveColor) {
         try {
@@ -190,7 +187,7 @@ export function renderTransitionFrame(
                 const b = hex & 0xff;
                 ctx.beginPath();
                 ctx.moveTo(region.points[0][0], region.points[0][1]);
-                for (let i = 1; i < region.points.length; i++) {
+                for (let i = 1; i < region.points.length; i += 1) {
                     ctx.lineTo(region.points[i][0], region.points[i][1]);
                 }
                 ctx.closePath();
@@ -198,19 +195,28 @@ export function renderTransitionFrame(
                 ctx.fill();
             }
         } catch {
-            // fill sampling failed — draw debug overlays without fills
+            // Fill sampling failed; keep drawing diagnostic overlays.
         }
     }
 
     const activeSectionIds = new Set<string>();
     const anchorIds = new Set<string>();
     const anchorLabel = new Map<string, string>();
+    const sampledSectionGeometry = sampleActiveFrontSectionGeometry(
+        plan,
+        prevTopo,
+        nextTopo,
+        progress,
+    );
+
     plan.fronts.forEach((front, fi) => {
-        for (const id of front.activeSectionIds) activeSectionIds.add(id);
+        for (const id of front.activeSectionIds) {
+            activeSectionIds.add(id);
+        }
         anchorIds.add(front.anchorStartId);
         anchorIds.add(front.anchorEndId);
-        anchorLabel.set(front.anchorStartId, `AF${fi}-start`);
-        anchorLabel.set(front.anchorEndId, `AF${fi}-end`);
+        anchorLabel.set(front.anchorStartId, `SA${fi}-start`);
+        anchorLabel.set(front.anchorEndId, `SA${fi}-end`);
     });
 
     for (const [sectionId, section] of nextTopo.sections) {
@@ -219,12 +225,9 @@ export function renderTransitionFrame(
     }
 
     for (const sectionId of activeSectionIds) {
-        const prevSec = prevTopo.sections.get(sectionId);
         const nextSec = nextTopo.sections.get(sectionId);
-        if (!prevSec && !nextSec) continue;
-        const prev = prevSec?.points ?? nextSec!.points;
-        const next = nextSec?.points ?? prevSec!.points;
-        const curr = lerpPts(prev, next, progress);
+        const curr = sampledSectionGeometry.get(sectionId) ?? nextSec?.points;
+        if (!curr) continue;
         drawPolyline(ctx, curr, C.activeSection, 3.5);
 
         const samples = samplePolylineEven(curr, morphSamplesPerSection);
@@ -234,9 +237,14 @@ export function renderTransitionFrame(
     }
 
     plan.fronts.forEach((front, fi) => {
-        const a = nextTopo.vertices.get(front.anchorStartId) ?? prevTopo.vertices.get(front.anchorStartId);
-        const b = nextTopo.vertices.get(front.anchorEndId) ?? prevTopo.vertices.get(front.anchorEndId);
+        const a =
+            nextTopo.vertices.get(front.anchorStartId) ??
+            prevTopo.vertices.get(front.anchorStartId);
+        const b =
+            nextTopo.vertices.get(front.anchorEndId) ??
+            prevTopo.vertices.get(front.anchorEndId);
         if (!a || !b) return;
+
         ctx.beginPath();
         ctx.setLineDash([6, 4]);
         ctx.moveTo(a.point[0], a.point[1]);
@@ -245,9 +253,19 @@ export function renderTransitionFrame(
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.setLineDash([]);
+
         const mx = (a.point[0] + b.point[0]) / 2;
         const my = (a.point[1] + b.point[1]) / 2;
-        drawLabel(ctx, `AF${fi}  (${front.activeSectionIds.size} secs)`, mx - 10, my - 14, C.labelAf, 11);
+        drawLabel(ctx, `SA${fi}  (${front.activeSectionIds.size} secs)`, mx - 10, my - 14, C.labelAf, 11);
+
+        const changeAnchors = getActiveFrontChangeAnchors(front);
+        if (!changeAnchors) return;
+        const [sx, sy] = changeAnchors.startPoint;
+        const [ex, ey] = changeAnchors.endPoint;
+        drawCircle(ctx, sx, sy, 4.5, C.anchorFill);
+        drawCircle(ctx, ex, ey, 4.5, C.anchorFill);
+        drawLabel(ctx, `AF${fi}-start`, sx + 8, sy - 8, C.labelAf, 10);
+        drawLabel(ctx, `AF${fi}-end`, ex + 8, ey - 8, C.labelAf, 10);
     });
 
     if (showAllVertices) {
@@ -256,20 +274,25 @@ export function renderTransitionFrame(
             const [x, y] = vertex.point;
             drawCircle(ctx, x, y, 2.5, C.vertex);
             if (showVertexLabels) {
-                const kind = vertex.kind.replace('junction_3way', 'J').replace('world_intersection', 'WI').replace('world_corner', 'WC').replace('lane_anchor', 'LA').replace('star_anchor', 'SA');
+                const kind = vertex.kind
+                    .replace('junction_3way', 'J')
+                    .replace('world_intersection', 'WI')
+                    .replace('world_corner', 'WC')
+                    .replace('lane_anchor', 'LA')
+                    .replace('star_anchor', 'SA');
                 drawLabel(ctx, `${kind}:${vertexId.slice(0, 6)}`, x + 4, y - 9, C.labelNormal);
             }
         }
     }
 
     for (const anchorId of anchorIds) {
-        const v = nextTopo.vertices.get(anchorId) ?? prevTopo.vertices.get(anchorId);
-        if (!v) continue;
-        const [x, y] = v.point;
+        const vertex = nextTopo.vertices.get(anchorId) ?? prevTopo.vertices.get(anchorId);
+        if (!vertex) continue;
+        const [x, y] = vertex.point;
         drawDiamond(ctx, x, y, 9, C.anchorFill, C.anchorStroke);
         if (showVertexLabels) {
-            const lbl = anchorLabel.get(anchorId) ?? anchorId.slice(0, 10);
-            drawLabel(ctx, `⚓ ${lbl} (${Math.round(x)},${Math.round(y)})`, x + 12, y - 11, C.labelAnchor, 10);
+            const label = anchorLabel.get(anchorId) ?? anchorId.slice(0, 10);
+            drawLabel(ctx, `A ${label} (${Math.round(x)},${Math.round(y)})`, x + 12, y - 11, C.labelAnchor, 10);
         }
     }
 
@@ -282,19 +305,7 @@ export function renderTransitionFrame(
         ]);
         drawPolyline(ctx, [...collapsePts, collapsePts[0]], C.collapseLine, 2);
         drawCircle(ctx, cx, cy, 5, C.collapseCenter);
-        drawLabel(ctx, `✕ ${target.ownerId}`, cx + 8, cy - 7, C.labelCollapse, 10);
-    }
-
-    for (const target of plan.expandTargets) {
-        if (target.points.length < 3) continue;
-        const [cx, cy] = target.center;
-        const expandPts = target.points.map(([px, py]): [number, number] => [
-            cx + (px - cx) * progress,
-            cy + (py - cy) * progress,
-        ]);
-        drawPolyline(ctx, [...expandPts, expandPts[0]], C.growLine, 2);
-        drawCircle(ctx, cx, cy, 5, C.growCenter);
-        drawLabel(ctx, `＋ ${target.ownerId}`, cx + 8, cy - 7, C.labelGrow, 10);
+        drawLabel(ctx, `X ${target.ownerId}`, cx + 8, cy - 7, C.labelCollapse, 10);
     }
 
     const pct = `t=${(progress * 100).toFixed(0).padStart(3)}%`;
@@ -317,7 +328,7 @@ export function renderTransitionFrameSeries(
     plan: ActiveFrontTransitionPlan,
     options: FrameRenderOptions,
 ): { progress: number; canvas: HTMLCanvasElement }[] {
-    return FRAME_PROGRESS_VALUES.map(progress => ({
+    return FRAME_PROGRESS_VALUES.map((progress) => ({
         progress,
         canvas: renderTransitionFrame(prevTopo, nextTopo, plan, progress, options),
     }));

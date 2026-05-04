@@ -10,18 +10,28 @@ import type {
 import type { OwnershipSnapshot, VirtualStar } from '../../contracts/OwnershipContracts';
 import {
     planActiveFrontTransition,
+    sampleActiveFrontSectionGeometry,
     sampleActiveFrontTransition,
 } from './ActiveFrontTransition';
 
 type Vec2 = [number, number];
 
-function makeVertex(id: string, point: Vec2, sectionIds: string[]): FrontierVertex {
+const OWNER_LEFT = 'ai-5';
+const OWNER_RIGHT = 'human-player';
+const SECTION_ID = 'A->B:ai-5|human-player';
+
+function makeVertex(
+    id: string,
+    point: Vec2,
+    sectionIds: string[],
+    ownerIds: string[] = [OWNER_LEFT, OWNER_RIGHT],
+): FrontierVertex {
     return {
         id,
         kind: 'world_intersection',
         point,
         incidentSectionIds: sectionIds,
-        ownerIds: ['world'],
+        ownerIds,
     };
 }
 
@@ -73,10 +83,10 @@ function makeSquareTopology(
     const sectionIds = ['AB', 'BC', 'CD', 'DA'].map((label) => `${prefix}:${label}`);
 
     const vertices = new Map<string, FrontierVertex>([
-        [vertexIds[0], makeVertex(vertexIds[0], points[0], [sectionIds[0], sectionIds[3]])],
-        [vertexIds[1], makeVertex(vertexIds[1], points[1], [sectionIds[0], sectionIds[1]])],
-        [vertexIds[2], makeVertex(vertexIds[2], points[2], [sectionIds[1], sectionIds[2]])],
-        [vertexIds[3], makeVertex(vertexIds[3], points[3], [sectionIds[2], sectionIds[3]])],
+        [vertexIds[0], makeVertex(vertexIds[0], points[0], [sectionIds[0], sectionIds[3]], [ownerId, 'world'])],
+        [vertexIds[1], makeVertex(vertexIds[1], points[1], [sectionIds[0], sectionIds[1]], [ownerId, 'world'])],
+        [vertexIds[2], makeVertex(vertexIds[2], points[2], [sectionIds[1], sectionIds[2]], [ownerId, 'world'])],
+        [vertexIds[3], makeVertex(vertexIds[3], points[3], [sectionIds[2], sectionIds[3]], [ownerId, 'world'])],
     ]);
 
     const sections = new Map<string, FrontierSection>([
@@ -118,6 +128,20 @@ function makeSquareTopology(
     };
 }
 
+function makeEmptyTopology(version: string): FrontierTopology {
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 200, height: 200 },
+        vertices: new Map(),
+        sections: new Map(),
+        loops: [],
+        sectionsByOwnerPair: new Map(),
+        sectionsByVertex: new Map(),
+        sectionsByOwner: new Map(),
+    };
+}
+
 function makeVirtualStar(
     id: string,
     starId: string,
@@ -134,28 +158,66 @@ function makeVirtualStar(
     };
 }
 
+function makeLongSection(points: Vec2[]): FrontierSection {
+    return {
+        id: SECTION_ID,
+        kind: 'owner_border',
+        startVertexId: 'A',
+        endVertexId: 'B',
+        leftOwnerId: OWNER_LEFT,
+        rightOwnerId: OWNER_RIGHT,
+        points,
+        length: 10,
+        ownerPairKey: `${OWNER_LEFT}|${OWNER_RIGHT}`,
+        leftInfluence: {
+            ownerId: OWNER_LEFT,
+            primaryStarId: 'star-left',
+            primaryScore: 1,
+        },
+        rightInfluence: {
+            ownerId: OWNER_RIGHT,
+            primaryStarId: 'star-right',
+            primaryScore: 1,
+        },
+    };
+}
+
+function makeLongSectionTopology(version: string, points: Vec2[]): FrontierTopology {
+    const section = makeLongSection(points);
+    const vertices = new Map<string, FrontierVertex>([
+        ['A', makeVertex('A', points[0], [SECTION_ID])],
+        ['B', makeVertex('B', points[points.length - 1], [SECTION_ID])],
+    ]);
+    const sections = new Map<string, FrontierSection>([[SECTION_ID, section]]);
+
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 100, height: 100 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${OWNER_LEFT}|${OWNER_RIGHT}`, [SECTION_ID]]]),
+        sectionsByVertex: new Map([
+            ['A', [SECTION_ID]],
+            ['B', [SECTION_ID]],
+        ]),
+        sectionsByOwner: new Map([
+            [OWNER_LEFT, [SECTION_ID]],
+            [OWNER_RIGHT, [SECTION_ID]],
+        ]),
+    };
+}
+
 describe('ActiveFrontTransition', () => {
-    it('animates disappearing and appearing loops locally when no active front can be planned', () => {
+    it('shrinks disappearing solo-owner loops to nothing without inventing a replacement loop', () => {
         const previousOwner = 'ai-1';
         const nextOwner = 'ai-2';
         const starId = 'star-10';
         const prevCenter: Vec2 = [30, 30];
-        const nextCenter: Vec2 = [110, 110];
 
-        const prev = makeSquareTopology(
-            'prev',
-            previousOwner,
-            'prev',
-            prevCenter,
-            12,
-        );
-        const next = makeSquareTopology(
-            'next',
-            nextOwner,
-            'next',
-            nextCenter,
-            10,
-        );
+        const prev = makeSquareTopology('prev', previousOwner, 'prev', prevCenter, 12);
+        const next = makeEmptyTopology('next');
 
         const ownership: OwnershipSnapshot = {
             version: 'ownership:test',
@@ -171,32 +233,72 @@ describe('ActiveFrontTransition', () => {
             ],
             virtualStars: [
                 makeVirtualStar('vs-prev', starId, previousOwner, prevCenter),
-                makeVirtualStar('vs-next', starId, nextOwner, nextCenter),
             ],
         };
 
         const plan = planActiveFrontTransition(prev, next, ownership);
         expect(plan.fronts).toHaveLength(0);
         expect(plan.collapseTargets).toHaveLength(1);
-        expect(plan.expandTargets).toHaveLength(1);
-        expect(plan.diagnostics.summary.classification).toBe('loop_targets_only');
-        expect(plan.diagnostics.summary.expandTargetCount).toBe(1);
+        expect(plan.diagnostics.summary.classification).toBe('collapse_only');
 
         const frameAtStart = sampleActiveFrontTransition(plan, prev, next, 0);
-        expect(frameAtStart.regions).toHaveLength(2);
-        const startCollapse = frameAtStart.regions.find(
-            (region) => region.ownerId === previousOwner,
-        );
-        const startExpand = frameAtStart.regions.find(
-            (region) => region.ownerId === nextOwner,
-        );
-        expect(startCollapse?.points).toContainEqual([18, 18]);
-        expect(startExpand?.points.every(([x, y]) => x === nextCenter[0] && y === nextCenter[1])).toBe(true);
+        expect(frameAtStart.regions).toHaveLength(1);
+        expect(frameAtStart.regions[0]?.ownerId).toBe(previousOwner);
 
         const frameAtEnd = sampleActiveFrontTransition(plan, prev, next, 1);
-        expect(frameAtEnd.regions).toHaveLength(1);
-        expect(frameAtEnd.regions[0]?.ownerId).toBe(nextOwner);
-        expect(frameAtEnd.regions[0]?.points).toContainEqual([100, 100]);
-        expect(frameAtEnd.regions[0]?.points).toContainEqual([120, 120]);
+        expect(frameAtEnd.regions).toHaveLength(0);
+    });
+
+    it('pins unchanged tails inside a long active section', () => {
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const prev = makeLongSectionTopology('prev', [
+            [0, 0],
+            [2, 0.8],
+            [4, 0],
+            [6, 0],
+            [8, 0.8],
+            [10, 0],
+        ]);
+        const next = makeLongSectionTopology('next', [
+            [0, 0],
+            [2, 0],
+            [4, 4],
+            [6, 4],
+            [8, 0],
+            [10, 0],
+        ]);
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            stableAnchorEps: 2,
+            changeSpanEps: 2,
+            changeSpanPadPoints: 0,
+        });
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.fronts[0].changeSpan).toEqual({
+            base: 'next',
+            startIndex: 2,
+            endIndex: 3,
+        });
+
+        const sampled = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sampledSection = sampled.get(SECTION_ID);
+        expect(sampledSection).toBeDefined();
+        expect(sampledSection?.slice(0, 2)).toEqual([
+            [0, 0],
+            [2, 0],
+        ]);
+        expect(sampledSection?.slice(-2)).toEqual([
+            [8, 0],
+            [10, 0],
+        ]);
+        expect(sampledSection?.[2]?.[1]).toBe(2);
+        expect(sampledSection?.[3]?.[1]).toBe(2);
     });
 });

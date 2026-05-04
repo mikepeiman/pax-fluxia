@@ -359,7 +359,6 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
                 },
                 frontCount: 0,
                 collapseTargetCount: 0,
-                expandTargetCount: 1,
                 sampledProgress: 0.5,
                 planSummary: {
                     classification: 'snap_no_fronts',
@@ -374,7 +373,6 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
                     frontCount: 0,
                     activeSectionCount: 0,
                     collapseTargetCount: 0,
-                    expandTargetCount: 1,
                 },
             },
             activeFrontPlan: {
