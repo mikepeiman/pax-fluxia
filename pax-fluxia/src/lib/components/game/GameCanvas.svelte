@@ -4,6 +4,7 @@
     import * as PIXI from "pixi.js";
     import {
         buildLegacyImageSelection,
+        isBackgroundModeSupportedForRenderMode,
         readBackgroundChangeDetail,
     } from "$lib/backgrounds";
     import { GameAmbientBackgroundPresenter } from "$lib/backgrounds/runtime/GameAmbientBackgroundPresenter";
@@ -5615,6 +5616,9 @@
                             activeGameStore.connections as StarConnection[],
                             app?.renderer ?? undefined,
                         );
+                        gameplayBackgroundGeometry = localizePresentationGeometry(
+                            readFamilyGeometry(),
+                        );
                         if (transitionDiagnosticCaptureEnabled) {
                             transitionDiagnosticFrameInput = {
                                 activeMode,
@@ -5673,6 +5677,9 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        const localizedGeometry =
+                            localizePresentationGeometry(geometry);
+                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -5696,8 +5703,7 @@
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
+                                    geometry: localizedGeometry,
                                     prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
                                     ),
@@ -6388,8 +6394,18 @@
                     }
                     // 'none' or unrecognized — no territory rendering
                 }
+                    const liveGameplayBackgroundSupported =
+                        currentGameBackgroundSelection.modeId !==
+                            "legacy_image" &&
+                        isBackgroundModeSupportedForRenderMode(
+                            activeMode,
+                            currentGameBackgroundSelection.modeId,
+                        );
                     if (gameplayBackgroundPresenter) {
-                        if (gameplayBackgroundGeometry) {
+                        if (
+                            gameplayBackgroundGeometry &&
+                            liveGameplayBackgroundSupported
+                        ) {
                             gameplayBackgroundPresenter.present({
                                 selection: currentGameBackgroundSelection,
                                 geometry: gameplayBackgroundGeometry,

@@ -2,6 +2,7 @@
     import {
         BACKGROUND_MODE_CATALOG,
         buildLegacyImageSelection,
+        getSupportedBackgroundModeIdsForRenderMode,
         normalizeBackgroundSelection,
         type BackgroundModeDefinition,
         type BackgroundSelection,
@@ -65,6 +66,17 @@
             (definition) => definition.primary && definition.supportsGame,
         ),
     );
+    let activeGameplayRenderMode = $derived(
+        (panel.territoryRenderMode ??
+            GAME_CONFIG.TERRITORY_RENDER_MODE ??
+            "none") as string,
+    );
+    let supportedGameplayModeIds = $derived(
+        getSupportedBackgroundModeIdsForRenderMode(activeGameplayRenderMode),
+    );
+    let supportedGameplayModeIdSet = $derived(
+        new Set(supportedGameplayModeIds),
+    );
     let currentBackgroundSelection = $derived(
         normalizeBackgroundSelection(vis.backgroundSelection, {
             surface: "game",
@@ -82,6 +94,19 @@
     let modeTunables = $derived(
         currentBackgroundDefinition?.modeTunables ?? [],
     );
+    let currentLiveBackgroundSupported = $derived(
+        currentBackgroundSelection.modeId === "legacy_image" ||
+            supportedGameplayModeIdSet.has(currentBackgroundSelection.modeId),
+    );
+    let supportedGameplayModeLabels = $derived(
+        gameplayBackgroundModes
+            .filter((definition) => supportedGameplayModeIdSet.has(definition.id))
+            .map((definition) => definition.label),
+    );
+
+    function isGameplayModeSupported(modeId: string): boolean {
+        return supportedGameplayModeIdSet.has(modeId);
+    }
 
     function formatTunableValue(tunable: BackgroundTunableDef): string {
         const value =
@@ -125,6 +150,7 @@
     }
 
     function selectBackgroundMode(mode: BackgroundModeDefinition) {
+        if (!isGameplayModeSupported(mode.id)) return;
         setBackgroundSelection({
             modeId: mode.id,
             tunables:
@@ -186,14 +212,34 @@
             >
         </div>
     </div>
+    <p class="future-desc background-support-note">
+        Territory runtime: <strong>{activeGameplayRenderMode}</strong>.
+        {#if supportedGameplayModeLabels.length > 0}
+            Supported live modes here: {supportedGameplayModeLabels.join(", ")}.
+        {:else}
+            This runtime currently exposes no live regional background modes; use
+            the legacy image fallback.
+        {/if}
+    </p>
+    {#if currentBackgroundSelection.modeId !== "legacy_image" &&
+        !currentLiveBackgroundSupported}
+        <div class="background-warning">
+            The stored live selection is preserved, but the current territory
+            render mode cannot render it. Switch to a supported live mode or use
+            the legacy image fallback.
+        </div>
+    {/if}
     <div class="background-mode-grid">
         {#each gameplayBackgroundModes as mode}
             <button
                 type="button"
                 class="background-mode-card"
                 class:active={currentBackgroundSelection.modeId === mode.id}
+                disabled={!isGameplayModeSupported(mode.id)}
                 onclick={() => selectBackgroundMode(mode)}
-                title={mode.description}
+                title={isGameplayModeSupported(mode.id)
+                    ? mode.description
+                    : `${mode.label} is not supported on ${activeGameplayRenderMode}.`}
             >
                 <span
                     class="background-mode-card__swatch"
@@ -205,7 +251,10 @@
         {/each}
     </div>
     {#if currentBackgroundDefinition}
-        <div class="background-tuning-panel">
+        <div
+            class="background-tuning-panel"
+            class:background-tuning-panel--disabled={!currentLiveBackgroundSupported}
+        >
             <div class="row-top background-tuning-panel__header">
                 <span class="var-name">Live Tuning</span>
                 <div class="background-tuning-panel__actions">
@@ -213,6 +262,7 @@
                     <button
                         type="button"
                         class="background-tuning-panel__reset"
+                        disabled={!currentLiveBackgroundSupported}
                         onclick={resetBackgroundModeDefaults}
                     >
                         Reset Mode
@@ -231,6 +281,7 @@
                         min={tunable.min}
                         max={tunable.max}
                         step={tunable.step}
+                        disabled={!currentLiveBackgroundSupported}
                         value={currentBackgroundSelection.tunables[tunable.key] ??
                             tunable.defaultValue}
                         oninput={(e) =>
@@ -258,6 +309,7 @@
                             min={tunable.min}
                             max={tunable.max}
                             step={tunable.step}
+                            disabled={!currentLiveBackgroundSupported}
                             value={currentBackgroundSelection.tunables[
                                 tunable.key
                             ] ?? tunable.defaultValue}
@@ -761,10 +813,28 @@
         background: rgba(125, 211, 252, 0.08);
         transform: translateY(-1px);
     }
+    .background-mode-card:disabled {
+        opacity: 0.46;
+        cursor: not-allowed;
+        transform: none;
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.025);
+    }
+    .background-mode-card:disabled:hover {
+        transform: none;
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.025);
+    }
     .background-mode-card.active {
         border-color: rgba(74, 222, 128, 0.72);
         background: rgba(74, 222, 128, 0.14);
         box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.14);
+    }
+    .background-mode-card.active:disabled {
+        opacity: 0.72;
+        border-color: rgba(245, 158, 11, 0.68);
+        background: rgba(245, 158, 11, 0.12);
+        box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.12);
     }
     .background-mode-card__swatch {
         display: block;
@@ -794,6 +864,9 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
         background: rgba(11, 17, 32, 0.55);
+    }
+    .background-tuning-panel--disabled {
+        opacity: 0.56;
     }
     .background-tuning-panel__header {
         align-items: center;
@@ -826,6 +899,20 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: rgba(199, 223, 245, 0.72);
+    }
+    .background-support-note {
+        margin: 0 0 10px;
+        color: rgba(207, 220, 235, 0.72);
+    }
+    .background-warning {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-left: 3px solid rgba(245, 158, 11, 0.95);
+        border-radius: 6px;
+        background: rgba(245, 158, 11, 0.1);
+        color: #fde68a;
+        font-size: 10px;
+        line-height: 1.45;
     }
     .bg-thumb {
         width: 48px;

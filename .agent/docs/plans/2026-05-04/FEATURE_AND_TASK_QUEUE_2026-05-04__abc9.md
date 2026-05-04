@@ -33,6 +33,10 @@
   - extend gameplay support to all 8 primary live modes
   - expose shared and mode-specific tuning controls in the gameplay settings surface
   - keep the implementation modular enough to respect the repo's file-discipline limits while the renderer family grows
+- Sprint 5:
+  - enforce runtime support policy in both gameplay UI and `GameCanvas`
+  - enable selective live-mode support on `distance_field` and `perimeter_field`
+  - preserve stored selections while failing unsupported live modes to explicit no-op
 
 ## Progress log
 
@@ -90,6 +94,22 @@
     - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
     - `bun run build` passes in `pax-fluxia/`
     - build still emits the same large pre-existing Svelte unused-selector warnings outside this feature lane
+- Sprint 5 implemented:
+  - added support-policy helpers to `pax-fluxia/src/lib/backgrounds/catalog.ts`
+  - upgraded `ControlsSection-Visuals.svelte` to:
+    - read the active territory render mode
+    - disable unsupported live-mode cards
+    - warn when the stored live selection is unsupported on the current runtime
+    - disable the live tuning panel for unsupported stored modes while preserving state
+  - upgraded `GameCanvas.svelte` to:
+    - route shared geometry into gameplay backgrounds for `distance_field`
+    - route shared geometry into gameplay backgrounds for `perimeter_field`
+    - render live backgrounds only when the active territory runtime actually supports the selected mode
+  - extended targeted background tests to cover selective support behavior
+  - verification:
+    - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+    - `bun run build` passes in `pax-fluxia/`
+    - build warnings remain dominated by pre-existing unused-selector noise and chunk warnings outside this feature lane
 
 ## Verification target
 

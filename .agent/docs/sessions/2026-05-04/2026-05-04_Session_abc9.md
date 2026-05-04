@@ -90,3 +90,15 @@
   - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
   - `bun run build` passes in `pax-fluxia/`
   - build warnings remain dominated by pre-existing unused-selector noise outside this feature lane
+
+## Sprint 5 - selective compatibility and hardening
+
+- Added shared support-policy helpers so the capability matrix is executable product logic instead of documentation-only metadata.
+- Wired `distance_field` and `perimeter_field` into the gameplay background geometry path using the existing shared geometry cache.
+- Upgraded the visuals settings surface to disable unsupported live modes for the active territory runtime while preserving stored selections.
+- Added user-facing unsupported-state messaging and disabled live tuning when the stored mode is unsupported on the current runtime.
+- Extended the targeted background tests to cover selective support policy.
+- Verification:
+  - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+  - `bun run build` passes in `pax-fluxia/`
+  - no browser verification was run in this lane

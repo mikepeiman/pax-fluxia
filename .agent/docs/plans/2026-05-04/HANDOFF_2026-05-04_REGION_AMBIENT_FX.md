@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** Sprint 1 through Sprint 4 are now landed in this worktree; menu runtime is live, gameplay runtime exists on the clean territory paths, and all 8 primary gameplay modes now render with a full live tuning surface
+**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, gameplay runtime exists on the clean territory paths, all 8 primary gameplay modes render there, and runtime support policy is now explicit in both the UI and `GameCanvas`
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -107,6 +107,26 @@ Implemented Sprint 4 of the background-mode system:
   - `edgeSoftness`
   - `vignette`
 
+Implemented Sprint 5 of the background-mode system:
+
+- added support-policy helpers in:
+  - `pax-fluxia/src/lib/backgrounds/catalog.ts`
+- upgraded gameplay support gating in:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- `distance_field` now supports the shared-subset live modes:
+  - `nebula_veil`
+  - `banner_light`
+  - `shadow_mist`
+- `perimeter_field` now supports the intended frontier-forward subset:
+  - `banner_light`
+  - `storm_current`
+- unsupported live modes now:
+  - stay stored in persistence
+  - show as unsupported in the gameplay settings surface
+  - fail to explicit no-op at runtime instead of silently rendering the wrong thing
+- targeted background tests now cover the runtime support helpers in `selection.test.ts`
+
 ## Objective locked in
 
 The target is:
@@ -195,24 +215,20 @@ Use `pax-fluxia/src/lib/backgrounds/` for:
 
 Do not reintroduce ad hoc string mode ids elsewhere.
 
-### 2. Add capability-aware UI gating and selective compatibility
+### 2. Browser verification is still outstanding
 
-Next implementation target after Sprint 4:
+The implementation is compiled and tested, but no browser playtest or screenshot pass was run in this lane.
 
-- disable unsupported gameplay modes based on the active territory runtime
-- preserve stored selections even when the current runtime cannot render them
-- keep unsupported modes on explicit no-op behavior instead of silently falling back
+The highest-value manual checks are now:
 
-### 3. Implement selective support for subset runtimes
+- `distance_field`:
+  - verify `nebula_veil`, `banner_light`, and `shadow_mist`
+- `perimeter_field`:
+  - verify `banner_light` and `storm_current`
+- an unsupported mode on `graph`, `pixel`, or `metaball`:
+  - confirm the live mode is visibly disabled in settings and fails to no-op in runtime
 
-Sprint 5 should lock:
-
-- `distance_field`
-  - shared-subset support only if it can consume the shared input cleanly
-- `perimeter_field`
-  - frontier-forward support first
-
-### 4. Keep clean-territory-first support as the v1 contract
+### 3. Keep clean-territory-first support as the v1 contract
 
 The new capability matrix already encodes the intended v1 support:
 
@@ -290,4 +306,4 @@ When this work becomes code, port in this order:
 4. mode/tuning UI
 5. selective compatibility hardening
 
-Sprint 1 through Sprint 4 now cover steps 1 through 4 in substantial form. The next merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the runtime support policy in `pax-fluxia/src/lib/backgrounds/catalog.ts`.
+Sprint 1 through Sprint 5 now cover steps 1 through 5 in substantial form. The merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the runtime support policy in `pax-fluxia/src/lib/backgrounds/catalog.ts`.

@@ -373,3 +373,18 @@ export const BACKGROUND_CAPABILITY_MATRIX: BackgroundCapabilityMatrix = {
     modified_voronoi: [],
     pvv2_dy4: [],
 };
+
+export function getSupportedBackgroundModeIdsForRenderMode(
+    renderMode: string | null | undefined,
+): readonly BackgroundModeId[] {
+    if (!renderMode) return BACKGROUND_CAPABILITY_MATRIX.none;
+    return BACKGROUND_CAPABILITY_MATRIX[renderMode] ?? BACKGROUND_CAPABILITY_MATRIX.none;
+}
+
+export function isBackgroundModeSupportedForRenderMode(
+    renderMode: string | null | undefined,
+    modeId: BackgroundModeId,
+): boolean {
+    if (modeId === 'legacy_image') return true;
+    return getSupportedBackgroundModeIdsForRenderMode(renderMode).includes(modeId);
+}

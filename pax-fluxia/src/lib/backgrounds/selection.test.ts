@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+    getSupportedBackgroundModeIdsForRenderMode,
+    isBackgroundModeSupportedForRenderMode,
+} from './catalog';
+import {
     buildBackgroundChangeDetail,
     buildLegacyImageSelection,
     extractLegacyBackgroundImage,
@@ -56,5 +60,35 @@ describe('background selection helpers', () => {
         expect(
             extractLegacyBackgroundImage(detail.selection, 'nebula-bg.png'),
         ).toBe('pax-fluxia-bg-25.jpg');
+    });
+
+    it('exposes selective live-mode support for subset territory runtimes', () => {
+        expect(getSupportedBackgroundModeIdsForRenderMode('distance_field')).toEqual([
+            'nebula_veil',
+            'banner_light',
+            'shadow_mist',
+        ]);
+        expect(getSupportedBackgroundModeIdsForRenderMode('perimeter_field')).toEqual([
+            'banner_light',
+            'storm_current',
+        ]);
+    });
+
+    it('always permits legacy_image and rejects unsupported live modes for a runtime', () => {
+        expect(
+            isBackgroundModeSupportedForRenderMode('graph', 'legacy_image'),
+        ).toBe(true);
+        expect(
+            isBackgroundModeSupportedForRenderMode(
+                'distance_field',
+                'storm_current',
+            ),
+        ).toBe(false);
+        expect(
+            isBackgroundModeSupportedForRenderMode(
+                'perimeter_field',
+                'storm_current',
+            ),
+        ).toBe(true);
     });
 });
