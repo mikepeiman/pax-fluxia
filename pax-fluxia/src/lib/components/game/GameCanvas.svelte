@@ -111,10 +111,10 @@
     import {
         MetaballGridFamily,
         createMetaballGridFamily,
-        createMetaballGridPhaseEdgesVariantFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridFamily";
     import {
         MetaballGridPhaseEdgesFamily,
+        createMetaballGridPhaseEdgesFamily,
         createMetaballGridEmberLatticeFamily,
     } from "$lib/territory/families/metaballGrid/MetaballGridPhaseEdgesFamily";
     import {
@@ -1922,10 +1922,11 @@
         };
     }
 
-    function buildEmberLatticeRenderFamilyConfigSource(): Record<string, unknown> {
+    function buildEdgeForwardRenderFamilyConfigSource(): Record<string, unknown> {
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesGeometryDefaults,
+            ...metaballGridPhaseEdgesModeDefaults,
         };
     }
 
@@ -1940,8 +1941,11 @@
     function getRenderFamilyModeConfigSource(
         mode: string,
     ): Record<string, unknown> | undefined {
+        if (mode === "metaball_grid_phase_edges") {
+            return buildEdgeForwardRenderFamilyConfigSource();
+        }
         if (mode === "metaball_grid_ember_lattice") {
-            return buildEmberLatticeRenderFamilyConfigSource();
+            return buildEdgeForwardRenderFamilyConfigSource();
         }
         if (mode === "metaball_grid_phase_field") {
             return buildPhaseFieldRenderFamilyConfigSource();
@@ -5438,7 +5442,8 @@
                     getRenderFamily("metaball_grid_phase_edges");
                 if (
                     activeMode !== "metaball_grid_phase_edges" &&
-                    metaballGridPhaseEdgesFamily instanceof MetaballGridFamily &&
+                    metaballGridPhaseEdgesFamily instanceof
+                        MetaballGridPhaseEdgesFamily &&
                     metaballGridPhaseEdgesFamily.displayRoot.parent ===
                         activeVoronoiContainer
                 ) {
@@ -5766,13 +5771,11 @@
                         let fam = getRenderFamily("metaball_grid_phase_edges");
                         if (!fam) {
                             registerRenderFamily(
-                                createMetaballGridPhaseEdgesVariantFamily(
-                                    colorUtils,
-                                ),
+                                createMetaballGridPhaseEdgesFamily(colorUtils),
                             );
                             fam = getRenderFamily("metaball_grid_phase_edges")!;
                         }
-                        const mg = fam as MetaballGridFamily;
+                        const mg = fam as MetaballGridPhaseEdgesFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.metaball_grid_phase_edges",

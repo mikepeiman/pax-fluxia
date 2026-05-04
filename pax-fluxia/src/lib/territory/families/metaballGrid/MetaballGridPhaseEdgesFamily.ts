@@ -897,8 +897,8 @@ function strokeSquareBounds(
  * RenderFamily implementation for metaball-grid.
  */
 export class MetaballGridPhaseEdgesFamily implements RenderFamily {
-    readonly id = 'metaball_grid_ember_lattice';
-    readonly label = 'Ember Lattice';
+    readonly id: string;
+    readonly label: string;
     readonly tunableKeys: readonly string[] = METABALL_GRID_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
@@ -976,8 +976,16 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     private lastCapturedSessionPlanBuildMs = 0;
     private capturedSessionPlanRebuildCount = 0;
 
-    constructor(colorUtils: ColorUtils) {
+    constructor(
+        colorUtils: ColorUtils,
+        mode: { id: string; label: string } = {
+            id: 'metaball_grid_phase_edges',
+            label: 'Phase Edges',
+        },
+    ) {
         this.colorUtils = colorUtils;
+        this.id = mode.id;
+        this.label = mode.label;
         this.root.addChild(this.graphics);
         this.frontierFillMeshLayer.visible = false;
         this.borderGraphics.visible = false;
@@ -4830,8 +4838,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     }
 }
 
+export function createMetaballGridPhaseEdgesFamily(
+    colorUtils: ColorUtils,
+): MetaballGridPhaseEdgesFamily {
+    return new MetaballGridPhaseEdgesFamily(colorUtils, {
+        id: 'metaball_grid_phase_edges',
+        label: 'Phase Edges',
+    });
+}
+
 export function createMetaballGridEmberLatticeFamily(
     colorUtils: ColorUtils,
 ): MetaballGridPhaseEdgesFamily {
-    return new MetaballGridPhaseEdgesFamily(colorUtils);
+    return new MetaballGridPhaseEdgesFamily(colorUtils, {
+        id: 'metaball_grid_ember_lattice',
+        label: 'Ember Lattice',
+    });
 }

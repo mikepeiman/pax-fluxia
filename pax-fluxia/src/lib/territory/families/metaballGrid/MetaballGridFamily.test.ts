@@ -18,7 +18,10 @@ import {
     MetaballGridFamily,
     createMetaballGridFamily,
 } from './MetaballGridFamily';
-import { createMetaballGridEmberLatticeFamily } from './MetaballGridPhaseEdgesFamily';
+import {
+    createMetaballGridEmberLatticeFamily,
+    createMetaballGridPhaseEdgesFamily,
+} from './MetaballGridPhaseEdgesFamily';
 import {
     metaballGridPhaseEdgesGeometryDefaults,
     metaballGridPhaseEdgesModeDefaults,
@@ -545,6 +548,24 @@ describe('MetaballGridFamily active frontier fast path', () => {
         expect(stats.frontierSurfaceInvariantViolation).toBeNull();
         expect(stats.frontierBlurPasses).toBe(0);
         expect(stats.frontierPhaseSampling).toBe('nearest');
+
+        family.dispose();
+    });
+
+    it('keeps Phase Edges on the dedicated session-overlay family after the Ember split', () => {
+        const family = createMetaballGridPhaseEdgesFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        family.update(makePhaseEdgesInput(family, 0.35));
+
+        const stats = get(metaballGridStats);
+        expect(stats.familyId).toBe('metaball_grid_phase_edges');
+        expect(stats.waveGeometry).toBe('pre_to_post_frontier');
+        expect(stats.borderMode).toBe('territory_edge');
+        expect(stats.borderBlend).toBe(true);
 
         family.dispose();
     });
