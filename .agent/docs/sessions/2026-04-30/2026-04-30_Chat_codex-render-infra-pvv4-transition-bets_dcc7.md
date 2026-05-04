@@ -1,0 +1,378 @@
+﻿# Chat - 2026-04-30
+
+## Human Input
+
+````text
+1. Audit the ingame settings Territory & Diagnostics sections. We have multiple redundant `geometry source` and `source constraints` that duplicate `territory tuning`. Report on all duplication within these two panels. Then we may broaden our audit.
+
+2. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte:3-43) [added]
+[P1] Diagnostics panel mounts the full perimeter-field tuning UI
+
+`PerimeterFieldDiagnosticsPanel` is not diagnostics-only. It renders `PerimeterFieldTuning` wholesale, and Territory already renders that same tuning component in the Perimeter Field card. That duplicates every perimeter-field editor across both panels instead of keeping Diagnostics read-only.
+
+## Finding 2 (pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte:990-999) [added]
+[P2] Territory exposes the same geometry-source selector twice
+
+When `perimeter_field` is active, Territory shows a top-level `Derived Geometry Input` card and then shows the same `PERIMETER_FIELD_GEOMETRY_SOURCE` selector again inside `PerimeterFieldTuning`. Both editors write the same config key with the same options.
+
+## Finding 3 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+Go ahead
+
+27. # Review findings:
+
+## Finding 1 (src/lib/components/ui/GameSettingsPanel.svelte:1248-1261) [added]
+[P3] `Conquest & Effects` is two panels stapled together behind one top-level entry
+
+This top-level section is not a coherent single panel. It just mounts `ControlsSectionConquest` and `ControlsSectionSurge` one after the other. The subsection tabs help, but structurally this is still two settings surfaces sharing one top-level label.
+
+## My request for Codex:
+1. Remove `geometry` sub-section from `territory system` (and search in case of additional occurences)
+2. Add active render modes as large chips, directly under the Settings icon menu (when Sections appear when clicked)
+3. Take current settings as new default for the app - update config. Call this theme "Phase Field Default"
+4. Found a regression: attack surge slider lacks a `bind to tick` toggle (following existing design conventions). This should be on by default.
+5. Lanes must be rendered *beneath* stars and ships.
+
+28. # Review findings:
+
+## Finding 1 (src/lib/components/ui/GameSettingsPanel.svelte:1248-1261) [added]
+[P3] `Conquest & Effects` is two panels stapled together behind one top-level entry
+
+This top-level section is not a coherent single panel. It just mounts `ControlsSectionConquest` and `ControlsSectionSurge` one after the other. The subsection tabs help, but structurally this is still two settings surfaces sharing one top-level label.
+
+## My request for Codex:
+Strangely you broke sometrhing there; I reload the dev server, hard reload page; but when I enter main menu from landing page, it kicks me back out to landing page after a second, keeps doing this loop
+
+29. Logs if it helps
+```
+[HomeRoute] play_clicked {isProd: false, href: 'http://localhost:1420/'}
+homeRouteDiagnostics.ts:130 [HomeRoute] open_game_shell_requested {trigger: 'play', interactiveOpen: true, showGame: false, hasGameContainerComponent: true}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_shell_component_already_ready 
+homeRouteDiagnostics.ts:130 [HomeRoute] open_game_shell_succeeded {trigger: 'play', interactiveOpen: true}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_container_view_changed {currentView: 'menu', phase: 'menu'}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_container_mounted {currentView: 'menu', phase: 'menu'}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_container_unmounted {currentView: 'menu', phase: 'menu'}
+homeRouteDiagnostics.ts:130 [HomeRoute] landing_route_mounted {href: 'http://localhost:1420/', dev: true, benchmarkEnabled: true}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_shell_warmup_scheduled {strategy: 'requestIdleCallback'}
+homeRouteDiagnostics.ts:130 [HomeRoute] benchmark_bridge_requested 
+homeRouteDiagnostics.ts:130 [HomeRoute] benchmark_bridge_installed 
+homeRouteDiagnostics.ts:130 [HomeRoute] game_shell_warmup_started 
+homeRouteDiagnostics.ts:130 [HomeRoute] open_game_shell_requested {trigger: 'warmup', interactiveOpen: false, showGame: false, hasGameContainerComponent: false}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_shell_import_attempt {attempt: 1, maxAttempts: 2}
+homeRouteDiagnostics.ts:130 [HomeRoute] game_shell_import_succeeded {attempt: 1}
+homeRouteDiagnostics.ts:130 [HomeRoute] open_game_shell_succeeded {trigger: 'warmup', interactiveOpen: false}
+```
+
+30. Assistant work summary
+- Traced the landing-page loop against the active settings-cleanup plan and confirmed the shell was mounting successfully before the entire route reloaded.
+- Used the user-provided `HomeRoute` logs plus source inspection to identify the real failure mode: `MainMenu` / theme startup writes were still dumping settings to `common/resources/settings-live/current-settings.json`, and that same file had been imported into runtime defaults, so Vite hot-reloaded the app every time the menu mounted.
+- Fixed the loop by creating `pax-fluxia/src/lib/config/phase-field-default.json`, repointing `game.config.ts` and `builtinThemes.ts` to that stable snapshot, removing the `themeStore` startup auto-apply, and updating `resetToDefaults()` to apply `Phase Field Default`.
+
+## My request for Codex:
+1. Remove `geometry` sub-section from `territory system` (and search in case of additional occurences)
+2. Add active render modes as large chips, directly under the Settings icon menu (when Sections appear when clicked)
+3. Take current settings as new default for the app - update config. Call this theme "Phase Field Default"
+4. Found a regression: attack surge slider lacks a `bind to tick` toggle (following existing design conventions). This should be on by default.
+5. Lanes must be rendered *beneath* stars and ships.
+
+3. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+To be clear, there are three top-level Territory panels, ensure you audit them all.
+
+4. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+Propose the best organizational hierarchy you can that elegantly groups and exposes controls intuitively for human consumption and DX/UX.
+
+5. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+Let's try it. Proceed.
+
+6. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+You know what, the `territory tuning` options - that's frontier/border topology - should be a distinct top-level panel. I'm tired of having it mixed in with other options. Group all that is relevant to that together - all the Lane Margin, CX, DX, MSR, and unify to one panel.
+
+7. Rethink the ontology/organization after that, as Territory will probably need a different organizing rubric.
+
+8. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+Also note this detail, as I said to group topology concerns together:
+```
+Frontier Resolution is the exception. It is not dead. It still feeds real geometry/compiler paths, including Geometry_0319.ts (line 368) and geometryTuning.ts (line 35). Its problem is placement, not utility. It belongs under geometry/topology, not under Borders.
+```
+
+9. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+The `Derived Geometry Input` section is completely unwanted. Justify that it has any present or future utility to me.
+
+10. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+We were interrupted, process outstanding prompts and proceed
+
+11. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+I think you missed some of my messages. Confirm/correct:
+1. The `Derived Geometry Input` section is completely unwanted. Justify that it has any present or future utility to me.
+2. Same for `Border Transition` section. Useless now. But this should be something that is used. It should be an expanded section with real options and tuning sliders.
+3. And WTF is this, seriously, just saw this nonsense - and to top it off, it's an unbroken line of text that breaks out of its containing element and column, says nothing meaningful, in cryptic language `Ownership note
+Travel, surge, and conquest phase timings live in their own sections. End Settle only smooths the terminal handoff.` In Match Flow panel. Remove it. And rename panel back to Timing.
+4. `Conflict Resolution` is to be expunged. That is not to be an option any more. We do not allow conflicting orders.
+5. `Order Persistence` expunged as an option. We always allow chained orders.
+6. `Fill Transition` is useless as currently implemented. It lost all meaning ages ago. It must be paired with Border Transitions, and present only meaningful, real options.
+7. `runtime` option is to be expunged. I do not even know what I'm supposed to do with this. I want my game to 
+run. I don't want to be selecting a runtime.
+8. 8. We were interrupted, process outstanding prompts and proceed
+
+Note: ensure you are keeping up with documentation [AGENT.md](.agent/AGENT.md) and commits.
+
+12. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+I think you missed some of my messages. Confirm/correct:
+1. The `Derived Geometry Input` section is completely unwanted. Justify that it has any present or future utility to me.
+2. Same for `Border Transition` section. Useless now. But this should be something that is used. It should be an expanded section with real options and tuning sliders.
+3. And WTF is this, seriously, just saw this nonsense - and to top it off, it's an unbroken line of text that breaks out of its containing element and column, says nothing meaningful, in cryptic language `Ownership note
+Travel, surge, and conquest phase timings live in their own sections. End Settle only smooths the terminal handoff.` In Match Flow panel. Remove it. And rename panel back to Timing.
+4. `Conflict Resolution` is to be expunged. That is not to be an option any more. We do not allow conflicting orders.
+5. `Order Persistence` expunged as an option. We always allow chained orders.
+6. `Fill Transition` is useless as currently implemented. It lost all meaning ages ago. It must be paired with Border Transitions, and present only meaningful, real options.
+7. `runtime` option is to be expunged. I do not even know what I'm supposed to do with this. I want my game to 
+run. I don't want to be selecting a runtime.
+8. 8. We were interrupted, process outstanding prompts and proceed
+
+Note: ensure you are keeping up with documentation [AGENT.md](.agent/AGENT.md) and commits.
+
+13. # Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+I think you missed some of my messages. Confirm/correct:
+1. The `Derived Geometry Input` section is completely unwanted. Justify that it has any present or future utility to me.
+2. Same for `Border Transition` section. Useless now. But this should be something that is used. It should be an expanded section with real options and tuning sliders.
+3. And WTF is this, seriously, just saw this nonsense - and to top it off, it's an unbroken line of text that breaks out of its containing element and column, says nothing meaningful, in cryptic language `Ownership note
+Travel, surge, and conquest phase timings live in their own sections. End Settle only smooths the terminal handoff.` In Match Flow panel. Remove it. And rename panel back to Timing.
+4. `Conflict Resolution` is to be expunged. That is not to be an option any more. We do not allow conflicting orders.
+5. `Order Persistence` expunged as an option. We always allow chained orders.
+6. `Fill Transition` is useless as currently implemented. It lost all meaning ages ago. It must be paired with Border Transitions, and present only meaningful, real options.
+7. `runtime` option is to be expunged. I do not even know what I'm supposed to do with this. I want my game to 
+run. I don't want to be selecting a runtime.
+8. 8. We were interrupted, process outstanding prompts and proceed
+
+Note: ensure you are keeping up with documentation [AGENT.md](.agent/AGENT.md) and commits.
+
+14. Two UI features:
+1. There is a duplicate Theme dropdown in the Settings menu. In fact, there are three total. This should be consolidated to one, in the main game menu, not the top of the Settings menu. You'll need to include the Add/Update theme buttons in the remaining Theme widget.
+2. We need a Search field at the top of the Settings panel, replacing the current Theme select. It must search fulltext of all UI labels, panel text, variable names, and any other associated text.
+````
+
+15. # Files mentioned by the user:
+
+## Pax Fluxia.png: D:/Eagle master library/Master.library/images/MOM04VQGI24X6.info/Pax Fluxia.png
+
+# Review findings:
+
+## Finding 1 (pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte:194-212) [added]
+[P3] The 'source constraints live in Territory Tuning' message is repeated around one canonical control set
+
+The source widgets repeat the same ownership message for Minimum Star Margin, Corridor Virtual Sites, Lane Midpoint Pairs, and Disconnect Gaps, but the actual editors still live only in Territory Tuning & Constraints. This creates multiple 'source constraints' waypoints without adding unique controls.
+
+## My request for Codex:
+That is the appearance of the Themes widget now.
+Explain what's wrong with it and describe the fix/improvement.
+
+16. # Files mentioned by the user:
+
+## Pax Fluxia.png: D:/Eagle master library/Master.library/images/MOM073LXYU99M.info/Pax Fluxia.png
+
+## My request for Codex:
+You've decided, deliberately, to feature this at the top of a settings panel. 
+Explain this from a UX perspective, for both me as developer, and for a game player.
+
+17. Explain why you've provided a widget with a fake (inactive) dropdown, written text, and nothing I can do with it.
+Explain why you've provided an option for a cryptic "Fill Path" which references some kind of fucking internal monologue trhat NO HUMAN BEING KNOWS "maintained fill-transition path. The old frontier-morph branch is retired from this surface."
+
+18. Why ther FUCK do you keep adding your GODDAMNED commentary to control panels????? I DONT WANT IT!
+
+"Phase Edges locks its frontier-shaped wave geometry and territory-edge border defaults so it remains distinct from base Metaball Grid."
+
+19. Look AI, it's ALL WRONG. You're not even thinking!
+
+20. Do a complete audit of all settings, all controls. All text, all organization, all duplication.
+
+21. Ok, I realized what's going on here: the Theming system is actually *supposed* to have per-section Theme controls. But they are rarely used and in my frustration, I incorrectly identified it as your error. It was not your error that put that there. My apologies. Update your post-mortem.
+
+Do respond to my other comments, and then continue your full audit. 
+
+22. On the Theme widget: 
+1. I SPECIFIED that we need an "update" option when a Theme is selected; This will overwrite the named theme. It requires a confirmation dialogue. 
+2. The width is wrong. The most obvious thing, and you did not identify this deficiency. It should take full width of the column it is in.
+
+And yes, incorporate that in the Theme widget redesign.
+
+23. # Files mentioned by the user:
+
+## Pax Fluxia.png: D:/Eagle master library/Master.library/images/MOM073LXYU99M.info/Pax Fluxia.png
+
+## My request for Codex:
+You did not interpret this image correctly. 80% of this screenshot is NOT the themes panel, which I addressed specifically in other messages.
+
+This `frontier transition` section is wrong. Useless. Confusing. And as implemented by you: stupid.
+
+24. You gave two answers when presented with the visual and textual evidence of `frontier transition` subsection, and you ignored them and treated them continued dialogue on the STUPID placement of Theme select. I need you to address this nonsense subsection insertion, and remove it. 
+
+25. NO! 
+```
+Then Iâ€™m correcting the audit itself: the valid issue is not â€œper-section theming exists,â€ itâ€™s â€œit exists with the wrong affordances, wrong width behavior, and it is being conflated with unrelated bad UI like Frontier Transition.â€
+```
+NO! Holy shit are you daft. 
+NO! the Theme widget is the ONE MASTER THEME WIDGET ONLY.
+I literally JUST distinguished this for you, from the per-section theming, which you are NOT TO TOUCH RIGHT NOW. It is NOT for change.
+The main settings menu (rightmost column before Settings Panel is opened) contains the Theme widget, and it is the target of my UI feedback.
+
+26. # Review findings:
+
+## Finding 1 (src/lib/components/ui/GameThemeManager.svelte:196-204) [added]
+[P1] Master theme widget still violates the requested update workflow
+
+The main menu theme widget only renders `Update` for selected user themes here, and the underlying update path overwrites immediately without any confirmation step. That does not satisfy the required contract: when a named theme is selected, `Update` must exist and require an explicit confirm before overwrite.
+
+## Finding 2 (src/lib/components/ui/GameThemeManager.svelte:322-338) [added]
+[P1] Master theme widget does not claim the full width of its menu column
+
+The menu version of `GameThemeManager` never sets `width: 100%`; only the drawer variant does. In practice this leaves the widget rendering like a content-width card inside the menu column instead of spanning the full column, which is the most obvious layout defect in the current screenshot.
+
+## Finding 3 (src/lib/components/ui/settings/ControlsSection-Territory.svelte:1773-1815) [added]
+[P1] `Frontier Transition` is a failed subsection, not a meaningful control surface
+
+This subsection is built around internal branch language (`maintained fill-transition path`, `retired`, `PVV4 frontline`) instead of visible player choices. It exposes `Fill Path` and sometimes `Border Path`, but even the surrounding notes admit that canonical PV geometry disables part of the path logic. The result is a first-class panel section that mostly explains implementation history rather than letting a human make a meaningful decision.
+
+## Finding 4 (src/lib/components/ui/settings/ControlsSection-Territory.svelte:901-929) [added]
+[P1] Territory transition tuning is duplicated across two top-level Territory panels
+
+`TerritoryTransitionTuning` is mounted here in `Territory System` and again in the Metaball renderer card in `Render Families`. That duplicates the same `VS_*` transition family controls across two different ownership surfaces and makes it unclear whether transition behavior belongs to system-level mode selection or renderer-level tuning.
+
+## Finding 5 (src/lib/components/ui/settings/PerimeterFieldTuning.svelte:263-281) [added]
+[P1] Shared territory transition duration is duplicated in Timing and Perimeter Field
+
+`PerimeterFieldTuning` writes the shared `TERRITORY_TRANSITION_MS` here even though `Timing` already owns the same transition duration and tick-binding controls. This creates two homes for one global timing control and undermines the panel split between global rhythm and renderer-specific tuning.
+
+## Finding 6 (src/lib/components/ui/settings/ControlsSection-Territory.svelte:1923-1947) [added]
+[P1] `Render Families` still embeds diagnostics inside normal settings
+
+This panel still mixes live renderer controls with `Engine Diagnostics` and later `Trace Inspector`. Diagnostics belongs in the Diagnostics section; leaving it here keeps Render Families overloaded and preserves the exact ownership confusion you were trying to get rid of.
+
+## Finding 7 (src/lib/components/ui/settings/settingMetadata.ts:557-606) [added]
+[P2] Hover metadata exposes config plumbing instead of human-facing help
+
+Settings labels are automatically given tooltips like `panel: ...`, `config: ...`, and fallback text such as `Writes GAME_CONFIG.X`. That is internal implementation plumbing, not product copy. It also means any label without explicit authored help silently degrades into developer-language hover text.
+
+## Finding 8 (src/lib/components/ui/settings/settingsSearch.ts:226-252) [added]
+[P2] Settings search indexes raw source text, so bad commentary leaks directly into search results
+
+Section search is built from raw Svelte source text, not only authored labels and descriptions. That means internal helper prose, stale migration language, and any leaked commentary become searchable snippets. Search is therefore amplifying copy problems instead of just helping navigation.
+
+## Finding 9 (src/lib/components/ui/settings/ControlsSection-Logging.svelte:72-110) [added]
+[P2] Logging mixes log-channel toggles with global config import/export admin
+
+`Logging` starts as a normal runtime log-flag panel, then turns into a config I/O panel with `Export JSON`, `Export MD`, and `Import JSON`. Those are different jobs. Keeping them together makes the section harder to name and harder to scan.
+
+## Finding 10 (src/lib/components/ui/settings/ControlsSection-AI.svelte:83-117) [added]
+[P2] AI contains dead roadmap UI instead of live controls
+
+The `Future Strategies` block is a visible list of grayed-out `planned` items. That is roadmap content living inside a live settings surface. It adds noise, implies functionality that does not exist, and weakens the credibility of the panel.
+
+## Finding 11 (src/lib/components/ui/settings/ControlsSection-Ships.svelte:1912-1934) [added]
+[P2] Fleet & Star Visuals still contains a debug-only ship-count override
+
+`Ship Count Override` is a star-specific debug control inside the normal visual settings panel. This is not a visual-style control and should not live beside star glow, labels, and ownership rings. It belongs in Diagnostics or another explicitly debug-only surface.
+
+## Finding 12 (src/lib/components/ui/GameSettingsPanel.svelte:1248-1261) [added]
+[P3] `Conquest & Effects` is two panels stapled together behind one top-level entry
+
+This top-level section is not a coherent single panel. It just mounts `ControlsSectionConquest` and `ControlsSectionSurge` one after the other. The subsection tabs help, but structurally this is still two settings surfaces sharing one top-level label.
+
+## My request for Codex:
+Go ahead
+
+31. I do not understand your report of your fix, nor do I trust it.
+What did you do here with the variable values you were supposed to update CONFIG with?
+"The app default now comes from the current Phase Field baseline by importing current-settings.json (line 1) into game.config.ts (line 14) and applying it in the default config at game.config.ts (line 768). I also exposed that same baseline as a built-in theme named Phase Field Default in builtinThemes.ts (line 186), and first-load theme selection now targets it in themeStore.svelte.ts (line 227)."
+
+You were supposed to take the live settings values, and update the default values.
+I suspect you did something silly and messed with actual engine pipeline.
+Loading the saved theme as default theme load is a good idea.
+
+Do you have anything to correct?
+
+32. Yes, what you did was not my intent. Undo it.
+Simply update the CONFIG values so the app default behavior on a fresh load is essentially this theme.
+
+33. Assistant work summary
+- Removed the startup Phase Field overlay and deleted `pax-fluxia/src/lib/config/phase-field-default.json`.
+- Promoted the Phase Field values into the real owner default modules (`gameplay.config.ts`, `renderer.config.ts`, `territory.config.ts`, `metaball/config.ts`, `metaballGrid/config.ts`, and `TerritoryModeSelection.ts`).
+- Kept the built-in `Phase Field Default` theme, but changed it to derive from `DEFAULT_GAME_CONFIG` so it matches factory defaults without becoming a second source of truth.
+- Changed `resetToDefaults()` to reload factory defaults directly instead of applying a theme overlay first.
+- Validated the merged defaults against `common/resources/settings-live/current-settings.json`; the diff was empty.
+

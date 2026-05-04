@@ -1,0 +1,52 @@
+﻿# Session - 2026-04-30
+
+## Focus
+- Implement the Phase Edges frontier technique matrix as a reusable architecture layer.
+- Repair the resulting UI/runtime mismatches so surfaced territory controls actually map to live render behavior.
+- Bring the worktree back into protocol compliance with real commits and daily session documentation.
+
+## Facts
+- The user repeatedly observed real app behavior that contradicted earlier completion claims.
+- Several surfaced controls were inert because runtime config state was being overwritten upstream or because the style UI exposed controls with no active family consumer.
+- The worktree was operating on detached `HEAD` with a large uncommitted delta until the catch-up branch was created.
+- The session-document and commit discipline from `.agent/AGENT.md` had been missed and needed catch-up work.
+
+## Work Done
+- Added shared frontier processing and Phase Edges technique selection, diagnostics, and benchmark support.
+- Fixed the Phase Edges per-frame config shadowing bug that made user-edited values inert.
+- Fixed a detached-worktree import failure by removing a dead `TransitionDebugPanel` dependency from `GameContainer.svelte`.
+- Reworked Phase Edges fill/border coupling toward a single selected surface geometry family.
+- Fixed paused-state reactivity and a `connections is not defined` runtime crash in `GameCanvas.svelte`.
+- Audited and removed duplicated topology ownership from the territory settings surfaces.
+- Moved live paint-time controls into `Territory Styles` for Metaball Grid / Phase Edges fill and border presentation, plus Perimeter Field inward-offset presentation.
+- Filtered invalid `Finish` surfaces out of Metaball Grid styles.
+- Added 2026-04-30 queue/session/chat/takeaway docs and a formal post-mortem in the `.agent` tree.
+- Created branch `codex/2026-04-30-phase-edges-catchup` and checkpointed the code in:
+- `58efa694` - `Add phase-edges frontier matrix and runtime fixes`
+- `ab8cf80c` - `Re-home territory style controls and remove topology duplication`
+- Removed the contradictory top-level `.gitignore` rule `sessions/` so the repo no longer blocks `.agent/docs/sessions/` files required by `.agent/AGENT.md`.
+- Audited the still-broken Phase Edges style path using the userâ€™s live observation that `Inward Offset` still had zero effect and that `per_cell` borders pulled fill to the edge while losing the blended opposing-force boundary.
+- Wired `Inward Offset` into the active Phase Edges phase-fill shader threshold path instead of leaving it trapped in the legacy base-cell-only path.
+- Split explicit scene border ownership from frontier-recipe ownership so `Border Mode = per_cell` no longer disappears just because the selected frontier recipe is phase-derived.
+- Expanded centered-blended owner-boundary drawing so `per_cell` mode can keep its lattice and still overlay one blended opposing-force frontier stroke using occupancy-weighted owner blending.
+- Added straight shared-edge junction controls and runtime support for either low-pixel gap trim or an experimental blended bubble marker at 3+ owner junctions.
+- Added a UI note clarifying that `Grid | Frontier | Wave | Flip | Perf` are panel-section filters, not top-level render/effect toggles.
+- Added a regression test so phase-derived frontier techniques cannot suppress explicit `per_cell` borders again.
+- Identified the deeper centered-blended fill-offset root cause: base fill suppression was keyed off the broad contour-valid neighborhood instead of the narrower frontier-replacement region.
+- Added `suppressMask` to the shared frontier phase-layer contract and used it in the Phase Edges fill-suppression path so only true frontier cells are replaced by phase fill.
+- Added a small Phase Edges border-section note pointing users back to `Fill > Inward Offset` so the control is no longer effectively hidden by subsection context.
+
+## Validation
+- `bun x vitest run src/lib/territory/frontier/frontier.test.ts src/lib/territory/families/metaballGrid/MetaballGridFamily.test.ts tools/debug/benchmark-frontier-techniques.test.ts`
+- `bun x vite build`
+
+## Open
+- Live user verification is still required for the Territory Styles surface after the latest re-home.
+- Live user verification is specifically required for:
+- `Inward Offset`
+- per-cell blended boundary overlay
+- straight-shared-edge junction gap vs bubble presentation
+- centered-blended boundary presentation without the old generalized fill pullback
+- `MetaballGridTuning.svelte` still contains unreachable dead legacy shape UI behind `false`; it should be physically removed in the next cleanup pass.
+- The settings surface still needs continued contract-audit discipline so no surfaced option ships without a live consumer.
+

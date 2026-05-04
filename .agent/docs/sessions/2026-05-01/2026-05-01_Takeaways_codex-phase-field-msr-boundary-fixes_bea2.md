@@ -1,0 +1,64 @@
+﻿# Takeaways - 2026-05-01
+
+- `metaball_grid_phase_field` is currently fed by `power_voronoi_0319`, not by a phase-field-specific geometry engine.
+- The real runtime chain is `GameCanvas.svelte` -> `buildFamilyGeometry.ts` -> `Geometry_0319.ts` -> `minStarMargin.ts` -> `MetaballGridPhaseFieldFamily.ts`.
+- The border/fill bug is structural, not tuning-related.
+- Smooth borders and fills are drawn from different geometry products inside the same snapshot.
+- `Geometry_0319.ts` builds fill polygons from frontier chains, then `minStarMargin.ts` mutates only the fills. Borders are left behind on older geometry.
+- That means steady-state MSR jut is expected under the current pipeline.
+- Conquest-time mask coverage diverges further because `buildGridClassification.ts` uses nearest-owned-star fallback to fill MSR/moat gaps.
+- When a renderer mixes multiple ownership surfaces, the user sees the seams immediately. The fix is to unify surfaces, not to keep tuning the border stroke.
+- For this mode, fills should be treated as the authority. Borders must follow the final fill surface, not the reverse.
+- The shared geometry contract already had the right reusable seam: `shellLoops`. Before inventing a new artifact, check whether the geometry layer already exposes a final-surface representation with the semantics you need.
+- A good encapsulation pattern here is:
+  - geometry layer owns final constrained surfaces,
+  - pre-render helper resolves a mode-agnostic border-loop artifact from them,
+  - renderers consume that artifact instead of reinterpreting older frontier-centerline data.
+- Screenshot review matters because it reveals when a technically â€œalignedâ€ artifact still violates the actual visual requirement. The shell-loop pass was aligned to fills but wrong for border semantics.
+- Border semantics and fill semantics are separate choices. â€œFollow the fill surfaceâ€ does not imply â€œstroke each owner fill edge.â€
+- For shared inter-owner borders, the right visual contract here is:
+  - singular
+  - blended from both players
+  - centerline
+  - constraint-aligned
+- The reusable seam for that contract is a shared pre-render frontier resolver, not a renderer-local stroke style toggle.
+- But a singular border resolver alone is still incomplete if fill textures and grid classification keep reading raw geometry.
+- The actual reusable seam needs to output one resolved render-geometry artifact that all three consumers can share:
+  - fill
+  - border
+  - classification
+- Multi-owner junctions need explicit welding before frontier-to-fill reconstruction. Otherwise even a mathematically reasonable centerline can fragment visually at the endpoints.
+- Even after unifying fill, border, and classification, the border input set still matters. Do not stroke every frontier fragment just because it exists in geometry output.
+- A good cleanup rule is: if a frontier fragment does not appear on the final resolved territory boundary, it is not a real border and should not be painted.
+- Better still: visible border chains should be rebuilt from the final resolved territory-region boundaries, not merely filtered from the upstream frontier fragment list.
+- When a mode needs one truthful painted border path, separate:
+  - raw geometry needed to reconstruct fill,
+  - display geometry needed to stroke what the player sees.
+- A tunable can be fully wired into runtime and still appear dead if a render-texture cache signature omits the tunable's visual state.
+- For mask/composite renderers, cache keys must track silhouette-changing primitives, not just size or alpha.
+- More importantly: a style control is not complete just because it changes a hidden intermediate artifact.
+- For visual DX/UX, the real standard is: does the control define the visible surface at rest and during the key event?
+- If a renderer uses cells only as a mask while smooth fills stay on screen, then `Cell Shape` is not a fill-style control, no matter how many config paths read it.
+- There is a second failure mode after that: even if cell shapes become the visible fill, they are still product-dead if presentation density is secretly inherited from the conquest scheduler grid.
+- Do not reuse a simulation or transition lattice as a presentation lattice just because the data is already available.
+- If two controls govern two different user-visible concerns, the renderer needs two different artifacts behind them.
+- In this mode the correct split is:
+  - `Transition Spacing` = conquest timing / scheduler density
+  - `Pattern Spacing` = visible fill density
+- Bucket-picking representative cells from a denser lattice is not a substitute for a true presentation lattice. It creates sparse sampling artifacts and makes shape controls feel fake.
+- Never let presentation inset/shrink controls directly size the scheduler-side reveal mask. On a dense scheduler lattice, that can collapse the transition itself to invisibility.
+- The conquest scheduler and the visible fill pattern need separate density controls, and the scheduler reveal needs separate size semantics from fill ornamentation.
+- A geometry-level fill offset is not the same thing as a renderer-level edge-cell shrink.
+- If the spec says `after MSR/CX/DX/LP`, the implementation seam belongs in shared resolved geometry or a pre-render geometry helper, not in per-cell paint code.
+- The right render contract here is:
+  - resolved boundary stays authoritative for borders
+  - fill inset is derived from that same resolved boundary
+  - cell styling happens inside the inset geometry instead of redefining the boundary itself
+- A good reusable pattern is:
+  - geometry helper computes the inset fill surface
+  - renderer caches and consumes that helper output
+  - UI copy describes the real geometry behavior, not an older cell heuristic
+- A geometry-inspection control should not hide inside a mode-specific tuning shell. If it is meant to explain the active territory mode, it belongs in global Diagnostics.
+- If the UI exposes a numeric contract, runtime must honor the same contract. A `1..64` slider with a hidden `>=16` runtime clamp is still a fake control.
+- "Presentation edge cells" are not a substitute for a true inward territory offset. If the requested effect is a continuous inset territory surface, the implementation seam must remain geometric.
+
