@@ -175,6 +175,7 @@ When asking the user to help gather debug or diagnostics data:
 8. Explain what each requested artifact will tell the agent.
 9. Never tell the user to inspect internal code paths, config keys, or architecture unless they explicitly asked for that level of detail.
 10. Never ask the user to interact with a new diagnostics surface without telling them exactly where it lives in the UI and what to do with it.
+11. Do not ask the user to "reproduce" a specific past event unless the app already exposes replay/scrub for that captured event; otherwise ask them to arm capture first and then trigger a new event.
 
 ### 4.1a Plan / Spec / Status-First Rule
 

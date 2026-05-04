@@ -70,6 +70,19 @@
     - `.agent/AGENT.md`
   - purpose:
     - force future debug asks to tell the user exactly where to click, what to do, what to expect, what artifact to return, and what the artifact will tell the agent
+- Fixed the `Show underlying geometry` regression for PVV4/canonical runtime modes:
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - the toggle now draws canonical runtime geometry loops in `power_voronoi_canonical`
+    and clean-bridge `territory_canonical`, instead of only working for perimeter-field
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+    now labels the control as current-mode geometry, not perimeter-field-only geometry
+- Added direct diagnostics export folder support:
+  - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - exports can now be written straight to a chosen folder via the browser File System
+    Access API, with browser-download fallback when unsupported or unset
+- Wrote post-mortem for the false-positive toggle restore and poor artifact request:
+  - `.agent/docs/project/post-mortems/2026-05-04_diagnostics-toggle-and-artifact-ask.md`
 
 ## Current Best Read
 

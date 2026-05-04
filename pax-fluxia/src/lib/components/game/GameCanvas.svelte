@@ -1946,6 +1946,13 @@
         );
     }
 
+    function modeUsesCanonicalRuntimeGeometry(mode: string): boolean {
+        return (
+            mode === "power_voronoi_canonical" ||
+            mode === "territory_canonical"
+        );
+    }
+
     function updateLiveMetaballGridTransitionDiagnostics(params: {
         activeTransition: RenderFamilyActiveTransition | null;
         effectiveTickMs: number;
@@ -2085,6 +2092,7 @@
     let perimeterFieldDebugSnapshotOverride:
         | PerimeterFieldDebugSnapshot
         | null = null;
+    let canonicalDebugGeometrySnapshot: CanonicalGeometrySnapshot | null = null;
     let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
         null;
     let transitionDiagnosticCaptureSession:
@@ -4382,12 +4390,16 @@
         if (!showGeometry && !showVstars) return;
 
         if (showGeometry) {
-            if (modeUsesSharedRenderFamilyGeometry(activeMode)) {
-                const geometry = getCurrentRenderFamilyGeometry(
-                    stars,
-                    lanes,
-                    getRenderFamilyModeConfigSource(activeMode),
-                );
+            const geometry = modeUsesSharedRenderFamilyGeometry(activeMode)
+                ? getCurrentRenderFamilyGeometry(
+                      stars,
+                      lanes,
+                      getRenderFamilyModeConfigSource(activeMode),
+                  )
+                : modeUsesCanonicalRuntimeGeometry(activeMode)
+                  ? canonicalDebugGeometrySnapshot
+                  : null;
+            if (geometry) {
                 for (const points of getPerimeterDebugLoops(geometry)) {
                     drawClosedPolyline(debugGraphics, points, 0x47d7ff, 0.85, 2);
                 }
@@ -5906,6 +5918,8 @@
                                 activeMode,
                             ),
                         );
+                        canonicalDebugGeometrySnapshot =
+                            canonicalRuntimeOutput?.geometry ?? null;
                         canonicalBridge?.consumeVFXCommands();
                         break;
                     }
@@ -5944,9 +5958,12 @@
                                             activeMode,
                                         ),
                                     );
+                                    canonicalDebugGeometrySnapshot =
+                                        canonicalRuntimeOutput?.geometry ?? null;
                                     canonicalBridge.consumeVFXCommands();
                                     renderedByCanonicalBridge = true;
                                 } catch (error) {
+                                    canonicalDebugGeometrySnapshot = null;
                                     if (!canonicalBridgeFallbackLogged) {
                                         canonicalBridgeFallbackLogged = true;
                                         log.error(
@@ -5959,6 +5976,7 @@
                             }
                         }
                         if (!useCleanArchitecture) {
+                            canonicalDebugGeometrySnapshot = null;
                             canonicalBridge?.reset();
                             canonicalBridge = null;
                         }

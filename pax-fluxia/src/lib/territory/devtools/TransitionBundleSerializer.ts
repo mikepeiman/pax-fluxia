@@ -10,6 +10,7 @@ import {
     resolveTransitionDiagnosticsExportAdapter,
     type DiagnosticPackageFrameRef,
 } from './TransitionDiagnosticsAdapters';
+import { writable } from 'svelte/store';
 
 export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
     1 / 6,
@@ -22,6 +23,65 @@ export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
 type TransitionFrameEntry = NonNullable<TransitionDebugBundle['transitionFrames']>[number];
 
 export interface DiagnosticPackageFrame extends DiagnosticPackageFrameRef {}
+
+type ExportPermissionState = 'unknown' | 'granted' | 'prompt' | 'denied';
+
+interface FileSystemPermissionDescriptorLike {
+    mode?: 'read' | 'readwrite';
+}
+
+interface FileSystemWritableFileStreamLike {
+    write(data: Blob | BufferSource | string): Promise<void>;
+    close(): Promise<void>;
+}
+
+interface FileSystemFileHandleLike {
+    createWritable(): Promise<FileSystemWritableFileStreamLike>;
+}
+
+interface FileSystemDirectoryHandleLike {
+    name: string;
+    getFileHandle(
+        name: string,
+        options?: { create?: boolean },
+    ): Promise<FileSystemFileHandleLike>;
+    queryPermission?(
+        descriptor?: FileSystemPermissionDescriptorLike,
+    ): Promise<PermissionState>;
+    requestPermission?(
+        descriptor?: FileSystemPermissionDescriptorLike,
+    ): Promise<PermissionState>;
+}
+
+interface WindowWithDirectoryPicker extends Window {
+    showDirectoryPicker?: (options?: {
+        mode?: 'read' | 'readwrite';
+    }) => Promise<FileSystemDirectoryHandleLike>;
+}
+
+export interface DiagnosticExportTargetState {
+    fsAccessSupported: boolean;
+    mode: 'browser_downloads' | 'directory';
+    directoryName: string | null;
+    permission: ExportPermissionState;
+}
+
+const EXPORT_TARGET_DB_NAME = 'pax-transition-diagnostics';
+const EXPORT_TARGET_STORE_NAME = 'export-targets';
+const EXPORT_TARGET_KEY = 'diagnostic-export-directory';
+
+const defaultExportTargetState: DiagnosticExportTargetState = {
+    fsAccessSupported: false,
+    mode: 'browser_downloads',
+    directoryName: null,
+    permission: 'unknown',
+};
+
+export const diagnosticExportTargetStore =
+    writable<DiagnosticExportTargetState>(defaultExportTargetState);
+
+let diagnosticExportDirectoryHandle: FileSystemDirectoryHandleLike | null = null;
+let exportTargetLoadPromise: Promise<void> | null = null;
 
 interface DiagnosticPackageManifest {
     exportKind: 'transition_diagnostic_package';
@@ -67,6 +127,194 @@ function triggerDownload(blob: Blob, filename: string): void {
         URL.revokeObjectURL(url);
     }, 100);
 }
+
+function supportsDirectoryExport(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        typeof (window as WindowWithDirectoryPicker).showDirectoryPicker ===
+            'function'
+    );
+}
+
+function emitExportTargetState(
+    permission: ExportPermissionState = 'unknown',
+): void {
+    diagnosticExportTargetStore.set({
+        fsAccessSupported: supportsDirectoryExport(),
+        mode: diagnosticExportDirectoryHandle
+            ? 'directory'
+            : 'browser_downloads',
+        directoryName: diagnosticExportDirectoryHandle?.name ?? null,
+        permission,
+    });
+}
+
+function openExportTargetDb(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(EXPORT_TARGET_DB_NAME, 1);
+        request.onerror = () =>
+            reject(request.error ?? new Error('Failed to open export target DB'));
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(EXPORT_TARGET_STORE_NAME)) {
+                db.createObjectStore(EXPORT_TARGET_STORE_NAME);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+    });
+}
+
+async function readPersistedExportDirectoryHandle(): Promise<FileSystemDirectoryHandleLike | null> {
+    if (typeof window === 'undefined' || !supportsDirectoryExport()) return null;
+    if (!('indexedDB' in window)) return null;
+    const db = await openExportTargetDb();
+    try {
+        return await new Promise<FileSystemDirectoryHandleLike | null>(
+            (resolve, reject) => {
+                const tx = db.transaction(EXPORT_TARGET_STORE_NAME, 'readonly');
+                const store = tx.objectStore(EXPORT_TARGET_STORE_NAME);
+                const request = store.get(EXPORT_TARGET_KEY);
+                request.onerror = () =>
+                    reject(
+                        request.error ??
+                            new Error('Failed to read export directory handle'),
+                    );
+                request.onsuccess = () =>
+                    resolve(
+                        (request.result as FileSystemDirectoryHandleLike | null) ??
+                            null,
+                    );
+            },
+        );
+    } finally {
+        db.close();
+    }
+}
+
+async function persistExportDirectoryHandle(
+    handle: FileSystemDirectoryHandleLike | null,
+): Promise<void> {
+    if (typeof window === 'undefined' || !supportsDirectoryExport()) return;
+    if (!('indexedDB' in window)) return;
+    const db = await openExportTargetDb();
+    try {
+        await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(EXPORT_TARGET_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(EXPORT_TARGET_STORE_NAME);
+            const request = handle
+                ? store.put(handle, EXPORT_TARGET_KEY)
+                : store.delete(EXPORT_TARGET_KEY);
+            request.onerror = () =>
+                reject(
+                    request.error ??
+                        new Error('Failed to persist export directory handle'),
+                );
+            tx.oncomplete = () => resolve();
+            tx.onerror = () =>
+                reject(tx.error ?? new Error('Failed to commit export target DB transaction'));
+        });
+    } finally {
+        db.close();
+    }
+}
+
+async function ensureWritableDirectoryPermission(
+    handle: FileSystemDirectoryHandleLike,
+): Promise<ExportPermissionState> {
+    const descriptor: FileSystemPermissionDescriptorLike = {
+        mode: 'readwrite',
+    };
+    const queried = handle.queryPermission
+        ? await handle.queryPermission(descriptor)
+        : 'prompt';
+    if (queried === 'granted') return 'granted';
+    if (!handle.requestPermission) return queried as ExportPermissionState;
+    const requested = await handle.requestPermission(descriptor);
+    if (requested === 'granted') return 'granted';
+    return requested as ExportPermissionState;
+}
+
+async function ensureExportTargetLoaded(): Promise<void> {
+    if (!supportsDirectoryExport()) {
+        emitExportTargetState();
+        return;
+    }
+    if (!exportTargetLoadPromise) {
+        exportTargetLoadPromise = (async () => {
+            diagnosticExportDirectoryHandle =
+                await readPersistedExportDirectoryHandle();
+            let permission: ExportPermissionState = 'unknown';
+            if (diagnosticExportDirectoryHandle) {
+                permission = await ensureWritableDirectoryPermission(
+                    diagnosticExportDirectoryHandle,
+                );
+                if (permission !== 'granted') {
+                    diagnosticExportDirectoryHandle = null;
+                    await persistExportDirectoryHandle(null);
+                }
+            }
+            emitExportTargetState(permission);
+        })();
+    }
+    await exportTargetLoadPromise;
+}
+
+async function writeBlobToDirectory(
+    handle: FileSystemDirectoryHandleLike,
+    filename: string,
+    blob: Blob,
+): Promise<void> {
+    const fileHandle = await handle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+}
+
+async function saveExportBlob(blob: Blob, filename: string): Promise<void> {
+    await ensureExportTargetLoaded();
+    if (diagnosticExportDirectoryHandle) {
+        const permission = await ensureWritableDirectoryPermission(
+            diagnosticExportDirectoryHandle,
+        );
+        if (permission === 'granted') {
+            await writeBlobToDirectory(
+                diagnosticExportDirectoryHandle,
+                filename,
+                blob,
+            );
+            emitExportTargetState(permission);
+            return;
+        }
+        diagnosticExportDirectoryHandle = null;
+        await persistExportDirectoryHandle(null);
+        emitExportTargetState(permission);
+    }
+    triggerDownload(blob, filename);
+}
+
+export async function chooseDiagnosticExportDirectory(): Promise<void> {
+    const picker = (window as WindowWithDirectoryPicker).showDirectoryPicker;
+    if (!picker) {
+        throw new Error('Directory export is not supported in this browser');
+    }
+    const handle = await picker({ mode: 'readwrite' });
+    const permission = await ensureWritableDirectoryPermission(handle);
+    if (permission !== 'granted') {
+        emitExportTargetState(permission);
+        throw new Error('Write permission was not granted for the export folder');
+    }
+    diagnosticExportDirectoryHandle = handle;
+    await persistExportDirectoryHandle(handle);
+    emitExportTargetState(permission);
+}
+
+export async function clearDiagnosticExportDirectory(): Promise<void> {
+    diagnosticExportDirectoryHandle = null;
+    await persistExportDirectoryHandle(null);
+    emitExportTargetState();
+}
+
+void ensureExportTargetLoaded();
 
 function canvasToImageBitmap(canvas: HTMLCanvasElement): Promise<ImageBitmap> {
     return createImageBitmap(canvas);
@@ -330,7 +578,10 @@ export async function downloadBundle(
             renderExportCanvas(bundle, bundle.prevCanvas, 'previous') ??
             bundle.prevCanvas;
         panels.push({ label: 'Previous geometry', canvas: prevCanvas });
-        triggerDownload(await canvasToBlob(prevCanvas), `${prefix}_prev-geometry.png`);
+        await saveExportBlob(
+            await canvasToBlob(prevCanvas),
+            `${prefix}_prev-geometry.png`,
+        );
     }
 
     if (bundle.nextCanvas) {
@@ -338,7 +589,10 @@ export async function downloadBundle(
             renderExportCanvas(bundle, bundle.nextCanvas, 'next') ??
             bundle.nextCanvas;
         panels.push({ label: 'Next geometry', canvas: nextCanvas });
-        triggerDownload(await canvasToBlob(nextCanvas), `${prefix}_next-geometry.png`);
+        await saveExportBlob(
+            await canvasToBlob(nextCanvas),
+            `${prefix}_next-geometry.png`,
+        );
     }
 
     if (bundle.nextCanvas) {
@@ -351,7 +605,7 @@ export async function downloadBundle(
         );
         nextBitmap.close();
         panels.push({ label: 'Polyline diff overlay', canvas: overlayCanvas });
-        triggerDownload(
+        await saveExportBlob(
             await canvasToBlob(overlayCanvas),
             `${prefix}_frontier-diff-overlay.png`,
         );
@@ -359,7 +613,10 @@ export async function downloadBundle(
 
     if (panels.length > 0) {
         const composite = buildCompositeSheet(panels);
-        triggerDownload(await canvasToBlob(composite), `${prefix}_composite.png`);
+        await saveExportBlob(
+            await canvasToBlob(composite),
+            `${prefix}_composite.png`,
+        );
     }
 
     if (bundle.transitionFrames && bundle.transitionFrames.length > 0) {
@@ -368,7 +625,7 @@ export async function downloadBundle(
             const transitionCanvas =
                 renderExportCanvas(bundle, canvas, 'transition', index) ?? canvas;
             const pctString = Math.round(progress * 100).toString().padStart(3, '0');
-            triggerDownload(
+            await saveExportBlob(
                 await canvasToBlob(transitionCanvas),
                 `${prefix}_frame_${String(index).padStart(2, '0')}_t${pctString}.png`,
             );
@@ -376,13 +633,13 @@ export async function downloadBundle(
         }
     }
 
-    triggerDownload(
+    await saveExportBlob(
         new Blob([JSON.stringify(bundle.meta, null, 2)], {
             type: 'application/json',
         }),
         `${prefix}_meta.json`,
     );
-    triggerDownload(
+    await saveExportBlob(
         new Blob([JSON.stringify(serializeTopologyPairCompact(bundle), null, 2)], {
             type: 'application/json',
         }),
@@ -398,7 +655,7 @@ export async function downloadBundle(
         (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),
         2,
     );
-    triggerDownload(
+    await saveExportBlob(
         new Blob([geometryString], { type: 'application/json' }),
         `${prefix}_geometry_snapshot.json`,
     );
@@ -456,7 +713,7 @@ export async function downloadDiagnosticPackage(
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
-    triggerDownload(blob, `${prefix}_transition-diagnostic-package.zip`);
+    await saveExportBlob(blob, `${prefix}_transition-diagnostic-package.zip`);
 }
 
 export async function downloadAllBundles(

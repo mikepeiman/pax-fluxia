@@ -20,6 +20,9 @@
         type TransitionDebugBundle,
     } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import {
+        chooseDiagnosticExportDirectory,
+        clearDiagnosticExportDirectory,
+        diagnosticExportTargetStore,
         downloadAllBundles,
         downloadAllDiagnosticPackages,
         downloadBundle,
@@ -71,6 +74,7 @@
     let overlayShowActiveFront = $state(overlayConfig.showActiveFront);
     let overlayPolylineSamples = $state(overlayConfig.showPolylineSamples);
     let downloading = $state<string | null>(null);
+    let selectingExportFolder = $state(false);
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
@@ -183,6 +187,24 @@
             );
         } finally {
             downloading = null;
+        }
+    }
+
+    async function pickExportFolder(): Promise<void> {
+        selectingExportFolder = true;
+        try {
+            await chooseDiagnosticExportDirectory();
+        } finally {
+            selectingExportFolder = false;
+        }
+    }
+
+    async function resetExportFolder(): Promise<void> {
+        selectingExportFolder = true;
+        try {
+            await clearDiagnosticExportDirectory();
+        } finally {
+            selectingExportFolder = false;
         }
     }
 
@@ -340,12 +362,11 @@
             onchange={toggleUnderlyingGeometry}
         />
         <span class="var-name">Show underlying geometry</span>
-        <span class="debug-hint">Perimeter Field debug loops</span>
+        <span class="debug-hint">Current mode geometry loops</span>
     </label>
     <div class="readout">
-        Draws the source geometry loops the perimeter-field debug overlay is tracing.
-        Cyan shows current/base geometry. In scrub mode, magenta also shows next-state
-        geometry.
+        Draws the current mode's underlying geometry loops in cyan. In perimeter-field
+        scrub mode, magenta also shows next-state geometry when that preview is active.
     </div>
     <label class="toggle-row" class:is-disabled={!hasAuthoredMeasurements}>
         <input
@@ -508,6 +529,46 @@
 
 <section data-subsection-id="exports">
     <h4 class="sub-heading">Exports</h4>
+    <div class="readout">
+        Export target:
+        {#if $diagnosticExportTargetStore.mode === "directory"}
+            <strong>folder `{$diagnosticExportTargetStore.directoryName ?? "unnamed"}`</strong>
+        {:else}
+            <strong>browser downloads</strong>
+        {/if}
+        {#if !$diagnosticExportTargetStore.fsAccessSupported}
+            . This browser does not support direct folder export, so files will go
+            through the normal download path.
+        {:else if $diagnosticExportTargetStore.mode === "directory"}
+            . Diagnostic packages and image dumps will be written there directly instead
+            of polluting `Downloads`.
+        {:else}
+            . Choose a diagnostics folder once to stop export files from landing in
+            `Downloads`.
+        {/if}
+    </div>
+    <div class="actions-row">
+        <button
+            class="mini-action-btn"
+            type="button"
+            disabled={selectingExportFolder || !$diagnosticExportTargetStore.fsAccessSupported}
+            onclick={() => void pickExportFolder()}
+        >
+            {selectingExportFolder
+                ? "Choosing…"
+                : $diagnosticExportTargetStore.mode === "directory"
+                  ? "Change Export Folder"
+                  : "Choose Export Folder"}
+        </button>
+        <button
+            class="mini-action-btn"
+            type="button"
+            disabled={selectingExportFolder || $diagnosticExportTargetStore.mode !== "directory"}
+            onclick={() => void resetExportFolder()}
+        >
+            Use Browser Downloads
+        </button>
+    </div>
     <div class="actions-row">
         <button
             class="mini-action-btn primary"

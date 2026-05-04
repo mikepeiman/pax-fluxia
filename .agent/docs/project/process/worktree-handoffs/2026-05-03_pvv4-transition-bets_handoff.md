@@ -727,3 +727,46 @@
   - make future diagnostics requests usable in one pass
   - reduce ambiguity and user translation effort
   - force the agent to request the highest-value artifact the UI can already produce
+
+## Update: 2026-05-04 - Fix PVV4 Geometry Toggle And Export Target
+
+- Trigger:
+  - user reported that `Show underlying geometry` appeared in Diagnostics but did not actually work
+  - user also correctly called out that exported diagnostics polluting `Downloads` is not acceptable
+- Root cause for the geometry toggle:
+  - the restored checkbox wrote the correct setting key, but the actual draw path only consumed that key inside the perimeter-field debug overlay
+  - PVV4 / canonical runtime modes had no geometry-overlay consumer for the same setting, so the toggle changed config and repainted without drawing anything visible
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+      - added `canonicalDebugGeometrySnapshot`
+      - added `modeUsesCanonicalRuntimeGeometry()`
+      - extended the existing underlying-geometry overlay path to draw canonical runtime geometry loops for:
+        - `power_voronoi_canonical`
+        - clean-bridge `territory_canonical`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - updated the helper copy so the toggle is described as current-mode geometry rather than perimeter-field-only geometry
+- Export target changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+      - added File System Access API folder export support
+      - added IndexedDB persistence for the chosen export directory handle
+      - preserved browser-download fallback when direct folder export is unsupported or unset
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+      - added export target status readout
+      - added `Choose Export Folder`
+      - added `Use Browser Downloads`
+- Process corrections:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\rules\diagnostics-ui-communication.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\AGENT.md`
+  - added:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\post-mortems\2026-05-04_diagnostics-toggle-and-artifact-ask.md`
+  - new rule:
+    - do not ask the user to "reproduce" a specific past event unless a replay/scrub surface already exists
+    - prefer exported artifacts over manual panel readouts whenever the UI can provide them
+- Validation:
+  - `bun run build` passes end to end after these changes
+- Expected user-visible result:
+  - in PVV4, `Settings -> Diagnostics -> Show underlying geometry` should now draw cyan canonical geometry loops instead of doing nothing
+  - in Diagnostics -> Exports, the user can choose a diagnostics folder once and future exports will write there directly instead of dumping into `Downloads`

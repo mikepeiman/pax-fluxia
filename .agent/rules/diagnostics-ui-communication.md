@@ -26,6 +26,8 @@ When asking the user to help debug, the agent must ask for interaction with visi
 8. State what the agent will learn from each requested artifact.
 9. Never ask the user to inspect code paths, config keys, types, or architectural concepts unless the user explicitly asked for internals.
 10. Never refer to a diagnostics surface only by internal terms like `AF Eval`, `pathUsed`, or `planner outcome` without also naming where it appears in the UI and what values matter.
+11. Never ask the user to "reproduce" a specific past event unless the product already exposes a replay or scrub surface for that captured event.
+12. If there is no replay surface, ask the user to arm capture first and then trigger a new event.
 
 ## Required Response Structure
 
@@ -44,6 +46,7 @@ When requesting diagnostics from the user, the response must contain these secti
 - Prefer "click `Export All Packages`" over "send me the JSON bundle."
 - If the UI includes toggles or buttons added by the current branch, state that explicitly so the user knows what new control to look for.
 - If a diagnostic can be captured automatically, ask the user to trigger the scenario and export the result rather than hand-summarize it.
+- Do not make manual panel readouts the primary ask when an export package, screenshot, or recording can carry the same truth automatically.
 - If a value is only useful during a transient event, say when to look:
   - before conquest
   - during conquest
