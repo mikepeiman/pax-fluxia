@@ -58,6 +58,12 @@
 - Validation:
   - `bun run build` succeeds end to end
   - `bunx vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts` passes
+- Restored the missing diagnostics control for perimeter-field geometry overlays:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - the `Show underlying geometry` toggle now writes:
+    - `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY`
+    - `panel.perimeterFieldDebugShowGeometry`
+  - the write path bumps the territory visual epoch so paused/live canvases refresh immediately
 
 ## Current Best Read
 

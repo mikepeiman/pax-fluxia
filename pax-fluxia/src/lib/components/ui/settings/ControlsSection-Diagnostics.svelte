@@ -3,6 +3,7 @@
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
@@ -28,10 +29,11 @@
 
     interface Props {
         panel: Record<string, any>;
+        updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
 
-    let { panel, syncFromConfig }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
 
     const hasAuthoredMeasurements = $derived(
         activeGameStore.mapDiagnostics.measurements.length > 0,
@@ -70,6 +72,12 @@
     let overlayPolylineSamples = $state(overlayConfig.showPolylineSamples);
     let downloading = $state<string | null>(null);
 
+    function writeConfig(configKey: string, panelKey: string, value: unknown): void {
+        (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
+        updatePanel(panelKey, value);
+        bumpTerritoryVisualConfig();
+    }
+
     function syncOverlayState(): void {
         overlayEnabled = overlayConfig.enabled;
         overlayShowVertices = overlayConfig.showAllVertices;
@@ -95,6 +103,15 @@
     function togglePolylineSamples(): void {
         overlayConfig.showPolylineSamples = !overlayConfig.showPolylineSamples;
         syncOverlayState();
+    }
+
+    function toggleUnderlyingGeometry(event: Event): void {
+        const value = (event.currentTarget as HTMLInputElement).checked;
+        writeConfig(
+            "PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY",
+            "perimeterFieldDebugShowGeometry",
+            value,
+        );
     }
 
     function toggleAuthoredMeasurements(): void {
@@ -314,6 +331,22 @@
             <span class="var-name">Polyline samples</span>
         </label>
     {/if}
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={panel.perimeterFieldDebugShowGeometry ??
+                GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ??
+                false}
+            onchange={toggleUnderlyingGeometry}
+        />
+        <span class="var-name">Show underlying geometry</span>
+        <span class="debug-hint">Perimeter Field debug loops</span>
+    </label>
+    <div class="readout">
+        Draws the source geometry loops the perimeter-field debug overlay is tracing.
+        Cyan shows current/base geometry. In scrub mode, magenta also shows next-state
+        geometry.
+    </div>
     <label class="toggle-row" class:is-disabled={!hasAuthoredMeasurements}>
         <input
             type="checkbox"

@@ -662,3 +662,38 @@
 - Run live conquest cases with the recorder enabled and read the new `AF Eval` diagnostics in-game.
 - Export at least a few snapped and a few animated conquest bundles and compare their active-front classifications / skip counts.
 - Only after that evidence is gathered, place the first repair bet on the dominant failure class instead of stacking speculative motion edits.
+
+## Update: 2026-05-04 - Restore `Show Underlying Geometry` Control
+
+- Trigger:
+  - user reported that `Show Underlying Geometry` had been removed from the in-game diagnostics UI and explicitly asked for it to be put back
+- Root cause:
+  - the underlying runtime path was still intact:
+    - `GameCanvas.svelte` still reads `GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY`
+    - perimeter-field tuning metadata still defines the setting
+  - the regression was the UI surface:
+    - `ControlsSection-Diagnostics.svelte` no longer rendered the checkbox even though `GameSettingsPanel.svelte` was already passing `updatePanel`
+- Change made:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+  - added:
+    - `updatePanel` prop consumption
+    - local `writeConfig()` helper using:
+      - `GAME_CONFIG[...] = value`
+      - `updatePanel(panelKey, value)`
+      - `bumpTerritoryVisualConfig()`
+  - restored the diagnostics checkbox:
+    - label: `Show underlying geometry`
+    - config key: `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY`
+    - panel key: `perimeterFieldDebugShowGeometry`
+  - added inline helper copy explaining:
+    - cyan = current/base geometry
+    - magenta = next-state geometry during scrub mode
+- Purpose:
+  - restore the exact missing control rather than inventing a new overlay path
+  - ensure the toggle persists through the normal panel/local settings path
+  - ensure geometry overlay changes repaint immediately even while paused
+- Expected user-visible result:
+  - `Settings -> Diagnostics` once again contains `Show underlying geometry`
+  - turning it on should make perimeter-field debug geometry loops appear again
+  - turning it off should remove those loops without needing a full reload
