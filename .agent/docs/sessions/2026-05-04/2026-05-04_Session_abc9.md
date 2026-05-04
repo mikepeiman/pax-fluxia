@@ -38,3 +38,40 @@
   - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
   - `bun run build` passes in `pax-fluxia/`
   - `bun run check` remains blocked by pre-existing repo-wide type debt outside this sprint
+
+## Sprint 2 - main menu runtime and picker
+
+- Added a dedicated menu background runtime instead of extending the old CSS/image seam.
+- Implemented the three menu-capable primary modes:
+  - `nebula_veil`
+  - `banner_light`
+  - `shadow_mist`
+- Reworked the main-menu selection UI to advertise live modes first and keep `legacy_image` as compatibility fallback only.
+- Verification:
+  - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+  - `bun run build` passes in `pax-fluxia/`
+
+## Sprint 3 - gameplay presenter on clean territory runtimes
+
+- Added `GameAmbientBackgroundPresenter` and a shared gameplay palette helper under `pax-fluxia/src/lib/backgrounds/runtime/`.
+- Wired the gameplay presenter into `GameCanvas.svelte` so it consumes already-computed territory geometry instead of owning a second truth path.
+- Extended `GameCanvasTerritoryBridge.ts` to expose the latest canonical geometry snapshot to the gameplay background presenter.
+- Fixed the settings/config synchronization path so live background selections are preserved instead of being flattened back to `legacy_image`.
+- Reworked the gameplay visuals UI to expose the first live gameplay mode cards and shared tunables while keeping legacy image selection available.
+- Sprint 3 live gameplay modes:
+  - `nebula_veil`
+  - `banner_light`
+  - `shadow_mist`
+  - `starlit_dust`
+- Sprint 3 clean runtime coverage:
+  - `territory_engine`
+  - `power_voronoi_canonical`
+  - clean `territory_canonical`
+  - `metaball_grid`
+  - `metaball_grid_phase_edges`
+  - `metaball_grid_ember_lattice`
+  - `metaball_grid_phase_field`
+- Verification:
+  - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+  - `bun run build` passes in `pax-fluxia/`
+  - `bun run check` still reports large amounts of pre-existing repo-wide type debt outside this feature lane

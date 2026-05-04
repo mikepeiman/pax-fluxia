@@ -2,7 +2,11 @@
     import { onMount, onDestroy } from "svelte";
     import { get } from "svelte/store";
     import * as PIXI from "pixi.js";
-    import { readBackgroundChangeDetail } from "$lib/backgrounds";
+    import {
+        buildLegacyImageSelection,
+        readBackgroundChangeDetail,
+    } from "$lib/backgrounds";
+    import { GameAmbientBackgroundPresenter } from "$lib/backgrounds/runtime/GameAmbientBackgroundPresenter";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
@@ -2631,6 +2635,10 @@
     let canonicalController: TerritoryEngineController | null = null;
     let canonicalControllerTransitionDurationMs: number | null = null;
     let canonicalRenderer: TerritoryRenderer | null = null;
+    let gameplayBackgroundPresenter: GameAmbientBackgroundPresenter | null = null;
+    let currentGameBackgroundSelection = buildLegacyImageSelection(
+        GAME_CONFIG.BG_IMAGE_URL,
+    );
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
@@ -3570,9 +3578,21 @@
         shipParticleContainer = containers.shipParticleContainer;
         orbGraphics = containers.orbGraphics;
 
-        // L5: Faint nebula background — uses same image as main menu
-        // Respect "no background" choice: if BG_IMAGE_URL is empty, skip loading
-        const bgImagePath = normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL);
+        const initialBackgroundDetail = readBackgroundChangeDetail(
+            (
+                window as typeof window & {
+                    __paxLastBackgroundChangeDetail?: unknown;
+                }
+            ).__paxLastBackgroundChangeDetail,
+            "game",
+            GAME_CONFIG.BG_IMAGE_URL,
+        );
+        currentGameBackgroundSelection = initialBackgroundDetail.selection;
+
+        // L5: Faint nebula background — keep the legacy image sprite for
+        // compatibility while live regional backgrounds render in their own
+        // world-space presenter layer beneath the territory surface.
+        const bgImagePath = normalizeBgImagePath(initialBackgroundDetail.legacyImage);
         if (bgImagePath !== GAME_CONFIG.BG_IMAGE_URL) {
             GAME_CONFIG.BG_IMAGE_URL = bgImagePath;
         }
@@ -3581,8 +3601,15 @@
         bgSprite.alpha = GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5;
         app.stage.addChildAt(bgSprite, 0); // Bottom-most layer
         (app as any)._nebulaBgSprite = bgSprite;
+        gameplayBackgroundPresenter = new GameAmbientBackgroundPresenter(
+            app.stage,
+            (ownerId) => colorUtils.getPlayerColor(ownerId),
+        );
 
-        if (bgImagePath) {
+        if (
+            currentGameBackgroundSelection.modeId === "legacy_image" &&
+            bgImagePath
+        ) {
             try {
                 const bgTexture = await PIXI.Assets.load(
                     `/assets/${bgImagePath}`,
@@ -3609,7 +3636,12 @@
                 | PIXI.Sprite
                 | undefined;
             if (!sprite) return;
+            currentGameBackgroundSelection = detail.selection;
             (app as any)._backgroundSelection = detail.selection;
+            if (detail.selection.modeId !== "legacy_image") {
+                sprite.visible = false;
+                return;
+            }
             if (!img) {
                 sprite.visible = false;
                 return;
@@ -3715,6 +3747,8 @@
         interactionOverlayCtx = null;
         interactionOverlayCanvas = null;
         lastInteractionOverlayRenderKey = null;
+        gameplayBackgroundPresenter?.reset();
+        gameplayBackgroundPresenter = null;
 
         if (app) {
             app.destroy(true, { children: true });
@@ -5402,6 +5436,8 @@
                     | null = null;
                 const transitionDiagnosticCaptureEnabled =
                     transitionSnapshotRecorder.isEnabled();
+                let gameplayBackgroundGeometry: CanonicalGeometrySnapshot | null =
+                    null;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {
@@ -5498,6 +5534,9 @@
                             renderer: app?.renderer ?? undefined,
                             gameNowMs: fxOrchestrator.gameTime,
                         });
+                        gameplayBackgroundGeometry = localizePresentationGeometry(
+                            readFamilyGeometry(),
+                        );
                         break;
                     case "vs_pvv3": {
                         const activeTransition = activeRenderFamilyTransition;
@@ -5712,6 +5751,9 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        const localizedGeometry =
+                            localizePresentationGeometry(geometry);
+                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -5735,8 +5777,7 @@
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
+                                    geometry: localizedGeometry,
                                     prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
                                     ),
@@ -5794,6 +5835,9 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        const localizedGeometry =
+                            localizePresentationGeometry(geometry);
+                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -5817,8 +5861,7 @@
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
+                                    geometry: localizedGeometry,
                                     prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
                                     ),
@@ -5880,6 +5923,9 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        const localizedGeometry =
+                            localizePresentationGeometry(geometry);
+                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -5903,8 +5949,7 @@
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
+                                    geometry: localizedGeometry,
                                     prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
                                     ),
@@ -5964,6 +6009,9 @@
                                 ),
                         );
                         const geometry = readFamilyGeometry();
+                        const localizedGeometry =
+                            localizePresentationGeometry(geometry);
+                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             getTransitionDiagnosticPrevFrame({
                                 activeMode,
@@ -5985,8 +6033,7 @@
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
+                                    geometry: localizedGeometry,
                                     prevGeometry: localizePresentationGeometry(
                                         diagnosticPrevFrame?.geometry ?? null,
                                     ),
@@ -6178,6 +6225,8 @@
                             ),
                         );
                         canonicalBridge?.consumeVFXCommands();
+                        gameplayBackgroundGeometry =
+                            canonicalBridge?.getCurrentGeometry() ?? null;
                         break;
                     }
                     case "territory_canonical": {
@@ -6217,6 +6266,8 @@
                                         ),
                                     );
                                     canonicalBridge.consumeVFXCommands();
+                                    gameplayBackgroundGeometry =
+                                        canonicalBridge.getCurrentGeometry();
                                     renderedByCanonicalBridge = true;
                                 } catch (error) {
                                     if (!canonicalBridgeFallbackLogged) {
@@ -6337,6 +6388,23 @@
                     }
                     // 'none' or unrecognized — no territory rendering
                 }
+                    if (gameplayBackgroundPresenter) {
+                        if (gameplayBackgroundGeometry) {
+                            gameplayBackgroundPresenter.present({
+                                selection: currentGameBackgroundSelection,
+                                geometry: gameplayBackgroundGeometry,
+                                nowMs: fxOrchestrator.gameTime,
+                                paused: isPausedNow,
+                                opacity: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35,
+                                originX: territoryPresentationFrame.minX,
+                                originY: territoryPresentationFrame.minY,
+                                worldWidth: territoryPresentationWorldWidth,
+                                worldHeight: territoryPresentationWorldHeight,
+                            });
+                        } else {
+                            gameplayBackgroundPresenter.clear();
+                        }
+                    }
                     if (activeModeNeedsGeometry && !geometryReady) {
                         lastRenderFailure =
                             `${activeMode} requires canonical geometry, but none was supplied`;

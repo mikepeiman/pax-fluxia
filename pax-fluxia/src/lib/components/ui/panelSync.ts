@@ -41,6 +41,7 @@ const SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER = 0;
 const LEGACY_TERRITORY_TRANSITION_MS = 400;
 const TERRITORY_TRANSITION_POLICY_VERSION = 1;
 const TERRITORY_MODE_SPLIT_POLICY_VERSION = 1;
+let lastBackgroundDispatchKey = '';
 
 function resolveStoredTickInterval(stored: Record<string, any>): number {
     if (
@@ -200,15 +201,21 @@ export function applyVisuals(vis: VisualSettings): void {
         vis.bgImage,
     );
     const bgPath = detail.legacyImage;
-    // Live-update background image if it changes
-    if (GAME_CONFIG.BG_IMAGE_URL !== bgPath) {
-        GAME_CONFIG.BG_IMAGE_URL = bgPath;
-        if (typeof window !== 'undefined') {
+    const dispatchKey = JSON.stringify(detail);
+    const shouldDispatch =
+        GAME_CONFIG.BG_IMAGE_URL !== bgPath ||
+        dispatchKey !== lastBackgroundDispatchKey;
+    GAME_CONFIG.BG_IMAGE_URL = bgPath;
+    if (typeof window !== 'undefined') {
+        (window as typeof window & { __paxLastBackgroundChangeDetail?: unknown })
+            .__paxLastBackgroundChangeDetail = detail;
+        if (shouldDispatch) {
             window.dispatchEvent(
                 new CustomEvent('pax-bg-change', { detail }),
             );
         }
     }
+    lastBackgroundDispatchKey = dispatchKey;
 }
 
 // ── Panel Settings Persistence ──────────────────────────────────────────────

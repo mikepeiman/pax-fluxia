@@ -1011,7 +1011,7 @@
                 selection={menuBackgroundSelection}
                 legacyImage={bgImage}
                 legacyImages={BG_IMAGES}
-                {menuBackgroundModes}
+                backgroundModes={menuBackgroundModes}
                 {menuTheme}
                 muted={audioManager.muted}
                 masterVolume={audioManager.masterVolume}

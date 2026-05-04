@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** documentation plus Sprint 1 data-model/persistence landing; runtime presenters still in progress
+**Current state:** Sprint 1 through Sprint 3 are now landed in this worktree; menu runtime is live, and gameplay runtime exists on the clean territory paths with the first four gameplay modes
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -41,6 +41,49 @@ Implemented Sprint 1 of the background-mode system:
   - `pax-fluxia/src/lib/stores/themeStore.svelte.ts`
   - `pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte`
   - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+
+Implemented Sprint 2 of the background-mode system:
+
+- added the shared menu runtime:
+  - `pax-fluxia/src/lib/backgrounds/runtime/menuPalette.ts`
+  - `pax-fluxia/src/lib/backgrounds/runtime/renderMenuBackground.ts`
+  - `pax-fluxia/src/lib/components/ui/main-menu/MenuBackgroundCanvas.svelte`
+- upgraded the main-menu selection surface:
+  - `pax-fluxia/src/lib/components/ui/main-menu/BackgroundSelectModal.svelte`
+  - `pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte`
+  - `pax-fluxia/src/lib/components/ui/main-menu/MenuUtilityTopbar.svelte`
+- menu now supports primary live-rendered modes:
+  - `nebula_veil`
+  - `banner_light`
+  - `shadow_mist`
+- `legacy_image` remains as a compatibility path, not the main advertised menu background model
+
+Implemented Sprint 3 of the background-mode system:
+
+- added the shared gameplay runtime:
+  - `pax-fluxia/src/lib/backgrounds/runtime/gamePalette.ts`
+  - `pax-fluxia/src/lib/backgrounds/runtime/GameAmbientBackgroundPresenter.ts`
+- upgraded gameplay integration seams:
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/territory/integration/GameCanvasTerritoryBridge.ts`
+- fixed background-selection sync so live mode selections survive config round-trips:
+  - `pax-fluxia/src/lib/components/ui/panelSync.ts`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+- upgraded the gameplay tuning surface:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
+- Sprint 3 gameplay runtime support is intentionally limited to clean territory paths:
+  - `territory_engine`
+  - `power_voronoi_canonical`
+  - clean `territory_canonical`
+  - `metaball_grid`
+  - `metaball_grid_phase_edges`
+  - `metaball_grid_ember_lattice`
+  - `metaball_grid_phase_field`
+- Sprint 3 gameplay modes now render:
+  - `nebula_veil`
+  - `banner_light`
+  - `shadow_mist`
+  - `starlit_dust`
 
 ## Objective locked in
 
@@ -130,25 +173,26 @@ Use `pax-fluxia/src/lib/backgrounds/` for:
 
 Do not reintroduce ad hoc string mode ids elsewhere.
 
-### 2. Add the shared menu runtime next
+### 2. Extend the gameplay presenter to the remaining primary modes
 
-- `Nebula Veil`
-- `Banner Light`
-- `Shadow Mist`
+Next implementation target after Sprint 3:
 
-This should consume `BackgroundSelection`, not legacy image strings.
+- `leyline_flow`
+- `ember_kingdom`
+- `frost_veins`
+- `storm_current`
 
-### 3. Then add the gameplay presenter with the same selection contract
+Keep them as compositions of shared layer ideas instead of one-off renderer branches.
 
-If `GameCanvas.svelte` must change, keep it to:
+### 3. Add mode-specific gameplay tuning controls
 
-- presenter construction
-- presenter update calls
-- lifecycle cleanup
+The new gameplay tuning surface exists. The next pass should expose:
 
-Do not bury mode/tunable policy there.
+- shared tunables for every primary live mode
+- mode-specific sliders with sane defaults
+- reset-to-default actions per mode
 
-### 4. Use clean territory paths first for region-aware gameplay modes
+### 4. Keep clean-territory-first support as the v1 contract
 
 The new capability matrix already encodes the intended v1 support:
 
@@ -212,9 +256,9 @@ Phase-1 priority should be:
 
 ## Open questions still unresolved
 
-- Which runtime path exposes the cleanest reusable owned-region mask for a shared ambient presenter.
-- Whether direct legacy renderers should get a phase-1 fallback or no support until later migration.
-- Where player-facing cosmetic selection belongs in the settings/theme model without premature UI churn.
+- Whether `distance_field` should receive a true shared-subset implementation or stay disabled until it can consume the shared input cleanly.
+- Whether `perimeter_field` should support only frontier-forward modes in v1 or stay entirely disabled until Sprint 5 hardening is finished.
+- Whether fresh gameplay installs should switch from `legacy_image` to a primary live mode default after the remaining four gameplay modes land.
 
 ## Merge / port guidance
 
@@ -226,4 +270,4 @@ When this work becomes code, port in this order:
 4. mode/tuning UI
 5. selective compatibility hardening
 
-Sprint 1 already landed step 1 cleanly. The next merge-sensitive files are `MainMenu.svelte`, `MenuUtilityTopbar.svelte`, `BackgroundSelectModal.svelte`, `GameSettingsPanel.svelte`, and `GameCanvas.svelte`.
+Sprint 1 through Sprint 3 now cover steps 1 through 4 in partial form. The next merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the new runtime files under `pax-fluxia/src/lib/backgrounds/runtime/`.

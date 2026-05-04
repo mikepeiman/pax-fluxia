@@ -9,6 +9,7 @@ import { TerritoryVFXBridge } from './TerritoryVFXBridge';
 import { ConquestParticles } from '../vfx/handlers/ConquestParticles';
 import { transitionSnapshotRecorder } from '../devtools/TransitionSnapshotRecorder';
 import { overlayConfig } from '../devtools/overlayConfig';
+import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
 
 type OwnerColorResolver = (ownerId: string) => number;
 
@@ -19,6 +20,7 @@ export class GameCanvasTerritoryBridge {
     private readonly vfxBridge: TerritoryVFXBridge;
     private previousTransition: TransitionSnapshot | null = null;
     private pendingVFXCommands: TerritoryVFXCommand[] = [];
+    private latestGeometry: CanonicalGeometrySnapshot | null = null;
 
     constructor(
         container: PIXI.Container,
@@ -47,8 +49,13 @@ export class GameCanvasTerritoryBridge {
         return overlayConfig;
     }
 
+    getCurrentGeometry(): CanonicalGeometrySnapshot | null {
+        return this.latestGeometry;
+    }
+
     update(input: TerritoryFrameInput): void {
         const output = this.runtime.update(input);
+        this.latestGeometry = output.geometry;
         this.presenter.present(output.presentation);
 
         // Live debug overlay — updates from topology + plan each frame
@@ -84,5 +91,6 @@ export class GameCanvasTerritoryBridge {
         this.presenter.reset();
         this.previousTransition = null;
         this.pendingVFXCommands = [];
+        this.latestGeometry = null;
     }
 }

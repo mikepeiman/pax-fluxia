@@ -21,6 +21,14 @@
   - migrate game visuals from raw `bgImage` persistence to `backgroundSelection` while preserving legacy image compatibility
   - migrate main-menu theme backgrounds from raw filename storage to per-theme `BackgroundSelection`
   - keep runtime rendering on the legacy image seam until menu/game presenters land
+- Sprint 2:
+  - replace main-menu background image selection with the shared mode picker
+  - add a dedicated menu runtime for `nebula_veil`, `banner_light`, and `shadow_mist`
+  - keep `legacy_image` as compatibility-only storage instead of the main product surface
+- Sprint 3:
+  - integrate a gameplay ambient presenter for the clean territory runtimes
+  - support the first gameplay-capable modes: `nebula_veil`, `banner_light`, `shadow_mist`, `starlit_dust`
+  - keep unsupported territory runtimes on explicit no-op behavior instead of mode-specific hacks
 
 ## Progress log
 
@@ -31,6 +39,36 @@
   - production build passes in `pax-fluxia/`
 - Validation note:
   - `bun run check` is currently red for large amounts of pre-existing repo debt unrelated to this sprint, so build + targeted helper tests are the reliable Sprint 1 gate here
+- Sprint 2 implemented:
+  - added `pax-fluxia/src/lib/backgrounds/runtime/{menuPalette,renderMenuBackground}.ts`
+  - added `pax-fluxia/src/lib/components/ui/main-menu/MenuBackgroundCanvas.svelte`
+  - upgraded `BackgroundSelectModal.svelte`, `MainMenu.svelte`, and `MenuUtilityTopbar.svelte` to expose primary background modes instead of image-only selection
+  - verification:
+    - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+    - `bun run build` passes in `pax-fluxia/`
+- Sprint 3 implemented:
+  - added `pax-fluxia/src/lib/backgrounds/runtime/{gamePalette,GameAmbientBackgroundPresenter}.ts`
+  - upgraded `GameCanvas.svelte` to drive the gameplay presenter from existing territory geometry instead of inventing a second ownership path
+  - upgraded `GameCanvasTerritoryBridge.ts` to expose the current canonical geometry snapshot to the shared presenter path
+  - fixed `panelSync.ts` and `GameSettingsPanel.svelte` so non-legacy selections survive config sync instead of collapsing back to `legacy_image`
+  - replaced the visuals panel's background-image-only control with gameplay mode cards, shared tunables, and retained legacy-image fallback
+  - Sprint 3 runtime support now covers:
+    - `territory_engine`
+    - `power_voronoi_canonical`
+    - clean `territory_canonical`
+    - `metaball_grid`
+    - `metaball_grid_phase_edges`
+    - `metaball_grid_ember_lattice`
+    - `metaball_grid_phase_field`
+  - Sprint 3 gameplay modes now render:
+    - `nebula_veil`
+    - `banner_light`
+    - `shadow_mist`
+    - `starlit_dust`
+  - verification:
+    - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+    - `bun run build` passes in `pax-fluxia/`
+    - `bun run check` still reports large amounts of pre-existing repo-wide type debt outside this feature lane
 
 ## Verification target
 

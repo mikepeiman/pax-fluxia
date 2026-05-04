@@ -1,4 +1,12 @@
 <script lang="ts">
+    import {
+        BACKGROUND_MODE_CATALOG,
+        buildLegacyImageSelection,
+        normalizeBackgroundSelection,
+        type BackgroundModeDefinition,
+        type BackgroundSelection,
+        type BackgroundTunableDef,
+    } from "$lib/backgrounds";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -22,6 +30,13 @@
     }: Props = $props();
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+
+    const initialGameplayModeIds = new Set([
+        "nebula_veil",
+        "banner_light",
+        "shadow_mist",
+        "starlit_dust",
+    ]);
 
     let lanePathUiMode = $derived(
         (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
@@ -52,10 +67,80 @@
 
     // ── Background Image Picker ──
     let bgImages = $state<string[]>(BG_IMAGES);
+    let gameplayBackgroundModes = $derived(
+        BACKGROUND_MODE_CATALOG.filter(
+            (definition) =>
+                definition.primary &&
+                definition.supportsGame &&
+                initialGameplayModeIds.has(definition.id),
+        ),
+    );
+    let currentBackgroundSelection = $derived(
+        normalizeBackgroundSelection(vis.backgroundSelection, {
+            surface: "game",
+            fallbackLegacyImage: vis.bgImage,
+        }),
+    );
+    let currentBackgroundDefinition = $derived(
+        gameplayBackgroundModes.find(
+            (definition) => definition.id === currentBackgroundSelection.modeId,
+        ) ?? null,
+    );
+    let sharedTunables = $derived(
+        currentBackgroundDefinition?.sharedTunables ?? [],
+    );
+
+    function modeSwatchStyle(modeId: string): string {
+        switch (modeId) {
+            case "nebula_veil":
+                return "background: radial-gradient(circle at 28% 30%, rgba(96, 194, 255, 0.9), transparent 44%), radial-gradient(circle at 72% 34%, rgba(169, 102, 255, 0.75), transparent 42%), linear-gradient(180deg, #061320, #13284a);";
+            case "banner_light":
+                return "background: linear-gradient(120deg, #07101d 0%, #102442 34%, #ffd67c 50%, #163056 68%, #08111e 100%);";
+            case "shadow_mist":
+                return "background: radial-gradient(circle at 52% 22%, rgba(132, 164, 255, 0.26), transparent 38%), linear-gradient(180deg, #060914, #13162a 45%, #05070d 100%);";
+            case "starlit_dust":
+                return "background: radial-gradient(circle at 24% 30%, rgba(255, 255, 255, 0.8) 0 2px, transparent 3px), radial-gradient(circle at 68% 44%, rgba(144, 224, 255, 0.86) 0 2px, transparent 3px), linear-gradient(180deg, #071525, #0f2540);";
+            default:
+                return "background: linear-gradient(180deg, #0b1120, #111827);";
+        }
+    }
 
     // Background change uses updateVisual to sync immediately
+    function setBackgroundSelection(selection: BackgroundSelection) {
+        updateVisual(
+            "backgroundSelection",
+            normalizeBackgroundSelection(selection, {
+                surface: "game",
+                fallbackLegacyImage: vis.bgImage,
+            }),
+        );
+    }
+
+    function selectBackgroundMode(mode: BackgroundModeDefinition) {
+        setBackgroundSelection({
+            modeId: mode.id,
+            tunables:
+                currentBackgroundSelection.modeId === mode.id
+                    ? currentBackgroundSelection.tunables
+                    : {},
+        });
+    }
+
     function changeBg(img: string) {
-        updateVisual("bgImage", img);
+        setBackgroundSelection(buildLegacyImageSelection(img));
+    }
+
+    function updateBackgroundTunable(
+        tunable: BackgroundTunableDef,
+        value: number,
+    ) {
+        setBackgroundSelection({
+            ...currentBackgroundSelection,
+            tunables: {
+                ...currentBackgroundSelection.tunables,
+                [tunable.key]: value,
+            },
+        });
     }
 </script>
 
@@ -63,21 +148,92 @@
 
 <section data-subsection-id="background">
     <h4 class="sub-heading">Background</h4>
+    <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
+        Regional ambient backgrounds now have live gameplay modes. This first
+        pass wires the clean territory paths and keeps the legacy image set as a
+        compatibility fallback.
+    </p>
     <div class="var-row">
         <div class="row-top">
             <span
                 class="var-name"
                 data-setting-config-key="BG_IMAGE_URL"
-                data-setting-description="Background image asset path displayed behind the battlefield."
-                >Background Asset</span
+                data-setting-description="Background selection for gameplay, including live regional ambience or the legacy static image path."
+                >Background Mode</span
             >
+            <span class="val"
+                >{currentBackgroundDefinition?.label ??
+                    (currentBackgroundSelection.modeId === "legacy_image"
+                        ? "Legacy Image"
+                        : currentBackgroundSelection.modeId)}</span
+            >
+        </div>
+    </div>
+    <div class="background-mode-grid">
+        {#each gameplayBackgroundModes as mode}
+            <button
+                type="button"
+                class="background-mode-card"
+                class:active={currentBackgroundSelection.modeId === mode.id}
+                onclick={() => selectBackgroundMode(mode)}
+                title={mode.description}
+            >
+                <span
+                    class="background-mode-card__swatch"
+                    style={modeSwatchStyle(mode.id)}
+                ></span>
+                <span class="background-mode-card__title">{mode.label}</span>
+                <span class="background-mode-card__copy">{mode.description}</span>
+            </button>
+        {/each}
+    </div>
+    {#if currentBackgroundDefinition}
+        <div class="background-tuning-panel">
+            <div class="row-top">
+                <span class="var-name">Live Tuning</span>
+                <span class="val">Shared</span>
+            </div>
+            {#each sharedTunables as tunable}
+                <div class="var-row">
+                    <div class="row-top">
+                        <span class="var-name">{tunable.label}</span>
+                        <span class="val"
+                            >{(
+                                currentBackgroundSelection.tunables[tunable.key] ??
+                                tunable.defaultValue
+                            ).toFixed(tunable.step < 1 ? 2 : 0)}</span
+                        >
+                    </div>
+                    <input
+                        type="range"
+                        min={tunable.min}
+                        max={tunable.max}
+                        step={tunable.step}
+                        value={currentBackgroundSelection.tunables[tunable.key] ??
+                            tunable.defaultValue}
+                        oninput={(e) =>
+                            updateBackgroundTunable(
+                                tunable,
+                                parseFloat(
+                                    (e.target as HTMLInputElement).value,
+                                ),
+                            )}
+                    />
+                </div>
+            {/each}
+        </div>
+    {/if}
+    <div class="var-row">
+        <div class="row-top">
+            <span class="var-name">Legacy Image Fallback</span>
             <span class="val">{vis.bgImage || "none"}</span>
         </div>
     </div>
     <div class="bg-grid">
         <button
             class="bg-thumb"
-            class:active={!vis.bgImage}
+            class:active={currentBackgroundSelection.modeId === "legacy_image" &&
+                !vis.bgImage}
             onclick={() => changeBg("")}
             title="No background"
         >
@@ -86,7 +242,8 @@
         {#each bgImages as img}
             <button
                 class="bg-thumb"
-                class:active={vis.bgImage === img}
+                class:active={currentBackgroundSelection.modeId === "legacy_image" &&
+                    vis.bgImage === img}
                 onclick={() => changeBg(img)}
                 title={img
                     .replace(/\.(png|jpe?g|webp|avif)$/i, "")
@@ -525,6 +682,67 @@
         flex-wrap: wrap;
         gap: 6px;
         margin-bottom: 8px;
+    }
+    .background-mode-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    .background-mode-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #d7e2f0;
+        cursor: pointer;
+        text-align: left;
+        transition:
+            border-color 0.15s,
+            transform 0.15s,
+            background 0.15s;
+    }
+    .background-mode-card:hover {
+        border-color: rgba(125, 211, 252, 0.4);
+        background: rgba(125, 211, 252, 0.08);
+        transform: translateY(-1px);
+    }
+    .background-mode-card.active {
+        border-color: rgba(74, 222, 128, 0.72);
+        background: rgba(74, 222, 128, 0.14);
+        box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.14);
+    }
+    .background-mode-card__swatch {
+        display: block;
+        width: 100%;
+        height: 72px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .background-mode-card__title {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #f8fafc;
+    }
+    .background-mode-card__copy {
+        font-size: 10px;
+        line-height: 1.45;
+        color: rgba(207, 220, 235, 0.82);
+    }
+    .background-tuning-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        background: rgba(11, 17, 32, 0.55);
     }
     .bg-thumb {
         width: 48px;

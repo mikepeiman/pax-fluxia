@@ -2,6 +2,7 @@
     import { onMount, tick } from "svelte";
     import {
         buildBackgroundChangeDetail,
+        extractLegacyBackgroundImage,
         buildLegacyImageSelection,
         normalizeBackgroundSelection,
     } from "$lib/backgrounds";
@@ -221,16 +222,27 @@
     function syncVisualsFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
+        const backgroundSelection = normalizeBackgroundSelection(
+            vis.backgroundSelection,
+            {
+                surface: "game",
+                fallbackLegacyImage: configSource.BG_IMAGE_URL,
+            },
+        );
         const nextVis = {
             ...vis,
             laneWidth: configSource.CONNECTION_WIDTH,
             laneAlpha: configSource.CONNECTION_ALPHA,
             shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
             shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
-            bgImage: configSource.BG_IMAGE_URL,
-            backgroundSelection: buildLegacyImageSelection(
+            bgImage: extractLegacyBackgroundImage(
+                backgroundSelection,
                 configSource.BG_IMAGE_URL,
             ),
+            backgroundSelection:
+                backgroundSelection.modeId === "legacy_image"
+                    ? buildLegacyImageSelection(configSource.BG_IMAGE_URL)
+                    : backgroundSelection,
         };
         vis = nextVis;
         saveVisuals(nextVis);
@@ -306,9 +318,13 @@
         }
         if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
             const detail = buildBackgroundChangeDetail(
-                buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
+                vis.backgroundSelection ??
+                    buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
                 "game",
+                GAME_CONFIG.BG_IMAGE_URL,
             );
+            (window as typeof window & { __paxLastBackgroundChangeDetail?: unknown })
+                .__paxLastBackgroundChangeDetail = detail;
             window.dispatchEvent(
                 new CustomEvent("pax-bg-change", {
                     detail,
