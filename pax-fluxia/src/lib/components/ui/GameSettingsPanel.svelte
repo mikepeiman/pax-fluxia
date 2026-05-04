@@ -861,9 +861,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 activeTerritoryRenderMode === "metaball_grid_ember_lattice"
             );
         }
-        if (section.id === "territory_styles") {
-            return activeTerritoryModeSectionId === null;
-        }
         return true;
     }
     let visibleSections = $derived(

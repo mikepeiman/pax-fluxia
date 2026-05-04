@@ -138,7 +138,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         icon: "FX",
         label: "Frontier FX",
         color: "#f97316",
-        tier: "advanced",
+        tier: "basic",
         scope: "territory",
     },
     {

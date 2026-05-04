@@ -5331,12 +5331,11 @@
                 territoryPresentationFrame.width;
             const territoryPresentationWorldHeight =
                 territoryPresentationFrame.height;
-            // The territory container is positioned at the viewport-aligned
-            // frame min. Every territory renderer must therefore consume
-            // presentation-local coordinates, not the stable map-space truth.
-            // Keep the family-input world origin at (0,0) as well; otherwise
-            // grid planners subtract the presentation-frame offset a second
-            // time and the entire territory surface shifts off the stars.
+            // Most branch-derived territory families in current master render in
+            // presentation-local space inside the viewport-aligned frame.
+            // Phase Field is the exception: its working branch still consumes the
+            // canonical map-space contract end-to-end, so adapt it separately in
+            // its own case rather than forcing it through this localized path.
             const territoryPresentationStars =
                 localizeTerritoryPresentationStars(
                     stars,
@@ -5644,8 +5643,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5722,8 +5721,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5804,8 +5803,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5890,8 +5889,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
@@ -5941,6 +5940,8 @@
                         break;
                     }
                     case "metaball_grid_phase_field": {
+                        activeVoronoiContainer.x = 0;
+                        activeVoronoiContainer.y = 0;
                         let fam = getRenderFamily("metaball_grid_phase_field");
                         if (!fam) {
                             registerRenderFamily(
@@ -5954,7 +5955,7 @@
                             "game.renderFrame.ownership.metaball_grid_phase_field",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    territoryPresentationStars,
+                                    stars,
                                     activeTransition,
                                 ),
                         );
@@ -5970,21 +5971,17 @@
                             "game.renderFrame.renderFamilyInput.metaball_grid_phase_field",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars: territoryPresentationStars,
+                                    stars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
-                                    prevGeometry: localizePresentationGeometry(
+                                    geometry,
+                                    prevGeometry:
                                         diagnosticPrevFrame?.geometry ?? null,
-                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
@@ -6058,8 +6055,8 @@
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
                                     lanes,
-                                    worldMinX: 0,
-                                    worldMinY: 0,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
                                     worldWidth: territoryPresentationWorldWidth,
                                     worldHeight: territoryPresentationWorldHeight,
                                     nowMs: fxOrchestrator.gameTime,
