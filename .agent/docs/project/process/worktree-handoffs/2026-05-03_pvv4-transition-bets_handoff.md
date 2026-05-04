@@ -271,6 +271,19 @@
   - `bun run check` reports a large set of pre-existing repo type issues unrelated to this bet
   - no reported validation error from `TransitionLayerCoordinator.ts` itself was surfaced by these runs
 
+### 2026-05-03 - Created and pushed the Approach A bet 1 checkpoint
+
+- Action:
+  - committed:
+    - `6ec515423` - `Ease PVV4 active-front sampling`
+  - pushed the branch after the commit
+- Purpose:
+  - isolate the first real PVV4 motion bet as its own remote checkpoint before any second transition idea is attempted
+- Result:
+  - the branch now contains a dedicated timing-profile experiment commit on top of the runtime-compatibility shim
+- Validation:
+  - push completed successfully
+
 ## Current Files Most Likely To Matter
 
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
