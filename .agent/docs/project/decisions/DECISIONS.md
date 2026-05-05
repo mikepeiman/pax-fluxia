@@ -598,6 +598,58 @@ Adopt 4-layer model:
 
 ---
 
+# Decision: Region Identity Must Not Derive From Centroid
+
+**Date:** 2026-05-05
+**Status:** Active
+**Ref:** D-TERR-REGION-ID-2026-05-05
+
+## Context
+
+The current vector geometry compiler still creates region IDs from a quantized polygon centroid:
+
+- `region:${ownerId}:${Math.round(cx)},${Math.round(cy)}`
+- file:
+  - `src/lib/territory/layers/geometry/compiler_UnifiedVectorGeometry.ts`
+
+This had already been ruled out in prior design direction, and the current architecture dialogue re-surfaced why it is fundamentally invalid.
+
+## Decision
+
+A centroid cannot be the region ID.
+
+Region identity must not be derived from a single geometry-shape coordinate or any equivalent boundary-shape heuristic that guarantees churn under ordinary conquest changes.
+
+Region identity must instead come from gameplay/connectivity continuity, such as:
+
+- owner identity
+- connected star-component membership
+- previous-to-next continuity matching based on membership overlap and structural adjacency
+
+## Rationale
+
+- Identity must answer continuity:
+  - “is this the same owned region across frames?”
+- A centroid is a function of the whole boundary:
+  - any local border motion, split, merge, or capture can move it
+- Therefore centroid-derived identity changes precisely when transition continuity matters most
+- That guarantees failure modes in:
+  - region continuity
+  - loop/region matching
+  - collapse planning
+  - diagnostics readability
+
+## Consequences
+
+1. The centroid-based ID scheme in the vector geometry compiler must be removed or superseded.
+2. Downstream continuity logic should stop assuming that a centroid-stable blob is a meaningful semantic identity.
+3. Diagnostics and export artifacts should distinguish:
+   - semantic IDs
+   - geometric coordinates
+4. This decision also increases pressure to remove coordinate-composite topology IDs where a separate semantic identity can exist.
+
+---
+
 # Decision: Territory Engine → TerritoryOrchestrator
 
 **Date:** 2026-03-19

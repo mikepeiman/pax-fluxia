@@ -1435,3 +1435,65 @@
     - make one diagnostic package fully explain one conquest with no ambiguity
 - Immediate next branch step:
   - execute Stage 0 and Stage 1 of the recovery plan before touching transition behavior again
+
+## Update: 2026-05-05 - Document Architecture Dialogue, Define Terms Precisely, And Record Region-ID Failure
+
+- Trigger:
+  - user shifted from transition tweaking to architecture and data-shape interrogation
+  - user required:
+    - lossless session documentation of the dialogue per `AGENT.md`
+    - a distinct document for decisions, definitions, challenged concepts, and corrections
+  - user then singled out one newly re-surfaced root problem:
+    - live vector region IDs are still centroid-derived
+    - user stated this had already been ruled out decisively weeks ago
+- What was done:
+  - created dated session docs:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
+  - created today’s queue:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+  - created tracked decisions/definitions artifact:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\2026-05-05_ARCHITECTURE_DECISIONS_AND_DEFINITIONS.md`
+  - updated the long-lived decision record:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
+- Exact code-trace findings recorded in those docs:
+  - vector geometry region IDs still come from centroid rounding:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\geometry\compiler_UnifiedVectorGeometry.ts`
+  - geometry/topology versions still carry stale `pvv2:` fingerprint residue:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\geometry\planners\GeometryFingerprint.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\buildFrontierTopology.ts`
+  - recorder/export stack begins after raw frame-input normalization:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+- Why this was done:
+  - preserve the architecture dialogue durably instead of letting it live only in thread context
+  - convert the discussion into reusable branch memory
+  - record the centroid-ID problem as a first-class architectural failure, not a casual observation
+- Purpose for branch goal:
+  - future PVV4 transition work cannot be trusted if region identity is coupled to centroid drift
+  - future diagnostics work cannot be fully trusted while raw frame input and semantic identity are missing from exports
+  - this checkpoint stabilizes memory and definitions before further transition work
+- What was learned or changed:
+  - the live system still violates prior region-identity direction by using centroid-based IDs
+  - the `pvv2:` residue is naming/fingerprint drift, not proof that the legacy PVV2 runtime is executing
+  - `bundle` vs `package`, `anchorKey` vs `change anchors`, and the exact meaning of active-front diagnostics are now explicitly defined in durable docs
+- Validation:
+  - documentation-only checkpoint
+  - validation method:
+    - direct code trace against the active worktree
+    - confirmation against the exported `19-07-58---665` diagnostic files
+  - not yet validated:
+    - code removal of centroid-derived region IDs
+    - removal of stale `pvv2:` version residue
+    - recorder/export expansion to include raw frame input
+- Next steps:
+  1. remove centroid-derived region identity from the vector geometry compiler
+  2. replace stale `pvv2:` fingerprint/version prefixes
+  3. upgrade exported diagnostics to include:
+     - raw frame input
+     - full ownership snapshots
+     - full transition snapshot
+     - compact exports as secondary, not primary, truth
