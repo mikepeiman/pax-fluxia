@@ -140,3 +140,5 @@
 49. Freeze-on-unclassified is the correct diagnostics behavior for this workstream: stop the game on the first classification defect, surface the offending sections, and preserve the truth export at that exact moment.
 50. For a clean `1:1` frontier change, the right sampling unit is not the whole section. The correct behavior is to patch only the local moving interval inside that section and leave the unchanged tails fixed.
 51. `borderFrame` cannot stay empty if PVV4 is supposed to be a trustworthy transition mode. The moving-border output has to come from the same sampled frontier geometry as the fill reconstruction.
+52. Bounded split fronts should not be treated as automatic defects when they already live inside one stable-anchor pair and the runtime has a concrete split interpolation path.
+53. The correct next split milestone was to stop misclassifying locally bounded `1:2` and `2:1` pairs as unsupported by definition, before attempting more advanced branch-aware change-anchor logic.

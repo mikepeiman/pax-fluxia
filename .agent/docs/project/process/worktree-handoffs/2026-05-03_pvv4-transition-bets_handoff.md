@@ -2102,3 +2102,20 @@
   - passed:
     - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/snapshotExport.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
     - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Bounded Split Front Support
+
+- Trigger:
+  - bounded `1:2` and `2:1` fronts were still being auto-labeled as split defects even though the runtime already had a concrete split interpolation path
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - `1:2` and `2:1` fronts bounded by the same stable anchor pair now activate their next-side sections instead of being auto-marked as unsupported split defects
+  - those sections are driven by the existing split interpolation path
+- Merge note:
+  - this is the bounded first step for split support
+  - later merge work still needs richer branch-aware change-anchor logic for more complex split topologies
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

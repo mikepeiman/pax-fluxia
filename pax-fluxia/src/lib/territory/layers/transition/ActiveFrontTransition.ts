@@ -884,6 +884,21 @@ function buildSectionSpans(
     const activeSectionIds = new Set<string>();
     const defectSectionIds = new Set<string>();
     const sectionReversed = new Map<string, boolean>();
+    const markWholeNextPathActive = (): void => {
+        for (const path of nextPaths) {
+            for (const [sectionId, span] of path.sectionSpans) {
+                activeSectionIds.add(sectionId);
+                const existing = sectionSpans.get(sectionId);
+                if (existing) {
+                    sectionSpans.set(sectionId, {
+                        ...existing,
+                        activeStartIndex: span.startIndex,
+                        activeEndIndex: span.endIndex,
+                    });
+                }
+            }
+        }
+    };
 
     for (let pathIndex = 0; pathIndex < nextPaths.length; pathIndex += 1) {
         const path = nextPaths[pathIndex];
@@ -900,12 +915,8 @@ function buildSectionSpans(
         }
     }
 
-    if (splitMode !== 'none') {
-        for (const path of nextPaths) {
-            for (const sectionId of path.sectionIds) {
-                defectSectionIds.add(sectionId);
-            }
-        }
+    if (splitMode === '1to2' || splitMode === '2to1') {
+        markWholeNextPathActive();
         return { sectionSpans, activeSectionIds, defectSectionIds, sectionReversed };
     }
 

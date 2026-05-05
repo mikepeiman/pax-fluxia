@@ -552,6 +552,7 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
   - shared section-influence attribution
   - freeze-on-unclassified diagnostics trap
   - first bounded `1:1` active-front sampler rewrite with truthful `borderFrame`
+  - bounded `1:2` / `2:1` split-front support on the active PVV4 path
 - Current remaining major work:
-  - explicit `1:2` / `2:1` split planning around stable anchors and change anchors
   - field-family migration onto the same truth pipeline
+  - performance hardening

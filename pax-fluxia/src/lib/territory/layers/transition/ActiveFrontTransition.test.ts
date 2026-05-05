@@ -228,6 +228,87 @@ function makeSingleSectionTopology(
     };
 }
 
+function makeParallelSplitTopology(params: {
+    version: string;
+    ownerA: string;
+    ownerB: string;
+    branchPoints: Vec2[][];
+    identityPrefix?: string;
+}): FrontierTopology {
+    const identityPrefix = params.identityPrefix ?? params.version;
+    const startVertexId = `${identityPrefix}:start`;
+    const endVertexId = `${identityPrefix}:end`;
+    const firstBranch = params.branchPoints[0] ?? [];
+    const vertices = new Map<string, FrontierVertex>([
+        [
+            startVertexId,
+            {
+                id: startVertexId,
+                kind: 'world_intersection',
+                point: firstBranch[0] ?? [0, 0],
+                incidentSectionIds: params.branchPoints.map((_, index) => `${identityPrefix}:section:${index}`),
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+        [
+            endVertexId,
+            {
+                id: endVertexId,
+                kind: 'world_intersection',
+                point: firstBranch[firstBranch.length - 1] ?? [100, 0],
+                incidentSectionIds: params.branchPoints.map((_, index) => `${identityPrefix}:section:${index}`),
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+    ]);
+    const sections = new Map<string, FrontierSection>();
+    const sectionIds: string[] = [];
+
+    params.branchPoints.forEach((points, index) => {
+        const sectionId = `${identityPrefix}:section:${index}`;
+        sectionIds.push(sectionId);
+        sections.set(sectionId, {
+            id: sectionId,
+            kind: 'owner_border',
+            startVertexId,
+            endVertexId,
+            leftOwnerId: params.ownerA,
+            rightOwnerId: params.ownerB,
+            points,
+            length: 100,
+            ownerPairKey: `${params.ownerA}|${params.ownerB}`,
+            leftInfluence: {
+                ownerId: params.ownerA,
+                primaryStarId: `${params.ownerA}:star`,
+                primaryScore: 1,
+            },
+            rightInfluence: {
+                ownerId: params.ownerB,
+                primaryStarId: `${params.ownerB}:star`,
+                primaryScore: 1,
+            },
+        });
+    });
+
+    return {
+        version: params.version,
+        ownershipVersion: `ownership:${params.version}`,
+        worldBounds: { width: 200, height: 200 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${params.ownerA}|${params.ownerB}`, sectionIds]]),
+        sectionsByVertex: new Map([
+            [startVertexId, [...sectionIds]],
+            [endVertexId, [...sectionIds]],
+        ]),
+        sectionsByOwner: new Map([
+            [params.ownerA, [...sectionIds]],
+            [params.ownerB, [...sectionIds]],
+        ]),
+    };
+}
+
 function makeVirtualStar(
     id: string,
     starId: string,
@@ -348,5 +429,116 @@ describe('ActiveFrontTransition', () => {
         expect(sampled?.[4]).toEqual([80, 0]);
         expect(sampled?.[5]).toEqual([100, 0]);
         expect(sampled?.[3]?.[1]).toBeCloseTo(0, 6);
+    });
+
+    it('supports bounded 1to2 split fronts without classification defects', () => {
+        const prev = makeSingleSectionTopology(
+            'prev',
+            'red',
+            'blue',
+            [
+                [0, 0],
+                [25, 0],
+                [50, 0],
+                [75, 0],
+                [100, 0],
+            ],
+            'stable',
+        );
+        const next = makeParallelSplitTopology({
+            version: 'next',
+            ownerA: 'red',
+            ownerB: 'blue',
+            identityPrefix: 'stable',
+            branchPoints: [
+                [
+                    [0, 0],
+                    [25, -10],
+                    [50, -18],
+                    [75, -10],
+                    [100, 0],
+                ],
+                [
+                    [0, 0],
+                    [25, 10],
+                    [50, 18],
+                    [75, 10],
+                    [100, 0],
+                ],
+            ],
+        });
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership);
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        expect(plan.diagnostics.summary.hasClassificationDefect).toBe(false);
+        expect(plan.diagnostics.summary.defectUnsupportedSplitCount).toBe(0);
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.fronts[0]?.splitMode).toBe('1to2');
+        expect([...plan.fronts[0]!.activeSectionIds].sort()).toEqual([
+            'stable:section:0',
+            'stable:section:1',
+        ]);
+    });
+
+    it('supports bounded 2to1 merge fronts without classification defects', () => {
+        const prev = makeParallelSplitTopology({
+            version: 'prev',
+            ownerA: 'red',
+            ownerB: 'blue',
+            identityPrefix: 'stable',
+            branchPoints: [
+                [
+                    [0, 0],
+                    [25, -10],
+                    [50, -18],
+                    [75, -10],
+                    [100, 0],
+                ],
+                [
+                    [0, 0],
+                    [25, 10],
+                    [50, 18],
+                    [75, 10],
+                    [100, 0],
+                ],
+            ],
+        });
+        const next = makeSingleSectionTopology(
+            'next',
+            'red',
+            'blue',
+            [
+                [0, 0],
+                [25, 0],
+                [50, 0],
+                [75, 0],
+                [100, 0],
+            ],
+            'stable',
+        );
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership);
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        expect(plan.diagnostics.summary.hasClassificationDefect).toBe(false);
+        expect(plan.diagnostics.summary.defectUnsupportedSplitCount).toBe(0);
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.fronts[0]?.splitMode).toBe('2to1');
+        expect([...plan.fronts[0]!.activeSectionIds]).toEqual(['stable:section']);
     });
 });

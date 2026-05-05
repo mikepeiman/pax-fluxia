@@ -373,3 +373,20 @@
 - Remaining major work after this checkpoint:
   - explicit `1:2` / `2:1` split planning instead of defect classification
   - shared truth migration for field families so `GameCanvas` no longer manufactures thin ownership/transition state
+
+## Latest Implementation Checkpoint 9
+
+- Completed bounded split-front support on the active PVV4 path:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - `1:2` and `2:1` fronts bounded by the same stable anchor pair are no longer auto-classified as split defects
+  - those next-side split sections are activated directly and driven by the existing split interpolation path
+- Result:
+  - locally bounded split fronts can animate on PVV4 instead of freezing as unsupported by definition
+  - remaining major work is now:
+    - shared truth migration for field families
+    - performance hardening
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `pax-fluxia/`
