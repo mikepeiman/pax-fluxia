@@ -1614,3 +1614,44 @@
 - Validation:
   - documentation + code-trace only
   - no runtime code changed in this update
+
+## Update: 2026-05-05 - Review Recovery Plan And Clarify Hidden Decisions In v3
+
+- Trigger:
+  - user asked for an explicit review of the written plan to improve or clarify anything still weak
+- Review conclusion:
+  - `v2` was directionally correct but still left several implementer decisions implicit:
+    - when transition behavior work may begin
+    - exact definition of a foundational section
+    - exact first rule for conquest-local eligible frontier selection
+    - exact shared-truth representation of DX zones
+- Documentation changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+      - appended the user's plan-review request losslessly
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+      - recorded the remaining ambiguity found in `v2`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+      - recorded the need for stronger casebook gating and more explicit shared-truth definitions
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v3.md`
+      - created as a clarified replacement plan
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+      - updated to point at `v3`
+- What improved in `v3`:
+  - added a locked conquest casebook stage before any runtime transition behavior changes
+  - defined `foundational section` precisely as the maximal border chain between structural vertices
+  - defined the first deterministic `eligible frontier envelope` rule for one conquest
+  - defined DX shared truth as a descriptor:
+    - midpoint
+    - tangent / normal axes
+    - depth
+    - half-width
+    - source star pair
+  - moved section influence attribution into its own explicit sprint ahead of PV transition rebuild
+  - made the no-motion-before-casebook rule explicit
+- Purpose:
+  - reduce the number of hidden decisions an implementer would otherwise have to improvise
+  - make the recovery plan genuinely handoff-safe
+- Validation:
+  - documentation-only checkpoint
+  - no runtime code changed in this update

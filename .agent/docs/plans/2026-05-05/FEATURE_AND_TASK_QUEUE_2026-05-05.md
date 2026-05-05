@@ -25,6 +25,8 @@
   - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v1.md`
 - Created revised versioned plan doc:
   - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v2.md`
+- Created clarified versioned plan doc:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v3.md`
 - Session docs are now intended to be tracked directly in `.agent/docs/sessions/`.
 - Scope of the logged dialogue:
   - ownership -> geometry -> topology -> transition data-shape trace
@@ -72,6 +74,11 @@
 - whole-region birth is invalid, and region collapse is only legitimate when the final star set of a region disappears on that tick
 - existing topology sections between 3-way/world-edge junctions are likely the correct coarse structural unit for transition planning
 - DX should likely evolve from midpoint-oriented virtual-site nudging into an explicit disconnect-zone construct
+- the recovery plan needed stronger implementation gating and clearer shared-truth definitions, so `v3` now adds:
+  - locked conquest casebook before motion work
+  - precise foundational-section definition
+  - first deterministic eligible-frontier-envelope rule
+  - explicit DX zone descriptor
 
 ## Next Most Useful Steps
 
@@ -89,3 +96,4 @@
 5. Separate semantic IDs from coordinates for topology vertices and sections.
 6. Add real per-section/per-point star influence attribution so conquest-local active-front bounds can be selected deterministically.
 7. Replace heuristic-only DX with an explicit disconnect-zone model after shared truth is unified.
+8. Do not begin runtime motion changes until the conquest casebook and end-to-end truth exports are in place.

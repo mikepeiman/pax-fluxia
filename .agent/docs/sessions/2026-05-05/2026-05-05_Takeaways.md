@@ -15,6 +15,7 @@
 8. `GameCanvas` manufacturing field-family transition truth is an architectural violation, not a harmless convenience.
 9. The existing topology layer already has the right coarse structural unit for transition work: sections between 3-way or world-edge junctions. The deficiency is missing influence attribution, not missing sections.
 10. The current DX implementation is midpoint-oriented but still only a virtual-site heuristic. The user's proposed disconnect-zone construction is a stronger explicit geometry-stage concept.
+11. The recovery plan needs an explicit casebook gate and more exact shared-truth definitions, otherwise an implementer would still be forced to improvise in the critical transition and DX stages.
 
 ## Architectural Read
 
@@ -56,3 +57,8 @@
 6. Rebuild PV active-front planning around explicit stable anchors, explicit change anchors, and explicit split handling at 3-way junctions.
 7. Add deterministic per-section/per-point star influence attribution so per-conquest changed-frontier selection can be bounded locally from star ownership and topology, not only from distance heuristics.
 8. Rework DX from a pure virtual-site heuristic toward an explicit disconnect-zone construct with tunable depth/width and mode-consistent fill styling.
+9. Add a v3 plan that explicitly defines:
+   - foundational section
+   - eligible frontier envelope for a conquest
+   - DX zone descriptor
+   - no-motion-before-casebook rule
