@@ -2,10 +2,7 @@
     import { onMount, tick } from "svelte";
     import {
         buildBackgroundChangeDetail,
-        extractLegacyBackgroundImage,
         buildLegacyImageSelection,
-        normalizeBackgroundSelection,
-        normalizePlayerBackgroundSelections,
     } from "$lib/backgrounds";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
@@ -40,6 +37,8 @@
         TIER_STORAGE_KEY,
         loadVisuals,
         saveVisuals,
+        setVisualSetting,
+        syncVisualSettingsFromConfig,
         applyVisuals,
         loadPanelSettings,
         panelDefaultsFromConfig,
@@ -206,24 +205,7 @@
     }
 
     function updateVisual(key: string, value: any) {
-        (vis as any)[key] = value;
-        if (key === "bgImage") {
-            (vis as any).backgroundSelection = buildLegacyImageSelection(value);
-        } else if (key === "backgroundSelection") {
-            (vis as any).backgroundSelection = normalizeBackgroundSelection(value, {
-                surface: "game",
-                fallbackLegacyImage: (vis as any).bgImage,
-            });
-            (vis as any).bgImage = (vis as any).backgroundSelection.legacyImage ?? "";
-        } else if (key === "playerBackgroundSelections") {
-            (vis as any).playerBackgroundSelections =
-                normalizePlayerBackgroundSelections(
-                    value,
-                    (vis as any).bgImage,
-                );
-        } else if (key === "backgroundAffectAllTerritory") {
-            (vis as any).backgroundAffectAllTerritory = value !== false;
-        }
+        vis = setVisualSetting(vis, key, value);
         saveVisuals(vis);
         applyVisuals(vis);
     }
@@ -231,28 +213,7 @@
     function syncVisualsFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
-        const backgroundSelection = normalizeBackgroundSelection(
-            vis.backgroundSelection,
-            {
-                surface: "game",
-                fallbackLegacyImage: configSource.BG_IMAGE_URL,
-            },
-        );
-        const nextVis = {
-            ...vis,
-            laneWidth: configSource.CONNECTION_WIDTH,
-            laneAlpha: configSource.CONNECTION_ALPHA,
-            shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
-            shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
-            bgImage: extractLegacyBackgroundImage(
-                backgroundSelection,
-                configSource.BG_IMAGE_URL,
-            ),
-            backgroundSelection:
-                backgroundSelection.modeId === "legacy_image"
-                    ? buildLegacyImageSelection(configSource.BG_IMAGE_URL)
-                    : backgroundSelection,
-        };
+        const nextVis = syncVisualSettingsFromConfig(vis, configSource);
         vis = nextVis;
         saveVisuals(nextVis);
         applyVisuals(nextVis);

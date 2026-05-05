@@ -146,7 +146,7 @@ export const VISUAL_DEFAULTS: VisualSettings = {
     playerBackgroundSelections: {},
 };
 
-function normalizeStoredVisuals(
+export function normalizeVisualSettings(
     source: Record<string, any>,
 ): VisualSettings {
     const backgroundSelection = normalizeBackgroundSelection(
@@ -183,7 +183,7 @@ export function loadVisuals(): VisualSettings {
         const s = localStorage.getItem(VISUALS_STORAGE_KEY);
         if (s) {
             const merged = { ...VISUAL_DEFAULTS, ...JSON.parse(s) };
-            return normalizeStoredVisuals(merged);
+            return normalizeVisualSettings(merged);
         }
     } catch {
         /* ignore */
@@ -193,13 +193,80 @@ export function loadVisuals(): VisualSettings {
 
 export function saveVisuals(vis: VisualSettings): void {
     if (typeof window === 'undefined') return;
-    const normalized = normalizeStoredVisuals(vis);
+    const normalized = normalizeVisualSettings(vis);
     const toSave = {
         ...normalized,
         bgImage: normalizeBgImagePath(normalized.bgImage),
     };
     localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(toSave));
     dumpSettings();
+}
+
+export function setVisualSetting(
+    vis: VisualSettings,
+    key: string,
+    value: unknown,
+): VisualSettings {
+    const next: Record<string, unknown> = {
+        ...vis,
+        [key]: value,
+    };
+
+    if (key === 'bgImage') {
+        next.backgroundSelection = buildLegacyImageSelection(
+            value as string,
+        );
+    } else if (key === 'backgroundSelection') {
+        next.backgroundSelection = normalizeBackgroundSelection(
+            value as BackgroundSelection,
+            {
+                surface: 'game',
+                fallbackLegacyImage: next.bgImage as string,
+            },
+        );
+        next.bgImage = extractLegacyBackgroundImage(
+            next.backgroundSelection as BackgroundSelection,
+            next.bgImage as string,
+        );
+    } else if (key === 'playerBackgroundSelections') {
+        next.playerBackgroundSelections = normalizePlayerBackgroundSelections(
+            value as BackgroundSelectionMap,
+            next.bgImage as string,
+        );
+    } else if (key === 'backgroundAffectAllTerritory') {
+        next.backgroundAffectAllTerritory = value !== false;
+    }
+
+    return normalizeVisualSettings(next);
+}
+
+export function syncVisualSettingsFromConfig(
+    vis: VisualSettings,
+    configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
+): VisualSettings {
+    const backgroundSelection = normalizeBackgroundSelection(
+        vis.backgroundSelection,
+        {
+            surface: 'game',
+            fallbackLegacyImage: configSource.BG_IMAGE_URL,
+        },
+    );
+
+    return normalizeVisualSettings({
+        ...vis,
+        laneWidth: configSource.CONNECTION_WIDTH,
+        laneAlpha: configSource.CONNECTION_ALPHA,
+        shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
+        shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
+        bgImage: extractLegacyBackgroundImage(
+            backgroundSelection,
+            configSource.BG_IMAGE_URL,
+        ),
+        backgroundSelection:
+            backgroundSelection.modeId === 'legacy_image'
+                ? buildLegacyImageSelection(configSource.BG_IMAGE_URL)
+                : backgroundSelection,
+    });
 }
 
 export function applyVisuals(vis: VisualSettings): void {

@@ -5,6 +5,8 @@
 **Scope start:** today only  
 **Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, runtime support policy is explicit in both the UI and `GameCanvas`, gameplay exposes a dedicated `Background FX` section, the live FX tuning ranges have been widened substantially beyond the original subtle-only prototype ranges, live ambient previews continue while paused/pre-start, and gameplay can now edit background identity either globally or per player
 
+Update on 2026-05-05: the background FX controls are now back on the standard visual settings wiring. Live tunables and per-player background selections are updated through canonical helpers in `panelSync.ts` and covered by a localStorage round-trip regression test.
+
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
 ## What changed today
@@ -339,3 +341,11 @@ The latest merge-sensitive persistence/event additions are:
 
 - `backgroundAffectAllTerritory`
 - `playerBackgroundSelections`
+
+The latest merge-sensitive persistence wiring correction is:
+
+- `GameSettingsPanel.svelte` no longer mutates `vis` in place for background FX changes
+- `panelSync.ts` now owns:
+  - `normalizeVisualSettings(...)`
+  - `setVisualSetting(...)`
+  - `syncVisualSettingsFromConfig(...)`
