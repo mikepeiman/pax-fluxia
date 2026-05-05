@@ -15,3 +15,4 @@
 - The repo's file-discipline rule mattered immediately once all 8 gameplay modes landed; splitting the presenter into focused runtime modules was the right correction instead of normalizing an 800-line renderer file.
 - The capability matrix only becomes trustworthy once the UI and runtime both enforce it; leaving it as catalog metadata would have preserved the same ambiguity the feature was meant to remove.
 - Runtime-scope drift is easiest to introduce during “hardening” passes; the capability matrix has to be checked against the agreed render-mode target list before expanding support.
+- A backward-compatible default can make a feature look nonexistent. If the default path preserves old behavior, the UI must visibly advertise the new behavior and give the user a direct activation path.

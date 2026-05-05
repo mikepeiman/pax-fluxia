@@ -806,19 +806,23 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }: Props = $props();
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
+    const DEFAULT_OPEN_SECTIONS: SectionId[] = ["background_fx"];
     function loadOpenSections(): SectionId[] {
         if (typeof window === "undefined") return [];
         try {
             const s = localStorage.getItem(ACTIVE_SECTION_KEY);
             if (s) {
-                return (JSON.parse(s) as string[])
+                const normalized = (JSON.parse(s) as string[])
                     .map((value) => normalizeSettingsSectionId(value))
                     .filter(Boolean) as SectionId[];
+                return normalized.length > 0
+                    ? normalized
+                    : [...DEFAULT_OPEN_SECTIONS];
             }
         } catch {
             /* ignore */
         }
-        return [];
+        return [...DEFAULT_OPEN_SECTIONS];
     }
 
     // Ordered array: last element = most recently opened (shown first in render)
@@ -1528,6 +1532,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <ControlsSectionPlayers
                         syncFromConfig={syncAllFromConfig}
                     />
+                {:else if sec.id === "background_fx"}
+                    <ControlsSectionVisuals
+                        {panel}
+                        {updatePanel}
+                        {vis}
+                        {updateVisual}
+                        syncFromConfig={syncAllFromConfig}
+                        view="backgroundOnly"
+                    />
                 {:else if sec.id === "map_options"}
                     <ControlsSectionVisuals
                         {panel}
@@ -1535,6 +1548,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {vis}
                         {updateVisual}
                         syncFromConfig={syncAllFromConfig}
+                        view="mapOnly"
                     />
                 {:else if sec.id === "logging"}
                     <ControlsSectionLogging

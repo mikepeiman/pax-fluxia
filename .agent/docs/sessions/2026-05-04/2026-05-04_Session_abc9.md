@@ -108,3 +108,11 @@
   - `metaball_grid_ember_lattice`
   - `metaball_grid_phase_field`
 - The capability matrix, gameplay UI messaging, and runtime gating were all corrected to match that narrower target set.
+
+## Discoverability correction - dedicated background section
+
+- User validation showed that the branch still read as “no feature” because gameplay stayed on `legacy_image` and the live-mode controls were buried under `Map Options & Tuning`.
+- Added a dedicated `Background FX` top-level section to gameplay settings.
+- Made `Background FX` the default first-open section when no prior section layout is stored.
+- Split the old `Map Options & Tuning` surface back into explicit `Background FX` and `Map & Grid` concerns.
+- Added a one-click enable callout when the current gameplay selection is still the legacy image fallback on a supported runtime.

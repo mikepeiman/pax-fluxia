@@ -21,6 +21,7 @@
         vis: Record<string, any>;
         updateVisual: (key: string, val: any) => void;
         syncFromConfig?: () => void;
+        view?: "all" | "backgroundOnly" | "mapOnly";
     }
     let {
         panel,
@@ -28,6 +29,7 @@
         vis,
         updateVisual,
         syncFromConfig,
+        view = "all",
     }: Props = $props();
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
@@ -102,6 +104,11 @@
         gameplayBackgroundModes
             .filter((definition) => supportedGameplayModeIdSet.has(definition.id))
             .map((definition) => definition.label),
+    );
+    let recommendedLiveMode = $derived(
+        gameplayBackgroundModes.find((definition) =>
+            supportedGameplayModeIdSet.has(definition.id),
+        ) ?? null,
     );
 
     function isGameplayModeSupported(modeId: string): boolean {
@@ -184,18 +191,47 @@
             tunables: {},
         });
     }
+
+    function enableRecommendedLiveBackground() {
+        if (!recommendedLiveMode) return;
+        selectBackgroundMode(recommendedLiveMode);
+    }
 </script>
 
+{#if view !== "backgroundOnly"}
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
+{/if}
 
+{#if view !== "mapOnly"}
 <section data-subsection-id="background">
     <h4 class="sub-heading">Background</h4>
     <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-        Regional ambient backgrounds currently target the maintained territory
-        modes only: PVV4 plus the Phase Edges, Ember Lattice, and Phase Field
-        metaball-grid variants. Shared tunables shape the whole mode; the
-        mode-specific sliders below are where each family earns its identity.
+        Live regional backgrounds are only available on PVV4 plus the Phase
+        Edges, Ember Lattice, and Phase Field metaball-grid variants. Existing
+        installs stay on the legacy image until you pick a live mode here.
     </p>
+    {#if currentBackgroundSelection.modeId === "legacy_image"}
+        <div class="background-legacy-callout">
+            <div class="background-legacy-callout__copy">
+                <strong>Live background FX are currently off.</strong>
+                Gameplay is still using the legacy static image fallback.
+            </div>
+            {#if recommendedLiveMode}
+                <button
+                    type="button"
+                    class="background-legacy-callout__action"
+                    onclick={enableRecommendedLiveBackground}
+                >
+                    Enable {recommendedLiveMode.label}
+                </button>
+            {:else}
+                <div class="background-legacy-callout__unsupported">
+                    The current territory runtime does not support live
+                    regional backgrounds.
+                </div>
+            {/if}
+        </div>
+    {/if}
     <div class="var-row">
         <div class="row-top">
             <span
@@ -388,7 +424,9 @@
         />
     </div>
 </section>
+{/if}
 
+{#if view !== "backgroundOnly"}
 <section data-subsection-id="map-layout">
     <h4 class="sub-heading">Map Layout</h4>
     <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
@@ -743,6 +781,7 @@
     />
 </div>
 </section>
+{/if}
 
 <style>
     @import "./panel-shared.css";
@@ -785,6 +824,49 @@
         flex-wrap: wrap;
         gap: 6px;
         margin-bottom: 8px;
+    }
+    .background-legacy-callout {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(103, 232, 249, 0.26);
+        border-radius: 10px;
+        background: rgba(8, 28, 38, 0.78);
+    }
+    .background-legacy-callout__copy {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+        line-height: 1.45;
+        color: rgba(224, 242, 254, 0.92);
+    }
+    .background-legacy-callout__action {
+        margin: 0;
+        padding: 6px 10px;
+        min-height: 0;
+        border: 1px solid rgba(103, 232, 249, 0.35);
+        border-radius: 999px;
+        background: rgba(6, 182, 212, 0.14);
+        color: #ecfeff;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+    }
+    .background-legacy-callout__action:hover {
+        background: rgba(6, 182, 212, 0.22);
+        border-color: rgba(103, 232, 249, 0.52);
+    }
+    .background-legacy-callout__unsupported {
+        font-size: 10px;
+        color: rgba(251, 191, 36, 0.9);
+        line-height: 1.45;
     }
     .background-mode-grid {
         display: grid;

@@ -9,6 +9,7 @@ export type SettingsSectionId =
     | "travel_orders"
     | "conquest"
     | "effects"
+    | "background_fx"
     | "map_options"
     | "territory_phase_field"
     | "territory_phase_edges"
@@ -96,14 +97,21 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "surge",
     },
     {
+        id: "background_fx",
+        icon: "🌌",
+        label: "Background FX",
+        color: "#67e8f9",
+        tier: "basic",
+        scope: "visuals",
+    },
+    {
         id: "map_options",
         icon: "🗺️",
-        label: "Map Options & Tuning",
+        label: "Map & Grid",
         color: "#cc66ff",
         tier: "basic",
         scope: "visuals",
         subsections: [
-            { id: "background", label: "Background", icon: "◈" },
             { id: "map-layout", label: "Map Layout", icon: "⬡" },
             { id: "labels-inspector", label: "Labels & Inspector", icon: "⌁" },
             { id: "connections", label: "Connections", icon: "➠" },
@@ -229,6 +237,8 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     ember_lattice: "territory_ember_lattice",
     ships: "fleet_star_visuals",
     visuals: "map_options",
+    backgrounds: "background_fx",
+    background_fx: "background_fx",
     logging: "logging",
     audio: "audio",
     debug: "diagnostics",

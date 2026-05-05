@@ -117,6 +117,12 @@
     - `territory_engine`
     - base `metaball_grid`
     - all direct legacy modes
+- Discoverability correction after user validation:
+  - background controls were technically present but too buried inside `Map Options & Tuning`
+  - gameplay also stayed on `legacy_image` by default, so the branch could appear to have no live FX at all
+  - added a dedicated `Background FX` section in gameplay settings
+  - made `Background FX` the default first-open section when no prior section layout is stored
+  - added a one-click live-mode enable callout when gameplay is still using the legacy image fallback
 
 ## Verification target
 

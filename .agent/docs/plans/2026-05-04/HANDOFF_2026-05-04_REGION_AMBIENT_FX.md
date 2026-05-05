@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, and runtime support policy is explicit in both the UI and `GameCanvas`
+**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, runtime support policy is explicit in both the UI and `GameCanvas`, and gameplay now exposes a dedicated `Background FX` section instead of burying live-mode controls under general map options
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -123,6 +123,11 @@ Implemented Sprint 5 of the background-mode system:
     - `metaball_grid_phase_edges`
     - `metaball_grid_ember_lattice`
     - `metaball_grid_phase_field`
+- discoverability correction after user validation:
+  - added a dedicated `Background FX` top-level gameplay settings section
+  - moved general map controls back under `Map & Grid`
+  - made `Background FX` the default first-open section when no prior section layout is stored
+  - added an explicit legacy-image callout with one-click enable for a recommended live mode on supported runtimes
 
 ## Objective locked in
 
@@ -218,6 +223,8 @@ The implementation is compiled and tested, but no browser playtest or screenshot
 
 The highest-value manual checks are now:
 
+- open gameplay settings and confirm `Background FX` is visible as its own section without needing to infer it from `Map & Grid`
+- on a supported runtime while still on `Legacy Image`, confirm the callout offers a one-click live-mode enable action
 - `power_voronoi_canonical`:
   - verify all 8 live background modes
 - `metaball_grid_phase_edges`, `metaball_grid_ember_lattice`, and `metaball_grid_phase_field`:
