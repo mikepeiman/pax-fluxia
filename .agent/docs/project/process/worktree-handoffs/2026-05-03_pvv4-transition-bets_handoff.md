@@ -1556,3 +1556,61 @@
 - Validation:
   - documentation-only checkpoint
   - no runtime code changed in this update
+
+## Update: 2026-05-05 - Incorporate User Active-Front And DX Concepts Into Recovery Plan v2
+
+- Trigger:
+  - user supplied two contributory design concepts and explicitly said to treat them as part of the same work:
+    - conquest-local changed-frontier bounding from star ownership and local border structure
+    - DX as an explicit disconnect-zone construct rather than only a virtual-site heuristic
+- Code-trace evaluation:
+  - inspected:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\buildFrontierTopology.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\disconnect\buildDisconnectVirtualSites.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\corridor\buildCorridorVirtualSites.ts`
+  - findings:
+    - the live topology builder already has the correct coarse structural unit:
+      - sections between structural vertices
+      - structural vertices include:
+        - `junction_3way`
+        - `world_intersection`
+        - `world_corner`
+    - current weakness is not absence of sections
+    - current weakness is absence of real per-section / per-point star influence attribution:
+      - `buildFrontierTopology.ts` still uses `stubInfluence(...)`
+    - current DX builder already evaluates same-owner pairs that are not lane-connected and uses midpoint-oriented reasoning
+    - but DX is still implemented only as paired enemy virtual-site placement around the midpoint
+    - there is not yet any explicit disconnect-zone geometry/model/rendering step
+- Documentation/plan changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+      - appended the user's new contributory concepts losslessly
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+      - recorded the topology/DX code-trace findings and the new design inputs
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+      - added the foundational-section and explicit-DX-zone conclusions
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v2.md`
+      - created a v2 plan that:
+        - promotes foundational sections between 3-way/world-edge junctions into an explicit architectural truth
+        - adds deterministic per-section/per-point star influence attribution to active-front planning
+        - adds DX-zone construction as a later geometry/render-stage sprint
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+      - updated to point at the new v2 plan and the two new work items
+- Purpose:
+  - keep the user's new ideas inside the branch's structured plan, not as untracked chat intuition
+  - make clear which parts already fit the codebase and which parts require new truth in the geometry/topology layer
+- Result:
+  - the branch now has a v2 recovery plan
+  - active-front recovery is now explicitly tied to:
+    - foundational sections
+    - stable anchors
+    - change anchors
+    - conquest-local star influence
+  - DX recovery is now explicitly tied to:
+    - same-owner non-lane-connected pair detection
+    - midpoint ownership test
+    - explicit zone depth/width construction
+    - mode-consistent fill/styling later
+- Validation:
+  - documentation + code-trace only
+  - no runtime code changed in this update

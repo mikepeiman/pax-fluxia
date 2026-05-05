@@ -23,6 +23,8 @@
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Decisions-and-Definitions.md`
 - Created versioned plan doc:
   - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v1.md`
+- Created revised versioned plan doc:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v2.md`
 - Session docs are now intended to be tracked directly in `.agent/docs/sessions/`.
 - Scope of the logged dialogue:
   - ownership -> geometry -> topology -> transition data-shape trace
@@ -68,6 +70,8 @@
   are missing from the exported package
 - `virtualStars` are not a valid shared PV transition primitive and should be removed from the shared transition contract
 - whole-region birth is invalid, and region collapse is only legitimate when the final star set of a region disappears on that tick
+- existing topology sections between 3-way/world-edge junctions are likely the correct coarse structural unit for transition planning
+- DX should likely evolve from midpoint-oriented virtual-site nudging into an explicit disconnect-zone construct
 
 ## Next Most Useful Steps
 
@@ -83,3 +87,5 @@
 3. Move field families onto the shared ownership/geometry/transition truth pipeline.
 4. Rebuild PV transition logic around explicit stable anchors, explicit change anchors, explicit split planning, and truthful `borderFrame`.
 5. Separate semantic IDs from coordinates for topology vertices and sections.
+6. Add real per-section/per-point star influence attribution so conquest-local active-front bounds can be selected deterministically.
+7. Replace heuristic-only DX with an explicit disconnect-zone model after shared truth is unified.

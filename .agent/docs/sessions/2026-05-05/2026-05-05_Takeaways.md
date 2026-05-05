@@ -13,6 +13,8 @@
 6. `virtualStars` are not a valid shared PV transition primitive. Their remaining live role is narrow collapse-center lookup, which should be removed from shared transition truth.
 7. Region birth is always invalid. Region collapse is only legitimate when the final star set of a region is conquered on that tick.
 8. `GameCanvas` manufacturing field-family transition truth is an architectural violation, not a harmless convenience.
+9. The existing topology layer already has the right coarse structural unit for transition work: sections between 3-way or world-edge junctions. The deficiency is missing influence attribution, not missing sections.
+10. The current DX implementation is midpoint-oriented but still only a virtual-site heuristic. The user's proposed disconnect-zone construction is a stronger explicit geometry-stage concept.
 
 ## Architectural Read
 
@@ -31,6 +33,7 @@
 - `anchorKey` = stable-anchor pair key
 - `change anchors` = local motion endpoints inside an anchor-bounded chain
 - `envelope` = transition lifecycle/timing record, not geometry
+- `foundational section` = the border section between two structural junctions, especially 3-way and world-edge junctions
 
 ## Newly Reaffirmed User Rules
 
@@ -51,3 +54,5 @@
 4. Separate semantic IDs from coordinates for topology vertices and sections.
 5. Remove field-family truth reconstruction from `GameCanvas` and route all render modes through one shared ownership and geometry pipeline.
 6. Rebuild PV active-front planning around explicit stable anchors, explicit change anchors, and explicit split handling at 3-way junctions.
+7. Add deterministic per-section/per-point star influence attribution so per-conquest changed-frontier selection can be bounded locally from star ownership and topology, not only from distance heuristics.
+8. Rework DX from a pure virtual-site heuristic toward an explicit disconnect-zone construct with tunable depth/width and mode-consistent fill styling.
