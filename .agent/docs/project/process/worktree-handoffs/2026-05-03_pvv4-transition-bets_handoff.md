@@ -1454,8 +1454,9 @@
     - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
   - created today’s queue:
     - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
-  - created tracked decisions/definitions artifact:
-    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\2026-05-05_ARCHITECTURE_DECISIONS_AND_DEFINITIONS.md`
+  - corrected session-doc handling:
+    - session docs under `.agent/docs/sessions/` are now intended to be tracked directly
+    - the temporary duplicate tracked decisions/definitions artifact under `.agent/docs/plans/2026-05-05/` is removed
   - updated the long-lived decision record:
     - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
 - Exact code-trace findings recorded in those docs:

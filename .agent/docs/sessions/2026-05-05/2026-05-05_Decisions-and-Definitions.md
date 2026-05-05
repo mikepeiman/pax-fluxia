@@ -1,8 +1,8 @@
-# 2026-05-05 Architecture Decisions And Definitions
+# 2026-05-05 Decisions And Definitions
 
 ## Purpose
 
-This tracked document records the decisions, corrections, definitions, and challenged concepts established in the architecture/data-shape dialogue.
+This document records the decisions, corrections, definitions, and challenged concepts established in the architecture dialogue.
 
 ## Definitions
 

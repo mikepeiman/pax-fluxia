@@ -20,8 +20,7 @@
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Session.md`
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Takeaways.md`
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Decisions-and-Definitions.md`
-- Created tracked dialogue artifact for challenged/corrected terms and decisions:
-  - `.agent/docs/plans/2026-05-05/2026-05-05_ARCHITECTURE_DECISIONS_AND_DEFINITIONS.md`
+- Session docs are now intended to be tracked directly in `.agent/docs/sessions/`.
 - Scope of the logged dialogue:
   - ownership -> geometry -> topology -> transition data-shape trace
   - PVV4 vs phase/perimeter family architecture
