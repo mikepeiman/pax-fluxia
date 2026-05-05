@@ -90,6 +90,41 @@ When touching any subsystem:
    - log them immediately as explicit blocking semantic debt
 3. Do not leave known-false semantics on an active path just because the immediate task was elsewhere.
 
+### 2.4b Communication-Fit Rule
+
+When explaining mechanics, architecture, constraints, or algorithms to this user:
+
+1. Prefer direct definitional grammar:
+   - `Definition: X is ...`
+   - `Purpose: X does ...`
+   - `Implementation: X is computed by ...`
+2. Start from Pax Fluxia game-world terms first:
+   - star
+   - lane
+   - territory
+   - border
+   - player
+   - region
+3. Do not replace an established term with a new synonym just to vary wording.
+   - If the project term is `lane pair`, do not switch to `seam`, `interface`, or another substitute unless the new term is separately needed and defined.
+4. Do not use compressed shorthand, private abstractions, or faux-technical placeholder words when plain language is clearer.
+   - Avoid phrases like:
+     - `descriptor`
+     - `intrude`
+     - `sample` / `sampling` / `sample point`
+     - `disk`
+     - `seam`
+   unless the term is necessary for the implementation and defined immediately in plain language.
+5. Separate semantics from implementation:
+   - first define what a thing is in game terms
+   - then explain how code will implement it
+6. Do not mirror the user's shorthand.
+   - The user may abbreviate because typing is costly.
+   - The assistant should still write fully and clearly.
+7. Clarity of meaning is the priority.
+   - Prefer the shortest wording that is fully clear.
+   - If short wording is unclear, expand it.
+
 ### 2.5 Rename / Refactor Protocol
 
 When removing, renaming, or commenting out any symbol:

@@ -131,3 +131,16 @@
   - the current `starMargin` control is not to be discarded; its utility remains as the live base site-weight control
   - `MSR` required a plainer and more direct definition
 - `v5` now corrects those points and should be treated as the current plan
+
+## Latest Communication / Definition Update
+
+- Created:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v6.md`
+- Added to `.agent/AGENT.md`:
+  - communication-fit rule for this dialogue style
+- `v6` improvements:
+  - plain power-Voronoi is explicitly named as the baseline geometry
+  - constraints are explicitly framed as local adjustments and edge-case guards
+  - `MSR` is restated as a protected region around a star for territory painting, with lane-margin as a secondary use
+  - wording is rewritten in simpler game terms
+  - stale abstract wording like `descriptor` is reduced further in the active plan text

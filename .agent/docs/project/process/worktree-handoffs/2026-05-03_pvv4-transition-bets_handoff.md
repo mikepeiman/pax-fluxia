@@ -1557,6 +1557,36 @@
   - documentation-only checkpoint
   - no runtime code changed in this update
 
+## Update: 2026-05-05 - Add Communication-Fit Rule And Clarify Constraint Language In v6
+
+- Trigger:
+  - user explicitly asked for a communication rule fitted to this dialogue style
+  - user rejected abstract or obscure wording in the geometry constraint definitions
+  - user clarified that:
+    - plain power-Voronoi geometry is mostly already correct
+    - constraints are local adjustments and edge-case guards
+    - `MSR` is primarily a protected territory-painting region around a star, and secondarily a lane-margin rule
+- Documentation changes:
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v6.md`
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\AGENT.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
+- Result:
+  - `v6` is now the current plan
+  - the branch now has an explicit communication-fit rule
+  - the constraint language is rewritten in simpler game-world terms
+  - the plan now states clearly that most geometry remains plain power-Voronoi
+- Additional clarification:
+  - active plan language was cleaned further to reduce abstract wording like `descriptor`
+- Validation:
+  - documentation-only checkpoint
+  - no runtime code changed in this update
+
 ## Update: 2026-05-05 - Correct v4 On Snap, `starMargin`, And MSR Clarity
 
 - Trigger:

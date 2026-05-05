@@ -325,6 +325,7 @@ Candidate basis:
 ### `MSR`
 
 - Plain definition:
-  - `MSR` is a keep-out radius around a star
-  - boundaries must stay outside it
-  - lanes and supplemental samples that do not belong to that star must stay outside it
+  - `MSR` is a protected region around a star for territory painting
+  - the star's territory should keep a visible buffer around the star
+  - the border should not cut too close to the star
+  - when lane-margin mode is active, the same value can also be used to bend lanes around stars where needed

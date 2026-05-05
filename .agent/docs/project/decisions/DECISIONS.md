@@ -865,17 +865,16 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 ### `MSR`
 
 - Meaning:
-  - keep-out radius around a star
+  - protected region around a star for territory painting
 - Shared truth shape:
   - per-star protection descriptor with center and radius in pixels
 - Implementation direction:
   - current site-weight-only proxy is not sufficient
-  - initial compiler path may use:
-    - guard-ring samples
-    - sample-exclusion rules
   - plain rule:
-    - boundaries must stay outside the radius
-    - lanes and supplemental samples that do not belong to that star must stay outside the radius
+    - the border and fill should not cut too close to the star
+    - the owning player's territory should keep a visible buffer around the star
+  - secondary rule:
+    - when lane-margin mode is active, the same value can be used to force lane bending around stars where needed
 
 ### `CX`
 
@@ -887,8 +886,7 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 ### `LP`
 
 - Meaning:
-  - opposing-player corridor connection
-  - more precisely: the contested-lane lane-pair seam constraint
+  - opposing-player corridor connection on a contested lane
 - Shared truth shape:
   - explicit contested-lane pair descriptor
 - Naming consequence:
@@ -907,7 +905,7 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 
 ## Consequences
 
-1. The shared geometry stage should emit first-class constraint descriptors instead of relying only on hidden virtual-site heuristics.
+1. The shared geometry stage should emit first-class constraint records instead of relying only on hidden virtual-site heuristics.
 2. Existing virtual-site builders may remain temporarily as compiler adapters, but not as the final semantic model.
 3. Tuning keys and UI labels must be renamed to match these meanings before further transition tuning work proceeds.
 
@@ -921,7 +919,7 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 
 ## Context
 
-The current transition diagnostics summarize counts and outcomes, but they do not stop execution when a conquest-local foundational section fails to receive a valid final classification. That allows classification holes to fall through into unexplained snap or broad deformation.
+The current transition diagnostics summarize counts and outcomes, but they do not stop execution when a conquest-local foundational section fails to receive a valid final classification. That allows classification holes to fall through into unexplained defective behavior.
 
 ## Decision
 

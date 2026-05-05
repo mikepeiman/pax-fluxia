@@ -77,6 +77,8 @@
 18. Snap is not a valid target classification or fallback in this workstream. If snap occurs, it is treated as evidence of an unclassified or otherwise defective boundary/transition case.
 19. The current `starMargin` control is not to be thrown away. Its utility remains as the current base site-weight control pending semantic normalization.
 20. `MSR` must be defined plainly:
-    - it is a keep-out radius around each star
-    - boundaries must stay outside it
-    - non-origin lane and supplemental geometry samples must stay outside it
+    - it is a protected region around a star for territory painting
+    - it keeps a visible territory buffer around the star
+    - it can also be reused as lane margin when lane-curving mode is active
+21. The majority of geometry should remain plain power-Voronoi. `MSR`, `CX`, `LP`, and `DX` are local adjustments and edge-case guards, not a replacement geometry system.
+22. Communication must use direct game-world terms first and must not replace established terms with abstract substitutes or synonyms.
