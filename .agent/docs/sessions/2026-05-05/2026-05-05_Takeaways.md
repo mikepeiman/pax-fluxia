@@ -82,3 +82,8 @@
     - it can also be reused as lane margin when lane-curving mode is active
 21. The majority of geometry should remain plain power-Voronoi. `MSR`, `CX`, `LP`, and `DX` are local adjustments and edge-case guards, not a replacement geometry system.
 22. Communication must use direct game-world terms first and must not replace established terms with abstract substitutes or synonyms.
+23. The current live `MSR` pass is not the target behavior. Right now it only pushes individual territory vertices outward from the nearest same-owner star after the fill polygons are already built.
+24. The stronger implementation direction is:
+    - `CX` and `LP` shape the solve along lanes
+    - `DX` and `MSR` rewrite geometry explicitly after the plain PV solve
+25. Constraint work must stay subordinate to the larger architecture reset: one shared ownership path, one shared geometry path, one shared topology/transition truth path.
