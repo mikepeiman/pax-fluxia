@@ -1401,3 +1401,37 @@
     - `Make Change Anchors The Runtime Transport Primitive`
   - remain useful as historical investigation notes only
   - they do not describe the current runtime behavior after this reset checkpoint
+
+## Update: 2026-05-04 - Replace Incremental Bet Framing With Explicit Recovery Plan
+
+- Trigger:
+  - after reset, user reported the branch still did not present a clearly improved transition state
+  - user requested a plan to fix PVV4 with crystalline articulation of intent at every stage
+- Scope change:
+  - old scope:
+    - iterate on narrow PVV4 motion bets and judge them visually
+  - new scope:
+    - rebuild the branch workflow around a staged recovery plan
+    - first make evaluation and diagnostics trustworthy
+    - only then re-enter motion changes
+- New canonical planning document:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-04\PVV4_TRANSITION_RECOVERY_PLAN.md`
+- Why this scope change is necessary:
+  - the branch is no longer blocked only by one bad algorithm
+  - it is blocked by ambiguity in:
+    - what is actually wrong in each case
+    - which checkpoint is actually better
+    - whether the planner/runtime/diagnostics are telling the same story
+  - continuing with ad hoc visual bets would produce more noise, not more truth
+- Core strategic conclusions recorded in the recovery plan:
+  - snap is preferable to gross deformation
+  - whole-region movement is invalid
+  - whole-region birth is invalid
+  - 3-way junctions must become first-class structural anchor candidates
+  - `1:2` / `2:1` cases must be solved explicitly or snapped cleanly
+  - the first real implementation step is not "tune motion"
+  - the first real implementation step is:
+    - lock a canonical PVV4 casebook
+    - make one diagnostic package fully explain one conquest with no ambiguity
+- Immediate next branch step:
+  - execute Stage 0 and Stage 1 of the recovery plan before touching transition behavior again

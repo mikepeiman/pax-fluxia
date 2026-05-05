@@ -325,3 +325,24 @@
     - change-anchor-window runtime transport
   - are now historical only
   - those experiments are intentionally backed out by this reset checkpoint
+
+## Update: 2026-05-04 - Replace Bet-Stack Thinking With PVV4 Recovery Plan
+
+- Trigger:
+  - after reset, user reported the branch still did not have a clearly better transition state
+  - user requested a fix plan with maximum clarity of intention at every stage
+- Current branch read:
+  - live playtest is not a reliable decision surface because too much is erratic at once
+  - the branch needs a recovery plan, not another sequence of loosely judged visual bets
+- New canonical plan:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-04\PVV4_TRANSITION_RECOVERY_PLAN.md`
+- Branch focus refinement:
+  - old working frame:
+    - improve PVV4 through narrow visual bets
+  - new working frame:
+    - restore a trustworthy evidence -> diagnosis -> local-fix loop
+    - then rebuild PVV4 around minimal border transport with change anchors as the governing concept
+- Immediate next step:
+  - Stage 0 / Stage 1 from the recovery plan:
+    - lock a canonical PVV4 casebook
+    - make one diagnostic package fully explain one conquest with no ambiguity
