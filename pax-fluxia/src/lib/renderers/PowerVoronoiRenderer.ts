@@ -1481,23 +1481,23 @@ export function renderPowerVoronoi(
             const powerLerpEnd = GAME_CONFIG.VS_POWER_LERP_END ?? 0;
 
             const stageConfig: TerritoryGeneratorSettings = {
-                starMargin: wlStarMargin,
-                msrStarBias: GAME_CONFIG.TERRITORY_MSR_STAR_BIAS ?? 0,
-                corridorEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
-                corridorSpacing: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
-                cxCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
+                starWeight: wlStarMargin,
+                msrPx: wlStarMargin,
+                cxEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED) && Boolean(connections),
+                cxSpacingPx: GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ?? 60,
+                cxPointCount: GAME_CONFIG.TERRITORY_CX_COUNT ?? 0,
                 cxWeight: GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5,
-                cxContestMidpointVstars:
+                lpMidpointPairEnabled:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
-                cxContestPairCount:
+                lpPairCount:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
-                cxContestPairSpacing:
+                lpPairSpacingPx:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
                     wlStarMargin,
-                cxContestPairWeight:
+                lpPairWeight:
                     GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? 0.5,
-                disconnectEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
-                disconnectDistance: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
+                dxEnabled: Boolean(GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED) && Boolean(connections),
+                dxMaxDistancePx: GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ?? 400,
                 dxWeight: GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3,
                 clusterSplit: Boolean(GAME_CONFIG.TERRITORY_CLUSTER_SPLIT),
                 chaikinPasses: Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3))),

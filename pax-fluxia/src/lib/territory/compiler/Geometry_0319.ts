@@ -124,7 +124,7 @@ export function computeGeometry0319(
     extraSites?: PowerSite[],
 ): TerritoryGeometryData | CompileError {
     try {
-        const { starMargin, worldWidth, worldHeight } = config;
+        const { starWeight, worldWidth, worldHeight } = config;
 
         const ownedStars = stars.filter(s => s.ownerId);
         if (ownedStars.length < 2) {
@@ -137,7 +137,7 @@ export function computeGeometry0319(
         }
 
         // ── Stage 0: Build site array ───────────────────────────────────────
-        const defaultWeight = starMargin * starMargin;
+        const defaultWeight = starWeight * starWeight;
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
@@ -151,25 +151,25 @@ export function computeGeometry0319(
             for (const es of extraSites) sites.push(es);
         }
 
-        if (config.corridorEnabled) {
+        if (config.cxEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(
                 ownedStars,
                 connections,
-                config.corridorSpacing,
+                config.cxSpacingPx,
                 config.cxWeight,
-                config.cxCount || undefined,
+                config.cxPointCount || undefined,
                 undefined,
-                config.cxContestMidpointVstars,
+                config.lpMidpointPairEnabled,
                 true,
                 true,
-                config.cxContestPairWeight,
-                config.cxContestPairCount,
-                config.cxContestPairSpacing ?? config.starMargin,
+                config.lpPairWeight,
+                config.lpPairCount,
+                config.lpPairSpacingPx,
             );
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
-                    weight: starMargin * starMargin * cv.weight,
+                    weight: starWeight * starWeight * cv.weight,
                     ownerId: cv.ownerId,
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
@@ -177,12 +177,18 @@ export function computeGeometry0319(
             }
         }
 
-        if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
+        if (config.dxEnabled) {
+            const disconnectVirtuals = computeDisconnectVirtuals(
+                ownedStars,
+                stars,
+                connections,
+                config.dxMaxDistancePx,
+                config.dxWeight,
+            );
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,
-                    weight: starMargin * starMargin * dv.weight,
+                    weight: starWeight * starWeight * dv.weight,
                     ownerId: DISCONNECT_OWNER_ID,
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',
@@ -328,7 +334,7 @@ export function computeGeometry0319(
         const minStarMargin = applyExplicitMinStarMargin(
             mergedTerritories,
             ownedStars,
-            starMargin,
+            config.msrPx,
         );
         if (
             minStarMargin.appliedMarginPx > 0
@@ -364,24 +370,25 @@ export function computeGeometry0319(
         // Single consolidated summary log (replaces ~8 individual stage logs)
         const closureOk = closedCount === mergedTerritories.length;
         const geometrySnapshot = snapshotGeometry0319DebugConfig({
-            PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319',
-            FRONTIER_RESOLUTION: config.frontierResolution,
-            MODIFIED_VORONOI_STAR_MARGIN: config.starMargin,
-            MODIFIED_VORONOI_CORRIDOR_ENABLED: config.corridorEnabled,
-            MODIFIED_VORONOI_CORRIDOR_SPACING: config.corridorSpacing,
-            TERRITORY_CX_COUNT: config.cxCount,
-            TERRITORY_CX_WEIGHT: config.cxWeight,
-            TERRITORY_CX_CONTEST_MIDPOINT_VSTARS:
-                config.cxContestMidpointVstars,
-            TERRITORY_CX_CONTEST_PAIR_COUNT: config.cxContestPairCount,
-            TERRITORY_CX_CONTEST_PAIR_WEIGHT: config.cxContestPairWeight,
-            MODIFIED_VORONOI_DISCONNECT_ENABLED: config.disconnectEnabled,
-            MODIFIED_VORONOI_DISCONNECT_DISTANCE: config.disconnectDistance,
-            TERRITORY_DX_WEIGHT: config.dxWeight,
-            TERRITORY_CLUSTER_SPLIT: config.clusterSplit,
-            VORONOI_BORDER_SMOOTH: config.chaikinPasses,
-            CHAIKIN_BOUNDARY_PAD: config.boundaryPad,
-            CHAIKIN_BOUNDARY_EPS: config.boundaryEps,
+            geometrySource: 'power_voronoi_0319',
+            frontierResolution: config.frontierResolution,
+            starWeight: config.starWeight,
+            msrPx: config.msrPx,
+            cxEnabled: config.cxEnabled,
+            cxSpacingPx: config.cxSpacingPx,
+            cxPointCount: config.cxPointCount,
+            cxWeight: config.cxWeight,
+            lpMidpointPairEnabled: config.lpMidpointPairEnabled,
+            lpPairCount: config.lpPairCount,
+            lpPairSpacingPx: config.lpPairSpacingPx,
+            lpPairWeight: config.lpPairWeight,
+            dxEnabled: config.dxEnabled,
+            dxMaxDistancePx: config.dxMaxDistancePx,
+            dxWeight: config.dxWeight,
+            clusterSplit: config.clusterSplit,
+            chaikinPasses: config.chaikinPasses,
+            boundaryPad: config.boundaryPad,
+            boundaryEps: config.boundaryEps,
         });
         log.renderer(
             'Geometry_0319 Config',

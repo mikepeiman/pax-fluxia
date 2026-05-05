@@ -356,9 +356,9 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_05_transition_snapshot.json`,
                 `${exportPrefix}_05_transition_truth.json`,
                 `${exportPrefix}_05_active_front_plan.json`,
-                `${exportPrefix}_90_diag_compact.json`,
-                `${exportPrefix}_90_topology_compact.json`,
-                `${exportPrefix}_90_geometry_compact.json`,
+                `${exportPrefix}_compact_diag.json`,
+                `${exportPrefix}_compact_topology.json`,
+                `${exportPrefix}_compact_geometry.json`,
             ],
         };
 
@@ -466,9 +466,9 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_05_transition_snapshot.json`,
                 `${exportPrefix}_05_transition_truth.json`,
                 `${exportPrefix}_05_active_front_plan.json`,
-                `${exportPrefix}_90_diag_compact.json`,
-                `${exportPrefix}_90_topology_compact.json`,
-                `${exportPrefix}_90_geometry_compact.json`,
+                `${exportPrefix}_compact_diag.json`,
+                `${exportPrefix}_compact_topology.json`,
+                `${exportPrefix}_compact_geometry.json`,
             ],
         };
 

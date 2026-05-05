@@ -8,7 +8,7 @@
  *
  * Pipeline:
  *   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
- *   1. Power diagram via d3-weighted-voronoi (weight = starMargin²)
+ *   1. Power diagram via d3-weighted-voronoi (weight = starWeight²)
  *   2. Build per-star TerritoryCell[] from polygon output
  *   3. Extract SharedBorderEdge[] (contested edges before merge)
  *   4. Build cluster map (for disconnect splitting)
@@ -164,19 +164,19 @@ export interface FrontierLoop {
 // ---------------------------------------------------------------------------
 
 export interface TerritoryGeneratorSettings {
-    starMargin: number;           // MODIFIED_VORONOI_STAR_MARGIN — shared power-voronoi scale term for real-site weight, clip padding, and contested midpoint spacing
-    msrStarBias?: number;         // Optional solve-time star resistance telemetry/config surface
-    corridorEnabled: boolean;     // MODIFIED_VORONOI_CORRIDOR_ENABLED
-    corridorSpacing: number;      // MODIFIED_VORONOI_CORRIDOR_SPACING
-    cxCount: number;              // TERRITORY_CX_COUNT — vstars per lane (0 = auto)
-    cxWeight: number;             // TERRITORY_CX_WEIGHT — weight multiplier (0.0-2.0)
-    cxContestMidpointVstars: boolean; // TERRITORY_CX_CONTEST_MIDPOINT_VSTARS
-    cxContestPairCount: number;       // TERRITORY_CX_CONTEST_PAIR_COUNT
-    cxContestPairSpacing?: number;    // TERRITORY_CX_CONTEST_PAIR_SPACING
-    cxContestPairWeight: number;      // TERRITORY_CX_CONTEST_PAIR_WEIGHT
-    disconnectEnabled: boolean;   // MODIFIED_VORONOI_DISCONNECT_ENABLED
-    disconnectDistance: number;   // MODIFIED_VORONOI_DISCONNECT_DISTANCE
-    dxWeight: number;             // TERRITORY_DX_WEIGHT — weight multiplier (0.0-2.0)
+    starWeight: number;           // Base real-site weight for the power-voronoi solve
+    msrPx: number;                // Minimum star range territory buffer in pixels
+    cxEnabled: boolean;           // Same-player lane connection shaping enabled
+    cxSpacingPx: number;          // Spacing between CX helper points
+    cxPointCount: number;         // Same-player lane helper point count (0 = auto)
+    cxWeight: number;             // Same-player lane helper weight multiplier
+    lpMidpointPairEnabled: boolean; // Contested-lane midpoint pair shaping enabled
+    lpPairCount: number;          // Contested-lane midpoint pair count
+    lpPairSpacingPx: number;      // Contested-lane midpoint pair spacing
+    lpPairWeight: number;         // Contested-lane midpoint pair weight multiplier
+    dxEnabled: boolean;           // Disconnect-zone helper shaping enabled
+    dxMaxDistancePx: number;      // Maximum star-pair distance for DX consideration
+    dxWeight: number;             // Disconnect helper weight multiplier
     clusterSplit: boolean;        // TERRITORY_CLUSTER_SPLIT
     chaikinPasses: number;        // VORONOI_BORDER_SMOOTH (0-5) — geometry smoothing
     frontierResolution: number;   // FRONTIER_RESOLUTION — vertex spacing in px (1-20)
@@ -932,7 +932,7 @@ export function generateVoronoiTerritoryGeometry(
     config: TerritoryGeneratorSettings,
 ): TerritoryGeometryData | CompileError {
     try {
-        const { starMargin, worldWidth, worldHeight } = config;
+        const { starWeight, worldWidth, worldHeight } = config;
 
         const ownedStars = stars.filter(s => s.ownerId);
         if (ownedStars.length < 2) {
@@ -948,30 +948,30 @@ export function generateVoronoiTerritoryGeometry(
         const sites: PowerSite[] = ownedStars.map(s => ({
             x: s.x,
             y: s.y,
-            weight: starMargin * starMargin,
+            weight: starWeight * starWeight,
             ownerId: s.ownerId!,
             starId: s.id,
         }));
 
-        if (config.corridorEnabled) {
+        if (config.cxEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(
                 ownedStars,
                 connections,
-                config.corridorSpacing,
+                config.cxSpacingPx,
                 config.cxWeight,
-                config.cxCount || undefined,
+                config.cxPointCount || undefined,
                 undefined,
-                config.cxContestMidpointVstars,
+                config.lpMidpointPairEnabled,
                 true,
                 true,
-                config.cxContestPairWeight,
-                config.cxContestPairCount,
-                config.cxContestPairSpacing ?? config.starMargin,
+                config.lpPairWeight,
+                config.lpPairCount,
+                config.lpPairSpacingPx,
             );
             for (const cv of corridorVirtuals) {
                 sites.push({
                     x: cv.x, y: cv.y,
-                    weight: starMargin * starMargin * cv.weight,
+                    weight: starWeight * starWeight * cv.weight,
                     ownerId: cv.ownerId,
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
@@ -979,12 +979,18 @@ export function generateVoronoiTerritoryGeometry(
             }
         }
 
-        if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
+        if (config.dxEnabled) {
+            const disconnectVirtuals = computeDisconnectVirtuals(
+                ownedStars,
+                stars,
+                connections,
+                config.dxMaxDistancePx,
+                config.dxWeight,
+            );
             for (const dv of disconnectVirtuals) {
                 sites.push({
                     x: dv.x, y: dv.y,
-                    weight: starMargin * starMargin * dv.weight,
+                    weight: starWeight * starWeight * dv.weight,
                     ownerId: DISCONNECT_OWNER_ID,
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',
@@ -1053,7 +1059,7 @@ export function generateVoronoiTerritoryGeometry(
             cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
         }
 
-        log.renderer('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | corridorEnabled=${config.corridorEnabled} disconnectEnabled=${config.disconnectEnabled} chaikinPasses=${config.chaikinPasses}`);
+        log.renderer('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | cxEnabled=${config.cxEnabled} dxEnabled=${config.dxEnabled} chaikinPasses=${config.chaikinPasses}`);
         log.renderer('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
 
         // Stage 2a: Extract junction vertices (points shared by 3+ cells)
@@ -1101,7 +1107,7 @@ export function generateVoronoiTerritoryGeometry(
         const minStarMargin = applyExplicitMinStarMargin(
             mergedTerritories,
             ownedStars,
-            starMargin,
+            config.msrPx,
         );
         if (
             minStarMargin.appliedMarginPx > 0

@@ -1875,3 +1875,59 @@
 - Validation:
   - documentation-only checkpoint
   - no runtime code changed in this update
+
+## Update: 2026-05-05 - Sprint 4 Shared Constraint Normalization And Compact Export Rename
+
+- Trigger:
+  - user rejected the `90_*` compact artifact naming as invalid
+  - `v7` Sprint 4 requires the active geometry path to adopt a normalized shared-constraint contract before behavior work continues
+- Purpose:
+  - complete the internal geometry-contract cleanup without breaking the current public tuning surface
+  - remove the meaningless `90_*` diagnostics naming before it spreads into more artifacts and docs
+- Code changes:
+  - renamed compact diagnostics outputs:
+    - `debug/compact_diag.json`
+    - `debug/compact_topology.json`
+    - `debug/compact_geometry.json`
+  - normalized the internal generator settings path to explicit names:
+    - `starWeight`
+    - `msrPx`
+    - `cxEnabled`
+    - `cxSpacingPx`
+    - `cxPointCount`
+    - `cxWeight`
+    - `lpMidpointPairEnabled`
+    - `lpPairCount`
+    - `lpPairSpacingPx`
+    - `lpPairWeight`
+    - `dxEnabled`
+    - `dxMaxDistancePx`
+    - `dxWeight`
+  - preserved the current public panel/config surface during the migration:
+    - `starMargin` still drives the live base site-weight control
+    - `msrStarBias` is retained only as a compatibility shell while a real public `MSR` control is designed
+- Touched files:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\geometryTuning.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\Geometry_0319.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\territoryGeometryFingerprint.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\config\geometry0319Debug.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\renderers\PowerVoronoiRenderer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\perimeterFieldGeometryArtifact.ts`
+  - tests:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\territoryGeometryFingerprint.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\config\geometry0319Debug.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildFamilyGeometry.test.ts`
+- Result:
+  - the active geometry path now uses truthful internal names for the shared-constraint model
+  - the migration remains low-risk because the public tuning surface is still stable
+  - compact diagnostics exports now have descriptive names instead of the invalid `90_*` prefix
+- Validation:
+  - passed:
+    - `bunx vitest run src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+- Important note:
+  - the app package build passes
+  - the repo-root wrapper build still fails because the sibling `pax-server` workspace is missing `@colyseus/core`

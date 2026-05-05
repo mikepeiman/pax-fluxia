@@ -3,16 +3,18 @@ export interface Geometry0319DebugSnapshot {
     territoryRenderMode: string | null;
     geometrySource: string | null;
     frontierResolution: number | null;
-    starMargin: number | null;
-    corridorEnabled: boolean | null;
-    corridorSpacing: number | null;
-    cxCount: number | null;
+    starWeight: number | null;
+    msrPx: number | null;
+    cxEnabled: boolean | null;
+    cxSpacingPx: number | null;
+    cxPointCount: number | null;
     cxWeight: number | null;
-    cxContestMidpointVstars: boolean | null;
-    cxContestPairCount: number | null;
-    cxContestPairWeight: number | null;
-    disconnectEnabled: boolean | null;
-    disconnectDistance: number | null;
+    lpMidpointPairEnabled: boolean | null;
+    lpPairCount: number | null;
+    lpPairSpacingPx: number | null;
+    lpPairWeight: number | null;
+    dxEnabled: boolean | null;
+    dxMaxDistancePx: number | null;
     dxWeight: number | null;
     clusterSplit: boolean | null;
     chaikinPasses: number | null;
@@ -32,29 +34,83 @@ function asString(value: unknown): string | null {
     return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function firstNumber(...values: unknown[]): number | null {
+    for (const value of values) {
+        const numeric = asNumber(value);
+        if (numeric !== null) return numeric;
+    }
+    return null;
+}
+
+function firstBoolean(...values: unknown[]): boolean | null {
+    for (const value of values) {
+        const bool = asBoolean(value);
+        if (bool !== null) return bool;
+    }
+    return null;
+}
+
 export function snapshotGeometry0319DebugConfig(
     source: Record<string, unknown>,
 ): Geometry0319DebugSnapshot {
     return {
         useRenderFamilies: asBoolean(source.USE_RENDER_FAMILIES),
         territoryRenderMode: asString(source.TERRITORY_RENDER_MODE),
-        geometrySource: asString(source.PERIMETER_FIELD_GEOMETRY_SOURCE),
-        frontierResolution: asNumber(source.FRONTIER_RESOLUTION),
-        starMargin: asNumber(source.MODIFIED_VORONOI_STAR_MARGIN),
-        corridorEnabled: asBoolean(source.MODIFIED_VORONOI_CORRIDOR_ENABLED),
-        corridorSpacing: asNumber(source.MODIFIED_VORONOI_CORRIDOR_SPACING),
-        cxCount: asNumber(source.TERRITORY_CX_COUNT),
-        cxWeight: asNumber(source.TERRITORY_CX_WEIGHT),
-        cxContestMidpointVstars: asBoolean(source.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS),
-        cxContestPairCount: asNumber(source.TERRITORY_CX_CONTEST_PAIR_COUNT),
-        cxContestPairWeight: asNumber(source.TERRITORY_CX_CONTEST_PAIR_WEIGHT),
-        disconnectEnabled: asBoolean(source.MODIFIED_VORONOI_DISCONNECT_ENABLED),
-        disconnectDistance: asNumber(source.MODIFIED_VORONOI_DISCONNECT_DISTANCE),
-        dxWeight: asNumber(source.TERRITORY_DX_WEIGHT),
-        clusterSplit: asBoolean(source.TERRITORY_CLUSTER_SPLIT),
-        chaikinPasses: asNumber(source.VORONOI_BORDER_SMOOTH),
-        boundaryPad: asNumber(source.CHAIKIN_BOUNDARY_PAD),
-        boundaryEps: asNumber(source.CHAIKIN_BOUNDARY_EPS),
+        geometrySource:
+            asString(source.geometrySource) ??
+            asString(source.PERIMETER_FIELD_GEOMETRY_SOURCE),
+        frontierResolution: firstNumber(
+            source.frontierResolution,
+            source.FRONTIER_RESOLUTION,
+        ),
+        starWeight: firstNumber(
+            source.starWeight,
+            source.MODIFIED_VORONOI_STAR_MARGIN,
+        ),
+        msrPx: firstNumber(
+            source.msrPx,
+            source.TERRITORY_MSR_PX,
+            source.MODIFIED_VORONOI_STAR_MARGIN,
+        ),
+        cxEnabled: firstBoolean(
+            source.cxEnabled,
+            source.MODIFIED_VORONOI_CORRIDOR_ENABLED,
+        ),
+        cxSpacingPx: firstNumber(
+            source.cxSpacingPx,
+            source.MODIFIED_VORONOI_CORRIDOR_SPACING,
+        ),
+        cxPointCount: firstNumber(source.cxPointCount, source.TERRITORY_CX_COUNT),
+        cxWeight: firstNumber(source.cxWeight, source.TERRITORY_CX_WEIGHT),
+        lpMidpointPairEnabled: firstBoolean(
+            source.lpMidpointPairEnabled,
+            source.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS,
+        ),
+        lpPairCount: firstNumber(
+            source.lpPairCount,
+            source.TERRITORY_CX_CONTEST_PAIR_COUNT,
+        ),
+        lpPairSpacingPx: firstNumber(
+            source.lpPairSpacingPx,
+            source.TERRITORY_CX_CONTEST_PAIR_SPACING,
+        ),
+        lpPairWeight: firstNumber(
+            source.lpPairWeight,
+            source.TERRITORY_CX_CONTEST_PAIR_WEIGHT,
+        ),
+        dxEnabled: firstBoolean(
+            source.dxEnabled,
+            source.MODIFIED_VORONOI_DISCONNECT_ENABLED,
+        ),
+        dxMaxDistancePx: firstNumber(
+            source.dxMaxDistancePx,
+            source.MODIFIED_VORONOI_DISCONNECT_DISTANCE,
+        ),
+        dxWeight: firstNumber(source.dxWeight, source.TERRITORY_DX_WEIGHT),
+        clusterSplit: firstBoolean(source.clusterSplit, source.TERRITORY_CLUSTER_SPLIT),
+        chaikinPasses: firstNumber(source.chaikinPasses, source.VORONOI_BORDER_SMOOTH),
+        boundaryPad: firstNumber(source.boundaryPad, source.CHAIKIN_BOUNDARY_PAD),
+        boundaryEps: firstNumber(source.boundaryEps, source.CHAIKIN_BOUNDARY_EPS),
     };
 }
 
@@ -80,12 +136,11 @@ export function formatGeometry0319DebugConfig(
         `families=${fmtBoolean(snapshot.useRenderFamilies)}`,
         `geom=${fmtString(snapshot.geometrySource)}`,
         `frontier=${fmtNumber(snapshot.frontierResolution)}`,
-        `msr=${fmtNumber(snapshot.starMargin)}`,
-        `corridor=${fmtBoolean(snapshot.corridorEnabled)}/${fmtNumber(snapshot.corridorSpacing)}`,
-        `cx=${fmtNumber(snapshot.cxCount)}@${fmtNumber(snapshot.cxWeight)}`,
-        `cxMid=${fmtBoolean(snapshot.cxContestMidpointVstars)}`,
-        `cxPair=${fmtNumber(snapshot.cxContestPairCount)}@${fmtNumber(snapshot.cxContestPairWeight)}`,
-        `dx=${fmtBoolean(snapshot.disconnectEnabled)}/${fmtNumber(snapshot.disconnectDistance)}@${fmtNumber(snapshot.dxWeight)}`,
+        `starW=${fmtNumber(snapshot.starWeight)}`,
+        `msr=${fmtNumber(snapshot.msrPx)}`,
+        `cx=${fmtBoolean(snapshot.cxEnabled)}/${fmtNumber(snapshot.cxSpacingPx)}/${fmtNumber(snapshot.cxPointCount)}@${fmtNumber(snapshot.cxWeight)}`,
+        `lp=${fmtBoolean(snapshot.lpMidpointPairEnabled)}/${fmtNumber(snapshot.lpPairCount)}@${fmtNumber(snapshot.lpPairWeight)}:${fmtNumber(snapshot.lpPairSpacingPx)}`,
+        `dx=${fmtBoolean(snapshot.dxEnabled)}/${fmtNumber(snapshot.dxMaxDistancePx)}@${fmtNumber(snapshot.dxWeight)}`,
         `cluster=${fmtBoolean(snapshot.clusterSplit)}`,
         `chaikin=${fmtNumber(snapshot.chaikinPasses)}`,
         `clip=${fmtNumber(snapshot.boundaryPad)}/${fmtNumber(snapshot.boundaryEps)}`,

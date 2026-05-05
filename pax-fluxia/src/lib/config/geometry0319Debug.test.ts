@@ -33,16 +33,18 @@ describe('geometry0319Debug', () => {
             territoryRenderMode: 'metaball_grid',
             geometrySource: 'power_voronoi_0319',
             frontierResolution: 5,
-            starMargin: 65,
-            corridorEnabled: true,
-            corridorSpacing: 20,
-            cxCount: 0,
+            starWeight: 65,
+            msrPx: 65,
+            cxEnabled: true,
+            cxSpacingPx: 20,
+            cxPointCount: 0,
             cxWeight: 0.5,
-            cxContestMidpointVstars: false,
-            cxContestPairCount: 1,
-            cxContestPairWeight: 0.5,
-            disconnectEnabled: false,
-            disconnectDistance: 90,
+            lpMidpointPairEnabled: false,
+            lpPairCount: 1,
+            lpPairSpacingPx: null,
+            lpPairWeight: 0.5,
+            dxEnabled: false,
+            dxMaxDistancePx: 90,
             dxWeight: 0.3,
             clusterSplit: true,
             chaikinPasses: 2,
@@ -57,16 +59,18 @@ describe('geometry0319Debug', () => {
             territoryRenderMode: 'perimeter_field',
             geometrySource: 'power_voronoi_0319',
             frontierResolution: 5,
-            starMargin: 65,
-            corridorEnabled: true,
-            corridorSpacing: 20,
-            cxCount: 0,
+            starWeight: 65,
+            msrPx: 65,
+            cxEnabled: true,
+            cxSpacingPx: 20,
+            cxPointCount: 0,
             cxWeight: 0.5,
-            cxContestMidpointVstars: false,
-            cxContestPairCount: 1,
-            cxContestPairWeight: 0.5,
-            disconnectEnabled: false,
-            disconnectDistance: 90,
+            lpMidpointPairEnabled: false,
+            lpPairCount: 1,
+            lpPairSpacingPx: null,
+            lpPairWeight: 0.5,
+            dxEnabled: false,
+            dxMaxDistancePx: 90,
             dxWeight: 0.3,
             clusterSplit: true,
             chaikinPasses: 2,
@@ -76,8 +80,9 @@ describe('geometry0319Debug', () => {
 
         expect(summary).toContain('mode=perimeter_field');
         expect(summary).toContain('frontier=5');
+        expect(summary).toContain('starW=65');
         expect(summary).toContain('msr=65');
-        expect(summary).toContain('cx=0@0.50');
+        expect(summary).toContain('cx=1/20/0@0.50');
         expect(summary).toContain('dx=0/90@0.30');
     });
 });

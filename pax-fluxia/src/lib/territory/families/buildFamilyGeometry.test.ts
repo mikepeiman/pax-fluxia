@@ -14,8 +14,8 @@ describe('buildPowerVoronoi0319Settings', () => {
             },
         });
 
-        expect(settings.disconnectEnabled).toBe(true);
-        expect(settings.disconnectDistance).toBe(295);
+        expect(settings.dxEnabled).toBe(true);
+        expect(settings.dxMaxDistancePx).toBe(295);
         expect(settings.dxWeight).toBe(0.3);
     });
 });

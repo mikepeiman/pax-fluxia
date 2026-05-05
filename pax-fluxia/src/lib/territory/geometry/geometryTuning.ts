@@ -6,6 +6,7 @@ export interface TerritoryGeometryTunables {
     boundaryPad: number;
     boundaryEps: number;
     starMargin: number;
+    /** Legacy no-op. Retained only to avoid breaking the current panel surface. */
     msrStarBias?: number;
     corridorEnabled: boolean;
     corridorSpacing: number;
@@ -215,18 +216,19 @@ export function buildTerritoryGeneratorSettingsFromTunables(params: {
 }): TerritoryGeneratorSettings {
     const tunables = normalizeTerritoryGeometryTunables(params.tunables);
     return {
-        starMargin: tunables.starMargin,
-        msrStarBias: tunables.msrStarBias,
-        corridorEnabled: tunables.corridorEnabled,
-        corridorSpacing: tunables.corridorSpacing,
-        cxCount: tunables.corridorCount,
+        starWeight: tunables.starMargin,
+        msrPx: tunables.starMargin,
+        cxEnabled: tunables.corridorEnabled,
+        cxSpacingPx: tunables.corridorSpacing,
+        cxPointCount: tunables.corridorCount,
         cxWeight: tunables.corridorWeight,
-        cxContestMidpointVstars: tunables.cxContestMidpointVstars,
-        cxContestPairCount: tunables.cxContestPairCount,
-        cxContestPairSpacing: tunables.cxContestPairSpacing,
-        cxContestPairWeight: tunables.cxContestPairWeight,
-        disconnectEnabled: tunables.disconnectEnabled,
-        disconnectDistance: tunables.disconnectDistance,
+        lpMidpointPairEnabled: tunables.cxContestMidpointVstars,
+        lpPairCount: tunables.cxContestPairCount,
+        lpPairSpacingPx:
+            tunables.cxContestPairSpacing ?? DEFAULT_CX_CONTEST_PAIR_SPACING,
+        lpPairWeight: tunables.cxContestPairWeight,
+        dxEnabled: tunables.disconnectEnabled,
+        dxMaxDistancePx: tunables.disconnectDistance,
         dxWeight: tunables.disconnectWeight,
         clusterSplit: tunables.clusterSplitThreshold > 0,
         chaikinPasses: tunables.geometrySmoothingPasses,
@@ -246,7 +248,7 @@ export function buildTerritoryGeometryCacheKeyParts(
         normalized.geometrySmoothingPasses,
         normalized.frontierResolution,
         normalized.starMargin,
-        normalized.msrStarBias ?? DEFAULT_MSR_STAR_BIAS,
+        normalized.starMargin,
         normalized.corridorEnabled,
         normalized.corridorSpacing,
         normalized.corridorCount,

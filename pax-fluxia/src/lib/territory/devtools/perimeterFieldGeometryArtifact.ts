@@ -185,21 +185,28 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
         worldHeight: params.worldHeight,
     });
     const ownedStars = params.stars.filter((star) => Boolean(star.ownerId));
-    const corridorVirtuals = settings.corridorEnabled
+    const corridorVirtuals = settings.cxEnabled
         ? computeCorridorVirtuals(
               ownedStars,
               [...params.lanes],
-              settings.corridorSpacing,
+              settings.cxSpacingPx,
               settings.cxWeight,
-              settings.cxCount || undefined,
+              settings.cxPointCount || undefined,
+              undefined,
+              settings.lpMidpointPairEnabled,
+              true,
+              true,
+              settings.lpPairWeight,
+              settings.lpPairCount,
+              settings.lpPairSpacingPx,
           )
         : [];
-    const disconnectVirtuals = settings.disconnectEnabled
+    const disconnectVirtuals = settings.dxEnabled
         ? computeDisconnectVirtuals(
               ownedStars,
               [...params.stars],
               [...params.lanes],
-              settings.disconnectDistance,
+              settings.dxMaxDistancePx,
               settings.dxWeight,
           )
         : [];

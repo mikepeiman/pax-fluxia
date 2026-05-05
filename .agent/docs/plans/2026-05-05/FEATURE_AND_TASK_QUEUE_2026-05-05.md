@@ -192,7 +192,52 @@
   - `05_transition_snapshot.json`
   - `05_transition_truth.json`
   - `05_active_front_plan.json`
-  - preserved compact files under `90_*`
+  - preserved compact files:
+    - `compact_diag.json`
+    - `compact_topology.json`
+    - `compact_geometry.json`
 - Purpose:
   - make one package sufficient to explain one conquest from frame input through rendered result
   - keep the compact exports as secondary quick-review artifacts
+
+## Latest Implementation Checkpoint 3
+
+- Completed Sprint 4 shared-geometry constraint normalization on the active generator path:
+  - internal geometry settings now use explicit normalized names:
+    - `starWeight`
+    - `msrPx`
+    - `cxEnabled`
+    - `cxSpacingPx`
+    - `cxPointCount`
+    - `cxWeight`
+    - `lpMidpointPairEnabled`
+    - `lpPairCount`
+    - `lpPairSpacingPx`
+    - `lpPairWeight`
+    - `dxEnabled`
+    - `dxMaxDistancePx`
+    - `dxWeight`
+  - touched files:
+    - `pax-fluxia/src/lib/territory/geometry/geometryTuning.ts`
+    - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+    - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
+    - `pax-fluxia/src/lib/territory/compiler/territoryGeometryFingerprint.ts`
+    - `pax-fluxia/src/lib/config/geometry0319Debug.ts`
+    - `pax-fluxia/src/lib/renderers/PowerVoronoiRenderer.ts`
+    - `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
+- Kept the public tuning surface stable for now:
+  - `starMargin` still feeds the live base site-weight control
+  - `msrStarBias` is retained only as a legacy no-op surface to avoid breaking the current panel/config path
+- Renamed compact diagnostics exports away from the invalid `90_*` prefix:
+  - `debug/compact_diag.json`
+  - `debug/compact_topology.json`
+  - `debug/compact_geometry.json`
+  - touched files:
+    - `pax-fluxia/src/lib/territory/devtools/TransitionSnapshotRecorder.ts`
+    - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+- Validation:
+  - `bunx vitest run src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
+  - `bun run build` in `pax-fluxia/`
+- Important validation note:
+  - the app package build passes
+  - the repo-root wrapper build still fails because the sibling `pax-server` workspace is missing `@colyseus/core`

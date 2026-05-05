@@ -4,15 +4,19 @@ export interface TerritoryGeometryFingerprintStar {
 }
 
 export interface TerritoryGeometryFingerprintSettings {
-    starMargin: number;
+    starWeight: number;
+    msrPx: number;
     clusterSplit: boolean;
-    corridorEnabled: boolean;
-    corridorSpacing: number;
-    cxCount: number;
+    cxEnabled: boolean;
+    cxSpacingPx: number;
+    cxPointCount: number;
     cxWeight: number;
-    cxContestPairSpacing?: number;
-    disconnectEnabled: boolean;
-    disconnectDistance: number;
+    lpMidpointPairEnabled: boolean;
+    lpPairCount: number;
+    lpPairSpacingPx: number;
+    lpPairWeight: number;
+    dxEnabled: boolean;
+    dxMaxDistancePx: number;
     dxWeight: number;
     chaikinPasses: number;
 }
@@ -25,15 +29,19 @@ export function buildTerritoryGeometryFingerprintCore(
     for (const star of stars) {
         fp += `${star.id}:${star.ownerId ?? ''}|`;
     }
-    fp += `:m${config.starMargin}`;
+    fp += `:sw${config.starWeight}`;
+    fp += `:msr${config.msrPx}`;
     fp += `:cs${config.clusterSplit ? 1 : 0}`;
-    fp += `:ce${config.corridorEnabled ? 1 : 0}`;
-    fp += `:csp${config.corridorSpacing}`;
-    fp += `:cxN${config.cxCount}`;
+    fp += `:cxe${config.cxEnabled ? 1 : 0}`;
+    fp += `:cxS${config.cxSpacingPx}`;
+    fp += `:cxN${config.cxPointCount}`;
     fp += `:cxW${config.cxWeight}`;
-    fp += `:cxPS${config.cxContestPairSpacing ?? config.starMargin}`;
-    fp += `:de${config.disconnectEnabled ? 1 : 0}`;
-    fp += `:dd${config.disconnectDistance}`;
+    fp += `:lpm${config.lpMidpointPairEnabled ? 1 : 0}`;
+    fp += `:lpN${config.lpPairCount}`;
+    fp += `:lpS${config.lpPairSpacingPx}`;
+    fp += `:lpW${config.lpPairWeight}`;
+    fp += `:dxe${config.dxEnabled ? 1 : 0}`;
+    fp += `:dxD${config.dxMaxDistancePx}`;
     fp += `:dxW${config.dxWeight}`;
     fp += `:ch${config.chaikinPasses}`;
     return fp;

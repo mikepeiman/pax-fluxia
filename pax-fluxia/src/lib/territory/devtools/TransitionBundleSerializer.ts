@@ -475,9 +475,9 @@ function buildDiagnosticDebugFileNames(
             activeFrontPlan: '05_active_front_plan.json',
         },
         compactFiles: {
-            diagnostic: '90_diag_compact.json',
-            topology: '90_topology_compact.json',
-            geometrySnapshot: '90_geometry_compact.json',
+            diagnostic: 'compact_diag.json',
+            topology: 'compact_topology.json',
+            geometrySnapshot: 'compact_geometry.json',
         },
     };
 }
@@ -601,7 +601,7 @@ function buildDiagnosticReadme(
         `- debug/${debugFiles.compactFiles.geometrySnapshot}`,
         '',
         `debug/${debugFiles.stageFiles.frameInput} is the normalized territory frame input captured at conquest time.`,
-        `debug/${debugFiles.compactFiles.diagnostic} keeps the existing compact summary for quick inspection.`,
+        `debug/${debugFiles.compactFiles.diagnostic} keeps the compact summary for quick inspection.`,
     ].join('\n');
 }
 

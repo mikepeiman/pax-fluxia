@@ -108,3 +108,12 @@
 32. The recorder/export path should start at normalized `TerritoryFrameInput` so one package can explain one conquest end to end.
 33. Compact exports remain useful, but only as secondary quick-review artifacts.
 34. One shared serializer for maps, sets, ownership, topology, and transition truth is the safest way to stop export-shape drift.
+35. `90_*` is not a valid descriptive naming convention for compact diagnostics artifacts. Compact exports should use plain names that say what they are.
+36. The internal geometry generator contract can be normalized now without breaking the user-facing tuning surface:
+    - keep `starMargin` alive as the current live site-weight control
+    - keep `msrStarBias` only as a compatibility shell until a real public `MSR` control lands
+    - move the active code path itself onto explicit `starWeight` / `msrPx` / `CX` / `LP` / `DX` naming
+37. The right intermediate migration pattern is:
+    - truthful internal names first
+    - stable public controls while the architecture is still being rebuilt
+    - public-panel cleanup only after the shared geometry layer is solid
