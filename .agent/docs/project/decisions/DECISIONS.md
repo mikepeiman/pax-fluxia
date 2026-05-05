@@ -826,3 +826,118 @@ All territory render modes must consume the same shared truth stages:
 1. Field families must stop stubbing ownership fields like `contestedLaneIds`.
 2. Family-local PREV reconstruction is an architectural defect to remove.
 3. Grid and perimeter paths remain valid derived substrates, but not separate base truth pipelines.
+
+---
+
+# Decision: Shared Geometry Constraint Model For `starWeight`, `MSR`, `CX`, `LP`, And `DX`
+
+**Date:** 2026-05-05
+**Status:** Active architectural direction
+**Ref:** D-TERR-CONSTRAINT-MODEL-2026-05-05
+**Supersedes:** `D-TERR-ACRONYMS-2026-04-19` where it conflicts on `CP` naming, `MSR` semantics, and implementation direction
+
+## Context
+
+The live geometry tuning path still mixes together:
+
+- `starMargin` as a misleading name for the base site-weight term
+- `msrStarBias` as a weak proxy for `MSR`
+- contested-lane pair logic under `CX contest` naming
+- `DX` as a virtual-site heuristic instead of explicit shared truth
+
+That makes the tuning surface semantically false and keeps the shared geometry stage under-defined.
+
+## Decision
+
+### `starWeight`
+
+- Meaning:
+  - base real-site weight in the geometry solve
+- It is distinct from:
+  - `MSR`
+  - `CX`
+  - `LP`
+  - `DX`
+
+### `MSR`
+
+- Meaning:
+  - explicit star-protection constraint
+- Shared truth shape:
+  - per-star protection descriptor with center and radius in pixels
+- Implementation direction:
+  - current site-weight-only proxy is not sufficient
+  - initial compiler path may use guard-ring samples plus sample-exclusion rules
+
+### `CX`
+
+- Meaning:
+  - same-player corridor connection
+- Shared truth shape:
+  - explicit same-owner lane corridor descriptor over the actual lane polyline
+
+### `LP`
+
+- Meaning:
+  - opposing-player corridor connection
+  - more precisely: the contested-lane lane-pair seam constraint
+- Shared truth shape:
+  - explicit contested-lane pair descriptor
+- Naming consequence:
+  - retire `CP` and `CX contest` wording on active paths
+
+### `DX`
+
+- Meaning:
+  - explicit disconnect-zone constraint
+- Trigger:
+  - same-owner pair
+  - not lane-connected
+  - midpoint still owned by that owner
+- Shared truth shape:
+  - explicit disconnect-zone descriptor
+
+## Consequences
+
+1. The shared geometry stage should emit first-class constraint descriptors instead of relying only on hidden virtual-site heuristics.
+2. Existing virtual-site builders may remain temporarily as compiler adapters, but not as the final semantic model.
+3. Tuning keys and UI labels must be renamed to match these meanings before further transition tuning work proceeds.
+
+---
+
+# Decision: Diagnostics Freeze On Unclassified Boundary
+
+**Date:** 2026-05-05
+**Status:** Active diagnostic direction
+**Ref:** D-TERR-FREEZE-UNCLASSIFIED-2026-05-05
+
+## Context
+
+The current transition diagnostics summarize counts and outcomes, but they do not stop execution when a conquest-local foundational section fails to receive a valid final classification. That allows classification holes to fall through into unexplained snap or broad deformation.
+
+## Decision
+
+Add a diagnostics mode named `Freeze On Unclassified Boundary`.
+
+When enabled:
+
+1. every foundational section inside the conquest-local eligible frontier envelope must receive exactly one final classification
+2. if any section is missing a classification or receives conflicting classifications:
+   - capture the full transition truth export
+   - freeze territory transition progression
+   - pause the game
+   - highlight the offending sections and relevant anchors
+
+Allowed final classifications are:
+
+- `unchanged_section`
+- `active_front_section`
+- `split_branch_section`
+- `final_region_disappearance`
+- `explicit_snap_with_reason`
+
+## Consequences
+
+1. A classified explicit snap is not the same thing as an unclassified boundary fault.
+2. This mode is for diagnosis and casebook-building, not for shipping runtime behavior.
+3. The transition classifier must become explicit enough to emit per-section final classifications.

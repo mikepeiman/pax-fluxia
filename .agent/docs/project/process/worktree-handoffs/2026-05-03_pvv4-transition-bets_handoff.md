@@ -1557,6 +1557,60 @@
   - documentation-only checkpoint
   - no runtime code changed in this update
 
+## Update: 2026-05-05 - Add Constraint Model And Freeze-On-Unclassified Diagnostics To Recovery Plan v4
+
+- Trigger:
+  - user asked to eliminate snap where possible
+  - user proposed a diagnostics mode that freezes whenever an unclassified section/boundary is found
+  - user asked for exact definitions and implementation direction for:
+    - `CX`
+    - `LP`
+    - `DX`
+    - `MSR`
+- Code trace reviewed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\geometryTuning.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\corridor\buildCorridorVirtualSites.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\disconnect\buildDisconnectVirtualSites.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\TerritoryGeometrySourceTuning.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+- Findings:
+  - `MSR` is still partly represented as a site-weight proxy instead of explicit star-protection truth
+  - `starWeight` and `MSR` are still semantically conflated
+  - same-owner lane reinforcement and contested-lane pair logic are still mixed under `CX` naming
+  - `DX` is still midpoint-oriented but only as a virtual-site heuristic
+  - PV transition still lacks a freeze-on-unclassified diagnostics trap
+  - live `borderFrame` remains empty in PV transition output
+- Documentation changes:
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v4.md`
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
+- Purpose:
+  - stop more transition tuning from proceeding on semantically false geometry constraints
+  - define a shared constraint model that all render modes can consume
+  - add a diagnostics trap for unclassified foundational sections so classification holes no longer degrade silently into snap
+- Result:
+  - `v4` now explicitly defines:
+    - `starWeight`
+    - `MSR`
+    - `CX`
+    - `LP`
+    - `DX`
+  - `v4` now adds:
+    - `Freeze On Unclassified Boundary`
+  - branch-level decisions now state:
+    - `LP` replaces stale contested-lane `CP` / `CX contest` wording
+    - `MSR` is explicit star-protection truth
+    - virtual-site builders are temporary adapters, not the final semantic model
+- Validation:
+  - documentation-only checkpoint
+  - no runtime code changed in this update
+
 ## Update: 2026-05-05 - Incorporate User Active-Front And DX Concepts Into Recovery Plan v2
 
 - Trigger:

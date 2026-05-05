@@ -214,3 +214,90 @@ Candidate basis:
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\buildFrontierTopology.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
 - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+
+## Geometry Constraint Definitions
+
+### `starWeight`
+
+- Meaning:
+  - the base real-site weight used by the geometry solve
+- It is not:
+  - `MSR`
+  - corridor truth
+  - disconnect truth
+- Consequence:
+  - `starMargin` is a false semantic name and must be retired
+
+### `MSR`
+
+- Expansion:
+  - Minimum Star Range
+- Meaning:
+  - star-protection constraint
+  - non-origin boundaries and non-endpoint constraint samples must not intrude inside the protected disk around a star
+- Required shared truth:
+  - per-star protection descriptor with:
+    - star ID
+    - owner ID
+    - center
+    - radius in pixels
+- Current live deficiency:
+  - it is still partly faked through the site-weight term instead of being a first-class protection constraint
+
+### `CX`
+
+- Meaning:
+  - same-player corridor connection
+- Rule:
+  - if two same-owner stars are lane-connected, the owner's territory should remain connected along that lane corridor
+- Required shared truth:
+  - lane-based corridor descriptor over the actual lane polyline
+
+### `LP`
+
+- Meaning:
+  - opposing-player corridor connection
+  - more precisely: the contested-lane lane-pair seam constraint
+- Rule:
+  - if two connected stars have opposing owners, only those two owners should own the contested lane seam
+- Required shared truth:
+  - explicit contested-lane pair descriptor
+- Semantic cleanup:
+  - old `CP` naming and old `CX contest` phrasing are drift and should be retired
+
+### `DX`
+
+- Meaning:
+  - disconnect zone
+- Trigger:
+  - same-owner pair
+  - not lane-connected
+  - midpoint still owned by that owner
+- Required shared truth:
+  - explicit zone descriptor with:
+    - midpoint
+    - tangent axis
+    - normal axis
+    - depth
+    - half-width
+    - source star pair
+
+## Diagnostics Freeze Definition
+
+### `Freeze On Unclassified Boundary`
+
+- Purpose:
+  - catch classification holes before they silently degrade into snap or bad transport
+- Trigger:
+  - a foundational section inside the conquest-local eligible frontier envelope does not receive exactly one final classification
+- Allowed final classifications:
+  - `unchanged_section`
+  - `active_front_section`
+  - `split_branch_section`
+  - `final_region_disappearance`
+  - `explicit_snap_with_reason`
+- Freeze behavior:
+  - capture export
+  - freeze territory transition progression
+  - pause game
+  - highlight offending sections and relevant anchors

@@ -97,3 +97,27 @@
 6. Add real per-section/per-point star influence attribution so conquest-local active-front bounds can be selected deterministically.
 7. Replace heuristic-only DX with an explicit disconnect-zone model after shared truth is unified.
 8. Do not begin runtime motion changes until the conquest casebook and end-to-end truth exports are in place.
+9. Normalize geometry constraints and tuning before more PV transition tuning:
+   - separate `starWeight` from `MSR`
+   - separate `LP` from `CX`
+   - move `DX` to explicit zone truth
+10. Add diagnostics freeze-on-unclassified mode so classification holes stop silently degrading into snap.
+
+## Latest Update
+
+- Created:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v4.md`
+- `v4` adds:
+  - explicit shared definitions for:
+    - `starWeight`
+    - `MSR`
+    - `CX`
+    - `LP`
+    - `DX`
+  - a diagnostics mode that freezes on unclassified foundational sections
+- Latest code-trace confirmation:
+  - `MSR` is still only partially represented as a site-weight proxy
+  - `starWeight` and `MSR` are still semantically conflated
+  - contested-lane pair logic is still mixed under `CX` naming
+  - `DX` is still only a virtual-site heuristic
+  - PV transition still lacks a freeze-on-unclassified diagnostics trap

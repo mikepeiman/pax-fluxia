@@ -62,3 +62,12 @@
    - eligible frontier envelope for a conquest
    - DX zone descriptor
    - no-motion-before-casebook rule
+
+## Additional Constraint / Diagnostics Lessons
+
+12. `MSR` and `starWeight` must be separated. The current code still treats them as partially conflated, which makes the tuning surface semantically false.
+13. `CX` and the contested cross-owner lane-pair path are not the same constraint. They need separate names, separate descriptors, and separate tunables.
+14. `DX` is still only a midpoint-oriented virtual-site heuristic in live code. The target model is an explicit disconnect-zone descriptor in shared geometry truth.
+15. The current virtual-site generators can remain temporarily as compiler adapters, but they must not remain the primary semantic definition of `CX`, `LP`, `DX`, or `MSR`.
+16. Eliminating accidental snap requires a diagnostics mode that freezes on unclassified foundational sections rather than letting classification holes fall through silently.
+17. A classified explicit snap and an unclassified boundary failure are not the same thing. Only the latter should trigger the freeze-on-unclassified diagnostics mode.
