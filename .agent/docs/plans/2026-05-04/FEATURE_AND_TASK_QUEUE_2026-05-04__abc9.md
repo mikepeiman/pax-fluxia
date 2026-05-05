@@ -35,8 +35,8 @@
   - keep the implementation modular enough to respect the repo's file-discipline limits while the renderer family grows
 - Sprint 5:
   - enforce runtime support policy in both gameplay UI and `GameCanvas`
-  - enable selective live-mode support on `distance_field` and `perimeter_field`
   - preserve stored selections while failing unsupported live modes to explicit no-op
+  - keep the active implementation scope aligned to PVV4 plus the maintained metaball-grid phase modes
 
 ## Progress log
 
@@ -60,11 +60,8 @@
   - upgraded `GameCanvasTerritoryBridge.ts` to expose the current canonical geometry snapshot to the shared presenter path
   - fixed `panelSync.ts` and `GameSettingsPanel.svelte` so non-legacy selections survive config sync instead of collapsing back to `legacy_image`
   - replaced the visuals panel's background-image-only control with gameplay mode cards, shared tunables, and retained legacy-image fallback
-  - Sprint 3 runtime support now covers:
-    - `territory_engine`
+  - the maintained gameplay runtime contract for this lane is:
     - `power_voronoi_canonical`
-    - clean `territory_canonical`
-    - `metaball_grid`
     - `metaball_grid_phase_edges`
     - `metaball_grid_ember_lattice`
     - `metaball_grid_phase_field`
@@ -102,14 +99,24 @@
     - warn when the stored live selection is unsupported on the current runtime
     - disable the live tuning panel for unsupported stored modes while preserving state
   - upgraded `GameCanvas.svelte` to:
-    - route shared geometry into gameplay backgrounds for `distance_field`
-    - route shared geometry into gameplay backgrounds for `perimeter_field`
     - render live backgrounds only when the active territory runtime actually supports the selected mode
   - extended targeted background tests to cover selective support behavior
   - verification:
     - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
     - `bun run build` passes in `pax-fluxia/`
     - build warnings remain dominated by pre-existing unused-selector noise and chunk warnings outside this feature lane
+- Scope correction after user review:
+  - reverted the accidental Sprint 5 broadening into `distance_field` and `perimeter_field`
+  - narrowed the active support contract to:
+    - `power_voronoi_canonical`
+    - `metaball_grid_phase_edges`
+    - `metaball_grid_ember_lattice`
+    - `metaball_grid_phase_field`
+  - disabled live backgrounds again on:
+    - `territory_canonical`
+    - `territory_engine`
+    - base `metaball_grid`
+    - all direct legacy modes
 
 ## Verification target
 

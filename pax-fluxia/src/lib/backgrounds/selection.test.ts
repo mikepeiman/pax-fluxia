@@ -62,31 +62,46 @@ describe('background selection helpers', () => {
         ).toBe('pax-fluxia-bg-25.jpg');
     });
 
-    it('exposes selective live-mode support for subset territory runtimes', () => {
-        expect(getSupportedBackgroundModeIdsForRenderMode('distance_field')).toEqual([
-            'nebula_veil',
-            'banner_light',
-            'shadow_mist',
-        ]);
-        expect(getSupportedBackgroundModeIdsForRenderMode('perimeter_field')).toEqual([
-            'banner_light',
-            'storm_current',
-        ]);
+    it('exposes full live-mode support only on the maintained gameplay runtimes', () => {
+        expect(
+            getSupportedBackgroundModeIdsForRenderMode(
+                'power_voronoi_canonical',
+            ),
+        ).toContain('storm_current');
+        expect(
+            getSupportedBackgroundModeIdsForRenderMode(
+                'metaball_grid_phase_edges',
+            ),
+        ).toContain('nebula_veil');
+        expect(
+            getSupportedBackgroundModeIdsForRenderMode(
+                'metaball_grid_phase_field',
+            ),
+        ).toContain('ember_kingdom');
+        expect(
+            getSupportedBackgroundModeIdsForRenderMode('distance_field'),
+        ).toEqual([]);
     });
 
-    it('always permits legacy_image and rejects unsupported live modes for a runtime', () => {
+    it('always permits legacy_image and rejects out-of-scope territory runtimes', () => {
         expect(
             isBackgroundModeSupportedForRenderMode('graph', 'legacy_image'),
         ).toBe(true);
         expect(
             isBackgroundModeSupportedForRenderMode(
                 'distance_field',
-                'storm_current',
+                'banner_light',
             ),
         ).toBe(false);
         expect(
             isBackgroundModeSupportedForRenderMode(
-                'perimeter_field',
+                'territory_engine',
+                'nebula_veil',
+            ),
+        ).toBe(false);
+        expect(
+            isBackgroundModeSupportedForRenderMode(
+                'metaball_grid_ember_lattice',
                 'storm_current',
             ),
         ).toBe(true);

@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, gameplay runtime exists on the clean territory paths, all 8 primary gameplay modes render there, and runtime support policy is now explicit in both the UI and `GameCanvas`
+**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, and runtime support policy is explicit in both the UI and `GameCanvas`
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -71,11 +71,8 @@ Implemented Sprint 3 of the background-mode system:
   - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
 - upgraded the gameplay tuning surface:
   - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
-- Sprint 3 gameplay runtime support is intentionally limited to clean territory paths:
-  - `territory_engine`
+- the maintained gameplay runtime contract for this lane is:
   - `power_voronoi_canonical`
-  - clean `territory_canonical`
-  - `metaball_grid`
   - `metaball_grid_phase_edges`
   - `metaball_grid_ember_lattice`
   - `metaball_grid_phase_field`
@@ -114,18 +111,18 @@ Implemented Sprint 5 of the background-mode system:
 - upgraded gameplay support gating in:
   - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
   - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
-- `distance_field` now supports the shared-subset live modes:
-  - `nebula_veil`
-  - `banner_light`
-  - `shadow_mist`
-- `perimeter_field` now supports the intended frontier-forward subset:
-  - `banner_light`
-  - `storm_current`
 - unsupported live modes now:
   - stay stored in persistence
   - show as unsupported in the gameplay settings surface
   - fail to explicit no-op at runtime instead of silently rendering the wrong thing
 - targeted background tests now cover the runtime support helpers in `selection.test.ts`
+- scope correction after user review:
+  - removed the accidental `distance_field` and `perimeter_field` broadening from the active support contract
+  - narrowed the committed gameplay runtime scope to:
+    - `power_voronoi_canonical`
+    - `metaball_grid_phase_edges`
+    - `metaball_grid_ember_lattice`
+    - `metaball_grid_phase_field`
 
 ## Objective locked in
 
@@ -221,19 +218,22 @@ The implementation is compiled and tested, but no browser playtest or screenshot
 
 The highest-value manual checks are now:
 
-- `distance_field`:
-  - verify `nebula_veil`, `banner_light`, and `shadow_mist`
-- `perimeter_field`:
-  - verify `banner_light` and `storm_current`
-- an unsupported mode on `graph`, `pixel`, or `metaball`:
+- `power_voronoi_canonical`:
+  - verify all 8 live background modes
+- `metaball_grid_phase_edges`, `metaball_grid_ember_lattice`, and `metaball_grid_phase_field`:
+  - verify all 8 live background modes
+- an unsupported mode on `distance_field`, `perimeter_field`, `graph`, `pixel`, or `metaball`:
   - confirm the live mode is visibly disabled in settings and fails to no-op in runtime
 
 ### 3. Keep clean-territory-first support as the v1 contract
 
 The new capability matrix already encodes the intended v1 support:
 
-- full set on `territory_canonical`, `power_voronoi_canonical`, `territory_engine`, and the `metaball_grid*` family
-- subset on `distance_field` and `perimeter_field`
+- full set on:
+  - `power_voronoi_canonical`
+  - `metaball_grid_phase_edges`
+  - `metaball_grid_ember_lattice`
+  - `metaball_grid_phase_field`
 - explicit defer/no-op on older direct legacy modes
 
 ## Runtime-shape caution
@@ -248,9 +248,9 @@ Do not spend phase-1 time building bespoke ambient support for every direct lega
 
 Phase-1 priority should be:
 
-1. pipeline runtime
-2. render-family runtime if the data seam is clean
-3. direct legacy runtime only if a shared fallback is cheap
+1. PVV4
+2. maintained metaball-grid phase modes
+3. everything else later only by explicit scope expansion
 
 ## First-wave content direction
 
@@ -292,9 +292,9 @@ Phase-1 priority should be:
 
 ## Open questions still unresolved
 
-- Whether `distance_field` should receive a true shared-subset implementation or stay disabled until it can consume the shared input cleanly.
-- Whether `perimeter_field` should support only frontier-forward modes in v1 or stay entirely disabled until Sprint 5 hardening is finished.
-- Whether fresh gameplay installs should switch from `legacy_image` to a primary live mode default after the remaining four gameplay modes land.
+- Whether base `metaball_grid` should become part of the supported background contract later or remain a preview-only territory mode.
+- Whether `territory_engine` / clean `territory_canonical` should re-enter scope later or stay out until the maintained runtime set is broader.
+- Whether fresh gameplay installs should switch from `legacy_image` to a primary live mode default after the current maintained runtime set is verified.
 
 ## Merge / port guidance
 

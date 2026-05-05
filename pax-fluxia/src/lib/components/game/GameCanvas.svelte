@@ -5535,9 +5535,6 @@
                             renderer: app?.renderer ?? undefined,
                             gameNowMs: fxOrchestrator.gameTime,
                         });
-                        gameplayBackgroundGeometry = localizePresentationGeometry(
-                            readFamilyGeometry(),
-                        );
                         break;
                     case "vs_pvv3": {
                         const activeTransition = activeRenderFamilyTransition;
@@ -5616,9 +5613,6 @@
                             activeGameStore.connections as StarConnection[],
                             app?.renderer ?? undefined,
                         );
-                        gameplayBackgroundGeometry = localizePresentationGeometry(
-                            readFamilyGeometry(),
-                        );
                         if (transitionDiagnosticCaptureEnabled) {
                             transitionDiagnosticFrameInput = {
                                 activeMode,
@@ -5679,7 +5673,6 @@
                         const geometry = readFamilyGeometry();
                         const localizedGeometry =
                             localizePresentationGeometry(geometry);
-                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -5759,7 +5752,6 @@
                         const geometry = readFamilyGeometry();
                         const localizedGeometry =
                             localizePresentationGeometry(geometry);
-                        gameplayBackgroundGeometry = localizedGeometry;
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
                                 ? getTransitionDiagnosticPrevFrame({
@@ -6272,8 +6264,6 @@
                                         ),
                                     );
                                     canonicalBridge.consumeVFXCommands();
-                                    gameplayBackgroundGeometry =
-                                        canonicalBridge.getCurrentGeometry();
                                     renderedByCanonicalBridge = true;
                                 } catch (error) {
                                     if (!canonicalBridgeFallbackLogged) {

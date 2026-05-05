@@ -63,11 +63,8 @@
   - `banner_light`
   - `shadow_mist`
   - `starlit_dust`
-- Sprint 3 clean runtime coverage:
-  - `territory_engine`
+- Maintained gameplay runtime contract for this lane:
   - `power_voronoi_canonical`
-  - clean `territory_canonical`
-  - `metaball_grid`
   - `metaball_grid_phase_edges`
   - `metaball_grid_ember_lattice`
   - `metaball_grid_phase_field`
@@ -94,7 +91,6 @@
 ## Sprint 5 - selective compatibility and hardening
 
 - Added shared support-policy helpers so the capability matrix is executable product logic instead of documentation-only metadata.
-- Wired `distance_field` and `perimeter_field` into the gameplay background geometry path using the existing shared geometry cache.
 - Upgraded the visuals settings surface to disable unsupported live modes for the active territory runtime while preserving stored selections.
 - Added user-facing unsupported-state messaging and disabled live tuning when the stored mode is unsupported on the current runtime.
 - Extended the targeted background tests to cover selective support policy.
@@ -102,3 +98,13 @@
   - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
   - `bun run build` passes in `pax-fluxia/`
   - no browser verification was run in this lane
+
+## Scope correction - maintained runtime set only
+
+- User review corrected the runtime scope after Sprint 5 drifted into `distance_field` and `perimeter_field`.
+- The active background-runtime contract is now narrowed back to:
+  - `power_voronoi_canonical`
+  - `metaball_grid_phase_edges`
+  - `metaball_grid_ember_lattice`
+  - `metaball_grid_phase_field`
+- The capability matrix, gameplay UI messaging, and runtime gating were all corrected to match that narrower target set.

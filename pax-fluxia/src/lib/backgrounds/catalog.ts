@@ -106,7 +106,13 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             },
         ),
         requiredLayers: ['interior'],
-        runtimeSupport: ['menu', 'canonical', 'metaball_grid', 'distance_field'],
+        runtimeSupport: [
+            'menu',
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -147,7 +153,13 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             },
         ),
         requiredLayers: ['interior'],
-        runtimeSupport: ['menu', 'canonical', 'metaball_grid', 'distance_field', 'perimeter_field'],
+        runtimeSupport: [
+            'menu',
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -188,7 +200,13 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             },
         ),
         requiredLayers: ['interior'],
-        runtimeSupport: ['menu', 'canonical', 'metaball_grid', 'distance_field'],
+        runtimeSupport: [
+            'menu',
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -216,7 +234,12 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             depthSpread: 0.45,
         }),
         requiredLayers: ['particles'],
-        runtimeSupport: ['canonical', 'metaball_grid'],
+        runtimeSupport: [
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -244,7 +267,12 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             lineThickness: 0.24,
         }),
         requiredLayers: ['interior'],
-        runtimeSupport: ['canonical', 'metaball_grid'],
+        runtimeSupport: [
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -272,7 +300,12 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             sparkLifetime: 0.4,
         }),
         requiredLayers: ['interior', 'particles'],
-        runtimeSupport: ['canonical', 'metaball_grid'],
+        runtimeSupport: [
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -300,7 +333,12 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             pulseSoftness: 0.62,
         }),
         requiredLayers: ['interior', 'particles'],
-        runtimeSupport: ['canonical', 'metaball_grid'],
+        runtimeSupport: [
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
     {
@@ -328,7 +366,12 @@ export const BACKGROUND_MODE_CATALOG: readonly BackgroundModeDefinition[] = [
             frontierWidth: 0.32,
         }),
         requiredLayers: ['particles', 'frontier'],
-        runtimeSupport: ['canonical', 'metaball_grid', 'perimeter_field'],
+        runtimeSupport: [
+            'power_voronoi_canonical',
+            'metaball_grid_phase_edges',
+            'metaball_grid_ember_lattice',
+            'metaball_grid_phase_field',
+        ],
         primary: true,
     },
 ];
@@ -354,15 +397,15 @@ export const DEFAULT_GAME_BACKGROUND_MODE_ID: BackgroundModeId = 'legacy_image';
 
 export const BACKGROUND_CAPABILITY_MATRIX: BackgroundCapabilityMatrix = {
     none: [],
-    territory_canonical: GAME_BACKGROUND_MODE_IDS,
+    territory_canonical: [],
     power_voronoi_canonical: GAME_BACKGROUND_MODE_IDS,
-    territory_engine: GAME_BACKGROUND_MODE_IDS,
-    metaball_grid: GAME_BACKGROUND_MODE_IDS,
+    territory_engine: [],
+    metaball_grid: [],
     metaball_grid_phase_edges: GAME_BACKGROUND_MODE_IDS,
     metaball_grid_ember_lattice: GAME_BACKGROUND_MODE_IDS,
     metaball_grid_phase_field: GAME_BACKGROUND_MODE_IDS,
-    distance_field: ['nebula_veil', 'banner_light', 'shadow_mist'],
-    perimeter_field: ['banner_light', 'storm_current'],
+    distance_field: [],
+    perimeter_field: [],
     vs_pvv3: [],
     voronoi: [],
     metaball: [],

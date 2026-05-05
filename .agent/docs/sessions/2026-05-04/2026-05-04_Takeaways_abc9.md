@@ -14,4 +14,4 @@
 - Shared tunables must have visible renderer consequences or they become fake knobs; `animationSpeed`, `scale`, `edgeSoftness`, and `vignette` now need to be treated as first-class rendering inputs, not metadata.
 - The repo's file-discipline rule mattered immediately once all 8 gameplay modes landed; splitting the presenter into focused runtime modules was the right correction instead of normalizing an 800-line renderer file.
 - The capability matrix only becomes trustworthy once the UI and runtime both enforce it; leaving it as catalog metadata would have preserved the same ambiguity the feature was meant to remove.
-- `distance_field` and `perimeter_field` can participate without bespoke VFX geometry work because the shared geometry cache is already usable for selective background support.
+- Runtime-scope drift is easiest to introduce during “hardening” passes; the capability matrix has to be checked against the agreed render-mode target list before expanding support.

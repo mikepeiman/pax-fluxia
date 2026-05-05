@@ -191,10 +191,10 @@
 <section data-subsection-id="background">
     <h4 class="sub-heading">Background</h4>
     <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-        Regional ambient backgrounds now expose the full eight-mode gameplay
-        catalog on the clean territory paths. Shared tunables shape the whole
-        mode; the mode-specific sliders below are where each family earns its
-        identity.
+        Regional ambient backgrounds currently target the maintained territory
+        modes only: PVV4 plus the Phase Edges, Ember Lattice, and Phase Field
+        metaball-grid variants. Shared tunables shape the whole mode; the
+        mode-specific sliders below are where each family earns its identity.
     </p>
     <div class="var-row">
         <div class="row-top">
