@@ -301,3 +301,30 @@ Candidate basis:
   - freeze territory transition progression
   - pause game
   - highlight offending sections and relevant anchors
+
+## Corrections
+
+### Snap
+
+- Snap is not a valid target classification or fallback in this workstream.
+- If snap occurs, it is treated as evidence of:
+  - unclassified boundary truth
+  - incomplete transition classification
+  - or other transition defect
+
+### `starMargin`
+
+- The current `starMargin` control is not to be discarded.
+- Its current utility remains:
+  - it is the live base site-weight control in the solver path
+- The semantic problem is not that the control exists.
+- The semantic problem is:
+  - it must not be confused with `MSR`
+  - it should eventually be renamed truthfully
+
+### `MSR`
+
+- Plain definition:
+  - `MSR` is a keep-out radius around a star
+  - boundaries must stay outside it
+  - lanes and supplemental samples that do not belong to that star must stay outside it

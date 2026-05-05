@@ -853,6 +853,9 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 
 - Meaning:
   - base real-site weight in the geometry solve
+- Current implementation note:
+  - the live control/key still uses `starMargin`
+  - that utility remains; it is not being discarded
 - It is distinct from:
   - `MSR`
   - `CX`
@@ -862,12 +865,17 @@ That makes the tuning surface semantically false and keeps the shared geometry s
 ### `MSR`
 
 - Meaning:
-  - explicit star-protection constraint
+  - keep-out radius around a star
 - Shared truth shape:
   - per-star protection descriptor with center and radius in pixels
 - Implementation direction:
   - current site-weight-only proxy is not sufficient
-  - initial compiler path may use guard-ring samples plus sample-exclusion rules
+  - initial compiler path may use:
+    - guard-ring samples
+    - sample-exclusion rules
+  - plain rule:
+    - boundaries must stay outside the radius
+    - lanes and supplemental samples that do not belong to that star must stay outside the radius
 
 ### `CX`
 
@@ -934,10 +942,10 @@ Allowed final classifications are:
 - `active_front_section`
 - `split_branch_section`
 - `final_region_disappearance`
-- `explicit_snap_with_reason`
 
 ## Consequences
 
-1. A classified explicit snap is not the same thing as an unclassified boundary fault.
-2. This mode is for diagnosis and casebook-building, not for shipping runtime behavior.
-3. The transition classifier must become explicit enough to emit per-section final classifications.
+1. Snap is not a valid target classification or fallback in this workstream.
+2. If snap occurs, it is treated as evidence of unclassified or otherwise defective transition truth.
+3. This mode is for diagnosis and casebook-building, not for shipping runtime behavior.
+4. The transition classifier must become explicit enough to emit per-section final classifications.

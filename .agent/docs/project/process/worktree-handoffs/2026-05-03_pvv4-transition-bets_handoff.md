@@ -1557,6 +1557,32 @@
   - documentation-only checkpoint
   - no runtime code changed in this update
 
+## Update: 2026-05-05 - Correct v4 On Snap, `starMargin`, And MSR Clarity
+
+- Trigger:
+  - user corrected three misstatements in `v4`:
+    - snap is not a valid classified fallback
+    - the current `starMargin` utility should be retained as the live base site-weight control
+    - `MSR` needed a plainer and more direct definition
+- Documentation changes:
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v5.md`
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
+- Result:
+  - `v5` is now the current plan
+  - snap is treated as evidence of a defect, not a valid target classification
+  - `starMargin` is preserved as the live base site-weight control pending semantic renaming
+  - `MSR` is now defined plainly as a keep-out radius around a star
+- Validation:
+  - documentation-only checkpoint
+  - no runtime code changed in this update
+
 ## Update: 2026-05-05 - Add Constraint Model And Freeze-On-Unclassified Diagnostics To Recovery Plan v4
 
 - Trigger:

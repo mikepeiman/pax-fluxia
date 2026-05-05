@@ -121,3 +121,13 @@
   - contested-lane pair logic is still mixed under `CX` naming
   - `DX` is still only a virtual-site heuristic
   - PV transition still lacks a freeze-on-unclassified diagnostics trap
+
+## Latest Correction
+
+- Created:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v5.md`
+- User correction to `v4`:
+  - snap is not a valid target classification or fallback
+  - the current `starMargin` control is not to be discarded; its utility remains as the live base site-weight control
+  - `MSR` required a plainer and more direct definition
+- `v5` now corrects those points and should be treated as the current plan

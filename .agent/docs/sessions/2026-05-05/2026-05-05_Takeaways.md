@@ -71,3 +71,12 @@
 15. The current virtual-site generators can remain temporarily as compiler adapters, but they must not remain the primary semantic definition of `CX`, `LP`, `DX`, or `MSR`.
 16. Eliminating accidental snap requires a diagnostics mode that freezes on unclassified foundational sections rather than letting classification holes fall through silently.
 17. A classified explicit snap and an unclassified boundary failure are not the same thing. Only the latter should trigger the freeze-on-unclassified diagnostics mode.
+
+## Corrections To The Previous Take
+
+18. Snap is not a valid target classification or fallback in this workstream. If snap occurs, it is treated as evidence of an unclassified or otherwise defective boundary/transition case.
+19. The current `starMargin` control is not to be thrown away. Its utility remains as the current base site-weight control pending semantic normalization.
+20. `MSR` must be defined plainly:
+    - it is a keep-out radius around each star
+    - boundaries must stay outside it
+    - non-origin lane and supplemental geometry samples must stay outside it
