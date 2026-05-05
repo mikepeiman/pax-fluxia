@@ -30,26 +30,20 @@ import {
     deriveStableRegionId,
     splitRegionSiteIds,
 } from '../geometry/regionIdentity';
+import { buildOwnershipSnapshotFromStarState } from '../layers/ownership/ownershipSnapshotUtils';
 
 type PerimeterFieldGeometrySourceId = 'canonical_vector' | 'power_voronoi_0319';
 
 export function buildOwnershipSnapshotFromStars(
     stars: ReadonlyArray<StarState>,
+    lanes: ReadonlyArray<StarConnection>,
+    conquestEvents: OwnershipSnapshot['conquestEvents'] = [],
 ): OwnershipSnapshot {
-    const starOwners = new Map<string, string>();
-    for (const star of stars) {
-        if (star.ownerId) {
-            starOwners.set(star.id, star.ownerId);
-        }
-    }
-
-    const snapshot = {
-        version: 'render-family-live',
-        starOwners,
-        contestedLaneIds: [],
-        conquestEvents: [],
-        virtualStars: [],
-    };
+    const snapshot = buildOwnershipSnapshotFromStarState({
+        stars,
+        lanes,
+        conquestEvents,
+    });
     logPipelineStage({
         channel: 'state',
         context: 'RenderFamilyGeometry',
@@ -96,7 +90,7 @@ export function buildCanonicalRenderFamilyGeometry(params: {
         },
         tunables: runtimeSettings.tunables,
         ownership:
-            params.ownership ?? buildOwnershipSnapshotFromStars(params.stars),
+            params.ownership ?? buildOwnershipSnapshotFromStars(params.stars, params.lanes),
         styleMode: runtimeSettings.selection.styleMode,
     });
     logPipelineStage({
@@ -385,7 +379,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         configSource,
     );
     const ownership =
-        params.ownership ?? buildOwnershipSnapshotFromStars(params.stars);
+        params.ownership ?? buildOwnershipSnapshotFromStars(params.stars, params.lanes);
     const geometrySource = (params.geometrySource ??
         configSource.PERIMETER_FIELD_GEOMETRY_SOURCE ??
         'power_voronoi_0319') as PerimeterFieldGeometrySourceId;

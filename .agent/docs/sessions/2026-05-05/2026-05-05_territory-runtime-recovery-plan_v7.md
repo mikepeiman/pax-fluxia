@@ -553,6 +553,6 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
   - freeze-on-unclassified diagnostics trap
   - first bounded `1:1` active-front sampler rewrite with truthful `borderFrame`
   - bounded `1:2` / `2:1` split-front support on the active PVV4 path
+  - shared ownership derivation for render families, including real contested-lane truth and deterministic ownership version
 - Current remaining major work:
-  - field-family migration onto the same truth pipeline
   - performance hardening

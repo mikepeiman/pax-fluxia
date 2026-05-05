@@ -142,3 +142,5 @@
 51. `borderFrame` cannot stay empty if PVV4 is supposed to be a trustworthy transition mode. The moving-border output has to come from the same sampled frontier geometry as the fill reconstruction.
 52. Bounded split fronts should not be treated as automatic defects when they already live inside one stable-anchor pair and the runtime has a concrete split interpolation path.
 53. The correct next split milestone was to stop misclassifying locally bounded `1:2` and `2:1` pairs as unsupported by definition, before attempting more advanced branch-aware change-anchor logic.
+54. The first safe render-family migration step was not to delete every local PREV reconstruction path at once. It was to unify ownership derivation first so the active ownership layer and the family path stop disagreeing about basic ownership truth.
+55. `contestedLaneIds: []` on the render-family path was a real truth defect, not a harmless placeholder.

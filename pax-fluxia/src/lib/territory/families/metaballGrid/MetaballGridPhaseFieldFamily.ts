@@ -906,7 +906,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     worldWidth: input.world.width,
                     worldHeight: input.world.height,
                     nowMs: input.nowMs,
-                    ownership: buildOwnershipSnapshotFromStars(revertedStars),
+                    ownership: buildOwnershipSnapshotFromStars(
+                        revertedStars,
+                        input.lanes,
+                    ),
                     geometrySource: settings.geometrySource,
                     configSource:
                         input.configSource as Record<string, unknown> | undefined,

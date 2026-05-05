@@ -1986,38 +1986,31 @@
 
     function buildRenderFamilyOwnershipSnapshot(
         stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
         activeTransition: RenderFamilyActiveTransition | null,
     ): OwnershipSnapshot {
-        const starOwners = new Map<string, string>();
-        for (const star of stars) {
-            if (star.ownerId) {
-                starOwners.set(star.id, star.ownerId);
-            }
-        }
-
-        const snapshot = {
-            version: "render-family-live",
-            starOwners,
-            contestedLaneIds: [],
-            conquestEvents:
-                activeTransition?.events.map((entry) => ({
-                    starId: entry.event.starId,
-                    previousOwner: entry.event.previousOwner,
-                    newOwner: entry.event.newOwner,
-                    atMs: entry.startedAtMs,
-                    attackerStarId: entry.event.attackerStarId,
-                    attackerStarIds: entry.event.attackerStarIds?.length
-                        ? [...entry.event.attackerStarIds]
-                        : entry.event.attackerStarId
-                          ? [entry.event.attackerStarId]
-                          : undefined,
-                    attackerShipTransfers:
-                        entry.event.attackerShipTransfers?.length
-                            ? [...entry.event.attackerShipTransfers]
-                            : undefined,
-                })) ?? [],
-            virtualStars: [],
-        };
+        const conquestEvents =
+            activeTransition?.events.map((entry) => ({
+                starId: entry.event.starId,
+                previousOwner: entry.event.previousOwner,
+                newOwner: entry.event.newOwner,
+                atMs: entry.startedAtMs,
+                attackerStarId: entry.event.attackerStarId,
+                attackerStarIds: entry.event.attackerStarIds?.length
+                    ? [...entry.event.attackerStarIds]
+                    : entry.event.attackerStarId
+                      ? [entry.event.attackerStarId]
+                      : undefined,
+                attackerShipTransfers:
+                    entry.event.attackerShipTransfers?.length
+                        ? [...entry.event.attackerShipTransfers]
+                        : undefined,
+            })) ?? [];
+        const snapshot = buildOwnershipSnapshotFromStars(
+            stars,
+            lanes,
+            conquestEvents,
+        );
         logPipelineStage({
             channel: "state",
             context: "GameCanvas",
@@ -2749,7 +2742,7 @@
                 worldWidth: GAME_WIDTH,
                 worldHeight: GAME_HEIGHT,
                 nowMs: fxOrchestrator.gameTime,
-                ownership: buildOwnershipSnapshotFromStars(stars),
+                ownership: buildOwnershipSnapshotFromStars(stars, lanes),
                 geometrySource:
                     (source.PERIMETER_FIELD_GEOMETRY_SOURCE as string | null | undefined) ??
                     "power_voronoi_0319",
@@ -2802,6 +2795,7 @@
         renderFamilyStableGeometry = params.geometry;
         renderFamilyStableOwnership = buildOwnershipSnapshotFromStars(
             params.stars,
+            params.lanes,
         );
     }
 
@@ -2860,7 +2854,10 @@
                     params.activeTransition,
                     params.stars,
                 );
-                const ownership = buildOwnershipSnapshotFromStars(revertedStars);
+                const ownership = buildOwnershipSnapshotFromStars(
+                    revertedStars,
+                    params.lanes,
+                );
                 const configSource = getRenderFamilyModeConfigSource(
                     params.activeMode,
                 );
@@ -3016,6 +3013,7 @@
             params.ownership ??
             buildRenderFamilyOwnershipSnapshot(
                 params.stars,
+                params.lanes,
                 params.activeTransition,
             );
         const geometry =
@@ -5558,6 +5556,7 @@
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
+                                    lanes,
                                     activeTransition,
                                 ),
                         );
@@ -5628,6 +5627,7 @@
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
+                                    lanes,
                                     activeTransition,
                                 ),
                         );
@@ -5702,6 +5702,7 @@
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
+                                    lanes,
                                     activeTransition,
                                 ),
                         );
@@ -5778,6 +5779,7 @@
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
+                                    lanes,
                                     activeTransition,
                                 ),
                         );
@@ -5858,6 +5860,7 @@
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
+                                    lanes,
                                     activeTransition,
                                 ),
                         );

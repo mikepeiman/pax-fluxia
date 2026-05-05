@@ -5,6 +5,11 @@ import type {
     TerritoryConquestEvent,
     VirtualStar,
 } from '../OwnershipMode';
+import {
+    buildOwnershipContestedLaneIds,
+    buildOwnershipStarOwners,
+    buildOwnershipVersion,
+} from '../ownershipSnapshotUtils';
 
 
 export class StarOwnershipSnapshotMode implements OwnershipMode {
@@ -12,21 +17,11 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
     readonly label = 'Star Ownership Snapshot';
 
     compute(input: OwnershipLayerInput): OwnershipSnapshot {
-        const starOwners = new Map<string, string>();
-        for (const star of input.stars) {
-            if (star.ownerId) {
-                starOwners.set(star.id, star.ownerId);
-            }
-        }
-
-        const contestedLaneIds: string[] = [];
-        for (const lane of input.lanes) {
-            const ownerA = starOwners.get(lane.sourceId);
-            const ownerB = starOwners.get(lane.targetId);
-            if (ownerA && ownerB && ownerA !== ownerB) {
-                contestedLaneIds.push(`${lane.sourceId}:${lane.targetId}`);
-            }
-        }
+        const starOwners = buildOwnershipStarOwners(input.stars);
+        const contestedLaneIds = buildOwnershipContestedLaneIds(
+            input.lanes,
+            starOwners,
+        );
 
         const conquestEvents = this.computeConquestEvents(
             input,
@@ -38,42 +33,13 @@ export class StarOwnershipSnapshotMode implements OwnershipMode {
         // This allows downstream geometry caching to hit when ownership
         // is unchanged, while still invalidating on any conquest or
         // virtual-star change.
-        const ownershipHash = this.hashStarOwners(starOwners, virtualStars.length);
-
         return {
-            version: `ownership:${ownershipHash}`,
+            version: buildOwnershipVersion(starOwners, virtualStars.length),
             starOwners,
             contestedLaneIds,
             conquestEvents,
             virtualStars,
         };
-    }
-
-    private hashStarOwners(
-        starOwners: ReadonlyMap<string, string>,
-        virtualStarCount: number,
-    ): string {
-        // FNV-1a 32-bit hash of sorted star:owner pairs + virtual count
-        let hash = 2166136261;
-        const entries = [...starOwners.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
-        for (const [starId, ownerId] of entries) {
-            for (let i = 0; i < starId.length; i++) {
-                hash ^= starId.charCodeAt(i);
-                hash = Math.imul(hash, 16777619);
-            }
-            hash ^= 0x7c; // separator
-            hash = Math.imul(hash, 16777619);
-            for (let i = 0; i < ownerId.length; i++) {
-                hash ^= ownerId.charCodeAt(i);
-                hash = Math.imul(hash, 16777619);
-            }
-            hash ^= 0x1f; // record separator
-            hash = Math.imul(hash, 16777619);
-        }
-        // Include virtual star count
-        hash ^= virtualStarCount;
-        hash = Math.imul(hash, 16777619);
-        return (hash >>> 0).toString(36);
     }
 
     private computeConquestEvents(

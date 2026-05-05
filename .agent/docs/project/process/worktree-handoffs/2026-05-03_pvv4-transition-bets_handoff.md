@@ -2119,3 +2119,21 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Shared Ownership Truth For Render Families
+
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\ownershipSnapshotUtils.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\modes\StarOwnershipSnapshotMode.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildFamilyGeometry.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\metaballGrid\MetaballGridPhaseFieldFamily.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Behavior change:
+  - shared ownership derivation for `starOwners`, `contestedLaneIds`, and deterministic ownership version now lives in one helper
+  - render-family ownership snapshots now use that helper instead of fabricating `render-family-live` with empty contested lanes
+- Merge note:
+  - this completes the first truth-migration cut for ownership
+  - deeper merge work still remains for the family-local PREV reconstruction paths
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

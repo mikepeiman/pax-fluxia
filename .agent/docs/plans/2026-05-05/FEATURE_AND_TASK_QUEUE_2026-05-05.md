@@ -390,3 +390,24 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Latest Implementation Checkpoint 10
+
+- Completed the first shared-truth migration step for render families:
+  - `pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.ts`
+  - `pax-fluxia/src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.ts`
+  - `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+  - `pax-fluxia/src/lib/territory/families/metaballGrid/MetaballGridPhaseFieldFamily.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+- Exact behavior:
+  - shared ownership derivation for `starOwners`, `contestedLaneIds`, and deterministic ownership version now lives in one helper
+  - the active ownership layer uses that helper
+  - the render-family path now uses the same helper instead of fabricating `render-family-live` ownership snapshots with empty contested lanes
+  - the phase-field PREV-geometry fallback now also uses the same shared ownership derivation when it has to rebuild from reverted stars
+- Result:
+  - field families no longer stub `contestedLaneIds`
+  - render-family ownership snapshots now carry deterministic ownership versions instead of `render-family-live`
+  - remaining major work is performance hardening and deeper cleanup of remaining family-local PREV reconstruction paths
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`
