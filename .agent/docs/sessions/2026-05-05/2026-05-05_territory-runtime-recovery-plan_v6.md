@@ -17,7 +17,7 @@ Target doctrine correction:
 
 - there is no valid snap class in the target design
 - if the transition classifier cannot account for a boundary, that is a defect
-- diagnostics mode should freeze on that defect instead of turning it into a named fallback
+- diagnostics mode should freeze on that defect and present highlights and labels of how the map boundaries and regions are currently categorized and understood by the engine. Any relevant diagnostics data should be packaged for download, and/or output to console. 
 
 The intended shared geometry constraint model is:
 
@@ -83,7 +83,7 @@ Meaning:
 Definition:
 
 ```ts
-interface StarProtectionConstraint {
+interface geometry_constraint_MSR {
   starId: string;
   ownerId: string;
   center: { x: number; y: number };
@@ -96,34 +96,26 @@ What this means in plain terms:
 - every star has a circle around it
 - inside that circle, the owning player's territory should remain visible
 - the border should stay outside that circle
+- the border should adapt and curve naturally around the outermost vertice of that circle (perpendicular to lane vector), not simply merging that circle-arc into the border
 
 Implementation v1:
 
-1. derive one `StarProtectionConstraint` per star from `msrPx`
-2. when building helper geometry for other constraints, do not place those helper points inside another star's protected circle
-3. when feeding the current solver, place supporting same-owner helper points around the protected circle so the solved border stays outside it
+1. rename current relevant MSR variable to `geometry_constraint_MSR`
+2. when building helper geometry for other constraints, do not place those helper points inside another star's MSR range
+3. draw the circle around star at MSR radius;
+   1. if a boundary (border) intersects, take the furthest vertex of the MSR ring, as found by a line radiating from the star center perpendicular to the border
+   2. use that vertex to redraw that boundary and replace the original boundary with it in the next-iteration modified geometry
 
-Implementation v2:
-
-- once the geometry compiler is ready for direct boundary enforcement, replace the helper-point workaround with direct border clipping against the protected circle
-
-Important rule:
-
-- `MSR` is a territory-painting protection rule
-- `starWeight` is a solve-shaping term
-- they are different controls and must not be conflated
 
 ### `CX`
 
-Meaning:
-
-- same-player corridor connection
+Purpose: same-player corridor connection
 - if two stars of the same owner are lane-connected, the owner's territory should remain connected along that lane corridor
 
 Shared truth record:
 
 ```ts
-interface CXCorridorConstraint {
+interface geometry_constraint_CX {
   laneId: string;
   ownerId: string;
   starA: string;
@@ -137,25 +129,23 @@ interface CXCorridorConstraint {
 
 Implementation v1:
 
-1. derive one `CXCorridorConstraint` for every same-owner lane
+1. derive one `geometry_constraint_CX` for every same-owner lane
 2. place helper points along the actual lane path so the solved territory stays connected along that lane
 3. keep those helper points out of other stars' protected `MSR` circles
 4. count and spacing semantics:
    - explicit count overrides spacing when present
    - otherwise spacing determines how many samples are emitted
 
-### `LP`
+### `LP`: Lane Pairs
 
-Meaning:
-
-- opposing-player corridor connection
+Purpose: opposing-player corridor connection
 - Definition:
-  - a contested lane is owned by precisely two players, so no third player's territory should intrude on that lane
+  - a contested lane is owned by precisely two players, so no third player's territory should intrude on that lane, and they should meet in the middle
 
 Shared truth record:
 
 ```ts
-interface LPLanePairConstraint {
+interface geometry_constraint_LP {
   laneId: string;
   ownerA: string;
   ownerB: string;
@@ -171,7 +161,7 @@ interface LPLanePairConstraint {
 
 Implementation v1:
 
-1. derive one `LPLanePairConstraint` for every cross-owner lane
+1. derive one `geometry_constraint_LP` for every cross-owner lane
 2. place helper points on each side of the contested lane so the solved territory stays limited to those two players along that lane
 3. optionally add extra helper points farther along each side of the lane if needed
 4. keep those helper points out of other stars' protected `MSR` circles
@@ -179,19 +169,16 @@ Implementation v1:
 Retirement rule:
 
 - the old `CP` naming and the old `CX contest` phrasing are semantic debt
-- `LP` should be the explicit name for this rule
+- `LP` should be the explicit shorthand name for this rule
 
-### `DX`
+### `DX`: Disconnect Zones
 
-Meaning:
-
-- disconnect zone
-- if two same-owner stars are not lane-connected, the territory painting must not create a false visual corridor between them
+- if two same-owner stars are not lane-connected, the territory painting must not create a misleading visual corridor between them
 
 Shared truth record:
 
 ```ts
-interface DXZoneConstraint {
+interface geometry_constraint_DX {
   sourceStarA: string;
   sourceStarB: string;
   ownerId: string;
@@ -208,11 +195,11 @@ Trigger rule:
 
 1. evaluate every same-owner pair that is not lane-connected
 2. test ownership at the center-to-center midpoint
-3. if that midpoint still belongs to that owner, emit a `DXZoneConstraint`
+3. if that midpoint still belongs to that owner, emit a `geometry_constraint_DX`
 
 Implementation v1:
 
-1. shared truth emits the explicit `DXZoneConstraint`
+1. shared truth emits the explicit `geometry_constraint_DX`
 2. the geometry compiler temporarily converts that zone into helper geometry that keeps the painted territory from connecting across it
 3. render families may later render the zone directly from that shared data, but the shared truth must exist first
 
@@ -235,36 +222,36 @@ These should become the explicit shared geometry tuning surfaces.
 
 ### `MSR`
 
-- `TERRITORY_MSR_PX`
+- `GEOMETRY_MSR_PX`
 - optional internal-only guard-ring density if needed, but not as a primary user knob
 
 ### `starWeight`
 
-- `TERRITORY_STAR_WEIGHT`
+- `GEOMETRY_STAR_WEIGHT`
 
 ### `CX`
 
-- `TERRITORY_CX_ENABLED`
-- `TERRITORY_CX_SAMPLE_SPACING_PX`
-- `TERRITORY_CX_SAMPLE_COUNT`
-- `TERRITORY_CX_WEIGHT`
+- `GEOMETRY_CX_ENABLED`
+- `GEOMETRY_CX_SAMPLE_SPACING_PX`
+- `GEOMETRY_CX_SAMPLE_COUNT`
+- `GEOMETRY_CX_WEIGHT`
 
 ### `LP`
 
-- `TERRITORY_LP_ENABLED`
-- `TERRITORY_LP_PAIR_COUNT`
-- `TERRITORY_LP_PAIR_SPACING_PX`
-- `TERRITORY_LP_WEIGHT`
-- `TERRITORY_LP_DISTRIBUTED_SAMPLES_ENABLED`
+- `GEOMETRY_LP_ENABLED`
+- `GEOMETRY_LP_PAIR_COUNT`
+- `GEOMETRY_LP_PAIR_SPACING_PX`
+- `GEOMETRY_LP_WEIGHT`
+- `GEOMETRY_LP_DISTRIBUTED_SAMPLES_ENABLED`
 
 ### `DX`
 
-- `TERRITORY_DX_ENABLED`
-- `TERRITORY_DX_MAX_DISTANCE_PX`
-- `TERRITORY_DX_DEPTH_FACTOR`
-- `TERRITORY_DX_LANE_GAP_FACTOR`
-- `TERRITORY_DX_FALLBACK_WIDTH_FACTOR`
-- `TERRITORY_DX_WEIGHT`
+- `GEOMETRY_DX_ENABLED`
+- `GEOMETRY_DX_MAX_DISTANCE_PX`
+- `GEOMETRY_DX_DEPTH_FACTOR`
+- `GEOMETRY_DX_LANE_GAP_FACTOR`
+- `GEOMETRY_DX_FALLBACK_WIDTH_FACTOR`
+- `GEOMETRY_DX_WEIGHT`
 
 ## Diagnostics Freeze Mode
 
@@ -387,10 +374,10 @@ Replace the current drifted tunables with the explicit shared constraint model.
 
 Required outputs:
 
-- `StarProtectionConstraint[]`
-- `CXCorridorConstraint[]`
-- `LPLanePairConstraint[]`
-- `DXZoneConstraint[]`
+- `geometry_constraint_MSR[]`
+- `geometry_constraint_CX[]`
+- `geometry_constraint_LP[]`
+- `geometry_constraint_DX[]`
 
 These are shared geometry truth, not family-local presentation hints.
 

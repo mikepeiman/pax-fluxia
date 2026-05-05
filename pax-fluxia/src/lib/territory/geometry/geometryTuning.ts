@@ -169,7 +169,7 @@ export function normalizeTerritoryGeometryTunables(
             Math.min(
                 TERRITORY_GEOMETRY_LIMITS.cxContestPairSpacing.max,
                 tunables.cxContestPairSpacing ??
-                    DEFAULT_CX_CONTEST_PAIR_SPACING,
+                DEFAULT_CX_CONTEST_PAIR_SPACING,
             ),
         ),
         cxContestPairWeight: Math.max(
@@ -254,7 +254,7 @@ export function buildTerritoryGeometryCacheKeyParts(
         normalized.cxContestMidpointVstars,
         normalized.cxContestPairCount,
         normalized.cxContestPairSpacing ??
-            DEFAULT_CX_CONTEST_PAIR_SPACING,
+        DEFAULT_CX_CONTEST_PAIR_SPACING,
         normalized.cxContestPairWeight,
         normalized.disconnectEnabled,
         normalized.disconnectDistance,
