@@ -1587,6 +1587,46 @@
   - documentation-only checkpoint
   - no runtime code changed in this update
 
+## Update: 2026-05-05 - Sprint 0 Semantic Cleanup Checkpoint 1
+
+- Trigger:
+  - user told the branch to proceed fully on the plan and keep the handoff current for an eventual deep merge back to master
+  - latest implementation plan is:
+    - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v7.md`
+- Purpose:
+  - start the plan with the lowest-risk active-path semantic cleanup before moving into heavier geometry-constraint and transition work
+  - remove two known false semantics from the live geometry path:
+    - centroid-derived region identity
+    - stale `pvv2:` fingerprint residue
+- Code changes:
+  - created shared region-identity helper:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\regionIdentity.ts`
+  - updated live vector compiler:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\geometry\compiler_UnifiedVectorGeometry.ts`
+    - canonical regions now derive `regionId` from deterministic star membership
+    - canonical regions now also preserve:
+      - `starIds`
+      - `anchorStarIds`
+      - `contributingSiteIds`
+  - updated render-family geometry adapter to use the same shared region-identity helper:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildFamilyGeometry.ts`
+  - extracted geometry fingerprint builder into a small shared utility:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\territoryGeometryFingerprint.ts`
+  - updated active geometry generator wrapper:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+    - fingerprint prefix now starts with `power_voronoi:` instead of `pvv2:`
+- Tests added:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\regionIdentity.test.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\territoryGeometryFingerprint.test.ts`
+- Validation:
+  - passed:
+    - `bunx vitest run pax-fluxia/src/lib/territory/geometry/regionIdentity.test.ts pax-fluxia/src/lib/territory/compiler/territoryGeometryFingerprint.test.ts`
+    - `bun run build`
+- Result:
+  - active-path region identity is no longer tied to centroid drift
+  - active-path geometry and topology versions no longer advertise stale `pvv2:` lineage through the main geometry fingerprint
+  - the branch now has its first real code checkpoint under the `v7` plan baseline
+
 ## Update: 2026-05-05 - Correct v4 On Snap, `starMargin`, And MSR Clarity
 
 - Trigger:

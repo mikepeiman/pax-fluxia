@@ -144,3 +144,28 @@
   - `MSR` is restated as a protected region around a star for territory painting, with lane-margin as a secondary use
   - wording is rewritten in simpler game terms
   - stale abstract wording like `descriptor` is reduced further in the active plan text
+
+## Latest Implementation Checkpoint
+
+- Confirmed current working plan baseline:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v7.md`
+- Completed Sprint 0 semantic-cleanup checkpoint on the active geometry path:
+  - added shared region-identity helper:
+    - `pax-fluxia/src/lib/territory/geometry/regionIdentity.ts`
+  - removed centroid-derived region identity from the live vector compiler:
+    - `pax-fluxia/src/lib/territory/layers/geometry/compiler_UnifiedVectorGeometry.ts`
+  - canonical geometry regions now carry:
+    - `starIds`
+    - `anchorStarIds`
+    - `contributingSiteIds`
+  - unified render-family region identity on the same helper:
+    - `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+  - removed stale `pvv2:` fingerprint residue from the active geometry fingerprint builder:
+    - `pax-fluxia/src/lib/territory/compiler/territoryGeometryFingerprint.ts`
+    - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/geometry/regionIdentity.test.ts pax-fluxia/src/lib/territory/compiler/territoryGeometryFingerprint.test.ts`
+  - `bun run build`
+- Result:
+  - region identity on the active vector path now follows deterministic star membership instead of centroid drift
+  - geometry/topology version strings no longer advertise stale `pvv2:` lineage on the active fingerprint path

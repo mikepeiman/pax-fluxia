@@ -31,6 +31,7 @@ import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
 import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
+import { buildTerritoryGeometryFingerprintCore } from './territoryGeometryFingerprint';
 import {
     buildSortedOutgoingArcMap,
     normalizePlanarAngle,
@@ -912,20 +913,7 @@ export function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, 
 }
 
 export function buildTerritoryGeometryFingerprint(stars: StarState[], config: TerritoryGeneratorSettings): string {
-    let fp = 'pvv2:';
-    for (const s of stars) fp += `${s.id}:${s.ownerId ?? ''}|`;
-    fp += `:m${config.starMargin}`;
-    fp += `:cs${config.clusterSplit ? 1 : 0}`;
-    fp += `:ce${config.corridorEnabled ? 1 : 0}`;
-    fp += `:csp${config.corridorSpacing}`;
-    fp += `:cxN${config.cxCount}`;
-    fp += `:cxW${config.cxWeight}`;
-    fp += `:cxPS${config.cxContestPairSpacing ?? config.starMargin}`;
-    fp += `:de${config.disconnectEnabled ? 1 : 0}`;
-    fp += `:dd${config.disconnectDistance}`;
-    fp += `:dxW${config.dxWeight}`;
-    fp += `:ch${config.chaikinPasses}`;
-    return fp;
+    return buildTerritoryGeometryFingerprintCore(stars, config);
 }
 
 // ---------------------------------------------------------------------------

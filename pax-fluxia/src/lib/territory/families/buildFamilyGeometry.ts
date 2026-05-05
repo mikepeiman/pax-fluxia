@@ -26,6 +26,10 @@ import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBr
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
 import { buildTerritoryGeneratorSettingsFromTunables } from '../geometry/geometryTuning';
+import {
+    deriveStableRegionId,
+    splitRegionSiteIds,
+} from '../geometry/regionIdentity';
 
 type PerimeterFieldGeometrySourceId = 'canonical_vector' | 'power_voronoi_0319';
 
@@ -144,34 +148,6 @@ function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
     return area * 0.5;
 }
 
-/**
- * A site ID is "virtual" when it names a contributing virtual site used by the
- * power-voronoi generator rather than a real gameplay star. Current generator
- * prefixes are `corridor_` (CX/lane-pair ghosts) and `disconnect_` (DX midpoint
- * ghosts). See powerVoronoiTerritoryGeometryGenerator.ts L850–874.
- *
- * Consumers that need only gameplay star identity should read `anchorStarIds`;
- * consumers that need geometric contributor identity should read
- * `contributingSiteIds`.
- */
-function isVirtualSiteId(id: string): boolean {
-    return id.startsWith('corridor_') || id.startsWith('disconnect_');
-}
-
-/**
- * Deterministic region ID derived from the set of real anchor stars forming
- * the region. Two snapshots with the same gameplay anchor membership produce
- * the same region ID regardless of enumeration order. Falls back to a
- * contributor-included identity when no real stars are present (e.g. a
- * geometry region composed entirely of disconnect ghosts — extreme edge).
- */
-function deriveStableRegionId(ownerId: string, starIds: ReadonlyArray<string>): string {
-    const anchors = starIds.filter((id) => !isVirtualSiteId(id));
-    const identity = anchors.length > 0 ? anchors : [...starIds];
-    const sortedKey = [...identity].sort().join('+');
-    return `region:${ownerId}:${sortedKey}`;
-}
-
 function buildSharedFrontierMapFromPolylines(
     polylines: ReadonlyArray<CanonicalFrontierPolyline>,
 ): SharedFrontierMap {
@@ -197,8 +173,8 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
     const territoryRegions: TerritoryRegionShape[] = params.geometry.mergedTerritories.map(
         (territory) => {
             const starIds = [...territory.starIds];
-            const anchorStarIds = starIds.filter((id) => !isVirtualSiteId(id));
-            const contributingSiteIds = starIds.filter(isVirtualSiteId);
+            const { anchorStarIds, contributingSiteIds } =
+                splitRegionSiteIds(starIds);
             return {
                 regionId: deriveStableRegionId(territory.ownerId, starIds),
                 ownerId: territory.ownerId,
@@ -241,11 +217,13 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         (territory) => {
             const area = computePolygonArea(territory.points);
             const starIds = [...territory.starIds];
-            const anchorStarIds = starIds.filter((id) => !isVirtualSiteId(id));
-            const contributingSiteIds = starIds.filter(isVirtualSiteId);
-            const stableKey = [...(anchorStarIds.length ? anchorStarIds : starIds)]
-                .sort()
-                .join('+');
+            const { anchorStarIds, contributingSiteIds } =
+                splitRegionSiteIds(starIds);
+            const stableKey = [
+                ...(anchorStarIds.length > 0
+                    ? anchorStarIds
+                    : contributingSiteIds),
+            ].join('+');
             return {
                 shellId: `shell:${territory.ownerId}:${stableKey}`,
                 ownerId: territory.ownerId,

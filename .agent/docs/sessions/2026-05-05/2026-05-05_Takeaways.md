@@ -95,3 +95,11 @@
     - explicit post-solve geometry corrections:
       - `DX`
       - `MSR`
+28. The first active-path semantic cleanup is safe and validated:
+    - region identity can be moved from centroid drift to deterministic star membership without breaking the build
+    - `pvv2:` residue can be removed from active geometry fingerprints without destabilizing the current app build
+29. The canonical geometry snapshot should preserve three distinct region facts together:
+    - `starIds`
+    - `anchorStarIds`
+    - `contributingSiteIds`
+    This is better than collapsing identity and contributor history into one ambiguous field.
