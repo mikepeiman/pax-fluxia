@@ -1928,6 +1928,35 @@
   - passed:
     - `bunx vitest run src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
     - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Fix Blank PVV4 Render Regression From Stale Disconnect-Owner Checks
+
+- Trigger:
+  - user reported that PVV4 had no territory rendering at all
+  - user also reported that the underlying-geometry diagnostics toggle showed nothing
+- Root cause:
+  - the shared geometry compiler was throwing during the active `computeGeometry0319(...)` path
+  - stale `DISCONNECT_OWNER_ID` checks were still present in shared helpers inside:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+  - those checks were left behind after the DX cutover removed disconnect-owner solve sites from the active shared generator path
+- Exact code changes:
+  - removed the stale disconnect-owner filter from:
+    - `extractSharedEdges(...)`
+  - removed the stale disconnect-owner skip from:
+    - `mergeSameOwnerCells(...)`
+  - added a direct integration regression test:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\Geometry_0319.test.ts`
+    - test verifies that `computeGeometry0319(...)` succeeds when `dxEnabled: true`
+- Purpose:
+  - restore the shared PVV4 geometry path before continuing deeper transition work
+  - make this class of half-migrated DX regression fail in tests instead of silently blanking the renderer
+- Result:
+  - merged territories and shared borders are produced again on the active path
+  - the underlying-geometry diagnostics overlay can render again because geometry no longer fails before output
+- Validation:
+  - passed:
+    - `bunx vitest run src/lib/territory/compiler/Geometry_0319.test.ts src/lib/territory/geometry/disconnectZones.test.ts src/lib/territory/geometry/minStarMargin.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
 - Important note:
   - the app package build passes
   - the repo-root wrapper build still fails because the sibling `pax-server` workspace is missing `@colyseus/core`

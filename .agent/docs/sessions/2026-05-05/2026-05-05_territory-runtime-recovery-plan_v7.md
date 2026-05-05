@@ -548,6 +548,7 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
   - Sprint 4 shared geometry-constraint normalization
   - Sprint 5 explicit `CX` / `LP` solve-shaping split
   - Sprint 6 active shared-generator cutover to explicit `DX` plus stronger `MSR`
+  - post-Sprint-6 regression fix for blank PVV4 rendering caused by stale disconnect-owner checks in shared helpers
 - Current remaining major work:
   - section influence attribution
   - freeze-on-unclassified diagnostics trap

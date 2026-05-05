@@ -296,3 +296,24 @@
 - Result:
   - `CX` and `LP` are now distinct implementation paths instead of one mixed “corridor” routine
   - legacy renderers can continue to use the compatibility wrappers while the shared geometry layer keeps moving toward explicit semantics
+
+## Latest Implementation Checkpoint 6
+
+- Fixed a real active-path regression that blanked PVV4 territory rendering and the underlying-geometry diagnostics overlay:
+  - root cause was stale `DISCONNECT_OWNER_ID` logic still executing inside shared geometry helpers after the DX cutover
+  - affected file:
+    - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+- Exact fix:
+  - removed the stale disconnect-owner check from:
+    - `extractSharedEdges(...)`
+  - removed the stale disconnect-owner skip from:
+    - `mergeSameOwnerCells(...)`
+- Added integration coverage at the real geometry entrypoint:
+  - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.test.ts`
+  - verifies `computeGeometry0319(...)` succeeds with `dxEnabled: true`
+- Validation:
+  - `bunx vitest run src/lib/territory/compiler/Geometry_0319.test.ts src/lib/territory/geometry/disconnectZones.test.ts src/lib/territory/geometry/minStarMargin.test.ts`
+  - `bun run build` in `pax-fluxia/`
+- Result:
+  - PVV4 shared geometry returns merged territories again
+  - the diagnostics geometry overlay can render again because the geometry path no longer throws before output

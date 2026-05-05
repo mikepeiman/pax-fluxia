@@ -132,3 +132,6 @@
     - replace that run with a sampled arc around the protected star range
 42. The active shared generators can adopt explicit `DX` while older legacy renderers temporarily keep their older helper path. That is the same safe migration pattern used for `CX` / `LP`.
 43. Compact diagnostics names should say what the files are. Prefixes like `90_*` are invalid because they encode ordering without meaning.
+44. The DX cutover left stale `DISCONNECT_OWNER_ID` checks behind in shared geometry helpers. That kind of half-migration can blank PVV4 entirely even when feature-local tests still pass.
+45. The active shared geometry path needs direct integration coverage at the `computeGeometry0319(...)` level, with `dxEnabled: true`, because helper-level tests alone did not catch the blank-render regression.
+46. When PVV4 loses both territory rendering and the underlying-geometry diagnostic overlay at once, the first thing to check is whether the shared geometry compiler is throwing before it returns any geometry.

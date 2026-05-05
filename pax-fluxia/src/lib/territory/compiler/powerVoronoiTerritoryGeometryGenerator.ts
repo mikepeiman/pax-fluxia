@@ -493,10 +493,10 @@ export function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
 
     const shared: SharedBorderEdge[] = [];
     for (const [, entry] of edgeOwners) {
-        if (entry.sides.length === 2 &&
-            entry.sides[0].ownerId !== entry.sides[1].ownerId &&
-            entry.sides[0].ownerId !== DISCONNECT_OWNER_ID &&
-            entry.sides[1].ownerId !== DISCONNECT_OWNER_ID) {
+        if (
+            entry.sides.length === 2 &&
+            entry.sides[0].ownerId !== entry.sides[1].ownerId
+        ) {
             shared.push({
                 x1: entry.pts[0], y1: entry.pts[1],
                 x2: entry.pts[2], y2: entry.pts[3],
@@ -574,7 +574,6 @@ export function mergeSameOwnerCells(
 
     for (const [ck, edges] of clusterEdges) {
         const ownerId = clusterOwnerMap.get(ck) ?? ck.split(':')[0];
-        if (ownerId === DISCONNECT_OWNER_ID) continue;
         if (edges.length === 0) continue;
 
         const adjacency = buildSortedOutgoingArcMap(buildDirectedEdgeArcs(edges));
