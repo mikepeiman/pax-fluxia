@@ -7,8 +7,8 @@ import type { BackgroundModeId, BackgroundSelection } from '../types';
 import { buildOwnerPalette } from './gamePalette';
 import {
     computeBounds,
-    clamp01,
-    read,
+    clampAlpha,
+    readStrength,
     traceRegion,
 } from './gameAmbientUtils';
 import {
@@ -147,6 +147,7 @@ export class GameAmbientBackgroundPresenter {
     ): void {
         const palette = buildOwnerPalette(this.resolveOwnerColor(region.ownerId));
         const bounds = computeBounds(region);
+        const intensity = readStrength(selection, 'intensity', 0.42);
 
         ctx.save();
         traceRegion(ctx, region);
@@ -155,7 +156,7 @@ export class GameAmbientBackgroundPresenter {
             ctx,
             region,
             palette,
-            0.05 + clamp01(read(selection, 'intensity', 0.42), 0.42) * 0.04,
+            clampAlpha(0.03 + intensity * 0.05),
         );
 
         switch (selection.modeId) {

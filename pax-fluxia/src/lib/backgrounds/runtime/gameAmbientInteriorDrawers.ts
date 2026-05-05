@@ -2,10 +2,11 @@ import type { TerritoryRegionShape } from '$lib/territory/contracts/GeometryCont
 import type { BackgroundSelection } from '../types';
 import { type GameBackgroundPalette, rgbToCss } from './gamePalette';
 import {
-    clamp01,
+    clampAlpha,
     read,
     readAnimationRate,
     readFeatureScale,
+    readStrength,
     traceRegion,
     type RegionBounds,
 } from './gameAmbientUtils';
@@ -28,17 +29,17 @@ export function drawNebulaVeil(
     palette: GameBackgroundPalette,
     nowMs: number,
 ): void {
-    const density = clamp01(read(selection, 'density', 0.3), 0.3);
-    const intensity = clamp01(read(selection, 'intensity', 0.42), 0.42);
-    const speed = read(selection, 'driftSpeed', 0.6);
-    const parallax = read(selection, 'parallaxDepth', 0.18);
-    const contrast = clamp01(read(selection, 'contrast', 0.2), 0.2);
+    const density = readStrength(selection, 'density', 0.3);
+    const intensity = readStrength(selection, 'intensity', 0.42);
+    const speed = readStrength(selection, 'driftSpeed', 0.6);
+    const parallax = readStrength(selection, 'parallaxDepth', 0.18);
+    const contrast = readStrength(selection, 'contrast', 0.2);
     const animationRate = 0.25 + readAnimationRate(selection) * 0.75;
     const featureScale = readFeatureScale(selection);
     const time = nowMs * 0.0001 * (0.4 + speed) * animationRate;
 
     ctx.save();
-    ctx.filter = `blur(${Math.round((26 + density * 34) * featureScale)}px)`;
+    ctx.filter = `blur(${Math.round((22 + density * 18) * featureScale)}px)`;
     const blobs = [
         { phase: 0.7, color: palette.glow, radius: 0.34, x: 0.22, y: 0.28 },
         { phase: 1.5, color: palette.mist, radius: 0.28, x: 0.76, y: 0.34 },
@@ -53,7 +54,11 @@ export function drawNebulaVeil(
             bounds.minY +
             bounds.height * blob.y +
             Math.cos(time * 0.85 + blob.phase) * bounds.height * 0.08 * parallax;
-        const radius = Math.max(bounds.width, bounds.height) * blob.radius * featureScale;
+        const radius =
+            Math.max(bounds.width, bounds.height) *
+            blob.radius *
+            (1 + density * 0.08) *
+            featureScale;
         const gradient = ctx.createRadialGradient(
             centerX,
             centerY,
@@ -62,8 +67,14 @@ export function drawNebulaVeil(
             centerY,
             radius,
         );
-        gradient.addColorStop(0, rgbToCss(blob.color, 0.16 + intensity * 0.1));
-        gradient.addColorStop(0.55, rgbToCss(blob.color, 0.06 + contrast * 0.05));
+        gradient.addColorStop(
+            0,
+            rgbToCss(blob.color, clampAlpha(0.1 + intensity * 0.08)),
+        );
+        gradient.addColorStop(
+            0.55,
+            rgbToCss(blob.color, clampAlpha(0.03 + contrast * 0.04)),
+        );
         gradient.addColorStop(1, rgbToCss(blob.color, 0));
         ctx.fillStyle = gradient;
         ctx.fillRect(bounds.minX, bounds.minY, bounds.width, bounds.height);
@@ -78,7 +89,7 @@ export function drawBannerLight(
     palette: GameBackgroundPalette,
     nowMs: number,
 ): void {
-    const intensity = clamp01(read(selection, 'intensity', 0.34), 0.34);
+    const intensity = readStrength(selection, 'intensity', 0.34);
     const featureScale = readFeatureScale(selection);
     const sweepWidth = Math.max(0.08, read(selection, 'sweepWidth', 0.25) * featureScale);
     const bandCount = Math.max(1, Math.round(read(selection, 'bandCount', 2)));
@@ -98,7 +109,10 @@ export function drawBannerLight(
         gradient.addColorStop(0, rgbToCss(palette.shadow, 0));
         gradient.addColorStop(
             0.5,
-            rgbToCss(index % 2 === 0 ? palette.glow : palette.accent, 0.12 + intensity * 0.12),
+            rgbToCss(
+                index % 2 === 0 ? palette.glow : palette.accent,
+                clampAlpha(0.06 + intensity * 0.08),
+            ),
         );
         gradient.addColorStop(1, rgbToCss(palette.shadow, 0));
         ctx.fillStyle = gradient;
@@ -114,17 +128,17 @@ export function drawShadowMist(
     palette: GameBackgroundPalette,
     nowMs: number,
 ): void {
-    const density = clamp01(read(selection, 'mistDensity', 0.45), 0.45);
-    const curl = read(selection, 'curlAmount', 0.34);
-    const intensity = clamp01(read(selection, 'intensity', 0.34), 0.34);
-    const glintRate = clamp01(read(selection, 'glintRate', 0.1), 0.1);
-    const falloff = clamp01(read(selection, 'falloff', 0.58), 0.58);
+    const density = readStrength(selection, 'mistDensity', 0.45);
+    const curl = readStrength(selection, 'curlAmount', 0.34);
+    const intensity = readStrength(selection, 'intensity', 0.34);
+    const glintRate = readStrength(selection, 'glintRate', 0.1);
+    const falloff = readStrength(selection, 'falloff', 0.58);
     const featureScale = readFeatureScale(selection);
     const animationRate = 0.2 + readAnimationRate(selection) * 0.8;
     const time = nowMs * 0.00008 * (0.45 + curl) * animationRate;
 
     ctx.save();
-    ctx.filter = `blur(${Math.round((42 + density * 44) * featureScale)}px)`;
+    ctx.filter = `blur(${Math.round((30 + density * 22) * featureScale)}px)`;
     for (let index = 0; index < 4; index += 1) {
         const centerX =
             bounds.minX +
@@ -136,26 +150,35 @@ export function drawShadowMist(
             Math.cos(time * 0.7 + index * 1.3) * bounds.height * 0.06;
         const radius =
             Math.max(bounds.width, bounds.height) *
-            (0.22 + density * 0.16 + falloff * 0.1) *
+            (0.22 + density * 0.06 + falloff * 0.04) *
             featureScale;
         const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-        gradient.addColorStop(0, rgbToCss(palette.shadow, 0.08 + intensity * 0.08));
-        gradient.addColorStop(0.48 + falloff * 0.34, rgbToCss(palette.base, 0.04 + density * 0.05));
+        gradient.addColorStop(
+            0,
+            rgbToCss(palette.shadow, clampAlpha(0.04 + intensity * 0.06)),
+        );
+        gradient.addColorStop(
+            Math.min(0.92, 0.48 + falloff * 0.08),
+            rgbToCss(palette.base, clampAlpha(0.02 + density * 0.03)),
+        );
         gradient.addColorStop(1, rgbToCss(palette.shadow, 0));
         ctx.fillStyle = gradient;
         ctx.fillRect(bounds.minX, bounds.minY, bounds.width, bounds.height);
     }
     ctx.restore();
 
-    for (let index = 0; index < 6; index += 1) {
+    const glintCount = Math.max(6, Math.min(64, Math.round(6 + glintRate * 8)));
+    for (let index = 0; index < glintCount; index += 1) {
         const phase = (nowMs * 0.0011 + index * 0.19) % 1;
-        const alpha = Math.max(0, Math.sin(phase * Math.PI)) * (0.05 + glintRate * 0.08);
+        const alpha =
+            Math.max(0, Math.sin(phase * Math.PI)) *
+            clampAlpha(0.03 + glintRate * 0.04);
         if (alpha <= 0.01) continue;
         ctx.fillStyle = rgbToCss(palette.spark, alpha);
         ctx.beginPath();
         ctx.arc(
-            bounds.minX + ((index * 73) % bounds.width),
-            bounds.minY + ((index * 41) % bounds.height),
+            bounds.minX + ((index * 73) % Math.max(1, Math.round(bounds.width))),
+            bounds.minY + ((index * 41) % Math.max(1, Math.round(bounds.height))),
             1.2 + alpha * 5,
             0,
             Math.PI * 2,
@@ -171,17 +194,17 @@ export function drawLeylineFlow(
     palette: GameBackgroundPalette,
     nowMs: number,
 ): void {
-    const intensity = clamp01(read(selection, 'intensity', 0.44), 0.44);
-    const lineDensity = clamp01(read(selection, 'lineDensity', 0.3), 0.3);
+    const intensity = readStrength(selection, 'intensity', 0.44);
+    const lineDensity = readStrength(selection, 'lineDensity', 0.3);
     const flowSpeed = Math.max(0, read(selection, 'flowSpeed', 0.65));
-    const warpAmount = clamp01(read(selection, 'warpAmount', 0.28), 0.28);
+    const warpAmount = readStrength(selection, 'warpAmount', 0.28);
     const lineThickness = Math.max(0.1, read(selection, 'lineThickness', 0.24));
     const featureScale = readFeatureScale(selection);
     const animationRate = 0.25 + readAnimationRate(selection) * 0.75;
     const time = nowMs * 0.001 * animationRate * (0.3 + flowSpeed);
-    const lineCount = Math.max(3, Math.round(3 + lineDensity * 7));
+    const lineCount = Math.max(3, Math.min(96, Math.round(3 + lineDensity * 8)));
 
-    ctx.fillStyle = rgbToCss(palette.mist, 0.035 + intensity * 0.05);
+    ctx.fillStyle = rgbToCss(palette.mist, clampAlpha(0.02 + intensity * 0.04));
     ctx.fillRect(bounds.minX, bounds.minY, bounds.width, bounds.height);
 
     for (let index = 0; index < lineCount; index += 1) {
@@ -204,7 +227,7 @@ export function drawLeylineFlow(
         ctx.lineWidth = (0.8 + lineThickness * 2.8) * featureScale;
         ctx.strokeStyle = rgbToCss(
             index % 2 === 0 ? palette.glow : palette.accent,
-            0.08 + intensity * 0.14,
+            clampAlpha(0.05 + intensity * 0.05),
         );
         ctx.stroke();
     }
@@ -217,16 +240,19 @@ export function drawSharedFinish(
     selection: BackgroundSelection,
     palette: GameBackgroundPalette,
 ): void {
-    const edgeSoftness = clamp01(read(selection, 'edgeSoftness', 0.55), 0.55);
-    const vignette = clamp01(read(selection, 'vignette', 0.12), 0.12);
+    const edgeSoftness = readStrength(selection, 'edgeSoftness', 0.55);
+    const vignette = readStrength(selection, 'vignette', 0.12);
     const featureScale = readFeatureScale(selection);
 
     if (edgeSoftness > 0.01) {
         ctx.save();
-        ctx.filter = `blur(${Math.round((6 + edgeSoftness * 18) * featureScale)}px)`;
+        ctx.filter = `blur(${Math.round((4 + edgeSoftness * 8) * featureScale)}px)`;
         traceRegion(ctx, region);
-        ctx.lineWidth = (4 + edgeSoftness * 14) * featureScale;
-        ctx.strokeStyle = rgbToCss(palette.frontier, 0.015 + edgeSoftness * 0.04);
+        ctx.lineWidth = (3 + edgeSoftness * 6) * featureScale;
+        ctx.strokeStyle = rgbToCss(
+            palette.frontier,
+            clampAlpha(0.02 + edgeSoftness * 0.03),
+        );
         ctx.stroke();
         ctx.restore();
     }
@@ -244,7 +270,10 @@ export function drawSharedFinish(
         );
         gradient.addColorStop(0, rgbToCss(palette.shadow, 0));
         gradient.addColorStop(0.72, rgbToCss(palette.shadow, 0));
-        gradient.addColorStop(1, rgbToCss(palette.shadow, 0.08 + vignette * 0.18));
+        gradient.addColorStop(
+            1,
+            rgbToCss(palette.shadow, clampAlpha(0.05 + vignette * 0.08)),
+        );
         ctx.fillStyle = gradient;
         ctx.fillRect(bounds.minX, bounds.minY, bounds.width, bounds.height);
     }

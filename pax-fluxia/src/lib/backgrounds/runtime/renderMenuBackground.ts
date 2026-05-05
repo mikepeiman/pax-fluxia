@@ -17,6 +17,11 @@ function clamp01(value: number | undefined, fallback: number): number {
     return Math.min(1, Math.max(0, value));
 }
 
+function clampAlpha(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(0.98, value));
+}
+
 function read(selection: BackgroundSelection, key: string, fallback: number): number {
     return typeof selection.tunables[key] === 'number'
         ? selection.tunables[key]!
@@ -34,7 +39,7 @@ function withAlpha(hex: string, alpha: number): string {
     const r = Number.parseInt(expanded.slice(0, 2), 16);
     const g = Number.parseInt(expanded.slice(2, 4), 16);
     const b = Number.parseInt(expanded.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return `rgba(${r}, ${g}, ${b}, ${clampAlpha(alpha)})`;
 }
 
 function drawBackdrop(
@@ -66,8 +71,8 @@ function drawBackdrop(
 function drawNebulaVeil(input: MenuBackgroundRenderInput): void {
     const { ctx, width, height, nowMs, selection, palette } = input;
     drawBackdrop(ctx, width, height, palette);
-    const density = clamp01(read(selection, 'density', 0.38), 0.38);
-    const intensity = clamp01(read(selection, 'intensity', 0.48), 0.48);
+    const density = Math.max(0, read(selection, 'density', 0.38));
+    const intensity = Math.max(0, read(selection, 'intensity', 0.48));
     const speed = read(selection, 'driftSpeed', 0.55);
     const parallax = read(selection, 'parallaxDepth', 0.24);
     const time = nowMs * 0.00008 * speed;
@@ -80,7 +85,7 @@ function drawNebulaVeil(input: MenuBackgroundRenderInput): void {
     ];
 
     ctx.save();
-    ctx.filter = `blur(${Math.round(48 + density * 38)}px)`;
+    ctx.filter = `blur(${Math.round(34 + density * 18)}px)`;
     for (const blob of blobs) {
         const offsetX = Math.sin(time + blob.phase) * width * 0.04 * parallax;
         const offsetY =
@@ -94,7 +99,7 @@ function drawNebulaVeil(input: MenuBackgroundRenderInput): void {
             height * blob.y + offsetY,
             radius,
         );
-        gradient.addColorStop(0, withAlpha(blob.color, 0.16 * intensity));
+        gradient.addColorStop(0, withAlpha(blob.color, 0.08 + intensity * 0.08));
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
@@ -105,7 +110,7 @@ function drawNebulaVeil(input: MenuBackgroundRenderInput): void {
 function drawBannerLight(input: MenuBackgroundRenderInput): void {
     const { ctx, width, height, nowMs, selection, palette } = input;
     drawBackdrop(ctx, width, height, palette);
-    const intensity = clamp01(read(selection, 'intensity', 0.38), 0.38);
+    const intensity = Math.max(0, read(selection, 'intensity', 0.38));
     const bandCount = Math.max(1, Math.round(read(selection, 'bandCount', 3)));
     const sweepWidth = Math.max(0.08, read(selection, 'sweepWidth', 0.36));
     const sweepSpeed = read(selection, 'sweepSpeed', 0.42);
@@ -126,7 +131,13 @@ function drawBannerLight(input: MenuBackgroundRenderInput): void {
             0,
         );
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(0.5, withAlpha(index % 2 === 0 ? palette.glow : palette.accent, 0.16 * intensity));
+        gradient.addColorStop(
+            0.5,
+            withAlpha(
+                index % 2 === 0 ? palette.glow : palette.accent,
+                0.06 + intensity * 0.09,
+            ),
+        );
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(
@@ -142,14 +153,14 @@ function drawBannerLight(input: MenuBackgroundRenderInput): void {
 function drawShadowMist(input: MenuBackgroundRenderInput): void {
     const { ctx, width, height, nowMs, selection, palette } = input;
     drawBackdrop(ctx, width, height, palette);
-    const density = clamp01(read(selection, 'mistDensity', 0.52), 0.52);
+    const density = Math.max(0, read(selection, 'mistDensity', 0.52));
     const curl = read(selection, 'curlAmount', 0.38);
-    const glintRate = clamp01(read(selection, 'glintRate', 0.15), 0.15);
-    const intensity = clamp01(read(selection, 'intensity', 0.44), 0.44);
+    const glintRate = Math.max(0, read(selection, 'glintRate', 0.15));
+    const intensity = Math.max(0, read(selection, 'intensity', 0.44));
     const time = nowMs * 0.00006 * (0.45 + curl);
 
     ctx.save();
-    ctx.filter = `blur(${Math.round(70 + density * 54)}px)`;
+    ctx.filter = `blur(${Math.round(44 + density * 22)}px)`;
     for (let index = 0; index < 5; index += 1) {
         const x =
             width * (0.15 + index * 0.17) +
@@ -159,15 +170,16 @@ function drawShadowMist(input: MenuBackgroundRenderInput): void {
             Math.cos(time * 0.9 + index * 1.3) * height * 0.05;
         const radius = Math.max(width, height) * (0.18 + density * 0.14);
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        gradient.addColorStop(0, withAlpha(palette.mist, 0.07 * intensity));
+        gradient.addColorStop(0, withAlpha(palette.mist, 0.03 + intensity * 0.06));
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
     }
     ctx.restore();
 
-    const glintAlpha = 0.1 + 0.18 * glintRate;
-    for (let index = 0; index < 10; index += 1) {
+    const glintAlpha = clampAlpha(0.06 + 0.06 * glintRate);
+    const glintCount = Math.max(10, Math.min(48, Math.round(10 + glintRate * 4)));
+    for (let index = 0; index < glintCount; index += 1) {
         const phase = (nowMs * 0.0012 + index * 0.71) % 1;
         const alpha = Math.max(0, Math.sin(phase * Math.PI)) * glintAlpha;
         if (alpha <= 0.02) continue;

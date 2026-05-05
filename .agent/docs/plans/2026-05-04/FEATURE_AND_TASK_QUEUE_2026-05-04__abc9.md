@@ -123,6 +123,11 @@
   - added a dedicated `Background FX` section in gameplay settings
   - made `Background FX` the default first-open section when no prior section layout is stored
   - added a one-click live-mode enable callout when gameplay is still using the legacy image fallback
+- Strength-range correction after user validation:
+  - expanded live FX controls from timid `0..1` / `0..2` style ranges to much broader `10x-100x` tuning ranges
+  - removed internal `clamp01` flattening from the gameplay and menu live-background renderers where it was suppressing stronger values
+  - decoupled live regional FX opacity from the legacy image opacity path
+  - relabeled the remaining old slider as `Legacy Image Opacity`
 
 ## Verification target
 

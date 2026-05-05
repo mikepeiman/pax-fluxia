@@ -35,7 +35,7 @@ describe('background selection helpers', () => {
             {
                 modeId: 'nebula_veil',
                 tunables: {
-                    intensity: 9,
+                    intensity: 99,
                     density: 0.7,
                 },
             },
@@ -43,7 +43,7 @@ describe('background selection helpers', () => {
         );
 
         expect(selection.modeId).toBe('nebula_veil');
-        expect(selection.tunables.intensity).toBe(1.5);
+        expect(selection.tunables.intensity).toBe(24);
         expect(selection.tunables.density).toBe(0.7);
         expect(selection.tunables.driftSpeed).toBeTypeOf('number');
     });

@@ -26,6 +26,11 @@ export function clamp01(value: number | undefined, fallback: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
+export function clampAlpha(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(0.98, value));
+}
+
 export function read(
     selection: BackgroundSelection,
     key: string,
@@ -35,6 +40,15 @@ export function read(
     return typeof value === 'number' && Number.isFinite(value)
         ? value
         : fallback;
+}
+
+export function readStrength(
+    selection: BackgroundSelection,
+    key: string,
+    fallback: number,
+    minimum = 0,
+): number {
+    return Math.max(minimum, read(selection, key, fallback));
 }
 
 export function readAnimationRate(
@@ -48,7 +62,7 @@ export function readFeatureScale(
     selection: BackgroundSelection,
     fallback = 1,
 ): number {
-    return Math.max(0.35, read(selection, 'scale', fallback));
+    return Math.max(0.1, read(selection, 'scale', fallback));
 }
 
 export function computeBounds(region: TerritoryRegionShape): RegionBounds {

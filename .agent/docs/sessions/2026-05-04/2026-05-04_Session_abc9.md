@@ -116,3 +116,10 @@
 - Made `Background FX` the default first-open section when no prior section layout is stored.
 - Split the old `Map Options & Tuning` surface back into explicit `Background FX` and `Map & Grid` concerns.
 - Added a one-click enable callout when the current gameplay selection is still the legacy image fallback on a supported runtime.
+
+## Strength correction - wide live FX ranges
+
+- User validation showed the effect stack was still far too weak.
+- Expanded the live-FX slider ranges substantially, including shared intensity up to `24` and several density/speed/frontier controls up to `8-24`.
+- Removed internal `clamp01` flattening from the gameplay and menu ambient renderers where it was suppressing values above `1`.
+- Decoupled live gameplay FX opacity from the legacy background image opacity setting and relabeled the image-only slider accordingly.

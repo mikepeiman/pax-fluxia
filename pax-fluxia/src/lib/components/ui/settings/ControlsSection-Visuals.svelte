@@ -399,7 +399,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🌌 BG Opacity</span><span class="val"
+            <span class="var-name">Legacy Image Opacity</span><span class="val"
                 >{(
                     (panel.bgImageAlpha ??
                         GAME_CONFIG.BG_IMAGE_ALPHA ??
@@ -423,6 +423,11 @@
             }}
         />
     </div>
+    <p class="future-desc" style="margin:0 0 8px;font-size:10px;opacity:0.72;">
+        Legacy image opacity no longer damps live regional FX. Use the live
+        mode cards plus the shared and mode-specific sliders above to drive FX
+        strength.
+    </p>
 </section>
 {/if}
 

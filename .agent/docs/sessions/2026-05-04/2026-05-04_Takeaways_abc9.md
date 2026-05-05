@@ -16,3 +16,4 @@
 - The capability matrix only becomes trustworthy once the UI and runtime both enforce it; leaving it as catalog metadata would have preserved the same ambiguity the feature was meant to remove.
 - Runtime-scope drift is easiest to introduce during “hardening” passes; the capability matrix has to be checked against the agreed render-mode target list before expanding support.
 - A backward-compatible default can make a feature look nonexistent. If the default path preserves old behavior, the UI must visibly advertise the new behavior and give the user a direct activation path.
+- Wide control ranges require wide render math. If the slider metadata grows but the renderer still clamps to `0..1`, the product lies about its actual tuning range.

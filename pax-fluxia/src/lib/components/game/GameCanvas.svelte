@@ -6401,7 +6401,7 @@
                                 geometry: gameplayBackgroundGeometry,
                                 nowMs: fxOrchestrator.gameTime,
                                 paused: isPausedNow,
-                                opacity: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35,
+                                opacity: 1,
                                 originX: territoryPresentationFrame.minX,
                                 originY: territoryPresentationFrame.minY,
                                 worldWidth: territoryPresentationWorldWidth,
