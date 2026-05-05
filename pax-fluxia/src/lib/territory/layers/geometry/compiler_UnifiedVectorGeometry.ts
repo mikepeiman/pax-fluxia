@@ -431,11 +431,18 @@ function buildFrontierTopologyFromGeometry(
 ): FrontierTopology | undefined {
     if (!geometry.frontierMap) return undefined;
 
-    const topology = buildFrontierTopology(
-        geometry.frontierMap,
-        input.ownership.version,
-        { width: input.world.width, height: input.world.height },
-    );
+    const topology = buildFrontierTopology({
+        tmap: geometry.frontierMap,
+        ownershipVersion: input.ownership.version,
+        worldBounds: { width: input.world.width, height: input.world.height },
+        stars: input.stars.map((star) => ({
+            id: star.id,
+            x: star.x,
+            y: star.y,
+            ownerId: star.ownerId ?? null,
+        })),
+        starOwners: input.ownership.starOwners,
+    });
 
     if (topology) {
         log.renderer('Compiler',

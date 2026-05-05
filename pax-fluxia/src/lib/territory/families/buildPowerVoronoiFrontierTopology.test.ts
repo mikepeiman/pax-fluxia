@@ -46,6 +46,8 @@ describe('buildPowerVoronoiFrontierTopology', () => {
             worldWidth: 100,
             worldHeight: 100,
             fingerprint: 'square-world-border',
+            stars: [{ id: 'red-star', x: 50, y: 50, ownerId: 'red' }],
+            starOwners: new Map([['red-star', 'red']]),
         });
 
         expect(result.topologyReliable).toBe(true);
@@ -59,5 +61,9 @@ describe('buildPowerVoronoiFrontierTopology', () => {
                 (section) => section.ownerPairKey === 'red|world',
             ),
         ).toBe(true);
+        expect([...result.topology.sections.values()][0]?.leftInfluence.primaryStarId).toBe(
+            'red-star',
+        );
+        expect([...result.topology.sections.values()][0]?.rightInfluence.primaryStarId).toBe('');
     });
 });

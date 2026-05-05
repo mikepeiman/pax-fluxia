@@ -2029,3 +2029,37 @@
   - passed:
     - `bunx vitest run src/lib/territory/geometry/disconnectZones.test.ts src/lib/territory/geometry/minStarMargin.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts`
     - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Shared Section-Influence Attribution
+
+- Trigger:
+  - the remaining PV transition sprints still depended on fake section influence in both:
+    - the shared topology builder
+    - the family-side topology helper
+- Purpose:
+  - make foundational sections carry real star attribution before the active-front transition rebuild
+  - stop exporting fake section influence through diagnostics and package files
+- Code changes:
+  - added shared helper:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\sectionInfluence.ts`
+  - rewired shared topology build:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\buildFrontierTopology.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\geometry\compiler_UnifiedVectorGeometry.ts`
+  - rewired family-side topology build:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildPowerVoronoiFrontierTopology.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildFamilyGeometry.ts`
+  - added tests:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\sectionInfluence.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\families\buildPowerVoronoiFrontierTopology.test.ts`
+- Exact behavior:
+  - each section side now samples the section midpoint by arc length
+  - owned stars are ranked by distance to that midpoint
+  - topology stores primary and secondary star attribution with normalized scores
+  - world-side influence remains explicitly unattributed
+- Result:
+  - diagnostics and exports now carry real section influence on both active topology paths
+  - the next transition sprint can use conquest-local section attribution instead of stubs
+- Validation:
+  - passed:
+    - `bunx vitest run pax-fluxia/src/lib/territory/geometry/sectionInfluence.test.ts pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

@@ -317,3 +317,30 @@
 - Result:
   - PVV4 shared geometry returns merged territories again
   - the diagnostics geometry overlay can render again because the geometry path no longer throws before output
+
+## Latest Implementation Checkpoint 7
+
+- Completed the shared section-influence attribution sprint:
+  - added a shared helper:
+    - `pax-fluxia/src/lib/territory/geometry/sectionInfluence.ts`
+  - added focused tests:
+    - `pax-fluxia/src/lib/territory/geometry/sectionInfluence.test.ts`
+    - updated `pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
+- Active-path topology builders now stop faking per-section star attribution:
+  - shared compiler path:
+    - `pax-fluxia/src/lib/territory/compiler/buildFrontierTopology.ts`
+    - `pax-fluxia/src/lib/territory/layers/geometry/compiler_UnifiedVectorGeometry.ts`
+  - field-family topology helper:
+    - `pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.ts`
+    - `pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts`
+- Exact behavior:
+  - for each section side, sample the section midpoint by arc length
+  - rank owned stars by distance to that midpoint
+  - record primary and secondary star attribution with normalized scores
+  - keep `world` sections explicitly unattributed on the world side
+- Purpose:
+  - give the shared geometry and topology layer real section-to-star attribution before the PV transition rebuild
+  - remove another source of fake diagnostics truth from both the active shared path and the family-side helper path
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/geometry/sectionInfluence.test.ts pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
+  - `bun run build` in `pax-fluxia/`

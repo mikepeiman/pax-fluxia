@@ -258,6 +258,13 @@ function adaptPowerVoronoiGeometryToSnapshot(params: {
         worldWidth: params.worldWidth,
         worldHeight: params.worldHeight,
         fingerprint: params.geometry.fingerprint,
+        stars: params.stars.map((star) => ({
+            id: star.id,
+            x: star.x,
+            y: star.y,
+            ownerId: star.ownerId ?? null,
+        })),
+        starOwners: params.ownership?.starOwners,
     });
 
     return {

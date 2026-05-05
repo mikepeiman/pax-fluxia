@@ -8,6 +8,7 @@ import type {
     SectionInfluence,
     SectionRef,
 } from '../contracts/FrontierTopologyContracts';
+import { buildSectionInfluence, type SectionInfluenceStar } from '../geometry/sectionInfluence';
 import type { SharedPolyline } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import {
     executeChainWalk,
@@ -101,14 +102,6 @@ function deriveSemanticKey(
     return undefined;
 }
 
-function makeInfluenceForOwner(ownerId: string): SectionInfluence {
-    return {
-        ownerId,
-        primaryStarId: ownerId,
-        primaryScore: 1,
-    };
-}
-
 function pushInto(map: Map<string, string[]>, key: string, value: string): void {
     const bucket = map.get(key);
     if (bucket) {
@@ -139,6 +132,8 @@ export interface BuildPowerVoronoiFrontierTopologyParams {
     worldWidth: number;
     worldHeight: number;
     fingerprint: string;
+    stars?: ReadonlyArray<SectionInfluenceStar>;
+    starOwners?: ReadonlyMap<string, string>;
 }
 
 export interface BuildPowerVoronoiFrontierTopologyResult {
@@ -180,10 +175,18 @@ export function buildPowerVoronoiFrontierTopology(
             points: info.points,
             length: polylineLength(info.points),
             ownerPairKey: info.ownerPairKey,
-            leftInfluence: makeInfluenceForOwner(info.ownerA),
-            rightInfluence: makeInfluenceForOwner(
-                info.ownerB === WORLD_OWNER ? WORLD_OWNER : info.ownerB,
-            ),
+            leftInfluence: buildSectionInfluence({
+                ownerId: info.ownerA,
+                points: info.points,
+                stars: params.stars ?? [],
+                starOwners: params.starOwners,
+            }),
+            rightInfluence: buildSectionInfluence({
+                ownerId: info.ownerB === WORLD_OWNER ? WORLD_OWNER : info.ownerB,
+                points: info.points,
+                stars: params.stars ?? [],
+                starOwners: params.starOwners,
+            }),
         };
         sections.set(sectionId, section);
         sectionByPolylineIdx.set(info.globalIdx, section);

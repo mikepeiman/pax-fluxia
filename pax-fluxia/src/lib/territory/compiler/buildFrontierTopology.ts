@@ -19,6 +19,7 @@ import type {
     SectionRef,
     SectionInfluence,
 } from '../contracts/FrontierTopologyContracts';
+import { buildSectionInfluence, type SectionInfluenceStar } from '../geometry/sectionInfluence';
 
 // ---------------------------------------------------------------------------
 // Vertex kind mapping: CanonicalVertexKind → FrontierVertexKind
@@ -70,12 +71,12 @@ function makeOwnerPairKey(leftOwnerId: string, rightOwnerId: string): string {
 // Stub influence — we don't have per-section star attribution yet
 // ---------------------------------------------------------------------------
 
-function stubInfluence(ownerId: string): SectionInfluence {
-    return {
-        ownerId,
-        primaryStarId: '',
-        primaryScore: 1.0,
-    };
+export interface BuildFrontierTopologyInput {
+    tmap: TerritoryFrontierMap;
+    ownershipVersion: string;
+    worldBounds: { width: number; height: number };
+    stars?: ReadonlyArray<SectionInfluenceStar>;
+    starOwners?: ReadonlyMap<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,10 +95,15 @@ function stubInfluence(ownerId: string): SectionInfluence {
  * Also builds the lookup indexes required by FrontierTopology.
  */
 export function buildFrontierTopology(
-    tmap: TerritoryFrontierMap,
-    ownershipVersion: string,
-    worldBounds: { width: number; height: number },
+    input: BuildFrontierTopologyInput,
 ): FrontierTopology {
+    const {
+        tmap,
+        ownershipVersion,
+        worldBounds,
+        stars = [],
+        starOwners,
+    } = input;
     // ── Convert vertices ─────────────────────────────────────────────────
     const vertices = new Map<string, FrontierVertex>();
     const incidentSections = new Map<string, string[]>(); // vertexId → sectionIds
@@ -133,8 +139,18 @@ export function buildFrontierTopology(
             points: ce.curvePoints,
             length: computeArcLength(ce.curvePoints),
             ownerPairKey,
-            leftInfluence: stubInfluence(ce.leftOwnerId),
-            rightInfluence: stubInfluence(rightOwnerId),
+            leftInfluence: buildSectionInfluence({
+                ownerId: ce.leftOwnerId,
+                points: ce.curvePoints,
+                stars,
+                starOwners,
+            }),
+            rightInfluence: buildSectionInfluence({
+                ownerId: rightOwnerId,
+                points: ce.curvePoints,
+                stars,
+                starOwners,
+            }),
         };
         sections.set(edgeId, section);
 
