@@ -282,3 +282,46 @@
   - no unrelated region may collapse because of loop-id churn
   - 3-way junctions should be considered default change anchors
   - `1:2` / `2:1` split pairs should only animate when a bounded local transport plan exists
+
+## Update: 2026-05-04 - Reset PVV4 Motion To Pre-Experiment Baseline While Keeping Tooling Fixes
+
+- Trigger:
+  - user judged the branch motion state to be net-worse than the starting point:
+    - still collapsing regions
+    - still snapping some conquests
+    - still showing deformation
+    - overall worse than the mode before transition experiments on this branch
+  - user approved a reset instead of further tuning on top of the degraded state
+- Reset strategy:
+  - restore PVV4 motion behavior toward the last sane pre-experiment branch state
+  - keep non-behavioral wins that are still useful regardless of motion quality:
+    - game-shell fixes
+    - diagnostics entry points
+    - recorder/export improvements
+    - shorter Windows-safe package names
+    - semantic collapse matching from loop identity churn
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - removed the local change-anchor-window transport experiment from runtime behavior
+      - restored the older chain-based interpolation model for active-front sampling
+      - restored the older split-path behavior (`1to2` and `2to1`) instead of force-skipping them
+      - kept the later semantic collapse matching fix so stable regions do not collapse just because loop ids churned
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - removed the local-window regression tests tied to the reverted experiment
+      - kept coverage for:
+        - disappearance-only collapse
+        - no false collapses from loop-id churn
+- Purpose:
+  - stop compounding motion regressions on top of motion regressions
+  - return the branch to a sane comparison point before any future PVV4 bets
+  - preserve the diagnostics/export infrastructure needed to evaluate future bets against that baseline
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts pax-fluxia/src/lib/territory/devtools/conquestNaming.test.ts` passes
+  - `bun run build` passes
+- Supersession note:
+  - the earlier branch sections describing:
+    - sub-section local-window sampling
+    - change-anchor-window runtime transport
+  - are now historical only
+  - those experiments are intentionally backed out by this reset checkpoint

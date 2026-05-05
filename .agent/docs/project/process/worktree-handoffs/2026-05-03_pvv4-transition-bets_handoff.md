@@ -1357,3 +1357,47 @@
     - `1:2` / `2:1` pairs are still skipped
     - 3-way junctions still need to be elevated into default change-anchor candidates for split planning
   - this checkpoint removes false collapse artifacts first so that split-planning work can be judged cleanly
+
+## Update: 2026-05-04 - Reset Branch Motion To The Pre-Experiment PVV4 Baseline
+
+- Trigger:
+  - user concluded the branch motion state was worse than the starting point:
+    - collapsing regions still visible
+    - snap conquests still present
+    - deformations still present
+    - overall transition behavior worse than before the branch experiments
+  - user approved a reset rather than another additive fix pass
+- Diagnosis behind the reset:
+  - the branch had accumulated multiple overlapping motion ideas:
+    - local change-anchor window transport
+    - strict minimal-transport gating
+    - split suppression
+    - semantic collapse fixes
+  - some of those changes were useful in isolation, but the combined runtime state was no longer a clean improvement over baseline
+  - the right next move was to restore the older motion behavior and keep only the tooling/export/diagnostic wins plus the clear false-collapse bug fix
+- Code changes:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+      - removed the local change-anchor-window runtime transport experiment
+      - removed the sub-section active-window runtime behavior introduced after the earlier baseline
+      - restored the older chain-based active-front interpolation model that was in place before the later motion experiments
+      - restored `1to2` / `2to1` split interpolation behavior instead of force-skipping those pairs
+      - preserved semantic collapse matching so stable loops are not treated as disappearing because of loop-id churn
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+      - removed the experiment-specific local-window regressions
+      - kept direct regressions for:
+        - disappearance-only collapse
+        - no false collapses when loop ids change but loop identity persists
+- Purpose:
+  - put the branch back onto a sane motion baseline
+  - stop tuning on top of an already degraded behavioral stack
+  - keep the later diagnostics and export infrastructure so future bets can be measured against that baseline instead of against a noisy half-state
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts pax-fluxia/src/lib/territory/devtools/conquestNaming.test.ts` passes
+  - `bun run build` passes
+- Supersession note:
+  - the earlier sections titled:
+    - `Reset PVV4 To Minimal Frontier Transport And Purge Whole-Loop Birth`
+    - `Make Change Anchors The Runtime Transport Primitive`
+  - remain useful as historical investigation notes only
+  - they do not describe the current runtime behavior after this reset checkpoint
