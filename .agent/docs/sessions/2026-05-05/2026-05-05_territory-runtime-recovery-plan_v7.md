@@ -539,3 +539,17 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
 - `Freeze On Unclassified Boundary` is a diagnostics mode, not a shipping mode
 - the current CX / LP / DX virtual-site logic is a temporary adapter path, not the target semantic truth model
 - constraint work does not replace the larger ownership -> geometry -> topology -> transition reset; it is one part of that reset
+
+## Implementation Status
+
+- Completed:
+  - Sprint 0 semantic cleanup on active region identity and fingerprinting
+  - casebook v1 and staged truth export expansion
+  - Sprint 4 shared geometry-constraint normalization
+  - Sprint 5 explicit `CX` / `LP` solve-shaping split
+  - Sprint 6 active shared-generator cutover to explicit `DX` plus stronger `MSR`
+- Current remaining major work:
+  - section influence attribution
+  - freeze-on-unclassified diagnostics trap
+  - PV transition rebuild around stable anchors, change anchors, and split handling
+  - field-family migration onto the same truth pipeline

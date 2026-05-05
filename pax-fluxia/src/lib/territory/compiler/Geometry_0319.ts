@@ -47,13 +47,15 @@ import {
 } from './powerVoronoiTerritoryGeometryGenerator';
 import { buildFrontierMap } from './buildFrontierMap';
 import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
+import {
+    applyExplicitDisconnectZones,
+    buildDisconnectZones,
+} from '../geometry/disconnectZones';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
 import {
     computeCxVirtuals,
-    computeDisconnectVirtuals,
     computeLpVirtuals,
-    DISCONNECT_OWNER_ID,
 } from '$lib/renderers/territoryFeatures';
 import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 
@@ -199,22 +201,8 @@ export function computeGeometry0319(
         }
 
         if (config.dxEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(
-                ownedStars,
-                stars,
-                connections,
-                config.dxMaxDistancePx,
-                config.dxWeight,
-            );
-            for (const dv of disconnectVirtuals) {
-                sites.push({
-                    x: dv.x, y: dv.y,
-                    weight: starWeight * starWeight * dv.weight,
-                    ownerId: DISCONNECT_OWNER_ID,
-                    starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
-                    virtual: 'disconnect',
-                });
-            }
+            const disconnectVirtuals: never[] = [];
+            void disconnectVirtuals;
         }
 
         // ── Stage 1: Power diagram ──────────────────────────────────────────
@@ -255,31 +243,11 @@ export function computeGeometry0319(
             const site = (poly as any).site?.originalObject as PowerSite | undefined;
             if (!site) continue;
 
-            let effectiveOwner = site.ownerId;
-            if (site.ownerId === DISCONNECT_OWNER_ID) {
-                const parts = site.starId.split('_');
-                const sourceStarA = parts[1];
-                const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
-                let nearestDist = Infinity;
-                let nearestOwner = '';
-                for (const s of ownedStars) {
-                    if (s.ownerId === sourceOwner) continue;
-                    const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
-                    if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
-                }
-                if (!nearestOwner) {
-                    effectiveOwner = sourceOwner ?? '';
-                    if (!effectiveOwner) continue;
-                } else {
-                    effectiveOwner = nearestOwner;
-                }
-            }
-
             const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
             if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
                 pts.push([pts[0][0], pts[0][1]]);
             }
-            cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
+            cells.push({ points: pts, ownerId: site.ownerId, siteId: site.starId });
         }
 
         // Individual stage logs consolidated into single summary below (see Stage 10)
@@ -352,6 +320,20 @@ export function computeGeometry0319(
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
+        let appliedDisconnectZones = 0;
+        if (config.dxEnabled) {
+            const disconnectZones = buildDisconnectZones(
+                ownedStars,
+                connections,
+                config.dxMaxDistancePx,
+                undefined,
+                Math.max(0.12, Math.min(0.45, config.dxWeight)),
+            );
+            appliedDisconnectZones = applyExplicitDisconnectZones(
+                mergedTerritories,
+                disconnectZones,
+            );
+        }
         const minStarMargin = applyExplicitMinStarMargin(
             mergedTerritories,
             ownedStars,
@@ -365,6 +347,12 @@ export function computeGeometry0319(
             log.renderer(
                 'Geometry_0319',
                 `MSR clamp ${minStarMargin.requestedMarginPx.toFixed(2)} -> ${minStarMargin.appliedMarginPx.toFixed(2)}`,
+            );
+        }
+        if (appliedDisconnectZones > 0) {
+            log.renderer(
+                'Geometry_0319',
+                `DX applied on ${appliedDisconnectZones} disconnect zones`,
             );
         }
 

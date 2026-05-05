@@ -259,6 +259,35 @@
   - `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
 - Lane virtual sites now carry explicit rule identity:
   - `laneRule: 'cx' | 'lp'`
+- Validation:
+  - `bunx vitest run src/lib/territory/corridor/buildCorridorVirtualSites.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
+  - `bun run build` in `pax-fluxia/`
+
+## Latest Implementation Checkpoint 5
+
+- Completed Sprint 6 explicit `DX` / `MSR` geometry correction on the active shared generators:
+  - added explicit disconnect-zone truth and application:
+    - `pax-fluxia/src/lib/territory/geometry/disconnectZones.ts`
+    - `pax-fluxia/src/lib/territory/geometry/disconnectZones.test.ts`
+  - cut the active shared generators over from DX fake-owner sites to post-solve explicit disconnect-zone application:
+    - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+    - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
+  - rewrote `MSR` from per-vertex radial pushing to intrusive-run rewrite with circle entry/exit intersections and sampled repair arcs:
+    - `pax-fluxia/src/lib/territory/geometry/minStarMargin.ts`
+    - `pax-fluxia/src/lib/territory/geometry/minStarMargin.test.ts`
+- Purpose:
+  - make `DX` an explicit geometry correction instead of an ownership-faking solve trick on the active shared path
+  - make `MSR` repair one coherent bad border run rather than shoving individual points outward
+- Current active-path behavior:
+  - `DX` now carves same-owner midpoint corridors only when the midpoint is actually owned by that player
+  - `MSR` now identifies intrusive runs, finds circle crossings, and replaces the intrusive subpath with a sampled arc around the protected star range
+- Validation:
+  - `bunx vitest run src/lib/territory/geometry/disconnectZones.test.ts src/lib/territory/geometry/minStarMargin.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts`
+  - `bun run build` in `pax-fluxia/`
+- Important note:
+  - legacy renderers still retain their old DX helper path for now
+  - the active shared generators are the path moved onto explicit post-solve `DX`
+  - `laneRule: 'cx' | 'lp'`
 - Added focused regression coverage:
   - `pax-fluxia/src/lib/territory/corridor/buildCorridorVirtualSites.test.ts`
 - Validation:

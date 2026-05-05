@@ -125,3 +125,10 @@
     - explicit `CX` and `LP` builders on the active path
     - compatibility wrappers preserved for older renderers
     - gradual caller migration instead of one risky flag-day rewrite
+40. `DX` should not remain a fake-owner solve trick on the active shared geometry path. It can move to an explicit post-solve midpoint-zone correction without destabilizing the app build.
+41. `MSR` should not be implemented as isolated vertex pushing. A stronger first correct step is:
+    - identify the intrusive border run
+    - find the circle entry and exit points
+    - replace that run with a sampled arc around the protected star range
+42. The active shared generators can adopt explicit `DX` while older legacy renderers temporarily keep their older helper path. That is the same safe migration pattern used for `CX` / `LP`.
+43. Compact diagnostics names should say what the files are. Prefixes like `90_*` are invalid because they encode ordering without meaning.

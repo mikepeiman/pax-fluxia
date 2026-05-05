@@ -1971,3 +1971,32 @@
   - passed:
     - `bunx vitest run src/lib/territory/corridor/buildCorridorVirtualSites.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
     - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Sprint 6 Explicit `DX` And Stronger `MSR`
+
+- Trigger:
+  - `v7` Sprint 6 requires the active shared generators to stop using DX fake-owner solve sites and to stop treating `MSR` as isolated vertex pushing
+- Purpose:
+  - move `DX` toward explicit shared geometry correction on the active path
+  - make `MSR` repair one intrusive border run coherently instead of shoving stray points outward
+- Code changes:
+  - added explicit disconnect-zone truth and application:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\disconnectZones.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\disconnectZones.test.ts`
+  - cut the active shared generators over from DX fake-owner sites to post-solve disconnect-zone application:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\Geometry_0319.ts`
+  - rewrote `MSR` from per-vertex radial push to intrusive-run repair:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\minStarMargin.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\geometry\minStarMargin.test.ts`
+- Result:
+  - `DX` on the active shared geometry path is now an explicit midpoint-zone carve on merged territories rather than an ownership-faking solve trick
+  - `MSR` now:
+    - identifies intrusive runs
+    - finds circle entry and exit points
+    - replaces the intrusive subpath with a sampled arc around the protected star range
+  - legacy renderer paths still retain their older DX helper behavior for now; only the active shared generators were migrated in this checkpoint
+- Validation:
+  - passed:
+    - `bunx vitest run src/lib/territory/geometry/disconnectZones.test.ts src/lib/territory/geometry/minStarMargin.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

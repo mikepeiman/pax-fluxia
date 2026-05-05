@@ -17,18 +17,24 @@ describe('resolveAppliedMinStarMarginPx', () => {
 });
 
 describe('applyExplicitMinStarMargin', () => {
-    it('pushes boundary vertices out to the applied minimum star margin', () => {
+    it('rewrites intrusive runs so every resulting point stays outside the applied margin', () => {
+        const originalPointCount = 8;
         const territories = [
             {
                 ownerId: 'A',
                 points: [
-                    [10, 0],
-                    [10, 10],
-                    [0, 10],
-                    [10, 0],
+                    [40, -30],
+                    [12, -8],
+                    [8, 0],
+                    [12, 8],
+                    [40, 30],
+                    [80, 30],
+                    [80, -30],
+                    [40, -30],
                 ] as [number, number][],
             },
         ];
+
         const result = applyExplicitMinStarMargin(
             territories,
             [
@@ -39,9 +45,9 @@ describe('applyExplicitMinStarMargin', () => {
         );
 
         expect(result.appliedMarginPx).toBe(20);
-        expect(territories[0]!.points[0]![0]).toBeCloseTo(20, 5);
-        expect(territories[0]!.points[0]![1]).toBeCloseTo(0, 5);
-        expect(territories[0]!.points[1]![0]).toBeCloseTo(14.142135, 5);
-        expect(territories[0]!.points[1]![1]).toBeCloseTo(14.142135, 5);
+        expect(territories[0]!.points.length).toBeGreaterThan(originalPointCount);
+        for (const [x, y] of territories[0]!.points) {
+            expect(Math.hypot(x, y)).toBeGreaterThanOrEqual(19.999);
+        }
     });
 });

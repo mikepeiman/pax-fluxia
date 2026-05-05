@@ -7,7 +7,7 @@
  * Pure data generator — produces typed geometry; never renders.
  *
  * Pipeline:
- *   0. Build site array (owned stars + corridor virtuals + disconnect virtuals)
+ *   0. Build site array (owned stars + lane-shaping virtuals)
  *   1. Power diagram via d3-weighted-voronoi (weight = starWeight²)
  *   2. Build per-star TerritoryCell[] from polygon output
  *   3. Extract SharedBorderEdge[] (contested edges before merge)
@@ -27,15 +27,17 @@ import { weightedVoronoi } from 'd3-weighted-voronoi';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import {
     computeCxVirtuals,
-    computeDisconnectVirtuals,
     computeLpVirtuals,
-    DISCONNECT_OWNER_ID,
 } from '$lib/renderers/territoryFeatures';
 import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 import { log } from '$lib/utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
 import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
+import {
+    applyExplicitDisconnectZones,
+    buildDisconnectZones,
+} from '../geometry/disconnectZones';
 import { buildTerritoryGeometryFingerprintCore } from './territoryGeometryFingerprint';
 import {
     buildSortedOutgoingArcMap,
@@ -45,7 +47,7 @@ import {
 } from './planarWalk';
 
 // ---------------------------------------------------------------------------
-// Geometry types (canonical contracts for PVV2 path)
+// Geometry types (shared territory geometry contracts)
 // ---------------------------------------------------------------------------
 
 /** A site in the power diagram — star or virtual point with weight. */
@@ -55,7 +57,7 @@ export interface PowerSite {
     weight: number;
     ownerId: string;
     starId: string;
-    virtual?: 'corridor' | 'disconnect';
+    virtual?: 'corridor';
 }
 
 /** Polygon output from the power diagram, augmented with ownership info. */
@@ -637,7 +639,7 @@ export function mergeSameOwnerCells(
         }
     }
 
-    log.renderer('PVV2Stage', `mergeSameOwnerCells: ${cells.length} cells -> ${result.length} merged polygons for ${clusterEdges.size} clusters`);
+    log.renderer('TerritoryGeometry', `mergeSameOwnerCells: ${cells.length} cells -> ${result.length} merged polygons for ${clusterEdges.size} clusters`);
     return result;
 }
 
@@ -701,7 +703,7 @@ export function constructFillsFromFrontierChain(
 
     if (droppedOpenLoopCount > 0 || repairedNearClosedLoopCount > 0) {
         log.renderer(
-            'PVV2Stage',
+            'TerritoryGeometry',
             `CHAIN WALK FILTER | droppedOpen=${droppedOpenLoopCount} repairedNearClosed=${repairedNearClosedLoopCount} kept=${result.length}`,
         );
     }
@@ -926,7 +928,7 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
 // ---------------------------------------------------------------------------
 
 /**
- * Execute the PVV2 geometry stage.
+ * Execute the shared power-Voronoi territory geometry stage.
  * Inputs: stars + connections + world bounds + config from GAME_CONFIG.
  * Returns TerritoryGeometryData on success, CompileError on failure.
  * Never throws. Never returns partial data. Never imports PIXI.
@@ -1000,25 +1002,6 @@ export function generateVoronoiTerritoryGeometry(
             }
         }
 
-        if (config.dxEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(
-                ownedStars,
-                stars,
-                connections,
-                config.dxMaxDistancePx,
-                config.dxWeight,
-            );
-            for (const dv of disconnectVirtuals) {
-                sites.push({
-                    x: dv.x, y: dv.y,
-                    weight: starWeight * starWeight * dv.weight,
-                    ownerId: DISCONNECT_OWNER_ID,
-                    starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
-                    virtual: 'disconnect',
-                });
-            }
-        }
-
         // Stage 1: Power diagram
         const pad = config.boundaryPad;
         const clip: [number, number][] = [
@@ -1040,7 +1023,7 @@ export function generateVoronoiTerritoryGeometry(
             return {
                 kind: 'error',
                 stage: 'metric',
-                message: `PVV2: d3-weighted-voronoi crashed: ${e}`,
+                message: `Territory geometry: d3-weighted-voronoi crashed: ${e}`,
                 recoverable: false,
             } satisfies CompileError;
         }
@@ -1053,43 +1036,23 @@ export function generateVoronoiTerritoryGeometry(
             const site = (poly as any).site?.originalObject as PowerSite | undefined;
             if (!site) continue;
 
-            let effectiveOwner = site.ownerId;
-            if (site.ownerId === DISCONNECT_OWNER_ID) {
-                const parts = site.starId.split('_');
-                const sourceStarA = parts[1];
-                const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
-                let nearestDist = Infinity;
-                let nearestOwner = '';
-                for (const s of ownedStars) {
-                    if (s.ownerId === sourceOwner) continue;
-                    const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
-                    if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
-                }
-                if (!nearestOwner) {
-                    effectiveOwner = sourceOwner ?? '';
-                    if (!effectiveOwner) continue;
-                } else {
-                    effectiveOwner = nearestOwner;
-                }
-            }
-
             const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
             if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
                 pts.push([pts[0][0], pts[0][1]]);
             }
-            cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
+            cells.push({ points: pts, ownerId: site.ownerId, siteId: site.starId });
         }
 
-        log.renderer('PVV2Stage', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | cxEnabled=${config.cxEnabled} dxEnabled=${config.dxEnabled} chaikinPasses=${config.chaikinPasses}`);
-        log.renderer('PVV2Stage', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
+        log.renderer('TerritoryGeometry', `INPUT: ${stars.length} stars, ${ownedStars.length} owned, ${sites.length} total sites built | cxEnabled=${config.cxEnabled} dxEnabled=${config.dxEnabled} chaikinPasses=${config.chaikinPasses}`);
+        log.renderer('TerritoryGeometry', `VORONOI OUTPUT: ${polygons.length} raw polygons -> ${cells.length} valid cells`);
 
         // Stage 2a: Extract junction vertices (points shared by 3+ cells)
         // These are pinned during Chaikin to prevent gaps at 3-way territory junctions.
         const junctionPts = config.chaikinPasses > 0 ? extractJunctionVertices(cells) : new Set<string>();
-        log.renderer('PVV2Stage', `JUNCTIONS: ${junctionPts.size} pinned vertices`);
+        log.renderer('TerritoryGeometry', `JUNCTIONS: ${junctionPts.size} pinned vertices`);
         // Stage 2: Extract shared edges (before merge removes internal edges)
         const sharedEdges = extractSharedEdges(cells);
-        log.renderer('PVV2Stage', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
+        log.renderer('TerritoryGeometry', `EDGES: ${sharedEdges.length} contested edges across ${new Set(sharedEdges.map(e => [e.ownerA, e.ownerB].sort().join('|'))).size} owner pairs`);
 
 
         // Stage 3: Build cluster map
@@ -1115,16 +1078,30 @@ export function generateVoronoiTerritoryGeometry(
         // Stage 5: Chain shared edges → smoothed polylines (Chaikin = geometry)
         const rawSharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, 0);
         const sharedPolylines = chainSharedEdgesIntoPolylines(sharedEdges, config.chaikinPasses);
-        log.renderer('PVV2Stage', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
+        log.renderer('TerritoryGeometry', `POLYLINES: ${sharedPolylines.length} border polylines | pts: ${sharedPolylines.map(p => `${p.ownerPairKey}:${p.points.length}`).join(' ')}`);
 
         // Stage 7: Extract world-boundary border polylines from RAW merged territories
         const worldBorderPolylines = extractWorldBorderPolylines(mergedRaw, config.worldWidth, config.worldHeight);
-        log.renderer('PVV2Stage', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
+        log.renderer('TerritoryGeometry', `WORLD BORDERS: ${worldBorderPolylines.length} boundary polylines`);
 
         // Stage 8: Construct fill polygons by chaining frontier polylines at junction vertices.
         // Each polyline carries ownership. Fills use the EXACT same smoothed vertices as borders.
         // Eliminates fill/border geometry divergence (B-42).
         const mergedTerritories = constructFillsFromFrontierChain(sharedPolylines, worldBorderPolylines, cells);
+        let appliedDisconnectZones = 0;
+        if (config.dxEnabled) {
+            const disconnectZones = buildDisconnectZones(
+                ownedStars,
+                connections,
+                config.dxMaxDistancePx,
+                undefined,
+                Math.max(0.12, Math.min(0.45, config.dxWeight)),
+            );
+            appliedDisconnectZones = applyExplicitDisconnectZones(
+                mergedTerritories,
+                disconnectZones,
+            );
+        }
         const minStarMargin = applyExplicitMinStarMargin(
             mergedTerritories,
             ownedStars,
@@ -1136,17 +1113,23 @@ export function generateVoronoiTerritoryGeometry(
                 0.01
         ) {
             log.renderer(
-                'PVV2Stage',
+                'TerritoryGeometry',
                 `MSR clamp ${minStarMargin.requestedMarginPx.toFixed(2)} -> ${minStarMargin.appliedMarginPx.toFixed(2)}`,
             );
         }
-        log.renderer('PVV2Stage', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
+        if (appliedDisconnectZones > 0) {
+            log.renderer(
+                'TerritoryGeometry',
+                `DX applied on ${appliedDisconnectZones} disconnect zones`,
+            );
+        }
+        log.renderer('TerritoryGeometry', `FRONTIER CHAIN FILLS: ${mergedTerritories.length} fill regions`);
 
-        log.renderer('PVV2Stage', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
+        log.renderer('TerritoryGeometry', `MERGED: ${mergedTerritories.length} territories | chaikinPasses=${config.chaikinPasses} | pts: ${mergedTerritories.map((t: MergedTerritory) => `${t.ownerId}:${t.points.length}`).join(' ')}`);
 
         // Stage 9: Detect enclaves using the finalized mergedTerritories so indices match renderer expectations.
         const enclaveMapFinal = detectEnclaves(mergedTerritories);
-        log.renderer('PVV2Stage', `ENCLAVES: ${enclaveMapFinal.size} | COMPLETE`);
+        log.renderer('TerritoryGeometry', `ENCLAVES: ${enclaveMapFinal.size} | COMPLETE`);
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config);
 
