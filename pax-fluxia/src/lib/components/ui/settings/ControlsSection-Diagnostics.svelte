@@ -75,6 +75,9 @@
     let overlayShowVertices = $state(overlayConfig.showAllVertices);
     let overlayShowActiveFront = $state(overlayConfig.showActiveFront);
     let overlayPolylineSamples = $state(overlayConfig.showPolylineSamples);
+    let overlayFreezeOnUnclassifiedBoundary = $state(
+        overlayConfig.freezeOnUnclassifiedBoundary,
+    );
     let downloading = $state<string | null>(null);
     let selectingExportFolder = $state(false);
 
@@ -89,6 +92,8 @@
         overlayShowVertices = overlayConfig.showAllVertices;
         overlayShowActiveFront = overlayConfig.showActiveFront;
         overlayPolylineSamples = overlayConfig.showPolylineSamples;
+        overlayFreezeOnUnclassifiedBoundary =
+            overlayConfig.freezeOnUnclassifiedBoundary;
     }
 
     function toggleOverlay(): void {
@@ -108,6 +113,12 @@
 
     function togglePolylineSamples(): void {
         overlayConfig.showPolylineSamples = !overlayConfig.showPolylineSamples;
+        syncOverlayState();
+    }
+
+    function toggleFreezeOnUnclassifiedBoundary(): void {
+        overlayConfig.freezeOnUnclassifiedBoundary =
+            !overlayConfig.freezeOnUnclassifiedBoundary;
         syncOverlayState();
     }
 
@@ -353,6 +364,14 @@
                 onchange={togglePolylineSamples}
             />
             <span class="var-name">Polyline samples</span>
+        </label>
+        <label class="toggle-row indent">
+            <input
+                type="checkbox"
+                checked={overlayFreezeOnUnclassifiedBoundary}
+                onchange={toggleFreezeOnUnclassifiedBoundary}
+            />
+            <span class="var-name">Freeze on boundary-classification defect</span>
         </label>
     {/if}
     <label class="toggle-row">
@@ -643,6 +662,8 @@
             <div><span>Sampled</span><span>{formatDiagnosticProgress(activeFrontDiagnostics.sampledProgress)}</span></div>
             <div><span>Fronts</span><span>{activeFrontDiagnostics.frontCount}</span></div>
             <div><span>Collapses</span><span>{activeFrontDiagnostics.collapseTargetCount}</span></div>
+            <div><span>Defect Pairs</span><span>{activeFrontDiagnostics.defectPairCount}</span></div>
+            <div><span>Defect Sections</span><span>{activeFrontDiagnostics.defectSectionCount}</span></div>
             <div><span>Plan Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.planPrev)}</span></div>
             <div><span>Next Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.next)}</span></div>
             <div><span>Sample Prev Topo</span><span>{formatDiagnosticBool(activeFrontDiagnostics.topologyAvailable.samplePrev)}</span></div>
@@ -651,14 +672,14 @@
                 <div><span>Pairs</span><span>{activeFrontPlanSummary.pairCount}</span></div>
                 <div><span>Planned Pairs</span><span>{activeFrontPlanSummary.plannedPairCount}</span></div>
                 <div><span>Active Sections</span><span>{activeFrontPlanSummary.activeSectionCount}</span></div>
-                <div><span>Gap Skips</span><span>{activeFrontPlanSummary.skippedTopologyGapCount}</span></div>
-                <div><span>Split Skips</span><span>{activeFrontPlanSummary.skippedUnsupportedSplitCount}</span></div>
-                <div><span>No-Span Skips</span><span>{activeFrontPlanSummary.skippedNoChangeSpanCount}</span></div>
+                <div><span>Topology Gaps</span><span>{activeFrontPlanSummary.defectTopologyGapCount}</span></div>
+                <div><span>Split Defects</span><span>{activeFrontPlanSummary.defectUnsupportedSplitCount}</span></div>
+                <div><span>No-Span Defects</span><span>{activeFrontPlanSummary.defectNoChangeSpanCount}</span></div>
             {/if}
         </div>
         <div class="readout">
             Active-front diagnostics are live planner truth for the current PVV4 path.
-            `snap no fronts` means the topology path ran but produced no animated front sections for this conquest.
+            If boundary classification fails, that is a defect. Enable the freeze toggle above to pause on that defect the moment it appears.
         </div>
     {/if}
     {#if showMetaballGridDiagnostics}

@@ -161,6 +161,7 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import { formatConquestEventGroupLabel } from "$lib/territory/devtools/conquestNaming";
     import {
         buildRulerMeasurement,
@@ -2641,6 +2642,39 @@
     let transitionDiagnosticPrevGeometry: CanonicalGeometrySnapshot | null =
         null;
     let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
+    let territoryTransitionFreezeReason: string | null = null;
+
+    function syncTerritoryTransitionFreeze(
+        activeMode: string,
+        canonicalRuntimeOutput: TerritoryRuntimeOutput | null,
+    ): string | null {
+        const activeFrontDebug = canonicalRuntimeOutput?.activeFrontDebug ?? null;
+        const shouldFreeze =
+            overlayConfig.freezeOnUnclassifiedBoundary &&
+            activeFrontDebug?.topologyPathSelected === true &&
+            activeFrontDebug.hasClassificationDefect;
+        if (!shouldFreeze) {
+            territoryTransitionFreezeReason = null;
+            return null;
+        }
+
+        const reason =
+            `${activeMode}:pairs=${activeFrontDebug.defectPairCount}:sections=` +
+            `${activeFrontDebug.defectSectionCount}`;
+        if (territoryTransitionFreezeReason !== reason) {
+            territoryTransitionFreezeReason = reason;
+            log.error(
+                "GameCanvas",
+                `Freezing territory transition on boundary-classification defect ` +
+                    `(mode=${activeMode}, pairs=${activeFrontDebug.defectPairCount}, ` +
+                    `sections=${activeFrontDebug.defectSectionCount})`,
+            );
+            if (!activeGameStore.isPaused) {
+                activeGameStore.pauseGame();
+            }
+        }
+        return territoryTransitionFreezeReason;
+    }
 
     function buildCanonicalBridgeInput(
         stars: StarState[],
@@ -6135,6 +6169,10 @@
                                   >),
                           ).msrStarBias
                         : null;
+                    const transitionFreezeReason = syncTerritoryTransitionFreeze(
+                        activeMode,
+                        canonicalRuntimeOutput,
+                    );
                     setTerritoryRenderStatus({
                         territoryMode: activeMode,
                         geometryReady,
@@ -6142,6 +6180,8 @@
                         lastRenderFailure,
                         activeFrontDiagnostics:
                             canonicalRuntimeOutput?.activeFrontDebug ?? null,
+                        transitionFreezeActive: transitionFreezeReason !== null,
+                        transitionFreezeReason,
                         msrRequestedMarginPx:
                             msrDiagnostics?.summary.requestedMarginPx ?? null,
                         msrStarBias,

@@ -345,13 +345,16 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
         const bundle = buildBundle({
             kind: 'active_front_live_capture',
             activeFrontDebug: {
-                evaluation: 'snap_no_fronts',
+                evaluation: 'classification_defect',
                 pathUsed: 'pv_frontline',
                 transitionActive: true,
                 transitionSelected: true,
                 topologyPathSelected: true,
                 hasNewConquests: true,
                 hasGeometryDelta: true,
+                hasClassificationDefect: true,
+                defectPairCount: 4,
+                defectSectionCount: 7,
                 topologyAvailable: {
                     planPrev: true,
                     next: true,
@@ -361,24 +364,27 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
                 collapseTargetCount: 0,
                 sampledProgress: 0.5,
                 planSummary: {
-                    classification: 'snap_no_fronts',
+                    classification: 'classification_defect',
+                    hasClassificationDefect: true,
                     stableAnchorCount: 6,
                     prevChainCount: 4,
                     nextChainCount: 4,
                     pairCount: 4,
                     plannedPairCount: 0,
-                    skippedTopologyGapCount: 1,
-                    skippedUnsupportedSplitCount: 0,
-                    skippedNoChangeSpanCount: 3,
+                    defectPairCount: 4,
+                    defectTopologyGapCount: 1,
+                    defectUnsupportedSplitCount: 0,
+                    defectNoChangeSpanCount: 3,
                     frontCount: 0,
                     activeSectionCount: 0,
+                    defectSectionCount: 7,
                     collapseTargetCount: 0,
                 },
             },
             activeFrontPlan: {
                 diagnostics: {
                     summary: {
-                        classification: 'snap_no_fronts',
+                        classification: 'classification_defect',
                     },
                 },
             },
@@ -394,7 +400,7 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
         expect(exportData?.captureDiagnostics).toMatchObject({
             kind: 'active_front_live_capture',
             activeFrontDebug: {
-                evaluation: 'snap_no_fronts',
+                evaluation: 'classification_defect',
                 frontCount: 0,
             },
         });

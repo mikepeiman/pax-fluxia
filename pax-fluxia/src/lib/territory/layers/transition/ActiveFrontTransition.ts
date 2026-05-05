@@ -6,7 +6,10 @@ import type {
     FrontierVertexKind,
     RegionLoop,
 } from '../../contracts/FrontierTopologyContracts';
-import type { FillTransitionFrame } from '../../contracts/TransitionContracts';
+import type {
+    BorderTransitionFrame,
+    FillTransitionFrame,
+} from '../../contracts/TransitionContracts';
 import { rebuildLoopPoints } from '../../compiler/buildFrontierTopology';
 
 type Vec2 = [number, number];
@@ -15,20 +18,24 @@ export type ActiveFrontSplitMode = 'none' | '1to2' | '2to1';
 type SplitMode = ActiveFrontSplitMode;
 export type ActiveFrontPairOutcome =
     | 'planned'
-    | 'skipped_topology_gap'
-    | 'skipped_unsupported_split_mode'
-    | 'skipped_no_change_span';
+    | 'defect_topology_gap'
+    | 'defect_unsupported_split_mode'
+    | 'defect_no_change_span';
 export type ActiveFrontPlanClassification =
     | 'animated_fronts'
     | 'collapse_only'
-    | 'snap_no_fronts';
+    | 'classification_defect';
 
 interface ChainPath {
     anchorStartId: string;
     anchorEndId: string;
     sectionIds: string[];
     points: Vec2[];
-    sectionSpans: Map<string, { startIndex: number; endIndex: number }>;
+    sectionSpans: Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathPointOffset: number;
+    }>;
     sectionReversed: Map<string, boolean>;
 }
 
@@ -43,11 +50,13 @@ interface ActiveFrontPlan {
     sectionSpans: Map<string, {
         startIndex: number;
         endIndex: number;
+        pathPointOffset: number;
         pathIndex: number;
         activeStartIndex: number;
         activeEndIndex: number;
     }>;
     activeSectionIds: Set<string>;
+    defectSectionIds: Set<string>;
     sectionReversed: Map<string, boolean>;
 }
 
@@ -103,20 +112,24 @@ export interface ActiveFrontPairDiagnostic {
         prevEndParam: number;
     } | null;
     activeSectionIds: string[];
+    defectSectionIds: string[];
 }
 
 export interface ActiveFrontPlanDiagnosticsSummary {
     classification: ActiveFrontPlanClassification;
+    hasClassificationDefect: boolean;
     stableAnchorCount: number;
     prevChainCount: number;
     nextChainCount: number;
     pairCount: number;
     plannedPairCount: number;
-    skippedTopologyGapCount: number;
-    skippedUnsupportedSplitCount: number;
-    skippedNoChangeSpanCount: number;
+    defectPairCount: number;
+    defectTopologyGapCount: number;
+    defectUnsupportedSplitCount: number;
+    defectNoChangeSpanCount: number;
     frontCount: number;
     activeSectionCount: number;
+    defectSectionCount: number;
     collapseTargetCount: number;
 }
 
@@ -201,23 +214,25 @@ export function planActiveFrontTransition(
             prevPathSectionIds: prevPaths.map((path) => [...path.sectionIds]),
             nextPathSectionIds: nextPaths.map((path) => [...path.sectionIds]),
             splitMode: null,
-            outcome: 'skipped_topology_gap',
+            outcome: 'defect_topology_gap',
             rawChangeSpan: null,
             paddedChangeSpan: null,
             changeAnchorWindow: null,
             activeSectionIds: [],
+            defectSectionIds: [],
         };
 
         if (prevPaths.length === 0 || nextPaths.length === 0) {
+            pairDiagnostic.defectSectionIds = collectPathSectionIds(prevPaths, nextPaths);
             pairDiagnostics.push(pairDiagnostic);
-            // Topology gap — skip until diagnostics/logging added
             continue;
         }
 
         const splitMode = detectSplitMode(prevPaths.length, nextPaths.length);
         pairDiagnostic.splitMode = splitMode;
         if (!splitMode) {
-            pairDiagnostic.outcome = 'skipped_unsupported_split_mode';
+            pairDiagnostic.outcome = 'defect_unsupported_split_mode';
+            pairDiagnostic.defectSectionIds = collectPathSectionIds(prevPaths, nextPaths);
             pairDiagnostics.push(pairDiagnostic);
             continue;
         }
@@ -236,13 +251,19 @@ export function planActiveFrontTransition(
         pairDiagnostic.paddedChangeSpan = { base, startIndex, endIndex };
 
         if (startIndex === -1 || endIndex === -1) {
-            pairDiagnostic.outcome = 'skipped_no_change_span';
+            pairDiagnostic.outcome = 'defect_no_change_span';
+            pairDiagnostic.defectSectionIds = collectPathSectionIds(prevPaths, nextPaths);
             pairDiagnostics.push(pairDiagnostic);
             continue;
         }
         pairDiagnostic.changeAnchorWindow = null;
 
-        const { sectionSpans, activeSectionIds, sectionReversed } = buildSectionSpans(
+        const {
+            sectionSpans,
+            activeSectionIds,
+            defectSectionIds,
+            sectionReversed,
+        } = buildSectionSpans(
             nextPaths,
             splitMode,
             base,
@@ -259,10 +280,12 @@ export function planActiveFrontTransition(
             localChangeWindow: null,
             sectionSpans,
             activeSectionIds,
+            defectSectionIds,
             sectionReversed,
         });
         pairDiagnostic.outcome = 'planned';
         pairDiagnostic.activeSectionIds = [...activeSectionIds].sort();
+        pairDiagnostic.defectSectionIds = [...defectSectionIds].sort();
         pairDiagnostics.push(pairDiagnostic);
     }
 
@@ -293,6 +316,15 @@ export function planActiveFrontTransition(
     };
 }
 
+function collectPathSectionIds(prevPaths: readonly ChainPath[], nextPaths: readonly ChainPath[]): string[] {
+    return Array.from(
+        new Set<string>([
+            ...prevPaths.flatMap((path) => path.sectionIds),
+            ...nextPaths.flatMap((path) => path.sectionIds),
+        ]),
+    ).sort();
+}
+
 function buildActiveFrontPlanDiagnostics(input: {
     stableAnchorIds: string[];
     prevChainCount: number;
@@ -308,24 +340,32 @@ function buildActiveFrontPlanDiagnostics(input: {
         (total, front) => total + front.activeSectionIds.size,
         0,
     );
+    const defectSectionCount = input.fronts.reduce(
+        (total, front) => total + front.defectSectionIds.size,
+        0,
+    ) + input.pairDiagnostics.reduce((total, pair) => total + pair.defectSectionIds.length, 0);
     const plannedPairCount = input.pairDiagnostics.filter(
         (pair) => pair.outcome === 'planned',
     ).length;
-    const skippedTopologyGapCount = input.pairDiagnostics.filter(
-        (pair) => pair.outcome === 'skipped_topology_gap',
+    const defectTopologyGapCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'defect_topology_gap',
     ).length;
-    const skippedUnsupportedSplitCount = input.pairDiagnostics.filter(
-        (pair) => pair.outcome === 'skipped_unsupported_split_mode',
+    const defectUnsupportedSplitCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'defect_unsupported_split_mode',
     ).length;
-    const skippedNoChangeSpanCount = input.pairDiagnostics.filter(
-        (pair) => pair.outcome === 'skipped_no_change_span',
+    const defectNoChangeSpanCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'defect_no_change_span',
     ).length;
+    const defectPairCount =
+        defectTopologyGapCount + defectUnsupportedSplitCount + defectNoChangeSpanCount;
     const classification: ActiveFrontPlanClassification =
-        input.fronts.length > 0
+        defectPairCount > 0 || defectSectionCount > 0
+            ? 'classification_defect'
+            : input.fronts.length > 0
             ? 'animated_fronts'
             : input.collapseTargets.length > 0
               ? 'collapse_only'
-              : 'snap_no_fronts';
+              : 'classification_defect';
 
     return {
         tunables: {
@@ -337,16 +377,19 @@ function buildActiveFrontPlanDiagnostics(input: {
         pairDiagnostics: input.pairDiagnostics,
         summary: {
             classification,
+            hasClassificationDefect: defectPairCount > 0 || defectSectionCount > 0,
             stableAnchorCount: input.stableAnchorIds.length,
             prevChainCount: input.prevChainCount,
             nextChainCount: input.nextChainCount,
             pairCount: input.pairDiagnostics.length,
             plannedPairCount,
-            skippedTopologyGapCount,
-            skippedUnsupportedSplitCount,
-            skippedNoChangeSpanCount,
+            defectPairCount,
+            defectTopologyGapCount,
+            defectUnsupportedSplitCount,
+            defectNoChangeSpanCount,
             frontCount: input.fronts.length,
             activeSectionCount,
+            defectSectionCount,
             collapseTargetCount: input.collapseTargets.length,
         },
     };
@@ -368,6 +411,7 @@ export function compactActiveFrontTransitionPlan(
             changeSpan: front.changeSpan,
             changeAnchorWindow: front.localChangeWindow,
             activeSectionIds: [...front.activeSectionIds].sort(),
+            defectSectionIds: [...front.defectSectionIds].sort(),
             prevPaths: front.prevPaths.map((path) => ({
                 anchorStartId: path.anchorStartId,
                 anchorEndId: path.anchorEndId,
@@ -403,22 +447,54 @@ export function sampleActiveFrontSectionGeometry(
     const t = Math.min(Math.max(progress, 0), 1);
     const sectionGeometry = new Map<string, Vec2[]>();
 
-    // Start with static passthrough (next topology)
+    // Start with static passthrough (next topology).
     for (const [sectionId, section] of next.sections) {
-        sectionGeometry.set(sectionId, section.points as Vec2[]);
+        sectionGeometry.set(
+            sectionId,
+            section.points.map((point) => [point[0], point[1]] as Vec2),
+        );
     }
 
-    // Apply active fronts
+    // Replace only the local moving interval inside each active section.
     for (const front of plan.fronts) {
         const interpolatedPaths = buildInterpolatedPaths(front, prev, next, t);
 
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
+            if (span.activeStartIndex < 0 || span.activeEndIndex < span.activeStartIndex) {
+                continue;
+            }
+            const nextSection = next.sections.get(sectionId);
+            if (!nextSection) continue;
             const pathPoints = interpolatedPaths[span.pathIndex];
-            const realStart = span.startIndex > 0 ? span.startIndex - 1 : span.startIndex;
-            const slice = pathPoints.slice(realStart, span.endIndex + 1);
             const reversed = front.sectionReversed.get(sectionId);
-            sectionGeometry.set(sectionId, reversed ? slice.reverse() : slice);
+            const workingPoints = reversed
+                ? [...nextSection.points].reverse().map((point) => [point[0], point[1]] as Vec2)
+                : nextSection.points.map((point) => [point[0], point[1]] as Vec2);
+
+            for (
+                let pathIndex = span.activeStartIndex;
+                pathIndex <= span.activeEndIndex;
+                pathIndex += 1
+            ) {
+                const localSectionIndex =
+                    span.pathPointOffset + (pathIndex - span.startIndex);
+                if (
+                    localSectionIndex < 0 ||
+                    localSectionIndex >= workingPoints.length ||
+                    pathIndex < 0 ||
+                    pathIndex >= pathPoints.length
+                ) {
+                    continue;
+                }
+                const sample = pathPoints[pathIndex]!;
+                workingPoints[localSectionIndex] = [sample[0], sample[1]];
+            }
+
+            sectionGeometry.set(
+                sectionId,
+                reversed ? [...workingPoints].reverse() : workingPoints,
+            );
         }
     }
 
@@ -454,6 +530,21 @@ export function sampleActiveFrontTransition(
     }
 
     return { regions };
+}
+
+export function sampleActiveFrontBorderFrame(
+    plan: ActiveFrontTransitionPlan,
+    prev: FrontierTopology,
+    next: FrontierTopology,
+    progress: number,
+): BorderTransitionFrame {
+    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, progress);
+    return {
+        frontiers: [...next.sections.values()].map((section) => ({
+            ownerPairKey: section.ownerPairKey,
+            points: sectionGeometry.get(section.id) ?? section.points,
+        })),
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -573,11 +664,19 @@ function buildChainPoints(
     anchorStartId: string,
 ): {
     points: Vec2[];
-    sectionSpans: Map<string, { startIndex: number; endIndex: number }>;
+    sectionSpans: Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathPointOffset: number;
+    }>;
     sectionReversed: Map<string, boolean>;
 } {
     const points: Vec2[] = [];
-    const sectionSpans = new Map<string, { startIndex: number; endIndex: number }>();
+    const sectionSpans = new Map<string, {
+        startIndex: number;
+        endIndex: number;
+        pathPointOffset: number;
+    }>();
     const sectionReversed = new Map<string, boolean>();
 
     let currentVertex = anchorStartId;
@@ -588,9 +687,9 @@ function buildChainPoints(
         const reversed = section.startVertexId !== currentVertex;
         const orientedPoints = getOrientedSectionPoints(section, currentVertex);
         const startIndex = points.length;
-        appendPolyline(points, orientedPoints);
+        const pathPointOffset = appendPolyline(points, orientedPoints);
         const endIndex = points.length - 1;
-        sectionSpans.set(sectionId, { startIndex, endIndex });
+        sectionSpans.set(sectionId, { startIndex, endIndex, pathPointOffset });
         sectionReversed.set(sectionId, reversed);
 
         currentVertex = otherVertex(section, currentVertex);
@@ -616,8 +715,8 @@ function otherVertex(section: FrontierSection, vertexId: string): string {
     return section.startVertexId === vertexId ? section.endVertexId : section.startVertexId;
 }
 
-function appendPolyline(out: Vec2[], segment: readonly Vec2[]): void {
-    if (segment.length === 0) return;
+function appendPolyline(out: Vec2[], segment: readonly Vec2[]): number {
+    if (segment.length === 0) return 0;
     let from = 0;
     if (out.length > 0) {
         const last = out[out.length - 1];
@@ -627,6 +726,7 @@ function appendPolyline(out: Vec2[], segment: readonly Vec2[]): void {
     for (let i = from; i < segment.length; i += 1) {
         out.push(segment[i]);
     }
+    return from;
 }
 
 // ---------------------------------------------------------------------------
@@ -764,21 +864,25 @@ function buildSectionSpans(
     sectionSpans: Map<string, {
         startIndex: number;
         endIndex: number;
+        pathPointOffset: number;
         pathIndex: number;
         activeStartIndex: number;
         activeEndIndex: number;
     }>;
     activeSectionIds: Set<string>;
+    defectSectionIds: Set<string>;
     sectionReversed: Map<string, boolean>;
 } {
     const sectionSpans = new Map<string, {
         startIndex: number;
         endIndex: number;
+        pathPointOffset: number;
         pathIndex: number;
         activeStartIndex: number;
         activeEndIndex: number;
     }>();
     const activeSectionIds = new Set<string>();
+    const defectSectionIds = new Set<string>();
     const sectionReversed = new Map<string, boolean>();
 
     for (let pathIndex = 0; pathIndex < nextPaths.length; pathIndex += 1) {
@@ -799,31 +903,40 @@ function buildSectionSpans(
     if (splitMode !== 'none') {
         for (const path of nextPaths) {
             for (const sectionId of path.sectionIds) {
-                activeSectionIds.add(sectionId);
+                defectSectionIds.add(sectionId);
             }
         }
-        return { sectionSpans, activeSectionIds, sectionReversed };
+        return { sectionSpans, activeSectionIds, defectSectionIds, sectionReversed };
     }
 
     if (base !== 'next') {
         for (const path of nextPaths) {
             for (const sectionId of path.sectionIds) {
-                activeSectionIds.add(sectionId);
+                defectSectionIds.add(sectionId);
             }
         }
-        return { sectionSpans, activeSectionIds, sectionReversed };
+        return { sectionSpans, activeSectionIds, defectSectionIds, sectionReversed };
     }
 
     const [onlyPath] = nextPaths;
     for (const [sectionId, span] of onlyPath.sectionSpans) {
-        const overlaps =
-            span.endIndex >= changeSpan.startIndex && span.startIndex <= changeSpan.endIndex;
+        const activeStartIndex = Math.max(span.startIndex, changeSpan.startIndex);
+        const activeEndIndex = Math.min(span.endIndex, changeSpan.endIndex);
+        const overlaps = activeStartIndex <= activeEndIndex;
         if (overlaps) {
             activeSectionIds.add(sectionId);
+            const existing = sectionSpans.get(sectionId);
+            if (existing) {
+                sectionSpans.set(sectionId, {
+                    ...existing,
+                    activeStartIndex,
+                    activeEndIndex,
+                });
+            }
         }
     }
 
-    return { sectionSpans, activeSectionIds, sectionReversed };
+    return { sectionSpans, activeSectionIds, defectSectionIds, sectionReversed };
 }
 
 // ---------------------------------------------------------------------------

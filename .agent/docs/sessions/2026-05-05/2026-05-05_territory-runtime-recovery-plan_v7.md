@@ -549,8 +549,9 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
   - Sprint 5 explicit `CX` / `LP` solve-shaping split
   - Sprint 6 active shared-generator cutover to explicit `DX` plus stronger `MSR`
   - post-Sprint-6 regression fix for blank PVV4 rendering caused by stale disconnect-owner checks in shared helpers
-- Current remaining major work:
-  - section influence attribution
+  - shared section-influence attribution
   - freeze-on-unclassified diagnostics trap
-  - PV transition rebuild around stable anchors, change anchors, and split handling
+  - first bounded `1:1` active-front sampler rewrite with truthful `borderFrame`
+- Current remaining major work:
+  - explicit `1:2` / `2:1` split planning around stable anchors and change anchors
   - field-family migration onto the same truth pipeline

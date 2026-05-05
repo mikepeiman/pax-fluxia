@@ -2063,3 +2063,42 @@
   - passed:
     - `bunx vitest run pax-fluxia/src/lib/territory/geometry/sectionInfluence.test.ts pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
     - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Freeze-On-Unclassified Trap And Local Active-Span Sampling
+
+- Trigger:
+  - after section influence landed, the remaining PV transition defects were:
+    - unclassified topology-path cases were still only summarized as skips
+    - even a clean `1:1` frontier pair still moved the whole overlapping section instead of only the local changed interval
+- Purpose:
+  - stop hiding classification failures
+  - make moving-border truth first-class
+  - bound the simple `1:1` sampler correctly before attempting explicit split handling
+- Code changes:
+  - upgraded active-front classification and section-local sampling:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - made sampled border output truthful on the active PVV4 path:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+  - added diagnostics freeze toggle and game pause integration:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\stores\territoryRenderStatusStore.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\overlayConfig.ts`
+  - updated diagnostics adapter output and tests:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - topology gaps, unsupported split paths, and no-span pairs are now classified as transition defects
+  - diagnostics now report defect pairs and defect sections directly
+  - enabling the diagnostics freeze toggle pauses the game on the first topology-path classification defect
+  - simple `1:1` active fronts now patch only the local moving interval inside an affected foundational section
+  - `borderFrame` now carries sampled frontier geometry instead of staying empty
+- Result:
+  - PVV4 can now stop exactly at an unclassified-boundary defect instead of silently degrading through it
+  - moving-border truth is exportable and visible
+  - unchanged tails in a clean `1:1` section stay fixed while the interior span moves
+- Validation:
+  - passed:
+    - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/snapshotExport.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

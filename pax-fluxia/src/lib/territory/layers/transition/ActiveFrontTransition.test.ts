@@ -10,6 +10,7 @@ import type {
 import type { OwnershipSnapshot, VirtualStar } from '../../contracts/OwnershipContracts';
 import {
     planActiveFrontTransition,
+    sampleActiveFrontSectionGeometry,
     sampleActiveFrontTransition,
 } from './ActiveFrontTransition';
 
@@ -149,6 +150,84 @@ function makeEmptyTopology(version: string): FrontierTopology {
     };
 }
 
+function makeSingleSectionTopology(
+    version: string,
+    ownerA: string,
+    ownerB: string,
+    points: Vec2[],
+    identityPrefix = version,
+): FrontierTopology {
+    const sectionId = `${identityPrefix}:section`;
+    const startVertexId = `${identityPrefix}:start`;
+    const endVertexId = `${identityPrefix}:end`;
+    const vertices = new Map<string, FrontierVertex>([
+        [
+            startVertexId,
+            {
+                id: startVertexId,
+                kind: 'world_intersection',
+                point: points[0],
+                incidentSectionIds: [sectionId],
+                ownerIds: [ownerA, ownerB],
+            },
+        ],
+        [
+            endVertexId,
+            {
+                id: endVertexId,
+                kind: 'world_intersection',
+                point: points[points.length - 1],
+                incidentSectionIds: [sectionId],
+                ownerIds: [ownerA, ownerB],
+            },
+        ],
+    ]);
+    const sections = new Map<string, FrontierSection>([
+        [
+            sectionId,
+            {
+                id: sectionId,
+                kind: 'owner_border',
+                startVertexId,
+                endVertexId,
+                leftOwnerId: ownerA,
+                rightOwnerId: ownerB,
+                points,
+                length: 100,
+                ownerPairKey: `${ownerA}|${ownerB}`,
+                leftInfluence: {
+                    ownerId: ownerA,
+                    primaryStarId: `${ownerA}:star`,
+                    primaryScore: 1,
+                },
+                rightInfluence: {
+                    ownerId: ownerB,
+                    primaryStarId: `${ownerB}:star`,
+                    primaryScore: 1,
+                },
+            },
+        ],
+    ]);
+
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 200, height: 200 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${ownerA}|${ownerB}`, [sectionId]]]),
+        sectionsByVertex: new Map([
+            [startVertexId, [sectionId]],
+            [endVertexId, [sectionId]],
+        ]),
+        sectionsByOwner: new Map([
+            [ownerA, [sectionId]],
+            [ownerB, [sectionId]],
+        ]),
+    };
+}
+
 function makeVirtualStar(
     id: string,
     starId: string,
@@ -227,5 +306,47 @@ describe('ActiveFrontTransition', () => {
         expect(plan.fronts).toHaveLength(0);
         expect(plan.collapseTargets).toHaveLength(0);
         expect(plan.diagnostics.summary.collapseTargetCount).toBe(0);
+    });
+
+    it('moves only the local changed interval inside a single active section', () => {
+        const prev = makeSingleSectionTopology('prev', 'red', 'blue', [
+            [0, 0],
+            [20, 0],
+            [40, 0],
+            [60, 12],
+            [80, 0],
+            [100, 0],
+        ], 'stable');
+        const next = makeSingleSectionTopology('next', 'red', 'blue', [
+            [0, 0],
+            [20, 0],
+            [40, 0],
+            [60, -12],
+            [80, 0],
+            [100, 0],
+        ], 'stable');
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            changeSpanPadPoints: 0,
+        });
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sampled = sectionGeometry.get('stable:section');
+        expect(sampled).toBeTruthy();
+        expect(sampled?.[0]).toEqual([0, 0]);
+        expect(sampled?.[1]).toEqual([20, 0]);
+        expect(sampled?.[2]).toEqual([40, 0]);
+        expect(sampled?.[4]).toEqual([80, 0]);
+        expect(sampled?.[5]).toEqual([100, 0]);
+        expect(sampled?.[3]?.[1]).toBeCloseTo(0, 6);
     });
 });

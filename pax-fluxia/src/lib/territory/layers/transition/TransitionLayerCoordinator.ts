@@ -13,6 +13,7 @@ import { FILL_TRANSITION_MODE_BY_ID } from './registry';
 import { planFillTransition } from './planners/TerritoryTransitionPlanner';
 import {
     planActiveFrontTransition,
+    sampleActiveFrontBorderFrame,
     sampleActiveFrontTransition,
     type ActiveFrontTransitionPlan,
     type ActiveFrontPlanDiagnosticsSummary,
@@ -47,7 +48,7 @@ export interface ActiveFrontRuntimeDebugState {
         | 'idle'
         | 'animated_fronts'
         | 'collapse_only'
-        | 'snap_no_fronts'
+        | 'classification_defect'
         | 'topology_unavailable'
         | 'legacy_fill'
         | 'static';
@@ -66,6 +67,9 @@ export interface ActiveFrontRuntimeDebugState {
     collapseTargetCount: number;
     sampledProgress: number | null;
     planSummary: ActiveFrontPlanDiagnosticsSummary | null;
+    hasClassificationDefect: boolean;
+    defectPairCount: number;
+    defectSectionCount: number;
 }
 
 function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionFrame {
@@ -195,7 +199,7 @@ export class TransitionLayerCoordinator {
                 if (topologyFillRebuildSelected) {
                     log.renderer('TransitionCoordinator',
                         `Topology fill rebuild selected but topology data unavailable ` +
-                        `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — falling back to static`,
+                        `(prev=${!!planPrevTopo}, next=${!!nextTopo}) — using static geometry for this frame`,
                     );
                 }
 
@@ -248,7 +252,12 @@ export class TransitionLayerCoordinator {
                 nextTopo,
                 sampledProgress,
             );
-            borderFrame = buildEmptyBorderFrame();
+            borderFrame = sampleActiveFrontBorderFrame(
+                activeFrontPlan,
+                samplePrevTopo,
+                nextTopo,
+                sampledProgress,
+            );
         } else {
             // ── LEGACY SAMPLING (independent fill + border) ──────────────
             const fillModeId = activeFillPlan?.sourceMode;
@@ -293,6 +302,12 @@ export class TransitionLayerCoordinator {
             collapseTargetCount: activeFrontPlan?.collapseTargets.length ?? 0,
             sampledProgress: envelope ? sampledProgress : null,
             planSummary: activeFrontPlan?.diagnostics.summary ?? null,
+            hasClassificationDefect:
+                activeFrontPlan?.diagnostics.summary.hasClassificationDefect ?? false,
+            defectPairCount:
+                activeFrontPlan?.diagnostics.summary.defectPairCount ?? 0,
+            defectSectionCount:
+                activeFrontPlan?.diagnostics.summary.defectSectionCount ?? 0,
         };
         if (envelope) {
             log.renderer('CLR:TRACE', JSON.stringify({

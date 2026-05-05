@@ -135,3 +135,8 @@
 44. The DX cutover left stale `DISCONNECT_OWNER_ID` checks behind in shared geometry helpers. That kind of half-migration can blank PVV4 entirely even when feature-local tests still pass.
 45. The active shared geometry path needs direct integration coverage at the `computeGeometry0319(...)` level, with `dxEnabled: true`, because helper-level tests alone did not catch the blank-render regression.
 46. When PVV4 loses both territory rendering and the underlying-geometry diagnostic overlay at once, the first thing to check is whether the shared geometry compiler is throwing before it returns any geometry.
+47. Fake section influence is no longer acceptable anywhere on the active topology path. Shared section-to-star attribution is now foundational input for the next transition stage, not optional diagnostics garnish.
+48. “Skipped” transition pairs were hiding real classification defects. Topology gaps, unsupported split paths, and no-span cases need to be surfaced as defects, not softened into inert counters.
+49. Freeze-on-unclassified is the correct diagnostics behavior for this workstream: stop the game on the first classification defect, surface the offending sections, and preserve the truth export at that exact moment.
+50. For a clean `1:1` frontier change, the right sampling unit is not the whole section. The correct behavior is to patch only the local moving interval inside that section and leave the unchanged tails fixed.
+51. `borderFrame` cannot stay empty if PVV4 is supposed to be a trustworthy transition mode. The moving-border output has to come from the same sampled frontier geometry as the fill reconstruction.

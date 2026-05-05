@@ -213,8 +213,9 @@ function renderActiveFrontDiagnosticCanvas(args: {
         `fronts: ${debug?.frontCount ?? 0} / collapses: ${debug?.collapseTargetCount ?? 0}`,
         `sampled: ${typeof debug?.sampledProgress === 'number' ? debug.sampledProgress.toFixed(3) : 'n/a'}`,
         `stable anchors: ${planSummary?.stableAnchorCount ?? 0} / pairs: ${planSummary?.pairCount ?? 0}`,
-        `planned: ${planSummary?.plannedPairCount ?? 0} / no-span: ${planSummary?.skippedNoChangeSpanCount ?? 0}`,
-        `gap skips: ${planSummary?.skippedTopologyGapCount ?? 0} / split skips: ${planSummary?.skippedUnsupportedSplitCount ?? 0}`,
+        `planned: ${planSummary?.plannedPairCount ?? 0} / defect pairs: ${planSummary?.defectPairCount ?? 0}`,
+        `topology gaps: ${planSummary?.defectTopologyGapCount ?? 0} / split defects: ${planSummary?.defectUnsupportedSplitCount ?? 0}`,
+        `no-span defects: ${planSummary?.defectNoChangeSpanCount ?? 0} / defect sections: ${planSummary?.defectSectionCount ?? 0}`,
     ];
     const panelWidth = 310;
     const lineHeight = 16;

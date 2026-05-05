@@ -344,3 +344,32 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/geometry/sectionInfluence.test.ts pax-fluxia/src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Latest Implementation Checkpoint 8
+
+- Completed the freeze-on-unclassified diagnostics trap plus the first bounded active-front sampler rebuild:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - `pax-fluxia/src/lib/stores/territoryRenderStatusStore.ts`
+  - `pax-fluxia/src/lib/territory/devtools/overlayConfig.ts`
+- Added focused regression coverage:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+- Exact behavior:
+  - topology gaps, unsupported split paths, and no-span pairs are now classified as boundary-classification defects instead of soft “skip” counts
+  - the diagnostics panel and export adapter now surface defect pairs and defect sections directly
+  - the diagnostics toggle can freeze the game the moment PVV4 hits an unclassified boundary defect
+  - `borderFrame` is now populated from the same sampled frontier geometry used for fill reconstruction
+  - simple `1:1` fronts now patch only the local moving interval inside an affected foundational section, leaving unchanged tails static
+- Purpose:
+  - turn hidden transition-classification holes into explicit defects
+  - make moving-border truth first-class instead of leaving `borderFrame` empty
+  - re-ground the active-front sampler on local section intervals before tackling explicit split handling
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/snapshotExport.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build` in `pax-fluxia/`
+- Remaining major work after this checkpoint:
+  - explicit `1:2` / `2:1` split planning instead of defect classification
+  - shared truth migration for field families so `GameCanvas` no longer manufactures thin ownership/transition state

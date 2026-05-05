@@ -16,4 +16,6 @@ export const overlayConfig = {
     showPolylineSamples: true,
     /** Stride between rendered sample dots (1 = every interior point). */
     polylineSampleStride: 4,
+    /** Pause the game when PV boundary classification surfaces a defect. */
+    freezeOnUnclassifiedBoundary: false,
 };
