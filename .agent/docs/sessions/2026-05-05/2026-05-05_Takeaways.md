@@ -10,6 +10,9 @@
    - it does not preserve raw `stars[]`, `lanes[]`, or full frame input
 4. Coordinate-composite IDs are active throughout topology and transition diagnostics. They are technically IDs, but they are semantically poor and hinder reasoning.
 5. `animated_fronts` is a classifier of planner activity, not a quality judgment.
+6. `virtualStars` are not a valid shared PV transition primitive. Their remaining live role is narrow collapse-center lookup, which should be removed from shared transition truth.
+7. Region birth is always invalid. Region collapse is only legitimate when the final star set of a region is conquered on that tick.
+8. `GameCanvas` manufacturing field-family transition truth is an architectural violation, not a harmless convenience.
 
 ## Architectural Read
 
@@ -19,6 +22,7 @@
   - perimeter V-sets
   - grid classification / wave timing
 - `GameCanvas` should not be inventing transition truth for a subset of render families.
+- `borderFrame` should either become truthful shared moving-border output or be removed from the contract. The current "always empty" state is not a good end state.
 
 ## Definitions That Must Stay Straight
 
@@ -26,12 +30,15 @@
 - `package` = exported diagnostic artifact created from a bundle
 - `anchorKey` = stable-anchor pair key
 - `change anchors` = local motion endpoints inside an anchor-bounded chain
+- `envelope` = transition lifecycle/timing record, not geometry
 
 ## Newly Reaffirmed User Rules
 
 - “Canonical” is not acceptable dialogue or semantic naming.
 - A centroid cannot be the region ID.
 - Identity must not be derived from boundary shape in a way that guarantees churn during ordinary conquest changes.
+- Do not anthropomorphize code in user-facing explanations.
+- Versioned plan docs belong in the dated `sessions/` directory when direction changes materially.
 
 ## Next Useful Technical Steps
 
@@ -42,3 +49,5 @@
    - full ownership snapshots
    - full transition runtime snapshot
 4. Separate semantic IDs from coordinates for topology vertices and sections.
+5. Remove field-family truth reconstruction from `GameCanvas` and route all render modes through one shared ownership and geometry pipeline.
+6. Rebuild PV active-front planning around explicit stable anchors, explicit change anchors, and explicit split handling at 3-way junctions.

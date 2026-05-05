@@ -48,6 +48,19 @@ This document records the decisions, corrections, definitions, and challenged co
   - `changeAnchorWindow`
   - exported `fronts[].changeAnchors.startPoint` / `endPoint`
 
+### `envelope`
+
+- Meaning:
+  - the lifecycle and timing record for one active transition
+- Not:
+  - geometry
+- Carries:
+  - `transitionId`
+  - `startedAtMs`
+  - `durationMs`
+  - `progress`
+  - `conquestEvents`
+
 ## Challenged / Corrected Terms
 
 ### “canonical”
@@ -68,6 +81,22 @@ This document records the decisions, corrections, definitions, and challenged co
   - obsolete naming embedded in current geometry fingerprint generation
 - Not:
   - proof that the legacy PVV2 renderer is the active runtime path
+
+### `evaluation = animated_fronts`
+
+- Meaning:
+  - at least one active front was planned
+- Not:
+  - proof that the transition is visually correct
+  - proof that all conquests in the frame were handled acceptably
+
+### `front`
+
+- Meaning:
+  - one planned active frontier window between a pair of stable anchors
+- Consequence:
+  - one conquest can create zero, one, or several fronts
+  - `frontCount` is not the same thing as `conquest count`
 
 ## Decisions
 
@@ -98,7 +127,18 @@ This document records the decisions, corrections, definitions, and challenged co
 - Invalid pattern:
   - family-local re-invention of ownership or prior geometry truth inside render families
 
-### D-2026-05-05-03: Export artifacts must preserve pipeline stages explicitly
+### D-2026-05-05-03: Whole-region birth is invalid; region collapse is tightly constrained
+
+- Status:
+  - active
+- Rules:
+  - whole-region birth animation is always invalid
+  - region collapse is only legitimate when the final star set of a region is conquered on that tick
+  - single-star region disappearance collapses to the conquered star center
+  - multi-star complete disappearance defaults to per-star collapse
+  - alternate presentation variants may exist later as dev controls, but they are not part of shared PV transition truth
+
+### D-2026-05-05-04: Export artifacts must preserve pipeline stages explicitly
 
 - Status:
   - active diagnostic requirement
@@ -107,6 +147,17 @@ This document records the decisions, corrections, definitions, and challenged co
 - Why:
   - current packages begin too late and compact too much
   - that prevents one artifact from fully explaining one conquest
+
+### D-2026-05-05-05: `GameCanvas` must orchestrate presentation, not invent transition truth
+
+- Status:
+  - active architectural direction
+- Rule:
+  - `GameCanvas` may choose mode and supply frame input
+  - it must not fabricate thin ownership snapshots or family-local transition truth that diverges from the shared runtime pipeline
+- Consequence:
+  - field families must consume the shared ownership and geometry stages
+  - `contestedLaneIds: []` in family-local ownership is a deficiency to remove, not a valid data shape
 
 ## Current Failures
 
@@ -134,6 +185,16 @@ This document records the decisions, corrections, definitions, and challenged co
   - use `bundle` only for in-memory capture
   - use `package` only for exported diagnostic artifact
 
+### `borderFrame` contract weakness
+
+- Current state:
+  - live PVV4 transition sampling makes `fillFrame` the meaningful moving payload while `borderFrame` stays empty
+- Why this matters:
+  - moving borders are not first-class transition truth
+  - diagnostics and other render families cannot rely on one shared moving-border output
+- Direction:
+  - make `borderFrame` truthful, or remove it from the contract; leaving it empty by default is not an acceptable end state
+
 ## Proposed Identity Direction
 
 Region identity should be derived from continuity in ownership/connectivity, not from centroid coincidence.
@@ -141,6 +202,7 @@ Region identity should be derived from continuity in ownership/connectivity, not
 Candidate basis:
 
 - owner ID
+- deterministically sorted owned-star IDs for the region
 - connected star-component membership
 - previous-to-next continuity matching by star membership overlap and adjacency
 

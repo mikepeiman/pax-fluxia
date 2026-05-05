@@ -1498,3 +1498,61 @@
      - full ownership snapshots
      - full transition snapshot
      - compact exports as secondary, not primary, truth
+
+## Update: 2026-05-05 - Convert Dialogue Into Versioned Recovery Plan And Tighten Agent Rules
+
+- Trigger:
+  - user removed plan-mode constraints and explicitly required:
+    - docs updated now
+    - a real versioned plan doc in today's session folder
+    - a dialogic response, not just silent planning
+  - user also provided a long corrective architecture list covering:
+    - `virtualStars`
+    - `envelope`
+    - diagnostics export gaps
+    - `borderFrame`
+    - `MSR` / `starWeight` / lane-pair semantics
+    - shared runtime unification
+    - `GameCanvas` truth ownership
+    - centroid-based region identity
+    - stale `pvv2:` residue
+    - active-front diagnostic language and algorithm clarity
+- What changed in docs/rules:
+  - updated:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\AGENT.md`
+      - added semantic-debt intercept rule
+      - added no-anthropomorphizing-code communication rule
+      - added context externalization / versioned session-plan rule
+      - removed `canonical` as preferred dialogue term in favor of truthful semantics
+      - updated territory pipeline wording so ownership no longer describes `virtualStars` as shared transition truth
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Chat.md`
+      - appended the later user dialogue losslessly
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Session.md`
+      - updated tasks, facts, and current architectural conclusions
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Takeaways.md`
+      - updated technical lessons and next steps
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_Decisions-and-Definitions.md`
+      - added `envelope`, collapse rules, and shared-truth clarifications
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-runtime-recovery-plan_v1.md`
+      - created as the first versioned recovery plan for the architecture reset
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\plans\2026-05-05\FEATURE_AND_TASK_QUEUE_2026-05-05.md`
+      - updated to point at the new plan and the shared-truth recovery sequence
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\decisions\DECISIONS.md`
+      - added durable branch-level decisions for:
+        - whole-region birth invalidity and collapse legitimacy
+        - shared truth pipeline across render modes
+- Purpose:
+  - convert the architecture critique into explicit, versioned branch memory
+  - separate grouped semantic cleanup from the larger architecture and algorithm sprints
+  - lock the new communication and architectural rules so future work cannot casually drift back into stale semantics
+- Result:
+  - this branch now has a versioned recovery plan instead of only ad hoc queue notes
+  - the session docs now preserve the full later dialogue and the corrected design rules
+  - the branch doctrine now explicitly includes:
+    - no whole-region birth
+    - collapse only on true final-region disappearance
+    - per-star collapse as the default multi-star full-disappearance presentation
+    - one shared ownership/geometry/transition truth pipeline for PV and field families
+- Validation:
+  - documentation-only checkpoint
+  - no runtime code changed in this update

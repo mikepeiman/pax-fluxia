@@ -55,14 +55,40 @@ This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 
 - Do not invent private terms in responses or project docs unless defined in the same response/doc.
 - Prefer established project terms over ad hoc abstractions.
+- Avoid stale or semantically false jargon in dialogue and docs.
+- Do not use `canonical` in dialogue or semantic naming unless you are forced to reference an existing code symbol; if you must reference the symbol, say that it is the current code name and not the preferred semantic term.
 - Distinguish explicitly:
   - `connectivity` = which star pairs are connected
   - `lane geometry` = the actual line used for an existing connection
+- Do not anthropomorphize code.
+  - Bad:
+    - "the planner thinks"
+    - "the code wants"
+    - "the runtime concluded"
+  - Good:
+    - "the transition planner determined"
+    - "the classifier emitted"
+    - "the runtime selected"
 - When proposing or reporting work, always state:
   - planned or implemented
   - which layer changed
   - whether user verification is needed
   - exact filesystem paths for new tools, outputs, and docs
+
+### 2.4a Semantic Debt Intercept Rule
+
+When touching any subsystem:
+
+1. Scan the touched path for:
+   - stale names
+   - stale version or fingerprint prefixes
+   - false or outdated comments
+   - semantically false diagnostics labels
+   - misleading helper/function names
+2. Either:
+   - fix them in the same checkpoint, or
+   - log them immediately as explicit blocking semantic debt
+3. Do not leave known-false semantics on an active path just because the immediate task was elsewhere.
 
 ### 2.5 Rename / Refactor Protocol
 
@@ -122,6 +148,20 @@ Before changing visual motion-path logic:
 - Chat logs must be lossless and complete for human-written input.
 - Do not summarize or truncate human-written input.
 - Machine logs and diagnostics may be summarized.
+
+### 3.6a Context Externalization Rule
+
+For long or architecture-heavy dialogues:
+
+1. Externalize working memory into session docs as the conversation evolves.
+2. Keep:
+   - `Chat`
+   - `Session`
+   - `Takeaways`
+   - `Decisions-and-Definitions`
+   up to date on the same day.
+3. If the dialogue materially changes implementation direction, create a new versioned plan doc in that day's `sessions/` directory instead of silently overwriting the old plan.
+4. Do not rely on thread memory alone when the user is establishing rules, definitions, or architectural direction.
 
 ### 3.7 Format Rule
 
@@ -269,8 +309,8 @@ Use the 4-layer model:
 
 | Layer | Responsibility | Output |
 |------|------|------|
-| Ownership | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot` |
-| Geometry | Regions, frontiers, topology derived from ownership | `CanonicalGeometrySnapshot` |
+| Ownership | Who owns what; contested lanes; conquest batches | `OwnershipSnapshot` |
+| Geometry | Regions, frontiers, topology, stable identity derived from ownership | stable runtime geometry snapshot (`CanonicalGeometrySnapshot` in current code) |
 | Transition | Animation between geometry states | `TransitionSnapshot` |
 | Presentation | PIXI.Graphics fills, strokes, containers | rendered frame |
 
@@ -285,7 +325,7 @@ Use the 4-layer model:
 ### 5.4 Architecture-First Rule
 
 - Prefer the current best architecture on `master` over legacy/imported patterns.
-- Refactor incoming code to match canonical patterns.
+- Refactor incoming code to match the best current shared pattern.
 - Do not regress architecture to make imports easier.
 - If uncertain which pattern is better, ask.
 

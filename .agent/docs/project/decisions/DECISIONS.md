@@ -769,3 +769,60 @@ All four are upstream-geometry concerns. They mutate the site set that `computeG
 
 - MSR-as-weight and the new MSR-as-lane-filter may produce *different* visuals at the same numeric setting. Needs either (a) separation into two config keys or (b) a clear policy that the lane filter is the user-facing MSR and the weight is a downstream derivation.
 - Enabling CX/DX by default is a visual change; do not flip defaults without explicit user sign-off.
+
+---
+
+# Decision: Whole-Region Birth Is Invalid; Region Collapse Is Strictly Limited
+
+**Date:** 2026-05-05
+**Status:** Active
+**Ref:** D-TERR-COLLAPSE-2026-05-05
+
+## Context
+
+Recent PV transition analysis re-surfaced a persistent conceptual error: whole-region birth/grow paths and over-broad collapse logic were being tolerated as if they were legitimate transition primitives. The user clarified that this is wrong.
+
+## Decision
+
+- Whole-region birth animation is always invalid.
+- Region collapse is only legitimate when the final star set of a region is conquered on that tick.
+- Single-star final-region disappearance collapses to the conquered star center.
+- Multi-star complete disappearance defaults to per-star collapse.
+- Alternate presentation variants may later exist as dev controls, but they are not part of shared PV transition truth.
+
+## Consequences
+
+1. `virtualStars` should not remain part of the shared PV transition truth model.
+2. Collapse planning must be driven by real region disappearance derived from star membership and continuity, not centroid heuristics or loop-id churn.
+3. Any whole-region birth path must be removed or remain absent.
+
+---
+
+# Decision: Shared Territory Truth Pipeline Across Render Modes
+
+**Date:** 2026-05-05
+**Status:** Active
+**Ref:** D-TERR-SHARED-TRUTH-2026-05-05
+
+## Context
+
+PVV4 and the field/perimeter families still diverge in how they construct ownership, geometry, and transition truth. `GameCanvas` fabricates thin family-local truth for some families, including `contestedLaneIds: []`, and some families reconstruct previous geometry locally.
+
+## Decision
+
+All territory render modes must consume the same shared truth stages:
+
+1. `TerritoryFrameInput`
+2. `OwnershipSnapshot`
+3. stable runtime geometry snapshot
+4. shared transition-truth bundle
+5. derived substrate(s)
+6. presenter
+
+`GameCanvas` may orchestrate presentation and mode choice, but it must not invent family-local ownership or transition truth.
+
+## Consequences
+
+1. Field families must stop stubbing ownership fields like `contestedLaneIds`.
+2. Family-local PREV reconstruction is an architectural defect to remove.
+3. Grid and perimeter paths remain valid derived substrates, but not separate base truth pipelines.

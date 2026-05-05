@@ -12,6 +12,7 @@
   - document the architecture/data-shape dialogue losslessly
   - convert the dialogue into durable decisions and corrected definitions
   - identify the root semantic failures currently undermining PVV4 continuity and diagnostics
+  - replace the ad hoc branch-bet framing with a versioned territory-runtime recovery plan
 
 ## Today
 
@@ -20,6 +21,8 @@
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Session.md`
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Takeaways.md`
   - `.agent/docs/sessions/2026-05-05/2026-05-05_Decisions-and-Definitions.md`
+- Created versioned plan doc:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v1.md`
 - Session docs are now intended to be tracked directly in `.agent/docs/sessions/`.
 - Scope of the logged dialogue:
   - ownership -> geometry -> topology -> transition data-shape trace
@@ -43,6 +46,11 @@
     - files:
       - `pax-fluxia/src/lib/territory/devtools/TransitionSnapshotRecorder.ts`
       - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+  - field families still bypass shared truth:
+    - `GameCanvas` builds a thin ownership snapshot
+    - `contestedLaneIds` is hard-coded to `[]`
+    - family-local PREV reconstruction remains in the phase-field path
+  - live PVV4 still treats `fillFrame` as the real moving payload while leaving `borderFrame` empty
 
 ## Current Best Read
 
@@ -58,13 +66,20 @@
   - full ownership snapshots
   - full transition snapshot
   are missing from the exported package
+- `virtualStars` are not a valid shared PV transition primitive and should be removed from the shared transition contract
+- whole-region birth is invalid, and region collapse is only legitimate when the final star set of a region disappears on that tick
 
 ## Next Most Useful Steps
 
-1. Replace centroid-derived region IDs with graph/continuity-based identity.
-2. Remove stale `pvv2:` residue from geometry/topology version strings.
-3. Expand the diagnostic export pipeline to include:
+1. Sweep semantic debt on active paths:
+   - centroid region IDs
+   - `pvv2:` residue
+   - misleading tuning names
+   - misleading diagnostics names
+2. Expand the diagnostic export pipeline to include:
    - raw frame input
    - normalized ownership snapshots
    - full transition runtime snapshot
-4. Separate semantic IDs from coordinates for topology vertices and sections.
+3. Move field families onto the shared ownership/geometry/transition truth pipeline.
+4. Rebuild PV transition logic around explicit stable anchors, explicit change anchors, explicit split planning, and truthful `borderFrame`.
+5. Separate semantic IDs from coordinates for topology vertices and sections.
