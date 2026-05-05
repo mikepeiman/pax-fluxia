@@ -49,10 +49,14 @@ export interface BackgroundSelection {
     readonly legacyImage?: string;
 }
 
+export type BackgroundSelectionMap = Record<string, BackgroundSelection>;
+
 export interface BackgroundChangeDetail {
     readonly surface: BackgroundSurface;
     readonly selection: BackgroundSelection;
     readonly legacyImage: string;
+    readonly affectAllTerritory: boolean;
+    readonly playerSelections: BackgroundSelectionMap;
 }
 
 export type BackgroundCapabilityMatrix = Readonly<

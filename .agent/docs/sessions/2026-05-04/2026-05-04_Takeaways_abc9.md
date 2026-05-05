@@ -7,10 +7,11 @@
   - territory-local `TerritoryVFXBridge` / `VFXBus`
 - The mixed territory runtime means phase 1 should target shared presentation seams first and avoid bespoke support for every direct legacy renderer.
 - Frontier treatment is the highest identity-per-cost layer; particles should come later and stay sparse.
-- Single-clock discipline still applies: ambient motion must use game time, not raw wall time.
+- Gameplay ambient identity FX are presentation-only, so paused/pre-start preview can justify wall-clock timing even though simulation logic must stay on game time.
 - The same `BackgroundSelection` contract now drives both menu and gameplay, which keeps mode policy out of `MainMenu.svelte` and `GameCanvas.svelte`.
 - The gameplay presenter can stay cheap if it consumes canonical/render-family geometry directly and renders below territory presentation instead of forking the territory pipeline.
 - Config sync was a real integration risk: preserving live background selections through `panelSync` and `GameSettingsPanel.svelte` matters as much as the renderers themselves.
+- Per-player identity has to be a first-class UI concept, not just a renderer capability. If the intended product model is owner-specific ambience, the settings surface must let the user target players directly.
 - Shared tunables must have visible renderer consequences or they become fake knobs; `animationSpeed`, `scale`, `edgeSoftness`, and `vignette` now need to be treated as first-class rendering inputs, not metadata.
 - The repo's file-discipline rule mattered immediately once all 8 gameplay modes landed; splitting the presenter into focused runtime modules was the right correction instead of normalizing an 800-line renderer file.
 - The capability matrix only becomes trustworthy once the UI and runtime both enforce it; leaving it as catalog metadata would have preserved the same ambiguity the feature was meant to remove.

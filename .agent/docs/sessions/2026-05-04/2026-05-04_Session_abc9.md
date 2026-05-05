@@ -123,3 +123,21 @@
 - Expanded the live-FX slider ranges substantially, including shared intensity up to `24` and several density/speed/frontier controls up to `8-24`.
 - Removed internal `clamp01` flattening from the gameplay and menu ambient renderers where it was suppressing values above `1`.
 - Decoupled live gameplay FX opacity from the legacy background image opacity setting and relabeled the image-only slider accordingly.
+
+## Identity correction - paused preview and per-player ownership
+
+- User validation said the feature was still cumbersome in two concrete ways:
+  - live ambient previews froze under pause / pre-start inspection
+  - the product was still biased toward whole-map treatment instead of per-player territorial identity
+- Extended background persistence and event payloads with:
+  - `backgroundAffectAllTerritory`
+  - `playerBackgroundSelections`
+- Updated `GameCanvas.svelte` and `GameAmbientBackgroundPresenter.ts` so gameplay ambient motion stays visible while paused or before the match starts.
+- Updated gameplay `Background FX` so the user can:
+  - toggle between global and per-player identity application
+  - choose a player target from the current roster
+  - edit live background mode/tuning per player when the toggle is off
+- Verification:
+  - `bun x vitest run src/lib/backgrounds/selection.test.ts` passes
+  - `bun run build` passes in `pax-fluxia/`
+  - no browser verification was run in this lane

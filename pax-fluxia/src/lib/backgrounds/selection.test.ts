@@ -8,6 +8,7 @@ import {
     buildLegacyImageSelection,
     extractLegacyBackgroundImage,
     normalizeBackgroundSelection,
+    normalizePlayerBackgroundSelections,
 } from './selection';
 
 describe('background selection helpers', () => {
@@ -52,14 +53,36 @@ describe('background selection helpers', () => {
         const detail = buildBackgroundChangeDetail(
             buildLegacyImageSelection('/assets/pax-fluxia-bg-25.jpg'),
             'game',
+            '',
+            {
+                affectAllTerritory: false,
+                playerSelections: {
+                    p1: { modeId: 'storm_current', tunables: { chargeDensity: 3 } },
+                },
+            },
         );
 
         expect(detail.surface).toBe('game');
         expect(detail.selection.modeId).toBe('legacy_image');
         expect(detail.legacyImage).toBe('pax-fluxia-bg-25.jpg');
+        expect(detail.affectAllTerritory).toBe(false);
+        expect(detail.playerSelections.p1?.modeId).toBe('storm_current');
         expect(
             extractLegacyBackgroundImage(detail.selection, 'nebula-bg.png'),
         ).toBe('pax-fluxia-bg-25.jpg');
+    });
+
+    it('normalizes per-player selections using game mode bounds', () => {
+        const playerSelections = normalizePlayerBackgroundSelections(
+            {
+                p1: { modeId: 'nebula_veil', tunables: { intensity: 80 } },
+                p2: 'pax-fluxia-bg-25.jpg',
+            },
+            'pax-fluxia-bg-25.jpg',
+        );
+
+        expect(playerSelections.p1?.tunables.intensity).toBe(24);
+        expect(playerSelections.p2?.modeId).toBe('legacy_image');
     });
 
     it('exposes full live-mode support only on the maintained gameplay runtimes', () => {

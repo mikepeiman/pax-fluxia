@@ -4,12 +4,15 @@
         buildLegacyImageSelection,
         getSupportedBackgroundModeIdsForRenderMode,
         normalizeBackgroundSelection,
+        normalizePlayerBackgroundSelections,
         type BackgroundModeDefinition,
         type BackgroundSelection,
+        type BackgroundSelectionMap,
         type BackgroundTunableDef,
     } from "$lib/backgrounds";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
@@ -33,6 +36,14 @@
     }: Props = $props();
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
+
+    interface BackgroundPlayerTarget {
+        ownerId: string;
+        name: string;
+        color: string;
+        isLocal: boolean;
+        isAI: boolean;
+    }
 
     let lanePathUiMode = $derived(
         (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
@@ -63,6 +74,7 @@
 
     // ── Background Image Picker ──
     let bgImages = $state<string[]>(BG_IMAGES);
+    let selectedBackgroundOwnerId = $state<string | null>(null);
     let gameplayBackgroundModes = $derived(
         BACKGROUND_MODE_CATALOG.filter(
             (definition) => definition.primary && definition.supportsGame,
@@ -79,11 +91,56 @@
     let supportedGameplayModeIdSet = $derived(
         new Set(supportedGameplayModeIds),
     );
-    let currentBackgroundSelection = $derived(
+    let globalBackgroundSelection = $derived(
         normalizeBackgroundSelection(vis.backgroundSelection, {
             surface: "game",
             fallbackLegacyImage: vis.bgImage,
         }),
+    );
+    let backgroundAffectAllTerritory = $derived(
+        vis.backgroundAffectAllTerritory !== false,
+    );
+    let playerBackgroundSelections = $derived(
+        normalizePlayerBackgroundSelections(
+            vis.playerBackgroundSelections,
+            vis.bgImage,
+        ),
+    );
+    let backgroundPlayerTargets = $derived(
+        (activeGameStore.players ?? [])
+            .map((player: any) => {
+                const ownerId =
+                    (player?.sessionId as string | undefined) ??
+                    (player?.id as string | undefined) ??
+                    "";
+                if (!ownerId) return null;
+                return {
+                    ownerId,
+                    name:
+                        (player?.name as string | undefined)?.trim() ||
+                        ownerId,
+                    color:
+                        (player?.color as string | undefined) ?? "#7dd3fc",
+                    isLocal: ownerId === activeGameStore.localPlayerId,
+                    isAI: player?.isAI === true,
+                } satisfies BackgroundPlayerTarget;
+            })
+            .filter(Boolean) as BackgroundPlayerTarget[],
+    );
+    let supportedGameplayModeLabels = $derived(
+        gameplayBackgroundModes
+            .filter((definition) => supportedGameplayModeIdSet.has(definition.id))
+            .map((definition) => definition.label),
+    );
+    let recommendedLiveMode = $derived(
+        gameplayBackgroundModes.find((definition) =>
+            supportedGameplayModeIdSet.has(definition.id),
+        ) ?? null,
+    );
+    let currentBackgroundSelection = $derived(
+        backgroundAffectAllTerritory
+            ? globalBackgroundSelection
+            : resolveTargetSelection(selectedBackgroundOwnerId),
     );
     let currentBackgroundDefinition = $derived(
         gameplayBackgroundModes.find(
@@ -100,19 +157,80 @@
         currentBackgroundSelection.modeId === "legacy_image" ||
             supportedGameplayModeIdSet.has(currentBackgroundSelection.modeId),
     );
-    let supportedGameplayModeLabels = $derived(
-        gameplayBackgroundModes
-            .filter((definition) => supportedGameplayModeIdSet.has(definition.id))
-            .map((definition) => definition.label),
+    let currentBackgroundTargetLabel = $derived(
+        backgroundAffectAllTerritory
+            ? "All Territory"
+            : backgroundPlayerTargets.find(
+                  (target) => target.ownerId === selectedBackgroundOwnerId,
+              )?.name ?? "Selected Player",
     );
-    let recommendedLiveMode = $derived(
-        gameplayBackgroundModes.find((definition) =>
-            supportedGameplayModeIdSet.has(definition.id),
-        ) ?? null,
+    let hasAnyEffectiveLiveBackground = $derived(
+        backgroundAffectAllTerritory
+            ? globalBackgroundSelection.modeId !== "legacy_image"
+            : backgroundPlayerTargets.some((target) => {
+                  const playerSelection =
+                      playerBackgroundSelections[target.ownerId];
+                  if (
+                      playerSelection &&
+                      playerSelection.modeId !== "legacy_image"
+                  ) {
+                      return true;
+                  }
+                  return globalBackgroundSelection.modeId !== "legacy_image";
+              }),
     );
+
+    $effect(() => {
+        if (backgroundAffectAllTerritory) return;
+        if (backgroundPlayerTargets.length === 0) {
+            selectedBackgroundOwnerId = null;
+            return;
+        }
+        if (
+            selectedBackgroundOwnerId &&
+            backgroundPlayerTargets.some(
+                (target) => target.ownerId === selectedBackgroundOwnerId,
+            )
+        ) {
+            return;
+        }
+        selectedBackgroundOwnerId =
+            backgroundPlayerTargets.find((target) => target.isLocal)?.ownerId ??
+            backgroundPlayerTargets[0]?.ownerId ??
+            null;
+    });
 
     function isGameplayModeSupported(modeId: string): boolean {
         return supportedGameplayModeIdSet.has(modeId);
+    }
+
+    function buildRecommendedLiveSelection(): BackgroundSelection {
+        return normalizeBackgroundSelection(
+            {
+                modeId: recommendedLiveMode?.id ?? "nebula_veil",
+                tunables: {},
+            },
+            {
+                surface: "game",
+                fallbackLegacyImage: vis.bgImage,
+            },
+        );
+    }
+
+    function resolveTargetSelection(
+        ownerId: string | null,
+    ): BackgroundSelection {
+        if (!ownerId) {
+            return globalBackgroundSelection;
+        }
+        const playerSelection = playerBackgroundSelections[ownerId];
+        if (playerSelection && playerSelection.modeId !== "legacy_image") {
+            return playerSelection;
+        }
+        if (globalBackgroundSelection.modeId !== "legacy_image") {
+            return globalBackgroundSelection;
+        }
+        return buildRecommendedLiveSelection();
     }
 
     function formatTunableValue(tunable: BackgroundTunableDef): string {
@@ -145,8 +263,7 @@
         }
     }
 
-    // Background change uses updateVisual to sync immediately
-    function setBackgroundSelection(selection: BackgroundSelection) {
+    function setGlobalBackgroundSelection(selection: BackgroundSelection) {
         updateVisual(
             "backgroundSelection",
             normalizeBackgroundSelection(selection, {
@@ -154,6 +271,28 @@
                 fallbackLegacyImage: vis.bgImage,
             }),
         );
+    }
+
+    function setPlayerBackgroundSelection(
+        ownerId: string,
+        selection: BackgroundSelection,
+    ) {
+        const nextSelections: BackgroundSelectionMap = {
+            ...playerBackgroundSelections,
+            [ownerId]: normalizeBackgroundSelection(selection, {
+                surface: "game",
+                fallbackLegacyImage: vis.bgImage,
+            }),
+        };
+        updateVisual("playerBackgroundSelections", nextSelections);
+    }
+
+    function setBackgroundSelection(selection: BackgroundSelection) {
+        if (!backgroundAffectAllTerritory && selectedBackgroundOwnerId) {
+            setPlayerBackgroundSelection(selectedBackgroundOwnerId, selection);
+            return;
+        }
+        setGlobalBackgroundSelection(selection);
     }
 
     function selectBackgroundMode(mode: BackgroundModeDefinition) {
@@ -168,7 +307,7 @@
     }
 
     function changeBg(img: string) {
-        setBackgroundSelection(buildLegacyImageSelection(img));
+        setGlobalBackgroundSelection(buildLegacyImageSelection(img));
     }
 
     function updateBackgroundTunable(
@@ -192,8 +331,79 @@
         });
     }
 
+    function describePlayerMode(ownerId: string): string {
+        const selection = playerBackgroundSelections[ownerId];
+        if (selection && selection.modeId !== "legacy_image") {
+            return (
+                gameplayBackgroundModes.find(
+                    (definition) => definition.id === selection.modeId,
+                )?.label ?? selection.modeId
+            );
+        }
+        if (globalBackgroundSelection.modeId !== "legacy_image") {
+            const inheritedMode =
+                gameplayBackgroundModes.find(
+                    (definition) =>
+                        definition.id === globalBackgroundSelection.modeId,
+                )?.label ?? globalBackgroundSelection.modeId;
+            return `Inherits ${inheritedMode}`;
+        }
+        return "Unset";
+    }
+
+    function selectBackgroundTarget(ownerId: string) {
+        selectedBackgroundOwnerId = ownerId;
+    }
+
+    function setBackgroundAffectAllTerritory(nextValue: boolean) {
+        if (!nextValue) {
+            const seedSelection =
+                globalBackgroundSelection.modeId === "legacy_image"
+                    ? buildRecommendedLiveSelection()
+                    : globalBackgroundSelection;
+            const nextSelections: BackgroundSelectionMap = {
+                ...playerBackgroundSelections,
+            };
+            for (const target of backgroundPlayerTargets) {
+                if (
+                    !nextSelections[target.ownerId] ||
+                    nextSelections[target.ownerId]?.modeId === "legacy_image"
+                ) {
+                    nextSelections[target.ownerId] =
+                        normalizeBackgroundSelection(seedSelection, {
+                            surface: "game",
+                            fallbackLegacyImage: vis.bgImage,
+                        });
+                }
+            }
+            updateVisual("playerBackgroundSelections", nextSelections);
+            selectedBackgroundOwnerId =
+                backgroundPlayerTargets.find((target) => target.isLocal)
+                    ?.ownerId ??
+                backgroundPlayerTargets[0]?.ownerId ??
+                null;
+        }
+        updateVisual("backgroundAffectAllTerritory", nextValue);
+    }
+
     function enableRecommendedLiveBackground() {
         if (!recommendedLiveMode) return;
+        if (!backgroundAffectAllTerritory && backgroundPlayerTargets.length > 0) {
+            const nextSelections: BackgroundSelectionMap = {
+                ...playerBackgroundSelections,
+            };
+            for (const target of backgroundPlayerTargets) {
+                nextSelections[target.ownerId] = normalizeBackgroundSelection(
+                    { modeId: recommendedLiveMode.id, tunables: {} },
+                    {
+                        surface: "game",
+                        fallbackLegacyImage: vis.bgImage,
+                    },
+                );
+            }
+            updateVisual("playerBackgroundSelections", nextSelections);
+            return;
+        }
         selectBackgroundMode(recommendedLiveMode);
     }
 </script>
@@ -207,14 +417,20 @@
     <h4 class="sub-heading">Background</h4>
     <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
         Live regional backgrounds are only available on PVV4 plus the Phase
-        Edges, Ember Lattice, and Phase Field metaball-grid variants. Existing
-        installs stay on the legacy image until you pick a live mode here.
+        Edges, Ember Lattice, and Phase Field metaball-grid variants. Ambient
+        motion keeps running while the match is paused so you can inspect live
+        changes before or after start.
     </p>
-    {#if currentBackgroundSelection.modeId === "legacy_image"}
+    {#if !hasAnyEffectiveLiveBackground}
         <div class="background-legacy-callout">
             <div class="background-legacy-callout__copy">
                 <strong>Live background FX are currently off.</strong>
-                Gameplay is still using the legacy static image fallback.
+                {#if backgroundAffectAllTerritory}
+                    Gameplay is still using the legacy static image fallback.
+                {:else}
+                    Per-player identity is enabled, but no player currently has
+                    a live background mode.
+                {/if}
             </div>
             {#if recommendedLiveMode}
                 <button
@@ -238,10 +454,10 @@
                 class="var-name"
                 data-setting-config-key="BG_IMAGE_URL"
                 data-setting-description="Background selection for gameplay, including live regional ambience or the legacy static image path."
-                >Background Mode</span
+                >Editing Background</span
             >
             <span class="val"
-                >{currentBackgroundDefinition?.label ??
+                >{currentBackgroundTargetLabel} · {currentBackgroundDefinition?.label ??
                     (currentBackgroundSelection.modeId === "legacy_image"
                         ? "Legacy Image"
                         : currentBackgroundSelection.modeId)}</span
@@ -257,6 +473,62 @@
             the legacy image fallback.
         {/if}
     </p>
+    <label class="toggle-row background-toggle-row">
+        <input
+            type="checkbox"
+            checked={backgroundAffectAllTerritory}
+            onchange={(e) =>
+                setBackgroundAffectAllTerritory(
+                    (e.target as HTMLInputElement).checked,
+                )}
+        />
+        <span class="var-name">Mode affects all territory</span>
+        <span class="val"
+            >{backgroundAffectAllTerritory ? "Global" : "Per player"}</span
+        >
+    </label>
+    <p class="future-desc background-support-note">
+        {#if backgroundAffectAllTerritory}
+            One live mode and one tuning stack drive every owned region. This
+            is the broad global preview path; turn it off for the intended
+            per-player identity setup.
+        {:else if backgroundPlayerTargets.length > 0}
+            Pick a player below. Mode cards and sliders now edit only that
+            player's regions. Unset players inherit the global live mode if one
+            exists.
+        {:else}
+            Player targets will appear here once a roster exists.
+        {/if}
+    </p>
+    {#if !backgroundAffectAllTerritory && backgroundPlayerTargets.length > 0}
+        <div class="background-player-grid">
+            {#each backgroundPlayerTargets as target}
+                <button
+                    type="button"
+                    class="background-player-chip"
+                    class:active={selectedBackgroundOwnerId === target.ownerId}
+                    style={`--player-color: ${target.color};`}
+                    onclick={() => selectBackgroundTarget(target.ownerId)}
+                >
+                    <span
+                        class="background-player-chip__swatch"
+                        style={`background:${target.color};`}
+                    ></span>
+                    <span class="background-player-chip__name">
+                        {target.name}
+                        {#if target.isLocal}
+                            · You
+                        {:else if target.isAI}
+                            · AI
+                        {/if}
+                    </span>
+                    <span class="background-player-chip__mode">
+                        {describePlayerMode(target.ownerId)}
+                    </span>
+                </button>
+            {/each}
+        </div>
+    {/if}
     {#if currentBackgroundSelection.modeId !== "legacy_image" &&
         !currentLiveBackgroundSupported}
         <div class="background-warning">
@@ -294,7 +566,9 @@
             <div class="row-top background-tuning-panel__header">
                 <span class="var-name">Live Tuning</span>
                 <div class="background-tuning-panel__actions">
-                    <span class="val">{currentBackgroundDefinition.label}</span>
+                    <span class="val">
+                        {currentBackgroundTargetLabel} · {currentBackgroundDefinition.label}
+                    </span>
                     <button
                         type="button"
                         class="background-tuning-panel__reset"
@@ -371,7 +645,7 @@
     <div class="bg-grid">
         <button
             class="bg-thumb"
-            class:active={currentBackgroundSelection.modeId === "legacy_image" &&
+            class:active={globalBackgroundSelection.modeId === "legacy_image" &&
                 !vis.bgImage}
             onclick={() => changeBg("")}
             title="No background"
@@ -381,7 +655,7 @@
         {#each bgImages as img}
             <button
                 class="bg-thumb"
-                class:active={currentBackgroundSelection.modeId === "legacy_image" &&
+                class:active={globalBackgroundSelection.modeId === "legacy_image" &&
                     vis.bgImage === img}
                 onclick={() => changeBg(img)}
                 title={img
@@ -872,6 +1146,60 @@
         font-size: 10px;
         color: rgba(251, 191, 36, 0.9);
         line-height: 1.45;
+    }
+    .background-toggle-row {
+        margin-bottom: 6px;
+    }
+    .background-player-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    .background-player-chip {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 4px 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: #dbeafe;
+        text-align: left;
+        cursor: pointer;
+        transition:
+            border-color 0.15s,
+            background 0.15s,
+            transform 0.15s;
+    }
+    .background-player-chip:hover {
+        border-color: color-mix(in srgb, var(--player-color) 55%, white);
+        background: rgba(125, 211, 252, 0.08);
+        transform: translateY(-1px);
+    }
+    .background-player-chip.active {
+        border-color: color-mix(in srgb, var(--player-color) 68%, white);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--player-color) 26%, transparent);
+        background: color-mix(in srgb, var(--player-color) 14%, rgba(11, 17, 32, 0.8));
+    }
+    .background-player-chip__swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.28);
+        grid-row: span 2;
+    }
+    .background-player-chip__name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+    .background-player-chip__mode {
+        font-size: 10px;
+        line-height: 1.35;
+        color: rgba(207, 220, 235, 0.76);
     }
     .background-mode-grid {
         display: grid;

@@ -3,7 +3,7 @@
 **Date:** 2026-05-04  
 **Branch:** `codex/background-mode-system`  
 **Scope start:** today only  
-**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, runtime support policy is explicit in both the UI and `GameCanvas`, gameplay exposes a dedicated `Background FX` section, and the live FX tuning ranges have been widened substantially beyond the original subtle-only prototype ranges
+**Current state:** Sprint 1 through Sprint 5 are now landed in this worktree; menu runtime is live, all 8 primary gameplay modes render on the agreed gameplay runtime targets, runtime support policy is explicit in both the UI and `GameCanvas`, gameplay exposes a dedicated `Background FX` section, the live FX tuning ranges have been widened substantially beyond the original subtle-only prototype ranges, live ambient previews continue while paused/pre-start, and gameplay can now edit background identity either globally or per player
 
 This handoff starts the region-ambient work cleanly instead of waiting until after implementation. Its purpose is to remove future rediscovery cost when this worktree eventually needs to merge or port back to `master`.
 
@@ -133,6 +133,16 @@ Implemented Sprint 5 of the background-mode system:
   - removed internal value flattening that had been clamping stronger settings back into subtle output
   - stopped using legacy background image opacity as a live-FX opacity cap in gameplay
   - relabeled the old image-only slider as `Legacy Image Opacity`
+- paused-preview and per-player identity correction after user validation:
+  - live gameplay ambient motion now uses presentation-only wall-clock time so mode switching remains visible while paused or before the match starts
+  - extended persistence and background-change event payloads with:
+    - `backgroundAffectAllTerritory`
+    - `playerBackgroundSelections`
+  - upgraded gameplay `Background FX` to expose:
+    - a `Mode affects all territory` toggle
+    - per-player target chips
+    - player-specific mode/tuning edits when the toggle is off
+  - global mode remains available as a broad preview/fallback path, but per-player identity is now the intended gameplay product model
 
 ## Objective locked in
 
@@ -230,6 +240,9 @@ The highest-value manual checks are now:
 
 - open gameplay settings and confirm `Background FX` is visible as its own section without needing to infer it from `Map & Grid`
 - on a supported runtime while still on `Legacy Image`, confirm the callout offers a one-click live-mode enable action
+- while paused or before simulation start, switch live modes and confirm the ambient motion continues updating instead of freezing
+- in gameplay `Background FX`, switch `Mode affects all territory` off and confirm player chips appear for the current roster
+- select different players and confirm the mode cards/sliders now edit only that player's territory identity
 - in `Background FX`, drag `Intensity`, density, and speed controls high and confirm the top end is dramatically stronger than before instead of saturating at nearly the same subtle look
 - `power_voronoi_canonical`:
   - verify all 8 live background modes
@@ -289,7 +302,7 @@ Phase-1 priority should be:
 
 - no per-player shader compilation
 - no dense always-on particle spam
-- no raw wall-time animation logic
+- no simulation-owned time dependence for preview-only ambient identity FX; gameplay ambient preview intentionally uses wall-clock time so it remains visible while paused or pre-start
 - no new ownership/geometry truth
 - no effect spill outside owned regions except deliberate frontier glow
 - no heavy choke-point edits before proving the leaf-module design
@@ -299,7 +312,8 @@ Phase-1 priority should be:
 - effect remains subtle at normal gameplay zoom
 - frontiers stay readable
 - star labels, ships, and arrows remain readable
-- pause and speed changes keep ambient timing coherent
+- paused and pre-start inspection still shows live ambient motion because the feature is presentation-only and intentionally wall-clock driven
+- speed changes do not corrupt or reset player-specific ambient identity state
 - 4-6 simultaneous player themes do not turn the map into noise
 - no visible hitching on conquest
 
@@ -320,3 +334,8 @@ When this work becomes code, port in this order:
 5. selective compatibility hardening
 
 Sprint 1 through Sprint 5 now cover steps 1 through 5 in substantial form. The merge-sensitive files are `ControlsSection-Visuals.svelte`, `GameSettingsPanel.svelte`, `panelSync.ts`, `GameCanvas.svelte`, and the runtime support policy in `pax-fluxia/src/lib/backgrounds/catalog.ts`.
+
+The latest merge-sensitive persistence/event additions are:
+
+- `backgroundAffectAllTerritory`
+- `playerBackgroundSelections`

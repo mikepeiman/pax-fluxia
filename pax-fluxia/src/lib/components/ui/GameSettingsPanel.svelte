@@ -5,6 +5,7 @@
         extractLegacyBackgroundImage,
         buildLegacyImageSelection,
         normalizeBackgroundSelection,
+        normalizePlayerBackgroundSelections,
     } from "$lib/backgrounds";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
@@ -214,6 +215,14 @@
                 fallbackLegacyImage: (vis as any).bgImage,
             });
             (vis as any).bgImage = (vis as any).backgroundSelection.legacyImage ?? "";
+        } else if (key === "playerBackgroundSelections") {
+            (vis as any).playerBackgroundSelections =
+                normalizePlayerBackgroundSelections(
+                    value,
+                    (vis as any).bgImage,
+                );
+        } else if (key === "backgroundAffectAllTerritory") {
+            (vis as any).backgroundAffectAllTerritory = value !== false;
         }
         saveVisuals(vis);
         applyVisuals(vis);
@@ -322,6 +331,10 @@
                     buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
                 "game",
                 GAME_CONFIG.BG_IMAGE_URL,
+                {
+                    affectAllTerritory: vis.backgroundAffectAllTerritory,
+                    playerSelections: vis.playerBackgroundSelections,
+                },
             );
             (window as typeof window & { __paxLastBackgroundChangeDetail?: unknown })
                 .__paxLastBackgroundChangeDetail = detail;

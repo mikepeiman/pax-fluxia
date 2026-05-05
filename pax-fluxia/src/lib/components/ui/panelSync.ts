@@ -7,12 +7,13 @@
  */
 
 import { GAME_CONFIG } from '$lib/config/game.config';
-import type { BackgroundSelection } from '$lib/backgrounds';
+import type { BackgroundSelection, BackgroundSelectionMap } from '$lib/backgrounds';
 import {
     buildBackgroundChangeDetail,
     buildLegacyImageSelection,
     extractLegacyBackgroundImage,
     normalizeBackgroundSelection,
+    normalizePlayerBackgroundSelections,
 } from '$lib/backgrounds';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
@@ -129,6 +130,8 @@ export interface VisualSettings {
     shadowAlpha: number;
     bgImage: string;
     backgroundSelection: BackgroundSelection;
+    backgroundAffectAllTerritory: boolean;
+    playerBackgroundSelections: BackgroundSelectionMap;
 }
 
 export const VISUAL_DEFAULTS: VisualSettings = {
@@ -139,6 +142,8 @@ export const VISUAL_DEFAULTS: VisualSettings = {
     /** Basename under `/assets/` — see `bgManifest.normalizeBgImagePath` */
     bgImage: 'pax-fluxia-bg-25.jpg',
     backgroundSelection: buildLegacyImageSelection('pax-fluxia-bg-25.jpg'),
+    backgroundAffectAllTerritory: true,
+    playerBackgroundSelections: {},
 };
 
 function normalizeStoredVisuals(
@@ -151,6 +156,12 @@ function normalizeStoredVisuals(
             fallbackLegacyImage: source.bgImage,
         },
     );
+    const backgroundAffectAllTerritory =
+        source.backgroundAffectAllTerritory !== false;
+    const playerBackgroundSelections = normalizePlayerBackgroundSelections(
+        source.playerBackgroundSelections,
+        source.bgImage,
+    );
     return {
         laneWidth: source.laneWidth,
         laneAlpha: source.laneAlpha,
@@ -161,6 +172,8 @@ function normalizeStoredVisuals(
             source.bgImage,
         ),
         backgroundSelection,
+        backgroundAffectAllTerritory,
+        playerBackgroundSelections,
     };
 }
 
@@ -199,6 +212,10 @@ export function applyVisuals(vis: VisualSettings): void {
         vis.backgroundSelection ?? buildLegacyImageSelection(vis.bgImage),
         'game',
         vis.bgImage,
+        {
+            affectAllTerritory: vis.backgroundAffectAllTerritory,
+            playerSelections: vis.playerBackgroundSelections,
+        },
     );
     const bgPath = detail.legacyImage;
     const dispatchKey = JSON.stringify(detail);

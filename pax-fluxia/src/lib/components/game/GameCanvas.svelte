@@ -3,6 +3,7 @@
     import { get } from "svelte/store";
     import * as PIXI from "pixi.js";
     import {
+        type BackgroundSelectionMap,
         buildLegacyImageSelection,
         isBackgroundModeSupportedForRenderMode,
         readBackgroundChangeDetail,
@@ -2640,6 +2641,8 @@
     let currentGameBackgroundSelection = buildLegacyImageSelection(
         GAME_CONFIG.BG_IMAGE_URL,
     );
+    let currentGameBackgroundAffectAllTerritory = true;
+    let currentGamePlayerBackgroundSelections: BackgroundSelectionMap = {};
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
@@ -3589,6 +3592,10 @@
             GAME_CONFIG.BG_IMAGE_URL,
         );
         currentGameBackgroundSelection = initialBackgroundDetail.selection;
+        currentGameBackgroundAffectAllTerritory =
+            initialBackgroundDetail.affectAllTerritory;
+        currentGamePlayerBackgroundSelections =
+            initialBackgroundDetail.playerSelections;
 
         // L5: Faint nebula background — keep the legacy image sprite for
         // compatibility while live regional backgrounds render in their own
@@ -3638,6 +3645,9 @@
                 | undefined;
             if (!sprite) return;
             currentGameBackgroundSelection = detail.selection;
+            currentGameBackgroundAffectAllTerritory =
+                detail.affectAllTerritory;
+            currentGamePlayerBackgroundSelections = detail.playerSelections;
             (app as any)._backgroundSelection = detail.selection;
             if (detail.selection.modeId !== "legacy_image") {
                 sprite.visible = false;
@@ -6385,11 +6395,19 @@
                     // 'none' or unrecognized — no territory rendering
                 }
                     const liveGameplayBackgroundSupported =
-                        currentGameBackgroundSelection.modeId !==
-                            "legacy_image" &&
                         isBackgroundModeSupportedForRenderMode(
                             activeMode,
-                            currentGameBackgroundSelection.modeId,
+                            "nebula_veil",
+                        ) &&
+                        (
+                            currentGameBackgroundSelection.modeId !==
+                                "legacy_image" ||
+                            Object.values(
+                                currentGamePlayerBackgroundSelections,
+                            ).some(
+                                (selection) =>
+                                    selection.modeId !== "legacy_image",
+                            )
                         );
                     if (gameplayBackgroundPresenter) {
                         if (
@@ -6398,9 +6416,14 @@
                         ) {
                             gameplayBackgroundPresenter.present({
                                 selection: currentGameBackgroundSelection,
+                                affectAllTerritory:
+                                    currentGameBackgroundAffectAllTerritory,
+                                playerSelections:
+                                    currentGamePlayerBackgroundSelections,
                                 geometry: gameplayBackgroundGeometry,
-                                nowMs: fxOrchestrator.gameTime,
-                                paused: isPausedNow,
+                                // Ambient identity FX must keep animating while the
+                                // simulation is paused so settings changes remain visible.
+                                nowMs: performance.now(),
                                 opacity: 1,
                                 originX: territoryPresentationFrame.minX,
                                 originY: territoryPresentationFrame.minY,

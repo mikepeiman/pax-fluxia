@@ -128,9 +128,22 @@
   - removed internal `clamp01` flattening from the gameplay and menu live-background renderers where it was suppressing stronger values
   - decoupled live regional FX opacity from the legacy image opacity path
   - relabeled the remaining old slider as `Legacy Image Opacity`
+- Paused-preview and per-player identity correction after user validation:
+  - ambient background motion now continues while the match is paused and before simulation start so settings changes remain visible during inspection
+  - gameplay visuals persistence now carries:
+    - `backgroundAffectAllTerritory`
+    - `playerBackgroundSelections`
+  - `pax-bg-change` payloads now carry the same per-player background state so `GameCanvas.svelte` does not have to infer identity modes from unrelated config
+  - gameplay `Background FX` now exposes:
+    - a `Mode affects all territory` toggle
+    - per-player target chips with owner color, local/AI markers, and current mode labels
+    - player-specific live mode editing and tuning when the toggle is off
+  - global mode remains available as the broad preview/fallback path, but per-player identity is now the intended product path
 
 ## Verification target
 
 - The new documentation artifacts exist on disk at the recorded paths.
 - The durable spec points to real implementation seams in the current repo.
 - The handoff is strong enough that a later coding pass can start without re-deriving the same architecture and content decisions.
+- On a supported runtime, live background motion should still animate while paused or before game start.
+- In gameplay `Background FX`, switching `Mode affects all territory` off should surface per-player editing targets and allow different live mode assignments per owner.

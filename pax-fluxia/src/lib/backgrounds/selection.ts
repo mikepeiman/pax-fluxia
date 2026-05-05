@@ -9,11 +9,13 @@ import type {
     BackgroundModeDefinition,
     BackgroundModeId,
     BackgroundSelection,
+    BackgroundSelectionMap,
     BackgroundSurface,
     BackgroundTunables,
 } from './types';
 
 type BackgroundSelectionLike = Partial<BackgroundSelection> | string | null | undefined;
+type BackgroundSelectionMapLike = Record<string, BackgroundSelectionLike> | null | undefined;
 
 function getFallbackModeId(surface: BackgroundSurface): BackgroundModeId {
     return surface === 'menu'
@@ -83,6 +85,29 @@ export function buildDefaultBackgroundSelection(
     );
 }
 
+export function normalizePlayerBackgroundSelections(
+    selectionMapLike: BackgroundSelectionMapLike,
+    fallbackLegacyImage = '',
+): BackgroundSelectionMap {
+    if (!selectionMapLike || typeof selectionMapLike !== 'object') {
+        return {};
+    }
+
+    const normalized: BackgroundSelectionMap = {};
+    for (const [ownerId, selectionLike] of Object.entries(selectionMapLike)) {
+        const normalizedOwnerId = ownerId.trim();
+        if (!normalizedOwnerId) continue;
+        normalized[normalizedOwnerId] = normalizeBackgroundSelection(
+            selectionLike,
+            {
+                surface: 'game',
+                fallbackLegacyImage,
+            },
+        );
+    }
+    return normalized;
+}
+
 export function normalizeBackgroundSelection(
     selectionLike: BackgroundSelectionLike,
     options?: {
@@ -142,11 +167,22 @@ export function buildBackgroundChangeDetail(
     selectionLike: BackgroundSelectionLike,
     surface: BackgroundSurface,
     fallbackLegacyImage = '',
+    options?: {
+        affectAllTerritory?: boolean;
+        playerSelections?: BackgroundSelectionMapLike;
+    },
 ): BackgroundChangeDetail {
     const selection = normalizeBackgroundSelection(selectionLike, {
         surface,
         fallbackLegacyImage,
     });
+    const playerSelections =
+        surface === 'game'
+            ? normalizePlayerBackgroundSelections(
+                  options?.playerSelections,
+                  fallbackLegacyImage,
+              )
+            : {};
     return {
         surface,
         selection,
@@ -154,6 +190,8 @@ export function buildBackgroundChangeDetail(
             selection,
             fallbackLegacyImage,
         ),
+        affectAllTerritory: options?.affectAllTerritory !== false,
+        playerSelections,
     };
 }
 
@@ -176,6 +214,13 @@ export function readBackgroundChangeDetail(
             input.selection,
             input.surface === 'menu' ? 'menu' : surface,
             input.legacyImage ?? fallbackLegacyImage,
+            {
+                affectAllTerritory:
+                    input.surface === 'menu'
+                        ? true
+                        : input.affectAllTerritory !== false,
+                playerSelections: input.playerSelections,
+            },
         );
     }
     return buildBackgroundChangeDetail(

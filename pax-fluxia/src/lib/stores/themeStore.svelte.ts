@@ -170,9 +170,13 @@ function applyThemeValuesFallback(
 
     if (typeof window !== 'undefined') {
         const detail = buildBackgroundChangeDetail(
-            buildLegacyImageSelection(GAME_CONFIG.BG_IMAGE_URL),
+            nextVisuals.backgroundSelection,
             'game',
             normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
+            {
+                affectAllTerritory: nextVisuals.backgroundAffectAllTerritory,
+                playerSelections: nextVisuals.playerBackgroundSelections,
+            },
         );
         window.dispatchEvent(
             new CustomEvent('pax-bg-change', {

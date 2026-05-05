@@ -3,7 +3,11 @@ import type {
     CanonicalGeometrySnapshot,
     TerritoryRegionShape,
 } from '$lib/territory/contracts/GeometryContracts';
-import type { BackgroundModeId, BackgroundSelection } from '../types';
+import type {
+    BackgroundModeId,
+    BackgroundSelection,
+    BackgroundSelectionMap,
+} from '../types';
 import { buildOwnerPalette } from './gamePalette';
 import {
     computeBounds,
@@ -41,9 +45,10 @@ const IMPLEMENTED_MODES = new Set<BackgroundModeId>([
 
 interface GameAmbientBackgroundInput {
     selection: BackgroundSelection;
+    affectAllTerritory?: boolean;
+    playerSelections?: BackgroundSelectionMap;
     geometry: CanonicalGeometrySnapshot | null;
     nowMs: number;
-    paused: boolean;
     opacity: number;
     originX: number;
     originY: number;
@@ -57,7 +62,6 @@ export class GameAmbientBackgroundPresenter {
     private readonly context = this.canvas.getContext('2d');
     private readonly texture = PIXI.Texture.from(this.canvas);
     private readonly sprite = new PIXI.Sprite(this.texture);
-    private frozenNowMs: number | null = null;
 
     constructor(
         parent: PIXI.Container,
@@ -88,14 +92,17 @@ export class GameAmbientBackgroundPresenter {
         if (
             !this.context ||
             !input.geometry ||
-            input.selection.modeId === 'legacy_image' ||
-            !IMPLEMENTED_MODES.has(input.selection.modeId)
+            (
+                input.selection.modeId === 'legacy_image' &&
+                !Object.values(input.playerSelections ?? {}).some(
+                    (selection) => selection.modeId !== 'legacy_image',
+                )
+            )
         ) {
             this.clear();
             return false;
         }
 
-        const nowMs = this.resolveNow(input.nowMs, input.paused);
         const renderScale = this.resolveRenderScale(input.worldWidth, input.worldHeight);
         const pixelWidth = Math.max(1, Math.round(input.worldWidth * renderScale));
         const pixelHeight = Math.max(1, Math.round(input.worldHeight * renderScale));
@@ -110,9 +117,23 @@ export class GameAmbientBackgroundPresenter {
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
 
+        let drewAnyRegion = false;
         for (const region of input.geometry.territoryRegions) {
             if (!region.ownerId || region.points.length < 3) continue;
-            this.drawRegion(ctx, region, input.selection, nowMs);
+            const selection = this.resolveSelectionForRegion(
+                region.ownerId,
+                input.selection,
+                input.affectAllTerritory !== false,
+                input.playerSelections ?? {},
+            );
+            if (!selection) continue;
+            this.drawRegion(ctx, region, selection, input.nowMs);
+            drewAnyRegion = true;
+        }
+
+        if (!drewAnyRegion) {
+            this.clear();
+            return false;
         }
 
         this.sprite.width = input.worldWidth;
@@ -122,21 +143,32 @@ export class GameAmbientBackgroundPresenter {
         return true;
     }
 
-    private resolveNow(nowMs: number, paused: boolean): number {
-        if (!paused) {
-            this.frozenNowMs = null;
-            return nowMs;
-        }
-        if (this.frozenNowMs === null) {
-            this.frozenNowMs = nowMs;
-        }
-        return this.frozenNowMs;
-    }
-
     private resolveRenderScale(worldWidth: number, worldHeight: number): number {
         const maxDimension = Math.max(worldWidth, worldHeight);
         if (maxDimension <= 1600) return 1;
         return 1600 / maxDimension;
+    }
+
+    private resolveSelectionForRegion(
+        ownerId: string,
+        globalSelection: BackgroundSelection,
+        affectAllTerritory: boolean,
+        playerSelections: BackgroundSelectionMap,
+    ): BackgroundSelection | null {
+        if (affectAllTerritory) {
+            return IMPLEMENTED_MODES.has(globalSelection.modeId)
+                ? globalSelection
+                : null;
+        }
+
+        const playerSelection = playerSelections[ownerId];
+        if (playerSelection && IMPLEMENTED_MODES.has(playerSelection.modeId)) {
+            return playerSelection;
+        }
+
+        return IMPLEMENTED_MODES.has(globalSelection.modeId)
+            ? globalSelection
+            : null;
     }
 
     private drawRegion(
