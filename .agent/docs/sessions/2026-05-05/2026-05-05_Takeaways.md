@@ -103,3 +103,8 @@
     - `anchorStarIds`
     - `contributingSiteIds`
     This is better than collapsing identity and contributor history into one ambiguous field.
+30. The casebook must be a separate tracked artifact. It is neither dialogue nor plan.
+31. The old diagnostic package began too late in the pipeline. It was not enough to export compact geometry and topology after reduction.
+32. The recorder/export path should start at normalized `TerritoryFrameInput` so one package can explain one conquest end to end.
+33. Compact exports remain useful, but only as secondary quick-review artifacts.
+34. One shared serializer for maps, sets, ownership, topology, and transition truth is the safest way to stop export-shape drift.

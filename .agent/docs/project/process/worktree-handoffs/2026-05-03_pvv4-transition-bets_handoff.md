@@ -1557,6 +1557,76 @@
   - documentation-only checkpoint
   - no runtime code changed in this update
 
+## Update: 2026-05-05 - Lock Conquest Casebook And Expand Diagnostics Truth Export
+
+- Trigger:
+  - user told the branch to proceed fully on the `v7` plan
+  - next ordered step after semantic cleanup was:
+    1. locked conquest casebook
+    2. full diagnostics export
+- Why this step matters:
+  - transition work cannot be trusted if the branch still judges quality by random playfeel alone
+  - one export still could not explain one conquest from source frame through transition output
+- New tracked artifact:
+  - created:
+    - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\.agent\\docs\\sessions\\2026-05-05\\2026-05-05_territory-transition-casebook_v1.md`
+  - purpose:
+    - define the fixed conquest test set for this branch:
+      - simple `1:1`
+      - dual conquest
+      - `1:2`
+      - `2:1`
+      - single-star final disappearance
+      - multi-star full disappearance
+      - topology gap
+      - `DX`
+      - `LP`
+      - `MSR`
+- Code changes:
+  - expanded snapshot capture context to retain the normalized frame input:
+    - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\pax-fluxia\\src\\lib\\territory\\devtools\\TransitionSnapshotRecorder.ts`
+    - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\pax-fluxia\\src\\lib\\territory\\runtime\\TerritoryRuntimeCoordinator.ts`
+  - added shared export serializers:
+    - `serializeFrameInputForExport(...)`
+    - `serializeOwnershipSnapshotForExport(...)`
+    - `serializeTransitionSnapshotForExport(...)`
+    - `serializeGeometrySnapshotForExport(...)`
+    - `serializeFrontierTopologyForExport(...)`
+    - `toSerializableExportValue(...)`
+    - file:
+      - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\pax-fluxia\\src\\lib\\territory\\devtools\\snapshotExport.ts`
+  - expanded diagnostic package contents:
+    - staged truth exports:
+      - `debug/01_frame_input.json`
+      - `debug/02_ownership_prev.json`
+      - `debug/02_ownership_next.json`
+      - `debug/03_geometry_prev_full.json`
+      - `debug/03_geometry_next_full.json`
+      - `debug/04_topology_prev_full.json`
+      - `debug/04_topology_next_full.json`
+      - `debug/05_transition_snapshot.json`
+      - `debug/05_transition_truth.json`
+      - `debug/05_active_front_plan.json`
+    - compact quick-review exports preserved:
+      - `debug/90_diag_compact.json`
+      - `debug/90_topology_compact.json`
+      - `debug/90_geometry_compact.json`
+    - file:
+      - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\pax-fluxia\\src\\lib\\territory\\devtools\\TransitionBundleSerializer.ts`
+  - added deterministic export tests:
+    - `C:\\Users\\mikep\\.codex\\worktrees\\dcc7\\pax-fluxia\\pax-fluxia\\src\\lib\\territory\\devtools\\snapshotExport.test.ts`
+- Result:
+  - the recorder/export path now starts at `TerritoryFrameInput`, not after it
+  - one package can now carry:
+    - frame input
+    - previous/next ownership
+    - previous/next full geometry
+    - previous/next full topology
+    - transition snapshot
+    - active-front plan
+    - compact summary views
+  - the casebook is now a distinct tracked artifact, not mixed into the plan
+
 ## Update: 2026-05-05 - Add Communication-Fit Rule And Clarify Constraint Language In v6
 
 - Trigger:

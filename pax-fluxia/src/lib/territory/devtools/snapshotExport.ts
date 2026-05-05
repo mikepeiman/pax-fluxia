@@ -4,6 +4,9 @@
 
 import type { GeometrySnapshot } from '../contracts/GeometryContracts';
 import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
+import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
+import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
+import type { TransitionSnapshot } from '../contracts/TransitionContracts';
 
 /** Max points retained per polyline after downsampling (endpoints always kept). */
 export const DEFAULT_EXPORT_MAX_POINTS_PER_POLYLINE = 36;
@@ -169,6 +172,130 @@ export function formatLocalCaptureTimeFromIsoTimestamp(iso: string): string {
     const ss = String(d.getSeconds()).padStart(2, '0');
     const ms = String(d.getMilliseconds()).padStart(3, '0');
     return `${hh}:${mm}:${ss}---${ms}`;
+}
+
+function sortPrimitiveArray<T extends string | number | boolean>(
+    values: readonly T[],
+): T[] {
+    return [...values].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+export function toSerializableExportValue(value: unknown): unknown {
+    if (
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+    ) {
+        return value;
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    if (Array.isArray(value)) {
+        return value.map((entry) => toSerializableExportValue(entry));
+    }
+    if (value instanceof Map) {
+        const entries = [...value.entries()].sort(([a], [b]) =>
+            String(a).localeCompare(String(b)),
+        );
+        const allStringKeys = entries.every(([key]) => typeof key === 'string');
+        if (allStringKeys) {
+            return Object.fromEntries(
+                entries.map(([key, entryValue]) => [
+                    key,
+                    toSerializableExportValue(entryValue),
+                ]),
+            );
+        }
+        return entries.map(([key, entryValue]) => ({
+            key: toSerializableExportValue(key),
+            value: toSerializableExportValue(entryValue),
+        }));
+    }
+    if (value instanceof Set) {
+        const entries = [...value.values()].map((entry) =>
+            toSerializableExportValue(entry),
+        );
+        const allPrimitives = entries.every(
+            (entry) =>
+                typeof entry === 'string' ||
+                typeof entry === 'number' ||
+                typeof entry === 'boolean',
+        );
+        return allPrimitives
+            ? sortPrimitiveArray(entries as Array<string | number | boolean>)
+            : entries;
+    }
+    if (typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .filter(([, entryValue]) => entryValue !== undefined)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([key, entryValue]) => [
+                    key,
+                    toSerializableExportValue(entryValue),
+                ]),
+        );
+    }
+    return String(value);
+}
+
+export function serializeFrameInputForExport(
+    input: TerritoryFrameInput,
+): unknown {
+    return toSerializableExportValue(input);
+}
+
+export function serializeOwnershipSnapshotForExport(
+    snapshot: OwnershipSnapshot | null | undefined,
+): unknown {
+    if (!snapshot) return null;
+    return {
+        version: snapshot.version,
+        starOwners: Object.fromEntries(
+            [...snapshot.starOwners.entries()].sort(([a], [b]) =>
+                a.localeCompare(b),
+            ),
+        ),
+        contestedLaneIds: sortPrimitiveArray(snapshot.contestedLaneIds),
+        conquestEvents: snapshot.conquestEvents.map((event) => ({
+            ...event,
+            attackerStarIds: event.attackerStarIds
+                ? sortPrimitiveArray(event.attackerStarIds)
+                : undefined,
+            attackerShipTransfers: event.attackerShipTransfers
+                ? [...event.attackerShipTransfers]
+                : undefined,
+        })),
+        virtualStars: [...snapshot.virtualStars]
+            .map((virtualStar) => ({
+                ...virtualStar,
+                pos: { ...virtualStar.pos },
+            }))
+            .sort((a, b) => a.id.localeCompare(b.id)),
+    };
+}
+
+export function serializeTransitionSnapshotForExport(
+    snapshot: TransitionSnapshot | null | undefined,
+): unknown {
+    if (!snapshot) return null;
+    return toSerializableExportValue(snapshot);
+}
+
+export function serializeGeometrySnapshotForExport(
+    geometry: GeometrySnapshot | null | undefined,
+): unknown {
+    if (!geometry) return null;
+    return toSerializableExportValue(geometry);
+}
+
+export function serializeFrontierTopologyForExport(
+    topology: FrontierTopology | null | undefined,
+): unknown {
+    if (!topology) return null;
+    return toSerializableExportValue(topology);
 }
 
 /**

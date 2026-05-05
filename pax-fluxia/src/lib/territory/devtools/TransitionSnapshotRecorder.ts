@@ -12,6 +12,7 @@ import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import { computeGeometryTopologyDiff } from '../layers/transition/planners/GeometryTopologyDiff';
 import type { TransitionSnapshot, FillTransitionPlan } from '../contracts/TransitionContracts';
 import type { TerritoryModeSelection } from '../contracts/TerritoryModeSelection';
+import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
 import { renderGeometryToCanvas, renderGeometryWithConquestMarkers } from './TransitionGeometryRenderer';
 import type { OwnerColorResolver, GeometryRenderOptions } from './TransitionGeometryRenderer';
@@ -24,6 +25,7 @@ import { writable } from 'svelte/store';
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface SnapshotCaptureContext {
+    frameInput: TerritoryFrameInput;
     conquestEvents: readonly TerritoryConquestEvent[];
     previousGeometry: GeometrySnapshot | null | undefined;
     nextGeometry: GeometrySnapshot;
@@ -344,8 +346,19 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_composite.png`,
                 ...frameFiles,
                 `${exportPrefix}_meta.json`,
-                `${exportPrefix}_topo.json`,
-                `${exportPrefix}_geo.json`,
+                `${exportPrefix}_01_frame_input.json`,
+                `${exportPrefix}_02_ownership_prev.json`,
+                `${exportPrefix}_02_ownership_next.json`,
+                `${exportPrefix}_03_geometry_prev_full.json`,
+                `${exportPrefix}_03_geometry_next_full.json`,
+                `${exportPrefix}_04_topology_prev_full.json`,
+                `${exportPrefix}_04_topology_next_full.json`,
+                `${exportPrefix}_05_transition_snapshot.json`,
+                `${exportPrefix}_05_transition_truth.json`,
+                `${exportPrefix}_05_active_front_plan.json`,
+                `${exportPrefix}_90_diag_compact.json`,
+                `${exportPrefix}_90_topology_compact.json`,
+                `${exportPrefix}_90_geometry_compact.json`,
             ],
         };
 
@@ -443,8 +456,19 @@ export class TransitionSnapshotRecorder {
                 `${exportPrefix}_composite.png`,
                 ...frameFiles,
                 `${exportPrefix}_meta.json`,
-                `${exportPrefix}_topo.json`,
-                `${exportPrefix}_geo.json`,
+                `${exportPrefix}_01_frame_input.json`,
+                `${exportPrefix}_02_ownership_prev.json`,
+                `${exportPrefix}_02_ownership_next.json`,
+                `${exportPrefix}_03_geometry_prev_full.json`,
+                `${exportPrefix}_03_geometry_next_full.json`,
+                `${exportPrefix}_04_topology_prev_full.json`,
+                `${exportPrefix}_04_topology_next_full.json`,
+                `${exportPrefix}_05_transition_snapshot.json`,
+                `${exportPrefix}_05_transition_truth.json`,
+                `${exportPrefix}_05_active_front_plan.json`,
+                `${exportPrefix}_90_diag_compact.json`,
+                `${exportPrefix}_90_topology_compact.json`,
+                `${exportPrefix}_90_geometry_compact.json`,
             ],
         };
 

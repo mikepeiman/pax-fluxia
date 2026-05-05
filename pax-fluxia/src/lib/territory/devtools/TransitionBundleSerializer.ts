@@ -5,6 +5,12 @@ import {
     compactFrontierTopologyForExport,
     compactGeometrySnapshotForExport,
     formatLocalCaptureTimeFromIsoTimestamp,
+    serializeFrameInputForExport,
+    serializeFrontierTopologyForExport,
+    serializeGeometrySnapshotForExport,
+    serializeOwnershipSnapshotForExport,
+    serializeTransitionSnapshotForExport,
+    toSerializableExportValue,
 } from './snapshotExport';
 import {
     resolveTransitionDiagnosticsExportAdapter,
@@ -95,9 +101,23 @@ interface DiagnosticPackageManifest {
     transitionId: string;
     conquestEvents: TransitionDebugBundle['conquestEvents'];
     debugFiles: {
+        stageFiles: {
+            frameInput: string;
+            ownershipPrev: string;
+            ownershipNext: string;
+            geometryPrevFull: string;
+            geometryNextFull: string;
+            topologyPrevFull: string;
+            topologyNextFull: string;
+            transitionSnapshot: string;
+            transitionTruth: string;
+            activeFrontPlan: string;
+        };
+        compactFiles: {
         diagnostic: string;
         topology: string;
         geometrySnapshot: string;
+        };
     };
     selectedFrames: DiagnosticPackageFrame[];
     notes: string[];
@@ -441,11 +461,39 @@ export function selectDiagnosticIntermediateFrames(
 function buildDiagnosticDebugFileNames(
     bundle: TransitionDebugBundle,
 ): DiagnosticPackageManifest['debugFiles'] {
-    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
     return {
-        diagnostic: `${prefix}_diag.json`,
-        topology: `${prefix}_topo.json`,
-        geometrySnapshot: `${prefix}_geo.json`,
+        stageFiles: {
+            frameInput: '01_frame_input.json',
+            ownershipPrev: '02_ownership_prev.json',
+            ownershipNext: '02_ownership_next.json',
+            geometryPrevFull: '03_geometry_prev_full.json',
+            geometryNextFull: '03_geometry_next_full.json',
+            topologyPrevFull: '04_topology_prev_full.json',
+            topologyNextFull: '04_topology_next_full.json',
+            transitionSnapshot: '05_transition_snapshot.json',
+            transitionTruth: '05_transition_truth.json',
+            activeFrontPlan: '05_active_front_plan.json',
+        },
+        compactFiles: {
+            diagnostic: '90_diag_compact.json',
+            topology: '90_topology_compact.json',
+            geometrySnapshot: '90_geometry_compact.json',
+        },
+    };
+}
+
+function buildTransitionTruthExport(bundle: TransitionDebugBundle): Record<string, unknown> {
+    return {
+        transitionId: bundle.meta.transitionId,
+        timestamp: bundle.timestamp,
+        conquestEvents: toSerializableExportValue(bundle.conquestEvents),
+        modes: toSerializableExportValue(bundle.meta.modes),
+        previousOwnershipVersion: bundle.meta.prevOwnershipVersion,
+        nextOwnershipVersion: bundle.meta.nextOwnershipVersion,
+        previousGeometryVersion: bundle.meta.prevGeometryFingerprint,
+        nextGeometryVersion: bundle.meta.nextGeometryFingerprint,
+        activeFillPlan: toSerializableExportValue(bundle.context.fillPlan),
+        extraDiagnostics: toSerializableExportValue(bundle.extraDiagnostics),
     };
 }
 
@@ -538,11 +586,22 @@ function buildDiagnosticReadme(
         '- render/next.png',
         '',
         'Debug files:',
-        `- debug/${debugFiles.diagnostic}`,
-        `- debug/${debugFiles.topology}`,
-        `- debug/${debugFiles.geometrySnapshot}`,
+        `- debug/${debugFiles.stageFiles.frameInput}`,
+        `- debug/${debugFiles.stageFiles.ownershipPrev}`,
+        `- debug/${debugFiles.stageFiles.ownershipNext}`,
+        `- debug/${debugFiles.stageFiles.geometryPrevFull}`,
+        `- debug/${debugFiles.stageFiles.geometryNextFull}`,
+        `- debug/${debugFiles.stageFiles.topologyPrevFull}`,
+        `- debug/${debugFiles.stageFiles.topologyNextFull}`,
+        `- debug/${debugFiles.stageFiles.transitionSnapshot}`,
+        `- debug/${debugFiles.stageFiles.transitionTruth}`,
+        `- debug/${debugFiles.stageFiles.activeFrontPlan}`,
+        `- debug/${debugFiles.compactFiles.diagnostic}`,
+        `- debug/${debugFiles.compactFiles.topology}`,
+        `- debug/${debugFiles.compactFiles.geometrySnapshot}`,
         '',
-        `debug/${debugFiles.diagnostic} contains compact previous/next geometry, topology summaries, conquest metadata, modes, and capture diagnostics.`,
+        `debug/${debugFiles.stageFiles.frameInput} is the normalized territory frame input captured at conquest time.`,
+        `debug/${debugFiles.compactFiles.diagnostic} keeps the existing compact summary for quick inspection.`,
     ].join('\n');
 }
 
@@ -575,6 +634,48 @@ function buildCompactGeometryExport(
     };
 }
 
+function buildDiagnosticStageExports(bundle: TransitionDebugBundle): {
+    frameInput: unknown;
+    ownershipPrev: unknown;
+    ownershipNext: unknown;
+    geometryPrevFull: unknown;
+    geometryNextFull: unknown;
+    topologyPrevFull: unknown;
+    topologyNextFull: unknown;
+    transitionSnapshot: unknown;
+    transitionTruth: unknown;
+    activeFrontPlan: unknown;
+} {
+    return {
+        frameInput: serializeFrameInputForExport(bundle.context.frameInput),
+        ownershipPrev: serializeOwnershipSnapshotForExport(
+            bundle.context.previousOwnership ?? null,
+        ),
+        ownershipNext: serializeOwnershipSnapshotForExport(
+            bundle.context.nextOwnership,
+        ),
+        geometryPrevFull: serializeGeometrySnapshotForExport(
+            bundle.context.previousGeometry ?? null,
+        ),
+        geometryNextFull: serializeGeometrySnapshotForExport(
+            bundle.context.nextGeometry,
+        ),
+        topologyPrevFull: serializeFrontierTopologyForExport(
+            bundle.context.prevFrontierTopology ?? null,
+        ),
+        topologyNextFull: serializeFrontierTopologyForExport(
+            bundle.context.nextFrontierTopology ?? null,
+        ),
+        transitionSnapshot: serializeTransitionSnapshotForExport(
+            bundle.context.transition,
+        ),
+        transitionTruth: buildTransitionTruthExport(bundle),
+        activeFrontPlan: toSerializableExportValue(
+            bundle.context.activeFrontPlan ?? null,
+        ),
+    };
+}
+
 function renderExportCanvas(
     bundle: TransitionDebugBundle,
     baseCanvas: HTMLCanvasElement | null,
@@ -596,6 +697,8 @@ export async function downloadBundle(
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
     const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const stageExports = buildDiagnosticStageExports(bundle);
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
     if (bundle.prevCanvas) {
@@ -665,10 +768,70 @@ export async function downloadBundle(
         `${prefix}_meta.json`,
     );
     await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.frameInput, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.frameInput}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.ownershipPrev, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.ownershipPrev}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.ownershipNext, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.ownershipNext}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.geometryPrevFull, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.geometryPrevFull}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.geometryNextFull, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.geometryNextFull}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.topologyPrevFull, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.topologyPrevFull}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.topologyNextFull, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.topologyNextFull}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.transitionSnapshot, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.transitionSnapshot}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.transitionTruth, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.transitionTruth}`,
+    );
+    await saveExportBlob(
+        new Blob([JSON.stringify(stageExports.activeFrontPlan, null, 2)], {
+            type: 'application/json',
+        }),
+        `${prefix}_${debugFiles.stageFiles.activeFrontPlan}`,
+    );
+    await saveExportBlob(
         new Blob([JSON.stringify(serializeTopologyPairCompact(bundle), null, 2)], {
             type: 'application/json',
         }),
-        `${prefix}_topo.json`,
+        `${prefix}_${debugFiles.compactFiles.topology}`,
     );
 
     const compactGeometry = buildCompactGeometryExport(
@@ -682,7 +845,23 @@ export async function downloadBundle(
     );
     await saveExportBlob(
         new Blob([geometryString], { type: 'application/json' }),
-        `${prefix}_geo.json`,
+        `${prefix}_${debugFiles.compactFiles.geometrySnapshot}`,
+    );
+    await saveExportBlob(
+        new Blob(
+            [
+                JSON.stringify(
+                    buildDiagnosticManifest(
+                        bundle,
+                        selectDiagnosticIntermediateFrames(bundle.transitionFrames),
+                    ),
+                    null,
+                    2,
+                ),
+            ],
+            { type: 'application/json' },
+        ),
+        `${prefix}_${debugFiles.compactFiles.diagnostic}`,
     );
 }
 
@@ -695,20 +874,64 @@ export async function downloadDiagnosticPackage(
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);
     const compactGeometry = buildCompactGeometryExport(bundle, selectedFrames);
     const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const stageExports = buildDiagnosticStageExports(bundle);
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
-    zip.file(`debug/${debugFiles.diagnostic}`, JSON.stringify(manifest, null, 2));
     zip.file(
-        `debug/${debugFiles.topology}`,
+        `debug/${debugFiles.compactFiles.diagnostic}`,
+        JSON.stringify(manifest, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.compactFiles.topology}`,
         JSON.stringify(serializeTopologyPairCompact(bundle), null, 2),
     );
     zip.file(
-        `debug/${debugFiles.geometrySnapshot}`,
+        `debug/${debugFiles.compactFiles.geometrySnapshot}`,
         JSON.stringify(
             compactGeometry,
             (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),
             2,
         ),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.frameInput}`,
+        JSON.stringify(stageExports.frameInput, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.ownershipPrev}`,
+        JSON.stringify(stageExports.ownershipPrev, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.ownershipNext}`,
+        JSON.stringify(stageExports.ownershipNext, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.geometryPrevFull}`,
+        JSON.stringify(stageExports.geometryPrevFull, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.geometryNextFull}`,
+        JSON.stringify(stageExports.geometryNextFull, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.topologyPrevFull}`,
+        JSON.stringify(stageExports.topologyPrevFull, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.topologyNextFull}`,
+        JSON.stringify(stageExports.topologyNextFull, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.transitionSnapshot}`,
+        JSON.stringify(stageExports.transitionSnapshot, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.transitionTruth}`,
+        JSON.stringify(stageExports.transitionTruth, null, 2),
+    );
+    zip.file(
+        `debug/${debugFiles.stageFiles.activeFrontPlan}`,
+        JSON.stringify(stageExports.activeFrontPlan, null, 2),
     );
 
     if (bundle.prevCanvas) {

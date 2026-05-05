@@ -205,6 +205,7 @@ export class TerritoryRuntimeCoordinator {
             for (const s of input.stars) starPositions.set(s.id, { x: s.x, y: s.y });
 
             this.snapshotRecorder?.capture({
+                frameInput: input,
                 conquestEvents: ownership.conquestEvents,
                 previousGeometry: this.state.previousGeometry,
                 nextGeometry: geometry,

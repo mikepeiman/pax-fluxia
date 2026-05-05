@@ -169,3 +169,30 @@
 - Result:
   - region identity on the active vector path now follows deterministic star membership instead of centroid drift
   - geometry/topology version strings no longer advertise stale `pvv2:` lineage on the active fingerprint path
+
+## Latest Implementation Checkpoint 2
+
+- Locked conquest casebook:
+  - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-transition-casebook_v1.md`
+- Expanded truth export from the recorder source instead of only at compact package time:
+  - `pax-fluxia/src/lib/territory/devtools/TransitionSnapshotRecorder.ts`
+  - `pax-fluxia/src/lib/territory/runtime/TerritoryRuntimeCoordinator.ts`
+  - `pax-fluxia/src/lib/territory/devtools/snapshotExport.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+- Added deterministic export-serialization test coverage:
+  - `pax-fluxia/src/lib/territory/devtools/snapshotExport.test.ts`
+- New package contents now include:
+  - `01_frame_input.json`
+  - `02_ownership_prev.json`
+  - `02_ownership_next.json`
+  - `03_geometry_prev_full.json`
+  - `03_geometry_next_full.json`
+  - `04_topology_prev_full.json`
+  - `04_topology_next_full.json`
+  - `05_transition_snapshot.json`
+  - `05_transition_truth.json`
+  - `05_active_front_plan.json`
+  - preserved compact files under `90_*`
+- Purpose:
+  - make one package sufficient to explain one conquest from frame input through rendered result
+  - keep the compact exports as secondary quick-review artifacts
