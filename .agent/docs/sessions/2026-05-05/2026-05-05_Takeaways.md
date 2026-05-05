@@ -117,3 +117,11 @@
     - truthful internal names first
     - stable public controls while the architecture is still being rebuilt
     - public-panel cleanup only after the shared geometry layer is solid
+38. `CX` and `LP` needed a real code-level split, not just renamed settings:
+    - `CX` is same-owner lane shaping
+    - `LP` is contested-lane shaping
+    - one mixed “corridor” builder was semantically false even when the outputs looked similar
+39. The safe migration pattern for that split is:
+    - explicit `CX` and `LP` builders on the active path
+    - compatibility wrappers preserved for older renderers
+    - gradual caller migration instead of one risky flag-day rewrite

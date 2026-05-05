@@ -49,7 +49,12 @@ import { buildFrontierMap } from './buildFrontierMap';
 import { applyExplicitMinStarMargin } from '../geometry/minStarMargin';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
-import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '$lib/renderers/territoryFeatures';
+import {
+    computeCxVirtuals,
+    computeDisconnectVirtuals,
+    computeLpVirtuals,
+    DISCONNECT_OWNER_ID,
+} from '$lib/renderers/territoryFeatures';
 import { findConnectedClustersOptimized } from '$lib/renderers/territoryUtils';
 
 // ---------------------------------------------------------------------------
@@ -152,7 +157,24 @@ export function computeGeometry0319(
         }
 
         if (config.cxEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(
+            const cxVirtuals = computeCxVirtuals(
+                ownedStars,
+                connections,
+                config.cxSpacingPx,
+                config.cxWeight,
+                config.cxPointCount || undefined,
+            );
+            for (const cv of cxVirtuals) {
+                sites.push({
+                    x: cv.x, y: cv.y,
+                    weight: starWeight * starWeight * cv.weight,
+                    ownerId: cv.ownerId,
+                    starId: `cx_${cv.sourceStarA}_${cv.sourceStarB}`,
+                    virtual: 'corridor',
+                });
+            }
+
+            const lpVirtuals = computeLpVirtuals(
                 ownedStars,
                 connections,
                 config.cxSpacingPx,
@@ -161,17 +183,16 @@ export function computeGeometry0319(
                 undefined,
                 config.lpMidpointPairEnabled,
                 true,
-                true,
                 config.lpPairWeight,
                 config.lpPairCount,
                 config.lpPairSpacingPx,
             );
-            for (const cv of corridorVirtuals) {
+            for (const lv of lpVirtuals) {
                 sites.push({
-                    x: cv.x, y: cv.y,
-                    weight: starWeight * starWeight * cv.weight,
-                    ownerId: cv.ownerId,
-                    starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
+                    x: lv.x, y: lv.y,
+                    weight: starWeight * starWeight * lv.weight,
+                    ownerId: lv.ownerId,
+                    starId: `lp_${lv.sourceStarA}_${lv.sourceStarB}_${lv.anchorStarId}`,
                     virtual: 'corridor',
                 });
             }

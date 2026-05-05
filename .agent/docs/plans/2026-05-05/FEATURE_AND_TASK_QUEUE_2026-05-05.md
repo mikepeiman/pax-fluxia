@@ -241,3 +241,29 @@
 - Important validation note:
   - the app package build passes
   - the repo-root wrapper build still fails because the sibling `pax-server` workspace is missing `@colyseus/core`
+
+## Latest Implementation Checkpoint 4
+
+- Completed Sprint 5 explicit `CX` / `LP` solve-shaping split:
+  - the mixed lane-shaping path is now separated into:
+    - `buildCxVirtualSites(...)`
+    - `buildLpVirtualSites(...)`
+    - `computeCxVirtuals(...)`
+    - `computeLpVirtuals(...)`
+  - the legacy combined wrappers remain in place only as compatibility shells:
+    - `buildCorridorVirtualSites(...)`
+    - `computeCorridorVirtuals(...)`
+- Active geometry-path call sites now consume `CX` and `LP` separately:
+  - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
+  - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
+  - `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
+- Lane virtual sites now carry explicit rule identity:
+  - `laneRule: 'cx' | 'lp'`
+- Added focused regression coverage:
+  - `pax-fluxia/src/lib/territory/corridor/buildCorridorVirtualSites.test.ts`
+- Validation:
+  - `bunx vitest run src/lib/territory/corridor/buildCorridorVirtualSites.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
+  - `bun run build` in `pax-fluxia/`
+- Result:
+  - `CX` and `LP` are now distinct implementation paths instead of one mixed “corridor” routine
+  - legacy renderers can continue to use the compatibility wrappers while the shared geometry layer keeps moving toward explicit semantics

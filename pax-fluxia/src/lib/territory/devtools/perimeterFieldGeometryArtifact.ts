@@ -1,7 +1,11 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
-import { computeCorridorVirtuals, computeDisconnectVirtuals } from '$lib/renderers/territoryFeatures';
+import {
+    computeCxVirtuals,
+    computeDisconnectVirtuals,
+    computeLpVirtuals,
+} from '$lib/renderers/territoryFeatures';
 import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeometryData, TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
@@ -186,20 +190,28 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
     });
     const ownedStars = params.stars.filter((star) => Boolean(star.ownerId));
     const corridorVirtuals = settings.cxEnabled
-        ? computeCorridorVirtuals(
-              ownedStars,
-              [...params.lanes],
-              settings.cxSpacingPx,
-              settings.cxWeight,
-              settings.cxPointCount || undefined,
-              undefined,
-              settings.lpMidpointPairEnabled,
-              true,
-              true,
-              settings.lpPairWeight,
-              settings.lpPairCount,
-              settings.lpPairSpacingPx,
-          )
+        ? [
+              ...computeCxVirtuals(
+                  ownedStars,
+                  [...params.lanes],
+                  settings.cxSpacingPx,
+                  settings.cxWeight,
+                  settings.cxPointCount || undefined,
+              ),
+              ...computeLpVirtuals(
+                  ownedStars,
+                  [...params.lanes],
+                  settings.cxSpacingPx,
+                  settings.cxWeight,
+                  settings.cxPointCount || undefined,
+                  undefined,
+                  settings.lpMidpointPairEnabled,
+                  true,
+                  settings.lpPairWeight,
+                  settings.lpPairCount,
+                  settings.lpPairSpacingPx,
+              ),
+          ]
         : [];
     const disconnectVirtuals = settings.dxEnabled
         ? computeDisconnectVirtuals(

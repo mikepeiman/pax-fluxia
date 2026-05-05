@@ -1,5 +1,9 @@
 import type { StarState, StarConnection } from '$lib/types/game.types';
-import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
+import {
+    buildCxVirtualSites,
+    buildLpVirtualSites,
+    type CorridorLaneRule,
+} from '$lib/territory/corridor/buildCorridorVirtualSites';
 import type { DisconnectPairSide } from '$lib/territory/disconnect/buildDisconnectVirtualSites';
 import { buildDisconnectVirtualSites } from '$lib/territory/disconnect/buildDisconnectVirtualSites';
 import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
@@ -12,6 +16,7 @@ export interface VirtualSite {
     weight: number;
     ownerId: string;
     kind: 'corridor' | 'disconnect';
+    laneRule?: CorridorLaneRule;
     sourceStarA: string;
     sourceStarB: string;
     /** Corridor: endpoint star for cluster/color; disconnect: optional attribution helper */
@@ -66,7 +71,68 @@ export function computeCorridorVirtuals(
     crossOwnerMidpointPairCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
     crossOwnerMidpointPairSpacing = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
 ): VirtualSite[] {
-    const built = buildCorridorVirtualSites(
+    const builtCx = includeSameOwnerDistributedSamples
+        ? buildCxVirtualSites(
+              ownedStars,
+              connections,
+              spacing,
+              weightMultiplier,
+              count,
+              lanePolylineResolver,
+          )
+        : [];
+    const builtLp =
+        includeCrossOwnerMidpointPair || includeCrossOwnerDistributedSamples
+            ? buildLpVirtualSites(
+                  ownedStars,
+                  connections,
+                  spacing,
+                  weightMultiplier,
+                  count,
+                  lanePolylineResolver,
+                  includeCrossOwnerMidpointPair,
+                  includeCrossOwnerDistributedSamples,
+                  crossOwnerMidpointPairWeight,
+                  crossOwnerMidpointPairCount,
+                  crossOwnerMidpointPairSpacing,
+              )
+            : [];
+    return canonicalizeVirtualSites([...builtCx, ...builtLp] as VirtualSite[]);
+}
+
+export function computeCxVirtuals(
+    ownedStars: StarState[],
+    connections: StarConnection[],
+    spacing: number,
+    weightMultiplier = 0.5,
+    count?: number,
+    lanePolylineResolver: (a: string, b: string) => [number, number][] | undefined = getLanePolyline,
+): VirtualSite[] {
+    const built = buildCxVirtualSites(
+        ownedStars,
+        connections,
+        spacing,
+        weightMultiplier,
+        count,
+        lanePolylineResolver,
+    );
+    return canonicalizeVirtualSites(built as VirtualSite[]);
+}
+
+export function computeLpVirtuals(
+    ownedStars: StarState[],
+    connections: StarConnection[],
+    spacing: number,
+    weightMultiplier = 0.5,
+    count?: number,
+    lanePolylineResolver: (a: string, b: string) => [number, number][] | undefined = getLanePolyline,
+    includeCrossOwnerMidpointPair = GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ?? true,
+    includeCrossOwnerDistributedSamples = true,
+    crossOwnerMidpointPairWeight = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ?? weightMultiplier,
+    crossOwnerMidpointPairCount = GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ?? 1,
+    crossOwnerMidpointPairSpacing = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45,
+): VirtualSite[] {
+    const built = buildLpVirtualSites(
         ownedStars,
         connections,
         spacing,
@@ -74,7 +140,6 @@ export function computeCorridorVirtuals(
         count,
         lanePolylineResolver,
         includeCrossOwnerMidpointPair,
-        includeSameOwnerDistributedSamples,
         includeCrossOwnerDistributedSamples,
         crossOwnerMidpointPairWeight,
         crossOwnerMidpointPairCount,

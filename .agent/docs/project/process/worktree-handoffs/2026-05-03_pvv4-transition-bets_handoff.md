@@ -1931,3 +1931,43 @@
 - Important note:
   - the app package build passes
   - the repo-root wrapper build still fails because the sibling `pax-server` workspace is missing `@colyseus/core`
+
+## Update: 2026-05-05 - Sprint 5 Explicit `CX` / `LP` Solve-Shaping Split
+
+- Trigger:
+  - `v7` Sprint 5 requires same-owner lane shaping and contested-lane shaping to become explicit instead of remaining mixed in one “corridor” routine
+- Purpose:
+  - make the shared geometry layer tell the truth about what it is doing along lanes
+  - separate same-owner connection shaping from contested-lane two-owner shaping before the later `DX` / `MSR` geometry work
+- Code changes:
+  - split the lane-shaping builder into:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\corridor\buildCorridorVirtualSites.ts`
+      - now exports:
+        - `buildCxVirtualSites(...)`
+        - `buildLpVirtualSites(...)`
+        - legacy compatibility wrapper:
+          - `buildCorridorVirtualSites(...)`
+  - updated public wrappers:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\renderers\territoryFeatures.ts`
+      - now exports:
+        - `computeCxVirtuals(...)`
+        - `computeLpVirtuals(...)`
+        - legacy compatibility wrapper:
+          - `computeCorridorVirtuals(...)`
+  - rewired active-path callers:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\powerVoronoiTerritoryGeometryGenerator.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\compiler\Geometry_0319.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\perimeterFieldGeometryArtifact.ts`
+  - lane virtuals now carry explicit rule identity:
+    - `laneRule: 'cx' | 'lp'`
+- Tests added:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\corridor\buildCorridorVirtualSites.test.ts`
+- Result:
+  - the active geometry path now has distinct implementation paths for:
+    - `CX` = same-owner lane connection shaping
+    - `LP` = contested-lane two-owner shaping
+  - older renderers can keep using the wrapper while the branch continues the shared-geometry migration
+- Validation:
+  - passed:
+    - `bunx vitest run src/lib/territory/corridor/buildCorridorVirtualSites.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts src/lib/territory/compiler/territoryGeometryFingerprint.test.ts src/lib/config/geometry0319Debug.test.ts src/lib/territory/families/buildFamilyGeometry.test.ts`
+    - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

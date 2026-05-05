@@ -1,11 +1,31 @@
-// ============================================================================
-// Single-source CX (corridor) virtual sites — all render families should use this.
-// Cross-owner lanes: samples split at half arc-length when a polyline resolver is provided.
-// ============================================================================
-
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
 const EPSILON = 1e-6;
+
+export type CorridorLaneRule = 'cx' | 'lp';
+
+interface BuiltLaneVirtualSite {
+    x: number;
+    y: number;
+    weight: number;
+    ownerId: string;
+    kind: 'corridor';
+    laneRule: CorridorLaneRule;
+    sourceStarA: string;
+    sourceStarB: string;
+    /** Endpoint star used for cluster and color attribution. */
+    anchorStarId: string;
+}
+
+export type BuiltCorridorVirtualSite = BuiltLaneVirtualSite;
+export type BuiltCxVirtualSite = BuiltLaneVirtualSite & { laneRule: 'cx' };
+export type BuiltLpVirtualSite = BuiltLaneVirtualSite & { laneRule: 'lp' };
+
+interface NormalizedConn {
+    sourceId: string;
+    targetId: string;
+    distance: number;
+}
 
 function polylineArcLength(pts: ReadonlyArray<readonly [number, number]>): number {
     let L = 0;
@@ -39,25 +59,6 @@ function pointOnPolylineAtArcLength(
     }
     const last = pts[pts.length - 1];
     return { x: last[0], y: last[1] };
-}
-
-/** Row shape compatible with `VirtualSite` (corridor kind); consumed by `computeCorridorVirtuals`. */
-export interface BuiltCorridorVirtualSite {
-    x: number;
-    y: number;
-    weight: number;
-    ownerId: string;
-    kind: 'corridor';
-    sourceStarA: string;
-    sourceStarB: string;
-    /** Endpoint star used for cluster / color attribution (cross-owner: side of chord midpoint). */
-    anchorStarId: string;
-}
-
-interface NormalizedConn {
-    sourceId: string;
-    targetId: string;
-    distance: number;
 }
 
 function normalizeConnections(connections: StarConnection[]): NormalizedConn[] {
@@ -105,24 +106,14 @@ function pointAlongConnection(
     return { x: ax + dx * t, y: ay + dy * t };
 }
 
-/**
- * Corridor virtual sites along map connections (same- or cross-owner).
- * Skips edges where either endpoint has no owner (e.g. neutral-only handling TBD).
- */
-export function buildCorridorVirtualSites(
+export function buildCxVirtualSites(
     ownedStars: StarState[],
     connections: StarConnection[],
     spacing: number,
     weightMultiplier = 0.5,
     count?: number,
     lanePolylineResolver?: (a: string, b: string) => [number, number][] | undefined,
-    includeCrossOwnerMidpointPair = true,
-    includeSameOwnerDistributedSamples = true,
-    includeCrossOwnerDistributedSamples = true,
-    crossOwnerMidpointPairWeight = weightMultiplier,
-    crossOwnerMidpointPairCount = 1,
-    crossOwnerMidpointPairSpacing = 45,
-): BuiltCorridorVirtualSite[] {
+): BuiltCxVirtualSite[] {
     if (ownedStars.length === 0 || connections.length === 0) return [];
 
     const starMap = new Map(
@@ -136,24 +127,15 @@ export function buildCorridorVirtualSites(
     const countMode =
         count != null && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
     const weight = clampWeight(weightMultiplier, 0.5);
-    const midpointPairWeight = clampWeight(crossOwnerMidpointPairWeight, weight);
-    const midpointPairCount = Math.max(
-        1,
-        Math.min(10, Math.round(crossOwnerMidpointPairCount || 1)),
-    );
-    const midpointPairSpacingPx =
-        Number.isFinite(crossOwnerMidpointPairSpacing) &&
-        crossOwnerMidpointPairSpacing > 0
-            ? crossOwnerMidpointPairSpacing
-            : 45;
 
-    const sites: BuiltCorridorVirtualSite[] = [];
+    const sites: BuiltCxVirtualSite[] = [];
 
     for (const conn of normalizedConnections) {
         const starA = starMap.get(conn.sourceId);
         const starB = starMap.get(conn.targetId);
         if (!starA || !starB) continue;
         if (!starA.ownerId || !starB.ownerId) continue;
+        if (starA.ownerId !== starB.ownerId) continue;
 
         const poly = lanePolylineResolver?.(conn.sourceId, conn.targetId);
         const usePoly = poly != null && poly.length >= 2;
@@ -170,25 +152,102 @@ export function buildCorridorVirtualSites(
             countMode != null
                 ? countMode
                 : Math.max(0, Math.floor(pathLen / spacingPx) - 1);
+        if (nSites <= 0) continue;
 
-        const sameOwner = starA.ownerId === starB.ownerId;
-        const halfArc = usePoly ? pathLen * 0.5 : null;
+        for (let i = 1; i <= nSites; i++) {
+            const t = i / (nSites + 1);
+            let x: number;
+            let y: number;
+            if (usePoly) {
+                const along = t * pathLen;
+                const p = pointOnPolylineAtArcLength(poly, along);
+                x = p.x;
+                y = p.y;
+            } else {
+                x = starA.x + dx * t;
+                y = starA.y + dy * t;
+            }
 
-        if (sameOwner && !includeSameOwnerDistributedSamples) continue;
-        if (!sameOwner && !includeCrossOwnerMidpointPair && !includeCrossOwnerDistributedSamples) {
-            continue;
+            sites.push({
+                x,
+                y,
+                weight,
+                ownerId: starA.ownerId,
+                kind: 'corridor',
+                laneRule: 'cx',
+                sourceStarA: starA.id,
+                sourceStarB: starB.id,
+                anchorStarId: starA.id,
+            });
         }
+    }
 
-        if (!sameOwner && includeCrossOwnerMidpointPair) {
+    return sites;
+}
+
+export function buildLpVirtualSites(
+    ownedStars: StarState[],
+    connections: StarConnection[],
+    spacing: number,
+    weightMultiplier = 0.5,
+    count?: number,
+    lanePolylineResolver?: (a: string, b: string) => [number, number][] | undefined,
+    includeMidpointPair = true,
+    includeDistributedSamples = true,
+    midpointPairWeight = weightMultiplier,
+    midpointPairCount = 1,
+    midpointPairSpacing = 45,
+): BuiltLpVirtualSite[] {
+    if (ownedStars.length === 0 || connections.length === 0) return [];
+
+    const starMap = new Map(
+        [...ownedStars]
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((star) => [star.id, star] as const),
+    );
+    const normalizedConnections = normalizeConnections(connections);
+
+    const spacingPx = Number.isFinite(spacing) && spacing > 0 ? spacing : 60;
+    const countMode =
+        count != null && Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
+    const distributedWeight = clampWeight(weightMultiplier, 0.5);
+    const pairWeight = clampWeight(midpointPairWeight, distributedWeight);
+    const pairCount = Math.max(1, Math.min(10, Math.round(midpointPairCount || 1)));
+    const pairSpacingPx =
+        Number.isFinite(midpointPairSpacing) && midpointPairSpacing > 0
+            ? midpointPairSpacing
+            : 45;
+
+    const sites: BuiltLpVirtualSite[] = [];
+
+    for (const conn of normalizedConnections) {
+        const starA = starMap.get(conn.sourceId);
+        const starB = starMap.get(conn.targetId);
+        if (!starA || !starB) continue;
+        if (!starA.ownerId || !starB.ownerId) continue;
+        if (starA.ownerId === starB.ownerId) continue;
+        if (!includeMidpointPair && !includeDistributedSamples) continue;
+
+        const poly = lanePolylineResolver?.(conn.sourceId, conn.targetId);
+        const usePoly = poly != null && poly.length >= 2;
+
+        const dx = starB.x - starA.x;
+        const dy = starB.y - starA.y;
+        const chordDist = Math.hypot(dx, dy);
+        if (chordDist <= EPSILON) continue;
+
+        const pathLen = usePoly ? polylineArcLength(poly) : chordDist;
+        if (pathLen <= EPSILON) continue;
+
+        if (includeMidpointPair) {
             const midpointOffset = Math.min(
-                Math.max(midpointPairSpacingPx * 0.5, 10),
+                Math.max(pairSpacingPx * 0.5, 10),
                 Math.max(pathLen * 0.18, 12),
             );
             const midpointDistance = pathLen * 0.5;
-            const centeredOffsetCount = (midpointPairCount - 1) * 0.5;
-            for (let pairIndex = 0; pairIndex < midpointPairCount; pairIndex++) {
-                const laneShift =
-                    (pairIndex - centeredOffsetCount) * midpointPairSpacingPx;
+            const centeredOffsetCount = (pairCount - 1) * 0.5;
+            for (let pairIndex = 0; pairIndex < pairCount; pairIndex++) {
+                const laneShift = (pairIndex - centeredOffsetCount) * pairSpacingPx;
                 const leftDistance = Math.max(
                     pathLen * 0.1,
                     Math.min(pathLen * 0.9, midpointDistance - midpointOffset + laneShift),
@@ -220,9 +279,10 @@ export function buildCorridorVirtualSites(
                 sites.push({
                     x: leftPoint.x,
                     y: leftPoint.y,
-                    weight: midpointPairWeight,
+                    weight: pairWeight,
                     ownerId: starA.ownerId,
                     kind: 'corridor',
+                    laneRule: 'lp',
                     sourceStarA: starA.id,
                     sourceStarB: starB.id,
                     anchorStarId: starA.id,
@@ -230,9 +290,10 @@ export function buildCorridorVirtualSites(
                 sites.push({
                     x: rightPoint.x,
                     y: rightPoint.y,
-                    weight: midpointPairWeight,
+                    weight: pairWeight,
                     ownerId: starB.ownerId,
                     kind: 'corridor',
+                    laneRule: 'lp',
                     sourceStarA: starA.id,
                     sourceStarB: starB.id,
                     anchorStarId: starB.id,
@@ -240,12 +301,18 @@ export function buildCorridorVirtualSites(
             }
         }
 
-        if (nSites <= 0) continue;
+        const nSites =
+            countMode != null
+                ? countMode
+                : Math.max(0, Math.floor(pathLen / spacingPx) - 1);
+        if (!includeDistributedSamples || nSites <= 0) continue;
+
+        const halfArc = usePoly ? pathLen * 0.5 : null;
 
         for (let i = 1; i <= nSites; i++) {
             const t = i / (nSites + 1);
-            if (!sameOwner && !includeCrossOwnerDistributedSamples) continue;
-            if (!sameOwner && Math.abs(t - 0.5) < 0.16) continue;
+            if (Math.abs(t - 0.5) < 0.16) continue;
+
             let x: number;
             let y: number;
             let crossT: number;
@@ -261,27 +328,70 @@ export function buildCorridorVirtualSites(
                 crossT = t;
             }
 
-            let anchor: StarState;
-            let ownerId: string;
-            if (sameOwner) {
-                anchor = starA;
-                ownerId = starA.ownerId;
-            } else {
-                anchor = crossT <= 0.5 + EPSILON ? starA : starB;
-                ownerId = anchor.ownerId!;
-            }
+            const anchor = crossT <= 0.5 + EPSILON ? starA : starB;
 
             sites.push({
                 x,
                 y,
-                weight,
-                ownerId,
+                weight: distributedWeight,
+                ownerId: anchor.ownerId!,
                 kind: 'corridor',
+                laneRule: 'lp',
                 sourceStarA: starA.id,
                 sourceStarB: starB.id,
                 anchorStarId: anchor.id,
             });
         }
+    }
+
+    return sites;
+}
+
+export function buildCorridorVirtualSites(
+    ownedStars: StarState[],
+    connections: StarConnection[],
+    spacing: number,
+    weightMultiplier = 0.5,
+    count?: number,
+    lanePolylineResolver?: (a: string, b: string) => [number, number][] | undefined,
+    includeCrossOwnerMidpointPair = true,
+    includeSameOwnerDistributedSamples = true,
+    includeCrossOwnerDistributedSamples = true,
+    crossOwnerMidpointPairWeight = weightMultiplier,
+    crossOwnerMidpointPairCount = 1,
+    crossOwnerMidpointPairSpacing = 45,
+): BuiltCorridorVirtualSite[] {
+    const sites: BuiltCorridorVirtualSite[] = [];
+
+    if (includeSameOwnerDistributedSamples) {
+        sites.push(
+            ...buildCxVirtualSites(
+                ownedStars,
+                connections,
+                spacing,
+                weightMultiplier,
+                count,
+                lanePolylineResolver,
+            ),
+        );
+    }
+
+    if (includeCrossOwnerMidpointPair || includeCrossOwnerDistributedSamples) {
+        sites.push(
+            ...buildLpVirtualSites(
+                ownedStars,
+                connections,
+                spacing,
+                weightMultiplier,
+                count,
+                lanePolylineResolver,
+                includeCrossOwnerMidpointPair,
+                includeCrossOwnerDistributedSamples,
+                crossOwnerMidpointPairWeight,
+                crossOwnerMidpointPairCount,
+                crossOwnerMidpointPairSpacing,
+            ),
+        );
     }
 
     return sites;
