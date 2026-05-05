@@ -411,3 +411,20 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Latest Implementation Checkpoint 11
+
+- Completed the `v7` performance-hardening sprint on the active render-family path:
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.ts`
+  - `pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts`
+- Exact behavior:
+  - `GameCanvas` now caches one shared base ownership snapshot per live star/lane state instead of rebuilding ownership truth at each hot-path consumer
+  - active transition ownership snapshots now reuse that base truth and apply only the conquest-event overlay
+  - the render-family geometry cache, stable-frame sync, and previous-frame diagnostics fallback now all consume that same cached ownership truth
+- Result:
+  - the active render-family path stops rebuilding identical ownership maps and contested-lane lists multiple times per frame
+  - `v7` is now implementation-complete; remaining work is broader merge cleanup, not an unfinished sprint
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

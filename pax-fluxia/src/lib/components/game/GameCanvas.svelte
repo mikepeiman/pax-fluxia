@@ -158,6 +158,7 @@
     } from "$lib/territory/contracts/OwnershipContracts";
     import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
+    import { withOwnershipSnapshotConquestEvents } from "$lib/territory/layers/ownership/ownershipSnapshotUtils";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
@@ -1989,40 +1990,39 @@
         lanes: ReadonlyArray<StarConnection>,
         activeTransition: RenderFamilyActiveTransition | null,
     ): OwnershipSnapshot {
-        const conquestEvents =
-            activeTransition?.events.map((entry) => ({
-                starId: entry.event.starId,
-                previousOwner: entry.event.previousOwner,
-                newOwner: entry.event.newOwner,
-                atMs: entry.startedAtMs,
-                attackerStarId: entry.event.attackerStarId,
-                attackerStarIds: entry.event.attackerStarIds?.length
-                    ? [...entry.event.attackerStarIds]
-                    : entry.event.attackerStarId
-                      ? [entry.event.attackerStarId]
-                      : undefined,
-                attackerShipTransfers:
-                    entry.event.attackerShipTransfers?.length
-                        ? [...entry.event.attackerShipTransfers]
-                        : undefined,
-            })) ?? [];
-        const snapshot = buildOwnershipSnapshotFromStars(
-            stars,
-            lanes,
-            conquestEvents,
+        const baseSnapshot = getCurrentRenderFamilyBaseOwnership(stars, lanes);
+        const transitionKey = buildTransitionDiagnosticCaptureKey(
+            activeTransition,
         );
-        logPipelineStage({
-            channel: "state",
-            context: "GameCanvas",
-            stage: "ownership_snapshot",
-            from: "Active stars + transition overlay",
-            to: "Render-family ownership snapshot",
-            purpose: "Provide ownership state for family geometry and scene builders",
-            summary:
-                `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
-            perfEventName: "game.renderFrame.ownershipSnapshot",
-        });
-        return snapshot;
+        if (!transitionKey || !activeTransition?.events.length) {
+            return baseSnapshot;
+        }
+        const key = `${baseSnapshot.version}:${transitionKey}`;
+        if (
+            renderFamilyTransitionOwnershipCacheKey !== key ||
+            !renderFamilyTransitionOwnershipCache
+        ) {
+            const conquestEvents =
+                buildTransitionDiagnosticConquestEvents(activeTransition);
+            renderFamilyTransitionOwnershipCache =
+                withOwnershipSnapshotConquestEvents(
+                    baseSnapshot,
+                    conquestEvents,
+                );
+            renderFamilyTransitionOwnershipCacheKey = key;
+            logPipelineStage({
+                channel: "state",
+                context: "GameCanvas",
+                stage: "ownership_snapshot",
+                from: "Active stars + transition overlay",
+                to: "Render-family ownership snapshot",
+                purpose: "Provide ownership state for family geometry and scene builders",
+                summary:
+                    `${summarizeStars(stars)} ${summarizeOwnership(renderFamilyTransitionOwnershipCache)}`,
+                perfEventName: "game.renderFrame.ownershipSnapshot",
+            });
+        }
+        return renderFamilyTransitionOwnershipCache;
     }
 
     type PerimeterFieldCapturedFrame = {
@@ -2628,6 +2628,10 @@
     let canonicalRenderer: TerritoryRenderer | null = null;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
+    let renderFamilyOwnershipCacheKey: string | null = null;
+    let renderFamilyOwnershipCache: OwnershipSnapshot | null = null;
+    let renderFamilyTransitionOwnershipCacheKey: string | null = null;
+    let renderFamilyTransitionOwnershipCache: OwnershipSnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
     let renderFamilyStableGeometry: CanonicalGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
@@ -2726,14 +2730,49 @@
         return key;
     }
 
+    function buildRenderFamilyOwnershipCacheKey(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): string {
+        let key = "ownership:";
+        for (const star of stars) {
+            key += `${star.id}:${star.ownerId ?? ""}|`;
+        }
+        key += "::";
+        for (const lane of lanes) {
+            key += `${lane.sourceId}->${lane.targetId}|`;
+        }
+        return key;
+    }
+
+    function getCurrentRenderFamilyBaseOwnership(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+    ): OwnershipSnapshot {
+        const key = buildRenderFamilyOwnershipCacheKey(stars, lanes);
+        if (renderFamilyOwnershipCacheKey !== key || !renderFamilyOwnershipCache) {
+            renderFamilyOwnershipCache = buildOwnershipSnapshotFromStars(
+                stars,
+                lanes,
+            );
+            renderFamilyOwnershipCacheKey = key;
+            renderFamilyTransitionOwnershipCacheKey = null;
+            renderFamilyTransitionOwnershipCache = null;
+        }
+        return renderFamilyOwnershipCache;
+    }
+
     function getCurrentRenderFamilyGeometry(
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
         configSource?: Record<string, unknown>,
+        ownership?: OwnershipSnapshot,
     ): CanonicalGeometrySnapshot {
         const source =
             configSource ??
             (GAME_CONFIG as unknown as Record<string, unknown>);
+        const ownershipSnapshot =
+            ownership ?? getCurrentRenderFamilyBaseOwnership(stars, lanes);
         const key = buildRenderFamilyGeometryCacheKey(stars, lanes, source);
         if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
             renderFamilyGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
@@ -2742,7 +2781,7 @@
                 worldWidth: GAME_WIDTH,
                 worldHeight: GAME_HEIGHT,
                 nowMs: fxOrchestrator.gameTime,
-                ownership: buildOwnershipSnapshotFromStars(stars, lanes),
+                ownership: ownershipSnapshot,
                 geometrySource:
                     (source.PERIMETER_FIELD_GEOMETRY_SOURCE as string | null | undefined) ??
                     "power_voronoi_0319",
@@ -2793,7 +2832,7 @@
         }
         renderFamilyStableGeometryKey = key;
         renderFamilyStableGeometry = params.geometry;
-        renderFamilyStableOwnership = buildOwnershipSnapshotFromStars(
+        renderFamilyStableOwnership = getCurrentRenderFamilyBaseOwnership(
             params.stars,
             params.lanes,
         );
@@ -2854,7 +2893,7 @@
                     params.activeTransition,
                     params.stars,
                 );
-                const ownership = buildOwnershipSnapshotFromStars(
+                const ownership = getCurrentRenderFamilyBaseOwnership(
                     revertedStars,
                     params.lanes,
                 );

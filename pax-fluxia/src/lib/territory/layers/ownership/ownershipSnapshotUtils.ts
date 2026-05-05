@@ -80,3 +80,19 @@ export function buildOwnershipSnapshotFromStarState(params: {
         virtualStars,
     };
 }
+
+export function withOwnershipSnapshotConquestEvents(
+    snapshot: OwnershipSnapshot,
+    conquestEvents: readonly TerritoryConquestEvent[],
+): OwnershipSnapshot {
+    if (!conquestEvents.length && snapshot.conquestEvents.length === 0) {
+        return snapshot;
+    }
+    return {
+        version: snapshot.version,
+        starOwners: snapshot.starOwners,
+        contestedLaneIds: snapshot.contestedLaneIds,
+        conquestEvents: [...conquestEvents],
+        virtualStars: snapshot.virtualStars,
+    };
+}

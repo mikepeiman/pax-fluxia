@@ -2137,3 +2137,20 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-05 - Render-Family Performance Hardening
+
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\ownershipSnapshotUtils.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\ownershipSnapshotUtils.test.ts`
+- Behavior change:
+  - `GameCanvas` now caches a shared base ownership snapshot for the live star/lane state
+  - active conquest batches now reuse that base truth through a cached conquest-event overlay snapshot
+  - the render-family geometry cache, stable-frame sync, and previous-frame diagnostics fallback now consume the same ownership truth instead of rebuilding it independently
+- Merge note:
+  - this completes the final planned `v7` sprint
+  - deeper family-local PREV reconstruction fallbacks still exist as safety nets in some families and remain valid merge targets after the mainline merge
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildOwnershipSnapshotFromStarState,
     buildOwnershipVersion,
+    withOwnershipSnapshotConquestEvents,
 } from './ownershipSnapshotUtils';
 
 describe('ownershipSnapshotUtils', () => {
@@ -28,5 +29,37 @@ describe('ownershipSnapshotUtils', () => {
         expect(snapshot.version).toBe(
             buildOwnershipVersion(snapshot.starOwners, 0),
         );
+    });
+
+    it('overlays conquest events without changing stable ownership truth', () => {
+        const snapshot = buildOwnershipSnapshotFromStarState({
+            stars: [
+                { id: 'star-1', x: 0, y: 0, ownerId: 'red' } as any,
+                { id: 'star-2', x: 10, y: 0, ownerId: 'blue' } as any,
+            ],
+            lanes: [{ sourceId: 'star-1', targetId: 'star-2' } as any],
+        });
+
+        const overlaid = withOwnershipSnapshotConquestEvents(snapshot, [
+            {
+                starId: 'star-2',
+                previousOwner: 'blue',
+                newOwner: 'red',
+                atMs: 1234,
+            },
+        ]);
+
+        expect(overlaid).not.toBe(snapshot);
+        expect(overlaid.version).toBe(snapshot.version);
+        expect(overlaid.starOwners).toBe(snapshot.starOwners);
+        expect(overlaid.contestedLaneIds).toBe(snapshot.contestedLaneIds);
+        expect(overlaid.conquestEvents).toEqual([
+            {
+                starId: 'star-2',
+                previousOwner: 'blue',
+                newOwner: 'red',
+                atMs: 1234,
+            },
+        ]);
     });
 });

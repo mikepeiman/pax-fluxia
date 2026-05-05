@@ -554,5 +554,10 @@ If a case cannot be bounded locally and cleanly, the runtime should freeze in di
   - first bounded `1:1` active-front sampler rewrite with truthful `borderFrame`
   - bounded `1:2` / `2:1` split-front support on the active PVV4 path
   - shared ownership derivation for render families, including real contested-lane truth and deterministic ownership version
+  - performance hardening on the active render-family path:
+    - cached shared base ownership snapshots
+    - cached transition-event ownership overlays
+    - reuse of shared ownership truth in geometry cache, stable-frame sync, and previous-frame diagnostics fallback
 - Current remaining major work:
-  - performance hardening
+  - no unimplemented sprints remain inside `v7`
+  - follow-on work is now merge-oriented cleanup and deeper removal of family-local PREV reconstruction fallbacks where they still exist as safety nets
