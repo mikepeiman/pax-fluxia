@@ -87,3 +87,11 @@
     - `CX` and `LP` shape the solve along lanes
     - `DX` and `MSR` rewrite geometry explicitly after the plain PV solve
 25. Constraint work must stay subordinate to the larger architecture reset: one shared ownership path, one shared geometry path, one shared topology/transition truth path.
+26. The plan purpose must stay tied to the real user goal: buttery-smooth conquest transitions for power-Voronoi vector frontiers. “Eliminate snap” is a consequence of getting that right, not the primary statement of purpose.
+27. `v7` is the first plan version that cleanly separates:
+    - lane solve-shaping rules:
+      - `CX`
+      - `LP`
+    - explicit post-solve geometry corrections:
+      - `DX`
+      - `MSR`
