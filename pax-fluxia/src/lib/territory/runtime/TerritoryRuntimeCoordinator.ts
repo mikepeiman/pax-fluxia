@@ -159,6 +159,7 @@ export class TerritoryRuntimeCoordinator {
 
         const transition = this.transitionLayer.compute({
             nowMs: input.nowMs,
+            stars: input.stars,
             tunables: input.tunables,
             ownership,
             geometry,

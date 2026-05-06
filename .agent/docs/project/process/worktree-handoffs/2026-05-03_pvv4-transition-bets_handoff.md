@@ -2220,3 +2220,32 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Island-Conquest Disappearance Audit And Collapse Guard
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v3.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact failure mechanism confirmed:
+  - `sampleActiveFrontTransition(...)` always draws all `NEXT` loops
+  - then it also draws every `collapseTarget` from `PREV`
+  - when collapse planning globally classified an unrelated unmatched loop as disappearing, the result was:
+    - one real `NEXT` region
+    - one collapsing duplicate `PREV` copy of that same region
+- Exact fix:
+  - collapse planning is no longer global over all unmatched `PREV` loops
+  - a `PREV` loop is now eligible only if all loop-attributed star IDs were conquered away on that tick
+  - single-star disappearing loops now collapse to the live captured star center instead of relying on `virtualStars` for `previousOwner`
+- Merge note:
+  - this directly targets the user-reported island-conquest bug class
+  - upstream topology identity debt still remains:
+    - `buildFrontierTopology.ts` still assigns `componentId = ${ownerId}:0`
+    - `buildFrontierMap.ts` still uses enumeration-based `loopId`
+  - those should still be addressed before mainline merge to reduce remaining same-owner island/mainland matching ambiguity
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

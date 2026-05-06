@@ -73,6 +73,7 @@ interface LoopMatchInfo {
     centroid: Vec2;
     areaAbs: number;
     kind: 'outer' | 'hole';
+    anchorStarIds: string[];
 }
 
 interface LocalChangeWindow {
@@ -173,6 +174,12 @@ interface ActiveFrontPlanningTunables {
     changeSpanPadPoints?: TerritoryTunables['pvv4ChangeSpanPadPoints'];
 }
 
+interface TransitionStarPoint {
+    id: string;
+    x: number;
+    y: number;
+}
+
 // ---------------------------------------------------------------------------
 // Planning
 // ---------------------------------------------------------------------------
@@ -182,6 +189,7 @@ export function planActiveFrontTransition(
     next: FrontierTopology,
     ownership: OwnershipSnapshot,
     tunables: ActiveFrontPlanningTunables = {},
+    stars: readonly TransitionStarPoint[] = [],
 ): ActiveFrontTransitionPlan {
     const stableAnchorEps = tunables.stableAnchorEps ?? DEFAULT_STABLE_ANCHOR_EPS;
     const changeSpanEps = tunables.changeSpanEps ?? DEFAULT_CHANGE_SPAN_EPS;
@@ -300,6 +308,7 @@ export function planActiveFrontTransition(
         next,
         ownership,
         ownership.conquestEvents,
+        stars,
     );
     const diagnostics = buildActiveFrontPlanDiagnostics({
         stableAnchorIds: [...anchors].sort(),
@@ -1424,6 +1433,7 @@ function planCollapseTargets(
     next: FrontierTopology,
     ownership: OwnershipSnapshot,
     conquestEvents: readonly TerritoryConquestEvent[],
+    stars: readonly TransitionStarPoint[],
 ): CollapseTarget[] {
     const prevLoopInfos = buildLoopMatchInfos(prev);
     const nextLoopInfos = buildLoopMatchInfos(next);
@@ -1450,23 +1460,35 @@ function planCollapseTargets(
     );
     if (disappearing.length === 0) return [];
 
+    const conqueredStarIdsByOwner = buildConqueredStarIdsByOwner(conquestEvents);
+    const eligibleDisappearing = disappearing.filter((loopInfo) =>
+        isLoopEligibleForCollapse(loopInfo, conqueredStarIdsByOwner),
+    );
+    if (eligibleDisappearing.length === 0) return [];
+
     const targets: CollapseTarget[] = [];
-    const remaining = new Set(disappearing.map((loopInfo) => loopInfo.loop.id));
+    const remaining = new Set(
+        eligibleDisappearing.map((loopInfo) => loopInfo.loop.id),
+    );
+    const starPositions = new Map(
+        stars.map((star) => [star.id, [star.x, star.y] as Vec2]),
+    );
 
     for (const evt of conquestEvents) {
         const center = resolveConquestCenter(
             ownership,
             evt,
             evt.previousOwner,
+            starPositions,
         );
-        if (!center) continue;
 
         let bestLoop: LoopMatchInfo | null = null;
         let bestDist = Infinity;
-        for (const loopInfo of disappearing) {
+        for (const loopInfo of eligibleDisappearing) {
             if (!remaining.has(loopInfo.loop.id)) continue;
             if (loopInfo.loop.ownerId !== evt.previousOwner) continue;
-            const d = distance(loopInfo.centroid, center);
+            if (!loopInfo.anchorStarIds.includes(evt.starId)) continue;
+            const d = distance(loopInfo.centroid, center ?? loopInfo.centroid);
             if (d < bestDist) {
                 bestDist = d;
                 bestLoop = loopInfo;
@@ -1478,18 +1500,23 @@ function planCollapseTargets(
             targets.push({
                 loopId: bestLoop.loop.id,
                 ownerId: bestLoop.loop.ownerId,
-                center,
+                center:
+                    center
+                    ?? resolveLoopCollapseCenter(bestLoop, starPositions)
+                    ?? bestLoop.centroid,
                 points: bestLoop.points,
             });
         }
     }
 
-    for (const loopInfo of disappearing) {
+    for (const loopInfo of eligibleDisappearing) {
         if (!remaining.has(loopInfo.loop.id)) continue;
         targets.push({
             loopId: loopInfo.loop.id,
             ownerId: loopInfo.loop.ownerId,
-            center: loopInfo.centroid,
+            center:
+                resolveLoopCollapseCenter(loopInfo, starPositions)
+                ?? loopInfo.centroid,
             points: loopInfo.points,
         });
     }
@@ -1506,6 +1533,7 @@ function buildLoopMatchInfos(topology: FrontierTopology): LoopMatchInfo[] {
             centroid: polygonCentroid(points),
             areaAbs: Math.abs(loop.signedArea),
             kind: loop.signedArea < 0 ? 'hole' : 'outer',
+            anchorStarIds: deriveLoopAnchorStarIds(loop, topology.sections),
         };
     });
 }
@@ -1589,13 +1617,77 @@ function resolveConquestCenter(
     ownership: OwnershipSnapshot,
     event: TerritoryConquestEvent,
     ownerId: string,
+    starPositions: ReadonlyMap<string, Vec2>,
 ): Vec2 | null {
+    if (ownerId === event.previousOwner) {
+        const starPoint = starPositions.get(event.starId);
+        if (starPoint) {
+            return starPoint;
+        }
+    }
     const star = ownership.virtualStars.find(
         (virtualStar) =>
             virtualStar.starId === event.starId &&
             virtualStar.ownerId === ownerId,
     );
     return star ? [star.pos.x, star.pos.y] : null;
+}
+
+function deriveLoopAnchorStarIds(
+    loop: RegionLoop,
+    sections: ReadonlyMap<string, FrontierSection>,
+): string[] {
+    const starIds = new Set<string>();
+    for (const ref of loop.sectionRefs) {
+        const section = sections.get(ref.sectionId);
+        if (!section) continue;
+        const influence =
+            section.leftOwnerId === loop.ownerId
+                ? section.leftInfluence
+                : section.rightOwnerId === loop.ownerId
+                    ? section.rightInfluence
+                    : null;
+        if (!influence) continue;
+        if (influence.primaryStarId && influence.primaryStarId !== 'world') {
+            starIds.add(influence.primaryStarId);
+        }
+        if (influence.secondaryStarId && influence.secondaryStarId !== 'world') {
+            starIds.add(influence.secondaryStarId);
+        }
+    }
+    return [...starIds].sort();
+}
+
+function buildConqueredStarIdsByOwner(
+    conquestEvents: readonly TerritoryConquestEvent[],
+): ReadonlyMap<string, Set<string>> {
+    const result = new Map<string, Set<string>>();
+    for (const event of conquestEvents) {
+        const captured = result.get(event.previousOwner) ?? new Set<string>();
+        captured.add(event.starId);
+        result.set(event.previousOwner, captured);
+    }
+    return result;
+}
+
+function isLoopEligibleForCollapse(
+    loopInfo: LoopMatchInfo,
+    conqueredStarIdsByOwner: ReadonlyMap<string, Set<string>>,
+): boolean {
+    if (loopInfo.anchorStarIds.length === 0) return false;
+    const conqueredStarIds = conqueredStarIdsByOwner.get(loopInfo.loop.ownerId);
+    if (!conqueredStarIds || conqueredStarIds.size === 0) return false;
+    return loopInfo.anchorStarIds.every((starId) => conqueredStarIds.has(starId));
+}
+
+function resolveLoopCollapseCenter(
+    loopInfo: LoopMatchInfo,
+    starPositions: ReadonlyMap<string, Vec2>,
+): Vec2 | null {
+    if (loopInfo.anchorStarIds.length !== 1) {
+        return null;
+    }
+    return starPositions.get(loopInfo.anchorStarIds[0]!) ?? null;
 }
 
 function polygonCentroid(points: Vec2[]): Vec2 {

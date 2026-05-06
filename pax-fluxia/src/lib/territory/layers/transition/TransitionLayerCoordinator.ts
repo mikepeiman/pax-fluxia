@@ -22,6 +22,7 @@ import { log } from '$lib/utils/logger';
 
 export interface TransitionCoordinatorInput {
     nowMs: number;
+    stars: readonly { id: string; x: number; y: number }[];
     tunables: TerritoryTunables;
     selection: TerritoryModeSelection;
     ownership: OwnershipSnapshot;
@@ -183,6 +184,7 @@ export class TransitionLayerCoordinator {
                         changeSpanEps: input.tunables.pvv4ChangeSpanEps,
                         changeSpanPadPoints: input.tunables.pvv4ChangeSpanPadPoints,
                     },
+                    input.stars,
                 );
                 activeFillPlan = null;
                 // Snapshot the prev topology so it survives the state overwrite

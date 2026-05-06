@@ -485,3 +485,29 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Diagnostic Checkpoint 15
+
+- Added the island-conquest disappearance audit:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v3.md`
+- Implemented the direct fix for the long-running shrinking-duplicate-region bug on the active PVV4 path:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+  - `pax-fluxia/src/lib/territory/runtime/TerritoryRuntimeCoordinator.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - unmatched `PREV` loops are no longer collapsed globally
+  - a `PREV` loop is now collapse-eligible only if every star contributing to that loop was conquered away on that tick
+  - single-star disappearing loops now collapse to the actual captured star center from live star positions
+- Exact bug removed:
+  - when an island conquest happened, a persistent mainland loop could be mis-matched and then wrongly added to `collapseTargets`
+  - the sampler would draw both:
+    - the real `NEXT` mainland
+    - a collapsing `PREV` duplicate of that same mainland
+  - this checkpoint removes that false-collapse path
+- Remaining structural debt surfaced by the audit:
+  - `buildFrontierTopology.ts` still hardcodes same-owner `componentId` to `${ownerId}:0`
+  - `buildFrontierMap.ts` still uses enumeration-based loop IDs
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

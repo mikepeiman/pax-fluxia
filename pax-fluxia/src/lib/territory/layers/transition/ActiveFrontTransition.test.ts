@@ -543,6 +543,28 @@ function mergeTopologies(version: string, topologies: FrontierTopology[]): Front
     };
 }
 
+function setLoopPrimaryStarId(
+    topology: FrontierTopology,
+    ownerId: string,
+    starId: string,
+): FrontierTopology {
+    for (const section of topology.sections.values()) {
+        if (section.leftOwnerId === ownerId) {
+            section.leftInfluence.primaryStarId = starId;
+            section.leftInfluence.primaryScore = 1;
+            delete section.leftInfluence.secondaryStarId;
+            delete section.leftInfluence.secondaryScore;
+        }
+        if (section.rightOwnerId === ownerId) {
+            section.rightInfluence.primaryStarId = starId;
+            section.rightInfluence.primaryScore = 1;
+            delete section.rightInfluence.secondaryStarId;
+            delete section.rightInfluence.secondaryScore;
+        }
+    }
+    return topology;
+}
+
 function makeVirtualStar(
     id: string,
     starId: string,
@@ -566,7 +588,11 @@ describe('ActiveFrontTransition', () => {
         const starId = 'star-10';
         const prevCenter: Vec2 = [30, 30];
 
-        const prev = makeSquareTopology('prev', previousOwner, 'prev', prevCenter, 12);
+        const prev = setLoopPrimaryStarId(
+            makeSquareTopology('prev', previousOwner, 'prev', prevCenter, 12),
+            previousOwner,
+            starId,
+        );
         const next = makeEmptyTopology('next');
 
         const ownership: OwnershipSnapshot = {
@@ -584,10 +610,13 @@ describe('ActiveFrontTransition', () => {
             virtualStars: [makeVirtualStar('vs-prev', starId, previousOwner, prevCenter)],
         };
 
-        const plan = planActiveFrontTransition(prev, next, ownership);
+        const plan = planActiveFrontTransition(prev, next, ownership, {}, [
+            { id: starId, x: prevCenter[0], y: prevCenter[1] },
+        ]);
         expect(plan.fronts).toHaveLength(0);
         expect(plan.collapseTargets).toHaveLength(1);
         expect(plan.diagnostics.summary.classification).toBe('collapse_only');
+        expect(plan.collapseTargets[0]?.center).toEqual(prevCenter);
 
         const frameAtStart = sampleActiveFrontTransition(plan, prev, next, 0);
         expect(frameAtStart.regions).toHaveLength(1);
@@ -621,6 +650,59 @@ describe('ActiveFrontTransition', () => {
         expect(plan.fronts).toHaveLength(0);
         expect(plan.collapseTargets).toHaveLength(0);
         expect(plan.diagnostics.summary.collapseTargetCount).toBe(0);
+    });
+
+    it('does not collapse an unrelated mainland when only a single-star island is conquered', () => {
+        const previousOwner = 'ai-1';
+        const nextOwner = 'ai-2';
+        const mainlandStarId = 'star-mainland';
+        const islandStarId = 'star-island';
+
+        const prevMainland = setLoopPrimaryStarId(
+            makeSquareTopology('prev-main', previousOwner, 'prev-main', [40, 40], 18),
+            previousOwner,
+            mainlandStarId,
+        );
+        const prevIsland = setLoopPrimaryStarId(
+            makeSquareTopology('prev-island', previousOwner, 'prev-island', [140, 140], 8),
+            previousOwner,
+            islandStarId,
+        );
+        const nextMainland = setLoopPrimaryStarId(
+            makeSquareTopology('next-main', previousOwner, 'next-main', [88, 40], 18),
+            previousOwner,
+            mainlandStarId,
+        );
+
+        const prev = mergeTopologies('prev', [prevMainland, prevIsland]);
+        const next = mergeTopologies('next', [nextMainland]);
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map([
+                [mainlandStarId, previousOwner],
+                [islandStarId, nextOwner],
+            ]),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: islandStarId,
+                    previousOwner,
+                    newOwner: nextOwner,
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {}, [
+            { id: mainlandStarId, x: 40, y: 40 },
+            { id: islandStarId, x: 140, y: 140 },
+        ]);
+
+        expect(plan.collapseTargets).toHaveLength(1);
+        expect(plan.collapseTargets[0]?.loopId).toBe('prev-island:loop');
+        expect(plan.collapseTargets[0]?.center).toEqual([140, 140]);
     });
 
     it('moves only the local changed interval inside a single active section', () => {
