@@ -2285,3 +2285,36 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Ownership Snapshot Reads Truth; Engine Owns Conquest Decisions
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v6.md`
+- Exact architectural conclusion:
+  - `StarOwnershipSnapshotMode` does not decide star ownership
+  - it reads already-mutated `star.ownerId` from the current simulation frame and snapshots that into territory ownership truth
+  - the actual ownership mutation happens upstream in `common/src/conquest.ts` inside `applyConquest(...)`, where `defender.ownerId = attacker.ownerId`
+  - the shared engine already emits authoritative conquest events through `TickEvents.conquests`
+  - the client already queues and consumes those conquest events through `activeGameStore.consumeTickEvents()` and `GameCanvas.svelte`
+- Why territory still re-derives conquest events:
+  - `TerritoryFrameInput` carries:
+    - `tickId`
+    - `nowMs`
+    - `stars`
+    - `lanes`
+    - `players`
+    - `world`
+    - `selection`
+    - `tunables`
+  - it does not carry:
+    - authoritative conquest batches
+    - raw `TickEvents`
+  - because of that, `StarOwnershipSnapshotMode.computeConquestEvents(...)` currently diffs current `starOwners` against the previous ownership snapshot and emits territory-local conquest events
+- Merge note:
+  - this confirms a remaining architecture debt after the virtual-star cleanup
+  - ownership truth is authoritative, but conquest-event truth is still re-derived locally inside territory
+  - cleaner end-state for merge-back:
+    - thread authoritative conquest batches into `TerritoryFrameInput`
+    - let territory prefer authoritative engine conquest events over owner-diff reconstruction
+- Validation:
+  - source audit only; no runtime code changed in this checkpoint

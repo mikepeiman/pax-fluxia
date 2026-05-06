@@ -545,3 +545,21 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Diagnostic Checkpoint 18
+
+- Added the ownership/conquest-source audit:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v6.md`
+- Exact conclusion:
+  - `StarOwnershipSnapshotMode` does not decide who owns a star
+  - it reads already-mutated `star.ownerId` from the current simulation frame
+  - the real ownership mutation happens in `common/src/conquest.ts` inside `applyConquest(...)`
+  - the shared engine already emits authoritative `TickEvents.conquests`
+  - the territory runtime only re-derives conquest events because `TerritoryFrameInput` does not carry that authoritative conquest batch
+- Architectural consequence:
+  - ownership snapshotting and conquest-event sourcing are currently split
+  - ownership truth is authoritative
+  - conquest event truth is still territory-local diff output
+- Direct follow-up:
+  - thread authoritative engine conquest events into `TerritoryFrameInput`
+  - let territory prefer authoritative conquest batches over owner-diff reconstruction
