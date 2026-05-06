@@ -1,3 +1,4 @@
+import type { ConquestEvent } from '@pax/common';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import type { TerritoryModeSelection } from './TerritoryModeSelection';
 import type { TerritoryGeometryTunables } from '../geometry/geometryTuning';
@@ -33,6 +34,7 @@ export interface TerritoryFrameInput {
     nowMs: number;
     stars: readonly StarState[];
     lanes: readonly StarConnection[];
+    authoritativeConquests?: readonly ConquestEvent[];
     players: readonly { id: string }[];
     world: TerritoryWorldBounds;
     selection: TerritoryModeSelection;

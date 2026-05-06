@@ -140,6 +140,7 @@ export class TerritoryRuntimeCoordinator {
             nowMs: input.nowMs,
             stars: input.stars,
             lanes: input.lanes,
+            authoritativeConquests: input.authoritativeConquests,
             selection: input.selection,
             previousSnapshot: this.state.previousOwnership,
         });

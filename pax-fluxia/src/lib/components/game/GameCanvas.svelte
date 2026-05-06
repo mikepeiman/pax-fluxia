@@ -2677,6 +2677,7 @@
         stars: StarState[],
         runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
         activeMode: string,
+        authoritativeConquests: readonly import("@pax/common").ConquestEvent[] = [],
     ): TerritoryFrameInput {
         const selection: TerritoryModeSelection =
             activeMode === "power_voronoi_canonical"
@@ -2693,6 +2694,7 @@
             nowMs: fxOrchestrator.gameTime,
             stars,
             lanes: activeGameStore.connections as StarConnection[],
+            authoritativeConquests,
             players:
                 activeGameStore.players?.map((player: { id: string }) => ({
                     id: player.id,
@@ -6016,11 +6018,12 @@
                                     colorUtils.getPlayerColor(ownerId),
                             );
                         }
-                        canonicalRuntimeOutput = canonicalBridge?.update(
+                            canonicalRuntimeOutput = canonicalBridge?.update(
                             buildCanonicalBridgeInput(
                                 stars,
                                 runtimeSettings,
                                 activeMode,
+                                pendingTickEvents?.conquests ?? [],
                             ),
                         );
                         canonicalDebugGeometrySnapshot =
@@ -6061,6 +6064,7 @@
                                             stars,
                                             runtimeSettings,
                                             activeMode,
+                                            pendingTickEvents?.conquests ?? [],
                                         ),
                                     );
                                     canonicalDebugGeometrySnapshot =

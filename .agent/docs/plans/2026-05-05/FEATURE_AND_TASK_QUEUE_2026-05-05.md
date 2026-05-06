@@ -563,3 +563,26 @@
 - Direct follow-up:
   - thread authoritative engine conquest events into `TerritoryFrameInput`
   - let territory prefer authoritative conquest batches over owner-diff reconstruction
+
+## Implementation Checkpoint 19
+
+- Implemented authoritative conquest-event threading for the canonical territory runtime:
+  - `pax-fluxia/src/lib/territory/contracts/OwnershipContracts.ts`
+  - `pax-fluxia/src/lib/territory/contracts/TerritoryFrameInput.ts`
+  - `pax-fluxia/src/lib/territory/runtime/TerritoryRuntimeCoordinator.ts`
+  - `pax-fluxia/src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.ts`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts`
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v7.md`
+- Exact behavior:
+  - `TerritoryFrameInput` now optionally carries authoritative engine `conquests`
+  - `GameCanvas` now passes `peekTickEvents().conquests` into the canonical territory runtime before later event consumption
+  - `StarOwnershipSnapshotMode` now prefers authoritative engine conquest events over owner-diff reconstruction
+  - the ownership layer still supplements those authoritative events with uncovered owner-diff events, so additional ownership flips from conquest side effects remain visible to territory
+- Result:
+  - territory conquest truth is no longer purely reconstructed from star-owner diffs
+  - canonical PVV4 now receives richer conquest truth from the engine on the same frame
+  - attacker/tick/conquest-type data is preserved on the territory-side conquest event path
+- Validation:
+  - `bun vitest run src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

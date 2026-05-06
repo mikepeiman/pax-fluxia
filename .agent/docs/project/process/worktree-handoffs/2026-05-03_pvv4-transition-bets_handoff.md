@@ -2318,3 +2318,33 @@
     - let territory prefer authoritative engine conquest events over owner-diff reconstruction
 - Validation:
   - source audit only; no runtime code changed in this checkpoint
+
+## Update: 2026-05-06 - Thread Authoritative Conquests Into Canonical Territory Runtime
+
+- New implementation/result doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v7.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\contracts\OwnershipContracts.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\contracts\TerritoryFrameInput.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\modes\StarOwnershipSnapshotMode.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\modes\StarOwnershipSnapshotMode.test.ts`
+- Exact behavior:
+  - the canonical territory input now optionally carries authoritative engine conquest events
+  - `GameCanvas.svelte` passes `activeGameStore.peekTickEvents()?.conquests ?? []` into the canonical territory runtime before the later frame-stage event consumption
+  - `StarOwnershipSnapshotMode` now prefers authoritative conquest events over local owner-diff reconstruction
+  - the ownership layer still supplements those authoritative events with owner-diff events for changed stars not named directly by the engine batch, so portal-group or other conquest side effects remain visible to territory
+  - territory-side conquest events now preserve richer engine truth including:
+    - `tick`
+    - attacker star data
+    - ship-transfer data
+    - conquest-type data
+- Merge note:
+  - this resolves the specific architecture debt identified in `diagnosis_v6`
+  - ownership truth and conquest-event truth are now much closer to one coherent source
+  - remaining cleanup opportunity after merge-back:
+    - remove local owner-diff conquest reconstruction entirely once every ownership-changing side effect is represented authoritatively in the engine event stream
+- Validation:
+  - `bun vitest run src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

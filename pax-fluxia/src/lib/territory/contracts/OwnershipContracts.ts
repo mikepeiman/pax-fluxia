@@ -1,9 +1,11 @@
+import type { ConquestEvent } from '@pax/common';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import type {
     OwnershipModeId,
 } from './TerritoryModeSelection';
 
 export interface TerritoryConquestEvent {
+    tick?: number;
     starId: string;
     previousOwner: string;
     newOwner: string;
@@ -11,6 +13,14 @@ export interface TerritoryConquestEvent {
     attackerStarId?: string;
     attackerStarIds?: readonly string[];
     attackerShipTransfers?: readonly number[];
+    shipsCaptured?: number;
+    shipsEscaped?: number;
+    shipsDestroyed?: number;
+    shipsTransferred?: number;
+    conquestType?: 'retreat' | 'scatter' | 'complete';
+    retreatTargetId?: string;
+    scatterTargetIds?: readonly string[];
+    scatterShipCounts?: readonly number[];
 }
 
 /**
@@ -46,6 +56,7 @@ export interface OwnershipLayerInput {
     nowMs: number;
     stars: readonly StarState[];
     lanes: readonly StarConnection[];
+    authoritativeConquests?: readonly ConquestEvent[];
     previousSnapshot?: OwnershipSnapshot | null;
 }
 
