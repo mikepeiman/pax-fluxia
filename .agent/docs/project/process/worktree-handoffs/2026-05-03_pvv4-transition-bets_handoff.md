@@ -2348,3 +2348,28 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Fix Island Collapse Membership On PVV4
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v8.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact root cause:
+  - collapse planning was still deriving loop star membership from both `primaryStarId` and `secondaryStarId`
+  - a true single-star island could therefore pick up same-owner mainland as secondary boundary influence
+  - that made the island look like a multi-star loop and blocked collapse eligibility
+- Exact behavior now:
+  - collapse planning now uses dominant loop stars:
+    - prefer same-owner `primaryStarId`
+    - only fall back to `secondaryStarId` if no primary IDs exist at all
+  - island collapse stays tied to the conquered island star
+  - same-owner mainland no longer suppresses island collapse just because it appears as secondary influence
+- Merge note:
+  - this is a narrow active-path fix, not a reintroduction of the old whole-region collapse heuristic
+  - remaining stronger cleanup opportunity after merge-back:
+    - derive collapse membership from real geometry region star membership instead of boundary influence alone
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

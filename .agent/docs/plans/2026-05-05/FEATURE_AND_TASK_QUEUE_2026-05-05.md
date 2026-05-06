@@ -586,3 +586,23 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 20
+
+- Fixed the active PVV4 island-collapse regression:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v8.md`
+- Exact root cause:
+  - collapse planning still derived loop star membership from both `primaryStarId` and `secondaryStarId`
+  - a true single-star island could therefore pick up same-owner mainland as incidental secondary influence
+  - that mislabeled the island as a multi-star collapse candidate and blocked collapse eligibility
+- Exact behavior now:
+  - collapse planning now uses dominant loop stars:
+    - prefer same-owner `primaryStarId`
+    - only fall back to `secondaryStarId` if no primary IDs exist at all
+  - true single-star islands remain collapse-eligible even when same-owner mainland appears only as secondary influence on the island boundary
+  - collapse center still resolves to the captured island star center
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

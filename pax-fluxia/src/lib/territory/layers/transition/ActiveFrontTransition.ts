@@ -73,7 +73,7 @@ interface LoopMatchInfo {
     centroid: Vec2;
     areaAbs: number;
     kind: 'outer' | 'hole';
-    anchorStarIds: string[];
+    collapseStarIds: string[];
 }
 
 interface LocalChangeWindow {
@@ -1487,7 +1487,7 @@ function planCollapseTargets(
         for (const loopInfo of eligibleDisappearing) {
             if (!remaining.has(loopInfo.loop.id)) continue;
             if (loopInfo.loop.ownerId !== evt.previousOwner) continue;
-            if (!loopInfo.anchorStarIds.includes(evt.starId)) continue;
+            if (!loopInfo.collapseStarIds.includes(evt.starId)) continue;
             const d = distance(loopInfo.centroid, center ?? loopInfo.centroid);
             if (d < bestDist) {
                 bestDist = d;
@@ -1533,7 +1533,7 @@ function buildLoopMatchInfos(topology: FrontierTopology): LoopMatchInfo[] {
             centroid: polygonCentroid(points),
             areaAbs: Math.abs(loop.signedArea),
             kind: loop.signedArea < 0 ? 'hole' : 'outer',
-            anchorStarIds: deriveLoopAnchorStarIds(loop, topology.sections),
+            collapseStarIds: deriveLoopCollapseStarIds(loop, topology.sections),
         };
     });
 }
@@ -1633,11 +1633,12 @@ function resolveConquestCenter(
     return star ? [star.pos.x, star.pos.y] : null;
 }
 
-function deriveLoopAnchorStarIds(
+function deriveLoopCollapseStarIds(
     loop: RegionLoop,
     sections: ReadonlyMap<string, FrontierSection>,
 ): string[] {
-    const starIds = new Set<string>();
+    const primaryStarIds = new Set<string>();
+    const secondaryStarIds = new Set<string>();
     for (const ref of loop.sectionRefs) {
         const section = sections.get(ref.sectionId);
         if (!section) continue;
@@ -1649,13 +1650,18 @@ function deriveLoopAnchorStarIds(
                     : null;
         if (!influence) continue;
         if (influence.primaryStarId && influence.primaryStarId !== 'world') {
-            starIds.add(influence.primaryStarId);
+            primaryStarIds.add(influence.primaryStarId);
         }
         if (influence.secondaryStarId && influence.secondaryStarId !== 'world') {
-            starIds.add(influence.secondaryStarId);
+            secondaryStarIds.add(influence.secondaryStarId);
         }
     }
-    return [...starIds].sort();
+    // Collapse eligibility must follow the loop's dominant owner attribution.
+    // Incidental same-owner secondary influence can come from nearby mainland and
+    // must not block a true single-star island collapse.
+    return [
+        ...(primaryStarIds.size > 0 ? primaryStarIds : secondaryStarIds),
+    ].sort();
 }
 
 function buildConqueredStarIdsByOwner(
@@ -1674,20 +1680,20 @@ function isLoopEligibleForCollapse(
     loopInfo: LoopMatchInfo,
     conqueredStarIdsByOwner: ReadonlyMap<string, Set<string>>,
 ): boolean {
-    if (loopInfo.anchorStarIds.length === 0) return false;
+    if (loopInfo.collapseStarIds.length === 0) return false;
     const conqueredStarIds = conqueredStarIdsByOwner.get(loopInfo.loop.ownerId);
     if (!conqueredStarIds || conqueredStarIds.size === 0) return false;
-    return loopInfo.anchorStarIds.every((starId) => conqueredStarIds.has(starId));
+    return loopInfo.collapseStarIds.every((starId) => conqueredStarIds.has(starId));
 }
 
 function resolveLoopCollapseCenter(
     loopInfo: LoopMatchInfo,
     starPositions: ReadonlyMap<string, Vec2>,
 ): Vec2 | null {
-    if (loopInfo.anchorStarIds.length !== 1) {
+    if (loopInfo.collapseStarIds.length !== 1) {
         return null;
     }
-    return starPositions.get(loopInfo.anchorStarIds[0]!) ?? null;
+    return starPositions.get(loopInfo.collapseStarIds[0]!) ?? null;
 }
 
 function polygonCentroid(points: Vec2[]): Vec2 {

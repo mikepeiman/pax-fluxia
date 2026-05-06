@@ -7,7 +7,7 @@ import type {
     RegionLoop,
     SectionRef,
 } from '../../contracts/FrontierTopologyContracts';
-import type { OwnershipSnapshot, VirtualStar } from '../../contracts/OwnershipContracts';
+import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
 import {
     planActiveFrontTransition,
     sampleActiveFrontSectionGeometry,
@@ -565,20 +565,22 @@ function setLoopPrimaryStarId(
     return topology;
 }
 
-function makeVirtualStar(
-    id: string,
+function setLoopSecondaryStarId(
+    topology: FrontierTopology,
     starId: string,
     ownerId: string,
-    pos: Vec2,
-): VirtualStar {
-    return {
-        id,
-        starId,
-        ownerId,
-        pos: { x: pos[0], y: pos[1] },
-        weight: 1,
-        conquestEventAtMs: 100,
-    };
+): FrontierTopology {
+    for (const section of topology.sections.values()) {
+        if (section.leftOwnerId === ownerId) {
+            section.leftInfluence.secondaryStarId = starId;
+            section.leftInfluence.secondaryScore = 0.5;
+        }
+        if (section.rightOwnerId === ownerId) {
+            section.rightInfluence.secondaryStarId = starId;
+            section.rightInfluence.secondaryScore = 0.5;
+        }
+    }
+    return topology;
 }
 
 describe('ActiveFrontTransition', () => {
@@ -607,7 +609,7 @@ describe('ActiveFrontTransition', () => {
                     atMs: 100,
                 },
             ],
-            virtualStars: [makeVirtualStar('vs-prev', starId, previousOwner, prevCenter)],
+            virtualStars: [],
         };
 
         const plan = planActiveFrontTransition(prev, next, ownership, {}, [
@@ -696,6 +698,51 @@ describe('ActiveFrontTransition', () => {
         };
 
         const plan = planActiveFrontTransition(prev, next, ownership, {}, [
+            { id: mainlandStarId, x: 40, y: 40 },
+            { id: islandStarId, x: 140, y: 140 },
+        ]);
+
+        expect(plan.collapseTargets).toHaveLength(1);
+        expect(plan.collapseTargets[0]?.loopId).toBe('prev-island:loop');
+        expect(plan.collapseTargets[0]?.center).toEqual([140, 140]);
+    });
+
+    it('still collapses a true single-star island when same-owner mainland appears only as secondary influence', () => {
+        const previousOwner = 'ai-1';
+        const nextOwner = 'ai-2';
+        const mainlandStarId = 'star-mainland';
+        const islandStarId = 'star-island';
+
+        const prevIsland = setLoopSecondaryStarId(
+            setLoopPrimaryStarId(
+                makeSquareTopology('prev-island', previousOwner, 'prev-island', [140, 140], 8),
+                previousOwner,
+                islandStarId,
+            ),
+            mainlandStarId,
+            previousOwner,
+        );
+        const next = makeEmptyTopology('next');
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map([
+                [mainlandStarId, previousOwner],
+                [islandStarId, nextOwner],
+            ]),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: islandStarId,
+                    previousOwner,
+                    newOwner: nextOwner,
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prevIsland, next, ownership, {}, [
             { id: mainlandStarId, x: 40, y: 40 },
             { id: islandStarId, x: 140, y: 140 },
         ]);
