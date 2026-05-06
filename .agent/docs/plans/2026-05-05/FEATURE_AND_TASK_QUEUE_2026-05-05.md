@@ -702,3 +702,15 @@
   - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v15.md`
 - Validation:
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 29
+- Corrected the outer diagnostics overlay path to use component-level debug state instead of any callback-local `canonicalRuntimeOutput`.
+- Exact change:
+  - added `canonicalDebugRuntimeOutput` beside `canonicalDebugGeometrySnapshot`
+  - canonical bridge updates now refresh that component-level runtime snapshot
+  - queued territory render start clears it
+  - `renderPerimeterFieldDebugOverlay(...)` now reads `canonicalDebugRuntimeOutput`
+- Created:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v16.md`
+- Validation:
+  - `bun run build` in `pax-fluxia/`

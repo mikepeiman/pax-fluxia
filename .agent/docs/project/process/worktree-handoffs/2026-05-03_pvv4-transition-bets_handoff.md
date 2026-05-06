@@ -94,6 +94,22 @@
 - Validation:
   - `bun run build`
 
+### 2026-05-06 - Removed callback-local runtime dependency from outer overlay path
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Purpose:
+  - remove the last architectural misuse of `canonicalRuntimeOutput` on the diagnostics overlay path
+- Exact change:
+  - introduced component-level `canonicalDebugRuntimeOutput`
+  - canonical bridge updates now write to it
+  - the outer perimeter debug overlay path now reads that component-level snapshot
+- Result:
+  - the overlay path no longer depends on any queued-callback-local runtime variable
+- Validation:
+  - `bun run build`
+
 ### 2026-05-03 - Created branch-attached worktree state
 
 - Action:

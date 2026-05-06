@@ -2105,6 +2105,7 @@
         | PerimeterFieldDebugSnapshot
         | null = null;
     let canonicalDebugGeometrySnapshot: CanonicalGeometrySnapshot | null = null;
+    let canonicalDebugRuntimeOutput: TerritoryRuntimeOutput | null = null;
     let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
         null;
     let transitionDiagnosticCaptureSession:
@@ -5740,6 +5741,7 @@
                 staleMs: territoryScheduler.staleMs,
                 lastTerritoryUpdateCostMs,
             });
+            canonicalDebugRuntimeOutput = null;
             let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
 
             // Hide all children first — only the active renderer will re-show its own
@@ -6428,6 +6430,7 @@
                         );
                         canonicalDebugGeometrySnapshot =
                             canonicalRuntimeOutput?.geometry ?? null;
+                        canonicalDebugRuntimeOutput = canonicalRuntimeOutput;
                         canonicalBridge?.consumeVFXCommands();
                         break;
                     }
@@ -6469,10 +6472,13 @@
                                     );
                                     canonicalDebugGeometrySnapshot =
                                         canonicalRuntimeOutput?.geometry ?? null;
+                                    canonicalDebugRuntimeOutput =
+                                        canonicalRuntimeOutput;
                                     canonicalBridge.consumeVFXCommands();
                                     renderedByCanonicalBridge = true;
                                 } catch (error) {
                                     canonicalDebugGeometrySnapshot = null;
+                                    canonicalDebugRuntimeOutput = null;
                                     if (!canonicalBridgeFallbackLogged) {
                                         canonicalBridgeFallbackLogged = true;
                                         log.error(
@@ -6486,6 +6492,7 @@
                         }
                         if (!useCleanArchitecture) {
                             canonicalDebugGeometrySnapshot = null;
+                            canonicalDebugRuntimeOutput = null;
                             canonicalBridge?.reset();
                             canonicalBridge = null;
                         }
@@ -6701,7 +6708,7 @@
                 activeTerritoryMode,
                 stars,
                 activeGameStore.connections as StarConnection[],
-                canonicalRuntimeOutput,
+                canonicalDebugRuntimeOutput,
             );
         });
 
