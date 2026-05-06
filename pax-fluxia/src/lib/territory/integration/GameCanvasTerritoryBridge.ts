@@ -5,7 +5,6 @@ import type { TerritoryVFXCommand } from '../vfx/VFXContracts';
 import { TerritoryRuntimeCoordinator } from '../runtime/TerritoryRuntimeCoordinator';
 import type { TerritoryRuntimeOutput } from '../runtime/TerritoryRuntimeCoordinator';
 import { PixiTerritoryPresenter } from '../adapters/pixi/PixiTerritoryPresenter';
-import { PixiTerritoryDebugOverlay } from '../adapters/pixi/PixiTerritoryDebugOverlay';
 import { TerritoryVFXBridge } from './TerritoryVFXBridge';
 import { ConquestParticles } from '../vfx/handlers/ConquestParticles';
 import { transitionSnapshotRecorder } from '../devtools/TransitionSnapshotRecorder';
@@ -16,7 +15,6 @@ type OwnerColorResolver = (ownerId: string) => number;
 export class GameCanvasTerritoryBridge {
     private readonly runtime: TerritoryRuntimeCoordinator;
     private readonly presenter: PixiTerritoryPresenter;
-    private readonly debugOverlay: PixiTerritoryDebugOverlay;
     private readonly vfxBridge: TerritoryVFXBridge;
     private previousTransition: TransitionSnapshot | null = null;
     private pendingVFXCommands: TerritoryVFXCommand[] = [];
@@ -29,7 +27,6 @@ export class GameCanvasTerritoryBridge {
         this.runtime = new TerritoryRuntimeCoordinator();
         this.runtime.setSnapshotRecorder(transitionSnapshotRecorder);
         this.presenter = new PixiTerritoryPresenter(container, resolveOwnerColor);
-        this.debugOverlay = new PixiTerritoryDebugOverlay(container);
         this.vfxBridge = new TerritoryVFXBridge();
         this.vfxBridge.registerHandler(new ConquestParticles());
 
@@ -55,12 +52,6 @@ export class GameCanvasTerritoryBridge {
         this.presenter.present(output.presentation);
 
         // Live debug overlay — updates from topology + plan each frame
-        this.debugOverlay.update(
-            output.transitionPrevTopology ?? null,
-            output.geometry.frontierTopology ?? null,
-            output.activeFrontPlan,
-            output.activeFrontDebug,
-        );
 
         this.pendingVFXCommands.push(
             ...this.vfxBridge.emitConquestEvents(

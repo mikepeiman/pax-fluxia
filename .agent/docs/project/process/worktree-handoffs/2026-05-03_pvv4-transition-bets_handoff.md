@@ -2475,3 +2475,21 @@
   - explicit `PRE` / `NEXT` labels
 - Purpose:
   - make conquest-start pause actually useful for comparing source path, destination path, and active sub-span against the intended minimum changed frontier
+
+## Update: 2026-05-06 - Move Diagnostics Overlay Onto The Working GameCanvas Debug Path
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v13.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\GameCanvasTerritoryBridge.ts`
+- Exact behavior:
+  - diagnostics rendering now uses the same `debugGraphics` / `debugTextContainer` path as the working geometry overlay
+  - diagnostics are now expected to be visible in steady-state as well as during conquest pause
+  - the separate bridge-local Pixi diagnostics overlay update was removed from the active path
+- Merge note:
+  - this is a render-ownership correction, not a planner correction
+  - if diagnostics are still wrong after this point, the next fault is in classification content, not in whether the overlay is being drawn at all
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

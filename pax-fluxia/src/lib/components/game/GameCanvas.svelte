@@ -165,6 +165,13 @@
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import { formatConquestEventGroupLabel } from "$lib/territory/devtools/conquestNaming";
     import {
+        buildActiveFrontClassificationOverlayModel,
+        formatOverlaySectionLabel,
+        type OverlaySectionClassification,
+        type OverlaySubSectionClassification,
+        type OverlayVertexClassification,
+    } from "$lib/territory/devtools/activeFrontClassificationOverlay";
+    import {
         buildRulerMeasurement,
         getRulerCssColor,
         getRulerMeasurement,
@@ -4296,6 +4303,157 @@
         return getPerimeterDebugLoops(geometry);
     }
 
+    const AF_DEBUG_COLORS = {
+        unchangedSection: 0x4b5573,
+        noMotionSection: 0x8b93b2,
+        activeSection: 0xf0b400,
+        activeSubSection: 0x52ff8f,
+        prevSourceSection: 0xff73c6,
+        prevNoMotionSection: 0xc88dff,
+        defectGap: 0xff4d6d,
+        defectSplit: 0xff8c42,
+        stableAnchor: 0x3cdcff,
+        frontAnchor: 0x72ff5e,
+        defectAnchor: 0xff4d6d,
+        structuralVertex: 0xa0a8c8,
+        prevVertex: 0xffb5e8,
+        sampleDot: 0xc88dff,
+        bridge: 0x52ff8f,
+        labelFill: 0xf4f7ff,
+    } as const;
+
+    function activeFrontSectionColor(
+        section: OverlaySectionClassification,
+    ): number {
+        switch (section.role) {
+            case "active_section":
+                return AF_DEBUG_COLORS.activeSection;
+            case "source_section":
+                return AF_DEBUG_COLORS.prevSourceSection;
+            case "source_no_motion_section":
+                return AF_DEBUG_COLORS.prevNoMotionSection;
+            case "no_motion_section":
+                return AF_DEBUG_COLORS.noMotionSection;
+            case "defect_topology_gap":
+                return AF_DEBUG_COLORS.defectGap;
+            case "defect_unsupported_split":
+                return AF_DEBUG_COLORS.defectSplit;
+            default:
+                return AF_DEBUG_COLORS.unchangedSection;
+        }
+    }
+
+    function activeFrontVertexColor(
+        vertex: OverlayVertexClassification,
+        prevLayer = false,
+    ): number {
+        switch (vertex.role) {
+            case "front_anchor":
+                return AF_DEBUG_COLORS.frontAnchor;
+            case "defect_anchor":
+                return AF_DEBUG_COLORS.defectAnchor;
+            case "stable_anchor":
+                return AF_DEBUG_COLORS.stableAnchor;
+            default:
+                return prevLayer
+                    ? AF_DEBUG_COLORS.prevVertex
+                    : AF_DEBUG_COLORS.structuralVertex;
+        }
+    }
+
+    function addDebugOverlayLabel(
+        text: string,
+        x: number,
+        y: number,
+        fill = AF_DEBUG_COLORS.labelFill,
+    ): void {
+        if (!debugTextContainer) return;
+        const label = new PIXI.Text({
+            text,
+            style: {
+                fill,
+                fontSize: 10,
+                fontFamily: "JetBrains Mono, Consolas, monospace",
+                fontWeight: "700",
+                stroke: { color: 0x10131d, width: 3 },
+            },
+            resolution: 2,
+        });
+        label.x = x + 8;
+        label.y = y - 10;
+        debugTextContainer.addChild(label);
+    }
+
+    function drawOpenPolyline(
+        g: PIXI.Graphics,
+        points: ReadonlyArray<[number, number]>,
+        color: number,
+        alpha: number,
+        width: number,
+    ): void {
+        if (points.length < 2) return;
+        g.beginPath();
+        g.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+            g.lineTo(points[i][0], points[i][1]);
+        }
+        g.stroke({ color, alpha, width });
+    }
+
+    function drawDashedPolyline(
+        g: PIXI.Graphics,
+        points: ReadonlyArray<[number, number]>,
+        color: number,
+        alpha: number,
+        width: number,
+        dash = 10,
+        gap = 6,
+    ): void {
+        if (points.length < 2) return;
+        g.beginPath();
+        for (let i = 0; i < points.length - 1; i++) {
+            const [x1, y1] = points[i]!;
+            const [x2, y2] = points[i + 1]!;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= 0.001) continue;
+            for (let d = 0; d < dist; d += dash + gap) {
+                const a = d / dist;
+                const b = Math.min((d + dash) / dist, 1);
+                g.moveTo(x1 + dx * a, y1 + dy * a);
+                g.lineTo(x1 + dx * b, y1 + dy * b);
+            }
+        }
+        g.stroke({ color, alpha, width });
+    }
+
+    function drawOverlaySubSection(
+        g: PIXI.Graphics,
+        points: ReadonlyArray<[number, number]>,
+        subSection: OverlaySubSectionClassification,
+        color: number,
+        alpha: number,
+        width: number,
+    ): void {
+        if (points.length < 2) return;
+        const start = Math.max(
+            0,
+            Math.min(subSection.startPointIndex, points.length - 1),
+        );
+        const end = Math.max(
+            start,
+            Math.min(subSection.endPointIndex, points.length - 1),
+        );
+        if (end <= start) return;
+        g.beginPath();
+        g.moveTo(points[start][0], points[start][1]);
+        for (let i = start + 1; i <= end; i++) {
+            g.lineTo(points[i][0], points[i][1]);
+        }
+        g.stroke({ color, alpha, width });
+    }
+
     function drawClosedPolyline(
         g: PIXI.Graphics,
         points: ReadonlyArray<[number, number]>,
@@ -4502,17 +4660,232 @@
         }
     }
 
+    function renderActiveFrontDebugOverlay(): void {
+        if (!debugGraphics || !overlayConfig.enabled) return;
+
+        const runtimeOutput = canonicalRuntimeOutput;
+        const nextTopology = runtimeOutput?.geometry.frontierTopology ?? null;
+        if (!nextTopology) return;
+
+        const prevTopology = runtimeOutput?.transitionPrevTopology ?? null;
+        const plan = runtimeOutput?.activeFrontPlan ?? null;
+        const debug = runtimeOutput?.activeFrontDebug ?? null;
+        const model = buildActiveFrontClassificationOverlayModel(
+            prevTopology,
+            nextTopology,
+            plan,
+        );
+        const showLabels = overlayConfig.showClassificationLabels;
+
+        for (const [sectionId, classification] of model.prevSections) {
+            const section = prevTopology?.sections.get(sectionId);
+            if (!section) continue;
+            drawDashedPolyline(
+                debugGraphics,
+                section.points,
+                activeFrontSectionColor(classification),
+                0.95,
+                2.6,
+            );
+            if (showLabels && section.points.length > 0) {
+                const mid = section.points[Math.floor(section.points.length / 2)]!;
+                addDebugOverlayLabel(
+                    `PRE ${sectionId.split(":").slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    mid[0],
+                    mid[1],
+                );
+            }
+        }
+
+        for (const [sectionId, section] of nextTopology.sections) {
+            const classification = model.nextSections.get(sectionId);
+            if (!classification) continue;
+
+            drawOpenPolyline(
+                debugGraphics,
+                section.points,
+                activeFrontSectionColor(classification),
+                0.9,
+                2.4,
+            );
+
+            if (classification.role === "active_section") {
+                const activeSubSection = classification.subSections.find(
+                    (sub) => sub.role === "active_subsection",
+                );
+                if (activeSubSection) {
+                    drawOverlaySubSection(
+                        debugGraphics,
+                        section.points,
+                        activeSubSection,
+                        AF_DEBUG_COLORS.activeSubSection,
+                        0.98,
+                        4.6,
+                    );
+                }
+            } else if (
+                classification.role === "defect_topology_gap" ||
+                classification.role === "defect_unsupported_split"
+            ) {
+                const defectSubSection = classification.subSections.find(
+                    (sub) => sub.role === "defect_subsection",
+                );
+                if (defectSubSection) {
+                    drawOverlaySubSection(
+                        debugGraphics,
+                        section.points,
+                        defectSubSection,
+                        activeFrontSectionColor(classification),
+                        0.98,
+                        3.8,
+                    );
+                }
+            }
+
+            if (overlayConfig.showPolylineSamples) {
+                const stride = Math.max(1, overlayConfig.polylineSampleStride);
+                for (let i = stride; i < section.points.length - 1; i += stride) {
+                    const [x, y] = section.points[i]!;
+                    debugGraphics.beginPath();
+                    debugGraphics.circle(x, y, 2);
+                    debugGraphics.fill({
+                        color: AF_DEBUG_COLORS.sampleDot,
+                        alpha: 0.84,
+                    });
+                }
+            }
+
+            if (showLabels && section.points.length > 0) {
+                const mid = section.points[Math.floor(section.points.length / 2)]!;
+                addDebugOverlayLabel(
+                    `NEXT ${sectionId.split(":").slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    mid[0],
+                    mid[1],
+                );
+            }
+        }
+
+        for (const [vertexId, classification] of model.prevVertices) {
+            const vertex = prevTopology?.vertices.get(vertexId);
+            if (!vertex) continue;
+            const isStructuralOnly = classification.role === "structural_vertex";
+            if (isStructuralOnly && !overlayConfig.showAllVertices) continue;
+            const [x, y] = vertex.point;
+            debugGraphics.beginPath();
+            debugGraphics.circle(x, y, 3.6);
+            debugGraphics.stroke({
+                color: activeFrontVertexColor(classification, true),
+                alpha: 0.95,
+                width: 2.1,
+            });
+            if (showLabels) {
+                addDebugOverlayLabel(
+                    `PRE ${classification.labels.join("|")}`,
+                    x,
+                    y,
+                );
+            }
+        }
+
+        for (const [vertexId, vertex] of nextTopology.vertices) {
+            const classification = model.nextVertices.get(vertexId);
+            if (!classification) continue;
+            const isStructuralOnly = classification.role === "structural_vertex";
+            if (isStructuralOnly && !overlayConfig.showAllVertices) continue;
+            if (
+                classification.role === "front_anchor" &&
+                !overlayConfig.showActiveFront
+            ) {
+                continue;
+            }
+
+            const [x, y] = vertex.point;
+            const color = activeFrontVertexColor(classification);
+            debugGraphics.beginPath();
+            if (classification.role === "front_anchor") {
+                const s = 7;
+                debugGraphics.moveTo(x, y - s);
+                debugGraphics.lineTo(x + s, y);
+                debugGraphics.lineTo(x, y + s);
+                debugGraphics.lineTo(x - s, y);
+                debugGraphics.closePath();
+            } else if (classification.role === "defect_anchor") {
+                debugGraphics.rect(x - 5, y - 5, 10, 10);
+            } else if (classification.role === "stable_anchor") {
+                debugGraphics.circle(x, y, 5);
+            } else {
+                debugGraphics.circle(x, y, 3.8);
+            }
+            debugGraphics.fill({ color, alpha: 0.96 });
+            debugGraphics.stroke({ color: 0xffffff, alpha: 0.92, width: 1.2 });
+
+            if (showLabels) {
+                addDebugOverlayLabel(
+                    `NEXT ${classification.labels.join("|")}`,
+                    x,
+                    y,
+                );
+            }
+        }
+
+        if (overlayConfig.showActiveFront && plan) {
+            plan.fronts.forEach((front, frontIndex) => {
+                const a = nextTopology.vertices.get(front.anchorStartId);
+                const b = nextTopology.vertices.get(front.anchorEndId);
+                if (!a || !b) return;
+                const [ax, ay] = a.point;
+                const [bx, by] = b.point;
+                const dx = bx - ax;
+                const dy = by - ay;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist <= 0.001) return;
+
+                const dash = 7;
+                const gap = 4;
+                const step = dash + gap;
+                debugGraphics.beginPath();
+                for (let d = 0; d < dist; d += step) {
+                    const d1 = d / dist;
+                    const d2 = Math.min((d + dash) / dist, 1);
+                    debugGraphics.moveTo(ax + dx * d1, ay + dy * d1);
+                    debugGraphics.lineTo(ax + dx * d2, ay + dy * d2);
+                }
+                debugGraphics.stroke({
+                    color: AF_DEBUG_COLORS.bridge,
+                    alpha: 0.72,
+                    width: 1.5,
+                });
+                if (showLabels) {
+                    addDebugOverlayLabel(
+                        `front ${frontIndex} sections=${front.activeSectionIds.size}`,
+                        (ax + bx) / 2,
+                        (ay + by) / 2,
+                    );
+                }
+            });
+        }
+
+        if (showLabels && debug) {
+            addDebugOverlayLabel(
+                `AF ${debug.evaluation} fronts=${debug.frontCount} pairs=${debug.planSummary?.pairCount ?? 0} defects=${debug.defectPairCount} still=${debug.planSummary?.noChangePairCount ?? 0}`,
+                18,
+                20,
+            );
+        }
+    }
+
     function renderPerimeterFieldDebugOverlay(
         activeMode: string,
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
     ): void {
         if (!debugGraphics) return;
+        const showClassification = overlayConfig.enabled;
         const showGeometry =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false;
         const showVstars =
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false;
-        if (!showGeometry && !showVstars) return;
+        if (!showClassification && !showGeometry && !showVstars) return;
 
         if (showGeometry) {
             const geometry = modeUsesSharedRenderFamilyGeometry(activeMode)
@@ -4608,6 +4981,10 @@
                     snapshot.transitionSamples,
                 );
             }
+        }
+
+        if (showClassification) {
+            renderActiveFrontDebugOverlay();
         }
     }
 

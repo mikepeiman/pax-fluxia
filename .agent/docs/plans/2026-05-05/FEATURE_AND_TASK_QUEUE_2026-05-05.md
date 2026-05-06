@@ -668,3 +668,9 @@
 - `PRE` source-path sections now render as dashed overlays instead of being effectively hidden.
 - `no_change_span` local pairs remain classified and visible as `no-motion` instead of being folded into generic unchanged display.
 - Runtime output now exposes `transitionPrevTopology` so the overlay can draw the source path at conquest pause.
+## Implementation Checkpoint 26
+- Moved the active-front diagnostics overlay onto the same `GameCanvas` `debugGraphics` / `debugTextContainer` path as the working geometry overlay.
+- Removed the separate bridge-local Pixi diagnostics overlay update from the active path.
+- Expected visible result:
+  - diagnostics toggles now change the live map in steady-state and during transition pause
+  - `PRE` and `NEXT` classified sections, vertices, labels, and sample dots now share the same known-good render surface as geometry diagnostics
