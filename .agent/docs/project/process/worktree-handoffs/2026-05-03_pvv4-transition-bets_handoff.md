@@ -2181,6 +2181,29 @@
   - conquest-local frontier gating
   - then directional deduplication before split classification
 
+## Update: 2026-05-06 - Conquest-Local Gating And Directional Deduplication
+
+- New diagnosis/result doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v2.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - PRE and POST chains are now deduplicated by geometry before split classification
+  - anchor-pair evaluation is now restricted to pairs whose sections touch the captured or attacker stars from the conquest events
+  - this directly answers the two root causes identified in `diagnosis_v1`
+- Concrete expected runtime effect:
+  - fewer unrelated border pairs participate in one conquest
+  - fewer fake split defects caused by forward/reverse duplicates
+  - tighter changed-front motion around the actual conquest
+- Merge note:
+  - this is the first runtime checkpoint aimed at changing the visible PVV4 result after the systematic diagnostics pass
+  - old exported packages do not prove this checkpoint because they were captured before the planner change
+  - the next required merge-safe evidence is a fresh PVV4 playtest package captured after this commit
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
 ## Update: 2026-05-05 - Render-Family Performance Hardening
 
 - Active-path files changed:

@@ -309,6 +309,240 @@ function makeParallelSplitTopology(params: {
     };
 }
 
+function makeInfluencedSingleSectionTopology(params: {
+    version: string;
+    ownerA: string;
+    ownerB: string;
+    points: Vec2[];
+    leftStarId: string;
+    rightStarId: string;
+    identityPrefix?: string;
+}): FrontierTopology {
+    const identityPrefix = params.identityPrefix ?? params.version;
+    const sectionId = `${identityPrefix}:section`;
+    const startVertexId = `${identityPrefix}:start`;
+    const endVertexId = `${identityPrefix}:end`;
+    const vertices = new Map<string, FrontierVertex>([
+        [
+            startVertexId,
+            {
+                id: startVertexId,
+                kind: 'world_intersection',
+                point: params.points[0],
+                incidentSectionIds: [sectionId],
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+        [
+            endVertexId,
+            {
+                id: endVertexId,
+                kind: 'world_intersection',
+                point: params.points[params.points.length - 1],
+                incidentSectionIds: [sectionId],
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+    ]);
+    const sections = new Map<string, FrontierSection>([
+        [
+            sectionId,
+            {
+                id: sectionId,
+                kind: 'owner_border',
+                startVertexId,
+                endVertexId,
+                leftOwnerId: params.ownerA,
+                rightOwnerId: params.ownerB,
+                points: params.points,
+                length: 100,
+                ownerPairKey: `${params.ownerA}|${params.ownerB}`,
+                leftInfluence: {
+                    ownerId: params.ownerA,
+                    primaryStarId: params.leftStarId,
+                    primaryScore: 1,
+                },
+                rightInfluence: {
+                    ownerId: params.ownerB,
+                    primaryStarId: params.rightStarId,
+                    primaryScore: 1,
+                },
+            },
+        ],
+    ]);
+
+    return {
+        version: params.version,
+        ownershipVersion: `ownership:${params.version}`,
+        worldBounds: { width: 400, height: 400 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${params.ownerA}|${params.ownerB}`, [sectionId]]]),
+        sectionsByVertex: new Map([
+            [startVertexId, [sectionId]],
+            [endVertexId, [sectionId]],
+        ]),
+        sectionsByOwner: new Map([
+            [params.ownerA, [sectionId]],
+            [params.ownerB, [sectionId]],
+        ]),
+    };
+}
+
+function makeDirectionalDuplicateTopology(params: {
+    version: string;
+    ownerA: string;
+    ownerB: string;
+    points: Vec2[];
+    leftStarId: string;
+    rightStarId: string;
+    identityPrefix?: string;
+}): FrontierTopology {
+    const identityPrefix = params.identityPrefix ?? params.version;
+    const forwardSectionId = `${identityPrefix}:section:fwd`;
+    const reverseSectionId = `${identityPrefix}:section:rev`;
+    const startVertexId = `${identityPrefix}:start`;
+    const endVertexId = `${identityPrefix}:end`;
+    const vertices = new Map<string, FrontierVertex>([
+        [
+            startVertexId,
+            {
+                id: startVertexId,
+                kind: 'world_intersection',
+                point: params.points[0],
+                incidentSectionIds: [forwardSectionId, reverseSectionId],
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+        [
+            endVertexId,
+            {
+                id: endVertexId,
+                kind: 'world_intersection',
+                point: params.points[params.points.length - 1],
+                incidentSectionIds: [forwardSectionId, reverseSectionId],
+                ownerIds: [params.ownerA, params.ownerB],
+            },
+        ],
+    ]);
+    const sections = new Map<string, FrontierSection>([
+        [
+            forwardSectionId,
+            {
+                id: forwardSectionId,
+                kind: 'owner_border',
+                startVertexId,
+                endVertexId,
+                leftOwnerId: params.ownerA,
+                rightOwnerId: params.ownerB,
+                points: params.points,
+                length: 100,
+                ownerPairKey: `${params.ownerA}|${params.ownerB}`,
+                leftInfluence: {
+                    ownerId: params.ownerA,
+                    primaryStarId: params.leftStarId,
+                    primaryScore: 1,
+                },
+                rightInfluence: {
+                    ownerId: params.ownerB,
+                    primaryStarId: params.rightStarId,
+                    primaryScore: 1,
+                },
+            },
+        ],
+        [
+            reverseSectionId,
+            {
+                id: reverseSectionId,
+                kind: 'owner_border',
+                startVertexId: endVertexId,
+                endVertexId: startVertexId,
+                leftOwnerId: params.ownerA,
+                rightOwnerId: params.ownerB,
+                points: [...params.points].reverse(),
+                length: 100,
+                ownerPairKey: `${params.ownerA}|${params.ownerB}`,
+                leftInfluence: {
+                    ownerId: params.ownerA,
+                    primaryStarId: params.leftStarId,
+                    primaryScore: 1,
+                },
+                rightInfluence: {
+                    ownerId: params.ownerB,
+                    primaryStarId: params.rightStarId,
+                    primaryScore: 1,
+                },
+            },
+        ],
+    ]);
+    const sectionIds = [forwardSectionId, reverseSectionId];
+
+    return {
+        version: params.version,
+        ownershipVersion: `ownership:${params.version}`,
+        worldBounds: { width: 400, height: 400 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${params.ownerA}|${params.ownerB}`, sectionIds]]),
+        sectionsByVertex: new Map([
+            [startVertexId, [...sectionIds]],
+            [endVertexId, [...sectionIds]],
+        ]),
+        sectionsByOwner: new Map([
+            [params.ownerA, [...sectionIds]],
+            [params.ownerB, [...sectionIds]],
+        ]),
+    };
+}
+
+function mergeTopologies(version: string, topologies: FrontierTopology[]): FrontierTopology {
+    const vertices = new Map<string, FrontierVertex>();
+    const sections = new Map<string, FrontierSection>();
+    const loops: RegionLoop[] = [];
+    const sectionsByOwnerPair = new Map<string, string[]>();
+    const sectionsByVertex = new Map<string, string[]>();
+    const sectionsByOwner = new Map<string, string[]>();
+
+    for (const topology of topologies) {
+        for (const [vertexId, vertex] of topology.vertices) {
+            vertices.set(vertexId, vertex);
+        }
+        for (const [sectionId, section] of topology.sections) {
+            sections.set(sectionId, section);
+        }
+        loops.push(...topology.loops);
+        for (const [ownerPairKey, sectionIds] of topology.sectionsByOwnerPair) {
+            const existing = sectionsByOwnerPair.get(ownerPairKey) ?? [];
+            existing.push(...sectionIds);
+            sectionsByOwnerPair.set(ownerPairKey, existing);
+        }
+        for (const [vertexId, sectionIds] of topology.sectionsByVertex) {
+            const existing = sectionsByVertex.get(vertexId) ?? [];
+            existing.push(...sectionIds);
+            sectionsByVertex.set(vertexId, existing);
+        }
+        for (const [ownerId, sectionIds] of topology.sectionsByOwner) {
+            const existing = sectionsByOwner.get(ownerId) ?? [];
+            existing.push(...sectionIds);
+            sectionsByOwner.set(ownerId, existing);
+        }
+    }
+
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 400, height: 400 },
+        vertices,
+        sections,
+        loops,
+        sectionsByOwnerPair,
+        sectionsByVertex,
+        sectionsByOwner,
+    };
+}
+
 function makeVirtualStar(
     id: string,
     starId: string,
@@ -540,5 +774,154 @@ describe('ActiveFrontTransition', () => {
         expect(plan.fronts).toHaveLength(1);
         expect(plan.fronts[0]?.splitMode).toBe('2to1');
         expect([...plan.fronts[0]!.activeSectionIds]).toEqual(['stable:section']);
+    });
+
+    it('limits active-front planning to conquest-local anchor pairs', () => {
+        const prev = mergeTopologies('prev', [
+            makeInfluencedSingleSectionTopology({
+                version: 'prev:changed',
+                ownerA: 'red',
+                ownerB: 'blue',
+                identityPrefix: 'changed',
+                leftStarId: 'star-attacker',
+                rightStarId: 'star-captured',
+                points: [
+                    [0, 0],
+                    [25, 0],
+                    [50, 12],
+                    [75, 0],
+                    [100, 0],
+                ],
+            }),
+            makeInfluencedSingleSectionTopology({
+                version: 'prev:unrelated',
+                ownerA: 'green',
+                ownerB: 'yellow',
+                identityPrefix: 'unrelated',
+                leftStarId: 'star-green',
+                rightStarId: 'star-yellow',
+                points: [
+                    [0, 120],
+                    [25, 120],
+                    [50, 120],
+                    [75, 120],
+                    [100, 120],
+                ],
+            }),
+        ]);
+        const next = mergeTopologies('next', [
+            makeInfluencedSingleSectionTopology({
+                version: 'next:changed',
+                ownerA: 'red',
+                ownerB: 'blue',
+                identityPrefix: 'changed',
+                leftStarId: 'star-attacker',
+                rightStarId: 'star-captured',
+                points: [
+                    [0, 0],
+                    [25, 0],
+                    [50, -12],
+                    [75, 0],
+                    [100, 0],
+                ],
+            }),
+            makeInfluencedSingleSectionTopology({
+                version: 'next:unrelated',
+                ownerA: 'green',
+                ownerB: 'yellow',
+                identityPrefix: 'unrelated',
+                leftStarId: 'star-green',
+                rightStarId: 'star-yellow',
+                points: [
+                    [0, 120],
+                    [25, 120],
+                    [50, 120],
+                    [75, 120],
+                    [100, 120],
+                ],
+            }),
+        ]);
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: 'star-captured',
+                    previousOwner: 'blue',
+                    newOwner: 'red',
+                    attackerStarId: 'star-attacker',
+                    attackerStarIds: ['star-attacker'],
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership);
+        expect(plan.diagnostics.summary.pairCount).toBe(1);
+        expect(plan.diagnostics.summary.frontCount).toBe(1);
+        expect(plan.diagnostics.summary.defectNoChangeSpanCount).toBe(0);
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.fronts[0]?.anchorStartId).toBe('changed:end');
+        expect(plan.fronts[0]?.anchorEndId).toBe('changed:start');
+    });
+
+    it('dedupes forward and reverse copies of the same border before split classification', () => {
+        const prev = makeDirectionalDuplicateTopology({
+            version: 'prev',
+            ownerA: 'red',
+            ownerB: 'blue',
+            identityPrefix: 'stable',
+            leftStarId: 'star-attacker',
+            rightStarId: 'star-captured',
+            points: [
+                [0, 0],
+                [25, 0],
+                [50, 12],
+                [75, 0],
+                [100, 0],
+            ],
+        });
+        const next = makeDirectionalDuplicateTopology({
+            version: 'next',
+            ownerA: 'red',
+            ownerB: 'blue',
+            identityPrefix: 'stable',
+            leftStarId: 'star-attacker',
+            rightStarId: 'star-captured',
+            points: [
+                [0, 0],
+                [25, 0],
+                [50, -12],
+                [75, 0],
+                [100, 0],
+            ],
+        });
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: 'star-captured',
+                    previousOwner: 'blue',
+                    newOwner: 'red',
+                    attackerStarId: 'star-attacker',
+                    attackerStarIds: ['star-attacker'],
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership);
+        expect(plan.diagnostics.summary.pairCount).toBe(1);
+        expect(plan.diagnostics.summary.defectUnsupportedSplitCount).toBe(0);
+        expect(plan.fronts).toHaveLength(1);
+        expect(plan.diagnostics.pairDiagnostics[0]?.prevPathCount).toBe(1);
+        expect(plan.diagnostics.pairDiagnostics[0]?.nextPathCount).toBe(1);
     });
 });

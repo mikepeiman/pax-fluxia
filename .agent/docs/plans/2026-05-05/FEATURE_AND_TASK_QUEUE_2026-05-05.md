@@ -451,6 +451,24 @@
   - conquest-local frontier gating
   - directional deduplication before split classification
 
+## Diagnostic Checkpoint 14
+
+- Added a follow-up diagnosis/result document:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v2.md`
+- Implemented the two immediate planner fixes from `diagnosis_v1`:
+  - conquest-local anchor-pair gating in:
+    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - geometry-identical forward/reverse chain deduplication before split classification in:
+    - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+- Added focused regression coverage in:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+- Test evidence now proves:
+  - unrelated unchanged border pairs can be excluded from conquest-local planning
+  - forward/reverse duplicates no longer inflate fake split counts
+- Immediate next evidence needed:
+  - a fresh PVV4 playtest package exported after this checkpoint
+  - old packages cannot prove the visible effect because they predate the planner change
+
 ## Latest Implementation Checkpoint 11
 
 - Completed the `v7` performance-hardening sprint on the active render-family path:

@@ -189,8 +189,8 @@ export function planActiveFrontTransition(
         tunables.changeSpanPadPoints ?? DEFAULT_CHANGE_SPAN_PAD_POINTS;
 
     const anchors = findStableAnchors(prev, next, stableAnchorEps);
-    const prevChains = buildChainsBetweenAnchors(prev, anchors);
-    const nextChains = buildChainsBetweenAnchors(next, anchors);
+    const prevChains = dedupeChainsByGeometry(buildChainsBetweenAnchors(prev, anchors));
+    const nextChains = dedupeChainsByGeometry(buildChainsBetweenAnchors(next, anchors));
 
     const prevByKey = groupChainsByAnchorPair(prevChains);
     const nextByKey = groupChainsByAnchorPair(nextChains);
@@ -198,7 +198,13 @@ export function planActiveFrontTransition(
     const fronts: ActiveFrontPlan[] = [];
     const pairDiagnostics: ActiveFrontPairDiagnostic[] = [];
 
-    const allKeys = new Set<string>([...prevByKey.keys(), ...nextByKey.keys()]);
+    const allKeys = buildConquestRelevantAnchorPairKeys(
+        prev,
+        next,
+        prevByKey,
+        nextByKey,
+        ownership.conquestEvents,
+    );
     for (const key of allKeys) {
         const prevPaths = prevByKey.get(key) ?? [];
         const nextPaths = nextByKey.get(key) ?? [];
@@ -826,6 +832,126 @@ function applyChangeSpanPadding(
             changeSpan.endIndex + padPoints,
         ),
     };
+}
+
+function dedupeChainsByGeometry(chains: ChainPath[]): ChainPath[] {
+    const unique = new Map<string, ChainPath>();
+    for (const chain of chains) {
+        const key = `${chain.anchorStartId}|${chain.anchorEndId}|${serializePathPoints(chain.points)}`;
+        if (!unique.has(key)) {
+            unique.set(key, chain);
+        }
+    }
+    return [...unique.values()];
+}
+
+function serializePathPoints(points: readonly Vec2[]): string {
+    return points
+        .map((point) => `${point[0].toFixed(3)},${point[1].toFixed(3)}`)
+        .join(';');
+}
+
+function buildConquestRelevantAnchorPairKeys(
+    prev: FrontierTopology,
+    next: FrontierTopology,
+    prevByKey: ReadonlyMap<string, ChainPath[]>,
+    nextByKey: ReadonlyMap<string, ChainPath[]>,
+    conquestEvents: readonly TerritoryConquestEvent[],
+): Set<string> {
+    const allKeys = new Set<string>([...prevByKey.keys(), ...nextByKey.keys()]);
+    if (conquestEvents.length === 0) {
+        return allKeys;
+    }
+
+    const relevantKeys = new Set<string>();
+    for (const key of allKeys) {
+        const prevPaths = prevByKey.get(key) ?? [];
+        const nextPaths = nextByKey.get(key) ?? [];
+        if (anchorPairTouchesConquest(prev, next, prevPaths, nextPaths, conquestEvents)) {
+            relevantKeys.add(key);
+        }
+    }
+
+    return relevantKeys;
+}
+
+function anchorPairTouchesConquest(
+    prev: FrontierTopology,
+    next: FrontierTopology,
+    prevPaths: readonly ChainPath[],
+    nextPaths: readonly ChainPath[],
+    conquestEvents: readonly TerritoryConquestEvent[],
+): boolean {
+    for (const event of conquestEvents) {
+        if (pathsTouchConquest(prev, prevPaths, event) || pathsTouchConquest(next, nextPaths, event)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function pathsTouchConquest(
+    topo: FrontierTopology,
+    paths: readonly ChainPath[],
+    event: TerritoryConquestEvent,
+): boolean {
+    const relevantStarIds = listConquestStarIds(event);
+    if (relevantStarIds.length === 0) {
+        return false;
+    }
+    for (const path of paths) {
+        for (const sectionId of path.sectionIds) {
+            const section = topo.sections.get(sectionId);
+            if (!section) continue;
+            if (sectionTouchesConquest(section, event, relevantStarIds)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function sectionTouchesConquest(
+    section: FrontierSection,
+    event: TerritoryConquestEvent,
+    relevantStarIds: readonly string[],
+): boolean {
+    const ownerTouchesConquest =
+        section.leftOwnerId === event.previousOwner ||
+        section.leftOwnerId === event.newOwner ||
+        section.rightOwnerId === event.previousOwner ||
+        section.rightOwnerId === event.newOwner;
+    if (!ownerTouchesConquest) {
+        return false;
+    }
+
+    return influenceTouchesConquest(section.leftInfluence, relevantStarIds)
+        || influenceTouchesConquest(section.rightInfluence, relevantStarIds);
+}
+
+function influenceTouchesConquest(
+    influence: FrontierSection['leftInfluence'],
+    relevantStarIds: readonly string[],
+): boolean {
+    return (
+        relevantStarIds.includes(influence.primaryStarId)
+        || (typeof influence.secondaryStarId === 'string'
+            && relevantStarIds.includes(influence.secondaryStarId))
+    );
+}
+
+function listConquestStarIds(event: TerritoryConquestEvent): string[] {
+    const ids = new Set<string>();
+    ids.add(event.starId);
+    if (typeof event.attackerStarId === 'string' && event.attackerStarId.length > 0) {
+        ids.add(event.attackerStarId);
+    }
+    for (const attackerStarId of event.attackerStarIds ?? []) {
+        if (attackerStarId.length > 0) {
+            ids.add(attackerStarId);
+        }
+    }
+    return [...ids];
 }
 
 function findChangeSpan(
