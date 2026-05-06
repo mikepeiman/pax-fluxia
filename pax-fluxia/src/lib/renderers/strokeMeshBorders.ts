@@ -275,7 +275,7 @@ function normalize2(dx: number, dy: number): [number, number] {
  * Builds a centered stroke strip mesh for fitted paths.
  *
  * Note: round joins/caps are handled in a follow-up pass. This builder currently
- * emits a high-quality miter/bevel-capable strip as the canonical base geometry.
+ * emits a high-quality miter/bevel-capable strip as the base geometry.
  */
 export function buildStrokeMeshGeometryBuffers(
     paths: FittedPath[],
@@ -370,10 +370,8 @@ export function buildStrokeMeshGeometryBuffers(
             const ox = miterX * miterScale;
             const oy = miterY * miterScale;
 
-            // Left vertex (+side)
             positions.push(px + ox, py + oy);
             side.push(1);
-            // Right vertex (-side)
             positions.push(px - ox, py - oy);
             side.push(-1);
         }
@@ -408,7 +406,6 @@ export function createStrokeMeshGeometryFromBuffers(
         positions: buffers.positions,
         indices: buffers.indices,
     });
-    // Explicit formats avoid shader-inference ambiguity for custom attributes.
     geometry.addAttribute('aPrevPosition', {
         buffer: new Float32Array(prev),
         format: 'float32x2',
@@ -485,6 +482,7 @@ function getStrokeMeshGlProgram(pixelSnap: boolean) {
     }
     return cachedStrokeMeshGlProgramNoSnap;
 }
+
 export interface StrokeMeshShaderOptions {
     color: [number, number, number];
     alpha: number;

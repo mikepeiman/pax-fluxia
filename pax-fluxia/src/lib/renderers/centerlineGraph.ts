@@ -1,7 +1,7 @@
 /**
  * LEGACY: Extract owner-pair centerline graphs from a rasterized ownership lattice.
  *
- * This path is not canonical graph-native border geometry. It preserves the
+ * This path is not graph-native production border geometry. It preserves the
  * historical owner-grid workflow for debugging and reference modes only.
  */
 
@@ -45,7 +45,7 @@ function compareNodesByGridPosition(a: CenterlineNode, b: CenterlineNode): numbe
 /**
  * LEGACY: Extract owner-pair centerline graphs from a rasterized ownership lattice.
  *
- * This path is not canonical graph-native border geometry. It preserves the
+ * This path is not graph-native production border geometry. It preserves the
  * historical owner-grid workflow for debugging and reference modes only.
  */
 export function buildLegacyCenterlineGraphsFromOwnerGrid(
@@ -77,7 +77,6 @@ export function buildLegacyCenterlineGraphsFromOwnerGrid(
         edges.push({ x1, y1, x2, y2 });
     };
 
-    // Emit lattice edges where ownership changes between adjacent cells.
     for (let y = 0; y < gridH; y++) {
         for (let x = 0; x < gridW; x++) {
             const owner = ownerGrid[y * gridW + x];
@@ -168,5 +167,3 @@ export function buildLegacyCenterlineGraphsFromOwnerGrid(
 
     return out;
 }
-
-

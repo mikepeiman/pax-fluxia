@@ -97,15 +97,16 @@
         renderTerritoryEngine,
         resetTerritoryEngineCaches,
         runFG2DataPipeline,
-        extractCanonicalData,
+        extractTerritoryRenderData,
     } from "$lib/territory/orchestrator";
-    // ── Canonical territory layer (Phase 2: new architecture) ──────────────────
+    // ── Runtime territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
     import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import {
         getRenderFamily,
         registerRenderFamily,
+        disposeAllRenderFamilies,
     } from "$lib/territory/families/renderFamilyRegistry";
     import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
     import {
@@ -155,7 +156,7 @@
         OwnershipSnapshot,
         TerritoryConquestEvent,
     } from "$lib/territory/contracts/OwnershipContracts";
-    import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
+    import type { ResolvedGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
@@ -188,7 +189,7 @@
     import {
         buildTerritoryPresentationFrameKey,
         getTerritoryPresentationSpaceDiagnostics,
-        localizeCanonicalGeometrySnapshot,
+        localizeResolvedGeometrySnapshot,
         localizeTerritoryPresentationStars,
         type TerritoryPresentationFrame,
     } from "$lib/components/game/territoryPresentationSpace";
@@ -1150,7 +1151,7 @@
         // Read back mutable state modified by the module
         nextShipId = shipState.nextShipId;
         shipParticleIndex = shipRes.shipParticleIndex;
-        // Sync filtered array back to VSM so arrived ships are removed from the canonical source
+        // Sync filtered array back to VSM so arrived ships are removed from the authoritative source
         fxOrchestrator.vsm.syncTravelingShips(shipState.travelingShips);
         lastShipRenderContext = params.context;
         lastShipRenderReason = rescueShipCadence
@@ -2032,7 +2033,7 @@
     }
 
     type PerimeterFieldCapturedFrame = {
-        geometry: CanonicalGeometrySnapshot;
+        geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
         canvas: HTMLCanvasElement;
         debugSnapshot: PerimeterFieldDebugSnapshot | null;
@@ -2062,7 +2063,7 @@
     };
 
     type TransitionDiagnosticCapturedFrame = {
-        geometry: CanonicalGeometrySnapshot;
+        geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
         canvas: HTMLCanvasElement;
         mode: string;
@@ -2089,7 +2090,7 @@
         activeTransition: RenderFamilyActiveTransition | null;
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
-        geometry?: CanonicalGeometrySnapshot | null;
+        geometry?: ResolvedGeometrySnapshot | null;
         ownership?: OwnershipSnapshot | null;
         debugSnapshot?: Record<string, unknown> | null;
     };
@@ -2209,7 +2210,7 @@
 
     function capturePerimeterFieldLiveFrame(params: {
         family: PerimeterFieldFamily;
-        geometry: CanonicalGeometrySnapshot;
+        geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
         debugSnapshot: PerimeterFieldDebugSnapshot | null;
     }): PerimeterFieldCapturedFrame | null {
@@ -2499,7 +2500,7 @@
                     fillTransitionMode: "unified_topology",
                     borderTransitionMode: "off",
                     ownershipMode: "star_ownership_snapshot",
-                    styleMode: "canonical",
+                    styleMode: "vector",
                 },
                 nowMs: params.nowMs,
                 starPositions: buildStarPositionsMap(params.stars),
@@ -2624,23 +2625,23 @@
         return activeMode ?? "none";
     }
 
-    // ── Canonical territory instances (class-encapsulated, no module-level state) ─
-    let canonicalBridge: GameCanvasBridge | null = null;
-    let canonicalBridgeFallbackLogged = false;
-    let canonicalController: TerritoryEngineController | null = null;
-    let canonicalControllerTransitionDurationMs: number | null = null;
-    let canonicalRenderer: TerritoryRenderer | null = null;
+    // ── Runtime territory instances (class-encapsulated, no module-level state) ─
+    let runtimeBridge: GameCanvasBridge | null = null;
+    let runtimeBridgeFallbackLogged = false;
+    let runtimeController: TerritoryEngineController | null = null;
+    let runtimeControllerTransitionDurationMs: number | null = null;
+    let runtimeRenderer: TerritoryRenderer | null = null;
     let renderFamilyGeometryCacheKey: string | null = null;
-    let renderFamilyGeometryCache: CanonicalGeometrySnapshot | null = null;
+    let renderFamilyGeometryCache: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
-    let renderFamilyStableGeometry: CanonicalGeometrySnapshot | null = null;
+    let renderFamilyStableGeometry: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
     let transitionDiagnosticPrevKey: string | null = null;
-    let transitionDiagnosticPrevGeometry: CanonicalGeometrySnapshot | null =
+    let transitionDiagnosticPrevGeometry: ResolvedGeometrySnapshot | null =
         null;
     let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
 
-    function buildCanonicalBridgeInput(
+    function buildRuntimeBridgeInput(
         stars: StarState[],
         runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
         activeMode: string,
@@ -2648,13 +2649,13 @@
         worldHeight: number = GAME_HEIGHT,
     ): TerritoryFrameInput {
         const selection: TerritoryModeSelection =
-            activeMode === "power_voronoi_canonical"
+            activeMode === "power_voronoi_runtime"
                 ? {
                       ownershipMode: "star_ownership_snapshot",
-                      geometryMode: "canonical_power_voronoi",
+                      geometryMode: "resolved_power_voronoi",
                       fillTransitionMode: "pv_frontline",
                       borderTransitionMode: "off",
-                      styleMode: "canonical",
+                      styleMode: "vector",
                   }
                 : runtimeSettings.selection;
         return {
@@ -2703,7 +2704,7 @@
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
         configSource?: Record<string, unknown>,
-    ): CanonicalGeometrySnapshot {
+    ): ResolvedGeometrySnapshot {
         const source =
             configSource ??
             (GAME_CONFIG as unknown as Record<string, unknown>);
@@ -2745,7 +2746,7 @@
         activeTransition: RenderFamilyActiveTransition | null;
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
-        geometry: CanonicalGeometrySnapshot;
+        geometry: ResolvedGeometrySnapshot;
         configSource?: Record<string, unknown> | null;
         freezeDuringActiveTransition?: boolean;
     }): void {
@@ -2793,7 +2794,7 @@
     }):
         | {
               key: string;
-              geometry: CanonicalGeometrySnapshot;
+              geometry: ResolvedGeometrySnapshot;
               ownership: OwnershipSnapshot;
           }
         | null {
@@ -2878,7 +2879,7 @@
                     ? ("distance_field" as const)
                     : mode === "pixel"
                       ? ("pixel" as const)
-                      : ("canonical" as const),
+                      : ("vector" as const),
         };
     }
 
@@ -2907,7 +2908,7 @@
 
     function captureTransitionDiagnosticLiveFrame(params: {
         target: PIXI.Container;
-        geometry: CanonicalGeometrySnapshot;
+        geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
         mode: string;
         debugSnapshot?: Record<string, unknown> | null;
@@ -2954,7 +2955,7 @@
         activeTransition: RenderFamilyActiveTransition | null;
         stars: ReadonlyArray<StarState>;
         lanes: ReadonlyArray<StarConnection>;
-        geometry?: CanonicalGeometrySnapshot | null;
+        geometry?: ResolvedGeometrySnapshot | null;
         ownership?: OwnershipSnapshot | null;
         debugSnapshot?: Record<string, unknown> | null;
     }): void {
@@ -3711,6 +3712,11 @@
         interactionOverlayCanvas = null;
         lastInteractionOverlayRenderKey = null;
 
+        // Render families are held in a module-global registry. Dispose them
+        // before destroying the Pixi app so a later GameCanvas mount cannot
+        // reuse family instances whose Graphics were already destroyed.
+        disposeAllRenderFamilies();
+
         if (app) {
             app.destroy(true, { children: true });
             app = null;
@@ -3719,11 +3725,11 @@
             label.destroy();
         }
         rulerLabels = [];
-        canonicalBridge?.reset();
-        canonicalBridge = null;
-        canonicalController = null;
-        canonicalControllerTransitionDurationMs = null;
-        canonicalRenderer = null;
+        runtimeBridge?.reset();
+        runtimeBridge = null;
+        runtimeController = null;
+        runtimeControllerTransitionDurationMs = null;
+        runtimeRenderer = null;
         territoryPresentationScheduled = false;
         territoryPresentationRunning = false;
         territoryPresentationPendingRequest = null;
@@ -4245,7 +4251,7 @@
     }
 
     function getPerimeterDebugLoops(
-        geometry: CanonicalGeometrySnapshot,
+        geometry: ResolvedGeometrySnapshot,
     ): ReadonlyArray<ReadonlyArray<[number, number]>> {
         const shellLoops = geometry.shellLoops.filter(
             (loop) => loop.classification === "outer" && Boolean(loop.ownerId),
@@ -5122,11 +5128,11 @@
                     if ((child as any).clear) (child as any).clear();
                 }
             }
-            // Reset canonical bridge so it rebuilds for new map geometry
-            canonicalBridge?.reset();
-            canonicalBridge = null;
-            canonicalController = null;
-            canonicalRenderer = null;
+            // Reset runtime bridge so it rebuilds for new map geometry
+            runtimeBridge?.reset();
+            runtimeBridge = null;
+            runtimeController = null;
+            runtimeRenderer = null;
             interactionStarsSource = null;
             interactionConnectionsSource = null;
             interactionStarsById.clear();
@@ -5334,7 +5340,7 @@
             // Most branch-derived territory families in current master render in
             // presentation-local space inside the viewport-aligned frame.
             // Phase Field is the exception: its working branch still consumes the
-            // canonical map-space contract end-to-end, so adapt it separately in
+            // resolved map-space contract end-to-end, so adapt it separately in
             // its own case rather than forcing it through this localized path.
             const territoryPresentationStars =
                 localizeTerritoryPresentationStars(
@@ -5342,10 +5348,10 @@
                     territoryPresentationFrame,
                 );
             const localizePresentationGeometry = (
-                geometry: CanonicalGeometrySnapshot | null | undefined,
-            ): CanonicalGeometrySnapshot | null =>
+                geometry: ResolvedGeometrySnapshot | null | undefined,
+            ): ResolvedGeometrySnapshot | null =>
                 geometry
-                    ? localizeCanonicalGeometrySnapshot(
+                    ? localizeResolvedGeometrySnapshot(
                           geometry,
                           territoryPresentationFrame,
                       )
@@ -5378,7 +5384,7 @@
                     getRenderFamilyModeConfigSource(activeMode);
                 const activeRenderFamilyTransition =
                     renderFamilyTransitionState.activeTransition;
-                const readFamilyGeometry = (): CanonicalGeometrySnapshot => {
+                const readFamilyGeometry = (): ResolvedGeometrySnapshot => {
                     const geometry = measurePerf(
                         `game.renderFrame.geometry.${activeMode}`,
                         () =>
@@ -5520,7 +5526,7 @@
                             territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
                             fg2Artifacts
-                                ? extractCanonicalData(fg2Artifacts)
+                                ? extractTerritoryRenderData(fg2Artifacts)
                                 : undefined,
                             pvv3Invalidation,
                         );
@@ -5556,7 +5562,7 @@
                             territoryPresentationWorldWidth,
                             territoryPresentationWorldHeight,
                             activeGameStore.connections as StarConnection[],
-                            extractCanonicalData(fg2ArtifactsPV),
+                            extractTerritoryRenderData(fg2ArtifactsPV),
                         );
                         break;
                     }
@@ -6149,19 +6155,19 @@
                             activeGameStore.connections as StarConnection[],
                         );
                         break;
-                    case "power_voronoi_canonical": {
+                    case "power_voronoi_runtime": {
                         const runtimeSettings = readTerritoryRuntimeSettings(
                             GAME_CONFIG as unknown as Record<string, unknown>,
                         );
-                        if (!canonicalBridge) {
-                            canonicalBridge = new GameCanvasBridge(
+                        if (!runtimeBridge) {
+                            runtimeBridge = new GameCanvasBridge(
                                 activeVoronoiContainer,
                                 (ownerId) =>
                                     colorUtils.getPlayerColor(ownerId),
                             );
                         }
-                        canonicalBridge?.update(
-                            buildCanonicalBridgeInput(
+                        runtimeBridge?.update(
+                            buildRuntimeBridgeInput(
                                 territoryPresentationStars,
                                 runtimeSettings,
                                 activeMode,
@@ -6169,11 +6175,11 @@
                                 territoryPresentationWorldHeight,
                             ),
                         );
-                        canonicalBridge?.consumeVFXCommands();
+                        runtimeBridge?.consumeVFXCommands();
                         break;
                     }
-                    case "territory_canonical": {
-                        // ── CANONICAL ARCHITECTURE DISPATCH ─────────────────────────
+                    case "territory_runtime": {
+                        // ── RUNTIME ARCHITECTURE DISPATCH ─────────────────────────
                         const runtimeSettings = readTerritoryRuntimeSettings(
                             GAME_CONFIG as unknown as Record<string, unknown>,
                         );
@@ -6185,22 +6191,22 @@
                             });
                         const useCleanArchitecture =
                             architectureRoute.route ===
-                            "canonical_clean_bridge";
-                        let renderedByCanonicalBridge = false;
+                            "runtime_clean_bridge";
+                        let renderedByRuntimeBridge = false;
 
                         if (useCleanArchitecture) {
-                            if (!canonicalBridge) {
-                                canonicalBridge = new GameCanvasBridge(
+                            if (!runtimeBridge) {
+                                runtimeBridge = new GameCanvasBridge(
                                     activeVoronoiContainer,
                                     (ownerId) =>
                                         colorUtils.getPlayerColor(ownerId),
                                 );
                             }
 
-                            if (canonicalBridge) {
+                            if (runtimeBridge) {
                                 try {
-                                    canonicalBridge.update(
-                                        buildCanonicalBridgeInput(
+                                    runtimeBridge.update(
+                                        buildRuntimeBridgeInput(
                                             territoryPresentationStars,
                                             runtimeSettings,
                                             activeMode,
@@ -6208,14 +6214,14 @@
                                             territoryPresentationWorldHeight,
                                         ),
                                     );
-                                    canonicalBridge.consumeVFXCommands();
-                                    renderedByCanonicalBridge = true;
+                                    runtimeBridge.consumeVFXCommands();
+                                    renderedByRuntimeBridge = true;
                                 } catch (error) {
-                                    if (!canonicalBridgeFallbackLogged) {
-                                        canonicalBridgeFallbackLogged = true;
+                                    if (!runtimeBridgeFallbackLogged) {
+                                        runtimeBridgeFallbackLogged = true;
                                         log.error(
                                             "GameCanvas",
-                                            "CanonicalBridge falling back to legacy canonical controller path",
+                                            "RuntimeBridge falling back to legacy runtime controller path",
                                             error,
                                         );
                                     }
@@ -6223,33 +6229,33 @@
                             }
                         }
                         if (!useCleanArchitecture) {
-                            canonicalBridge?.reset();
-                            canonicalBridge = null;
+                            runtimeBridge?.reset();
+                            runtimeBridge = null;
                         }
 
-                        if (renderedByCanonicalBridge) {
+                        if (renderedByRuntimeBridge) {
                             break;
                         }
 
                         // Legacy path (selected explicitly or clean path fallback on error).
                         // Lazily initialize controller and renderer per-container
                         if (
-                            !canonicalController ||
-                            canonicalControllerTransitionDurationMs !==
+                            !runtimeController ||
+                            runtimeControllerTransitionDurationMs !==
                                 runtimeSettings.tunables.transitionDurationMs
                         ) {
-                            canonicalController = new TerritoryEngineController(
+                            runtimeController = new TerritoryEngineController(
                                 {
                                     transitionDurationMs:
                                         runtimeSettings.tunables
                                             .transitionDurationMs,
                                 },
                             );
-                            canonicalControllerTransitionDurationMs =
+                            runtimeControllerTransitionDurationMs =
                                 runtimeSettings.tunables.transitionDurationMs;
                         }
-                        if (!canonicalRenderer) {
-                                canonicalRenderer = new TerritoryRenderer(
+                        if (!runtimeRenderer) {
+                                runtimeRenderer = new TerritoryRenderer(
                                     activeVoronoiContainer,
                                     (ownerIdx, playerIds) => {
                                         const ownerId = playerIds[ownerIdx];
@@ -6264,17 +6270,17 @@
                         }
 
                         if (
-                            canonicalController &&
-                            canonicalRenderer
+                            runtimeController &&
+                            runtimeRenderer
                         ) {
                             const playerIds =
                                 activeGameStore.players?.map(
                                     (p: { id: string }) => p.id,
                                 ) ?? [];
-                            canonicalRenderer.updatePlayerIds(playerIds);
+                            runtimeRenderer.updatePlayerIds(playerIds);
 
                             const { state, transitionPlan } =
-                                canonicalController.update(
+                                runtimeController.update(
                                     {
                                         stars: territoryPresentationStars,
                                         connections:
@@ -6289,19 +6295,19 @@
                                     fxOrchestrator.gameTime,
                                 );
 
-                            // One-shot Canonical debug log (not per-frame)
-                            if (!(globalThis as any).__canonicalLoggedOnce) {
-                                (globalThis as any).__canonicalLoggedOnce =
+                            // One-shot runtime debug log (not per-frame)
+                            if (!(globalThis as any).__runtimeLoggedOnce) {
+                                (globalThis as any).__runtimeLoggedOnce =
                                     true;
                                 if (!state) {
                                     log.state(
                                         "GameCanvas",
-                                        "canonical state unavailable; compiler returned no renderable state",
+                                        "runtime state unavailable; compiler returned no renderable state",
                                     );
                                 } else {
                                     log.state(
                                         "GameCanvas",
-                                        "canonical state snapshot",
+                                        "runtime state snapshot",
                                         {
                                             kind: state.kind,
                                             regions: state.regions?.length ?? null,
@@ -6318,7 +6324,7 @@
                             }
 
                             if (state) {
-                                canonicalRenderer.render(
+                                runtimeRenderer.render(
                                     state,
                                     transitionPlan,
                                     fxOrchestrator.gameTime,
@@ -6331,7 +6337,7 @@
                 }
                     if (activeModeNeedsGeometry && !geometryReady) {
                         lastRenderFailure =
-                            `${activeMode} requires canonical geometry, but none was supplied`;
+                            `${activeMode} requires resolved geometry, but none was supplied`;
                         log.error("GameCanvas", lastRenderFailure);
                     }
                     const msrDiagnostics = modeUsesSharedRenderFamilyGeometry(

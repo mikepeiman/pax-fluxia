@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-    canonicalizeLaneWaypointsForStorage,
+    normalizeLaneWaypointsForStorage,
     waypointsNeedReverseForEndpoints,
 } from '$lib/lanes/lanePolylineCache';
 
@@ -21,8 +21,8 @@ describe('lanePolylineCache waypoint normalization', () => {
         ).toBe(true);
     });
 
-    it('re-canonicalizes legacy reversed canonical connections for cache storage', () => {
-        const canonical = canonicalizeLaneWaypointsForStorage(
+    it('re-normalizes legacy reversed normalized connections for cache storage', () => {
+        const normalized = normalizeLaneWaypointsForStorage(
             'star-a',
             'star-b',
             [
@@ -36,15 +36,15 @@ describe('lanePolylineCache waypoint normalization', () => {
             },
         );
 
-        expect(canonical).toEqual([
+        expect(normalized).toEqual([
             [10, 0],
             [50, 12],
             [90, 0],
         ]);
     });
 
-    it('keeps canonical storage direction correct for non-canonical caller ids', () => {
-        const canonical = canonicalizeLaneWaypointsForStorage(
+    it('keeps normalized storage direction correct for reversed-order caller ids', () => {
+        const normalized = normalizeLaneWaypointsForStorage(
             'star-b',
             'star-a',
             [
@@ -58,7 +58,7 @@ describe('lanePolylineCache waypoint normalization', () => {
             },
         );
 
-        expect(canonical).toEqual([
+        expect(normalized).toEqual([
             [10, 0],
             [50, 12],
             [90, 0],
