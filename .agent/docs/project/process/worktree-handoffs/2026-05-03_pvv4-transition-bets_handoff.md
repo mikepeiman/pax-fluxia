@@ -55,6 +55,30 @@
 
 ## Live Action Log
 
+### 2026-05-06 - Fixed diagnostics overlay crash and persisted toggle state
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\panelSync.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\overlayConfig.ts`
+- Purpose:
+  - remove the live browser crash introduced by the new diagnostics overlay path
+  - make diagnostics toggles persist through the same localStorage-backed panel
+    system used by the rest of the settings UI
+- Exact change:
+  - threaded `canonicalRuntimeOutput` explicitly into
+    `renderActiveFrontDebugOverlay(...)` through
+    `renderPerimeterFieldDebugOverlay(...)`
+  - added persisted overlay panel keys and panel->overlay hydration
+- Result:
+  - diagnostics overlay no longer depends on an out-of-scope frame-local value
+  - diagnostics toggle state now rehydrates on reload
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build`
+
 ### 2026-05-03 - Created branch-attached worktree state
 
 - Action:

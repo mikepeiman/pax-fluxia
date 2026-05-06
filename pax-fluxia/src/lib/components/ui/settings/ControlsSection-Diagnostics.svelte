@@ -6,7 +6,11 @@
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
-    import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
+    import {
+        applyOverlayConfigFromPanel,
+        overlayConfig,
+        OVERLAY_PANEL_KEYS,
+    } from "$lib/territory/devtools/overlayConfig";
     import {
         authoredMeasurementsUi,
     } from "$lib/territory/devtools/authoredMeasurementsUi";
@@ -87,6 +91,11 @@
     let downloading = $state<string | null>(null);
     let selectingExportFolder = $state(false);
 
+    $effect(() => {
+        applyOverlayConfigFromPanel(panel);
+        syncOverlayState();
+    });
+
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
@@ -107,39 +116,64 @@
 
     function toggleOverlay(): void {
         overlayConfig.enabled = !overlayConfig.enabled;
+        updatePanel(OVERLAY_PANEL_KEYS.enabled, overlayConfig.enabled);
         syncOverlayState();
     }
 
     function toggleOverlayVertices(): void {
         overlayConfig.showAllVertices = !overlayConfig.showAllVertices;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showAllVertices,
+            overlayConfig.showAllVertices,
+        );
         syncOverlayState();
     }
 
     function toggleOverlayPauseOnConquestStart(): void {
         overlayConfig.pauseOnConquestStart =
             !overlayConfig.pauseOnConquestStart;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.pauseOnConquestStart,
+            overlayConfig.pauseOnConquestStart,
+        );
         syncOverlayState();
     }
 
     function toggleOverlayActiveFront(): void {
         overlayConfig.showActiveFront = !overlayConfig.showActiveFront;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showActiveFront,
+            overlayConfig.showActiveFront,
+        );
         syncOverlayState();
     }
 
     function toggleOverlayClassificationLabels(): void {
         overlayConfig.showClassificationLabels =
             !overlayConfig.showClassificationLabels;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showClassificationLabels,
+            overlayConfig.showClassificationLabels,
+        );
         syncOverlayState();
     }
 
     function togglePolylineSamples(): void {
         overlayConfig.showPolylineSamples = !overlayConfig.showPolylineSamples;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showPolylineSamples,
+            overlayConfig.showPolylineSamples,
+        );
         syncOverlayState();
     }
 
     function toggleFreezeOnUnclassifiedBoundary(): void {
         overlayConfig.freezeOnUnclassifiedBoundary =
             !overlayConfig.freezeOnUnclassifiedBoundary;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.freezeOnUnclassifiedBoundary,
+            overlayConfig.freezeOnUnclassifiedBoundary,
+        );
         syncOverlayState();
     }
 

@@ -4660,10 +4660,10 @@
         }
     }
 
-    function renderActiveFrontDebugOverlay(): void {
+    function renderActiveFrontDebugOverlay(
+        runtimeOutput: TerritoryRuntimeOutput | null,
+    ): void {
         if (!debugGraphics || !overlayConfig.enabled) return;
-
-        const runtimeOutput = canonicalRuntimeOutput;
         const nextTopology = runtimeOutput?.geometry.frontierTopology ?? null;
         if (!nextTopology) return;
 
@@ -4878,6 +4878,7 @@
         activeMode: string,
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
+        runtimeOutput: TerritoryRuntimeOutput | null,
     ): void {
         if (!debugGraphics) return;
         const showClassification = overlayConfig.enabled;
@@ -4984,7 +4985,7 @@
         }
 
         if (showClassification) {
-            renderActiveFrontDebugOverlay();
+            renderActiveFrontDebugOverlay(runtimeOutput);
         }
     }
 
@@ -6701,6 +6702,7 @@
                 activeTerritoryMode,
                 stars,
                 activeGameStore.connections as StarConnection[],
+                canonicalRuntimeOutput,
             );
         });
 

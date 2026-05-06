@@ -218,6 +218,7 @@
     - `dxMaxDistancePx`
     - `dxWeight`
   - touched files:
+
     - `pax-fluxia/src/lib/territory/geometry/geometryTuning.ts`
     - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
     - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
@@ -674,3 +675,18 @@
 - Expected visible result:
   - diagnostics toggles now change the live map in steady-state and during transition pause
   - `PRE` and `NEXT` classified sections, vertices, labels, and sample dots now share the same known-good render surface as geometry diagnostics
+
+## Implementation Checkpoint 27
+- Fixed live browser crash on the new diagnostics path:
+  - `renderActiveFrontDebugOverlay(...)` had been reading `canonicalRuntimeOutput` from the wrong scope inside `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - the helper now takes runtime output explicitly from the live frame path through `renderPerimeterFieldDebugOverlay(...)`
+- Fixed diagnostics-toggle persistence:
+  - added persisted overlay panel keys and panel->overlay hydration in:
+    - `pax-fluxia/src/lib/territory/devtools/overlayConfig.ts`
+    - `pax-fluxia/src/lib/components/ui/panelSync.ts`
+    - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+- Created:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v14.md`
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

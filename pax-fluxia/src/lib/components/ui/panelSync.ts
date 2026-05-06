@@ -9,6 +9,7 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
+import { applyOverlayConfigFromPanel } from '$lib/territory/devtools/overlayConfig';
 import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
@@ -318,6 +319,7 @@ export function hydrateConfigFromPersistedUiSettings(): {
         savePanelSettings(panel);
     }
     applyPanelToConfig(panel);
+    applyOverlayConfigFromPanel(panel);
 
     const tickInterval =
         typeof panel.tickInterval === 'number' && Number.isFinite(panel.tickInterval)
