@@ -1,6 +1,6 @@
 # Territory Architecture — Reference Specification
 
-**Terminology:** In this document, **reference** means "primary agreed design for agents and implementers." It does **not** refer to the Svelte/render mode name `territory_canonical` or any identifier containing "canonical" in code — always disambiguate in prose.
+**Terminology:** In this document, **reference** means "primary agreed design for agents and implementers." It does **not** refer to the Svelte/render mode name `territory_runtime` or any legacy identifier in code — always disambiguate in prose.
 
 > [!WARNING]
 > This file is stale for current-state reasoning.
@@ -29,7 +29,7 @@ Ownership → Geometry → Transition → Presentation
 | Layer | What It Does | Key Type | Primary Implementation |
 |-------|-------------|----------|----------------------|
 | **Ownership** | Who owns what. Graph-native, from conquest events. | `OwnershipSnapshot` | `OwnershipLayerCoordinator` → `StarOwnershipSnapshotMode` |
-| **Geometry** | Shapes from ownership. Power Voronoi cells, merged territories, shared borders, frontier topology. | `CanonicalGeometrySnapshot` (incl. `FrontierTopology`) | `GeometryLayerCoordinator` → `UnifiedVectorGeometryMode` → `compileVectorGeometry()` |
+| **Geometry** | Shapes from ownership. Power Voronoi cells, merged territories, shared borders, frontier topology. | `ResolvedGeometrySnapshot` (incl. `FrontierTopology`) | `GeometryLayerCoordinator` → `UnifiedVectorGeometryMode` → `compileVectorGeometry()` |
 | **Transition** | **Single coordinated step:** advances one conquest animation. Both region fills and frontier polylines follow the **same** time progression. | `TransitionSnapshot` (containing `FillTransitionFrame` + `BorderTransitionFrame`) | `TransitionLayerCoordinator` → `FrontierTopologyPlanner` + `TopologyFrameSampler` |
 | **Presentation** | Drawing to screen. Assembles draw commands; PIXI.Graphics fills, strokes, visual style. | `TerritoryPresentationFrame` (fill + border draw commands) | `PresentationLayerCoordinator` → style modes → `PixiTerritoryPresenter` |
 
@@ -83,7 +83,7 @@ Agents must not infer `perimeter_field` design from current code alone.
 TerritoryFrameInput
     → normalizeTerritoryFrameInput()
     → OwnershipLayerCoordinator.compute()         → OwnershipSnapshot
-    → TerritoryWorker.computeGeometrySync()        → CanonicalGeometrySnapshot
+    → TerritoryWorker.computeGeometrySync()        → ResolvedGeometrySnapshot
     → TransitionLayerCoordinator.compute()         → TransitionSnapshot
     → PresentationLayerCoordinator.compute()       → TerritoryPresentationFrame
     → PixiTerritoryPresenter.present()             → screen
@@ -123,7 +123,7 @@ Preserve layer separation strictly. If a stage is incomplete, return a typed err
 
 ## 4. Geometry Contracts
 
-### CanonicalGeometrySnapshot
+### ResolvedGeometrySnapshot
 
 The single geometry output type, produced by `compileVectorGeometry()`. Contains:
 
@@ -281,7 +281,7 @@ If you encounter ANY of these patterns, the code is likely obsolete — STOP and
 - `TERRITORY_ENGINE_STATIC_METHOD` or `TERRITORY_ENGINE_DYNAMIC_METHOD` in UI controls
 - `anchorStaticMethodId` field on method descriptors
 - UI sections labeled "Engine Pipeline" with Mode/Static/Dynamic selectors
-- Types or functions named `MetricState`, `CanonicalTerritoryState`, `metricTruth`
+- Types or functions named `MetricState`, `CompiledTerritoryState`, `metricTruth`
 - Any code that separates methods into "static" and "dynamic" registries
 - References to hybrid plans (HY1-HY5, DY1-DY3, DY5, FG3-FG5)
 
@@ -304,7 +304,7 @@ If you encounter ANY of these patterns, the code is likely obsolete — STOP and
 | File | Purpose |
 |------|---------|
 | `territory/contracts/OwnershipContracts.ts` | `OwnershipSnapshot`, `TerritoryConquestEvent` |
-| `territory/contracts/GeometryContracts.ts` | `CanonicalGeometrySnapshot`, `CanonicalFrontierPolyline`, shells, regions, provenance |
+| `territory/contracts/GeometryContracts.ts` | `ResolvedGeometrySnapshot`, `ResolvedFrontierPolyline`, shells, regions, provenance |
 | `territory/contracts/FrontierTopologyContracts.ts` | `FrontierTopology`, `FrontierVertex`, `FrontierSection`, `RegionLoop`, `SectionRef` |
 | `territory/contracts/TransitionContracts.ts` | `TransitionSnapshot`, `FillTransitionFrame`, `BorderTransitionFrame`, `TransitionEnvelope` |
 | `territory/contracts/PresentationContracts.ts` | `TerritoryPresentationFrame`, `FillDrawCommand`, `BorderDrawCommand` |
@@ -351,7 +351,7 @@ If you encounter ANY of these patterns, the code is likely obsolete — STOP and
 | File | Purpose |
 |------|---------|
 | `territory/layers/presentation/PresentationLayerCoordinator.ts` | Coordinator |
-| `territory/layers/presentation/modes/CanonicalVectorStyle.ts` | Vector polygon style |
+| `territory/layers/presentation/modes/VectorSurfaceStyle.ts` | Vector polygon style |
 | `territory/layers/presentation/modes/DistanceFieldStyle.ts` | SDF style |
 | `territory/layers/presentation/modes/PixelTerritoryStyle.ts` | Pixel-quantized style |
 | `territory/layers/presentation/builders/FillDrawCommandBuilder.ts` | Fill draw command assembly |
@@ -390,7 +390,7 @@ If you encounter ANY of these patterns, the code is likely obsolete — STOP and
 |-----------|--------|-------|
 | 4-layer pipeline orchestration | **Working** | `TerritoryRuntimeCoordinator` chains all layers |
 | Ownership layer | **Working** | `StarOwnershipSnapshotMode` |
-| Geometry compilation | **Working** | `compileVectorGeometry()` produces `CanonicalGeometrySnapshot` with `FrontierTopology` |
+| Geometry compilation | **Working** | `compileVectorGeometry()` produces `ResolvedGeometrySnapshot` with `FrontierTopology` |
 | Frontier topology contracts | **Working** | Types defined, topology builder implemented |
 | Frontier topology planner | **Implemented, untested** | `buildFrontierTransitionPlan()` — diffs topologies, classifies sections |
 | Topology frame sampler | **Implemented, untested** | `sampleTopologyFrame()` — derives fills from borders |

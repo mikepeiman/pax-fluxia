@@ -30,7 +30,7 @@ The shared truth is still:
 
 `ownership -> geometry -> transition -> presentation`
 
-That model remains the canonical pipeline for the vector/pipeline route.
+That model remains the runtime pipeline for the vector/pipeline route.
 
 ### 2.2 Current reality
 
@@ -38,7 +38,7 @@ The repo is not running one single territory architecture today. It is running t
 
 | Runtime shape | What it is | Current modes / entrypoints |
 |---|---|---|
-| Pipeline runtime | `TerritoryRuntimeCoordinator` drives the 4-layer pipeline | `territory_canonical`, `territory_engine` |
+| Pipeline runtime | `TerritoryRuntimeCoordinator` drives the 4-layer pipeline | `territory_runtime`, `territory_engine` |
 | Render-family runtime | `GameCanvas` builds `RenderFamilyInput` and calls a family adapter | `metaball_grid` |
 | Direct legacy renderer runtime | `GameCanvas` calls a renderer directly, outside the family contract | `vs_pvv3`, `distance_field`, `pixel`, `power_voronoi`, `voronoi`, `metaball`, `graph`, `contour`, `perimeter_field` |
 

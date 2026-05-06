@@ -11,7 +11,7 @@
 
 | File | Symbol | Signature |
 |------|--------|-----------|
-| `transitions/createCanonicalTransitionPlan.ts` | `createCanonicalTransitionPlan` | `(prevData: TerritoryGeometryData, nextData: TerritoryGeometryData, conquestStar: Vec2, durationMs: number): TerritoryTransitionPlanSet` |
+| `transitions/createFrontierTransitionPlan.ts` | `createFrontierTransitionPlan` | `(prevData: TerritoryGeometryData, nextData: TerritoryGeometryData, conquestStar: Vec2, durationMs: number): TerritoryTransitionPlanSet` |
 | `transitions/sampleTransitionFrame.ts` | `sampleTransitionFrame` | `(planSet: TerritoryTransitionPlanSet, progress: number): TerritoryFrameGeometry` |
 | `transitions/drawTerritoryFrame.ts` | `drawTerritoryFrame` | `(graphics: PIXI.Graphics, frameGeom: TerritoryFrameGeometry, styles: Map<string, TerritoryDrawStyle>): void` |
 | `engine/TerritoryEngineController.ts` | `TerritoryEngineController` | Class: `update(input: ControllerInput)`, `getState()`, `_recompile()` |
@@ -22,7 +22,7 @@
 |------|--------|------|
 | `transitions/computeTerritoryDeltaContext.ts` | `computeTerritoryDeltaContext` | Identifies `changedSiteIds` and `affectedTerritoryIds` from prev/next geometry |
 | `transitions/buildTerritoryBoundarySnapshots.ts` | `buildTerritoryBoundarySnapshots` | Builds `TerritoryBoundarySnapshot[]` from `TerritoryGeometryData` (span-annotated rings) |
-| `transitions/buildSnapshotsFromTMAP.ts` | `buildSnapshotsFromTMAP` | Builds snapshots from `TerritoryFrontierMap` (canonical loop route) |
+| `transitions/buildSnapshotsFromTMAP.ts` | `buildSnapshotsFromTMAP` | Builds snapshots from `TerritoryFrontierMap` (frontier-map loop route) |
 | `transitions/findRingSpliceWindow.ts` | `findRingSpliceWindow` | Combined topological+geometric splice: rotation, prefix/suffix matching, changed window |
 | `transitions/findRingSpliceWindowTopological.ts` | `findRingSpliceWindowTopological` | Pass 1 only: span-based rotation alignment and candidate window |
 | `transitions/refineSpliceWindowGeometrically.ts` | (not outlined — Pass 2) | Geometric refinement within candidate window |
@@ -44,7 +44,7 @@
 TerritoryEngineController.update()
   → _recompile()
     → [GeometryMode].compute() → GeometrySnapshot
-    → createCanonicalTransitionPlan(prev, next, conquestStar, durationMs)
+    → createFrontierTransitionPlan(prev, next, conquestStar, durationMs)
        → computeTerritoryDeltaContext()
        → buildTerritoryBoundarySnapshots() or buildSnapshotsFromTMAP()
        → findRingSpliceWindow() per ring
@@ -129,17 +129,17 @@ interface TerritoryGeometryData {
 interface FrontierLoop { points: [number,number][], ownerId }
 ```
 
-### Canonical Types (Frontier Map)
+### Definitive Types (Frontier Map)
 
-**File:** `compiler/canonicalTypes.ts`
+**File:** `compiler/frontierMapTypes.ts`
 
 ```typescript
-type CanonicalVertexKind = 'junction' | 'world-corner' | 'world-edge' | 'interior';
+type FrontierMapVertexKind = 'junction' | 'world-corner' | 'world-edge' | 'interior';
 
-interface CanonicalVertex {
+interface FrontierMapVertex {
     ptKey: string;
     x: number; y: number;
-    kind: CanonicalVertexKind;
+    kind: FrontierMapVertexKind;
     adjacentOwnerIds: string[];
     worldEdge?: 'top'|'bottom'|'left'|'right';
     // computed fields
@@ -147,7 +147,7 @@ interface CanonicalVertex {
     isTerminal?: boolean;
 }
 
-interface CanonicalEdge {
+interface FrontierMapEdge {
     edgeId: string;
     fromPtKey: string;
     toPtKey: string;
@@ -162,24 +162,24 @@ interface CanonicalEdge {
     length?: number;
 }
 
-interface CanonicalLoop {
+interface FrontierMapLoop {
     loopId: string;
     ownerId: string;
     edgeIds: string[];
     closed: boolean;
-    validity: CanonicalLoopValidity;
+    validity: FrontierMapLoopValidity;
     vertexCount: number;
     perimeter?: number;
     // assembled points
     points?: [number,number][];
 }
 
-type CanonicalLoopValidity = 'valid' | 'open' | 'degenerate' | 'unknown';
+type FrontierMapLoopValidity = 'valid' | 'open' | 'degenerate' | 'unknown';
 
 interface TerritoryFrontierMap {
-    vertices: Map<string, CanonicalVertex>;
-    edges: CanonicalEdge[];
-    loops: CanonicalLoop[];
+    vertices: Map<string, FrontierMapVertex>;
+    edges: FrontierMapEdge[];
+    loops: FrontierMapLoop[];
     ownerPairKeys: Set<string>;
 }
 ```
@@ -333,13 +333,13 @@ Internally calls `generateVoronoiTerritoryGeometry(sites, config)` → `Territor
 
 ## 7. Identity Helpers
 
-### ptKey / edgeKey (canonical rounding)
+### ptKey / edgeKey (normalized rounding)
 
 **File:** `compiler/powerVoronoiTerritoryGeometryGenerator.ts` (L132-141)
 
 ```typescript
 function edgeKey(x1, y1, x2, y2): string
-  // Rounds to 2 decimals, canonical ordering (lower coord first)
+  // Rounds to 2 decimals, normalized ordering (lower coord first)
   // Format: "ax,ay-bx,by"
 
 function ptKey(x, y): string
@@ -350,10 +350,10 @@ function ptKey(x, y): string
 
 ### ownerPairKey
 
-**Convention:** `ownerA|ownerB` with alphabetical ordering. Used by `SharedPolyline.ownerPairKey`, `FrontierPolylineShape.ownerPairKey`, `CanonicalEdge.ownerPairKey`.
+**Convention:** `ownerA|ownerB` with alphabetical ordering. Used by `SharedPolyline.ownerPairKey`, `FrontierPolylineShape.ownerPairKey`, `FrontierMapEdge.ownerPairKey`.
 
 Built in multiple files:
-- `transitions/createCanonicalTransitionPlan.ts` → `extractOwnerPairKey()`
+- `transitions/createFrontierTransitionPlan.ts` → `extractOwnerPairKey()`
 - `transitions/diffFrontierMaps.ts` → `extractOwnerPairKey()`
 - `transitions/buildTerritoryBoundarySnapshots.ts` → `parseOwnerPairKey()`
 - `compiler/buildFrontierMap.ts` → `resolveOwnerSides()` + `edgeIdFromSegment()`
@@ -382,7 +382,7 @@ Built in multiple files:
 
 | File | Symbol | Role |
 |------|--------|------|
-| `devtools/TerritoryTraceStore.ts` | `canonicalTraceStore` | Svelte store. Records `CanonicalTraceEntry { tick, timestamp, ownership, geometry, frontierMap, transitionPlan, diagnostics, label }` |
+| `devtools/TerritoryTraceStore.ts` | `runtimeTraceStore` | Svelte store. Records `RuntimeTraceEntry { tick, timestamp, ownership, geometry, frontierMap, transitionPlan, diagnostics, label }` |
 | `devtools/TerritoryStepRunner.ts` | `TerritoryStepRunner` | Class: `initRun()`, `advanceStage()`, `metric()`, `frontier()`, `regions()`. Stages: `'metric' | 'frontier' | 'region' | 'done'` |
 
 ### Diagnostics Contracts
@@ -414,9 +414,9 @@ Every `AnimatedRingPlan` contains `diagnostics: RingPlanDiagnostics`:
 
 ### Trace Mechanism
 
-`canonicalTraceStore.record(entry)` captures per-tick:
+`runtimeTraceStore.record(entry)` captures per-tick:
 ```typescript
-interface CanonicalTraceEntry {
+interface RuntimeTraceEntry {
     tick: number;
     timestamp: number;
     ownership: OwnershipSnapshot;
@@ -465,7 +465,7 @@ generateVoronoiTerritoryGeometry(sites: PowerSite[], config: TerritoryGeneratorS
   → extractWorldBorderPolylines() → SharedPolyline[]
   → detectEnclaves() → enclaveMap
   → constructFillsFromFrontierChain() → FrontierLoop[] (fills from borders)
-  → buildFrontierMap() → TerritoryFrontierMap (canonical identity)
+  → buildFrontierMap() → TerritoryFrontierMap (frontier-map identity)
   → buildTerritoryGeometryFingerprint()
   → TerritoryGeometryData
 ```

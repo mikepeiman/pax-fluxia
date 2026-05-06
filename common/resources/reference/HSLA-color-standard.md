@@ -5,7 +5,7 @@
 
 ## Rationale
 
-All primary color operations in the game **MUST** use HSLA (Hue, Saturation, Lightness, Alpha) as the canonical color space. Hex (`0xRRGGBB`) and CSS hex (`#rrggbb`) should only be used as **derivative output formats** when interfacing with:
+All primary color operations in the game **MUST** use HSLA (Hue, Saturation, Lightness, Alpha) as the native color space. Hex (`0xRRGGBB`) and CSS hex (`#rrggbb`) should only be used as **derivative output formats** when interfacing with:
 
 - PIXI.js APIs (which accept `0xRRGGBB` integers)
 - CSS/HTML elements (which accept `#rrggbb` strings)
@@ -29,10 +29,10 @@ interface HSLA {
 }
 ```
 
-## Canonical Color Flow
+## Native Color Flow
 
 ```
-Player Creation → HSLA (canonical) → stored in PlayerSchema as HSLA
+Player Creation → HSLA (native) → stored in PlayerSchema as HSLA
                                     → convert to 0xRRGGBB only at PIXI render time
                                     → convert to #rrggbb only for CSS/DOM
 ```

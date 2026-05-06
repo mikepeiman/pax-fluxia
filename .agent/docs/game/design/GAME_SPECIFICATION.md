@@ -50,7 +50,7 @@ PRISM-Atlas-DART v1/
 │   │   └── GameInput.ts  # Input type definitions
 │   ├── schema/           # Colyseus schema definitions (GameState.ts)
 │   ├── combat.ts         # Combat calculation (shared client+server)
-│   ├── types.ts          # Canonical type definitions
+│   ├── types.ts          # Definitive type definitions
 │   ├── orders.ts         # Order processing
 │   └── production.ts     # Ship production logic
 ├── pax-fluxia/src/lib/   # Client application

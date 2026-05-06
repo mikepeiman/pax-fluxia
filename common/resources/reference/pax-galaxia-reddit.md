@@ -105,7 +105,7 @@ The last reports we have of someone successfully contacting Diodor are from 2011
 
 In the void left behind, fans have done what they can to keep Pax alive. One of those efforts is the public Pax Galaxia Facebook group created in the first half of 2009. By the time this group was created, it seems people already knew that Diodor wasn't going to pursue Pax any further. Aside from being a hub for arranging occasional multiplayer matches, the group has gone through several challenges to keep Pax working: New versions of operating systems crashing the game, web host system upgrades blocking multiplayer, websites no longer hosting necessary installation files, etc.
 
-Especially the effort of Jonathan Campbell should be commended. Jonathan has been Pax Galaxia's unpaid tech support. He is also the creator of the canonical fan resource for Pax Galaxia. His labor of love can be found with this link, where among other things he maintains a custom-made server admin and map rotation tool for Pax called chat-analyzer:
+Especially the effort of Jonathan Campbell should be commended. Jonathan has been Pax Galaxia's unpaid tech support. He is also the creator of the primary fan resource for Pax Galaxia. His labor of love can be found with this link, where among other things he maintains a custom-made server admin and map rotation tool for Pax called chat-analyzer:
 
 http://www.campbelljc.com/pax/
 

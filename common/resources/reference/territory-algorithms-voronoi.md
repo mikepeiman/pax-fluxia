@@ -1,4 +1,4 @@
-Voronoi is the canonical starting point for “who owns this star” style territories, but it’s not the only relevant approach, and d3‑delaunay is “best default in JS” rather than the only good option. You can mix Voronoi/Delaunay, SDFs, metaballs, and curve‑smoothing to get rounded, tunable territories with gradients.
+Voronoi is the standard starting point for “who owns this star” style territories, but it’s not the only relevant approach, and d3‑delaunay is “best default in JS” rather than the only good option. You can mix Voronoi/Delaunay, SDFs, metaballs, and curve‑smoothing to get rounded, tunable territories with gradients.
 
 Below is a focused rundown of techniques + concrete libraries, with performance, DX, and implementation notes.
 

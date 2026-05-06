@@ -257,7 +257,7 @@ Use the 4-layer model:
 | Layer | Responsibility | Output |
 |------|------|------|
 | Ownership | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot` |
-| Geometry | Regions, frontiers, topology derived from ownership | `CanonicalGeometrySnapshot` |
+| Geometry | Regions, frontiers, topology derived from ownership | `ResolvedGeometrySnapshot` |
 | Transition | Animation between geometry states | `TransitionSnapshot` |
 | Presentation | PIXI.Graphics fills, strokes, containers | rendered frame |
 
@@ -272,7 +272,7 @@ Use the 4-layer model:
 ### 5.4 Architecture-First Rule
 
 - Prefer the current best architecture on `master` over legacy/imported patterns.
-- Refactor incoming code to match canonical patterns.
+- Refactor incoming code to match current project patterns.
 - Do not regress architecture to make imports easier.
 - If uncertain which pattern is better, ask.
 

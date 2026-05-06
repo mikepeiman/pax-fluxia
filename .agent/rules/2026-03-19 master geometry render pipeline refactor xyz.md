@@ -1,4 +1,4 @@
----
+﻿---
 trigger: always_on
 ---
 
@@ -10,7 +10,7 @@ Read `.agent/SPECIFICATIONS/TERRITORY_ARCHITECTURE.md` before any territory work
 
 Follow this exact architecture:
 
-Canonical pipeline (V3, 2026-03-19):
+Reference pipeline (V3, 2026-03-19):
 Ownership → Geometry → Transition → Presentation.
 
 This REPLACES the old MetricState → FrontierGraph → TerritoryRegions → RenderCaches pipeline.
@@ -33,7 +33,7 @@ This REPLACES the old MetricState → FrontierGraph → TerritoryRegions → Ren
 ## Render Rules
 
 - FillMeshCache and BorderMeshCache are caches only, never truth.
-- Fills and borders must both derive from the exact same canonical frontier/region data for the same frame.
+- Fills and borders must both derive from the exact same vector frontier/region data for the same frame.
 - Renderer must not compute ownership or invent geometry.
 
 ## State Rules
@@ -50,7 +50,7 @@ Preserve layer separation strictly. If a stage is incomplete, return a typed err
 
 ## DY4 Sacrosanct
 
-DY4 Optimal Transport is the canonical default border animation mode. Do NOT alter its behavior without explicit user approval.
+DY4 Optimal Transport is the primary default border animation mode. Do NOT alter its behavior without explicit user approval.
 
 ## OBSOLETE — Do NOT Build On
 
@@ -62,7 +62,7 @@ The following concepts still exist in code but are OBSOLETE:
 - `anchorStaticMethodId` coupling in method descriptors
 - PRD 6-layer model (replaced by 4-layer)
 - Hybrid plan infrastructure (removed in Phase 3)
-- `CanonicalTerritoryState` with `metricTruth` / `frontierGraph` / `regions` / `transitionActive` (old naming)
+- `CompiledTerritoryState` with `metricTruth` / `frontierGraph` / `regions` / `transitionActive` (old naming)
 
 ### Stale Code Indicators
 
@@ -73,7 +73,7 @@ If you encounter any of these patterns, the code is likely obsolete:
 - `TERRITORY_ENGINE_STATIC_METHOD` or `TERRITORY_ENGINE_DYNAMIC_METHOD` in UI controls
 - `anchorStaticMethodId` field on method descriptors
 - UI sections labeled "Engine Pipeline" with Mode/Static/Dynamic selectors
-- Types or functions named `MetricState`, `CanonicalTerritoryState`, `metricTruth`
+- Types or functions named `MetricState`, `CompiledTerritoryState`, `metricTruth`
 - Any code that separates methods into "static" and "dynamic" registries
 - References to hybrid plans (HY1-HY5, DY1-DY3, DY5, FG3-FG5)
 

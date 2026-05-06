@@ -1,6 +1,6 @@
 # Pax Fluxia — Terminology & Jargon
 
-> Canonical definitions for project-wide terms. Referenced from `agent.md` §3.2.
+> Definitive definitions for project-wide terms. Referenced from `agent.md` §3.2.
 
 | Term | Definition |
 |------|-----------|

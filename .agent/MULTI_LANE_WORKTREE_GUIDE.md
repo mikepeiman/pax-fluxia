@@ -25,9 +25,9 @@ The goal is to let multiple agents work in parallel with:
 
 ## 2. Current Repo Truth
 
-The following splits are now real and canonical in this working tree.
+The following splits are now real and authoritative in this working tree.
 
-### 2.1 Render-family canonical paths
+### 2.1 Render-family primary paths
 
 - `pax-fluxia/src/lib/territory/families/metaball/`
 - `pax-fluxia/src/lib/territory/families/metaballGrid/`
@@ -43,9 +43,9 @@ Shared family aggregation remains:
 - `pax-fluxia/src/lib/territory/families/renderFamilyRegistry.ts`
 - `pax-fluxia/src/lib/territory/families/buildRenderFamilyInput.ts`
 
-### 2.2 UI-surface canonical paths
+### 2.2 UI-surface primary paths
 
-New work must target these canonical surfaces:
+New work must target these primary surfaces:
 
 - main menu: `pax-fluxia/src/lib/components/ui/main-menu/`
 - HUD: `pax-fluxia/src/lib/components/ui/hud/`
@@ -330,7 +330,7 @@ Do not claim a fix is verified without evidence.
 
 ## 9. Compatibility And Boundary Rules
 
-### 9.1 New work targets canonical surfaces only
+### 9.1 New work targets primary surfaces only
 
 Use:
 - `ui/main-menu`
@@ -383,7 +383,7 @@ My recommended always-on mix:
 
 The operating goal is:
 - family work stays inside family folders
-- surface work stays inside canonical surface folders
+- surface work stays inside primary surface folders
 - only the owning lane edits the big shared files
 - cross-lane merge conflicts should become uncommon and mechanical
 

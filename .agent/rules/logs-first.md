@@ -1,4 +1,4 @@
-# Logs First Rule
+﻿# Logs First Rule
 
 ## MANDATORY: When a bugfix fails to resolve on the first attempt, use LOGS before further code analysis.
 
@@ -15,7 +15,7 @@ If a bug is not resolved after the first fix attempt:
 ## What to Log
 
 For rendering/geometry bugs, log at minimum:
-- Which render path is executing (canonical vs legacy)
+- Which render path is executing (runtime vs legacy)
 - Point counts and bounding box of fill polygons per owner
 - Point counts and bounding box of border polylines per owner pair
 - Any non-obvious early returns or conditional branches taken
