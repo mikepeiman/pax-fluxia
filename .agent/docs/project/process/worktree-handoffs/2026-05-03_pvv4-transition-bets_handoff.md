@@ -2373,3 +2373,16 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Post-Mortem On Region Disappearance Misdiagnosis
+
+- New process docs:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\POST_MORTEM_2026-05-06_REGION_DISAPPEARANCE_CATEGORY_ERROR.md`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\communication.md`
+- Exact characterization:
+  - the failure was category-error-driven, indirect, pseudo-analytical, architecture-blind, and trust-damaging
+  - the core mistake was trying to solve region disappearance from boundary-local data instead of authoritative region star membership
+- Standing correction:
+  - disappearance and collapse must be driven by region ownership plus region star arrays
+  - not by section-local influence, proximity, centroid, or any other indirect cue
+  - branch communication rules now explicitly prohibit overclaiming, verbosity against user request, and explanation in place of characterization

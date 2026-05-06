@@ -606,3 +606,15 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Process Checkpoint 21
+
+- Added the required post-mortem and standing communication rules:
+  - `.agent/docs/project/process/POST_MORTEM_2026-05-06_REGION_DISAPPEARANCE_CATEGORY_ERROR.md`
+  - `.agent/docs/project/process/communication.md`
+- Exact characterization:
+  - the disappearance debugging failure was category-error-driven, indirect, pseudo-analytical, architecture-blind, and trust-damaging
+  - the core mistake was trying to infer region disappearance from boundary-local data instead of region star membership
+- Standing correction:
+  - disappearance logic must start from authoritative region membership
+  - communication must follow the requested response shape, avoid overclaiming, and stop substituting explanation for characterization
