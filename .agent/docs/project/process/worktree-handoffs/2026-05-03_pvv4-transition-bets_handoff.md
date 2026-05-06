@@ -2249,3 +2249,21 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - PVV4 / VirtualStar Separation Post-Mortem
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v4.md`
+- Exact architectural conclusion:
+  - `virtualStars` do not belong in the intended PVV4 conquest mechanism
+  - PVV4 conquest is supposed to be ownership change -> topology delta -> bounded frontier motion
+- Real-file drift that caused confusion:
+  - `StarOwnershipSnapshotMode.ts` still manufactures `virtualStars` on conquest and only for `event.newOwner`
+  - historical `ActiveFrontTransition.ts` still reached into `virtualStars` when resolving disappearance centers for `event.previousOwner`
+  - that was never a valid part of PVV4; it was leftover helper/VFX drift
+- Merge note:
+  - checkpoint `30f48f0af` removes the direct current-turn PVV4 misuse by taking single-star collapse centers from live star positions
+  - deeper cleanup still remains:
+    - remove remaining PVV4 dependence on `virtualStars`
+    - stop polluting active-path ownership identity with `virtualStarCount`
+    - build the live conquest classification overlay requested by the user

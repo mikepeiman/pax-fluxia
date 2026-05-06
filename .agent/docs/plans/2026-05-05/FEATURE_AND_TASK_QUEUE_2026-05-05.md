@@ -511,3 +511,19 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Diagnostic Checkpoint 16
+
+- Added the PVV4 / `virtualStars` separation audit:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v4.md`
+- Exact architectural conclusion:
+  - `virtualStars` are not part of the intended PVV4 conquest mechanism
+  - they are ownership/VFX/helper residue that drifted into the disappearance path
+- Exact real-file post-mortem:
+  - `StarOwnershipSnapshotMode.ts` only spawns current-turn `virtualStars` for `event.newOwner`
+  - older `ActiveFrontTransition.ts` collapse-center lookup still asked for a `virtualStar` for `event.previousOwner`
+  - that was a category error: VFX/helper data was being consulted for a PVV4 frontier-motion decision
+- Direct follow-up now required:
+  - remove remaining PVV4 dependence on `virtualStars`
+  - stop including `virtualStarCount` in active-path ownership identity
+  - build a live classification overlay that shows every vertex, section, and active sub-section at conquest start
