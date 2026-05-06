@@ -2646,31 +2646,54 @@
         canonicalRuntimeOutput: TerritoryRuntimeOutput | null,
     ): string | null {
         const activeFrontDebug = canonicalRuntimeOutput?.activeFrontDebug ?? null;
-        const shouldFreeze =
+        const defectFreezeReason =
+            overlayConfig.enabled &&
             overlayConfig.freezeOnUnclassifiedBoundary &&
             activeFrontDebug?.topologyPathSelected === true &&
-            activeFrontDebug.hasClassificationDefect;
-        if (!shouldFreeze) {
+            activeFrontDebug.hasClassificationDefect
+                ? `${activeMode}:defect:pairs=${activeFrontDebug.defectPairCount}:sections=` +
+                  `${activeFrontDebug.defectSectionCount}`
+                : null;
+        const conquestStartFreezeReason =
+            overlayConfig.enabled &&
+            overlayConfig.pauseOnConquestStart &&
+            activeFrontDebug?.topologyPathSelected === true &&
+            activeFrontDebug.hasNewConquests &&
+            canonicalRuntimeOutput?.transition.envelope?.transitionId
+                ? `${activeMode}:conquest-start:${canonicalRuntimeOutput.transition.envelope.transitionId}`
+                : null;
+        const nextFreezeReason =
+            defectFreezeReason ?? conquestStartFreezeReason;
+
+        if (!nextFreezeReason) {
+            if (territoryTransitionFreezeReason && activeGameStore.isPaused) {
+                return territoryTransitionFreezeReason;
+            }
             territoryTransitionFreezeReason = null;
             return null;
         }
 
-        const reason =
-            `${activeMode}:pairs=${activeFrontDebug.defectPairCount}:sections=` +
-            `${activeFrontDebug.defectSectionCount}`;
-        if (territoryTransitionFreezeReason !== reason) {
-            territoryTransitionFreezeReason = reason;
-            log.error(
-                "GameCanvas",
-                `Freezing territory transition on boundary-classification defect ` +
-                    `(mode=${activeMode}, pairs=${activeFrontDebug.defectPairCount}, ` +
-                    `sections=${activeFrontDebug.defectSectionCount})`,
-            );
+        if (territoryTransitionFreezeReason !== nextFreezeReason) {
+            territoryTransitionFreezeReason = nextFreezeReason;
+            if (defectFreezeReason) {
+                log.error(
+                    "GameCanvas",
+                    `Freezing territory transition on boundary-classification defect ` +
+                        `(mode=${activeMode}, pairs=${activeFrontDebug.defectPairCount}, ` +
+                        `sections=${activeFrontDebug.defectSectionCount})`,
+                );
+            } else {
+                log.info(
+                    "GameCanvas",
+                    `Pausing territory transition at conquest start ` +
+                        `(mode=${activeMode}, transition=${canonicalRuntimeOutput?.transition.envelope?.transitionId ?? "n/a"})`,
+                );
+            }
             if (!activeGameStore.isPaused) {
                 activeGameStore.pauseGame();
             }
         }
-        return territoryTransitionFreezeReason;
+        return nextFreezeReason;
     }
 
     function buildCanonicalBridgeInput(

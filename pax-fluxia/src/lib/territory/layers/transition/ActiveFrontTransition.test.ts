@@ -810,6 +810,90 @@ describe('ActiveFrontTransition', () => {
         expect(plan.collapseTargets[0]?.center).toEqual([140, 140]);
     });
 
+    it('keeps a 2-star region conquest local by including the surviving star in conquest gating', () => {
+        const previousOwner = 'red';
+        const nextOwner = 'blue';
+        const capturedStarId = 'red-captured';
+        const survivingStarId = 'red-surviving';
+        const unrelatedBlueStarId = 'blue-other';
+
+        const prev = makeInfluencedSingleSectionTopology({
+            version: 'prev',
+            ownerA: previousOwner,
+            ownerB: nextOwner,
+            identityPrefix: 'stable',
+            points: [
+                [0, 0],
+                [20, 0],
+                [40, 0],
+                [60, 12],
+                [80, 0],
+                [100, 0],
+            ],
+            leftStarId: survivingStarId,
+            rightStarId: unrelatedBlueStarId,
+        });
+        const next = makeInfluencedSingleSectionTopology({
+            version: 'next',
+            ownerA: previousOwner,
+            ownerB: nextOwner,
+            identityPrefix: 'stable',
+            points: [
+                [0, 0],
+                [20, 0],
+                [40, 0],
+                [60, -12],
+                [80, 0],
+                [100, 0],
+            ],
+            leftStarId: survivingStarId,
+            rightStarId: unrelatedBlueStarId,
+        });
+        const previousRegions: TerritoryRegionShape[] = [
+            makeRegion('region:prev-two-star', previousOwner, [50, 20], 20, [
+                capturedStarId,
+                survivingStarId,
+            ]),
+        ];
+        const nextRegions: TerritoryRegionShape[] = [
+            makeRegion('region:next-survivor', previousOwner, [60, 10], 16, [
+                survivingStarId,
+            ]),
+        ];
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map([
+                [capturedStarId, nextOwner],
+                [survivingStarId, previousOwner],
+            ]),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: capturedStarId,
+                    previousOwner,
+                    newOwner: nextOwner,
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(
+            prev,
+            next,
+            ownership,
+            { changeSpanPadPoints: 0 },
+            [],
+            previousRegions,
+            nextRegions,
+        );
+
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        expect(plan.fronts).toHaveLength(1);
+        expect([...plan.fronts[0]!.activeSectionIds]).toContain('stable:section');
+    });
+
     it('moves only the local changed interval inside a single active section', () => {
         const prev = makeSingleSectionTopology('prev', 'red', 'blue', [
             [0, 0],

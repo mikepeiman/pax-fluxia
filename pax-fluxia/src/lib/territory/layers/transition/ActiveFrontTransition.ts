@@ -207,6 +207,7 @@ export function planActiveFrontTransition(
         prevByKey,
         nextByKey,
         ownership.conquestEvents,
+        previousRegions,
     );
     for (const key of allKeys) {
         const prevPaths = prevByKey.get(key) ?? [];
@@ -861,6 +862,7 @@ function buildConquestRelevantAnchorPairKeys(
     prevByKey: ReadonlyMap<string, ChainPath[]>,
     nextByKey: ReadonlyMap<string, ChainPath[]>,
     conquestEvents: readonly TerritoryConquestEvent[],
+    previousRegions: readonly TerritoryRegionShape[],
 ): Set<string> {
     const allKeys = new Set<string>([...prevByKey.keys(), ...nextByKey.keys()]);
     if (conquestEvents.length === 0) {
@@ -871,7 +873,16 @@ function buildConquestRelevantAnchorPairKeys(
     for (const key of allKeys) {
         const prevPaths = prevByKey.get(key) ?? [];
         const nextPaths = nextByKey.get(key) ?? [];
-        if (anchorPairTouchesConquest(prev, next, prevPaths, nextPaths, conquestEvents)) {
+        if (
+            anchorPairTouchesConquest(
+                prev,
+                next,
+                prevPaths,
+                nextPaths,
+                conquestEvents,
+                previousRegions,
+            )
+        ) {
             relevantKeys.add(key);
         }
     }
@@ -885,9 +896,13 @@ function anchorPairTouchesConquest(
     prevPaths: readonly ChainPath[],
     nextPaths: readonly ChainPath[],
     conquestEvents: readonly TerritoryConquestEvent[],
+    previousRegions: readonly TerritoryRegionShape[],
 ): boolean {
     for (const event of conquestEvents) {
-        if (pathsTouchConquest(prev, prevPaths, event) || pathsTouchConquest(next, nextPaths, event)) {
+        if (
+            pathsTouchConquest(prev, prevPaths, event, previousRegions)
+            || pathsTouchConquest(next, nextPaths, event, previousRegions)
+        ) {
             return true;
         }
     }
@@ -898,8 +913,9 @@ function pathsTouchConquest(
     topo: FrontierTopology,
     paths: readonly ChainPath[],
     event: TerritoryConquestEvent,
+    previousRegions: readonly TerritoryRegionShape[],
 ): boolean {
-    const relevantStarIds = listConquestStarIds(event);
+    const relevantStarIds = listConquestStarIds(event, previousRegions);
     if (relevantStarIds.length === 0) {
         return false;
     }
@@ -944,7 +960,10 @@ function influenceTouchesConquest(
     );
 }
 
-function listConquestStarIds(event: TerritoryConquestEvent): string[] {
+function listConquestStarIds(
+    event: TerritoryConquestEvent,
+    previousRegions: readonly TerritoryRegionShape[],
+): string[] {
     const ids = new Set<string>();
     ids.add(event.starId);
     if (typeof event.attackerStarId === 'string' && event.attackerStarId.length > 0) {
@@ -954,6 +973,14 @@ function listConquestStarIds(event: TerritoryConquestEvent): string[] {
         if (attackerStarId.length > 0) {
             ids.add(attackerStarId);
         }
+    }
+    const previousRegion = previousRegions.find((region) => {
+        if (region.ownerId !== event.previousOwner) return false;
+        const anchorStarIds = region.anchorStarIds ?? [];
+        return anchorStarIds.length === 2 && anchorStarIds.includes(event.starId);
+    });
+    for (const anchorStarId of previousRegion?.anchorStarIds ?? []) {
+        ids.add(anchorStarId);
     }
     return [...ids];
 }

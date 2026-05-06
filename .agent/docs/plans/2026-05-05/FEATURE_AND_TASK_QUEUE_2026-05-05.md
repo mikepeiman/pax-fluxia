@@ -637,3 +637,24 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 23
+
+- Added the live PVV4 boundary-and-vertices classification overlay:
+  - `pax-fluxia/src/lib/territory/devtools/activeFrontClassificationOverlay.ts`
+  - `pax-fluxia/src/lib/territory/adapters/pixi/PixiTerritoryDebugOverlay.ts`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/territory/devtools/overlayConfig.ts`
+  - `pax-fluxia/src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts`
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v10.md`
+- Exact behavior:
+  - overlay now classifies every visible section and structural vertex on the active PVV4 path
+  - active sections show their local active sub-section span
+  - diagnostics now include a conquest-start pause toggle in addition to defect freeze
+- Two-star targeted fix:
+  - conquest-local anchor-pair gating now includes both stars from a 2-star previous region when one of those stars is conquered
+  - this directly targets the observed 2->1 region snap case
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`

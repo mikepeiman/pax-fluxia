@@ -72,8 +72,14 @@
     );
 
     let overlayEnabled = $state(overlayConfig.enabled);
+    let overlayPauseOnConquestStart = $state(
+        overlayConfig.pauseOnConquestStart,
+    );
     let overlayShowVertices = $state(overlayConfig.showAllVertices);
     let overlayShowActiveFront = $state(overlayConfig.showActiveFront);
+    let overlayShowClassificationLabels = $state(
+        overlayConfig.showClassificationLabels,
+    );
     let overlayPolylineSamples = $state(overlayConfig.showPolylineSamples);
     let overlayFreezeOnUnclassifiedBoundary = $state(
         overlayConfig.freezeOnUnclassifiedBoundary,
@@ -89,8 +95,11 @@
 
     function syncOverlayState(): void {
         overlayEnabled = overlayConfig.enabled;
+        overlayPauseOnConquestStart = overlayConfig.pauseOnConquestStart;
         overlayShowVertices = overlayConfig.showAllVertices;
         overlayShowActiveFront = overlayConfig.showActiveFront;
+        overlayShowClassificationLabels =
+            overlayConfig.showClassificationLabels;
         overlayPolylineSamples = overlayConfig.showPolylineSamples;
         overlayFreezeOnUnclassifiedBoundary =
             overlayConfig.freezeOnUnclassifiedBoundary;
@@ -106,8 +115,20 @@
         syncOverlayState();
     }
 
+    function toggleOverlayPauseOnConquestStart(): void {
+        overlayConfig.pauseOnConquestStart =
+            !overlayConfig.pauseOnConquestStart;
+        syncOverlayState();
+    }
+
     function toggleOverlayActiveFront(): void {
         overlayConfig.showActiveFront = !overlayConfig.showActiveFront;
+        syncOverlayState();
+    }
+
+    function toggleOverlayClassificationLabels(): void {
+        overlayConfig.showClassificationLabels =
+            !overlayConfig.showClassificationLabels;
         syncOverlayState();
     }
 
@@ -344,10 +365,26 @@
         <label class="toggle-row indent">
             <input
                 type="checkbox"
+                checked={overlayPauseOnConquestStart}
+                onchange={toggleOverlayPauseOnConquestStart}
+            />
+            <span class="var-name">Pause on conquest start</span>
+        </label>
+        <label class="toggle-row indent">
+            <input
+                type="checkbox"
                 checked={overlayShowActiveFront}
                 onchange={toggleOverlayActiveFront}
             />
             <span class="var-name">Active front bridge + anchors + gold sections</span>
+        </label>
+        <label class="toggle-row indent">
+            <input
+                type="checkbox"
+                checked={overlayShowClassificationLabels}
+                onchange={toggleOverlayClassificationLabels}
+            />
+            <span class="var-name">Classification labels</span>
         </label>
         <label class="toggle-row indent">
             <input

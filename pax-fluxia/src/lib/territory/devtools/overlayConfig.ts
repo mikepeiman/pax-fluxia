@@ -1,21 +1,21 @@
-// ── Territory Debug Overlay Config ───────────────────────────────────────────
-// Shared mutable config singleton — written by the debug panel UI,
-// read by the live PixiJS overlay each frame. No reactivity framework needed.
+// Territory debug overlay config.
+// Shared mutable singleton: UI writes, Pixi overlay reads.
 
 export const overlayConfig = {
-    /** Master toggle — overlay drawn on the game canvas each frame. */
+    /** Master toggle. */
     enabled: false,
-    /** Draw every frontier vertex as a small labeled dot. */
+    /** Pause immediately when a new PVV4 conquest transition starts. */
+    pauseOnConquestStart: false,
+    /** Draw every structural frontier vertex. */
     showAllVertices: true,
-    /** Highlight the active front sections (gold) and change anchors (cyan). */
+    /** Highlight active front sections and anchors. */
     showActiveFront: true,
-    /**
-     * Draw sampled points along each section polyline (structural vertices are sparse;
-     * curves are dense Chaikin samples between junctions).
-     */
+    /** Show per-section and per-vertex classification labels. */
+    showClassificationLabels: true,
+    /** Draw sampled points along each section polyline. */
     showPolylineSamples: true,
-    /** Stride between rendered sample dots (1 = every interior point). */
+    /** Stride between rendered sample dots (1 = every point). */
     polylineSampleStride: 4,
-    /** Pause the game when PV boundary classification surfaces a defect. */
+    /** Pause when PV boundary classification surfaces a defect. */
     freezeOnUnclassifiedBoundary: false,
 };

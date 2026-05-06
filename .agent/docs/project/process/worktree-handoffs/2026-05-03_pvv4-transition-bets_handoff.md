@@ -2410,3 +2410,28 @@
 - Validation:
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Add Live PVV4 Classification Overlay And Target 2-Star Gating
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v10.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontClassificationOverlay.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\adapters\pixi\PixiTerritoryDebugOverlay.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\overlayConfig.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontClassificationOverlay.test.ts`
+- Exact behavior:
+  - the live overlay now classifies every visible PVV4 section and structural vertex
+  - active sections show their local active point-index span
+  - diagnostics can now pause immediately on conquest start for manual inspection
+  - the 2-star previous-region gate now includes both region stars when one of them is conquered, so surviving-star-attributed frontiers are not dropped from conquest-local planning
+- Merge note:
+  - this is still a targeted fix for the observed 2->1 case, not a full replacement of conquest-local gating
+  - if larger-region partial-loss snaps still remain, the next extension should derive relevant frontier scope from authoritative region membership more broadly, not from attacker/captured stars alone
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
