@@ -1,8 +1,11 @@
 Merge note:
 - Source worktree: `f76c`
-- Source commit: `aebd45f93`
-- Source branch state: detached worktree
-- Source change state: dirty worktree, not a committed feature branch
+- Source base commit on `master`: `aebd45f93`
+- Current branch: `codex/render-infra/territory-semantic-audit`
+- Current checkpoint commits:
+  - `5a81b717f` `docs(agent): add semantics synthesis and communication rules`
+  - `bdbdd08d5` `refactor(territory): replace canonical live terminology`
+  - `284894a3c` `fix(render): reset family teardown and restore build helpers`
 - Merge intent: carry the live semantics/naming purge, communication-rule work, and runtime stability fixes into `master` with minimal conflict churn
 
 # Merge Handoff - 2026-05-06 Worktree `f76c`
@@ -21,25 +24,26 @@ Merge by subsystem and by intent.
 
 ## Source state and merge posture
 
-This is not currently a clean commit series that can be merged by commit range.
+This work started as a dirty detached worktree, but it has now been checkpointed into a named branch with logical commits.
 
 Current truth:
 
-- `HEAD` is `aebd45f93`
-- the intended integration payload is in the uncommitted worktree delta on top of that commit
-- `master...HEAD` can therefore appear empty even though the worktree contains substantial pending changes
+- base point on `master`: `aebd45f93`
+- working branch: `codex/render-infra/territory-semantic-audit`
+- the intended integration payload is now carried by the three commits listed above
 
 Implication for the future merge agent:
 
-- do not reason from branch ancestry alone
-- do not assume there is a ready cherry-pickable branch
-- treat this handoff doc plus the dirty worktree diff as the authoritative integration source
+- you can reason from the branch and its commits
+- do not squash the work mentally into one file-replacement merge
+- still preserve newer `master` behavior where the same files diverged
 
 Working rule:
 
-- port changes by intent and by file hunk from the worktree delta relative to `aebd45f93`
+- replay or port changes by subsystem and by intent
+- use the commit split to separate docs/rules, live naming, and runtime repairs
 - preserve newer `master` behavior where it exists
-- re-apply this worktree's semantics, naming, and lifecycle fixes on top
+- re-apply this branch's semantics, naming, and lifecycle fixes on top
 
 ## Most important current truth
 
