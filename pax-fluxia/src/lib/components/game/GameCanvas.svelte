@@ -5740,6 +5740,7 @@
                 staleMs: territoryScheduler.staleMs,
                 lastTerritoryUpdateCostMs,
             });
+            let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
 
             // Hide all children first — only the active renderer will re-show its own
             const activeVoronoiContainer = voronoiContainer!;
@@ -5784,8 +5785,6 @@
                 let transitionDiagnosticFrameInput:
                     | TransitionDiagnosticFrameInput
                     | null = null;
-                let canonicalRuntimeOutput: TerritoryRuntimeOutput | null =
-                    null;
 
                 // One-shot diagnostic: which render mode is active?
                 if (!(globalThis as any).__RENDER_MODE_LOGGED) {

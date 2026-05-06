@@ -690,3 +690,15 @@
 - Validation:
   - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 28
+- Fixed the remaining `canonicalRuntimeOutput is not defined` scope leak in `pax-fluxia/src/lib/components/game/GameCanvas.svelte`.
+- Root cause:
+  - `renderPerimeterFieldDebugOverlay(...)` was still being called outside the inner block that declared `canonicalRuntimeOutput`.
+- Exact change:
+  - hoisted `canonicalRuntimeOutput` to the enclosing territory-frame scope
+  - removed the inner shadow declaration
+- Created:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v15.md`
+- Validation:
+  - `bun run build` in `pax-fluxia/`

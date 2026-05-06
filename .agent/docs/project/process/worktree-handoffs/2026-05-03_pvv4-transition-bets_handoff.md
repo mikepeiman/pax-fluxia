@@ -79,6 +79,21 @@
   - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build`
 
+### 2026-05-06 - Fixed remaining diagnostics overlay scope leak
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Purpose:
+  - remove the remaining live browser crash after the first overlay-path fix
+- Exact change:
+  - hoisted `canonicalRuntimeOutput` to the enclosing territory-frame scope
+  - removed the inner shadow declaration that left the later overlay call site out of scope
+- Result:
+  - the perimeter debug overlay call now reads the live runtime output from a valid frame scope
+- Validation:
+  - `bun run build`
+
 ### 2026-05-03 - Created branch-attached worktree state
 
 - Action:
