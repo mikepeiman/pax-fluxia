@@ -658,3 +658,8 @@
 - Validation:
   - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
+## Implementation Checkpoint 24
+- Diagnosed package `12-52-27---742_cq_s27_a4-a3_tdp` as a false classification freeze, not a 2-star snap case.
+- Reclassified `no_change_span` from defect to normal no-motion diagnostic outcome.
+- Active-front summary now separates `no-motion pairs` from real defects.
+- Freeze-on-unclassified now remains reserved for actual unresolved states.

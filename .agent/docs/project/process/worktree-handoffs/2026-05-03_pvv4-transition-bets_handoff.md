@@ -2435,3 +2435,13 @@
 - Validation:
   - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+## Update: 2026-05-06 - Remove False Freeze On No-Motion Pairs
+
+- Analyzed package `12-52-27---742_cq_s27_a4-a3_tdp`.
+- Result: the first-conquest pause was caused by `no_change_span` pairs being counted as classification defects.
+- Corrected active-front semantics:
+  - `no_change_span` is now a normal classified outcome
+  - it no longer contributes to `classification_defect`
+  - it no longer triggers `freezeOnUnclassifiedBoundary`
+- Debug overlay/export text now says `no-motion pairs` instead of `no-span defects`.
+- The actual `2-star -> 1-star` snap case still needs fresh playtest after this false freeze is removed.

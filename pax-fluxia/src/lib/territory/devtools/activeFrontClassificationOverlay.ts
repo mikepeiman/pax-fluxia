@@ -14,8 +14,7 @@ export type OverlaySectionRole =
     | 'unchanged_section'
     | 'active_section'
     | 'defect_topology_gap'
-    | 'defect_unsupported_split'
-    | 'defect_no_change_span';
+    | 'defect_unsupported_split';
 
 export type OverlaySubSectionRole =
     | 'unchanged_subsection'
@@ -58,17 +57,16 @@ const SECTION_ROLE_PRIORITY: Record<OverlaySectionRole, number> = {
     active_section: 1,
     defect_topology_gap: 2,
     defect_unsupported_split: 2,
-    defect_no_change_span: 2,
 };
 
 function outcomeToSectionRole(outcome: ActiveFrontPairOutcome): OverlaySectionRole {
     switch (outcome) {
+        case 'no_change_span':
+            return 'unchanged_section';
         case 'defect_topology_gap':
             return 'defect_topology_gap';
         case 'defect_unsupported_split_mode':
             return 'defect_unsupported_split';
-        case 'defect_no_change_span':
-            return 'defect_no_change_span';
         default:
             return 'unchanged_section';
     }
@@ -84,8 +82,6 @@ function roleLabel(role: OverlaySectionRole | OverlayVertexRole): string {
             return 'gap';
         case 'defect_unsupported_split':
             return 'split';
-        case 'defect_no_change_span':
-            return 'no-span';
         case 'front_anchor':
             return 'front';
         case 'defect_anchor':
@@ -235,7 +231,7 @@ export function buildActiveFrontClassificationOverlayModel(
     }
 
     for (const pair of plan.diagnostics.pairDiagnostics) {
-        if (pair.outcome === 'planned') continue;
+        if (pair.outcome === 'planned' || pair.outcome === 'no_change_span') continue;
         const role = outcomeToSectionRole(pair.outcome);
         const label = roleLabel(role);
         mergeVertexRole(vertices, pair.anchorStartId, 'defect_anchor', label);

@@ -19,9 +19,9 @@ export type ActiveFrontSplitMode = 'none' | '1to2' | '2to1';
 type SplitMode = ActiveFrontSplitMode;
 export type ActiveFrontPairOutcome =
     | 'planned'
+    | 'no_change_span'
     | 'defect_topology_gap'
     | 'defect_unsupported_split_mode'
-    | 'defect_no_change_span';
 export type ActiveFrontPlanClassification =
     | 'animated_fronts'
     | 'collapse_only'
@@ -118,9 +118,9 @@ export interface ActiveFrontPlanDiagnosticsSummary {
     pairCount: number;
     plannedPairCount: number;
     defectPairCount: number;
+    noChangePairCount: number;
     defectTopologyGapCount: number;
     defectUnsupportedSplitCount: number;
-    defectNoChangeSpanCount: number;
     frontCount: number;
     activeSectionCount: number;
     defectSectionCount: number;
@@ -261,8 +261,8 @@ export function planActiveFrontTransition(
         pairDiagnostic.paddedChangeSpan = { base, startIndex, endIndex };
 
         if (startIndex === -1 || endIndex === -1) {
-            pairDiagnostic.outcome = 'defect_no_change_span';
-            pairDiagnostic.defectSectionIds = collectPathSectionIds(prevPaths, nextPaths);
+            pairDiagnostic.outcome = 'no_change_span';
+            pairDiagnostic.defectSectionIds = [];
             pairDiagnostics.push(pairDiagnostic);
             continue;
         }
@@ -363,11 +363,10 @@ function buildActiveFrontPlanDiagnostics(input: {
     const defectUnsupportedSplitCount = input.pairDiagnostics.filter(
         (pair) => pair.outcome === 'defect_unsupported_split_mode',
     ).length;
-    const defectNoChangeSpanCount = input.pairDiagnostics.filter(
-        (pair) => pair.outcome === 'defect_no_change_span',
+    const noChangePairCount = input.pairDiagnostics.filter(
+        (pair) => pair.outcome === 'no_change_span',
     ).length;
-    const defectPairCount =
-        defectTopologyGapCount + defectUnsupportedSplitCount + defectNoChangeSpanCount;
+    const defectPairCount = defectTopologyGapCount + defectUnsupportedSplitCount;
     const classification: ActiveFrontPlanClassification =
         defectPairCount > 0 || defectSectionCount > 0
             ? 'classification_defect'
@@ -394,9 +393,9 @@ function buildActiveFrontPlanDiagnostics(input: {
             pairCount: input.pairDiagnostics.length,
             plannedPairCount,
             defectPairCount,
+            noChangePairCount,
             defectTopologyGapCount,
             defectUnsupportedSplitCount,
-            defectNoChangeSpanCount,
             frontCount: input.fronts.length,
             activeSectionCount,
             defectSectionCount,

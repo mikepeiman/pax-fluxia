@@ -16,7 +16,6 @@ const COL = {
     activeSubSection: 0x52ff8f,
     defectGap: 0xff4d6d,
     defectSplit: 0xff8c42,
-    defectNoSpan: 0xd06bff,
     stableAnchor: 0x3cdcff,
     frontAnchor: 0x72ff5e,
     defectAnchor: 0xff4d6d,
@@ -34,8 +33,6 @@ function sectionColor(section: OverlaySectionClassification): number {
             return COL.defectGap;
         case 'defect_unsupported_split':
             return COL.defectSplit;
-        case 'defect_no_change_span':
-            return COL.defectNoSpan;
         default:
             return COL.unchangedSection;
     }

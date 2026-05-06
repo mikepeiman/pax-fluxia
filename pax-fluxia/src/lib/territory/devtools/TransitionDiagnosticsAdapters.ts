@@ -215,7 +215,7 @@ function renderActiveFrontDiagnosticCanvas(args: {
         `stable anchors: ${planSummary?.stableAnchorCount ?? 0} / pairs: ${planSummary?.pairCount ?? 0}`,
         `planned: ${planSummary?.plannedPairCount ?? 0} / defect pairs: ${planSummary?.defectPairCount ?? 0}`,
         `topology gaps: ${planSummary?.defectTopologyGapCount ?? 0} / split defects: ${planSummary?.defectUnsupportedSplitCount ?? 0}`,
-        `no-span defects: ${planSummary?.defectNoChangeSpanCount ?? 0} / defect sections: ${planSummary?.defectSectionCount ?? 0}`,
+        `no-motion pairs: ${planSummary?.noChangePairCount ?? 0} / defect sections: ${planSummary?.defectSectionCount ?? 0}`,
     ];
     const panelWidth = 310;
     const lineHeight = 16;

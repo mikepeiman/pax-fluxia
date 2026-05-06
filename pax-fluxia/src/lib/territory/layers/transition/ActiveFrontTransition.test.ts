@@ -1133,7 +1133,7 @@ describe('ActiveFrontTransition', () => {
         const plan = planActiveFrontTransition(prev, next, ownership);
         expect(plan.diagnostics.summary.pairCount).toBe(1);
         expect(plan.diagnostics.summary.frontCount).toBe(1);
-        expect(plan.diagnostics.summary.defectNoChangeSpanCount).toBe(0);
+        expect(plan.diagnostics.summary.noChangePairCount).toBe(0);
         expect(plan.fronts).toHaveLength(1);
         expect(plan.fronts[0]?.anchorStartId).toBe('changed:end');
         expect(plan.fronts[0]?.anchorEndId).toBe('changed:start');
