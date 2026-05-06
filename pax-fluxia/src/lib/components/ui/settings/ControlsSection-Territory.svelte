@@ -154,8 +154,8 @@
     const activeStyle = resolveActiveStyleId();
     return (
       activeStyle === "territory_engine" ||
-      activeStyle === "territory_canonical" ||
-      activeStyle === "power_voronoi_canonical"
+      activeStyle === "territory_runtime" ||
+      activeStyle === "power_voronoi_runtime"
     );
   }
 
@@ -456,7 +456,7 @@
       "territoryRenderMode",
       styleId,
     );
-    if (styleId === "power_voronoi_canonical") {
+    if (styleId === "power_voronoi_runtime") {
       selectFrontierTransition("pv_frontline");
     } else if (resolveActiveFillTransitionId() === "pv_frontline") {
       selectFrontierTransition("active_front");
@@ -477,13 +477,13 @@
     return (
       panel.territoryRenderMode ??
       GAME_CONFIG.TERRITORY_RENDER_MODE ??
-      "territory_canonical"
+      "territory_runtime"
     );
   }
 
   function resolveSelectedGeometryModeId(): string {
-    if (resolveActiveStyleId() === "power_voronoi_canonical") {
-      return "canonical_power_voronoi";
+    if (resolveActiveStyleId() === "power_voronoi_runtime") {
+      return "resolved_power_voronoi";
     }
     return (
       panel.territoryGeometryMode ??
@@ -492,12 +492,12 @@
     ) as string;
   }
 
-  function usesCanonicalPvGeometry(): boolean {
-    return resolveSelectedGeometryModeId() === "canonical_power_voronoi";
+  function usesResolvedPvGeometry(): boolean {
+    return resolveSelectedGeometryModeId() === "resolved_power_voronoi";
   }
 
   function resolveActiveFillTransitionId(): string {
-    if (usesCanonicalPvGeometry()) {
+    if (usesResolvedPvGeometry()) {
       return "pv_frontline";
     }
     const raw =
@@ -532,7 +532,7 @@
   }
 
   function isPowerVoronoi0427Mode(): boolean {
-    return resolveActiveStyleId() === "power_voronoi_canonical";
+    return resolveActiveStyleId() === "power_voronoi_runtime";
   }
 
   function isMetaballGridStyle(): boolean {
@@ -613,8 +613,8 @@
 
     if (
       resolveActiveStyleId() === "territory_engine" ||
-      resolveActiveStyleId() === "territory_canonical" ||
-      resolveActiveStyleId() === "power_voronoi_canonical"
+      resolveActiveStyleId() === "territory_runtime" ||
+      resolveActiveStyleId() === "power_voronoi_runtime"
     ) {
       modules.push({ id: "surface", label: "Surface", icon: "✦" });
     }
@@ -1288,7 +1288,7 @@
   <div class="territory-card__header">
     <h4 class="axis-card-title">Topology Rules</h4>
     <p class="territory-card__intro">
-      Set the canonical owned footprint, frontier sampling density, and the
+      Set the resolved owned footprint, frontier sampling density, and the
       connection rules that determine how fronts stay linked or deliberately
       split apart.
     </p>
@@ -1719,14 +1719,14 @@
 
 {#if showStylesView && showRendererModule("surface") &&
   (resolveActiveStyleId() === "territory_engine" ||
-    resolveActiveStyleId() === "territory_canonical" ||
-    resolveActiveStyleId() === "power_voronoi_canonical")}
+    resolveActiveStyleId() === "territory_runtime" ||
+    resolveActiveStyleId() === "power_voronoi_runtime")}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
         <h4 class="axis-card-title">
           {resolveActiveStyleId() === "territory_engine"
           ? "Engine Surface"
-          : resolveActiveStyleId() === "power_voronoi_canonical"
+          : resolveActiveStyleId() === "power_voronoi_runtime"
             ? "Power Voronoi 0427 Surface"
             : "Layered Runtime Surface"}
       </h4>
@@ -2075,7 +2075,7 @@
           <h4 class="axis-card-title">
             {resolveActiveStyleId() === "territory_engine"
               ? "Engine Surface"
-              : resolveActiveStyleId() === "power_voronoi_canonical"
+              : resolveActiveStyleId() === "power_voronoi_runtime"
                 ? "Power Voronoi 0427 Surface"
                 : "Layered Runtime Surface"}
           </h4>
@@ -2171,7 +2171,7 @@
           <h4 class="axis-card-title">
             {resolveActiveStyleId() === "territory_engine"
               ? "Engine Surface"
-              : resolveActiveStyleId() === "power_voronoi_canonical"
+              : resolveActiveStyleId() === "power_voronoi_runtime"
                 ? "Power Voronoi 0427 Surface"
                 : "Layered Runtime Surface"}
           </h4>

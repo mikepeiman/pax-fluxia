@@ -14,7 +14,7 @@
  *   sample point).
  *
  * Truth source:
- * - `NEXT` geometry = `input.geometry` (the current live `CanonicalGeometrySnapshot`).
+ * - `NEXT` geometry = `input.geometry` (the current live `ResolvedGeometrySnapshot`).
  * - `PREV` geometry = rebuilt on transition start from reverted stars using the
  *   same Power-Voronoi 0319 underlayer. This mirrors the approach taken by
  *   `PerimeterFieldFamily`; it is a known-simplification of the upstream-
@@ -55,7 +55,7 @@ import {
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
     RenderFamily,
@@ -577,7 +577,7 @@ interface CachedPlan {
     readonly planKey: string;
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
-    readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
     readonly classificationBuildMs: number;
     readonly wavePlanBuildMs: number;
     readonly planBuildMs: number;
@@ -601,13 +601,13 @@ interface MetaballGridPlanWorkerRequestMeta {
     readonly requestId: number;
     readonly sessionKey: string;
     readonly planKey: string;
-    readonly prevGeometry: CanonicalGeometrySnapshot;
-    readonly nextGeometryRef: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
+    readonly nextGeometryRef: ResolvedGeometrySnapshot;
 }
 
 interface CapturedTransitionSession extends RenderFamilyTransitionSession {
-    readonly prevGeometry: CanonicalGeometrySnapshot;
-    readonly nextGeometry: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
+    readonly nextGeometry: ResolvedGeometrySnapshot;
     readonly prevOwnedStars: readonly GridOwnedStar[];
     readonly nextOwnedStars: readonly GridOwnedStar[];
 }
@@ -921,7 +921,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         string,
         CapturedTransitionSession
     >();
-    private committedGeometry: CanonicalGeometrySnapshot | null = null;
+    private committedGeometry: ResolvedGeometrySnapshot | null = null;
     private committedOwnedStars: GridOwnedStar[] = [];
     /**
      * Last paint-output signature. When the next update() computes the same
@@ -1417,8 +1417,8 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         input: RenderFamilyInput;
         planKey: string;
         settings: MetaballGridPlanSettings;
-        prevGeometry: CanonicalGeometrySnapshot;
-        nextGeometryRef: CanonicalGeometrySnapshot;
+        prevGeometry: ResolvedGeometrySnapshot;
+        nextGeometryRef: ResolvedGeometrySnapshot;
         conquestEvents: readonly import('@pax/common').ConquestEvent[];
         prevOwnedStars: readonly GridOwnedStar[];
         nextOwnedStars: readonly GridOwnedStar[];
@@ -1477,7 +1477,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     private resolvePrevGeometryForTransition(params: {
         input: RenderFamilyInput;
         settings: MetaballGridPlanSettings;
-    }): CanonicalGeometrySnapshot {
+    }): ResolvedGeometrySnapshot {
         const { input, settings } = params;
         const revertedStars = revertStarsForTransition(input);
         return buildPerimeterFieldRenderFamilyGeometry({
@@ -1493,7 +1493,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
     private syncCapturedTransitionSessions(params: {
         input: RenderFamilyInput;
         settings: MetaballGridPlanSettings;
-        currentGeometry: CanonicalGeometrySnapshot;
+        currentGeometry: ResolvedGeometrySnapshot;
     }): readonly CapturedTransitionSession[] {
         const { input } = params;
         const sessions = input.transitionSessions ?? [];
@@ -2624,7 +2624,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
 
     private buildPlanForTransition(params: {
         input: RenderFamilyInput;
-        currentGeometry: CanonicalGeometrySnapshot;
+        currentGeometry: ResolvedGeometrySnapshot;
         planKey: string;
         settings: MetaballGridPlanSettings;
     }): CachedPlan {
@@ -2701,7 +2701,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
      */
     private buildSteadyStatePlan(params: {
         input: RenderFamilyInput;
-        currentGeometry: CanonicalGeometrySnapshot;
+        currentGeometry: ResolvedGeometrySnapshot;
         planKey: string;
         settings: MetaballGridPlanSettings;
     }): CachedPlan {

@@ -12,7 +12,7 @@ describe('buildTerritoryConfigFingerprint', () => {
             TERRITORY_FILL_MODE: 'frontier',
             TERRITORY_FILL_TRANSITION_MODE: 'topology_fill_rebuild',
             TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport',
-            TERRITORY_STYLE_MODE: 'canonical',
+            TERRITORY_STYLE_MODE: 'vector',
         };
 
         const baseFp = buildTerritoryConfigFingerprint(base, {
@@ -36,7 +36,7 @@ describe('buildTerritoryConfigFingerprint', () => {
             buildTerritoryConfigFingerprint(
                 {
                     ...base,
-                    PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector',
+                    PERIMETER_FIELD_GEOMETRY_SOURCE: 'resolved_vector',
                 },
                 { geometryRefreshToken: 0, visualEpoch: 0 },
             ),

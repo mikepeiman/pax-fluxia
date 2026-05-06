@@ -94,14 +94,14 @@ describe('laneConnectionSync', () => {
         ]);
     });
 
-    it('normalizes non-canonical seed input so directed reads match source->target', () => {
+    it('normalizes unnormalized seed input so directed reads match source->target', () => {
         // Mapgen's buildLaneAwareConnections can emit sourceId > targetId because it
         // iterates node pairs by array index, not id. Waypoints arrive in sourceId->targetId
-        // (non-canonical) order. The cache must normalize to canonical storage so that
+        // (unnormalized) order. The cache must normalize to stored ordering so that
         // getDirectedLanePolyline returns waypoints in the caller's requested direction.
         seedLaneCacheFromConnections([
             {
-                sourceId: 'star-b', // non-canonical: b > a
+                sourceId: 'star-b', // unnormalized: b > a
                 targetId: 'star-a',
                 distance: 100,
                 lanePathKind: 'curved',
@@ -127,7 +127,7 @@ describe('laneConnectionSync', () => {
         ]);
     });
 
-    it('uses live star endpoints to correct reversed canonical waypoint payloads before seeding the cache', () => {
+    it('uses live star endpoints to correct reversed normalized waypoint payloads before seeding the cache', () => {
         const normalized = seedLaneCacheFromConnections(
             [
                 {

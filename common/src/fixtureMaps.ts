@@ -1,6 +1,6 @@
 // ============================================================================
 // Fixture map registry
-// Shared canonical registry for deterministic map cases used in renderer,
+// Shared fixture registry for deterministic map cases used in renderer,
 // parity, and future custom-map/editor validation work.
 //
 // Phase 1 foundation:

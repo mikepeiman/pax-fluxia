@@ -1,11 +1,11 @@
-import type {
+﻿import type {
     TerritoryMethodDescriptor,
     TerritoryMethodId,
     TerritoryPipelineStageId,
 } from './types';
 
 // Runtime pipeline uses legacy fine-grained stages that executeStage() checks against.
-// The 4-stage canonical model (ownership/geometry/transition/presentation) is a conceptual
+// The 4-stage reference model (ownership/geometry/transition/presentation) is a conceptual
 // grouping—see types.ts—but the executor's if-chains still use these names.
 export const TERRITORY_PIPELINE_STAGE_ORDER: TerritoryPipelineStageId[] = [
     'metric',

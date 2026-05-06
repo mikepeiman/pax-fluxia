@@ -498,8 +498,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DF_BORDER_MODE' },
     { configKey: 'DF_BORDER_FAMILY' },
     { configKey: 'DF_BORDER_ENGINE' },
-    { configKey: 'DF_CANONICAL_FRONTIER_RUNTIME_MODE' },
-    { configKey: 'DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW' },
+    { configKey: 'DF_VECTOR_FRONTIER_RUNTIME_MODE' },
+    { configKey: 'DF_VECTOR_FRONTIER_DIAGNOSTIC_SHOW' },
     { configKey: 'DF_DISCONNECT_DISTANCE' },
     { configKey: 'DF_DISCONNECT_WEIGHT' },
     // Contour Territory

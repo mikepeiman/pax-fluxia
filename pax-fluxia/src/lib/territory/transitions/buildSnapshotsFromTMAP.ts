@@ -13,7 +13,7 @@
 // ---------------------------------------------------------------------------
 
 import type { TerritoryGeometryData } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
-import type { TerritoryFrontierMap, CanonicalLoop, CanonicalEdge } from '../compiler/canonicalTypes';
+import type { TerritoryFrontierMap, FrontierMapLoop, FrontierMapEdge } from '../compiler/frontierMapTypes';
 import { buildTerritoryBoundarySnapshots } from './buildTerritoryBoundarySnapshots';
 import type {
     Vec2,
@@ -72,7 +72,7 @@ function stableTerritoryId(ownerId: string, starIds: string[]): string {
  * The loop owner is the interior (left) side.
  */
 function resolveOwnerForSpan(
-    edge: CanonicalEdge,
+    edge: FrontierMapEdge,
     loopOwnerId: string,
 ): { leftOwnerId: string; rightOwnerId: string | null } {
     // The edge already stores left/right from the TMAP builder.
@@ -92,12 +92,12 @@ function resolveOwnerForSpan(
 // ---------------------------------------------------------------------------
 
 /**
- * Build BoundarySpans for a ring directly from canonical loop/edge metadata.
+ * Build BoundarySpans for a ring directly from frontier-map loop/edge metadata.
  * No vertex proximity matching — spans come straight from the TMAP.
  */
-function buildSpansFromCanonicalLoop(
-    loop: CanonicalLoop,
-    edges: Map<string, CanonicalEdge>,
+function buildSpansFromFrontierMapLoop(
+    loop: FrontierMapLoop,
+    edges: Map<string, FrontierMapEdge>,
     ringId: string,
     points: Vec2[],
 ): BoundarySpan[] {
@@ -138,12 +138,12 @@ function buildSpansFromCanonicalLoop(
 }
 
 /**
- * Assemble ring points from canonical edges in loop order.
+ * Assemble ring points from frontier-map edges in loop order.
  * First edge: all curvePoints. Subsequent edges: skip first point (junction duplicate).
  */
 function assembleRingPoints(
-    loop: CanonicalLoop,
-    edges: Map<string, CanonicalEdge>,
+    loop: FrontierMapLoop,
+    edges: Map<string, FrontierMapEdge>,
 ): Vec2[] {
     const points: Vec2[] = [];
     for (let i = 0; i < loop.edgeIds.length; i++) {
@@ -169,7 +169,7 @@ function assembleRingPoints(
 // ---------------------------------------------------------------------------
 
 /**
- * Build transition-ready boundary snapshots using the TMAP's canonical
+ * Build transition-ready boundary snapshots using the TMAP's
  * loop/edge metadata for span identity.
  *
  * Falls back to legacy `buildTerritoryBoundarySnapshots` if no frontierMap
@@ -190,7 +190,7 @@ export function buildSnapshotsFromTMAP(
     const snapshots: TerritoryBoundarySnapshot[] = [];
 
     // Group loops by owner for territory construction
-    const loopsByOwner = new Map<string, CanonicalLoop[]>();
+    const loopsByOwner = new Map<string, FrontierMapLoop[]>();
     for (const loop of frontierMap.loops) {
         if (!loopsByOwner.has(loop.ownerId)) loopsByOwner.set(loop.ownerId, []);
         loopsByOwner.get(loop.ownerId)!.push(loop);
@@ -215,12 +215,12 @@ export function buildSnapshotsFromTMAP(
             const stableId = stableTerritoryId(ownerId, starIds);
             const ringId = `${stableId}:${loop.kind}${loop.kind === 'hole' ? li : ''}`;
 
-            // Assemble points from canonical edges
+            // Assemble points from frontier-map edges
             const rawPoints = assembleRingPoints(loop, frontierMap.edges);
             const points = normalizeRingStart(rawPoints);
 
-            // Build spans directly from canonical loop metadata
-            const spans = buildSpansFromCanonicalLoop(loop, frontierMap.edges, ringId, points);
+            // Build spans directly from frontier-map loop metadata
+            const spans = buildSpansFromFrontierMapLoop(loop, frontierMap.edges, ringId, points);
 
             rings.push({
                 ringId,

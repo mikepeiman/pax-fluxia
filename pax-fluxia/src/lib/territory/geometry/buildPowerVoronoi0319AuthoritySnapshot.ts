@@ -1,9 +1,9 @@
 import type { StarState } from '$lib/types/game.types';
 import type {
-    CanonicalFrontierPolyline,
-    CanonicalGeometrySnapshot,
-    CanonicalShell,
-    CanonicalShellLoop,
+    ResolvedFrontierPolyline,
+    ResolvedGeometrySnapshot,
+    ResolvedShell,
+    ResolvedShellLoop,
     SharedFrontierMap,
     TerritoryRegionShape,
 } from '../contracts/GeometryContracts';
@@ -22,7 +22,7 @@ interface BuildPowerVoronoi0319AuthoritySnapshotParams {
     readonly geometry: TerritoryGeometryData;
     readonly stars: ReadonlyArray<StarState>;
     readonly ownershipVersion: string;
-    readonly sourceStyle: CanonicalGeometrySnapshot['sourceStyle'];
+    readonly sourceStyle: ResolvedGeometrySnapshot['sourceStyle'];
     readonly worldWidth: number;
     readonly worldHeight: number;
     readonly requestedMarginPx: number;
@@ -67,9 +67,9 @@ function deriveStableRegionId(ownerId: string, starIds: ReadonlyArray<string>): 
 }
 
 function buildSharedFrontierMapFromPolylines(
-    polylines: ReadonlyArray<CanonicalFrontierPolyline>,
+    polylines: ReadonlyArray<ResolvedFrontierPolyline>,
 ): SharedFrontierMap {
-    const grouped = new Map<string, CanonicalFrontierPolyline[]>();
+    const grouped = new Map<string, ResolvedFrontierPolyline[]>();
     for (const polyline of polylines) {
         const bucket = grouped.get(polyline.ownerPairKey);
         if (bucket) {
@@ -100,7 +100,7 @@ function createFrontierTopologyPlaceholder(params: {
     ownershipVersion: string;
     worldWidth: number;
     worldHeight: number;
-}): CanonicalGeometrySnapshot['frontierTopology'] {
+}): ResolvedGeometrySnapshot['frontierTopology'] {
     return {
         version: `topology:placeholder:${params.ownershipVersion}`,
         ownershipVersion: params.ownershipVersion,
@@ -121,7 +121,7 @@ function adaptSharedPolyline(params: {
     polyline: SharedPolyline;
     index: number;
     kind: 'raw_shared' | 'raw_world';
-}): CanonicalFrontierPolyline {
+}): ResolvedFrontierPolyline {
     const [ownerA, ownerB] = params.polyline.ownerPairKey.split('|');
     return {
         frontierId: `${params.kind}:${params.polyline.ownerPairKey}:${params.index}`,
@@ -133,7 +133,7 @@ function adaptSharedPolyline(params: {
     };
 }
 
-function toSharedPolyline(polyline: CanonicalFrontierPolyline): SharedPolyline {
+function toSharedPolyline(polyline: ResolvedFrontierPolyline): SharedPolyline {
     return {
         ownerPairKey: polyline.ownerPairKey,
         color: 0,
@@ -257,10 +257,10 @@ function hydrateResolvedRegions(params: {
 function buildShellsFromRegions(
     territoryRegions: ReadonlyArray<TerritoryRegionShape>,
 ): {
-    readonly shells: readonly CanonicalShell[];
-    readonly shellLoops: readonly CanonicalShellLoop[];
+    readonly shells: readonly ResolvedShell[];
+    readonly shellLoops: readonly ResolvedShellLoop[];
 } {
-    const shells: CanonicalShell[] = territoryRegions.map((region) => {
+    const shells: ResolvedShell[] = territoryRegions.map((region) => {
         const area = computePolygonArea(region.points);
         return {
             shellId: `shell:${region.regionId}`,
@@ -279,7 +279,7 @@ function buildShellsFromRegions(
             holeLoopIds: [],
         };
     });
-    const shellLoops: CanonicalShellLoop[] = shells.map((shell) => ({
+    const shellLoops: ResolvedShellLoop[] = shells.map((shell) => ({
         shellLoopId: `${shell.shellId}:outer`,
         shellId: shell.shellId,
         ownerId: shell.ownerId,
@@ -297,7 +297,7 @@ function buildShellsFromRegions(
 
 export function buildPowerVoronoi0319AuthoritySnapshot(
     params: BuildPowerVoronoi0319AuthoritySnapshotParams,
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     const rawFrontierPolylines = params.geometry.sharedPolylines.map((polyline, index) =>
         adaptSharedPolyline({
             polyline,
@@ -313,7 +313,7 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
                 kind: 'raw_world',
             }),
     );
-    const rawBoundarySnapshot: CanonicalGeometrySnapshot = {
+    const rawBoundarySnapshot: ResolvedGeometrySnapshot = {
         version: `${params.geometry.fingerprint}:raw-boundaries`,
         sourceMode: 'unified_vector',
         sourceStyle: params.sourceStyle,

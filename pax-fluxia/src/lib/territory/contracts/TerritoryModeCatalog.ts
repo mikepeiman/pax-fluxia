@@ -28,10 +28,10 @@ export const GEOMETRY_MODE_CATALOG: Readonly<Record<GeometryModeId, ModeDescript
         id: 'unified_vector',
         name: 'Unified Vector Geometry',
         summary:
-            'Consolidated vector geometry mode using the canonical compiler with world borders, shell classification, and frontier topology.',
+            'Consolidated vector geometry mode using the unified compiler with world borders, shell classification, and frontier topology.',
     },
-    canonical_power_voronoi: {
-        id: 'canonical_power_voronoi',
+    resolved_power_voronoi: {
+        id: 'resolved_power_voronoi',
         name: 'Power Voronoi 0427 Geometry',
         summary:
             'Exact Power Voronoi geometry path compiled from paired ownership snapshots for PVV4 transitions.',
@@ -103,9 +103,9 @@ export const BORDER_TRANSITION_MODE_CATALOG: Readonly<
 export const STYLE_MODE_CATALOG: Readonly<
     Record<TerritoryStyleModeId, ModeDescriptor>
 > = {
-    canonical: {
-        id: 'canonical',
-        name: 'Canonical Vector Polygon Style',
+    vector: {
+        id: 'vector',
+        name: 'Vector Polygon Style',
         summary:
             'Renders vector polygon fills and borders directly from transition snapshots.',
     },

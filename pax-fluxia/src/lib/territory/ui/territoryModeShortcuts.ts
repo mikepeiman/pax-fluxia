@@ -34,7 +34,7 @@ const TOPBAR_MODE_DEFS: ReadonlyArray<{
     appearance: TerritoryModeShortcutAppearance;
 }> = [
     {
-        id: 'power_voronoi_canonical',
+        id: 'power_voronoi_runtime',
         shortLabel: 'PVV4',
         displayLabel: 'Power Voronoi',
         appearance: 'pvv4',
@@ -126,7 +126,7 @@ export function applyTopbarTerritoryModeShortcut(modeId: string): void {
         TERRITORY_RENDER_MODE: modeId,
     };
 
-    if (modeId === 'power_voronoi_canonical') {
+    if (modeId === 'power_voronoi_runtime') {
         configPatch.TERRITORY_FILL_TRANSITION_MODE = 'pv_frontline';
         configPatch.TERRITORY_BORDER_TRANSITION_MODE = 'off';
         configPatch.TERRITORY_BORDER_TRANSITION = 'none';

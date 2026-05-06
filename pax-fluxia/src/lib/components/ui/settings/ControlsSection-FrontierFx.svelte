@@ -54,7 +54,7 @@
         return stringVal(
             "territoryRenderMode",
             "TERRITORY_RENDER_MODE",
-            "territory_canonical",
+            "territory_runtime",
         );
     }
 

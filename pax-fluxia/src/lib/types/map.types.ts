@@ -1,5 +1,5 @@
 // ============================================================================
-// Map Types - Canonical authored maps live in @pax/common/maps
+// Map Types - Authoritative authored maps live in @pax/common/maps
 // ============================================================================
 
 export type {
@@ -36,7 +36,7 @@ export interface MapTemplate {
 
 /**
  * In-progress game snapshot.
- * References a named canonical map definition and embeds a full authored copy.
+ * References a named authored map definition and embeds a full authored copy.
  */
 export interface SavedGame {
   id: string;

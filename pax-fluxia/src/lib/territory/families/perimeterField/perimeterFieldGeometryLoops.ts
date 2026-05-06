@@ -1,4 +1,4 @@
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { flattenRegionLoopPoints } from '../buildPowerVoronoiFrontierTopology';
 
 export interface PerimeterGeometryLoop {
@@ -8,7 +8,7 @@ export interface PerimeterGeometryLoop {
     starIds?: readonly string[];
 }
 
-function hasUsableFrontierTopology(geometry: CanonicalGeometrySnapshot): boolean {
+function hasUsableFrontierTopology(geometry: ResolvedGeometrySnapshot): boolean {
     return (
         geometry.diagnostics.topologyReliable &&
         geometry.frontierTopology.sections.size > 0 &&
@@ -17,7 +17,7 @@ function hasUsableFrontierTopology(geometry: CanonicalGeometrySnapshot): boolean
 }
 
 function buildTopologyLoopStarIds(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
     ownerId: string,
     sectionRefs: readonly { sectionId: string }[],
 ): string[] {
@@ -43,7 +43,7 @@ function isUsableOwnedTopologyLoop(loop: { ownerId: string; signedArea: number }
 }
 
 export function listPerimeterGeometryLoops(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
 ): PerimeterGeometryLoop[] {
     const shellStarIdsById = new Map(
         geometry.shells.map((shell) => [shell.shellId, shell.starIds] as const),

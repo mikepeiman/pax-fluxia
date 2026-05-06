@@ -1,10 +1,10 @@
 /**
  * territory/devtools/TerritoryTraceStore.ts
  *
- * Canonical trace store for the new territory pipeline.
+ * Runtime trace store for the new territory pipeline.
  * Wraps a Svelte writable store with typed accessors.
  *
- * This is a NEW store for the canonical compiler pipeline.
+ * This is a NEW store for the vector compiler pipeline.
  * The legacy store at territory-engine/traceStore.ts is kept
  * intact to serve the legacy DY4 / FG2 render modes.
  *
@@ -15,27 +15,27 @@
  */
 
 import { writable, get } from 'svelte/store';
-import type { CanonicalTerritoryStateOk, CompileError } from '../compiler/types';
+import type { CompiledTerritoryStateOk, CompileError } from '../compiler/types';
 
-export interface CanonicalTraceEntry {
+export interface RuntimeTraceEntry {
     timestamp: number;
     frameId: number;
     stateKind: 'ok' | 'error';
     /** Only present when stateKind === 'ok' */
-    state?: CanonicalTerritoryStateOk;
+    state?: CompiledTerritoryStateOk;
     /** Only present when stateKind === 'error' */
     error?: CompileError;
     /** Wall time in ms for the full compile + cache build */
     compileDurationMs?: number;
 }
 
-export interface CanonicalTraceHistory {
-    entries: CanonicalTraceEntry[];
+export interface RuntimeTraceHistory {
+    entries: RuntimeTraceEntry[];
     maxEntries: number;
 }
 
-function createCanonicalTraceStore(maxEntries = 60) {
-    const history = writable<CanonicalTraceHistory>({
+function createRuntimeTraceStore(maxEntries = 60) {
+    const history = writable<RuntimeTraceHistory>({
         entries: [],
         maxEntries,
     });
@@ -47,11 +47,11 @@ function createCanonicalTraceStore(maxEntries = 60) {
 
         /** Record a successful compile result. */
         recordOk(
-            state: CanonicalTerritoryStateOk,
+            state: CompiledTerritoryStateOk,
             compileDurationMs?: number,
         ): void {
             history.update((h) => {
-                const entry: CanonicalTraceEntry = {
+                const entry: RuntimeTraceEntry = {
                     timestamp: Date.now(),
                     frameId: ++frameCounter,
                     stateKind: 'ok',
@@ -69,7 +69,7 @@ function createCanonicalTraceStore(maxEntries = 60) {
         /** Record a compile error. */
         recordError(error: CompileError): void {
             history.update((h) => {
-                const entry: CanonicalTraceEntry = {
+                const entry: RuntimeTraceEntry = {
                     timestamp: Date.now(),
                     frameId: ++frameCounter,
                     stateKind: 'error',
@@ -84,7 +84,7 @@ function createCanonicalTraceStore(maxEntries = 60) {
         },
 
         /** Get the most recent trace entry. */
-        latest(): CanonicalTraceEntry | null {
+        latest(): RuntimeTraceEntry | null {
             const h = get(history);
             return h.entries[h.entries.length - 1] ?? null;
         },
@@ -103,7 +103,7 @@ function createCanonicalTraceStore(maxEntries = 60) {
 }
 
 /**
- * Singleton canonical trace store.
+ * Singleton runtime trace store.
  * Subscribe in Svelte devtools components to visualize compiler output.
  */
-export const canonicalTraceStore = createCanonicalTraceStore();
+export const runtimeTraceStore = createRuntimeTraceStore();

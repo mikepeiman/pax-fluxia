@@ -256,7 +256,7 @@ function buildChainsBetweenAnchors(
 
             const endAnchorId = currentVertex;
             const { orderedSectionIds, anchorStartId, anchorEndId } =
-                canonicalizeChainOrder(chainSectionIds, anchorId, endAnchorId);
+                normalizeChainOrder(chainSectionIds, anchorId, endAnchorId);
 
             const { points, sectionSpans, sectionReversed } = buildChainPoints(
                 topo,
@@ -278,7 +278,7 @@ function buildChainsBetweenAnchors(
     return chains;
 }
 
-function canonicalizeChainOrder(
+function normalizeChainOrder(
     sectionIds: string[],
     anchorStartId: string,
     anchorEndId: string,

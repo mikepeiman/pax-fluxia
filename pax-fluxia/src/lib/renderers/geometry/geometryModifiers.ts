@@ -1,10 +1,10 @@
-// ============================================================================
+﻿// ============================================================================
 // Universal Geometry Modifiers
 //
 // Pipeline step functions that refine merged territory polygons.
 // Pure geometry — no rendering, no PIXI, no config reads.
 //
-// Canonical pipeline order:
+// Reference pipeline order:
 //   Merge → CX → DX → Arc Smooth → Star Margin → Weld contested seams → Chaikin → Output
 //
 // Each function mutates MergedTerritory[].points in place for efficiency.

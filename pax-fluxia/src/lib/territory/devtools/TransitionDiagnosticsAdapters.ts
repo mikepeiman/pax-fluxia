@@ -1,7 +1,7 @@
 import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
-import type { PowerVoronoiDiagnosticBundle } from '../pvCanonical/contracts';
+import type { PowerVoronoiDiagnosticBundle } from '../pvFrontline/contracts';
 import {
     boundsOf,
     compactFrontierTopologyForExport,
@@ -311,19 +311,19 @@ const perimeterFieldAdapter: TransitionDiagnosticsExportAdapter = {
     },
 };
 
-const powerVoronoiCanonicalAdapter: TransitionDiagnosticsExportAdapter = {
-    kind: 'power_voronoi_canonical',
+const powerVoronoiRuntimeAdapter: TransitionDiagnosticsExportAdapter = {
+    kind: 'power_voronoi_runtime',
     matches(value: unknown): boolean {
         return (
             typeof value === 'object' &&
             value !== null &&
-            (value as { kind?: unknown }).kind === 'power_voronoi_canonical'
+            (value as { kind?: unknown }).kind === 'power_voronoi_runtime'
         );
     },
     buildData(bundle) {
         const diagnostics = bundle.extraDiagnostics as PowerVoronoiDiagnosticBundle;
         return {
-            exportKind: 'power_voronoi_canonical',
+            exportKind: 'power_voronoi_runtime',
             previousGeometry: compactGeometrySnapshotForExport(
                 bundle.context.previousGeometry ?? null,
             ),
@@ -357,7 +357,7 @@ const powerVoronoiCanonicalAdapter: TransitionDiagnosticsExportAdapter = {
 
 const ADAPTERS: readonly TransitionDiagnosticsExportAdapter[] = [
     perimeterFieldAdapter,
-    powerVoronoiCanonicalAdapter,
+    powerVoronoiRuntimeAdapter,
 ];
 
 export function resolveTransitionDiagnosticsExportAdapter(

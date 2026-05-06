@@ -8,9 +8,9 @@ import type {
     FillTransitionPlan,
     TransitionSnapshot,
 } from '../../contracts/TransitionContracts';
-import type { CanonicalPowerVoronoiTransitionRuntime } from '../../pvCanonical/contracts';
-import { buildCanonicalPowerVoronoiTransitionRuntime } from '../../pvCanonical/planner';
-import { sampleCanonicalPowerVoronoiTransition } from '../../pvCanonical/sampler';
+import type { PowerVoronoiFrontlineRuntime } from '../../pvFrontline/contracts';
+import { buildPowerVoronoiFrontlineRuntime } from '../../pvFrontline/planner';
+import { samplePowerVoronoiFrontlineTransition } from '../../pvFrontline/sampler';
 import { SharedTransitionClock } from './SharedTransitionClock';
 import { FILL_TRANSITION_MODE_BY_ID } from './registry';
 import { planFillTransition } from './planners/TerritoryTransitionPlanner';
@@ -35,8 +35,8 @@ export interface TransitionCoordinatorInput {
     previousTransition?: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
-    activeCanonicalPvTransition?: CanonicalPowerVoronoiTransitionRuntime | null;
-    canonicalPowerVoronoiPair?: {
+    activePvFrontlineTransition?: PowerVoronoiFrontlineRuntime | null;
+    resolvedPowerVoronoiPair?: {
         preGeometry: GeometrySnapshot;
         postGeometry: GeometrySnapshot;
         previousOwnership: OwnershipSnapshot;
@@ -49,7 +49,7 @@ export interface TransitionCoordinatorResult {
     snapshot: TransitionSnapshot;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
-    activeCanonicalPvTransition?: CanonicalPowerVoronoiTransitionRuntime | null;
+    activePvFrontlineTransition?: PowerVoronoiFrontlineRuntime | null;
     transitionPrevTopology?: FrontierTopology | null;
 }
 
@@ -72,8 +72,8 @@ export class TransitionLayerCoordinator {
     compute(input: TransitionCoordinatorInput): TransitionCoordinatorResult {
         let activeFillPlan = input.activeFillPlan;
         let activeFrontPlan = input.activeFrontPlan ?? null;
-        let activeCanonicalPvTransition =
-            input.activeCanonicalPvTransition ?? null;
+        let activePvFrontlineTransition =
+            input.activePvFrontlineTransition ?? null;
 
         const hasNewConquests = input.ownership.conquestEvents.length > 0;
         const hasGeometryDelta =
@@ -82,7 +82,7 @@ export class TransitionLayerCoordinator {
 
         const topologyPathEnabled =
             input.selection.fillTransitionMode === 'unified_topology';
-        const canonicalPvPathEnabled =
+        const pvFrontlinePathEnabled =
             input.selection.fillTransitionMode === 'pv_frontline';
         const nextTopo = input.geometry.frontierTopology;
         const planPrevTopo = input.previousGeometry?.frontierTopology;
@@ -98,30 +98,30 @@ export class TransitionLayerCoordinator {
                 input.ownership.conquestEvents,
             );
 
-            if (canonicalPvPathEnabled) {
+            if (pvFrontlinePathEnabled) {
                 activeFillPlan = null;
-                if (input.canonicalPowerVoronoiPair) {
-                    activeCanonicalPvTransition =
-                        buildCanonicalPowerVoronoiTransitionRuntime({
-                            preGeometry: input.canonicalPowerVoronoiPair.preGeometry,
+                if (input.resolvedPowerVoronoiPair) {
+                    activePvFrontlineTransition =
+                        buildPowerVoronoiFrontlineRuntime({
+                            preGeometry: input.resolvedPowerVoronoiPair.preGeometry,
                             postGeometry:
-                                input.canonicalPowerVoronoiPair.postGeometry,
+                                input.resolvedPowerVoronoiPair.postGeometry,
                             previousOwnership:
-                                input.canonicalPowerVoronoiPair.previousOwnership,
+                                input.resolvedPowerVoronoiPair.previousOwnership,
                             nextOwnership:
-                                input.canonicalPowerVoronoiPair.nextOwnership,
+                                input.resolvedPowerVoronoiPair.nextOwnership,
                             tunables: input.tunables,
                         });
                     activeFrontPlan =
-                        activeCanonicalPvTransition.activeFrontPlan;
+                        activePvFrontlineTransition.activeFrontPlan;
                     transitionPrevTopology =
-                        input.canonicalPowerVoronoiPair.preGeometry.frontierTopology;
+                        input.resolvedPowerVoronoiPair.preGeometry.frontierTopology;
                     log.renderer(
                         'TransitionCoordinator',
-                        `Using canonical PV frontline path: ${activeCanonicalPvTransition.plan.fronts.length} fronts`,
+                        `Using PV frontline path: ${activePvFrontlineTransition.plan.fronts.length} fronts`,
                     );
                 } else {
-                    activeCanonicalPvTransition = null;
+                    activePvFrontlineTransition = null;
                     activeFrontPlan = null;
                     transitionPrevTopology = null;
                     log.renderer(
@@ -130,7 +130,7 @@ export class TransitionLayerCoordinator {
                     );
                 }
             } else if (canPlanTopologyPath) {
-                activeCanonicalPvTransition = null;
+                activePvFrontlineTransition = null;
                 activeFrontPlan = planActiveFrontTransition(
                     planPrevTopo!,
                     nextTopo!,
@@ -143,7 +143,7 @@ export class TransitionLayerCoordinator {
                     `Using unified active-front path: ${activeFrontPlan.fronts.length} fronts`,
                 );
             } else {
-                activeCanonicalPvTransition = null;
+                activePvFrontlineTransition = null;
                 activeFrontPlan = null;
                 transitionPrevTopology = null;
 
@@ -158,7 +158,7 @@ export class TransitionLayerCoordinator {
                 if (
                     input.selection.fillTransitionMode !== 'off' &&
                     !topologyPathEnabled &&
-                    !canonicalPvPathEnabled
+                    !pvFrontlinePathEnabled
                 ) {
                     const fillMode = FILL_TRANSITION_MODE_BY_ID.get(
                         input.selection.fillTransitionMode,
@@ -181,7 +181,7 @@ export class TransitionLayerCoordinator {
             envelope = null;
             activeFillPlan = null;
             activeFrontPlan = null;
-            activeCanonicalPvTransition = null;
+            activePvFrontlineTransition = null;
             transitionPrevTopology = null;
         }
 
@@ -192,9 +192,9 @@ export class TransitionLayerCoordinator {
         let fillFrame: FillTransitionFrame;
         let borderFrame: BorderTransitionFrame;
 
-        if (envelope && activeCanonicalPvTransition) {
-            fillFrame = sampleCanonicalPowerVoronoiTransition(
-                activeCanonicalPvTransition,
+        if (envelope && activePvFrontlineTransition) {
+            fillFrame = samplePowerVoronoiFrontlineTransition(
+                activePvFrontlineTransition,
                 envelope.progress,
             );
             borderFrame = buildEmptyBorderFrame();
@@ -221,7 +221,7 @@ export class TransitionLayerCoordinator {
             borderFrame = buildEmptyBorderFrame();
         }
 
-        const pathUsed = activeCanonicalPvTransition
+        const pathUsed = activePvFrontlineTransition
             ? 'pv_frontline'
             : activeFrontPlan
               ? 'active_front'
@@ -239,7 +239,7 @@ export class TransitionLayerCoordinator {
                     hasNewConquests,
                     hasGeometryDelta,
                     topologyPathEnabled,
-                    canonicalPvPathEnabled,
+                    pvFrontlinePathEnabled,
                 }),
             );
         }
@@ -248,7 +248,7 @@ export class TransitionLayerCoordinator {
             envelope = null;
             activeFillPlan = null;
             activeFrontPlan = null;
-            activeCanonicalPvTransition = null;
+            activePvFrontlineTransition = null;
             transitionPrevTopology = null;
         }
 
@@ -261,7 +261,7 @@ export class TransitionLayerCoordinator {
             },
             activeFillPlan,
             activeFrontPlan,
-            activeCanonicalPvTransition,
+            activePvFrontlineTransition,
             transitionPrevTopology,
         };
     }

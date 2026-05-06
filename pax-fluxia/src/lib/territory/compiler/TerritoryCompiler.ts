@@ -3,13 +3,13 @@
  *
  * Orchestrates the full compile pipeline:
  *
- *   StarState + Connections → MetricState → FrontierGraph → Regions → CanonicalTerritoryState
+ *   StarState + Connections → MetricState → FrontierGraph → Regions → CompiledTerritoryState
  *
  * Contract:
  * - Zero PIXI imports
  * - Zero rendering calls
  * - Zero fallback or placeholder geometry fabrication
- * - Returns typed CanonicalTerritoryState (ok or error)
+ * - Returns typed CompiledTerritoryState (ok or error)
  */
 
 import type { Star, Connection } from '@pax/common';
@@ -19,8 +19,8 @@ import { executeFrontierStage } from './frontierStage';
 import { executeRegionStage } from './regionStage';
 import { fitFrontiers } from './frontierFitter';
 import type {
-    CanonicalTerritoryState,
-    CanonicalTerritoryStateOk,
+    CompiledTerritoryState,
+    CompiledTerritoryStateOk,
     CompileError,
     CompilerConfig,
 } from './types';
@@ -31,7 +31,7 @@ function isError(v: unknown): v is CompileError {
 
 export class TerritoryCompiler {
     /**
-     * Run the full pipeline and return canonical territory state.
+     * Run the full pipeline and return compiled territory state.
      * Never returns partial geometry. On failure, returns CompileError.
      */
     compile(
@@ -39,7 +39,7 @@ export class TerritoryCompiler {
         connections: Connection[],
         playerIds: string[],
         config: CompilerConfig,
-    ): CanonicalTerritoryState {
+    ): CompiledTerritoryState {
         // ----------------------------------------------------------------
         // Stage 1: Metric
         // ----------------------------------------------------------------
@@ -97,7 +97,7 @@ export class TerritoryCompiler {
             componentsByOwnerFinal.set(ownerId, Array.from(compSet));
         }
 
-        const result: CanonicalTerritoryStateOk = {
+        const result: CompiledTerritoryStateOk = {
             kind: 'ok',
             metricTruth: metric,
             frontierGraph: frontier,

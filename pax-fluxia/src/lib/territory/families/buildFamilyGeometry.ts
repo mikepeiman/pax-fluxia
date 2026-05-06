@@ -8,7 +8,7 @@ import {
 } from '$lib/perf/pipelineTelemetry';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
-import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
@@ -17,7 +17,7 @@ import { buildTerritoryGeneratorSettingsFromTunables } from '../geometry/geometr
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 
-type PerimeterFieldGeometrySourceId = 'canonical_vector' | 'power_voronoi_0319';
+type PerimeterFieldGeometrySourceId = 'resolved_vector' | 'power_voronoi_0319';
 
 export function buildOwnershipSnapshotFromStars(
     stars: ReadonlyArray<StarState>,
@@ -60,14 +60,14 @@ export function buildOwnershipSnapshotFromStars(
     return snapshot;
 }
 
-export function buildCanonicalRenderFamilyGeometry(params: {
+export function buildVectorRenderFamilyGeometry(params: {
     stars: ReadonlyArray<StarState>;
     lanes: ReadonlyArray<StarConnection>;
     worldWidth: number;
     worldHeight: number;
     nowMs: number;
     ownership?: OwnershipSnapshot | null;
-}): CanonicalGeometrySnapshot {
+}): ResolvedGeometrySnapshot {
     const runtimeSettings = readTerritoryRuntimeSettings(
         GAME_CONFIG as unknown as Record<string, unknown>,
     );
@@ -88,14 +88,14 @@ export function buildCanonicalRenderFamilyGeometry(params: {
     logPipelineStage({
         channel: 'renderer',
         context: 'RenderFamilyGeometry',
-        stage: 'canonical_geometry',
+        stage: 'vector_geometry',
         from: 'Ownership snapshot + live topology',
-        to: 'CanonicalGeometrySnapshot',
+        to: 'ResolvedGeometrySnapshot',
         purpose: 'Build render-family geometry for vector-driven territory families',
         summary:
             `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
             summarizeGeometry(geometry),
-        perfEventName: 'territory.geometry.canonicalBuilt',
+        perfEventName: 'territory.geometry.vectorBuilt',
         perfDetail: {
             starCount: params.stars.length,
             laneCount: params.lanes.length,
@@ -160,9 +160,9 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     worldWidth: number;
     worldHeight: number;
     ownershipVersion: string;
-    sourceStyle: CanonicalGeometrySnapshot['sourceStyle'];
+    sourceStyle: ResolvedGeometrySnapshot['sourceStyle'];
     configSource?: Record<string, unknown>;
-}): CanonicalGeometrySnapshot | null {
+}): ResolvedGeometrySnapshot | null {
     const settings = buildPowerVoronoi0319Settings({
         lanes: params.lanes,
         worldWidth: params.worldWidth,
@@ -178,7 +178,7 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     if ('kind' in result) {
         log.error(
             'PerimeterFieldGeometry',
-            `Geometry_0319 fallback to canonical compiler: ${result.message}`,
+            `Geometry_0319 fallback to unified vector compiler: ${result.message}`,
         );
         return null;
     }
@@ -203,7 +203,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     ownership?: OwnershipSnapshot | null;
     geometrySource?: string | null;
     configSource?: Record<string, unknown>;
-}): CanonicalGeometrySnapshot {
+}): ResolvedGeometrySnapshot {
     const configSource =
         params.configSource ??
         (GAME_CONFIG as unknown as Record<string, unknown>);
@@ -230,7 +230,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
                 context: 'RenderFamilyGeometry',
                 stage: 'perimeter_geometry_authority',
                 from: 'Geometry_0319 raw shared frontiers/world borders',
-                to: 'CanonicalGeometrySnapshot',
+                to: 'ResolvedGeometrySnapshot',
                 purpose: 'Resolve one shared-boundary geometry seam for all 0319 live consumers',
                 summary:
                     `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
@@ -267,7 +267,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         context: 'RenderFamilyGeometry',
         stage: 'perimeter_geometry_fallback',
         from: 'Live topology',
-        to: 'CanonicalGeometrySnapshot',
+        to: 'ResolvedGeometrySnapshot',
         purpose: 'Fallback perimeter-field geometry compilation path',
         summary:
             `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +

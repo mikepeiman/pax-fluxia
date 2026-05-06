@@ -86,7 +86,7 @@ export interface ChainWalkResult {
 /**
  * Execute the chain walk on combined polylines, producing a rich
  * intermediate result. This is the single source of truth for loop
- * discovery — both legacy fills and canonical frontier maps derive
+ * discovery — both legacy fills and vector frontier maps derive
  * from this result.
  *
  * The algorithm mirrors the original constructFillsFromFrontierChain

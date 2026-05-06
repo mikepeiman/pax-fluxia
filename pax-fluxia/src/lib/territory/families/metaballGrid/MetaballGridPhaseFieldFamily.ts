@@ -4,7 +4,7 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import type {
-    CanonicalGeometrySnapshot,
+    ResolvedGeometrySnapshot,
 } from '../../contracts/GeometryContracts';
 import {
     buildOwnershipSnapshotFromStars,
@@ -137,7 +137,7 @@ interface CachedPlan {
     readonly planKey: string;
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
-    readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
     readonly prevOwnedStars: readonly GridOwnedStar[];
     readonly nextOwnedStars: readonly GridOwnedStar[];
     readonly prevResolvedGeometry: ConstraintAlignedTerritoryGeometry;
@@ -145,7 +145,7 @@ interface CachedPlan {
     readonly classificationBuildMs: number;
     readonly wavePlanBuildMs: number;
     readonly planBuildMs: number;
-    readonly nextGeometryRef: CanonicalGeometrySnapshot;
+    readonly nextGeometryRef: ResolvedGeometrySnapshot;
 }
 
 interface CachedPatternClassification {
@@ -860,7 +860,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
     private buildCachedPlan(
         input: RenderFamilyInput,
-        currentGeometry: CanonicalGeometrySnapshot,
+        currentGeometry: ResolvedGeometrySnapshot,
         settings: PhaseFieldPlanSettings,
         requestedMarginPx: number,
     ): CachedPlan {
@@ -906,11 +906,11 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 requestedMarginPx,
                 preferSharedBoundaryResolution: true,
             });
-        const prevGeometryForClassification: CanonicalGeometrySnapshot = {
+        const prevGeometryForClassification: ResolvedGeometrySnapshot = {
             ...prevGeometry,
             territoryRegions: prevResolvedGeometry.territoryRegions,
         };
-        const nextGeometryForClassification: CanonicalGeometrySnapshot = {
+        const nextGeometryForClassification: ResolvedGeometrySnapshot = {
             ...currentGeometry,
             territoryRegions: nextResolvedGeometry.territoryRegions,
         };
@@ -1006,11 +1006,11 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             return this.cachedPatternClassification;
         }
 
-        const prevGeometryForClassification: CanonicalGeometrySnapshot = {
+        const prevGeometryForClassification: ResolvedGeometrySnapshot = {
             ...params.cached.prevGeometry,
             territoryRegions: params.cached.prevResolvedGeometry.territoryRegions,
         };
-        const nextGeometryForClassification: CanonicalGeometrySnapshot = {
+        const nextGeometryForClassification: ResolvedGeometrySnapshot = {
             ...params.cached.nextGeometryRef,
             territoryRegions: params.cached.nextResolvedGeometry.territoryRegions,
         };

@@ -19,19 +19,19 @@ describe('readTerritoryRuntimeSettings', () => {
         expect(settings.selection.borderTransitionMode).toBe('rope_morph');
     });
 
-    it('preserves canonical PV geometry and fill transition ids when configured directly', () => {
+    it('preserves resolved PV geometry and fill transition ids when configured directly', () => {
         const settings = readTerritoryRuntimeSettings({
-            TERRITORY_GEOMETRY_MODE: 'canonical_power_voronoi',
+            TERRITORY_GEOMETRY_MODE: 'resolved_power_voronoi',
             TERRITORY_FILL_TRANSITION_MODE: 'pv_frontline',
         });
 
-        expect(settings.selection.geometryMode).toBe('canonical_power_voronoi');
+        expect(settings.selection.geometryMode).toBe('resolved_power_voronoi');
         expect(settings.selection.fillTransitionMode).toBe('pv_frontline');
     });
 
     it('maps render-mode aliases to clean style ids', () => {
-        const canonical = readTerritoryRuntimeSettings({
-            TERRITORY_RENDER_MODE: 'territory_canonical',
+        const vector = readTerritoryRuntimeSettings({
+            TERRITORY_RENDER_MODE: 'territory_runtime',
         });
         const distanceField = readTerritoryRuntimeSettings({
             TERRITORY_STYLE_MODE: 'distance_field',
@@ -40,7 +40,7 @@ describe('readTerritoryRuntimeSettings', () => {
             TERRITORY_STYLE_MODE: 'pixel',
         });
 
-        expect(canonical.selection.styleMode).toBe('canonical');
+        expect(vector.selection.styleMode).toBe('vector');
         expect(distanceField.selection.styleMode).toBe('distance_field');
         expect(pixel.selection.styleMode).toBe('pixel');
     });

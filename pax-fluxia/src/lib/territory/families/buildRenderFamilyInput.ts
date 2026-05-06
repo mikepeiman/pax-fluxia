@@ -7,7 +7,7 @@ import {
     summarizeStars,
 } from '$lib/perf/pipelineTelemetry';
 import type { StarState, StarConnection } from '$lib/types/game.types';
-import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
@@ -54,8 +54,8 @@ export function buildRenderFamilyInput(params: {
     paused?: boolean;
     gameTick?: number;
     ownership?: RenderFamilyInput['ownership'];
-    geometry?: CanonicalGeometrySnapshot | null;
-    prevGeometry?: CanonicalGeometrySnapshot | null;
+    geometry?: ResolvedGeometrySnapshot | null;
+    prevGeometry?: ResolvedGeometrySnapshot | null;
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
     transitionSessions?: RenderFamilyInput['transitionSessions'];

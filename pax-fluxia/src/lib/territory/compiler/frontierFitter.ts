@@ -1,4 +1,4 @@
-/**
+﻿/**
  * territory/compiler/frontierFitter.ts
  *
  * Stage 4: Geometry fitting.
@@ -86,7 +86,7 @@ function segmentedSimplify(points: number[], stepRad: number): number[] {
     for (let i = 2; i < points.length - 2; i += 2) {
         const angle = Math.atan2(points[i + 1] - points[i - 1], points[i] - points[i - 2]);
         const qAngle = quantizeAngle(angle, stepRad);
-        // Keep point only if its direction differs from the quantized canonical direction
+        // Keep point only if its direction differs from the quantized normalized direction
         // (simplified: keep all for now, RDP pre-pass reduces point count)
         result.push(points[i], points[i + 1]);
     }

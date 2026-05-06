@@ -2,7 +2,7 @@
  * territory/compiler/TerritoryTransitionPlanner.ts
  *
  * Compute structural correspondences between previous and target
- * CanonicalTerritoryState for smooth morph animation.
+ * CompiledTerritoryState for smooth morph animation.
  *
  * Phase 1: Stub implementation — returns a minimal TransitionPlan
  * with direct pairId-to-pairId correspondences where pair IDs match,
@@ -16,7 +16,7 @@
  */
 
 import type {
-    CanonicalTerritoryStateOk,
+    CompiledTerritoryStateOk,
     TransitionPlan,
     FrontierCorrespondence,
     FrontierEdge,
@@ -28,7 +28,7 @@ import type {
  */
 function edgeControlPoints(
     edge: FrontierEdge,
-    state: CanonicalTerritoryStateOk,
+    state: CompiledTerritoryStateOk,
 ): number[][] {
     const nodeA = state.frontierGraph.nodes.get(edge.a);
     const nodeB = state.frontierGraph.nodes.get(edge.b);
@@ -37,12 +37,12 @@ function edgeControlPoints(
 }
 
 /**
- * Plan a morph transition between two canonical territory states.
+ * Plan a morph transition between two compiled territory states.
  * Returns a static TransitionPlan (computed once, consumed per-frame by renderer).
  */
 export function planTransition(
-    prevState: CanonicalTerritoryStateOk,
-    nextState: CanonicalTerritoryStateOk,
+    prevState: CompiledTerritoryStateOk,
+    nextState: CompiledTerritoryStateOk,
     startedAtMs: number,
     durationMs: number,
 ): TransitionPlan | CompileError {

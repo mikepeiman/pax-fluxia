@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// createCanonicalTransitionPlan.ts — TMAP-Diff-Driven Transition Planner
+// createFrontierTransitionPlan.ts — TMAP-Diff-Driven Transition Planner
 // ---------------------------------------------------------------------------
 // Uses the FrontierMapDiff to partition each affected loop's edges into
 // unchanged (copy verbatim) and changed (resample + interpolate) segments.
@@ -13,8 +13,8 @@
 
 import type {
     TerritoryFrontierMap,
-    CanonicalLoop,
-    CanonicalEdge,
+    FrontierMapLoop,
+    FrontierMapEdge,
 } from '../compiler/canonicalTypes';
 import type { FrontierMapDiff } from './diffFrontierMaps';
 import type {
@@ -79,7 +79,7 @@ function isEdgeUnchanged(edgeId: string, diff: FrontierMapDiff): boolean {
  */
 function collectEdgePoints(
     edgeIds: string[],
-    edges: Map<string, CanonicalEdge>,
+    edges: Map<string, FrontierMapEdge>,
 ): Vec2[] {
     const result: Vec2[] = [];
     for (let i = 0; i < edgeIds.length; i++) {
@@ -109,7 +109,7 @@ interface EdgeRun {
  * Partition a loop's edges into contiguous runs of unchanged and changed.
  */
 function partitionLoopEdges(
-    loop: CanonicalLoop,
+    loop: FrontierMapLoop,
     diff: FrontierMapDiff,
 ): EdgeRun[] {
     const runs: EdgeRun[] = [];
@@ -142,11 +142,11 @@ function partitionLoopEdges(
  * Matches by ownerId and loop index within that owner's loops.
  */
 function findMatchingNextLoop(
-    prevLoop: CanonicalLoop,
+    prevLoop: FrontierMapLoop,
     prevLoopIdx: number,
     prevTMAP: TerritoryFrontierMap,
     nextTMAP: TerritoryFrontierMap,
-): CanonicalLoop | null {
+): FrontierMapLoop | null {
     // Count how many loops before this one have the same owner
     let ownerLoopIdx = 0;
     for (let i = 0; i < prevLoopIdx; i++) {
@@ -169,10 +169,10 @@ function findMatchingNextLoop(
  */
 function findNextEdgesByPairKey(
     prevEdgeId: string,
-    nextEdges: Map<string, CanonicalEdge>,
-): CanonicalEdge[] {
+    nextEdges: Map<string, FrontierMapEdge>,
+): FrontierMapEdge[] {
     const opk = extractOwnerPairKey(prevEdgeId);
-    const results: CanonicalEdge[] = [];
+    const results: FrontierMapEdge[] = [];
     for (const [eid, edge] of nextEdges) {
         if (extractOwnerPairKey(eid) === opk) results.push(edge);
     }
@@ -192,7 +192,7 @@ function findNextEdgesByPairKey(
  * 3. Changed run → prev arc + next arc, resampled to equal counts
  * 4. Per-frame: static segments copied, changed patch interpolated
  */
-export function createCanonicalTransitionPlan(
+export function createFrontierTransitionPlan(
     prevTMAP: TerritoryFrontierMap,
     nextTMAP: TerritoryFrontierMap,
     diff: FrontierMapDiff,
@@ -297,7 +297,7 @@ export function createCanonicalTransitionPlan(
             kind: nextLoop.kind === 'hole' ? 'hole' : 'outer',
             points: nextPoints,
             cumulativeLengths: computeCumulativeLengths(nextPoints),
-            spans: [], // spans not needed for target ring in canonical path
+            spans: [], // spans not needed for target ring in primary path
         };
 
         // Build prev points for diagnostics

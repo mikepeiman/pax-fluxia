@@ -13,7 +13,7 @@
 // ── Coordinate Key Helpers ──────────────────────────────────────────────────
 
 /**
- * Build a canonical, direction-independent key for an edge between two points.
+ * Build a normalized, direction-independent key for an edge between two points.
  * Snaps coordinates to 2 decimal places.
  */
 export function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
@@ -24,7 +24,7 @@ export function edgeKey(x1: number, y1: number, x2: number, y2: number): string 
 }
 
 /**
- * Build a canonical key for a point, snapped to 2 decimal places.
+ * Build a normalized key for a point, snapped to 2 decimal places.
  */
 export function ptKey(x: number, y: number): string {
     return `${+x.toFixed(2)},${+y.toFixed(2)}`;

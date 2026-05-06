@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Theme Store — Single source of truth for theme state
 // ============================================================================
 // Replaces duplicated theme state in +page.svelte and GameSettingsPanel.svelte.
@@ -255,7 +255,7 @@ export const themeStore = {
         _syncCallback = cb;
     },
 
-    /** Register a canonical apply callback so theme values update panel + runtime together */
+    /** Register a shared apply callback so theme values update panel + runtime together */
     registerApplyCallback(cb: ApplyCallback) {
         _applyCallback = cb;
     },

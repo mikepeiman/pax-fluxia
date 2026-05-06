@@ -12,7 +12,7 @@ import type {
     MetaballSceneInput,
 } from '../../../renderers/MetaballRenderer';
 import type { StarState } from '../../../types/game.types';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
 import { buildSceneFingerprint } from '../metaball/metaballSceneBase';
 import {
@@ -56,8 +56,8 @@ export interface PerimeterFieldDebugSample extends MetaballInfluenceSample {
 }
 
 export interface PerimeterFieldDebugSnapshot {
-    displayGeometry: CanonicalGeometrySnapshot;
-    transitionTargetGeometry: CanonicalGeometrySnapshot | null;
+    displayGeometry: ResolvedGeometrySnapshot;
+    transitionTargetGeometry: ResolvedGeometrySnapshot | null;
     playerColors: ReadonlyArray<readonly [number, number, number]>;
     staticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
     targetStaticSamples: ReadonlyArray<PerimeterFieldDebugSample>;
@@ -146,7 +146,7 @@ function buildOwnerClusterKey(ownerToCluster: ReadonlyMap<string, number>): stri
         .join('|');
 }
 
-function buildGeometryCacheKey(geometry: CanonicalGeometrySnapshot): string {
+function buildGeometryCacheKey(geometry: ResolvedGeometrySnapshot): string {
     const shellLoopKey = geometry.shellLoops
         .map(
             (loop) =>
@@ -283,7 +283,7 @@ function offsetSampleInsideLoop(params: {
 }
 
 function listPerimeterSources(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
 ): PerimeterSource[] {
     const shellStarIdsById = new Map(
         geometry.shells.map((shell) => [shell.shellId, shell.starIds] as const),
@@ -438,7 +438,7 @@ function flattenPerimeterSampleSets(
 }
 
 function buildPerimeterSourceCacheKey(params: {
-    geometry: CanonicalGeometrySnapshot;
+    geometry: ResolvedGeometrySnapshot;
     ownerToCluster: ReadonlyMap<string, number>;
     spacing: number;
     offsetPx: number;
@@ -456,7 +456,7 @@ function buildPerimeterSourceCacheKey(params: {
 }
 
 function getCachedPerimeterSourceData(params: {
-    geometry: CanonicalGeometrySnapshot;
+    geometry: ResolvedGeometrySnapshot;
     ownerToCluster: ReadonlyMap<string, number>;
     spacing: number;
     offsetPx: number;
@@ -747,7 +747,7 @@ function buildPerimeterDebugSampleFromV(params: {
     };
 }
 
-function collectGeometryOwners(geometry: CanonicalGeometrySnapshot): string[] {
+function collectGeometryOwners(geometry: ResolvedGeometrySnapshot): string[] {
     return [...new Set([
         ...geometry.territoryRegions.map((region) => region.ownerId),
         ...geometry.shellLoops.map((loop) => loop.ownerId),
@@ -766,7 +766,7 @@ function collectPlanOwners(plan: TransitionPlan | null | undefined): string[] {
 function buildPlanScene(params: {
     input: RenderFamilyInput;
     starsForDisplay: ReadonlyArray<StarState>;
-    geometry: CanonicalGeometrySnapshot;
+    geometry: ResolvedGeometrySnapshot;
     transitionPlan: TransitionPlan | null;
     colorUtils: ColorUtils;
     spacing: number;
@@ -1075,8 +1075,8 @@ function buildPlanScene(params: {
 export function buildPerimeterFieldScene(params: {
     input: RenderFamilyInput;
     starsForDisplay: ReadonlyArray<StarState>;
-    geometry: CanonicalGeometrySnapshot;
-    transitionTargetGeometry?: CanonicalGeometrySnapshot | null;
+    geometry: ResolvedGeometrySnapshot;
+    transitionTargetGeometry?: ResolvedGeometrySnapshot | null;
     transitionPlan?: TransitionPlan | null;
     colorUtils: ColorUtils;
 }): PerimeterFieldBuiltScene {

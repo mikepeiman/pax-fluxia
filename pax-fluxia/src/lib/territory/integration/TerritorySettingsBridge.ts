@@ -20,7 +20,7 @@ function asString(value: unknown, fallback: string): string {
 
 function resolveGeometryMode(_rawValue: unknown): TerritoryModeSelection['geometryMode'] {
     const raw = asString(_rawValue, DEFAULT_TERRITORY_MODE_SELECTION.geometryMode);
-    if (raw === 'canonical_power_voronoi') return 'canonical_power_voronoi';
+    if (raw === 'resolved_power_voronoi') return 'resolved_power_voronoi';
     // All other geometry modes are normalized onto the maintained unified compiler path.
     return 'unified_vector';
 }
@@ -59,7 +59,7 @@ function resolveStyleMode(config: Record<string, unknown>): TerritoryModeSelecti
     );
     if (raw === 'distance_field') return 'distance_field';
     if (raw === 'pixel') return 'pixel';
-    if (raw === 'canonical' || raw === 'territory_canonical') return 'canonical';
+    if (raw === 'vector' || raw === 'territory_runtime') return 'vector';
     return DEFAULT_TERRITORY_MODE_SELECTION.styleMode;
 }
 

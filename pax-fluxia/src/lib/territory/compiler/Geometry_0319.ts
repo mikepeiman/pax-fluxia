@@ -538,7 +538,7 @@ export function computeGeometry0319(
 
         const fingerprint = buildTerritoryGeometryFingerprint(stars, config) + ':g0319';
 
-        // Stage 10b: Build canonical frontier map (identity annotation — Phase 1)
+        // Stage 10b: Build vector frontier map (identity annotation — Phase 1)
         // Junction vertices are needed to classify decisive vertices in the TMAP.
         const junctionPts = extractJunctionVertices(cells);
         const frontierMap = buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint);

@@ -13,7 +13,7 @@ import {
 } from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import {
     buildTransitionPlan,
@@ -147,7 +147,7 @@ export class PerimeterFieldFamily implements RenderFamily {
     private readonly runtime: MetaballRendererRuntime = createMetaballRuntime();
     private sessionKey: string | null = null;
     private oldGeometryKey: string | null = null;
-    private oldGeometry: CanonicalGeometrySnapshot | null = null;
+    private oldGeometry: ResolvedGeometrySnapshot | null = null;
     private transitionPlanKey: string | null = null;
     private transitionPlan: TransitionPlan | null = null;
     private lastDebugSnapshot: PerimeterFieldDebugSnapshot | null = null;
@@ -174,7 +174,7 @@ export class PerimeterFieldFamily implements RenderFamily {
 
     private buildSceneForInput(params: {
         input: RenderFamilyInput;
-        currentGeometry: CanonicalGeometrySnapshot;
+        currentGeometry: ResolvedGeometrySnapshot;
     }) {
         const transitionKey = buildTransitionKey(params.input);
         const transitionEngine = readTransitionEngine(params.input);

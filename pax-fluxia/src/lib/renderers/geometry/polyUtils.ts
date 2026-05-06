@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Polygon and polyline utility functions for territory rendering
 // ============================================================================
 
@@ -78,7 +78,7 @@ export function lerpPolygon(from: [number, number][], to: [number, number][], t:
     return result;
 }
 
-/** Canonical edge key — direction-independent, snapped to 2dp. */
+/** Normalized edge key — direction-independent, snapped to 2dp. */
 export function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
     const bx = +x2.toFixed(2), by = +y2.toFixed(2);

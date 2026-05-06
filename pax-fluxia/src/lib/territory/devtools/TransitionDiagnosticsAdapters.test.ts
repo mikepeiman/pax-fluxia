@@ -1,33 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
 import { resolveTransitionDiagnosticsExportAdapter } from './TransitionDiagnosticsAdapters';
-import { buildCanonicalPowerVoronoiTransitionRuntime } from '../pvCanonical/planner';
-import { sampleCanonicalPowerVoronoiTransition } from '../pvCanonical/sampler';
+import { buildPowerVoronoiFrontlineRuntime } from '../pvFrontline/planner';
+import { samplePowerVoronoiFrontlineTransition } from '../pvFrontline/sampler';
 import {
     buildTestGeometry,
     buildTestOwnership,
     TEST_CONQUEST_EVENT,
     TEST_PV_FRONTLINE_SELECTION,
     TEST_TUNABLES,
-} from '../pvCanonical/testFixtures';
+} from '../pvFrontline/testFixtures';
 
 function buildBundle(): TransitionDebugBundle {
     const previousGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
     const nextGeometry = buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]);
     const previousOwnership = buildTestOwnership('ownership:pre', []);
     const nextOwnership = buildTestOwnership('ownership:post', [TEST_CONQUEST_EVENT]);
-    const runtime = buildCanonicalPowerVoronoiTransitionRuntime({
+    const runtime = buildPowerVoronoiFrontlineRuntime({
         preGeometry: previousGeometry,
         postGeometry: nextGeometry,
         previousOwnership,
         nextOwnership,
         tunables: TEST_TUNABLES,
     });
-    sampleCanonicalPowerVoronoiTransition(runtime, 0);
-    sampleCanonicalPowerVoronoiTransition(runtime, 1);
+    samplePowerVoronoiFrontlineTransition(runtime, 0);
+    samplePowerVoronoiFrontlineTransition(runtime, 1);
 
     return {
-        id: 'bundle:canonical-pv',
+        id: 'bundle:runtime-pv',
         timestamp: '2026-04-27T22:00:00.000Z',
         conquestEvents: [TEST_CONQUEST_EVENT],
         context: {
@@ -80,7 +80,7 @@ function buildBundle(): TransitionDebugBundle {
             prevGeometryFingerprint: previousGeometry.version,
             nextGeometryFingerprint: nextGeometry.version,
             modes: {
-                geometry: 'canonical_power_voronoi',
+                geometry: 'resolved_power_voronoi',
                 fillTransition: 'pv_frontline',
                 borderTransition: 'off',
             },
@@ -98,14 +98,14 @@ function buildBundle(): TransitionDebugBundle {
 }
 
 describe('resolveTransitionDiagnosticsExportAdapter', () => {
-    it('routes canonical PV diagnostics through the canonical export adapter', () => {
+    it('routes resolved PV diagnostics through the runtime export adapter', () => {
         const bundle = buildBundle();
         const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
 
-        expect(adapter?.kind).toBe('power_voronoi_canonical');
+        expect(adapter?.kind).toBe('power_voronoi_runtime');
 
         const exportData = adapter?.buildData(bundle, []);
-        expect(exportData?.exportKind).toBe('power_voronoi_canonical');
+        expect(exportData?.exportKind).toBe('power_voronoi_runtime');
         expect(exportData?.previousGeometry).not.toBeNull();
         expect(exportData?.nextGeometry).not.toBeNull();
         expect(exportData?.previousTopology).not.toBeNull();
@@ -115,7 +115,7 @@ describe('resolveTransitionDiagnosticsExportAdapter', () => {
             beta: { x: 9, y: 9 },
         });
         expect(exportData?.captureDiagnostics).toMatchObject({
-            kind: 'power_voronoi_canonical',
+            kind: 'power_voronoi_runtime',
             planId: 'pv-frontline:pre:post',
             ownershipStage: {
                 previousOwnershipVersion: 'ownership:pre',

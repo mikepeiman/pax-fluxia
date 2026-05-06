@@ -1,7 +1,7 @@
 /**
  * territory/render/buildBorderMeshCache.ts
  *
- * Derive border stroke geometry from canonical FrontierGraph.
+ * Derive border stroke geometry from resolved FrontierGraph.
  * Called from steady-state and transition passes with the SAME FrontierGraph
  * that drove buildFillMeshCache to guarantee fill/border alignment.
  *
@@ -31,7 +31,7 @@ export interface BorderMeshCache {
 }
 
 /**
- * Build the border mesh cache from canonical fitted frontiers.
+ * Build the border mesh cache from resolved fitted frontiers.
  * Returns one stroke per owner-pair. Width/softness are style params.
  * Ownership color blending is deferred to the layer renderer.
  */

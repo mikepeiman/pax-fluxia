@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // FrontierTopologyPlanner.ts — Section-aware transition planning
 // ---------------------------------------------------------------------------
 // Phase 3 of the Frontier Topology Project.
@@ -33,7 +33,7 @@ export type SectionTransitionKind =
 /** One section's transition entry in the plan. */
 export interface SectionTransitionEntry {
     kind: SectionTransitionKind;
-    /** Section ID in the canonical namespace. */
+    /** Section ID in the resolved namespace. */
     sectionId: string;
     /** Points array from the previous topology (null for born). */
     prevPoints: readonly [number, number][] | null;

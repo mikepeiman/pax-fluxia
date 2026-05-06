@@ -2,43 +2,43 @@ import { describe, expect, it } from 'vitest';
 import { resolveTerritoryArchitectureRoute } from './TerritoryArchitectureRouter';
 
 describe('resolveTerritoryArchitectureRoute', () => {
-    it('routes canonical style to clean bridge when architecture is clean', () => {
+    it('routes vector style to clean bridge when architecture is clean', () => {
         const decision = resolveTerritoryArchitectureRoute({
-            renderMode: 'territory_canonical',
+            renderMode: 'territory_runtime',
             architecturePath: 'clean',
         });
 
-        expect(decision.route).toBe('canonical_clean_bridge');
-        expect(decision.isCanonicalStyle).toBe(true);
+        expect(decision.route).toBe('runtime_clean_bridge');
+        expect(decision.isRuntimeSurfaceStyle).toBe(true);
     });
 
-    it('routes canonical style to the clean bridge even when a legacy architecture value is persisted', () => {
+    it('routes vector style to the clean bridge even when a legacy architecture value is persisted', () => {
         const decision = resolveTerritoryArchitectureRoute({
-            renderMode: 'territory_canonical',
+            renderMode: 'territory_runtime',
             architecturePath: 'legacy',
         });
 
-        expect(decision.route).toBe('canonical_clean_bridge');
-        expect(decision.isCanonicalStyle).toBe(true);
+        expect(decision.route).toBe('runtime_clean_bridge');
+        expect(decision.isRuntimeSurfaceStyle).toBe(true);
     });
 
-    it('routes canonical PV mode through the clean bridge regardless of architecture toggle', () => {
+    it('routes resolved PV mode through the clean bridge regardless of architecture toggle', () => {
         const cleanDecision = resolveTerritoryArchitectureRoute({
-            renderMode: 'power_voronoi_canonical',
+            renderMode: 'power_voronoi_runtime',
             architecturePath: 'clean',
         });
         const legacyDecision = resolveTerritoryArchitectureRoute({
-            renderMode: 'power_voronoi_canonical',
+            renderMode: 'power_voronoi_runtime',
             architecturePath: 'legacy',
         });
 
-        expect(cleanDecision.route).toBe('canonical_clean_bridge');
-        expect(legacyDecision.route).toBe('canonical_clean_bridge');
-        expect(cleanDecision.isCanonicalStyle).toBe(true);
-        expect(legacyDecision.isCanonicalStyle).toBe(true);
+        expect(cleanDecision.route).toBe('runtime_clean_bridge');
+        expect(legacyDecision.route).toBe('runtime_clean_bridge');
+        expect(cleanDecision.isRuntimeSurfaceStyle).toBe(true);
+        expect(legacyDecision.isRuntimeSurfaceStyle).toBe(true);
     });
 
-    it('routes non-canonical style to legacy renderer regardless of architecture toggle', () => {
+    it('routes reversed-order style to legacy renderer regardless of architecture toggle', () => {
         const cleanDecision = resolveTerritoryArchitectureRoute({
             renderMode: 'distance_field',
             architecturePath: 'clean',
@@ -50,12 +50,12 @@ describe('resolveTerritoryArchitectureRoute', () => {
 
         expect(cleanDecision.route).toBe('legacy_style_renderer');
         expect(legacyDecision.route).toBe('legacy_style_renderer');
-        expect(cleanDecision.isCanonicalStyle).toBe(false);
-        expect(legacyDecision.isCanonicalStyle).toBe(false);
+        expect(cleanDecision.isRuntimeSurfaceStyle).toBe(false);
+        expect(legacyDecision.isRuntimeSurfaceStyle).toBe(false);
     });
 
-    it('defaults to canonical clean route for missing values', () => {
+    it('defaults to the runtime clean route for missing values', () => {
         const decision = resolveTerritoryArchitectureRoute({});
-        expect(decision.route).toBe('canonical_clean_bridge');
+        expect(decision.route).toBe('runtime_clean_bridge');
     });
 });

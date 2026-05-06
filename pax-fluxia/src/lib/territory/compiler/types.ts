@@ -1,11 +1,11 @@
 /**
  * territory/compiler/types.ts
  *
- * Canonical data contracts for the Territory Compiler pipeline.
+ * Compiled data contracts for the Territory Compiler pipeline.
  * These are the ONLY truth types used by render and transition layers.
  * Zero PIXI imports. Zero rendering logic. Zero side-effects.
  *
- * Pipeline: MetricState → FrontierGraph → TerritoryRegions → CanonicalTerritoryState
+ * Pipeline: MetricState → FrontierGraph → TerritoryRegions → CompiledTerritoryState
  */
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ export interface FrontierEdge {
     pairId: string;
 }
 
-/** The singular canonical frontier topology. */
+/** The singular vector frontier topology. */
 export interface FrontierGraph {
     nodes: Map<string, FrontierNode>;
     edges: Map<string, FrontierEdge>;
@@ -89,11 +89,11 @@ export interface FittedFrontier {
 }
 
 // ---------------------------------------------------------------------------
-// Canonical Output
+// Compiled Output
 // ---------------------------------------------------------------------------
 
 /** The single authoritative territory state for all rendering and transitions. */
-export interface CanonicalTerritoryStateOk {
+export interface CompiledTerritoryStateOk {
     kind: 'ok';
     metricTruth: MetricState;
     frontierGraph: FrontierGraph;
@@ -111,7 +111,7 @@ export interface CompileError {
     recoverable: boolean; // true = renderer may use cached state; false = hard failure
 }
 
-export type CanonicalTerritoryState = CanonicalTerritoryStateOk | CompileError;
+export type CompiledTerritoryState = CompiledTerritoryStateOk | CompileError;
 
 // ---------------------------------------------------------------------------
 // Transition Plan
@@ -129,8 +129,8 @@ export interface FrontierCorrespondence {
 export interface TransitionPlan {
     startedAtMs: number;
     durationMs: number;
-    prevState: CanonicalTerritoryStateOk;
-    nextState: CanonicalTerritoryStateOk;
+    prevState: CompiledTerritoryStateOk;
+    nextState: CompiledTerritoryStateOk;
     frontierCorrespondences: FrontierCorrespondence[];
 }
 

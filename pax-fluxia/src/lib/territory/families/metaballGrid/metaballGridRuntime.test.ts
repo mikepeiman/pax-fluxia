@@ -41,7 +41,7 @@ describe('buildMetaballGridPlanKey', () => {
         expect(
             buildMetaballGridPlanKey({
                 ...base,
-                geometrySource: 'canonical_vector',
+                geometrySource: 'resolved_vector',
             }),
         ).not.toBe(key);
     });

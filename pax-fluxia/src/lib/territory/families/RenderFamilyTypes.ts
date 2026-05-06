@@ -2,7 +2,7 @@ import type * as PIXI from 'pixi.js';
 import type { ConquestEvent } from '@pax/common';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
-import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
 export interface RenderFamilyTransitionEvent {
@@ -35,8 +35,8 @@ export interface RenderFamilyOwnedStarSnapshot {
 
 export interface RenderFamilyCapturedTransitionSession
     extends RenderFamilyTransitionSession {
-    prevGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
+    prevGeometry: ResolvedGeometrySnapshot;
+    nextGeometry: ResolvedGeometrySnapshot;
     prevOwnedStars: ReadonlyArray<RenderFamilyOwnedStarSnapshot>;
     nextOwnedStars: ReadonlyArray<RenderFamilyOwnedStarSnapshot>;
 }
@@ -50,7 +50,7 @@ export type RenderFamilyTunableValue =
 
 export interface RenderFamilyInput {
     ownership: OwnershipSnapshot | null;
-    geometry?: CanonicalGeometrySnapshot | null;
+    geometry?: ResolvedGeometrySnapshot | null;
     /**
      * Optional PREV (pre-transition) geometry snapshot, captured upstream in
      * GameCanvas once per transition key and passed to all families. Previously
@@ -59,7 +59,7 @@ export interface RenderFamilyInput {
      * (MG-PERF Phase C, 2026-04-19). Families may fall back to a local rebuild
      * if this is null (e.g. first frame after a hot reload).
      */
-    prevGeometry?: CanonicalGeometrySnapshot | null;
+    prevGeometry?: ResolvedGeometrySnapshot | null;
     nowMs: number;
     paused?: boolean;
     /** Game tick (for combat/recency effects in renderers that opt in, e.g. Metaball borders). */

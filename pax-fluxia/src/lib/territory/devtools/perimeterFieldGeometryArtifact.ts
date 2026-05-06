@@ -4,7 +4,7 @@ import { log } from '$lib/utils/logger';
 import { computeCorridorVirtuals, computeDisconnectVirtuals } from '$lib/renderers/territoryFeatures';
 import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeometryData, TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
-import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import { compactPerimeterFieldDebugSnapshot } from '../families/perimeterField/perimeterFieldDiagnostics';
 import { buildPowerVoronoi0319Settings } from '../families/buildFamilyGeometry';
@@ -27,7 +27,7 @@ function buildIsoFilenameTimestamp(iso: string): string {
     return iso.replace(/[:.]/g, '-');
 }
 
-function serializeCanonicalGeometry(geometry: CanonicalGeometrySnapshot): Record<string, unknown> {
+function serializeResolvedGeometry(geometry: ResolvedGeometrySnapshot): Record<string, unknown> {
     return {
         version: geometry.version,
         sourceMode: geometry.sourceMode,
@@ -221,11 +221,11 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
         config: buildRelevantConfigSnapshot(settings),
         currentDisplaySnapshot: {
             compact: compactPerimeterFieldDebugSnapshot(params.snapshot),
-            displayGeometry: serializeCanonicalGeometry(
+            displayGeometry: serializeResolvedGeometry(
                 params.snapshot.displayGeometry,
             ),
             transitionTargetGeometry: params.snapshot.transitionTargetGeometry
-                ? serializeCanonicalGeometry(
+                ? serializeResolvedGeometry(
                       params.snapshot.transitionTargetGeometry,
                   )
                 : null,

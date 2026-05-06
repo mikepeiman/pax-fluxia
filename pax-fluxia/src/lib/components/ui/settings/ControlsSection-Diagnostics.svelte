@@ -44,7 +44,7 @@
     const activeRenderMode = $derived(
         (panel.territoryRenderMode ??
             GAME_CONFIG.TERRITORY_RENDER_MODE ??
-            "territory_canonical") as string,
+            "territory_runtime") as string,
     );
     const liveRenderMode = $derived(
         ($territoryRenderStatus.territoryMode &&

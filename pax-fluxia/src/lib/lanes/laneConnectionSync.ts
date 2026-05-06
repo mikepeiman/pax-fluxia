@@ -1,7 +1,7 @@
 import type { Connection } from '@pax/common';
 import type { LaneConstraintStatus, LanePathKind } from '@pax/common/mapgen';
 import {
-    canonicalizeLaneWaypointsForStorage,
+    normalizeLaneWaypointsForStorage,
     seedLanePolylineCacheFromMapGen,
 } from '$lib/lanes/lanePolylineCache';
 
@@ -111,7 +111,7 @@ export function seedLaneCacheFromConnections(
               }
               return {
                   ...connection,
-                  laneWaypoints: canonicalizeLaneWaypointsForStorage(
+                  laneWaypoints: normalizeLaneWaypointsForStorage(
                       connection.sourceId,
                       connection.targetId,
                       connection.laneWaypoints,

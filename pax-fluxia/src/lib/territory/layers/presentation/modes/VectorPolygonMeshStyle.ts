@@ -1,1 +1,1 @@
-export { CanonicalTerritoryStyle as VectorPolygonMeshStyle } from './CanonicalTerritoryStyle';
+export { VectorPolygonStyle as VectorPolygonMeshStyle } from './VectorPolygonStyle';

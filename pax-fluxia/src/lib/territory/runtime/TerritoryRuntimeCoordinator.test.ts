@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TerritoryFrameInput } from '../contracts/TerritoryFrameInput';
 import { TerritoryRuntimeCoordinator } from './TerritoryRuntimeCoordinator';
-import { buildCanonicalPowerVoronoiTransitionRuntime } from '../pvCanonical/planner';
-import { sampleCanonicalPowerVoronoiTransition } from '../pvCanonical/sampler';
+import { buildPowerVoronoiFrontlineRuntime } from '../pvFrontline/planner';
+import { samplePowerVoronoiFrontlineTransition } from '../pvFrontline/sampler';
 import {
     buildTestGeometry,
     buildTestOwnership,
     TEST_TUNABLES,
-} from '../pvCanonical/testFixtures';
+} from '../pvFrontline/testFixtures';
 
 function buildFrameInput(
     overrides: Partial<TerritoryFrameInput> = {},
@@ -35,7 +35,7 @@ function buildFrameInput(
 }
 
 describe('TerritoryRuntimeCoordinator', () => {
-    it('recompiles paired PRE/POST canonical PV geometry on conquest with normalized selection', () => {
+    it('recompiles paired PRE/POST resolved PV geometry on conquest with normalized selection', () => {
         const initialOwnership = buildTestOwnership('ownership:pre', []);
         const conquestOwnership = buildTestOwnership('ownership:post');
         const initialGeometry = buildTestGeometry('steady-pre', [[0, 0], [5, 5], [10, 10]]);
@@ -75,21 +75,21 @@ describe('TerritoryRuntimeCoordinator', () => {
                 const typedInput = input as {
                     geometry: { version: string };
                     tunables: typeof TEST_TUNABLES;
-                    canonicalPowerVoronoiPair: {
+                    resolvedPowerVoronoiPair: {
                         preGeometry: ReturnType<typeof buildTestGeometry>;
                         postGeometry: ReturnType<typeof buildTestGeometry>;
                         previousOwnership: ReturnType<typeof buildTestOwnership>;
                         nextOwnership: ReturnType<typeof buildTestOwnership>;
                     } | null;
                 };
-                const runtime = typedInput.canonicalPowerVoronoiPair
-                    ? buildCanonicalPowerVoronoiTransitionRuntime({
-                          ...typedInput.canonicalPowerVoronoiPair,
+                const runtime = typedInput.resolvedPowerVoronoiPair
+                    ? buildPowerVoronoiFrontlineRuntime({
+                          ...typedInput.resolvedPowerVoronoiPair,
                           tunables: typedInput.tunables,
                       })
                     : null;
                 if (runtime) {
-                    sampleCanonicalPowerVoronoiTransition(runtime, 0);
+                    samplePowerVoronoiFrontlineTransition(runtime, 0);
                 }
                 return {
                     snapshot: {
@@ -100,7 +100,7 @@ describe('TerritoryRuntimeCoordinator', () => {
                     },
                     activeFillPlan: null,
                     activeFrontPlan: runtime?.activeFrontPlan ?? null,
-                    activeCanonicalPvTransition: runtime,
+                    activePvFrontlineTransition: runtime,
                     transitionPrevTopology: runtime?.preGeometry.frontierTopology ?? null,
                 };
             }),
@@ -137,10 +137,10 @@ describe('TerritoryRuntimeCoordinator', () => {
 
         for (const request of normalizedRequests) {
             expect(request.selection.ownershipMode).toBe('star_ownership_snapshot');
-            expect(request.selection.geometryMode).toBe('canonical_power_voronoi');
+            expect(request.selection.geometryMode).toBe('resolved_power_voronoi');
             expect(request.selection.fillTransitionMode).toBe('pv_frontline');
             expect(request.selection.borderTransitionMode).toBe('off');
-            expect(request.selection.styleMode).toBe('canonical');
+            expect(request.selection.styleMode).toBe('vector');
             expect(request.tunables).toEqual(TEST_TUNABLES);
         }
 
@@ -149,7 +149,7 @@ describe('TerritoryRuntimeCoordinator', () => {
 
         const secondTransitionInput = transitionInputs[1] as {
             selection: TerritoryFrameInput['selection'];
-            canonicalPowerVoronoiPair: {
+            resolvedPowerVoronoiPair: {
                 preGeometry: { version: string };
                 postGeometry: { version: string };
                 previousOwnership: { version: string };
@@ -158,23 +158,23 @@ describe('TerritoryRuntimeCoordinator', () => {
         };
 
         expect(secondTransitionInput.selection.geometryMode).toBe(
-            'canonical_power_voronoi',
+            'resolved_power_voronoi',
         );
-        expect(secondTransitionInput.canonicalPowerVoronoiPair).not.toBeNull();
-        expect(secondTransitionInput.canonicalPowerVoronoiPair?.preGeometry.version).toBe(
+        expect(secondTransitionInput.resolvedPowerVoronoiPair).not.toBeNull();
+        expect(secondTransitionInput.resolvedPowerVoronoiPair?.preGeometry.version).toBe(
             'rebuilt-pre',
         );
-        expect(secondTransitionInput.canonicalPowerVoronoiPair?.postGeometry.version).toBe(
+        expect(secondTransitionInput.resolvedPowerVoronoiPair?.postGeometry.version).toBe(
             'post',
         );
         expect(
-            secondTransitionInput.canonicalPowerVoronoiPair?.previousOwnership.version,
+            secondTransitionInput.resolvedPowerVoronoiPair?.previousOwnership.version,
         ).toBe('ownership:pre');
-        expect(secondTransitionInput.canonicalPowerVoronoiPair?.nextOwnership.version).toBe(
+        expect(secondTransitionInput.resolvedPowerVoronoiPair?.nextOwnership.version).toBe(
             'ownership:post',
         );
         expect(conquestResult.diagnostics.modeDiagnostics).toMatchObject({
-            kind: 'power_voronoi_canonical',
+            kind: 'power_voronoi_runtime',
             ownershipStage: {
                 summary: {
                     conquestCount: 1,

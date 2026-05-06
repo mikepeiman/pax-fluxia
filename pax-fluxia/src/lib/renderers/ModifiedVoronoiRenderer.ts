@@ -179,7 +179,7 @@ function chaikinSmooth(polygon: number[][], iterations: number): number[][] {
 
 // ── F-138: Cell Merging ────────────────────────────────────────────────────
 
-/** Canonical edge key for float-equal matching. */
+/** Normalized edge key for float-equal matching. */
 function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     // Sort endpoints so key is direction-independent
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
@@ -201,7 +201,7 @@ interface MergedPolygon {
  * Merge same-owner adjacent Voronoi cells into unified polygons.
  * Algorithm:
  * 1. Extract all edges from all cells
- * 2. Build canonical edge keys; edges shared by same-owner cells are internal → discard
+ * 2. Build normalized edge keys; edges shared by same-owner cells are internal → discard
  * 3. Chain remaining external edges into closed polygons per owner-cluster
  */
 function mergeSameOwnerCells(

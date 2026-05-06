@@ -1,7 +1,7 @@
 /**
  * territory/compiler/frontierStage.ts
  *
- * Stage 2: Build the singular canonical FrontierGraph from MetricState.
+ * Stage 2: Build the singular frontier-authority graph from MetricState.
  *
  * For each lane (connection), uses the ANALYTICAL LANE SPLIT formula:
  *
@@ -40,7 +40,7 @@ interface LaneSplitResult {
 }
 
 /**
- * Canonical lane split formula (NotebookLM analytical implementation).
+ * Reference lane split formula (NotebookLM analytical implementation).
  *
  * Evaluates graph-distance competition along lane parameter t ∈ [0,1].
  * Guarantees lane-exclusivity: a lane is either single-owner or split once

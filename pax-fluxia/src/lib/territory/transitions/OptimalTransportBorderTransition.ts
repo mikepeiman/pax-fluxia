@@ -1,10 +1,10 @@
 /**
  * territory/transitions/OptimalTransportBorderTransition.ts
  *
- * DY4 Optimal Transport — canonical BorderTransition implementation.
+ * DY4 Optimal Transport — runtime BorderTransition implementation.
  *
- * Takes two CanonicalTerritoryData snapshots (before/after conquest)
- * and a progress value 0..1. Returns a new CanonicalTerritoryData with
+ * Takes two TerritoryRenderData snapshots (before/after conquest)
+ * and a progress value 0..1. Returns a new TerritoryRenderData with
  * animatedShells populated by interpolating shell polygons between the
  * two states using centroid-matched resampled lerp.
  *
@@ -17,8 +17,8 @@
 
 import type {
     BorderTransition,
-    CanonicalAnimatedShell,
-    CanonicalTerritoryData,
+    AnimatedTerritoryRenderShell,
+    TerritoryRenderData,
 } from '$lib/territory/orchestrator/renderMode';
 
 // ── Geometry helpers (no PIXI, no module state) ──────────────────────────────
@@ -174,10 +174,10 @@ export class OptimalTransportBorderTransition implements BorderTransition {
     }
 
     interpolate(
-        oldData: CanonicalTerritoryData,
-        newData: CanonicalTerritoryData,
+        oldData: TerritoryRenderData,
+        newData: TerritoryRenderData,
         progress: number,
-    ): CanonicalTerritoryData {
+    ): TerritoryRenderData {
         const t = easeInOutCubic(Math.max(0, Math.min(1, progress)));
 
         // Build centroid lookup for old shells by ownerId
@@ -189,7 +189,7 @@ export class OptimalTransportBorderTransition implements BorderTransition {
             oldByOwner.set(shell.ownerId, list);
         }
 
-        const animatedShells: CanonicalAnimatedShell[] = newData.shells
+        const animatedShells: AnimatedTerritoryRenderShell[] = newData.shells
             .filter((shell) => shell.points.length >= 3)
             .map((newShell) => {
                 const oldCandidates = oldByOwner.get(newShell.ownerId);

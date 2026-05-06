@@ -145,7 +145,7 @@ function buildDelaunayAdjacency<T extends Connectable>(
 }
 
 /**
- * List unique canonical Delaunay edges, shortest first.
+ * List unique undirected Delaunay edges, shortest first.
  */
 export function listDelaunayConnections<T extends Connectable>(
     nodes: T[],
@@ -196,7 +196,7 @@ export function listDelaunayConnections<T extends Connectable>(
  *   - low values bias toward removing/replacing that connection
  *   - high values bias toward keeping the candidate so shared lane geometry can try
  *     reshaping the lane geometry first
- * @returns Canonical unidirectional connections
+ * @returns Normalized unidirectional connections
  */
 export function generateConnections<T extends Connectable>(
     nodes: T[],

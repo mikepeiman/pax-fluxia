@@ -1,4 +1,4 @@
-import type { PowerVoronoiDiagnosticBundle } from '../pvCanonical/contracts';
+import type { PowerVoronoiDiagnosticBundle } from '../pvFrontline/contracts';
 
 export interface TerritoryDiagnosticMessage {
     level: 'info' | 'warn' | 'error';

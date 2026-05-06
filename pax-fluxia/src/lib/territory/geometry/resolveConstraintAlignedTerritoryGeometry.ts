@@ -4,14 +4,14 @@ import {
     type SharedPolyline,
 } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type {
-    CanonicalFrontierPolyline,
-    CanonicalGeometrySnapshot,
+    ResolvedFrontierPolyline,
+    ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../contracts/GeometryContracts';
 import { resolveAppliedMinStarMarginPx } from './minStarMargin';
 
 export interface ConstraintAlignedFrontierPolyline
-    extends CanonicalFrontierPolyline {
+    extends ResolvedFrontierPolyline {
     readonly kind: 'inter_owner' | 'world';
 }
 
@@ -40,7 +40,7 @@ function cloneConstraintAlignedPolyline(
 }
 
 interface ResolveConstraintAlignedTerritoryGeometryParams {
-    readonly geometry: CanonicalGeometrySnapshot;
+    readonly geometry: ResolvedGeometrySnapshot;
     readonly stars: ReadonlyArray<StarState>;
     readonly requestedMarginPx: number;
     readonly preferSharedBoundaryResolution?: boolean;
@@ -127,7 +127,7 @@ function displacePointFromOwnerStars(
 }
 
 function resolveOwnersForPolyline(
-    polyline: CanonicalFrontierPolyline,
+    polyline: ResolvedFrontierPolyline,
 ): readonly string[] {
     const owners = [polyline.ownerA, polyline.ownerB].filter(
         (ownerId): ownerId is string => !isWorldOwner(ownerId),
@@ -136,8 +136,8 @@ function resolveOwnersForPolyline(
 }
 
 function collectEndpointOwners(
-    frontierPolylines: ReadonlyArray<CanonicalFrontierPolyline>,
-    worldBorderPolylines: ReadonlyArray<CanonicalFrontierPolyline>,
+    frontierPolylines: ReadonlyArray<ResolvedFrontierPolyline>,
+    worldBorderPolylines: ReadonlyArray<ResolvedFrontierPolyline>,
 ): ReadonlyMap<string, EndpointOwners> {
     const endpointOwners = new Map<string, EndpointOwners>();
     const allPolylines = [...frontierPolylines, ...worldBorderPolylines];
@@ -212,7 +212,7 @@ function resolveEndpointPositions(params: {
 }
 
 function resolveInteriorPoint(
-    polyline: CanonicalFrontierPolyline,
+    polyline: ResolvedFrontierPolyline,
     x: number,
     y: number,
     ownerStars: ReadonlyMap<string, readonly StarState[]>,
@@ -223,7 +223,7 @@ function resolveInteriorPoint(
 }
 
 function alignPolyline(params: {
-    polyline: CanonicalFrontierPolyline;
+    polyline: ResolvedFrontierPolyline;
     kind: ConstraintAlignedFrontierPolyline['kind'];
     endpointPositions: ReadonlyMap<string, [number, number]>;
     ownerStars: ReadonlyMap<string, readonly StarState[]>;
@@ -402,8 +402,8 @@ function filterPolylinesByResolvedRegions(params: {
 }
 
 function alignGeometry(params: {
-    frontierPolylines: ReadonlyArray<CanonicalFrontierPolyline>;
-    worldBorderPolylines: ReadonlyArray<CanonicalFrontierPolyline>;
+    frontierPolylines: ReadonlyArray<ResolvedFrontierPolyline>;
+    worldBorderPolylines: ReadonlyArray<ResolvedFrontierPolyline>;
     ownerStars: ReadonlyMap<string, readonly StarState[]>;
     appliedMarginPx: number;
 }): ConstraintAlignedTerritoryGeometry {
@@ -873,7 +873,7 @@ export function resolveConstraintAlignedTerritoryGeometry(
 }
 
 export function readConstraintAlignedTerritoryGeometryFromSnapshot(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
 ): ConstraintAlignedTerritoryGeometry | null {
     const ladder = geometry.diagnostics.stageLadder;
     if (!ladder) return null;

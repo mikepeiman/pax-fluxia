@@ -85,7 +85,7 @@ function forEachOutlineEdge(
     }
 }
 
-function addCanonicalEndpointSum(
+function addNormalizedEndpointSum(
     sum: [number, number, number, number],
     x1: number, y1: number, x2: number, y2: number,
 ): void {
@@ -113,7 +113,7 @@ function finalizeLedgerEntry(
 
 /**
  * From merged owner outlines (same geometry used for fills), split boundary into:
- * - **contested**: edges incident to two different owners — one canonical segment each,
+ * - **contested**: edges incident to two different owners — one normalized segment each,
  *   endpoints averaged when both polygons contribute (reduces asymmetric warp gaps).
  * - **hull**: per-polygon segments that only one owner claims (map / outer boundary).
  *
@@ -140,7 +140,7 @@ export function splitMergedOwnerOutlineEdges(polygons: OwnerPolygonOutline[]): {
                 ledger.set(key, ent);
             }
             ent.owners.add(poly.ownerId);
-            addCanonicalEndpointSum(ent.sum, x1, y1, x2, y2);
+            addNormalizedEndpointSum(ent.sum, x1, y1, x2, y2);
             ent.count += 1;
         });
     }

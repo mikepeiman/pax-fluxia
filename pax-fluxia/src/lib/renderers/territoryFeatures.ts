@@ -21,7 +21,7 @@ export interface VirtualSite {
 
 export const DISCONNECT_OWNER_ID = '__disconnect__';
 
-function canonicalizeVirtualSites(sites: VirtualSite[]): VirtualSite[] {
+function normalizeVirtualSites(sites: VirtualSite[]): VirtualSite[] {
     if (sites.length <= 1) return [...sites];
 
     const normalized = sites.map((site) => {
@@ -83,7 +83,7 @@ export function computeCorridorVirtuals(
         crossOwnerMidpointPairSpacing,
         endpointExclusionPx,
     );
-    return canonicalizeVirtualSites(built as VirtualSite[]);
+    return normalizeVirtualSites(built as VirtualSite[]);
 }
 
 export function computeDisconnectVirtuals(
@@ -100,5 +100,5 @@ export function computeDisconnectVirtuals(
         maxDistance,
         weightMultiplier,
     );
-    return canonicalizeVirtualSites(built as VirtualSite[]);
+    return normalizeVirtualSites(built as VirtualSite[]);
 }

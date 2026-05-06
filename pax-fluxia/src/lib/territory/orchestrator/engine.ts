@@ -36,7 +36,7 @@ import type {
     TerritoryStageTraceStep,
     TerritoryTraceRun,
 } from './types';
-import type { CanonicalTerritoryData } from './renderMode';
+import type { TerritoryRenderData } from './renderMode';
 
 
 interface InteractiveRunState {
@@ -58,10 +58,10 @@ let interactiveRunState: InteractiveRunState | null = null;
 const adapterFallbackLogged = new Set<string>();
 
 const _dy4OT = new OptimalTransportBorderTransition(64);
-// DY4 canonical transition — staged for when the compiler produces whole-territory shells.
+// DY4 resolved transition — staged for when the compiler produces whole-territory shells.
 // Currently unused: legacy_pvv2 uses PVV2's own d3-Voronoi for fills (mergeSameOwnerCells)
 // and PVV2's own smooth-transition for borders. These are the correct data sources for DY4.
-// Wire _dy4OT when the TerritoryCompiler produces CanonicalTerritoryState with whole-territory
+// Wire _dy4OT when the TerritoryCompiler produces CompiledTerritoryState with whole-territory
 // shells (not per-arc-junction FG2 fragments).
 
 
@@ -170,17 +170,17 @@ function buildInputFingerprint(
 }
 
 /**
- * Convert raw pipeline artifacts into typed CanonicalTerritoryData.
+ * Convert raw pipeline artifacts into typed TerritoryRenderData.
  * This is the bridge between the data engine's untyped artifact bag
  * and the typed RenderMode contract.
  */
-export function extractCanonicalData(artifacts: TerritoryPipelineArtifacts): CanonicalTerritoryData {
+export function extractTerritoryRenderData(artifacts: TerritoryPipelineArtifacts): TerritoryRenderData {
     const loop = artifacts.loop as Record<string, unknown> | undefined;
     const animation = artifacts.animation as Record<string, unknown> | undefined;
     return {
-        shells: (loop?.ownerShells as CanonicalTerritoryData['shells']) ?? [],
-        shellLoops: (loop?.ownerShellLoops as CanonicalTerritoryData['shellLoops']) ?? [],
-        animatedShells: (animation?.displayedOwnerShells as CanonicalTerritoryData['animatedShells']) ?? [],
+        shells: (loop?.ownerShells as TerritoryRenderData['shells']) ?? [],
+        shellLoops: (loop?.ownerShellLoops as TerritoryRenderData['shellLoops']) ?? [],
+        animatedShells: (animation?.displayedOwnerShells as TerritoryRenderData['animatedShells']) ?? [],
         transitionActive: Boolean(animation?.ownerShellTransitionActive),
     };
 }
@@ -238,7 +238,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
 
     if (adapter === 'legacy_pvv3') {
         const artifacts = runFG2DataPipeline(input);
-        const canonicalData = extractCanonicalData(artifacts);
+        const renderData = extractTerritoryRenderData(artifacts);
         renderPVV3(
             input.stars,
             input.container,
@@ -246,7 +246,7 @@ function runLegacyAdapter(adapter: TerritoryLegacyAdapterId, input: TerritoryEng
             input.worldWidth,
             input.worldHeight,
             input.connections,
-            canonicalData,
+            renderData,
         );
         return;
     }
@@ -569,7 +569,7 @@ export function getLastTerritoryTraceRun(): TerritoryTraceRun | null {
 /**
  * Run FG2 data pipeline stages (metric → world_extension → seed → topology →
  * geometry → loop → animation) WITHOUT the render stage. Returns the artifact
- * bag so a consumer renderer (e.g. PVV3) can draw from canonical shell data.
+ * bag so a consumer renderer (e.g. PVV3) can draw from runtime shell data.
  *
  * This is the mechanism for renderers to drive FG2 computation without
  * requiring the Territory Engine toggle to be enabled.

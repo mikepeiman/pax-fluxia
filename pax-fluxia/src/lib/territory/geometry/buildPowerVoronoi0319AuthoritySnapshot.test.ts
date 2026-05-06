@@ -115,7 +115,7 @@ describe('buildPowerVoronoi0319AuthoritySnapshot', () => {
                 { id: 'blue-star', x: 8, y: 5, ownerId: 'blue' } as any,
             ],
             ownershipVersion: 'own:test',
-            sourceStyle: 'canonical',
+            sourceStyle: 'vector',
             worldWidth: 10,
             worldHeight: 10,
             requestedMarginPx: 0,

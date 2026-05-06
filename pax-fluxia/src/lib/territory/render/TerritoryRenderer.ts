@@ -4,7 +4,7 @@
  * Unified render entry point.
  * Branches between steady-state pass and transition pass.
  * Both passes call buildFillMeshCache and buildBorderMeshCache
- * with the SAME frame-time canonical state (fill/border alignment guaranteed).
+ * with the SAME frame-time compiled state (fill/border alignment guaranteed).
  *
  * Rules:
  * - All state is class-encapsulated (no module-level globals)
@@ -17,7 +17,7 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { log } from '$lib/utils/logger';
-import type { CanonicalTerritoryStateOk, TransitionPlan, FrontierGraph, TerritoryRegion, FittedFrontier } from '../compiler/types';
+import type { CompiledTerritoryStateOk, TransitionPlan, FrontierGraph, TerritoryRegion, FittedFrontier } from '../compiler/types';
 import { buildFillMeshCache } from './buildFillMeshCache';
 import { buildBorderMeshCache, buildBorderMeshCacheFromGraph, type BorderRenderConfig } from './buildBorderMeshCache';
 import { OwnerFillLayerRenderer, type FillRenderConfig } from './OwnerFillLayerRenderer';
@@ -67,7 +67,7 @@ export class TerritoryRenderer {
     }
 
     render(
-        state: CanonicalTerritoryStateOk,
+        state: CompiledTerritoryStateOk,
         transitionPlan: TransitionPlan | null,
         nowMs: number,
         config: TerritoryRenderConfig = {},
@@ -94,7 +94,7 @@ export class TerritoryRenderer {
     // -------------------------------------------------------------------------
 
     private _executeSteadyStatePass(
-        state: CanonicalTerritoryStateOk,
+        state: CompiledTerritoryStateOk,
         config: TerritoryRenderConfig,
     ): void {
         const fillCache = buildFillMeshCache(state.regions);
@@ -107,7 +107,7 @@ export class TerritoryRenderer {
     }
 
     private _executeTransitionPass(
-        state: CanonicalTerritoryStateOk,
+        state: CompiledTerritoryStateOk,
         plan: TransitionPlan,
         nowMs: number,
         config: TerritoryRenderConfig,
@@ -131,7 +131,7 @@ export class TerritoryRenderer {
             },
         }));
 
-        // 2. Map Canonical FittedFrontiers -> Geometry Layer SharedPolylines
+        // 2. Map resolved fitted frontiers -> Geometry Layer SharedPolylines
         const blendColor = (a: number, b: number) => {
             const hexA = this.borderRenderer['getPlayerColor'](a);
             const hexB = this.borderRenderer['getPlayerColor'](b);

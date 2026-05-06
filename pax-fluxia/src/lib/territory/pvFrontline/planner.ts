@@ -11,7 +11,7 @@ import {
     type ActiveFrontTransitionPlan,
 } from '../layers/transition/ActiveFrontTransition';
 import type {
-    CanonicalPowerVoronoiTransitionRuntime,
+    PowerVoronoiFrontlineRuntime,
     PowerVoronoiDiagnosticBundle,
     PowerVoronoiFrontChain,
     PowerVoronoiFrontSplitMode,
@@ -79,7 +79,7 @@ function appendPolyline(out: Vec2[], segment: readonly Vec2[]): void {
     }
 }
 
-function canonicalizeChainOrder(
+function normalizeChainOrder(
     sectionIds: string[],
     anchorStartId: string,
     anchorEndId: string,
@@ -130,7 +130,7 @@ function buildChainsBetweenAnchors(topo: FrontierTopology, anchors: Set<string>)
 
             if (chainSectionIds.length === 0) continue;
 
-            const ordered = canonicalizeChainOrder(
+            const ordered = normalizeChainOrder(
                 chainSectionIds,
                 anchorId,
                 currentVertex,
@@ -399,13 +399,13 @@ function buildTransitionPlanningStageSummary(
     };
 }
 
-export function buildCanonicalPowerVoronoiTransitionRuntime(args: {
+export function buildPowerVoronoiFrontlineRuntime(args: {
     preGeometry: GeometrySnapshot;
     postGeometry: GeometrySnapshot;
     previousOwnership: OwnershipSnapshot;
     nextOwnership: OwnershipSnapshot;
     tunables: TerritoryTunables;
-}): CanonicalPowerVoronoiTransitionRuntime {
+}): PowerVoronoiFrontlineRuntime {
     const activeFrontPlan = planActiveFrontTransition(
         args.preGeometry.frontierTopology,
         args.postGeometry.frontierTopology,
@@ -429,7 +429,7 @@ export function buildCanonicalPowerVoronoiTransitionRuntime(args: {
         args.postGeometry,
     );
     const transitionPlan: PowerVoronoiTransitionPlan = {
-        kind: 'power_voronoi_canonical',
+        kind: 'power_voronoi_runtime',
         planId,
         startGeometryVersion: args.preGeometry.version,
         endGeometryVersion: args.postGeometry.version,
@@ -444,9 +444,9 @@ export function buildCanonicalPowerVoronoiTransitionRuntime(args: {
         unaffectedLoopIds,
     );
     const diagnostics: PowerVoronoiDiagnosticBundle = {
-        kind: 'power_voronoi_canonical',
+        kind: 'power_voronoi_runtime',
         bundleId: `pv-bundle:${args.nextOwnership.version}:${planId}`,
-        modeId: 'power_voronoi_canonical',
+        modeId: 'power_voronoi_runtime',
         planId,
         tunables: frozenTunables,
         ownershipStage: {
@@ -490,7 +490,7 @@ export function buildCanonicalPowerVoronoiTransitionRuntime(args: {
     };
 
     return {
-        kind: 'power_voronoi_canonical_runtime',
+        kind: 'power_voronoi_frontline_runtime',
         preGeometry: args.preGeometry,
         postGeometry: args.postGeometry,
         activeFrontPlan: activeFrontPlan as ActiveFrontTransitionPlan,

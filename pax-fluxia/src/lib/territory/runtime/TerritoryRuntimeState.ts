@@ -6,7 +6,7 @@ import type {
     TransitionSnapshot,
 } from '../contracts/TransitionContracts';
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
-import type { CanonicalPowerVoronoiTransitionRuntime } from '../pvCanonical/contracts';
+import type { PowerVoronoiFrontlineRuntime } from '../pvFrontline/contracts';
 
 export interface TerritoryRuntimeState {
     previousOwnership: OwnershipSnapshot | null;
@@ -14,7 +14,7 @@ export interface TerritoryRuntimeState {
     previousTransition: TransitionSnapshot | null;
     activeFillPlan: FillTransitionPlan | null;
     activeFrontPlan: ActiveFrontTransitionPlan | null;
-    activeCanonicalPvTransition: CanonicalPowerVoronoiTransitionRuntime | null;
+    activePvFrontlineTransition: PowerVoronoiFrontlineRuntime | null;
     /**
      * Snapshot of the prev frontier topology at the moment a transition starts.
      * Kept alive for the duration of the transition so the sampler can look up
@@ -31,7 +31,7 @@ export function createInitialTerritoryRuntimeState(): TerritoryRuntimeState {
         previousTransition: null,
         activeFillPlan: null,
         activeFrontPlan: null,
-        activeCanonicalPvTransition: null,
+        activePvFrontlineTransition: null,
         transitionPrevTopology: null,
     };
 }

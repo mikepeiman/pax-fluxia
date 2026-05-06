@@ -6,16 +6,16 @@
  *   2. FillTransition   — how fills animate on conquest
  *   3. BorderTransition — how borders animate on conquest
  *
- * All consume CanonicalTerritoryData from the data engine.
+ * All consume TerritoryRenderData from the data engine.
  * Transitions transform data; styles render data.
  */
 
 import type * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 
-// ── Canonical data produced by the data engine ──────────────────────────────
+// ── Runtime data produced by the data engine ──────────────────────────────
 
-export interface CanonicalShell {
+export interface ResolvedShell {
     shellId: string;
     ownerId: string;
     points: [number, number][];
@@ -25,14 +25,14 @@ export interface CanonicalShell {
     holeLoopIds: string[];
 }
 
-export interface CanonicalShellLoop {
+export interface ResolvedShellLoop {
     shellLoopId: string;
     ownerId: string;
     points: [number, number][];
     classification: string;
 }
 
-export interface CanonicalAnimatedShell {
+export interface AnimatedTerritoryRenderShell {
     shellId: string;
     ownerId: string;
     points: [number, number][];
@@ -43,13 +43,13 @@ export interface CanonicalAnimatedShell {
 }
 
 /** Single source of truth for territory geometry. All concerns consume this. */
-export interface CanonicalTerritoryData {
+export interface TerritoryRenderData {
     /** Closed polygons per player territory — each shell is one connected region */
-    shells: CanonicalShell[];
+    shells: ResolvedShell[];
     /** Individual loops with classification (outer/hole) */
-    shellLoops: CanonicalShellLoop[];
+    shellLoops: ResolvedShellLoop[];
     /** Interpolated shells during ownership transitions */
-    animatedShells: CanonicalAnimatedShell[];
+    animatedShells: AnimatedTerritoryRenderShell[];
     /** Whether a transition animation is currently active */
     transitionActive: boolean;
 }
@@ -110,8 +110,8 @@ export interface TerritoryStyle {
     readonly id: TerritoryStyleId;
     readonly label: string;
 
-    /** Render current territory state (fills + borders) from canonical data */
-    draw(data: CanonicalTerritoryData, ctx: RenderModeContext): void;
+    /** Render current territory state (fills + borders) from runtime data */
+    draw(data: TerritoryRenderData, ctx: RenderModeContext): void;
 
     /** Clear all cached state and graphics */
     reset(): void;
@@ -119,7 +119,7 @@ export interface TerritoryStyle {
 
 /**
  * Concern 2: How fills transition during conquest.
- * Produces modified canonical data — the style draws it.
+ * Produces modified runtime data — the style draws it.
  */
 export interface FillTransition {
     readonly id: FillTransitionId;
@@ -127,15 +127,15 @@ export interface FillTransition {
 
     /** Interpolate fill data from old → new state. progress: 0..1 */
     interpolate(
-        oldData: CanonicalTerritoryData,
-        newData: CanonicalTerritoryData,
+        oldData: TerritoryRenderData,
+        newData: TerritoryRenderData,
         progress: number,
-    ): CanonicalTerritoryData;
+    ): TerritoryRenderData;
 }
 
 /**
  * Concern 3: How borders transition during conquest.
- * Produces modified canonical data — the style draws it.
+ * Produces modified runtime data — the style draws it.
  */
 export interface BorderTransition {
     readonly id: BorderTransitionId;
@@ -143,10 +143,10 @@ export interface BorderTransition {
 
     /** Interpolate border data from old → new state. progress: 0..1 */
     interpolate(
-        oldData: CanonicalTerritoryData,
-        newData: CanonicalTerritoryData,
+        oldData: TerritoryRenderData,
+        newData: TerritoryRenderData,
         progress: number,
-    ): CanonicalTerritoryData;
+    ): TerritoryRenderData;
 }
 
 // ── Legacy compat (kept for existing PVV3 consumer) ─────────────────────────
@@ -158,6 +158,6 @@ export type RenderModeId = TerritoryStyleId | 'none';
 export interface RenderMode {
     readonly id: RenderModeId;
     readonly label: string;
-    draw(data: CanonicalTerritoryData, ctx: RenderModeContext): void;
+    draw(data: TerritoryRenderData, ctx: RenderModeContext): void;
     reset(): void;
 }

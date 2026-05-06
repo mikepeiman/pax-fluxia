@@ -36,10 +36,10 @@ export const TEST_TUNABLES: TerritoryTunables = {
 
 export const TEST_PV_FRONTLINE_SELECTION: TerritoryModeSelection = {
     ownershipMode: 'star_ownership_snapshot',
-    geometryMode: 'canonical_power_voronoi',
+    geometryMode: 'resolved_power_voronoi',
     fillTransitionMode: 'pv_frontline',
     borderTransitionMode: 'off',
-    styleMode: 'canonical',
+    styleMode: 'vector',
 };
 
 export const TEST_CONQUEST_EVENT: TerritoryConquestEvent = {
@@ -231,8 +231,8 @@ export function buildTestGeometry(
     const topology = buildTestTopology(frontierPoints, version);
     return {
         version,
-        sourceMode: 'canonical_power_voronoi',
-        sourceStyle: 'canonical',
+        sourceMode: 'resolved_power_voronoi',
+        sourceStyle: 'vector',
         ownershipVersion: `ownership:${version}`,
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

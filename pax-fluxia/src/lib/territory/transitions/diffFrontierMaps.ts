@@ -19,7 +19,7 @@
 // Does NOT: render, import PIXI, modify geometry
 // ---------------------------------------------------------------------------
 
-import type { TerritoryFrontierMap, CanonicalEdge } from '../compiler/canonicalTypes';
+import type { TerritoryFrontierMap, FrontierMapEdge } from '../compiler/frontierMapTypes';
 import { log } from '$lib/utils/logger';
 
 // ---------------------------------------------------------------------------

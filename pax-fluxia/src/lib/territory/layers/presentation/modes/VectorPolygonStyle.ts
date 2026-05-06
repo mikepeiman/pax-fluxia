@@ -7,16 +7,16 @@ import { buildFillDrawCommands } from '../builders/FillDrawCommandBuilder';
 import { buildBorderDrawCommands } from '../builders/BorderDrawCommandBuilder';
 import type { TerritoryTunables } from '../../../contracts/TerritoryFrameInput';
 
-interface CanonicalStyleInput extends PresentationLayerInput {
+interface VectorStyleInput extends PresentationLayerInput {
     tunables: TerritoryTunables;
 }
 
-export class CanonicalTerritoryStyle implements TerritoryStyleMode {
-    readonly id = 'canonical' as const;
-    readonly label = 'Canonical Vector Polygon Style';
+export class VectorPolygonStyle implements TerritoryStyleMode {
+    readonly id = 'vector' as const;
+    readonly label = 'Vector Polygon Style';
 
     buildFrame(input: PresentationLayerInput): TerritoryPresentationFrame {
-        const styleInput = input as CanonicalStyleInput;
+        const styleInput = input as VectorStyleInput;
         return {
             fills: buildFillDrawCommands(styleInput.transition, styleInput.tunables),
             borders: buildBorderDrawCommands(styleInput.transition, styleInput.tunables),

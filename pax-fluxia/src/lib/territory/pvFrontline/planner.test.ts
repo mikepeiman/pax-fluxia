@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GeometrySnapshot } from '../contracts/GeometryContracts';
 import type { FrontierSection, FrontierTopology, FrontierVertex } from '../contracts/FrontierTopologyContracts';
-import { buildCanonicalPowerVoronoiTransitionRuntime } from './planner';
-import { sampleCanonicalPowerVoronoiTransition } from './sampler';
+import { buildPowerVoronoiFrontlineRuntime } from './planner';
+import { samplePowerVoronoiFrontlineTransition } from './sampler';
 import {
     buildTestGeometry,
     buildTestOwnership,
@@ -106,8 +106,8 @@ function buildMinimalGeometry(topology: FrontierTopology): GeometrySnapshot {
     }));
     return {
         version: topology.version,
-        sourceMode: 'canonical_power_voronoi',
-        sourceStyle: 'canonical',
+        sourceMode: 'resolved_power_voronoi',
+        sourceStyle: 'vector',
         ownershipVersion: topology.ownershipVersion,
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',
@@ -131,9 +131,9 @@ function buildMinimalGeometry(topology: FrontierTopology): GeometrySnapshot {
     };
 }
 
-describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
+describe('buildPowerVoronoiFrontlineRuntime', () => {
     it('builds a canonical PV runtime with typed diagnostics and a local front plan', () => {
-        const runtime = buildCanonicalPowerVoronoiTransitionRuntime({
+        const runtime = buildPowerVoronoiFrontlineRuntime({
             preGeometry: buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]),
             postGeometry: buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]),
             previousOwnership: buildTestOwnership('ownership:pre'),
@@ -141,9 +141,9 @@ describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
             tunables: TEST_TUNABLES,
         });
 
-        expect(runtime.plan.kind).toBe('power_voronoi_canonical');
+        expect(runtime.plan.kind).toBe('power_voronoi_runtime');
         expect(runtime.plan.fronts).toHaveLength(1);
-        expect(runtime.diagnostics.kind).toBe('power_voronoi_canonical');
+        expect(runtime.diagnostics.kind).toBe('power_voronoi_runtime');
         expect(runtime.diagnostics.bundleId).toBe(
             'pv-bundle:ownership:post:pv-frontline:pre:post',
         );
@@ -176,7 +176,7 @@ describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
     it('samples exact PRE and POST endpoints through the canonical PV sampler', () => {
         const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
         const postGeometry = buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]);
-        const runtime = buildCanonicalPowerVoronoiTransitionRuntime({
+        const runtime = buildPowerVoronoiFrontlineRuntime({
             preGeometry,
             postGeometry,
             previousOwnership: buildTestOwnership('ownership:pre'),
@@ -184,8 +184,8 @@ describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
             tunables: TEST_TUNABLES,
         });
 
-        const preFrame = sampleCanonicalPowerVoronoiTransition(runtime, 0);
-        const postFrame = sampleCanonicalPowerVoronoiTransition(runtime, 1);
+        const preFrame = samplePowerVoronoiFrontlineTransition(runtime, 0);
+        const postFrame = samplePowerVoronoiFrontlineTransition(runtime, 1);
 
         expect(preFrame.regions).toHaveLength(2);
         expect(postFrame.regions).toHaveLength(2);
@@ -258,14 +258,14 @@ describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
             ),
         );
 
-        const splitRuntime = buildCanonicalPowerVoronoiTransitionRuntime({
+        const splitRuntime = buildPowerVoronoiFrontlineRuntime({
             preGeometry: oneChain,
             postGeometry: twoChains,
             previousOwnership: buildTestOwnership('ownership:pre', []),
             nextOwnership: buildTestOwnership('ownership:post'),
             tunables: TEST_TUNABLES,
         });
-        const mergeRuntime = buildCanonicalPowerVoronoiTransitionRuntime({
+        const mergeRuntime = buildPowerVoronoiFrontlineRuntime({
             preGeometry: twoChains,
             postGeometry: oneChain,
             previousOwnership: buildTestOwnership('ownership:pre'),
@@ -333,7 +333,7 @@ describe('buildCanonicalPowerVoronoiTransitionRuntime', () => {
             ),
         );
 
-        const runtime = buildCanonicalPowerVoronoiTransitionRuntime({
+        const runtime = buildPowerVoronoiFrontlineRuntime({
             preGeometry: previousGeometry,
             postGeometry: nextGeometry,
             previousOwnership: buildTestOwnership('ownership:pre', []),

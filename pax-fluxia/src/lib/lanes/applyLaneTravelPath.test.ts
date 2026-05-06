@@ -100,7 +100,7 @@ describe('assignShipLaneGeometry', () => {
         );
     });
 
-    it('preserves caller direction for non-canonical lane reads', () => {
+    it('preserves caller direction for reversed-order lane reads', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 1;
         GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 

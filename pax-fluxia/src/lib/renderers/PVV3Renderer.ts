@@ -28,7 +28,7 @@ import { findConnectedClustersOptimized } from './territoryUtils';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from './territoryFeatures';
 import type { ColorUtils } from './RenderContext';
 import { log } from '$lib/utils/logger';
-import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
+import type { TerritoryRenderData } from '$lib/territory/orchestrator/renderMode';
 import {
     buildTerritoryGeometryCacheKeyParts,
     readNormalizedTerritoryGeometryTunables,
@@ -86,7 +86,7 @@ let cachedShapeFingerprint = '';
 let cachedVisualFingerprint = '';
 let fillGraphics: PIXI.Graphics | null = null;
 let borderGraphics: PIXI.Graphics | null = null;
-let cachedCanonicalData: CanonicalTerritoryData | null = null;
+let cachedRenderData: TerritoryRenderData | null = null;
 
 export interface PVV3InvalidationState {
     shapeFingerprint: string;
@@ -182,7 +182,7 @@ export function renderPVV3(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
-    canonicalData?: CanonicalTerritoryData,
+    renderData?: TerritoryRenderData,
     invalidationState?: PVV3InvalidationState,
 ): void {
     const transitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS ?? 400;
@@ -219,8 +219,8 @@ export function renderPVV3(
     cachedShapeFingerprint = invalidation.shapeFingerprint;
     cachedVisualFingerprint = invalidation.visualFingerprint;
 
-    if (canonicalData && canonicalData.shells.length > 0) {
-        cachedCanonicalData = canonicalData;
+    if (renderData && renderData.shells.length > 0) {
+        cachedRenderData = renderData;
     }
 
     const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -424,17 +424,17 @@ export function renderPVV3(
         }
     }
 
-    // ── FG2 CANONICAL PATH ──────────────────────────────────────────────────
-    // If canonical data was provided by the orchestrator, use it.
+    // ── FG2 RUNTIME PATH ──────────────────────────────────────────────────
+    // If runtime data was provided by the orchestrator, use it.
     // Otherwise fall through to legacy PVV3 datagen path.
-    const activeCanonicalData =
-        canonicalData?.shells.length || canonicalData?.animatedShells.length
-            ? canonicalData
-            : cachedCanonicalData;
-    const fg2Shells = activeCanonicalData?.shells ?? [];
-    const fg2ShellLoops = activeCanonicalData?.shellLoops ?? [];
-    const fg2AnimShells = activeCanonicalData?.animatedShells ?? [];
-    const fg2AnimActive = activeCanonicalData?.transitionActive ?? false;
+    const activeRenderData =
+        renderData?.shells.length || renderData?.animatedShells.length
+            ? renderData
+            : cachedRenderData;
+    const fg2Shells = activeRenderData?.shells ?? [];
+    const fg2ShellLoops = activeRenderData?.shellLoops ?? [];
+    const fg2AnimShells = activeRenderData?.animatedShells ?? [];
+    const fg2AnimActive = activeRenderData?.transitionActive ?? false;
     const useFG2 = fg2Shells.length > 0;
 
     // Smooth passes — shared by FG2 and legacy paths
@@ -512,12 +512,12 @@ export function renderPVV3(
             }
         }
 
-        log.renderer('PVV3', `FG2 canonical path: ${sorted.length} shells rendered (anim=${fg2AnimActive})`);
+        log.renderer('PVV3', `FG2 runtime path: ${sorted.length} shells rendered (anim=${fg2AnimActive})`);
 
         // ── FG2 DIAGNOSTIC DUMP ─────────────────────────────────────────────
         // Expose full shell data for inspection via browser console
         const dumpData = {
-            path: 'FG2_CANONICAL',
+            path: 'FG2_RUNTIME',
             timestamp: Date.now(),
             shellCount: sorted.length,
             animActive: fg2AnimActive,
@@ -625,7 +625,7 @@ export function renderPVV3(
 
         // Log summary table to console
         console.group('%c[PVV3 FG2 Diagnostic]', 'color: #7bdff2; font-weight: bold');
-        console.log(`Path: FG2 CANONICAL | Shells: ${sorted.length} | Anim: ${fg2AnimActive}`);
+        console.log(`Path: FG2 RUNTIME | Shells: ${sorted.length} | Anim: ${fg2AnimActive}`);
         console.table(dumpData.shells.map(s => ({
             '#': s.idx,
             owner: s.ownerId,
@@ -671,9 +671,9 @@ export function renderPVV3(
     // FG2 not used — falling through to legacy merge+substitute pipeline
     // ⚠️ DEPRECATED: This path computes fills and borders from independent data
     // sources, causing visible divergence (B-42). The engine should always provide
-    // FG2 artifacts so the canonical path above activates instead.
+    // FG2 artifacts so the primary path above activates instead.
     console.warn('%c[PVV3] ⚠️ LEGACY PATH (DEPRECATED) — FG2 shells not available', 'color: #ff4444; font-weight: bold',
-        `canonicalData=${!!canonicalData}, shellCount=${fg2Shells.length}. This path causes fill/border divergence.`);
+        `renderData=${!!renderData}, shellCount=${fg2Shells.length}. This path causes fill/border divergence.`);
 
 
 
@@ -831,7 +831,7 @@ export function renderPVV3(
 export function resetPVV3Cache(): void {
     cachedShapeFingerprint = '';
     cachedVisualFingerprint = '';
-    cachedCanonicalData = null;
+    cachedRenderData = null;
     // Smooth mode state
     isSmoothTransitioning = false;
     prevSharedPolylines = null;

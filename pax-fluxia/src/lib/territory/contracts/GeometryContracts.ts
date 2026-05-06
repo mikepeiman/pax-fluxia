@@ -23,17 +23,17 @@ export type GeometrySourceMethod =
     | 'raster_contour'
     | 'raster_sdf';
 
-// ─── Canonical Frontier Polyline ────────────────────────────────────────────
+// ─── Resolved Frontier Polyline ─────────────────────────────────────────────
 
 /** A single frontier polyline with stable identity and provenance. */
-export interface CanonicalFrontierPolyline {
+export interface ResolvedFrontierPolyline {
     /** Stable frontier identifier. */
     frontierId: string;
     /** Owner on side A. */
     ownerA: string;
     /** Owner on side B. Use '__world__' for world boundary. */
     ownerB: string;
-    /** Canonical owner-pair key (sorted, e.g. "red|blue"). */
+    /** Normalized owner-pair key (sorted, e.g. "red|blue"). */
     ownerPairKey: string;
     /** Full smoothed point array. Smoothing is applied in the geometry compiler (geometry concern). */
     points: [number, number][];
@@ -47,9 +47,9 @@ export interface CanonicalFrontierPolyline {
 
 /**
  * An owner's territory shell: one outer boundary ring + its contained holes.
- * Absorbs FG2's FG2OwnerShellArtifact concept into the canonical pipeline.
+ * Absorbs FG2's FG2OwnerShellArtifact concept into the resolved geometry pipeline.
  */
-export interface CanonicalShell {
+export interface ResolvedShell {
     /** Stable shell identifier. */
     shellId: string;
     /** Owner of this shell. */
@@ -70,7 +70,7 @@ export interface CanonicalShell {
     absArea: number;
     /** 0–1 confidence score. */
     confidence: number;
-    /** IDs of CanonicalShellLoop instances that are holes inside this shell. */
+    /** IDs of ResolvedShellLoop instances that are holes inside this shell. */
     holeLoopIds: string[];
 }
 
@@ -78,7 +78,7 @@ export interface CanonicalShell {
  * A single loop within a shell: either the outer boundary or a hole.
  * Classification absorbs FG2's face-walk → shell concept.
  */
-export interface CanonicalShellLoop {
+export interface ResolvedShellLoop {
     /** Stable loop identifier. */
     shellLoopId: string;
     /** Shell this loop belongs to (if classified). */
@@ -179,37 +179,37 @@ export interface GeometryStageLadder {
     /** Effective MSR margin applied when resolving the shared seam. */
     appliedMarginPx: number;
     /** Raw inter-owner frontiers emitted upstream of shared-boundary resolution. */
-    rawSharedFrontiers: readonly CanonicalFrontierPolyline[];
+    rawSharedFrontiers: readonly ResolvedFrontierPolyline[];
     /** Raw owner-vs-world borders emitted upstream of shared-boundary resolution. */
-    rawWorldBorders: readonly CanonicalFrontierPolyline[];
+    rawWorldBorders: readonly ResolvedFrontierPolyline[];
     /** Resolved inter-owner frontiers after shared-boundary authority resolution. */
-    resolvedSharedBoundaryFrontiers: readonly CanonicalFrontierPolyline[];
+    resolvedSharedBoundaryFrontiers: readonly ResolvedFrontierPolyline[];
     /** Resolved owner-vs-world borders after shared-boundary authority resolution. */
-    resolvedWorldBorders: readonly CanonicalFrontierPolyline[];
+    resolvedWorldBorders: readonly ResolvedFrontierPolyline[];
     /** Resolved territory regions reconstructed from the shared-boundary seam. */
     resolvedRegions: readonly TerritoryRegionShape[];
     /** Final display frontier chains derived from the resolved regions. */
-    displayFrontierPolylines: readonly CanonicalFrontierPolyline[];
+    displayFrontierPolylines: readonly ResolvedFrontierPolyline[];
     /** Final display world-border chains derived from the resolved regions. */
-    displayWorldBorderPolylines: readonly CanonicalFrontierPolyline[];
+    displayWorldBorderPolylines: readonly ResolvedFrontierPolyline[];
     /** Notes clarifying stage ownership and authority. */
     notes: readonly string[];
 }
 
-// ─── Canonical Geometry Snapshot ─────────────────────────────────────────────
+// ─── Resolved Geometry Snapshot ──────────────────────────────────────────────
 
 /**
  * SharedFrontierMap: keyed by ownerPairKey (e.g. "red|blue"), value is an ARRAY
- * of canonical frontier polylines shared between two territories.
+ * of vector frontier polylines shared between two territories.
  *
  * MULTIMAP (D-90): ownerPairKey is NOT unique — two owners can share multiple
  * disconnected border segments. Using a single-value Map silently drops segments.
  * See POST_MORTEM_2026-03-24_FRONTIER_DEDUP.md.
  */
-export type SharedFrontierMap = ReadonlyMap<string, CanonicalFrontierPolyline[]>;
+export type SharedFrontierMap = ReadonlyMap<string, ResolvedFrontierPolyline[]>;
 
 /**
- * The immutable, rich geometry output of one computation — canonical truth for
+ * The immutable, rich geometry output of one computation — authoritative truth for
  * both vector-native and raster-derived geometry.
  *
  * This replaces the thin GeometrySnapshot. All downstream consumers (transitions,
@@ -219,7 +219,7 @@ export type SharedFrontierMap = ReadonlyMap<string, CanonicalFrontierPolyline[]>
  * Points in this snapshot are already smoothed. Renderers must NOT re-smooth.
  * Authority: TERRITORY_ARCHITECTURE.md L69, ARCHITECTURE_GUIDING_PRINCIPLES.md L64.
  */
-export interface CanonicalGeometrySnapshot {
+export interface ResolvedGeometrySnapshot {
     // ── Identity ──
     /** Deterministic version hash of this geometry frame. */
     version: string;
@@ -240,9 +240,9 @@ export interface CanonicalGeometrySnapshot {
     /** Territory regions with identity and confidence. */
     territoryRegions: readonly TerritoryRegionShape[];
     /** Inter-owner frontier polylines with stable identity. */
-    frontierPolylines: readonly CanonicalFrontierPolyline[];
+    frontierPolylines: readonly ResolvedFrontierPolyline[];
     /** World-boundary border polylines (owner↔world edges). */
-    worldBorderPolylines: readonly CanonicalFrontierPolyline[];
+    worldBorderPolylines: readonly ResolvedFrontierPolyline[];
     /** Multimap of frontiers by ownerPairKey (D-90 multimap). */
     sharedFrontierMap: SharedFrontierMap;
 
@@ -253,9 +253,9 @@ export interface CanonicalGeometrySnapshot {
 
     // ── Shell structure (FG2 concepts absorbed) ──
     /** Classified shells: one outer boundary + contained holes per territory island. */
-    shells: readonly CanonicalShell[];
+    shells: readonly ResolvedShell[];
     /** All loops (outer + hole) with shell membership. */
-    shellLoops: readonly CanonicalShellLoop[];
+    shellLoops: readonly ResolvedShellLoop[];
 
     // ── Provenance & diagnostics ──
     /** How this geometry was computed — explicit provenance. */
@@ -267,18 +267,18 @@ export interface CanonicalGeometrySnapshot {
 }
 
 /**
- * @deprecated Use CanonicalGeometrySnapshot directly. This alias exists only
+ * @deprecated Use ResolvedGeometrySnapshot directly. This alias exists only
  * to reduce blast radius during migration (16 files import this name).
  * Will be removed in Step 3 or Step 4.
  */
-export type GeometrySnapshot = CanonicalGeometrySnapshot;
+export type GeometrySnapshot = ResolvedGeometrySnapshot;
 
 // ─── Legacy type aliases (deprecated, for migration compatibility) ──────────
 
 /**
- * @deprecated Use CanonicalFrontierPolyline. Kept as alias during migration.
+ * @deprecated Use ResolvedFrontierPolyline. Kept as alias during migration.
  */
-export type FrontierPolylineShape = CanonicalFrontierPolyline;
+export type FrontierPolylineShape = ResolvedFrontierPolyline;
 
 // ─── Input to the geometry layer ────────────────────────────────────────────
 
@@ -290,7 +290,7 @@ export interface GeometryLayerInput {
     tunables: TerritoryTunables;
     ownership: OwnershipSnapshot;
     styleMode: TerritoryStyleModeId;
-    previousSnapshot?: CanonicalGeometrySnapshot | null;
+    previousSnapshot?: ResolvedGeometrySnapshot | null;
 }
 
 // ─── Geometry mode interface ────────────────────────────────────────────────
@@ -298,5 +298,5 @@ export interface GeometryLayerInput {
 export interface GeometryMode {
     readonly id: GeometryModeId;
     readonly label: string;
-    compute(input: GeometryLayerInput): CanonicalGeometrySnapshot;
+    compute(input: GeometryLayerInput): ResolvedGeometrySnapshot;
 }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file perimeterFieldTransitionTypes.ts
  * First-class types for the perimeter_field transition plan.
  *
@@ -17,7 +17,7 @@
  *   - buildPerimeterFieldFrame(plan, t) is a pure function of (plan, t).
  */
 
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 
 // ─── Ownership Role ─────────────────────────────────────────────────────────
 
@@ -220,7 +220,7 @@ export interface TransitionPlan {
     nextVSet: readonly PerimeterV[];
     /** Set of PREV-side V IDs that are preserved across the transition. */
     preservedVIds: ReadonlySet<string>;
-    /** Canonical preserved match keys (`sectionId:indexInSection`) shared by PREV and NEXT. */
+    /** Resolved preserved match keys (`sectionId:indexInSection`) shared by PREV and NEXT. */
     preservedMatchKeys: ReadonlySet<string>;
     /** Paired movers within unmatched spans. Bijective within each SpanPair. */
     movers: readonly TransitionMover[];
@@ -229,9 +229,9 @@ export interface TransitionPlan {
     /** PREV-only V's (fade out). */
     disappearing: readonly DisappearingV[];
     /** PREV geometry snapshot — carried for diagnostic/export only. */
-    prevGeometry: CanonicalGeometrySnapshot;
+    prevGeometry: ResolvedGeometrySnapshot;
     /** NEXT geometry snapshot — carried for diagnostic/export only. */
-    nextGeometry: CanonicalGeometrySnapshot;
+    nextGeometry: ResolvedGeometrySnapshot;
     /** Snapshot of the changed-section sets used to build this plan. */
     changedSections: ChangedSectionSets;
 }

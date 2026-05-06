@@ -1,8 +1,8 @@
 export type TerritoryArchitecturePath = 'clean' | 'legacy';
 
-export type TerritoryCanonicalRoute =
-    | 'canonical_clean_bridge'
-    | 'canonical_legacy_bridge'
+export type TerritoryRuntimeRoute =
+    | 'runtime_clean_bridge'
+    | 'runtime_legacy_bridge'
     | 'legacy_style_renderer';
 
 export interface TerritoryArchitectureRouteInput {
@@ -13,8 +13,8 @@ export interface TerritoryArchitectureRouteInput {
 export interface TerritoryArchitectureRouteDecision {
     renderMode: string;
     architecturePath: TerritoryArchitecturePath;
-    route: TerritoryCanonicalRoute;
-    isCanonicalStyle: boolean;
+    route: TerritoryRuntimeRoute;
+    isRuntimeSurfaceStyle: boolean;
 }
 
 function resolveArchitecturePath(raw: string | undefined): TerritoryArchitecturePath {
@@ -24,27 +24,27 @@ function resolveArchitecturePath(raw: string | undefined): TerritoryArchitecture
 export function resolveTerritoryArchitectureRoute(
     input: TerritoryArchitectureRouteInput,
 ): TerritoryArchitectureRouteDecision {
-    const renderMode = input.renderMode ?? 'territory_canonical';
+    const renderMode = input.renderMode ?? 'territory_runtime';
     const architecturePath = resolveArchitecturePath(input.architecturePath);
-    const isCanonicalStyle =
-        renderMode === 'territory_canonical' ||
-        renderMode === 'power_voronoi_canonical';
+    const isRuntimeSurfaceStyle =
+        renderMode === 'territory_runtime' ||
+        renderMode === 'power_voronoi_runtime';
 
-    if (!isCanonicalStyle) {
+    if (!isRuntimeSurfaceStyle) {
         return {
             renderMode,
             architecturePath,
             route: 'legacy_style_renderer',
-            isCanonicalStyle,
+            isRuntimeSurfaceStyle,
         };
     }
 
-    if (renderMode === 'power_voronoi_canonical') {
+    if (renderMode === 'power_voronoi_runtime') {
         return {
             renderMode,
             architecturePath,
-            route: 'canonical_clean_bridge',
-            isCanonicalStyle,
+            route: 'runtime_clean_bridge',
+            isRuntimeSurfaceStyle,
         };
     }
 
@@ -53,8 +53,8 @@ export function resolveTerritoryArchitectureRoute(
         architecturePath,
         route:
             architecturePath === 'clean'
-                ? 'canonical_clean_bridge'
-                : 'canonical_legacy_bridge',
-        isCanonicalStyle,
+                ? 'runtime_clean_bridge'
+                : 'runtime_legacy_bridge',
+        isRuntimeSurfaceStyle,
     };
 }

@@ -189,7 +189,7 @@ function adjustColorHSL(hex: number, satMult: number, lightMult: number): number
 
 // ΓöÇΓöÇ Edge Key Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-/** Canonical edge key ΓÇö direction-independent, snapped to 2dp. */
+/** Normalized edge key ΓÇö direction-independent, snapped to 2dp. */
 function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
     const bx = +x2.toFixed(2), by = +y2.toFixed(2);
@@ -515,12 +515,12 @@ function chainSharedEdgesIntoPolylines(edges: SharedBorderEdge[], colorLookup?: 
     return result;
 }
 
-// ΓöÇΓöÇ Canonical Border Drawing ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ΓöÇΓöÇ Runtime Border Drawing ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 /**
  * Draw border polylines into a Graphics object as smooth B├⌐zier curves.
  * Uses quadraticCurveTo through midpoints for smooth arc geometry.
- * This is the SINGLE canonical function for all border rendering ΓÇö steady-state,
+ * This is the SINGLE shared function for all border rendering ΓÇö steady-state,
  * transition animation, and segment mode all use this function.
  * 
  * If smoothPasses > 0, Chaikin subdivision is applied first to generate more
@@ -972,13 +972,13 @@ export function renderPVV2DY4(
         }
     }
 
-    // Segment mode: chain lerped edges into polylines, render via canonical draw
+    // Segment mode: chain lerped edges into polylines, render via shared draw
     if (boundaryMode === 'segment' && isBorderTransitioning && !GAME_CONFIG.DEBUG_DY4_DISABLE_BORDER_TRANSITION && transitionMs > 0 && prevBorderEdges && targetBorderEdges) {
         const elapsed = now - borderTransitionStart;
         const rawT = Math.min(1, elapsed / transitionMs);
         const eased = rawT < 0.5 ? 2 * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 2) / 2;
 
-        // Lerp edge positions, then chain into polylines for canonical draw
+        // Lerp edge positions, then chain into polylines for shared draw
         const lerpedEdges: SharedBorderEdge[] = [];
         const targetUsed = new Set<number>();
         for (const pEdge of prevBorderEdges) {
@@ -1013,7 +1013,7 @@ export function renderPVV2DY4(
             lerpedEdges.push(targetBorderEdges[ti]);
         }
 
-        // Chain lerped edges into polylines + draw via canonical function
+        // Chain lerped edges into polylines + draw via shared function
         if (borderGraphics) {
             borderGraphics.clear();
             const smoothPasses = Math.max(0, Math.min(5, Math.round(GAME_CONFIG.VORONOI_BORDER_SMOOTH ?? 3)));
@@ -1365,7 +1365,7 @@ export function renderPVV2DY4(
         }
     }
 
-    // Borders ΓÇö smoothed shared edges via canonical drawBorderPolylines
+    // Borders ΓÇö smoothed shared edges via shared drawBorderPolylines
     if (borderWidth > 0 && borderAlpha > 0) {
         if (!borderGraphics || borderGraphics.destroyed) {
             borderGraphics = new PIXI.Graphics();
@@ -1513,7 +1513,7 @@ export function resetPVV2DY4Cache(): void {
 // ── Diagnostics Export ──────────────────────────────────────────────────────
 
 /**
- * Synthesizes a CanonicalGeometrySnapshot from the internal DY4 cache state.
+ * Synthesizes a ResolvedGeometrySnapshot from the internal DY4 cache state.
  * This satisfies the TransitionSnapshotRecorder's requirement for canvas rendering
  * without needing the DY4 pipeline to run a full geometry compiler.
  */
@@ -1521,7 +1521,7 @@ export function exportDY4GeometrySnapshot(
     type: 'current' | 'previous',
     version: string,
     ownershipVersion: string
-): import('../territory/contracts/GeometryContracts').CanonicalGeometrySnapshot | null {
+): import('../territory/contracts/GeometryContracts').ResolvedGeometrySnapshot | null {
     const merged = type === 'current' ? lastMergedTerritories : prevMergedTerritories;
     const borders = type === 'current' ? targetSharedPolylines : prevSharedPolylines;
 
@@ -1533,7 +1533,7 @@ export function exportDY4GeometrySnapshot(
     return {
         version,
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical' as any,
+        sourceStyle: 'vector' as any,
         ownershipVersion,
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// buildFrontierMap.ts — Canonical Frontier Map Builder
+// buildFrontierMap.ts — Frontier Map Builder
 // ---------------------------------------------------------------------------
 // Thin wrapper over chainWalkCore that assembles a TerritoryFrontierMap
 // from the shared chain-walk result. Does NOT duplicate the walk logic.
@@ -13,13 +13,13 @@ import { ptKey } from './powerVoronoiTerritoryGeometryGenerator';
 import { executeChainWalk } from './chainWalkCore';
 import type { ChainWalkResult, ChainWalkLoop, ChainWalkSegment } from './chainWalkCore';
 import type {
-    CanonicalVertex,
-    CanonicalVertexKind,
-    CanonicalEdge,
-    CanonicalLoop,
-    CanonicalLoopValidity,
+    FrontierMapVertex,
+    FrontierMapVertexKind,
+    FrontierMapEdge,
+    FrontierMapLoop,
+    FrontierMapLoopValidity,
     TerritoryFrontierMap,
-} from './canonicalTypes';
+} from './frontierMapTypes';
 import { log } from '../../utils/logger';
 
 // ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ function classifyVertex(
     junctionVertexKeys: Set<string>,
     worldEndpoints: Set<string>,
     closureVertices: Set<string>,
-): CanonicalVertexKind {
+): FrontierMapVertexKind {
     if (junctionVertexKeys.has(key)) return 'junction-3way';
     if (worldEndpoints.has(key)) return 'frontier-mapedge';
     if (closureVertices.has(key)) return 'loop-closure';
@@ -79,7 +79,7 @@ function edgeIdFromSegment(seg: ChainWalkSegment): string {
 /**
  * Determine loop validity from the chain walk closure status.
  */
-function loopValidity(loop: ChainWalkLoop): CanonicalLoopValidity {
+function loopValidity(loop: ChainWalkLoop): FrontierMapLoopValidity {
     if (loop.closed) return 'valid-closed';
     return 'partial-open';
 }
@@ -106,9 +106,9 @@ export function buildFrontierMap(
     junctionVertexKeys: Set<string>,
     fingerprint: string,
 ): TerritoryFrontierMap {
-    const vertices = new Map<string, CanonicalVertex>();
-    const edges = new Map<string, CanonicalEdge>();
-    const loops: CanonicalLoop[] = [];
+    const vertices = new Map<string, FrontierMapVertex>();
+    const edges = new Map<string, FrontierMapEdge>();
+    const loops: FrontierMapLoop[] = [];
 
     // Execute the shared chain walk (same walk as constructFillsFromFrontierChain)
     const walkResult = executeChainWalk(sharedPolylines, worldBorderPolylines);

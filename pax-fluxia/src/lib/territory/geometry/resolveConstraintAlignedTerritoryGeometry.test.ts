@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { CanonicalGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import {
     buildDisplayFillRegionsFromConstraintAlignedGeometry,
     resolveConstraintAlignedTerritoryGeometry,
 } from './resolveConstraintAlignedTerritoryGeometry';
 
 function makeGeometry(
-    overrides: Partial<CanonicalGeometrySnapshot>,
-): CanonicalGeometrySnapshot {
+    overrides: Partial<ResolvedGeometrySnapshot>,
+): ResolvedGeometrySnapshot {
     return {
         version: 'test',
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'own:test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',
@@ -46,7 +46,7 @@ function makeGeometry(
     };
 }
 
-function canonicalizeRing(
+function normalizeRing(
     points: ReadonlyArray<[number, number]>,
 ): string {
     const open =
@@ -681,7 +681,7 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
         );
         expect(rebuiltRegions).toHaveLength(2);
         expect(
-            rebuiltRegions.map((region) => canonicalizeRing(region.points)).sort(),
+            rebuiltRegions.map((region) => normalizeRing(region.points)).sort(),
         ).toEqual(
             [
                 [
@@ -699,7 +699,7 @@ describe('resolveConstraintAlignedTerritoryGeometry', () => {
                     [5, 0],
                 ],
             ]
-                .map(canonicalizeRing)
+                .map(normalizeRing)
                 .sort(),
         );
     });

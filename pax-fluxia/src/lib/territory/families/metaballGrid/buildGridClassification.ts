@@ -14,7 +14,7 @@
 
 import type { ConquestEvent } from '@pax/common';
 import type {
-    CanonicalGeometrySnapshot,
+    ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
 import { pointInPolygon } from '../../geometry/geometryUtils';

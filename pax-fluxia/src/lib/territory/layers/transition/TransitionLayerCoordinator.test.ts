@@ -6,7 +6,7 @@ import {
     buildTestOwnership,
     TEST_PV_FRONTLINE_SELECTION,
     TEST_TUNABLES,
-} from '../../pvCanonical/testFixtures';
+} from '../../pvFrontline/testFixtures';
 
 function buildStaticSnapshot(geometryVersion: string): TransitionSnapshot {
     return {
@@ -18,7 +18,7 @@ function buildStaticSnapshot(geometryVersion: string): TransitionSnapshot {
 }
 
 describe('TransitionLayerCoordinator', () => {
-    it('builds and samples a canonical PV transition from paired PRE/POST geometry', () => {
+    it('builds and samples a PV frontline transition from paired PRE/POST geometry', () => {
         const coordinator = new TransitionLayerCoordinator();
         const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
         const postGeometry = buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]);
@@ -36,8 +36,8 @@ describe('TransitionLayerCoordinator', () => {
             previousTransition: buildStaticSnapshot(preGeometry.version),
             activeFillPlan: null,
             activeFrontPlan: null,
-            activeCanonicalPvTransition: null,
-            canonicalPowerVoronoiPair: {
+            activePvFrontlineTransition: null,
+            resolvedPowerVoronoiPair: {
                 preGeometry,
                 postGeometry,
                 previousOwnership,
@@ -46,32 +46,32 @@ describe('TransitionLayerCoordinator', () => {
             transitionPrevTopology: null,
         });
 
-        expect(result.activeCanonicalPvTransition?.plan.kind).toBe(
-            'power_voronoi_canonical',
+        expect(result.activePvFrontlineTransition?.plan.kind).toBe(
+            'power_voronoi_runtime',
         );
-        expect(result.activeCanonicalPvTransition?.plan.fronts).toHaveLength(1);
+        expect(result.activePvFrontlineTransition?.plan.fronts).toHaveLength(1);
         expect(
-            result.activeCanonicalPvTransition?.diagnostics.transitionPlanningStage.summary,
+            result.activePvFrontlineTransition?.diagnostics.transitionPlanningStage.summary,
         ).toMatchObject({
             transitionFrontCount: 1,
             transitionPairCount: 1,
         });
         expect(
-            result.activeCanonicalPvTransition?.diagnostics.frameEvaluationStage.sampledFrames[0],
+            result.activePvFrontlineTransition?.diagnostics.frameEvaluationStage.sampledFrames[0],
         ).toMatchObject({
             progress: 0,
             matchesPreGeometry: true,
             matchesPostGeometry: false,
         });
         expect(result.activeFrontPlan).toBe(
-            result.activeCanonicalPvTransition?.activeFrontPlan,
+            result.activePvFrontlineTransition?.activeFrontPlan,
         );
         expect(result.transitionPrevTopology).toBe(preGeometry.frontierTopology);
         expect(result.snapshot.envelope?.transitionId).toBe('transition:100');
         expect(result.snapshot.fillFrame.regions).toHaveLength(2);
     });
 
-    it('cancels an active canonical PV transition when geometry retunes without a new conquest', () => {
+    it('cancels an active PV frontline transition when geometry retunes without a new conquest', () => {
         const coordinator = new TransitionLayerCoordinator();
         const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
         const postGeometry = buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]);
@@ -90,8 +90,8 @@ describe('TransitionLayerCoordinator', () => {
             previousTransition: buildStaticSnapshot(preGeometry.version),
             activeFillPlan: null,
             activeFrontPlan: null,
-            activeCanonicalPvTransition: null,
-            canonicalPowerVoronoiPair: {
+            activePvFrontlineTransition: null,
+            resolvedPowerVoronoiPair: {
                 preGeometry,
                 postGeometry,
                 previousOwnership,
@@ -115,14 +115,14 @@ describe('TransitionLayerCoordinator', () => {
             previousTransition: started.snapshot,
             activeFillPlan: started.activeFillPlan,
             activeFrontPlan: started.activeFrontPlan,
-            activeCanonicalPvTransition: started.activeCanonicalPvTransition,
-            canonicalPowerVoronoiPair: null,
+            activePvFrontlineTransition: started.activePvFrontlineTransition,
+            resolvedPowerVoronoiPair: null,
             transitionPrevTopology: started.transitionPrevTopology,
         });
 
         expect(started.snapshot.envelope).not.toBeNull();
         expect(cancelled.snapshot.envelope).toBeNull();
-        expect(cancelled.activeCanonicalPvTransition).toBeNull();
+        expect(cancelled.activePvFrontlineTransition).toBeNull();
         expect(cancelled.activeFrontPlan).toBeNull();
         expect(cancelled.transitionPrevTopology).toBeNull();
         expect(cancelled.snapshot.fillFrame.regions).toHaveLength(2);

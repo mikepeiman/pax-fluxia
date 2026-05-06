@@ -1,27 +1,27 @@
 /**
  * territory/legacy/TerritoryLegacyBridge.ts
  *
- * QUARANTINE BOUNDARY — isolates legacy renderers from the canonical architecture.
+ * QUARANTINE BOUNDARY — isolates legacy renderers from the runtime architecture.
  *
  * Legacy renderers (PVV2/PowerVoronoiRenderer, PVV3, DistanceField) may exist
  * during migration, but they must not:
- * - Define canonical ownership truth
+ * - Define authoritative ownership truth
  * - Override compiler contract outputs
  * - Contaminate the render layer with legacy design decisions
  *
  * This bridge is a TEMPORARY escape hatch during refactoring, not a permanent
- * parallel architecture. As canonical equivalents are proven correct, each
+ * parallel architecture. As runtime equivalents are proven correct, each
  * legacy mode is removed from this file.
  *
  * Rules per LEGACY_QUARANTINE.md:
  * - This file is the ONLY place legacy renderers may be imported
- * - Never import from this file into the compiler or canonical render layer
+ * - Never import from this file into the compiler or runtime render layer
  */
 
 import type * as PIXI from 'pixi.js';
 import type { Star, Connection } from '@pax/common';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
-import { runFG2DataPipeline, extractCanonicalData } from '$lib/territory/orchestrator';
+import { runFG2DataPipeline, extractTerritoryRenderData } from '$lib/territory/orchestrator';
 
 export type LegacyStyleId =
     | 'territory_engine'   // Territory engine / PVV2 adapter path (legacy bridge)
@@ -50,7 +50,7 @@ export interface LegacyBridgeInput {
 /**
  * Route a legacy style mode to its corresponding renderer.
  * All imports of legacy renderers are made dynamically inside this function
- * to minimize contamination of the canonical compilation graph.
+ * to minimize contamination of the runtime compilation graph.
  *
  * Returns true if the style was handled, false if unrecognized.
  */
@@ -71,7 +71,7 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
         }
 
         case 'vs_pvv3': {
-            const [{ runFG2DataPipeline, extractCanonicalData }, { renderPVV3 }] =
+            const [{ runFG2DataPipeline, extractTerritoryRenderData }, { renderPVV3 }] =
                 await Promise.all([
                     import('$lib/territory/orchestrator'),
                     import('$lib/renderers/PVV3Renderer'),
@@ -81,12 +81,12 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
                 connections, gameNowMs,
             });
             renderPVV3(stars, container, colorUtils, worldWidth, worldHeight,
-                connections, extractCanonicalData(artifacts));
+                connections, extractTerritoryRenderData(artifacts));
             return true;
         }
 
         case 'power_voronoi': {
-            const [{ runFG2DataPipeline, extractCanonicalData }, { renderPowerVoronoi }] =
+            const [{ runFG2DataPipeline, extractTerritoryRenderData }, { renderPowerVoronoi }] =
                 await Promise.all([
                     import('$lib/territory/orchestrator'),
                     import('$lib/renderers/PowerVoronoiRenderer'),
@@ -96,7 +96,7 @@ export async function renderLegacyStyle(input: LegacyBridgeInput): Promise<boole
                 connections, gameNowMs,
             });
             renderPowerVoronoi(stars, container, colorUtils, worldWidth, worldHeight,
-                connections, extractCanonicalData(artifacts));
+                connections, extractTerritoryRenderData(artifacts));
             return true;
         }
 

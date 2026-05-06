@@ -26,7 +26,7 @@
     function geometrySourceLabel(): string {
         const source = currentGeometrySource();
         if (source === 'power_voronoi_0319') return 'Power Voronoi (0319)';
-        if (source === 'canonical_vector') return 'Canonical Vector';
+        if (source === 'resolved_vector') return 'Resolved Vector';
         return source;
     }
 </script>
@@ -55,7 +55,7 @@
         }}
     >
         <option value="power_voronoi_0319">Power Voronoi (0319)</option>
-        <option value="canonical_vector">Canonical Vector</option>
+        <option value="resolved_vector">Resolved Vector</option>
     </select>
 </div>
 

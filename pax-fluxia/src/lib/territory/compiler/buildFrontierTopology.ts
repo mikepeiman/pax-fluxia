@@ -8,7 +8,7 @@
 // No PIXI imports. No rendering. Pure data conversion.
 // ---------------------------------------------------------------------------
 
-import type { TerritoryFrontierMap, CanonicalVertex, CanonicalEdge, CanonicalLoop } from './canonicalTypes';
+import type { TerritoryFrontierMap, FrontierMapVertex, FrontierMapEdge, FrontierMapLoop } from './frontierMapTypes';
 import type {
     FrontierTopology,
     FrontierVertex,
@@ -21,7 +21,7 @@ import type {
 } from '../contracts/FrontierTopologyContracts';
 
 // ---------------------------------------------------------------------------
-// Vertex kind mapping: CanonicalVertexKind → FrontierVertexKind
+// Vertex kind mapping: FrontierMapVertexKind → FrontierVertexKind
 // ---------------------------------------------------------------------------
 
 function mapVertexKind(kind: string): FrontierVertexKind {
@@ -57,7 +57,7 @@ function computeArcLength(points: [number, number][]): number {
 }
 
 // ---------------------------------------------------------------------------
-// Build owner pair key (canonical sorted)
+// Build owner pair key (sorted normalization)
 // ---------------------------------------------------------------------------
 
 function makeOwnerPairKey(leftOwnerId: string, rightOwnerId: string): string {
@@ -83,13 +83,13 @@ function stubInfluence(ownerId: string): SectionInfluence {
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a TerritoryFrontierMap (canonical types) to FrontierTopology
+ * Convert a TerritoryFrontierMap (frontier-map types) to FrontierTopology
  * (the clean architecture contract type).
  *
  * This is a 1:1 structural conversion:
- * - CanonicalVertex → FrontierVertex
- * - CanonicalEdge   → FrontierSection
- * - CanonicalLoop   → RegionLoop (with SectionRef[])
+ * - FrontierMapVertex → FrontierVertex
+ * - FrontierMapEdge   → FrontierSection
+ * - FrontierMapLoop   → RegionLoop (with SectionRef[])
  *
  * Also builds the lookup indexes required by FrontierTopology.
  */
@@ -230,9 +230,9 @@ export function buildFrontierTopology(
 
 /**
  * Rebuild the flat point array for a RegionLoop by walking its section refs.
- * This is the CANONICAL way to get fill points — from border sections.
+ * This is the authoritative way to get fill points — from border sections.
  *
- * IMPORTANT: ChainWalkSegment.points (stored as CanonicalEdge.curvePoints) are
+ * IMPORTANT: ChainWalkSegment.points (stored as FrontierMapEdge.curvePoints) are
  * already reversed when the walk traversed the polyline in reverse. The
  * SectionRef.direction field reflects the original walk direction but should
  * NOT be used to re-reverse curvePoints — they are always in correct walk order.

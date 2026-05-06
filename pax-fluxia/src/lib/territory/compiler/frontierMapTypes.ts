@@ -22,7 +22,7 @@
  * The `id` is a ptKey string (e.g. "123.46,567.89") — stable across
  * geometry rebuilds for the same star configuration.
  */
-export interface CanonicalVertex {
+export interface FrontierMapVertex {
     /** Stable identity: ptKey(x, y) */
     id: string;
     x: number;
@@ -30,7 +30,7 @@ export interface CanonicalVertex {
     /** Number of canonical edges meeting at this vertex */
     degree: number;
     /** Classification of this vertex */
-    kind: CanonicalVertexKind;
+    kind: FrontierMapVertexKind;
 }
 
 /**
@@ -41,7 +41,7 @@ export interface CanonicalVertex {
  * - `loop-closure`: vertex where a chain walk closes back to its start
  * - `endpoint`: polyline endpoint that doesn't match the above (degenerate)
  */
-export type CanonicalVertexKind =
+export type FrontierMapVertexKind =
     | 'junction-3way'
     | 'frontier-mapedge'
     | 'loop-closure'
@@ -63,7 +63,7 @@ export type CanonicalVertexKind =
  * leftOwnerId is the territory being filled (interior side);
  * rightOwnerId is the adjacent territory or null for world boundary.
  */
-export interface CanonicalEdge {
+export interface FrontierMapEdge {
     /** Stable identity: `${startVertexId}->${endVertexId}:${ownerPairKey}` */
     id: string;
     startVertexId: string;
@@ -99,7 +99,7 @@ export interface CanonicalEdge {
  * near-closure gaps. Canonical consumers should still check this status before
  * trusting loop integrity.
  */
-export type CanonicalLoopValidity =
+export type FrontierMapLoopValidity =
     | 'valid-closed'
     | 'partial-open'
     | 'degraded-repaired';
@@ -112,7 +112,7 @@ export type CanonicalLoopValidity =
  * ordered edge and vertex IDs so that the transition system can identify
  * which edges changed between two geometry states.
  */
-export interface CanonicalLoop {
+export interface FrontierMapLoop {
     /** Stable identity: `${ownerId}:${loopIndex}` */
     loopId: string;
     ownerId: string;
@@ -123,7 +123,7 @@ export interface CanonicalLoop {
     /** Ordered vertex IDs for this loop traversal (same length as edgeIds) */
     vertexIds: string[];
     /** Validity state of this loop */
-    validity: CanonicalLoopValidity;
+    validity: FrontierMapLoopValidity;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,9 +138,9 @@ export interface CanonicalLoop {
  * (not instead of) existing TerritoryGeometryData outputs.
  */
 export interface TerritoryFrontierMap {
-    vertices: Map<string, CanonicalVertex>;
-    edges: Map<string, CanonicalEdge>;
-    loops: CanonicalLoop[];
+    vertices: Map<string, FrontierMapVertex>;
+    edges: Map<string, FrontierMapEdge>;
+    loops: FrontierMapLoop[];
     /** Geometry fingerprint for change detection */
     fingerprint: string;
 }

@@ -70,11 +70,11 @@ export interface FrontierSection {
     id: string;
     /** Section type. */
     kind: FrontierSectionKind;
-    /** Start vertex ID (defines canonical orientation). */
+    /** Start vertex ID (defines forward orientation). */
     startVertexId: string;
     /** End vertex ID. */
     endVertexId: string;
-    /** Owner on the LEFT of the canonical direction (start → end). */
+    /** Owner on the LEFT of the forward direction (start → end). */
     leftOwnerId: string;
     /** Owner on the RIGHT, or 'world' for world borders. */
     rightOwnerId: string;
@@ -84,7 +84,7 @@ export interface FrontierSection {
     points: [number, number][];
     /** Total arc length of the section. */
     length: number;
-    /** Canonical owner-pair key (sorted, e.g. "player_0|player_1"). */
+    /** Normalized owner-pair key (sorted, e.g. "player_0|player_1"). */
     ownerPairKey: string;
 
     // ── Influence attribution ──
@@ -100,7 +100,7 @@ export interface FrontierSection {
 export interface SectionRef {
     /** ID of the FrontierSection. */
     sectionId: string;
-    /** Whether this loop traverses the section in canonical or reversed direction. */
+    /** Whether this loop traverses the section in forward or reversed direction. */
     direction: 'forward' | 'reverse';
 }
 

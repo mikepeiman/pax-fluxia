@@ -391,7 +391,7 @@ interface GameConfigType {
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
-    PERIMETER_FIELD_GEOMETRY_SOURCE: 'canonical_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'resolved_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
@@ -477,7 +477,7 @@ interface GameConfigType {
         | 'legacy_fill_crossfade'
         | 'off'; // Fill transition selector spanning legacy and clean-arch ids
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
-    TERRITORY_STYLE_MODE: 'canonical' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
+    TERRITORY_STYLE_MODE: 'vector' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
     DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
     DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
@@ -501,7 +501,7 @@ interface GameConfigType {
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_ember_lattice' | 'metaball_grid_phase_field' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
     USE_RENDER_FAMILIES: boolean;
-    TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for canonical territory mode
+    TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for runtime territory mode
 
     // ── Distance Field Territory ──────────────────────────────────────────────
     DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
@@ -512,9 +512,9 @@ interface GameConfigType {
     DF_BORDER_BRIGHTEN: number;     // Border color brightening amount 0-255 (default 40)
     DF_BORDER_MODE: number;         // Border rendering mode: 0=gap (organic), 1=even (uniform width), 2=layered (fwidth-diff)
     DF_BORDER_FAMILY: 'straight' | 'curved' | 'segmented'; // Vector border family dispatch (default 'straight')
-    DF_BORDER_ENGINE: 'mesh' | 'legacy_field' | 'legacy_grid'; // Border engine routing: mesh canonical + legacy reference modes
-    DF_CANONICAL_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production'; // Canonical frontier rollout gate (default 'disabled')
-    DF_CANONICAL_FRONTIER_DIAGNOSTIC_SHOW: boolean; // Render canonical frontier in diagnostic mode when true
+    DF_BORDER_ENGINE: 'mesh' | 'legacy_field' | 'legacy_grid'; // Border engine routing: mesh vector + legacy reference modes
+    DF_VECTOR_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production'; // Vector frontier rollout gate (default 'disabled')
+    DF_VECTOR_FRONTIER_DIAGNOSTIC_SHOW: boolean; // Render vector frontier in diagnostic mode when true
     DF_BORDER_HQ_ENABLED: boolean;  // Enable supersampled border field for smoother edges (default false)
     DF_BORDER_HQ_SCALE: number;     // Supersample factor for ownership/JFA pass (1.0-4.0, default 2.0)
     DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)

@@ -1,8 +1,8 @@
 import type {
-    CanonicalFrontierPolyline,
-    CanonicalGeometrySnapshot,
-    CanonicalShell,
-    CanonicalShellLoop,
+    ResolvedFrontierPolyline,
+    ResolvedGeometrySnapshot,
+    ResolvedShell,
+    ResolvedShellLoop,
     TerritoryRegionShape,
 } from "$lib/territory/contracts/GeometryContracts";
 import type {
@@ -34,8 +34,8 @@ const ZERO_EPSILON = 0.000001;
 const MAX_LOCALIZED_FRAME_CACHE_ENTRIES = 4;
 
 const localizedGeometryCache = new WeakMap<
-    CanonicalGeometrySnapshot,
-    Map<string, CanonicalGeometrySnapshot>
+    ResolvedGeometrySnapshot,
+    Map<string, ResolvedGeometrySnapshot>
 >();
 const presentationSpaceDiagnostics: TerritoryPresentationSpaceDiagnostics = {
     cacheHitCount: 0,
@@ -89,10 +89,10 @@ function translateRegion(
 }
 
 function translatePolyline(
-    polyline: CanonicalFrontierPolyline,
+    polyline: ResolvedFrontierPolyline,
     dx: number,
     dy: number,
-): CanonicalFrontierPolyline {
+): ResolvedFrontierPolyline {
     return {
         ...polyline,
         points: translatePoints(polyline.points, dx, dy),
@@ -100,10 +100,10 @@ function translatePolyline(
 }
 
 function translateShell(
-    shell: CanonicalShell,
+    shell: ResolvedShell,
     dx: number,
     dy: number,
-): CanonicalShell {
+): ResolvedShell {
     return {
         ...shell,
         points: translatePoints(shell.points, dx, dy),
@@ -111,10 +111,10 @@ function translateShell(
 }
 
 function translateShellLoop(
-    shellLoop: CanonicalShellLoop,
+    shellLoop: ResolvedShellLoop,
     dx: number,
     dy: number,
-): CanonicalShellLoop {
+): ResolvedShellLoop {
     return {
         ...shellLoop,
         points: translatePoints(shellLoop.points, dx, dy),
@@ -206,10 +206,10 @@ export function localizeTerritoryPresentationStars(
     }));
 }
 
-export function localizeCanonicalGeometrySnapshot(
-    geometry: CanonicalGeometrySnapshot,
+export function localizeResolvedGeometrySnapshot(
+    geometry: ResolvedGeometrySnapshot,
     frame: TerritoryPresentationFrame,
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     const frameKey = buildTerritoryPresentationFrameKey(frame);
     presentationSpaceDiagnostics.lastFrameKey = frameKey;
     presentationSpaceDiagnostics.lastGeometryVersion = geometry.version;
@@ -226,7 +226,7 @@ export function localizeCanonicalGeometrySnapshot(
 
     let frameCache = localizedGeometryCache.get(geometry);
     if (!frameCache) {
-        frameCache = new Map<string, CanonicalGeometrySnapshot>();
+        frameCache = new Map<string, ResolvedGeometrySnapshot>();
         localizedGeometryCache.set(geometry, frameCache);
     }
     const cached = frameCache.get(frameKey);
@@ -252,7 +252,7 @@ export function localizeCanonicalGeometrySnapshot(
         translatePolyline(polyline, dx, dy),
     );
 
-    const sharedFrontierMap = new Map<string, CanonicalFrontierPolyline[]>();
+    const sharedFrontierMap = new Map<string, ResolvedFrontierPolyline[]>();
     for (const [ownerPairKey, polylines] of geometry.sharedFrontierMap) {
         sharedFrontierMap.set(
             ownerPairKey,
@@ -264,7 +264,7 @@ export function localizeCanonicalGeometrySnapshot(
         );
     }
 
-    const localized: CanonicalGeometrySnapshot = {
+    const localized: ResolvedGeometrySnapshot = {
         ...geometry,
         version: `${geometry.version}@presentation:${frameKey}`,
         territoryRegions: geometry.territoryRegions.map((region) =>

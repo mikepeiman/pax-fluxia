@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { CanonicalGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
+import type { ResolvedGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
 import type { FrontierTopology } from "$lib/territory/contracts/FrontierTopologyContracts";
 import {
     buildTerritoryPresentationFrameKey,
-    localizeCanonicalGeometrySnapshot,
+    localizeResolvedGeometrySnapshot,
     localizeTerritoryPresentationStars,
 } from "$lib/components/game/territoryPresentationSpace";
 
-function buildGeometry(): CanonicalGeometrySnapshot {
+function buildGeometry(): ResolvedGeometrySnapshot {
     const topology: FrontierTopology = {
         version: "topology-v1",
         ownershipVersion: "ownership-v1",
@@ -88,7 +88,7 @@ function buildGeometry(): CanonicalGeometrySnapshot {
     return {
         version: "geometry-v1",
         sourceMode: "power_voronoi",
-        sourceStyle: "canonical",
+        sourceStyle: "vector",
         ownershipVersion: "ownership-v1",
         geometryFamily: "vector-native",
         sourceMethod: "power_voronoi",
@@ -202,7 +202,7 @@ describe("territoryPresentationSpace", () => {
         expect(localized[0].y).toBe(500);
     });
 
-    it("localizes canonical geometry into the same frame and caches by frame key", () => {
+    it("localizes resolved geometry into the same frame and caches by frame key", () => {
         const geometry = buildGeometry();
         const frame = {
             minX: 200,
@@ -211,8 +211,8 @@ describe("territoryPresentationSpace", () => {
             height: 1200,
         };
 
-        const localizedA = localizeCanonicalGeometrySnapshot(geometry, frame);
-        const localizedB = localizeCanonicalGeometrySnapshot(geometry, frame);
+        const localizedA = localizeResolvedGeometrySnapshot(geometry, frame);
+        const localizedB = localizeResolvedGeometrySnapshot(geometry, frame);
 
         expect(localizedA).toBe(localizedB);
         expect(localizedA.version).toBe(

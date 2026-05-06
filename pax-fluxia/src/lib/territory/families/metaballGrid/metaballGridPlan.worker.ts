@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
 import type {
@@ -26,12 +26,12 @@ workerScope.onmessage = (event: MessageEvent<MetaballGridPlanWorkerRequest>) => 
     const resolveStarPosition = buildStarPositionResolver(request.starPositions);
     const prevGeometry = {
         territoryRegions: request.prevRegions,
-    } as CanonicalGeometrySnapshot;
+    } as ResolvedGeometrySnapshot;
     const nextGeometry = request.sameSnapshot
         ? prevGeometry
         : ({
               territoryRegions: request.nextRegions,
-          } as CanonicalGeometrySnapshot);
+          } as ResolvedGeometrySnapshot);
     const nextOwnedStars = request.sameSnapshot
         ? request.prevOwnedStars
         : request.nextOwnedStars;

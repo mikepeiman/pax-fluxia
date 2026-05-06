@@ -2,7 +2,7 @@ import type { GeometrySnapshot } from '../contracts/GeometryContracts';
 import type { FillTransitionFrame } from '../contracts/TransitionContracts';
 import { sampleActiveFrontTransition } from '../layers/transition/ActiveFrontTransition';
 import type {
-    CanonicalPowerVoronoiTransitionRuntime,
+    PowerVoronoiFrontlineRuntime,
     PowerVoronoiTransitionFront,
     TransientTransitionFrontline,
 } from './contracts';
@@ -89,8 +89,8 @@ function buildFillFrameFromGeometry(
     };
 }
 
-export function sampleCanonicalPowerVoronoiTransition(
-    runtime: CanonicalPowerVoronoiTransitionRuntime,
+export function samplePowerVoronoiFrontlineTransition(
+    runtime: PowerVoronoiFrontlineRuntime,
     progress: number,
 ): FillTransitionFrame {
     const t = Math.max(0, Math.min(1, progress));

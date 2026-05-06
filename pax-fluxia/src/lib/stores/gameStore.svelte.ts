@@ -52,9 +52,9 @@ import type { MapConnection, MapLaneMode } from '@pax/common/mapgen';
 import {
     seedLanePolylineCacheFromMapGen,
     rebuildLanePolylineCache,
-    canonicalUniConnections,
+    normalizedUniConnections,
     clearLanePolylineCache,
-    canonicalizeLaneWaypointsForStorage,
+    normalizeLaneWaypointsForStorage,
     waypointsNeedReverseForEndpoints,
 } from '$lib/lanes/lanePolylineCache';
 import { toLaneAwareConnections } from '$lib/lanes/laneConnectionSync';
@@ -897,7 +897,7 @@ function refreshLanePolylinesFromConfig(): void {
     measurePerf('game.refreshLanePolylinesFromConfig', () => {
         if (!state || state.stars.size < 2) return;
         const nodes = [...state.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-        const uni = canonicalUniConnections(state.connections);
+        const uni = normalizedUniConnections(state.connections);
         rebuildLanePolylinesRuntime({
             reason: 'game.refreshLanePolylinesFromConfig.rebuildLanePolylineCache',
             nodes,
@@ -1026,7 +1026,7 @@ function initDebugMap(playerIds: string[], variant: string): void {
     }
 
     const nodesDbg = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-    const uniDbg = canonicalUniConnections(state!.connections);
+    const uniDbg = normalizedUniConnections(state!.connections);
    rebuildLanePolylinesRuntime({
        reason: 'game.initDebugMap.rebuildLanePolylineCache',
        nodes: nodesDbg,
@@ -1777,7 +1777,7 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
                 savedConnectionsWithWaypoints.map((conn) => ({
                     sourceId: conn.sourceId,
                     targetId: conn.targetId,
-                    laneWaypoints: canonicalizeLaneWaypointsForStorage(
+                    laneWaypoints: normalizeLaneWaypointsForStorage(
                         conn.sourceId,
                         conn.targetId,
                         (conn.laneWaypoints ?? []).map(
@@ -1817,7 +1817,7 @@ function initSavedMap(playerIds: string[], map: MapDefinition): void {
         });
     } else {
         const nodesSaved = [...state!.stars.values()].map((s) => ({ id: s.id, x: s.x, y: s.y }));
-        const uniSaved = canonicalUniConnections(state!.connections);
+        const uniSaved = normalizedUniConnections(state!.connections);
         rebuildLanePolylinesRuntime({
             reason: 'game.initSavedMap.rebuildLanePolylineCache',
             nodes: nodesSaved,

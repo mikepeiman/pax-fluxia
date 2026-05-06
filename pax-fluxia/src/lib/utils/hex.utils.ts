@@ -251,7 +251,7 @@ export function generateStarConnections<T extends { id: string; x: number; y: nu
     const linkCount = new Map<string, number>();
     stars.forEach(s => linkCount.set(s.id, 0));
 
-    // Helper to make canonical edge key
+    // Helper to make normalized edge key
     const edgeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`;
 
     // Phase 1: Ensure minimum links for each star

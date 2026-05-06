@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type {
     FrontierSection,
     FrontierTopology,
@@ -43,11 +43,11 @@ function makeGeometry(params: {
     loopId: string;
     points: [number, number][];
     starIds?: string[];
-}): CanonicalGeometrySnapshot {
+}): ResolvedGeometrySnapshot {
     return {
         version: `${params.ownerId}:${params.loopId}`,
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',
@@ -316,7 +316,7 @@ function makeTopologyGeometry(params: {
     loopId: string;
     bounds: [number, number, number, number];
     starIds?: string[];
-}): CanonicalGeometrySnapshot {
+}): ResolvedGeometrySnapshot {
     const [left, top, right, bottom] = params.bounds;
     const points: [number, number][] = [
         [left, top],
@@ -332,7 +332,7 @@ function makeTopologyGeometry(params: {
     return {
         version: `${params.ownerId}:${params.loopId}`,
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',
@@ -467,7 +467,7 @@ describe('buildPerimeterFieldScene', () => {
                 starIds: ['target'],
             }),
             shellLoops: [],
-        } as CanonicalGeometrySnapshot;
+        } as ResolvedGeometrySnapshot;
 
         const scene = buildPerimeterFieldScene({
             input: makeInput({
@@ -787,7 +787,7 @@ describe('buildPerimeterFieldScene', () => {
                     confidence: 1,
                 },
             ],
-        } as CanonicalGeometrySnapshot;
+        } as ResolvedGeometrySnapshot;
         const newGeometry = {
             ...makeGeometry({
                 ownerId: 'blue',
@@ -826,7 +826,7 @@ describe('buildPerimeterFieldScene', () => {
                     confidence: 1,
                 },
             ],
-        } as CanonicalGeometrySnapshot;
+        } as ResolvedGeometrySnapshot;
 
         const scene = buildPerimeterFieldScene({
             input: makeInput({

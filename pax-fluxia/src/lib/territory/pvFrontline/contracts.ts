@@ -59,7 +59,7 @@ export interface TransientTransitionFrontline {
 }
 
 export interface PowerVoronoiTransitionPlan {
-    kind: 'power_voronoi_canonical';
+    kind: 'power_voronoi_runtime';
     planId: string;
     startGeometryVersion: string;
     endGeometryVersion: string;
@@ -147,9 +147,9 @@ export interface PowerVoronoiFrameEvaluationDiagnostics {
 }
 
 export interface PowerVoronoiDiagnosticBundle {
-    kind: 'power_voronoi_canonical';
+    kind: 'power_voronoi_runtime';
     bundleId: string;
-    modeId: 'power_voronoi_canonical';
+    modeId: 'power_voronoi_runtime';
     planId: string;
     tunables: TerritoryTunables;
     ownershipStage: PowerVoronoiOwnershipDiagnostics;
@@ -158,8 +158,8 @@ export interface PowerVoronoiDiagnosticBundle {
     frameEvaluationStage: PowerVoronoiFrameEvaluationDiagnostics;
 }
 
-export interface CanonicalPowerVoronoiTransitionRuntime {
-    readonly kind: 'power_voronoi_canonical_runtime';
+export interface PowerVoronoiFrontlineRuntime {
+    readonly kind: 'power_voronoi_frontline_runtime';
     readonly preGeometry: GeometrySnapshot;
     readonly postGeometry: GeometrySnapshot;
     readonly activeFrontPlan: ActiveFrontTransitionPlan;

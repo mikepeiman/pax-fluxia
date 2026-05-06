@@ -6,7 +6,7 @@ import { get } from 'svelte/store';
 import type { ConquestEvent } from '@pax/common';
 import { territoryFrontierConfigDefaults, TERRITORY_FRONTIER_BENCHMARK_PRESETS } from '$lib/territory/frontier';
 import type {
-    CanonicalGeometrySnapshot,
+    ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '$lib/territory/contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '$lib/territory/families/buildRenderFamilyInput';
@@ -64,11 +64,11 @@ const frontierTunableKeys = (() => {
 
 function makeSnapshot(
     regions: TerritoryRegionShape[],
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     return {
         version: 'benchmark',
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'benchmark',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

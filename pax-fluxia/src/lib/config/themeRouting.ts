@@ -176,7 +176,7 @@ export function resolveThemeRenderFamilyId(
     renderMode: string | null,
 ): ThemeRenderFamilyId {
     switch (renderMode) {
-        case 'territory_canonical':
+        case 'territory_runtime':
             return 'layered-runtime';
         case 'territory_engine':
             return 'engine';

@@ -50,7 +50,7 @@ import {
 import { pointInPolygon } from '../geometry/geometryUtils';
 
 // ---------------------------------------------------------------------------
-// Geometry types (canonical contracts for PVV2 path)
+// Geometry types (resolved geometry contracts for the PVV2 path)
 // ---------------------------------------------------------------------------
 
 /** A site in the power diagram — star or virtual point with weight. */
@@ -160,8 +160,8 @@ export interface TerritoryGeometryData {
     worldBorderPolylines: SharedPolyline[]; // World-boundary edges per territory (for outer border drawing)
     enclaveMap: Map<number, [number, number][][]>;  // mergedTerritory idx → hole polygons
     fingerprint: string;
-    /** Canonical frontier map — Phase 1 identity annotation. Emitted alongside existing outputs. */
-    frontierMap?: import('./canonicalTypes').TerritoryFrontierMap;
+    /** Frontier map — Phase 1 identity annotation. Emitted alongside existing outputs. */
+    frontierMap?: import('./frontierMapTypes').TerritoryFrontierMap;
     minStarMarginDiagnostics?: MinStarMarginDiagnostics;
 }
 

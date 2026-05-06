@@ -1,5 +1,5 @@
 // ============================================================================
-// Pax Fluxia - Canonical Types (Shared between client and server)
+// Pax Fluxia - Shared Core Types (Client and server)
 // ============================================================================
 
 import type { LaneConstraintStatus, LanePathKind } from './mapgen/types';

@@ -5,7 +5,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { territoryFrontierConfigDefaults } from '$lib/territory/frontier/config';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import type {
-    CanonicalGeometrySnapshot,
+    ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '../buildRenderFamilyInput';
@@ -30,11 +30,11 @@ import { metaballGridStats } from './metaballGridStats';
 
 function makeSnapshot(
     regions: TerritoryRegionShape[],
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     return {
         version: 'test',
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

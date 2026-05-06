@@ -1,4 +1,4 @@
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type {
     PerimeterFieldDebugSample,
     PerimeterFieldDebugSnapshot,
@@ -20,7 +20,7 @@ function darken(hex: number, factor = 0.42): number {
 }
 
 function getPerimeterDebugLoops(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
 ): ReadonlyArray<ReadonlyArray<[number, number]>> {
     const outerLoops = geometry.shellLoops
         .filter((loop) => loop.classification === 'outer')
@@ -269,7 +269,7 @@ function drawPerimeterSampleLabels(
 
 function drawTopologySections(
     ctx: CanvasRenderingContext2D,
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
     sectionIds: ReadonlySet<string>,
     color: number,
     width: number,

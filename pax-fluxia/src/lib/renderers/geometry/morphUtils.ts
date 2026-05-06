@@ -1,4 +1,4 @@
-// ── Morph Utilities: parameterization, interpolation, canonical border drawing ──
+// ── Morph Utilities: parameterization, interpolation, primary border drawing ──
 //
 // Extracted from PVV3Renderer.ts — rendering + geometry functions for border
 // morphing and transition animation.
@@ -156,12 +156,12 @@ export function lerpFrontierCPs(
     return result;
 }
 
-// ── Canonical Border Drawing ───────────────────────────────────────────────
+// ── Runtime Border Drawing ───────────────────────────────────────────────
 
 /**
  * Draw border polylines into a Graphics object as smooth Bézier curves.
  * Uses quadraticCurveTo through midpoints for smooth arc geometry.
- * This is the SINGLE canonical function for all border rendering — steady-state,
+ * This is the single shared function for all border rendering — steady-state,
  * transition animation, and segment mode all use this function.
  *
  * If smoothPasses > 0, Chaikin subdivision is applied first to generate more

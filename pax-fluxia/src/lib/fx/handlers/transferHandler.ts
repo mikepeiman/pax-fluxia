@@ -54,7 +54,7 @@ function diagnoseLanePolylineDirection(
     log.error('LaneCache', 'BACKWARD polyline served by cache', {
         edgeKey: key,
         requested: { sourceId, targetId },
-        idComparison: sourceId <= targetId ? 'canonical (src<=tgt)' : 'non-canonical (src>tgt)',
+        idComparison: sourceId <= targetId ? 'ascending (src<=tgt)' : 'reversed-order (src>tgt)',
         sourceAt: { x: src.x.toFixed(1), y: src.y.toFixed(1) },
         targetAt: { x: tgt.x.toFixed(1), y: tgt.y.toFixed(1) },
         chordLen: chord.toFixed(1),
@@ -124,7 +124,7 @@ function diagnoseShipGeometry(
     log.error('ShipLane', 'BACKWARD ship-geometry assignment', {
         edgeKey: key,
         requested: { sourceId, targetId },
-        idComparison: sourceId <= targetId ? 'canonical' : 'non-canonical',
+        idComparison: sourceId <= targetId ? 'ascending' : 'reversed-order',
         sourceAt: { x: src.x.toFixed(1), y: src.y.toFixed(1) },
         targetAt: { x: tgt.x.toFixed(1), y: tgt.y.toFixed(1) },
         laneStart: { x: ship.laneStartX.toFixed(1), y: ship.laneStartY.toFixed(1) },

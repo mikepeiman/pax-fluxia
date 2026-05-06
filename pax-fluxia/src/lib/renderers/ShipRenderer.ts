@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // ShipRenderer — Orbiting ships, traveling ships, fleets, particle management
 // ============================================================================
 import { isTrackedShip, traceDepartFrame, traceDepartToTravel, traceTravelFrame, traceTravelToOrbit, traceSettleFrame } from '$lib/debug/travelTrace';
@@ -1700,7 +1700,7 @@ export function renderFleets(
 ): void {
     if (!res.shipParticleContainer) return;
 
-    const animTime = gameNowMs / 1000; // Derive seconds from canonical clock
+    const animTime = gameNowMs / 1000; // Derive seconds from the shared runtime clock
     fleets.forEach((fleet) => {
         const source = stars.find((s) => s.id === fleet.sourceId);
         const target = stars.find((s) => s.id === fleet.targetId);

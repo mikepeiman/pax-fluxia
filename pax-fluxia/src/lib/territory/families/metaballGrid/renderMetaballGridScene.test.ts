@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
-import type { CanonicalGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
 import { renderMetaballGridScene } from './renderMetaballGridScene';
 import type { GridFlipTransition } from './metaballGridTypes';
 
-function makeSnapshot(regions: TerritoryRegionShape[]): CanonicalGeometrySnapshot {
+function makeSnapshot(regions: TerritoryRegionShape[]): ResolvedGeometrySnapshot {
     return {
         version: 'test',
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

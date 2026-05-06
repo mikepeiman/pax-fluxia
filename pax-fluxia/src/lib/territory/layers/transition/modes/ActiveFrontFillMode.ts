@@ -649,7 +649,7 @@ export const ActiveFrontFillMode: FillTransitionMode = {
 
         // 4. Rebuild region loops from the NEXT topology using either
         //    interpolated section geometry (for active fronts) or the
-        //    canonical NEXT section geometry (for static fronts).
+        //    resolved NEXT section geometry (for static fronts).
         const regions: { ownerId: string; points: Vec2[] }[] = [];
 
         for (const loop of nextTopology.loops) {
@@ -669,7 +669,7 @@ export const ActiveFrontFillMode: FillTransitionMode = {
                     (section.points as Vec2[]); // static fallback
 
                 // Respect RegionLoop's direction flag. Forward means we follow the
-                // section's canonical orientation; reverse flips it.[file:316]
+                // section's forward orientation; reverse flips it.[file:316]
                 const oriented: Vec2[] =
                     ref.direction === 'forward'
                         ? basePolyline

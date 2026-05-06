@@ -527,13 +527,13 @@ export function extractPolylinesFromFrontierGraph(frontier: FrontierGraph): Fron
     return polylines;
 }
 
-export interface CanonicalPolylineSmoothingOptions {
+export interface VectorPolylineSmoothingOptions {
     simplifyTolerance: number;
     straightnessPasses: number;
     maxAlignmentDriftCells: number;
 }
 
-const DEFAULT_CANONICAL_SMOOTHING_OPTIONS: CanonicalPolylineSmoothingOptions = {
+const DEFAULT_VECTOR_SMOOTHING_OPTIONS: VectorPolylineSmoothingOptions = {
     simplifyTolerance: 2.0,
     straightnessPasses: 2,
     maxAlignmentDriftCells: 0.35,
@@ -651,7 +651,7 @@ function linearizeOpenPolyline(points: number[], maxError: number): number[] {
     return deduped.length >= 4 ? deduped : points;
 }
 
-interface CanonicalPolylineSmoothingResult {
+interface VectorPolylineSmoothingResult {
     polylines: FrontierPolyline[];
     smoothingFallbackCount: number;
 }
@@ -734,11 +734,11 @@ function exceedsPolylineDriftTolerance(rawPoints: number[], smoothedPoints: numb
     return smoothedToRaw > tolerance;
 }
 
-function smoothCanonicalFrontierPolylines(
+function smoothResolvedFrontierPolylines(
     polylines: FrontierPolyline[],
     ownerGridInfo?: OwnerGridInfo,
-    options: CanonicalPolylineSmoothingOptions = DEFAULT_CANONICAL_SMOOTHING_OPTIONS,
-): CanonicalPolylineSmoothingResult {
+    options: VectorPolylineSmoothingOptions = DEFAULT_VECTOR_SMOOTHING_OPTIONS,
+): VectorPolylineSmoothingResult {
     if (polylines.length === 0) {
         return {
             polylines,
@@ -1280,10 +1280,10 @@ export function extractFieldFrontiersFromOwnerGrid(info: OwnerGridInfo): FieldFr
 }
 
 // ============================================================================
-// Canonical Polyline Build + Validation
+// Vector Polyline Build + Validation
 // ============================================================================
 
-export interface CanonicalFrontierValidation {
+export interface VectorFrontierValidation {
     valid: boolean;
     reasons: string[];
     polylineCount: number;
@@ -1294,16 +1294,16 @@ export interface CanonicalFrontierValidation {
     smoothingFallbackCount: number;
 }
 
-export interface CanonicalFrontierBuildResult {
+export interface VectorFrontierBuildResult {
     polylines: FrontierPolyline[];
-    validation: CanonicalFrontierValidation;
+    validation: VectorFrontierValidation;
 }
 
-function validateCanonicalFrontierPolylines(
+function validateResolvedFrontierPolylines(
     polylines: FrontierPolyline[],
     ownerGridInfo?: OwnerGridInfo,
     smoothingFallbackCount = 0,
-): CanonicalFrontierValidation {
+): VectorFrontierValidation {
     const hardReasons: string[] = [];
     const warningReasons: string[] = [];
 
@@ -1333,7 +1333,7 @@ function validateCanonicalFrontierPolylines(
             continue;
         }
         if (polyline.ownerA > polyline.ownerB) {
-            hardReasons.push('polyline owner ordering must be canonical (ownerA <= ownerB)');
+            hardReasons.push('polyline owner ordering must stay normalized (ownerA <= ownerB)');
         }
         if (polyline.points.length < 4 || polyline.points.length % 2 !== 0) {
             hardReasons.push('polyline must contain at least two world-space points');
@@ -1363,7 +1363,7 @@ function validateCanonicalFrontierPolylines(
     }
 
     if (polylines.length === 0) {
-        hardReasons.push('canonical frontier build produced no polylines');
+        hardReasons.push('vector frontier build produced no polylines');
     }
 
     const maxPolylinesPerPair = [...pairStats.values()].reduce((m, s) => Math.max(m, s.polylines), 0);
@@ -1394,15 +1394,15 @@ function validateCanonicalFrontierPolylines(
 }
 
 // ============================================================================
-// Convenience: Build canonical polylines from graph distances + owner grid
+// Convenience: Build vector polylines from graph distances + owner grid
 // ============================================================================
 
-export function buildCanonicalFrontierPolylineSet(
+export function buildResolvedFrontierPolylineSet(
     stars: StarState[],
     connections: StarConnection[],
     graphResult: GraphNativeDistanceView,
     ownerGridInfo?: OwnerGridInfo,
-): CanonicalFrontierBuildResult {
+): VectorFrontierBuildResult {
     const fieldFrontiers = ownerGridInfo
         ? extractFieldFrontiersFromOwnerGrid(ownerGridInfo)
         : [];
@@ -1413,8 +1413,8 @@ export function buildCanonicalFrontierPolylineSet(
     });
 
     const rawPolylines = extractPolylinesFromFrontierGraph(frontier);
-    const smoothingResult = smoothCanonicalFrontierPolylines(rawPolylines, ownerGridInfo);
-    const validation = validateCanonicalFrontierPolylines(
+    const smoothingResult = smoothResolvedFrontierPolylines(rawPolylines, ownerGridInfo);
+    const validation = validateResolvedFrontierPolylines(
         smoothingResult.polylines,
         ownerGridInfo,
         smoothingResult.smoothingFallbackCount,
@@ -1426,13 +1426,13 @@ export function buildCanonicalFrontierPolylineSet(
     };
 }
 
-export function buildCanonicalFrontierPolylines(
+export function buildResolvedFrontierPolylines(
     stars: StarState[],
     connections: StarConnection[],
     graphResult: GraphNativeDistanceView,
     ownerGridInfo?: OwnerGridInfo,
 ): FrontierPolyline[] {
-    return buildCanonicalFrontierPolylineSet(
+    return buildResolvedFrontierPolylineSet(
         stars,
         connections,
         graphResult,

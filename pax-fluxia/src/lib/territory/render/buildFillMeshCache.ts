@@ -1,8 +1,8 @@
 /**
  * territory/render/buildFillMeshCache.ts
  *
- * Derive fill polygons from canonical TerritoryRegion[].
- * Called from steady-state and transition passes with the SAME CanonicalTerritoryState.
+ * Derive fill polygons from resolved TerritoryRegion[].
+ * Called from steady-state and transition passes with the SAME CompiledTerritoryState.
  *
  * Rules:
  * - May import PIXI (presentation layer)
@@ -24,7 +24,7 @@ export interface FillMeshCache {
 }
 
 /**
- * Build the fill mesh cache directly from canonical regions.
+ * Build the fill mesh cache directly from resolved regions.
  * One polygon per region. Component ID is preserved for disconnect styling.
  */
 export function buildFillMeshCache(regions: TerritoryRegion[]): FillMeshCache {

@@ -5,7 +5,7 @@
  *
  * Two-layer architecture (per ./METABALL_GRID_MODE_PLAN_2026-04-17.md):
  *
- *  1. Ownership-geometry truth underlayer (`CanonicalGeometrySnapshot`,
+ *  1. Ownership-geometry truth underlayer (`ResolvedGeometrySnapshot`,
  *     authoritative — e.g. tuned `power_voronoi_0319`).
  *  2. Visual-truth grid layer — a fixed, world-anchored grid of vstars with
  *     PREV and NEXT owner resolved by point-in-polygon against the
@@ -17,7 +17,7 @@
  */
 
 import type { ConquestEvent } from '@pax/common';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config option unions — mirror `METABALL_GRID_*` keys in `game.config.ts`.
@@ -205,9 +205,9 @@ export interface GridMetaballTransitionTruth {
     /** Stable key: tick-scoped, stable across replays (e.g. `t=${tick}:c=${starIdsSorted}`). */
     readonly conquestKey: string;
     /** PREV ownership geometry snapshot. */
-    readonly prevGeometry: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
     /** NEXT ownership geometry snapshot. */
-    readonly nextGeometry: CanonicalGeometrySnapshot;
+    readonly nextGeometry: ResolvedGeometrySnapshot;
     /** Deterministic ordered conquest events this transition covers. */
     readonly conquestEvents: ReadonlyArray<ConquestEvent>;
     /** Classification under PREV and NEXT. */
@@ -292,8 +292,8 @@ export interface BuildGridClassificationParams {
     readonly world: { width: number; height: number; minX?: number; minY?: number };
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
-    readonly prevGeometry: CanonicalGeometrySnapshot;
-    readonly nextGeometry: CanonicalGeometrySnapshot;
+    readonly prevGeometry: ResolvedGeometrySnapshot;
+    readonly nextGeometry: ResolvedGeometrySnapshot;
     readonly conquestEvents: ReadonlyArray<ConquestEvent>;
     /**
      * Resolver for conquested-star world position given `starId`. Used for

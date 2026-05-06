@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
 import type {
-    CanonicalGeometrySnapshot,
+    ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
@@ -15,11 +15,11 @@ import { renderMetaballGridScene } from './renderMetaballGridScene';
 
 function makeSnapshot(
     regions: TerritoryRegionShape[],
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     return {
         version: 'test',
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical',
+        sourceStyle: 'vector',
         ownershipVersion: 'test',
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

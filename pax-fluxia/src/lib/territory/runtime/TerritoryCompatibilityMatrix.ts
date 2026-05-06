@@ -11,11 +11,11 @@ export function validateTerritoryModeSelection(
     const warnings: string[] = [];
 
     if (
-        selection.geometryMode === 'canonical_power_voronoi' &&
+        selection.geometryMode === 'resolved_power_voronoi' &&
         selection.fillTransitionMode !== 'pv_frontline'
     ) {
         warnings.push(
-            'canonical_power_voronoi geometry is intended to run with pv_frontline transitions.',
+            'resolved_power_voronoi geometry is intended to run with pv_frontline transitions.',
         );
     }
 
@@ -24,7 +24,7 @@ export function validateTerritoryModeSelection(
         selection.borderTransitionMode !== 'off'
     ) {
         warnings.push(
-            'pv_frontline currently requires borderTransitionMode=off so fills and borders stay on the canonical PV surface.',
+            'pv_frontline currently requires borderTransitionMode=off so fills and borders stay on the resolved PV surface.',
         );
     }
 

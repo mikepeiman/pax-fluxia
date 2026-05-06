@@ -94,7 +94,7 @@ export class TerritoryRuntimeCoordinator {
         });
         const geometry = geometryResult.geometry;
 
-        const canonicalPowerVoronoiPair =
+        const resolvedPowerVoronoiPair =
             selection.fillTransitionMode === 'pv_frontline' &&
             ownership.conquestEvents.length > 0 &&
             this.state.previousOwnership
@@ -127,13 +127,13 @@ export class TerritoryRuntimeCoordinator {
             previousTransition: this.state.previousTransition,
             activeFillPlan: this.state.activeFillPlan,
             activeFrontPlan: this.state.activeFrontPlan,
-            activeCanonicalPvTransition:
-                this.state.activeCanonicalPvTransition,
-            canonicalPowerVoronoiPair,
+            activePvFrontlineTransition:
+                this.state.activePvFrontlineTransition,
+            resolvedPowerVoronoiPair,
             transitionPrevTopology: this.state.transitionPrevTopology,
         });
         diagnostics.modeDiagnostics =
-            transition.activeCanonicalPvTransition?.diagnostics ?? null;
+            transition.activePvFrontlineTransition?.diagnostics ?? null;
 
         const presentation = this.presentationLayer.compute({
             nowMs: input.nowMs,
@@ -166,20 +166,20 @@ export class TerritoryRuntimeCoordinator {
             this.snapshotRecorder?.capture({
                 conquestEvents: ownership.conquestEvents,
                 previousGeometry:
-                    canonicalPowerVoronoiPair?.preGeometry ??
+                    resolvedPowerVoronoiPair?.preGeometry ??
                     this.state.previousGeometry,
-                nextGeometry: canonicalPowerVoronoiPair?.postGeometry ?? geometry,
+                nextGeometry: resolvedPowerVoronoiPair?.postGeometry ?? geometry,
                 previousOwnership: this.state.previousOwnership,
                 nextOwnership: ownership,
                 transition: transition.snapshot,
                 fillPlan: transition.activeFillPlan,
                 activeFrontPlan: transition.activeFrontPlan ?? null,
                 prevFrontierTopology:
-                    canonicalPowerVoronoiPair?.preGeometry.frontierTopology ??
+                    resolvedPowerVoronoiPair?.preGeometry.frontierTopology ??
                     this.state.previousGeometry?.frontierTopology ??
                     null,
                 nextFrontierTopology:
-                    canonicalPowerVoronoiPair?.postGeometry.frontierTopology ??
+                    resolvedPowerVoronoiPair?.postGeometry.frontierTopology ??
                     geometry.frontierTopology ??
                     null,
                 selection,
@@ -222,8 +222,8 @@ export class TerritoryRuntimeCoordinator {
             previousTransition: transition.snapshot,
             activeFillPlan: transition.activeFillPlan,
             activeFrontPlan: transition.activeFrontPlan ?? null,
-            activeCanonicalPvTransition:
-                transition.activeCanonicalPvTransition ?? null,
+            activePvFrontlineTransition:
+                transition.activePvFrontlineTransition ?? null,
             transitionPrevTopology: transition.transitionPrevTopology ?? null,
         };
 
@@ -248,10 +248,10 @@ export class TerritoryRuntimeCoordinator {
         return {
             ...selection,
             ownershipMode: 'star_ownership_snapshot',
-            geometryMode: 'canonical_power_voronoi',
+            geometryMode: 'resolved_power_voronoi',
             fillTransitionMode: 'pv_frontline',
             borderTransitionMode: 'off',
-            styleMode: 'canonical',
+            styleMode: 'vector',
         };
     }
 

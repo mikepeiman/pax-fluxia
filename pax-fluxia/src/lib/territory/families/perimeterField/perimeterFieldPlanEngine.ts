@@ -1,4 +1,4 @@
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import {
     logPipelineStage,
     summarizePerimeterVSet,
@@ -230,7 +230,7 @@ function buildOwnerClusterKey(ownerToCluster: ReadonlyMap<string, number>): stri
         .join('|');
 }
 
-function buildGeometryCacheKey(geometry: CanonicalGeometrySnapshot): string {
+function buildGeometryCacheKey(geometry: ResolvedGeometrySnapshot): string {
     const loopKey = geometry.frontierTopology.loops
         .map(
             (loop) =>
@@ -251,7 +251,7 @@ function buildGeometryCacheKey(geometry: CanonicalGeometrySnapshot): string {
 }
 
 function buildVSetCacheKey(params: {
-    geometry: CanonicalGeometrySnapshot;
+    geometry: ResolvedGeometrySnapshot;
     options: SamplingOptions;
 }): string {
     const { geometry, options } = params;
@@ -265,7 +265,7 @@ function buildVSetCacheKey(params: {
 }
 
 export function hasUsableFrontierTopology(
-    geometry: CanonicalGeometrySnapshot,
+    geometry: ResolvedGeometrySnapshot,
 ): boolean {
     return (
         geometry.diagnostics.topologyReliable &&
@@ -279,7 +279,7 @@ export function buildPerimeterVMatchKey(v: Pick<PerimeterV, 'sectionId' | 'index
 }
 
 export function sampleVSetFromGeometry(params: {
-    geometry: CanonicalGeometrySnapshot;
+    geometry: ResolvedGeometrySnapshot;
     options: SamplingOptions;
 }): PerimeterV[] {
     const cacheKey = buildVSetCacheKey(params);
@@ -839,7 +839,7 @@ function classifyOwnerRole(
 function buildTransitionMovers(params: {
     spanPairs: readonly SpanPair[];
     conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
-    nextGeometry: CanonicalGeometrySnapshot;
+    nextGeometry: ResolvedGeometrySnapshot;
     changedSections: ChangedSectionSets;
 }): TransitionMover[] {
     const movers: TransitionMover[] = [];
@@ -986,8 +986,8 @@ export function buildTransitionPlan(params: {
     prevVSet: readonly PerimeterV[];
     nextVSet: readonly PerimeterV[];
     conquestEvents: ReadonlyArray<RenderFamilyTransitionEvent>;
-    prevGeometry: CanonicalGeometrySnapshot;
-    nextGeometry: CanonicalGeometrySnapshot;
+    prevGeometry: ResolvedGeometrySnapshot;
+    nextGeometry: ResolvedGeometrySnapshot;
 }): TransitionPlan {
     const changedSections = findChangedSectionIds({
         prevTopology: params.prevGeometry.frontierTopology,

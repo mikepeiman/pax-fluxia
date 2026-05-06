@@ -16,7 +16,7 @@ import { log } from '$lib/utils/logger';
 import { TerritoryCompiler } from '../compiler/TerritoryCompiler';
 import { planTransition } from '../compiler/TerritoryTransitionPlanner';
 import type {
-    CanonicalTerritoryStateOk,
+    CompiledTerritoryStateOk,
     CompilerConfig,
     TransitionPlan,
 } from '../compiler/types';
@@ -30,8 +30,8 @@ export interface ControllerInput {
     config?: Partial<CompilerConfig>;
 }
 
-function isOk(s: unknown): s is CanonicalTerritoryStateOk {
-    return (s as CanonicalTerritoryStateOk)?.kind === 'ok';
+function isOk(s: unknown): s is CompiledTerritoryStateOk {
+    return (s as CompiledTerritoryStateOk)?.kind === 'ok';
 }
 
 function buildFingerprint(input: ControllerInput): string {
@@ -49,7 +49,7 @@ function buildFingerprint(input: ControllerInput): string {
 
 export class TerritoryEngineController {
     private compiler = new TerritoryCompiler();
-    private currentState: CanonicalTerritoryStateOk | null = null;
+    private currentState: CompiledTerritoryStateOk | null = null;
     private currentTransitionPlan: TransitionPlan | null = null;
     private lastFingerprint = '';
     private transitionDurationMs: number;
@@ -60,11 +60,11 @@ export class TerritoryEngineController {
 
     /**
      * Called every frame (or on input change).
-     * Returns the current canonical state and any active transition plan.
+     * Returns the current compiled state and any active transition plan.
      * Only re-compiles when inputs have changed.
      */
     update(input: ControllerInput, nowMs: number): {
-        state: CanonicalTerritoryStateOk | null;
+        state: CompiledTerritoryStateOk | null;
         transitionPlan: TransitionPlan | null;
     } {
         const fingerprint = buildFingerprint(input);
@@ -85,8 +85,8 @@ export class TerritoryEngineController {
         this.lastFingerprint = '';
     }
 
-    /** Access current canonical state without triggering recompile. */
-    getState(): CanonicalTerritoryStateOk | null {
+    /** Access current compiled state without triggering recompile. */
+    getState(): CompiledTerritoryStateOk | null {
         return this.currentState;
     }
 

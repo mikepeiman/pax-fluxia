@@ -22,7 +22,7 @@ import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
 } from '$lib/territory/families/RenderFamilyTypes';
-import type { CanonicalGeometrySnapshot } from '$lib/territory/contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '$lib/territory/contracts/GeometryContracts';
 
 interface ScenarioMetrics {
     iterations: number;
@@ -185,7 +185,7 @@ function makeGeometry(params: {
     loopId: string;
     points: Array<[number, number]>;
     starIds: string[];
-}): CanonicalGeometrySnapshot {
+}): ResolvedGeometrySnapshot {
     const [p0, p1, p2, p3] = params.points;
     return {
         version: params.version,
@@ -264,14 +264,14 @@ function makeGeometry(params: {
             closureReliable: true,
             notes: [],
         },
-    } as CanonicalGeometrySnapshot;
+    } as ResolvedGeometrySnapshot;
 }
 
 function buildPerimeterBenchmarkCase(progress: number | null): {
     input: RenderFamilyInput;
     displayStars: ReadonlyArray<StarState>;
-    geometry: CanonicalGeometrySnapshot;
-    transitionTargetGeometry: CanonicalGeometrySnapshot | null;
+    geometry: ResolvedGeometrySnapshot;
+    transitionTargetGeometry: ResolvedGeometrySnapshot | null;
 } {
     const displayStars = [
         makeStar({ id: 'attacker', x: 180, y: 220, ownerId: 'blue', ships: 24 }),

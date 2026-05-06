@@ -1,5 +1,5 @@
 import type {
-    CanonicalFrontierPolyline,
+    ResolvedFrontierPolyline,
     TerritoryRegionShape,
     SharedFrontierMap,
 } from '../GeometryMode';
@@ -21,21 +21,21 @@ export function buildTerritoryRegionShapes(
 
 export function buildFrontierPolylineShapes(
     geometry: TerritoryGeometryData,
-): CanonicalFrontierPolyline[] {
-    const all: CanonicalFrontierPolyline[] = [];
+): ResolvedFrontierPolyline[] {
+    const all: ResolvedFrontierPolyline[] = [];
     for (const [index, polyline] of geometry.sharedPolylines.entries()) {
-        all.push(buildCanonicalPolyline('frontier', polyline.ownerPairKey, polyline.points, index));
+        all.push(buildResolvedPolyline('frontier', polyline.ownerPairKey, polyline.points, index));
     }
     for (const [index, polyline] of geometry.worldBorderPolylines.entries()) {
-        all.push(buildCanonicalPolyline('world-border', polyline.ownerPairKey, polyline.points, index));
+        all.push(buildResolvedPolyline('world-border', polyline.ownerPairKey, polyline.points, index));
     }
     return all;
 }
 
 export function buildSharedFrontierMap(
-    polylines: readonly CanonicalFrontierPolyline[],
+    polylines: readonly ResolvedFrontierPolyline[],
 ): SharedFrontierMap {
-    const map = new Map<string, CanonicalFrontierPolyline[]>();
+    const map = new Map<string, ResolvedFrontierPolyline[]>();
     for (const p of polylines) {
         const arr = map.get(p.ownerPairKey);
         if (arr) {
@@ -47,12 +47,12 @@ export function buildSharedFrontierMap(
     return map;
 }
 
-function buildCanonicalPolyline(
+function buildResolvedPolyline(
     prefix: 'frontier' | 'world-border',
     ownerPairKey: string,
     points: [number, number][],
     index: number,
-): CanonicalFrontierPolyline {
+): ResolvedFrontierPolyline {
     const [ownerA = 'unknown', ownerB = '__world__'] = ownerPairKey.split('|');
     return {
         frontierId: `${prefix}:${ownerPairKey}:${index}`,

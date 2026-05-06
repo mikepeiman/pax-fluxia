@@ -2,7 +2,7 @@
 // Core Game Types - Re-export from @pax/common with local extensions
 // ============================================================================
 
-// Re-export all types from @pax/common as the canonical source
+// Re-export all types from @pax/common as the authoritative source
 export type {
   StarId,
   PlayerId,

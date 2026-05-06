@@ -19,14 +19,14 @@ export interface TerritoryRenderModeDefinition {
 export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefinition[] = [
     { id: 'none', label: 'Off', shortDescription: 'No territory overlay', legacyDispatch: true },
     {
-        id: 'territory_canonical',
+        id: 'territory_runtime',
         label: 'Layered Runtime',
         shortDescription: 'Direct-runtime territory route with comparison support',
         legacyDispatch: true,
         uiHidden: true,
     },
     {
-        id: 'power_voronoi_canonical',
+        id: 'power_voronoi_runtime',
         label: 'Power Voronoi 0427 (PVV4)',
         shortDescription: 'Exact Power Voronoi direct-runtime path with full diagnostics',
         legacyDispatch: true,

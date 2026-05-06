@@ -61,7 +61,7 @@ function normalizeConnections(connections: readonly StarConnection[]): Normalize
     return deduped;
 }
 
-function canonicalizePair(
+function normalizePair(
     starA: StarState,
     starB: StarState,
 ): { sourceStarA: StarState; sourceStarB: StarState } {
@@ -140,7 +140,7 @@ function disconnectPerpendicularOffset(distance: number): number {
     return Math.max(12, Math.min(distance / 6, 90));
 }
 
-function canonicalizeSites(
+function normalizeSites(
     sites: readonly BuiltDisconnectVirtualSite[],
 ): BuiltDisconnectVirtualSite[] {
     return [...sites].sort((a, b) => a.id.localeCompare(b.id));
@@ -235,7 +235,7 @@ export function buildDisconnectVirtualSites(
                 for (const rawStarA of componentA) {
                     for (const rawStarB of componentB) {
                         const { sourceStarA: starA, sourceStarB: starB } =
-                            canonicalizePair(rawStarA, rawStarB);
+                            normalizePair(rawStarA, rawStarB);
 
                         const dx = starB.x - starA.x;
                         const dy = starB.y - starA.y;
@@ -301,5 +301,5 @@ export function buildDisconnectVirtualSites(
         }
     }
 
-    return canonicalizeSites(sites);
+    return normalizeSites(sites);
 }

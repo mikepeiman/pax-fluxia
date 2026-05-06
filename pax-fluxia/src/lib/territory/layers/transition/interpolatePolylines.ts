@@ -22,7 +22,7 @@
 // All functions are pure - no PIXI, no state, no side effects.
 // ---------------------------------------------------------------------------
 
-import type { CanonicalFrontierPolyline } from '../../contracts/GeometryContracts';
+import type { ResolvedFrontierPolyline } from '../../contracts/GeometryContracts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,8 +30,8 @@ import type { CanonicalFrontierPolyline } from '../../contracts/GeometryContract
 
 export interface MatchedPolylinePair {
     ownerPairKey: string;
-    prevShape?: CanonicalFrontierPolyline;
-    nextShape?: CanonicalFrontierPolyline;
+    prevShape?: ResolvedFrontierPolyline;
+    nextShape?: ResolvedFrontierPolyline;
     prev: [number, number][];
     next: [number, number][];
     status: 'static' | 'drifted' | 'spawned' | 'vanished';
@@ -131,17 +131,17 @@ export function otInterpolatePolyline(
 // ---------------------------------------------------------------------------
 
 export function matchPolylinesByKey(
-    prev: readonly CanonicalFrontierPolyline[],
-    next: readonly CanonicalFrontierPolyline[],
+    prev: readonly ResolvedFrontierPolyline[],
+    next: readonly ResolvedFrontierPolyline[],
 ): MatchedPolylinePair[] {
-    const prevMap = new Map<string, CanonicalFrontierPolyline[]>();
+    const prevMap = new Map<string, ResolvedFrontierPolyline[]>();
     for (const p of prev) {
         const arr = prevMap.get(p.ownerPairKey);
         if (arr) arr.push(p);
         else prevMap.set(p.ownerPairKey, [p]);
     }
 
-    const nextMap = new Map<string, CanonicalFrontierPolyline[]>();
+    const nextMap = new Map<string, ResolvedFrontierPolyline[]>();
     for (const n of next) {
         const arr = nextMap.get(n.ownerPairKey);
         if (arr) arr.push(n);
@@ -226,15 +226,15 @@ export function matchPolylinesByKey(
 // ---------------------------------------------------------------------------
 
 export function interpolateMatchedPolylines(
-    prev: readonly CanonicalFrontierPolyline[],
-    next: readonly CanonicalFrontierPolyline[],
+    prev: readonly ResolvedFrontierPolyline[],
+    next: readonly ResolvedFrontierPolyline[],
     t: number,
-): CanonicalFrontierPolyline[] {
+): ResolvedFrontierPolyline[] {
     if (t <= 0) return prev.map(clonePolyline);
     if (t >= 1) return next.map(clonePolyline);
 
     const matched = matchPolylinesByKey(prev, next);
-    const result: CanonicalFrontierPolyline[] = [];
+    const result: ResolvedFrontierPolyline[] = [];
 
     for (const pair of matched) {
         const prototype = pair.nextShape ?? pair.prevShape ?? {
@@ -294,7 +294,7 @@ function arePolylinesSame(
     return true;
 }
 
-function clonePolyline(polyline: CanonicalFrontierPolyline): CanonicalFrontierPolyline {
+function clonePolyline(polyline: ResolvedFrontierPolyline): ResolvedFrontierPolyline {
     return {
         ...polyline,
         points: clonePoints(polyline.points),

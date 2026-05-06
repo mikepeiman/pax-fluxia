@@ -112,18 +112,18 @@ interface FG2FaceWalk {
     boundaryPerimeterLinkCount: number;
     touchesWorldBoundary: boolean;
     isExteriorCandidate: boolean;
-    isCanonicalCandidate: boolean;
+    isInteriorCandidate: boolean;
 }
 
 interface FG2PairHalfEdgeGraph {
     ownerPair: string;
     halfEdges: FG2HalfEdge[];
     leftFaceWalks: FG2FaceWalk[];
-    canonicalFaceWalks: FG2FaceWalk[];
+    interiorFaceWalks: FG2FaceWalk[];
     exteriorFaceWalkId: string | null;
     closedLeftFaceCount: number;
     openLeftWalkCount: number;
-    canonicalFaceWalkCount: number;
+    interiorFaceWalkCount: number;
 }
 
 interface FG2RegionLoopArtifact {
@@ -132,7 +132,7 @@ interface FG2RegionLoopArtifact {
     ownerA: string;
     ownerB: string;
     sourceFaceWalkId: string;
-    kind: 'canonical_candidate' | 'exterior_candidate';
+    kind: 'interior_candidate' | 'exterior_candidate';
     points: [number, number][];
     area: number;
     absArea: number;
@@ -1808,7 +1808,7 @@ function compareLoopRotationsLexicographically(
     return 0;
 }
 
-function canonicalizeLoopPoints(
+function normalizeLoopPoints(
     points: [number, number][],
     preferredOrientation: 'preserve' | 'positive' | 'negative' = 'preserve',
 ): [number, number][] {
@@ -1838,7 +1838,7 @@ function canonicalizeLoopPoints(
 }
 
 function buildLoopFingerprintKey(points: [number, number][]): string {
-    return canonicalizeLoopPoints(points)
+    return normalizeLoopPoints(points)
         .map(([x, y]) => `${Math.round(x * 4) / 4},${Math.round(y * 4) / 4}`)
         .join(';');
 }
@@ -2751,10 +2751,10 @@ function sortOwnerShellFrameShells(
 }
 
 function normalizeOwnerShellFrameShell(shell: FG2OwnerShellFrameShell): FG2OwnerShellFrameShell {
-    const points = canonicalizeLoopPoints(shell.points, 'positive');
+    const points = normalizeLoopPoints(shell.points, 'positive');
     const holeLoops = shell.holeLoops
         .map((holeLoop) => {
-            const normalizedHolePoints = canonicalizeLoopPoints(holeLoop.points, 'negative');
+            const normalizedHolePoints = normalizeLoopPoints(holeLoop.points, 'negative');
             const absArea = Math.abs(computeSignedArea(normalizedHolePoints));
             if (normalizedHolePoints.length < 3 || absArea <= EPSILON) {
                 return null;
@@ -3578,7 +3578,7 @@ function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGra
             boundaryPerimeterLinkCount,
             touchesWorldBoundary: boundaryNodeCount + cornerNodeCount > 0,
             isExteriorCandidate: false,
-            isCanonicalCandidate: false,
+            isInteriorCandidate: false,
         });
     }
 
@@ -3600,17 +3600,17 @@ function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGra
             return walkA.faceWalkId.localeCompare(walkB.faceWalkId);
         });
     const exteriorFaceWalkId = closedWalksByPriority[0]?.faceWalkId ?? null;
-    const canonicalFaceWalks: FG2FaceWalk[] = [];
+    const interiorFaceWalks: FG2FaceWalk[] = [];
 
     for (const walk of leftFaceWalks) {
         walk.isExteriorCandidate = walk.closed && walk.faceWalkId === exteriorFaceWalkId;
-        walk.isCanonicalCandidate =
+        walk.isInteriorCandidate =
             walk.closed &&
             !walk.isExteriorCandidate &&
             walk.absArea > EPSILON &&
             walk.boundaryPerimeterLinkCount === 0;
-        if (walk.isCanonicalCandidate) {
-            canonicalFaceWalks.push(walk);
+        if (walk.isInteriorCandidate) {
+            interiorFaceWalks.push(walk);
         }
     }
 
@@ -3619,11 +3619,11 @@ function buildPairHalfEdgeGraph(graph: FG2PairTopologyGraph): FG2PairHalfEdgeGra
         ownerPair: graph.ownerPair,
         halfEdges,
         leftFaceWalks,
-        canonicalFaceWalks,
+        interiorFaceWalks,
         exteriorFaceWalkId,
         closedLeftFaceCount,
         openLeftWalkCount: leftFaceWalks.length - closedLeftFaceCount,
-        canonicalFaceWalkCount: canonicalFaceWalks.length,
+        interiorFaceWalkCount: interiorFaceWalks.length,
     };
 }
 
@@ -3634,7 +3634,7 @@ function buildOwnerRegionLoopArtifact(
     halfEdgeById: Map<string, FG2HalfEdge>,
     topologyLinkById: Map<string, FG2TopologyLink>,
 ): FG2OwnerRegionLoopArtifact | null {
-    if (!walk.closed || !walk.isCanonicalCandidate || walk.absArea <= EPSILON) return null;
+    if (!walk.closed || !walk.isInteriorCandidate || walk.absArea <= EPSILON) return null;
 
     const points = walk.nodeIds
         .map((nodeId) => nodeById.get(nodeId))
@@ -4464,9 +4464,9 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     let halfEdgeCount = 0;
     let faceWalkCount = 0;
     let closedFaceWalkCount = 0;
-    let canonicalFaceWalkCount = 0;
+    let interiorFaceWalkCount = 0;
     let exteriorFaceWalkCount = 0;
-    let ambiguousCanonicalFaceWalkCount = 0;
+    let ambiguousInteriorFaceWalkCount = 0;
     let globalHalfEdgeCount = 0;
     let globalFaceWalkCount = 0;
     let globalClosedFaceWalkCount = 0;
@@ -4481,7 +4481,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         halfEdgeCount += pairHalfEdgeGraph.halfEdges.length;
         faceWalkCount += pairHalfEdgeGraph.leftFaceWalks.length;
         closedFaceWalkCount += pairHalfEdgeGraph.closedLeftFaceCount;
-        canonicalFaceWalkCount += pairHalfEdgeGraph.canonicalFaceWalkCount;
+        interiorFaceWalkCount += pairHalfEdgeGraph.interiorFaceWalkCount;
         if (pairHalfEdgeGraph.exteriorFaceWalkId) {
             exteriorFaceWalkCount += 1;
         }
@@ -4493,7 +4493,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         const topologyLinkById = new Map(pairGraph.links.map((link) => [link.linkId, link]));
         for (const walk of pairHalfEdgeGraph.leftFaceWalks) {
             if (!walk.closed || walk.absArea <= EPSILON) continue;
-            if (!walk.isExteriorCandidate && !walk.isCanonicalCandidate) continue;
+            if (!walk.isExteriorCandidate && !walk.isInteriorCandidate) continue;
             const points = walk.nodeIds
                 .map((nodeId) => nodeById.get(nodeId))
                 .filter((node): node is FG2GraphNode => Boolean(node))
@@ -4506,7 +4506,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
                 ownerA: pairGraph.ownerA,
                 ownerB: pairGraph.ownerB,
                 sourceFaceWalkId: walk.faceWalkId,
-                kind: walk.isExteriorCandidate ? 'exterior_candidate' : 'canonical_candidate',
+                kind: walk.isExteriorCandidate ? 'exterior_candidate' : 'interior_candidate',
                 points,
                 area: walk.area,
                 absArea: walk.absArea,
@@ -4514,7 +4514,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
                 boundaryPerimeterLinkCount: walk.boundaryPerimeterLinkCount,
             });
 
-            if (!walk.isCanonicalCandidate) continue;
+            if (!walk.isInteriorCandidate) continue;
             const ownerRegionLoop = buildOwnerRegionLoopArtifact(
                 pairGraph,
                 walk,
@@ -4523,7 +4523,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
                 topologyLinkById,
             );
             if (!ownerRegionLoop) {
-                ambiguousCanonicalFaceWalkCount += 1;
+                ambiguousInteriorFaceWalkCount += 1;
                 continue;
             }
 
@@ -4546,8 +4546,8 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     );
     for (const walk of globalHalfEdgeGraph.leftFaceWalks) {
         walk.isExteriorCandidate = walk.closed && walk.faceWalkId === globalHalfEdgeGraph.exteriorFaceWalkId;
-        walk.isCanonicalCandidate = walk.closed && !walk.isExteriorCandidate && walk.absArea > EPSILON;
-        if (!walk.isCanonicalCandidate) continue;
+        walk.isInteriorCandidate = walk.closed && !walk.isExteriorCandidate && walk.absArea > EPSILON;
+        if (!walk.isInteriorCandidate) continue;
 
         const resolvedOwnerRegionLoop = buildResolvedOwnerRegionLoopArtifact(
             walk,
@@ -4639,9 +4639,9 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
         halfEdgeCount,
         faceWalkCount,
         closedFaceWalkCount,
-        canonicalFaceWalkCount,
+        interiorFaceWalkCount,
         exteriorFaceWalkCount,
-        ambiguousCanonicalFaceWalkCount,
+        ambiguousInteriorFaceWalkCount,
         globalHalfEdgeCount,
         globalFaceWalkCount,
         globalClosedFaceWalkCount,
@@ -4654,7 +4654,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     summary.halfEdgeCount = halfEdgeCount;
     summary.faceWalkCount = faceWalkCount;
     summary.closedFaceWalkCount = closedFaceWalkCount;
-    summary.canonicalFaceWalkCount = canonicalFaceWalkCount;
+    summary.interiorFaceWalkCount = interiorFaceWalkCount;
     summary.exteriorFaceWalkCount = exteriorFaceWalkCount;
     summary.regionLoopCount = regionLoops.length;
     summary.ownerRegionLoopCount = ownerRegionLoops.length;
@@ -4667,7 +4667,7 @@ function executeLoopStage(runtime: FG2StageRuntime, summary: Record<string, unkn
     summary.fallbackOwnerShellCount = fallbackOwnerShellCount;
     summary.pairOwnerRegionLoopCount = pairOwnerRegionLoops.length;
     summary.resolvedOwnerRegionLoopCount = resolvedOwnerRegionLoops.length;
-    summary.ambiguousCanonicalFaceWalkCount = ambiguousCanonicalFaceWalkCount;
+    summary.ambiguousInteriorFaceWalkCount = ambiguousInteriorFaceWalkCount;
     summary.globalHalfEdgeCount = globalHalfEdgeCount;
     summary.globalFaceWalkCount = globalFaceWalkCount;
     summary.globalClosedFaceWalkCount = globalClosedFaceWalkCount;

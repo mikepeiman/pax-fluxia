@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { CanonicalGeometrySnapshot } from '../../contracts/GeometryContracts';
+import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { PerimeterFieldDebugSnapshot } from './buildPerimeterFieldScene';
 import { resolvePerimeterFieldDiagnosticCanvasSize } from './perimeterFieldDiagnostics';
 
 function makeGeometry(
     width?: number,
     height?: number,
-): CanonicalGeometrySnapshot {
+): ResolvedGeometrySnapshot {
     return {
         frontierTopology:
             width != null && height != null
@@ -14,7 +14,7 @@ function makeGeometry(
                       worldBounds: { width, height },
                   }
                 : null,
-    } as unknown as CanonicalGeometrySnapshot;
+    } as unknown as ResolvedGeometrySnapshot;
 }
 
 function makeSnapshot(args?: {

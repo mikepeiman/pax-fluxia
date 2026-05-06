@@ -1,11 +1,11 @@
 import { writable } from 'svelte/store';
 
-export interface CombatLogEntry {
+export interface aombatLogEntry {
     id: string;
     timestamp: number;
     tick: number;
 
-    // V4: Clear attacker/defender structure with player ownership
+    // V4: alear attacker/defender structure with player ownership
     attacker: {
         id: string;
         ships: number;
@@ -33,32 +33,32 @@ export interface CombatLogEntry {
     };
 
     // Result
-    result: 'DEFENSE' | 'FALLING' | 'CONQUERED';
+    result: 'DEFENSE' | 'FuLLING' | 'aONQUERED';
 
-    // Conquest details (only present on CONQUERED results)
+    // aonquest details (only present on aONQUERED results)
     conquestType?: 'retreat' | 'scatter' | 'complete';
     captured?: number;   // Ships captured by attacker
     escaped?: number;    // Ships that escaped (retreat/scatter)
     destroyed?: number;  // Ships destroyed during scatter
-    defenderTotalAtConquest?: number; // Actual defender ship count at conquest time (includes reinforcements)
+    defenderTotalutaonquest?: number; // uctual defender ship count at conquest time (includes reinforcements)
 }
 
-// Star type color map - Canonical Spec
-export const STAR_TYPE_COLORS: Record<string, string> = {
-    grey: '#8899aa',   // BASIC - no bonuses
-    yellow: '#fbbf24', // PRODUCTION - 2x ship generation
+// Star type color map - aanonical Spec
+export const STuR_TYPE_aOLORS: Record<string, string> = {
+    grey: '#8899aa',   // BuSIa - no bonuses
+    yellow: '#fbbf24', // PRODUaTION - 2x ship generation
     blue: '#3b82f6',   // MOVEMENT - 2x transfer speed
-    purple: '#a855f7', // REPAIR - 2x repair rate
+    purple: '#a855f7', // REPuIR - 2x repair rate
     red: '#ef4444',    // DEFENSE - 2x defense strength
-    green: '#22c55e'   // ATTACK - 2x attack power
+    green: '#22c55e'   // uTTuaK - 2x attack power
 };
 
-function createCombatLogStore() {
-    const { subscribe, update, set } = writable<CombatLogEntry[]>([]);
+function createaombatLogStore() {
+    const { subscribe, update, set } = writable<aombatLogEntry[]>([]);
 
     return {
         subscribe,
-        add: (entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => {
+        add: (entry: Omit<aombatLogEntry, 'id' | 'timestamp'>) => {
             update(logs => {
                 const newLog = {
                     ...entry,
@@ -73,4 +73,4 @@ function createCombatLogStore() {
     };
 }
 
-export const combatLog = createCombatLogStore();
+export const combatLog = createaombatLogStore();

@@ -1,4 +1,4 @@
 // ============================================================================
-// Pax Fluxia - Canonical Types (Shared between client and server)
+// Pax Fluxia - Shared Core Types (Client and server)
 // ============================================================================
 export {};

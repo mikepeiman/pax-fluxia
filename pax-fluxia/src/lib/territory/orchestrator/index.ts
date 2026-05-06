@@ -37,13 +37,13 @@ export type {
     TerritoryDynamicMethodDescriptor,
 } from './types';
 
-export { extractCanonicalData } from './engine';
+export { extractTerritoryRenderData } from './engine';
 
 export type {
-    CanonicalShell,
-    CanonicalShellLoop,
-    CanonicalAnimatedShell,
-    CanonicalTerritoryData,
+    ResolvedShell,
+    ResolvedShellLoop,
+    AnimatedTerritoryRenderShell,
+    TerritoryRenderData,
     RenderModeId,
     RenderModeTunables,
     RenderModeContext,

@@ -25,7 +25,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ColorUtils } from './RenderContext';
-import type { CanonicalTerritoryData } from '$lib/territory/orchestrator/renderMode';
+import type { TerritoryRenderData } from '$lib/territory/orchestrator/renderMode';
 import { log } from '$lib/utils/logger';
 import { blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import {
@@ -55,7 +55,7 @@ import {
 import type { TerritoryTransitionPlanSet, TerritoryFrameGeometry, Vec2 } from '$lib/territory/transitions/types';
 import { buildSnapshotsFromTMAP } from '../territory/transitions/buildSnapshotsFromTMAP';
 import { diffFrontierMaps } from '../territory/transitions/diffFrontierMaps';
-import { createCanonicalTransitionPlan } from '../territory/transitions/createCanonicalTransitionPlan';
+import { createFrontierTransitionPlan } from '../territory/transitions/createFrontierTransitionPlan';
 import { computeGeometry0319 } from '../territory/compiler/Geometry_0319';
 import type { TerritoryGeneratorSettings, PowerSite } from '../territory/compiler/powerVoronoiTerritoryGeometryGenerator';
 import { computeTerritoryDeltaContext } from '$lib/territory/transitions/computeTerritoryDeltaContext';
@@ -313,7 +313,7 @@ function adjustColorHSL(hex: number, satMult: number, lightMult: number): number
 
 // ── Edge Key Helpers ───────────────────────────────────────────────────────
 
-/** Canonical edge key — direction-independent, snapped to 2dp. */
+/** Normalized edge key — direction-independent, snapped to 2dp. */
 function edgeKey(x1: number, y1: number, x2: number, y2: number): string {
     const ax = +x1.toFixed(2), ay = +y1.toFixed(2);
     const bx = +x2.toFixed(2), by = +y2.toFixed(2);
@@ -394,7 +394,7 @@ function densifyBezierMidpoints(pts: [number, number][], subdivisions = 4): [num
     return dense;
 }
 
-// ── Canonical Border Drawing ───────────────────────────────────────────────
+// ── Vector Border Drawing ───────────────────────────────────────────────
 
 /**
  * Draw border polylines as straight lines. Points are expected to be
@@ -613,7 +613,7 @@ export function renderPowerVoronoi(
     worldWidth: number,
     worldHeight: number,
     connections?: StarConnection[],
-    canonicalData?: CanonicalTerritoryData,
+    renderData?: TerritoryRenderData,
     state?: PVV2RendererState,
     precomputedGeometry?: TerritoryGeometryData,
 ): void {
@@ -625,43 +625,43 @@ export function renderPowerVoronoi(
     if (s.fillGraphics) s.fillGraphics.visible = true;
     // s.borderGraphics stays hidden — borders are now strokes on the fill path
 
-    // ── CANONICAL DATA PATH ─────────────────────────────────────────────
-    // When canonical data is provided with shells, draw fills and borders
+    // ── RUNTIME DATA PATH ─────────────────────────────────────────────
+    // When runtime data is provided with shells, draw fills and borders
     // from the SAME shell points. This is the V3 architecture: one set of
     // coordinates, both rendering paths, impossible to diverge.
-    const canonicalShells = canonicalData?.shells ?? [];
-    const canonicalAnimShells = canonicalData?.animatedShells ?? [];
-    const canonicalAnimActive = canonicalData?.transitionActive ?? false;
-    const canonicalShellLoops = canonicalData?.shellLoops ?? [];
+    const runtimeShells = renderData?.shells ?? [];
+    const runtimeAnimShells = renderData?.animatedShells ?? [];
+    const runtimeAnimActive = renderData?.transitionActive ?? false;
+    const runtimeShellLoops = renderData?.shellLoops ?? [];
 
     // One-shot diagnostic: log path decision on first call and on shell count change
-    const diagKey = `canonical=${canonicalShells.length}|loops=${canonicalShellLoops.length}|anim=${canonicalAnimShells.length}`;
+    const diagKey = `runtime=${runtimeShells.length}|loops=${runtimeShellLoops.length}|anim=${runtimeAnimShells.length}`;
     if ((renderPowerVoronoi as any).__lastDiagKey !== diagKey) {
         (renderPowerVoronoi as any).__lastDiagKey = diagKey;
-        log.renderer('PVV2', canonicalShells.length > 0
-            ? `📐 CANONICAL path: ${canonicalShells.length} shells, ${canonicalShellLoops.length} loops, ${canonicalAnimShells.length} animShells, animActive=${canonicalAnimActive}`
-            : `⚠️ LEGACY path: canonicalData=${!!canonicalData}, shells=${canonicalShells.length} (no canonical shells → falling through to d3-weighted-voronoi)`);
+        log.renderer('PVV2', runtimeShells.length > 0
+            ? `📐 RUNTIME path: ${runtimeShells.length} shells, ${runtimeShellLoops.length} loops, ${runtimeAnimShells.length} animShells, animActive=${runtimeAnimActive}`
+            : `⚠️ LEGACY path: renderData=${!!renderData}, shells=${runtimeShells.length} (no runtime shells → falling through to d3-weighted-voronoi)`);
     }
 
     // Fill path diagnostics — tracks which draw path is active, logs on change
     let _fillPath = 'none';
 
-    if (canonicalShells.length > 0) {
+    if (runtimeShells.length > 0) {
         if (!s.fillGraphics) {
             s.fillGraphics = new PIXI.Graphics();
             voronoiContainer.addChild(s.fillGraphics);
         }
-        console.log('%c[FILL-CLEAR] canonical path', 'color:red;font-weight:bold');
+        console.log('%c[FILL-CLEAR] runtime path', 'color:red;font-weight:bold');
         s.fillGraphics.clear();
         s.fillGraphics.visible = true;
 
-        // Canonical path owns ALL rendering for this frame.
+        // Runtime path owns ALL rendering for this frame.
         // Clear legacy s.borderGraphics so stale pvv2 polyline borders (different geometry)
-        // do not persist and appear misaligned with canonical shell fills.
+        // do not persist and appear misaligned with runtime shell fills.
         if (s.borderGraphics) {
             s.borderGraphics.clear();
             s.borderGraphics.visible = false;
-            log.renderer('PVV2', '🔴 CANONICAL PATH cleared s.borderGraphics!');
+            log.renderer('PVV2', '🔴 RUNTIME PATH cleared s.borderGraphics!');
         }
 
         const alpha = GAME_CONFIG.VORONOI_ALPHA ?? 0.25;
@@ -672,16 +672,16 @@ export function renderPowerVoronoi(
         const smoothPasses = 0; // NO smoothing in renderer — geometry arrives pre-computed from compiler stage
 
         // Choose shells: animated if transition active, otherwise static
-        const shellsForRender = canonicalAnimActive && canonicalAnimShells.length > 0
-            ? canonicalAnimShells
-            : canonicalShells;
+        const shellsForRender = runtimeAnimActive && runtimeAnimShells.length > 0
+            ? runtimeAnimShells
+            : runtimeShells;
 
         // Sort largest-first (painter's algorithm)
         const sorted = shellsForRender.slice().sort((a, b) => b.absArea - a.absArea);
 
         // Build hole loop lookup
         const shellLoopById = new Map(
-            canonicalShellLoops.map((loop: any) => [loop.shellLoopId, loop])
+            runtimeShellLoops.map((loop: any) => [loop.shellLoopId, loop])
         );
 
         for (const shell of sorted) {
@@ -740,13 +740,13 @@ export function renderPowerVoronoi(
             }
         }
 
-        log.renderer('PVV2', `CANONICAL path: ${sorted.length} shells (anim=${canonicalAnimActive})`);
-        _fillPath = `canonical|shells=${sorted.length}`;
+        log.renderer('PVV2', `RUNTIME path: ${sorted.length} shells (anim=${runtimeAnimActive})`);
+        _fillPath = `runtime|shells=${sorted.length}`;
         if (_fillPath !== (renderPowerVoronoi as any).__lastFillPath) { log.sys('FILL-DIAG', `PATH=${_fillPath}`); (renderPowerVoronoi as any).__lastFillPath = _fillPath; }
         return; // Skip legacy pipeline entirely
     }
 
-    // ── LEGACY PATH (no canonical data) ─────────────────────────────────
+    // ── LEGACY PATH (no runtime data) ───────────────────────────────────
     // Clear stale s.borderGraphics — borders are drawn on s.fillGraphics only.
     // renderInterpolatedBorders (which created borderGraphics) is dead code,
     // but the Graphics object persists and renders a second set of borders.
@@ -1735,7 +1735,7 @@ export function resetPowerVoronoiCache(): void {
 // ── Diagnostics Export ──────────────────────────────────────────────────────
 
 /**
- * Synthesizes a CanonicalGeometrySnapshot from the internal PowerVoronoi cache state.
+ * Synthesizes a ResolvedGeometrySnapshot from the internal PowerVoronoi cache state.
  * This satisfies the TransitionSnapshotRecorder's requirement for canvas rendering
  * without needing the legacy pipeline to run a full geometry compiler.
  */
@@ -1744,7 +1744,7 @@ export function exportPowerVoronoiGeometrySnapshot(
     version: string,
     ownershipVersion: string,
     state?: PVV2RendererState
-): import('../territory/contracts/GeometryContracts').CanonicalGeometrySnapshot | null {
+): import('../territory/contracts/GeometryContracts').ResolvedGeometrySnapshot | null {
     const s = state ?? defaultState;
     const merged = type === 'current' ? s.lastMergedTerritories : s.prevMergedTerritories;
     const borders = type === 'current' ? s.targetSharedPolylines : s.prevSharedPolylines;
@@ -1757,7 +1757,7 @@ export function exportPowerVoronoiGeometrySnapshot(
     return {
         version,
         sourceMode: 'unified_vector',
-        sourceStyle: 'canonical' as any,
+        sourceStyle: 'vector' as any,
         ownershipVersion,
         geometryFamily: 'vector-native',
         sourceMethod: 'power_voronoi',

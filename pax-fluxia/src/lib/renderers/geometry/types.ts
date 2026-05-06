@@ -1,7 +1,7 @@
 // ============================================================================
 // Shared geometry types for territory rendering — RE-EXPORT SHIM
 //
-// Canonical definitions live in powerVoronoiTerritoryGeometryGenerator.ts
+// Definitive definitions live in powerVoronoiTerritoryGeometryGenerator.ts
 // This file re-exports them for backward compatibility with renderers.
 // ============================================================================
 
