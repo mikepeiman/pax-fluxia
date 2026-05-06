@@ -148,3 +148,10 @@
     - one cached base ownership snapshot for the live star/lane state
     - one cached transition-event overlay snapshot for the active conquest batch
 57. Render-family geometry caching, stable-frame sync, and previous-frame diagnostics fallback should all consume the same ownership truth object instead of rebuilding it independently.
+58. Better instrumentation is not the same thing as visible gameplay improvement. A branch can be much more truthful internally and still look unchanged to the player if only a tiny fraction of pair keys become active fronts.
+59. Systematic playtesting needs one command that summarizes one exported transition package. That command now exists and must be used instead of ad hoc screenshot reading alone.
+60. Legacy diagnostic packages remain valid evidence. Tooling should adapt to real exported artifacts instead of assuming only the newest package layout exists.
+61. The first two package summaries explain the user's current judgment:
+    - package `19-07-58---665`: `2` planned pairs out of `38`, with `4` collapse targets
+    - package `15-27-15---056_transition-diagnostic-package`: `2` planned pairs out of `31`
+62. The current gap is transition coverage, not just polish. Too few frontiers are actually moving.

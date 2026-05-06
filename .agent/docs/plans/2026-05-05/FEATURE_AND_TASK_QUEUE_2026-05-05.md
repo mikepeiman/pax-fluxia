@@ -412,6 +412,28 @@
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `pax-fluxia/`
 
+## Latest Implementation Checkpoint 12
+
+- Added a systematic PVV4 playtest harness:
+  - transition-package summarizer:
+    - `pax-fluxia/tools/debug/summarize-transition-package.mjs`
+  - package script:
+    - `pax-fluxia/package.json`
+  - playtest protocol:
+    - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-transition-playtest-protocol_v1.md`
+  - initial findings:
+    - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-transition-playtest-findings_v1.md`
+- Exact behavior:
+  - the summarizer supports both the staged export layout and the older legacy package layouts already sitting in `Downloads/`
+  - it reports conquest events, geometry counts, topology counts, active-front coverage counts, and casebook hints in one command
+- Current result:
+  - the first two real packages still support the user's visible judgment:
+    - planned active fronts remain too sparse relative to pair-key count
+    - gameplay-visible improvement is still not clear
+- Validation:
+  - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\19-07-58---665"`
+  - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\15-27-15---056_transition-diagnostic-package"`
+
 ## Latest Implementation Checkpoint 11
 
 - Completed the `v7` performance-hardening sprint on the active render-family path:

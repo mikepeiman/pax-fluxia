@@ -2138,6 +2138,33 @@
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
 
+## Update: 2026-05-05 - Systematic Diagnostic Playtest Harness
+
+- Trigger:
+  - after `v7` implementation-complete status, the user reported no visible gameplay improvement
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\tools\debug\summarize-transition-package.mjs`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\package.json`
+- New tracked evidence docs:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-transition-playtest-protocol_v1.md`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-05\2026-05-05_territory-transition-playtest-findings_v1.md`
+- Exact behavior:
+  - the package summarizer now supports:
+    - staged package roots
+    - legacy package roots
+    - debug subdirectories
+    - exported zip files
+  - it reports conquest events, geometry counts, topology counts, active-front coverage counts, and casebook hints
+- Merge note:
+  - this checkpoint does not change runtime behavior
+  - it changes how the branch is evaluated
+  - the first two summaries support the user's current visible judgment:
+    - transition truth is more instrumented
+    - gameplay-visible improvement is still not clear because planned active fronts remain too sparse
+- Validation:
+  - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\19-07-58---665"`
+  - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\15-27-15---056_transition-diagnostic-package"`
+
 ## Update: 2026-05-05 - Render-Family Performance Hardening
 
 - Active-path files changed:
