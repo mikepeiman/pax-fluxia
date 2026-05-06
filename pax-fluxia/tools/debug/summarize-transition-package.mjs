@@ -162,7 +162,7 @@ async function discoverExportLayout(reader) {
         manifestPath: pickDebugFile(
             debugEntries,
             [COMPACT_FILES.diagnostic, LEGACY_FILES.diagnostic],
-            ['_diagnostic.json'],
+            ['_diagnostic.json', '_diag.json'],
         ),
         frameInputPath: pickDebugFile(debugEntries, [STAGE_FILES.frameInput]),
         ownershipPrevPath: pickDebugFile(debugEntries, [STAGE_FILES.ownershipPrev]),
@@ -172,14 +172,14 @@ async function discoverExportLayout(reader) {
         geometrySnapshotPath: pickDebugFile(
             debugEntries,
             [LEGACY_FILES.geometrySnapshot, COMPACT_FILES.geometry],
-            ['_geometry_snapshot.json'],
+            ['_geometry_snapshot.json', '_geo.json'],
         ),
         topologyPrevFullPath: pickDebugFile(debugEntries, [STAGE_FILES.topologyPrevFull]),
         topologyNextFullPath: pickDebugFile(debugEntries, [STAGE_FILES.topologyNextFull]),
         topologySnapshotPath: pickDebugFile(
             debugEntries,
             [LEGACY_FILES.topology, COMPACT_FILES.topology],
-            ['_topology.json'],
+            ['_topology.json', '_topo.json'],
         ),
         transitionSnapshotPath: pickDebugFile(debugEntries, [STAGE_FILES.transitionSnapshot]),
         transitionTruthPath: pickDebugFile(debugEntries, [STAGE_FILES.transitionTruth]),

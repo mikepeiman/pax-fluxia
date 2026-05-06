@@ -434,6 +434,23 @@
   - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\19-07-58---665"`
   - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\15-27-15---056_transition-diagnostic-package"`
 
+## Diagnostic Checkpoint 13
+
+- Added a formal diagnosis document:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v1.md`
+- Diagnosis result:
+  - the planner is still global when it should be conquest-local
+  - many unsupported split counts are just forward/reverse duplicates of one foundational section
+  - visible improvement remains weak because active-front coverage is too sparse
+- Small tooling fix:
+  - the package summarizer now recognizes short-name zip exports:
+    - `_diag.json`
+    - `_geo.json`
+    - `_topo.json`
+- Next implementation target is now clearer:
+  - conquest-local frontier gating
+  - directional deduplication before split classification
+
 ## Latest Implementation Checkpoint 11
 
 - Completed the `v7` performance-hardening sprint on the active render-family path:

@@ -2165,6 +2165,22 @@
   - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\19-07-58---665"`
   - `bun run territory:package:summary -- "C:\Users\mikep\Downloads\15-27-15---056_transition-diagnostic-package"`
 
+## Update: 2026-05-06 - Root-Cause Diagnosis After Playtest Harness
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v1.md`
+- Branch-level conclusion:
+  - the branch is more truthful internally, but the active-front planner still does the wrong first step
+  - it still enumerates global stable-anchor pair keys across the whole topology instead of restricting to the conquest-local changed frontier first
+- Secondary concrete issue:
+  - many “unsupported split” defects are not real splits
+  - they are forward/reverse duplicates of one foundational section being counted as separate paths
+- Why the user still sees little or no visible improvement:
+  - active-front coverage remains too sparse because the real changed frontier is buried inside irrelevant and duplicated pair work
+- Immediate merge-safe next target:
+  - conquest-local frontier gating
+  - then directional deduplication before split classification
+
 ## Update: 2026-05-05 - Render-Family Performance Hardening
 
 - Active-path files changed:
