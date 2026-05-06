@@ -1,5 +1,6 @@
 import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import type {
+    ActiveFrontPairDiagnostic,
     ActiveFrontPairOutcome,
     ActiveFrontTransitionPlan,
 } from '../layers/transition/ActiveFrontTransition';
@@ -12,17 +13,15 @@ export type OverlayVertexRole =
 
 export type OverlaySectionRole =
     | 'unchanged_section'
+    | 'no_motion_section'
     | 'active_section'
+    | 'source_section'
+    | 'source_no_motion_section'
     | 'defect_topology_gap'
     | 'defect_unsupported_split';
 
-export type OverlaySubSectionRole =
-    | 'unchanged_subsection'
-    | 'active_subsection'
-    | 'defect_subsection';
-
 export interface OverlaySubSectionClassification {
-    role: OverlaySubSectionRole;
+    role: 'unchanged_subsection' | 'active_subsection' | 'defect_subsection';
     startPointIndex: number;
     endPointIndex: number;
 }
@@ -41,8 +40,10 @@ export interface OverlayVertexClassification {
 }
 
 export interface ActiveFrontClassificationOverlayModel {
-    sections: ReadonlyMap<string, OverlaySectionClassification>;
-    vertices: ReadonlyMap<string, OverlayVertexClassification>;
+    nextSections: ReadonlyMap<string, OverlaySectionClassification>;
+    nextVertices: ReadonlyMap<string, OverlayVertexClassification>;
+    prevSections: ReadonlyMap<string, OverlaySectionClassification>;
+    prevVertices: ReadonlyMap<string, OverlayVertexClassification>;
 }
 
 const VERTEX_ROLE_PRIORITY: Record<OverlayVertexRole, number> = {
@@ -54,46 +55,18 @@ const VERTEX_ROLE_PRIORITY: Record<OverlayVertexRole, number> = {
 
 const SECTION_ROLE_PRIORITY: Record<OverlaySectionRole, number> = {
     unchanged_section: 0,
-    active_section: 1,
-    defect_topology_gap: 2,
-    defect_unsupported_split: 2,
+    no_motion_section: 1,
+    source_section: 1,
+    source_no_motion_section: 2,
+    active_section: 3,
+    defect_topology_gap: 4,
+    defect_unsupported_split: 4,
 };
 
-function outcomeToSectionRole(outcome: ActiveFrontPairOutcome): OverlaySectionRole {
-    switch (outcome) {
-        case 'no_change_span':
-            return 'unchanged_section';
-        case 'defect_topology_gap':
-            return 'defect_topology_gap';
-        case 'defect_unsupported_split_mode':
-            return 'defect_unsupported_split';
-        default:
-            return 'unchanged_section';
-    }
-}
-
-function roleLabel(role: OverlaySectionRole | OverlayVertexRole): string {
-    switch (role) {
-        case 'active_section':
-            return 'active';
-        case 'unchanged_section':
-            return 'unchanged';
-        case 'defect_topology_gap':
-            return 'gap';
-        case 'defect_unsupported_split':
-            return 'split';
-        case 'front_anchor':
-            return 'front';
-        case 'defect_anchor':
-            return 'defect';
-        case 'stable_anchor':
-            return 'stable';
-        default:
-            return 'vertex';
-    }
-}
-
-function fullRange(pointCount: number, role: OverlaySubSectionRole): OverlaySubSectionClassification[] {
+function fullRange(
+    pointCount: number,
+    role: 'unchanged_subsection' | 'active_subsection' | 'defect_subsection',
+): OverlaySubSectionClassification[] {
     if (pointCount <= 0) return [];
     return [{ role, startPointIndex: 0, endPointIndex: pointCount - 1 }];
 }
@@ -129,6 +102,44 @@ function buildActiveRanges(
     return out;
 }
 
+function roleLabel(role: OverlaySectionRole | OverlayVertexRole): string {
+    switch (role) {
+        case 'active_section':
+            return 'active';
+        case 'source_section':
+            return 'source';
+        case 'source_no_motion_section':
+            return 'source-still';
+        case 'no_motion_section':
+            return 'still';
+        case 'unchanged_section':
+            return 'unchanged';
+        case 'defect_topology_gap':
+            return 'gap';
+        case 'defect_unsupported_split':
+            return 'split';
+        case 'front_anchor':
+            return 'front';
+        case 'defect_anchor':
+            return 'defect';
+        case 'stable_anchor':
+            return 'stable';
+        default:
+            return 'vertex';
+    }
+}
+
+function sectionRoleForDefect(outcome: ActiveFrontPairOutcome): OverlaySectionRole {
+    switch (outcome) {
+        case 'defect_topology_gap':
+            return 'defect_topology_gap';
+        case 'defect_unsupported_split_mode':
+            return 'defect_unsupported_split';
+        default:
+            return 'unchanged_section';
+    }
+}
+
 function mergeVertexRole(
     vertices: Map<string, OverlayVertexClassification>,
     vertexId: string,
@@ -137,11 +148,7 @@ function mergeVertexRole(
 ): void {
     const existing = vertices.get(vertexId);
     if (!existing) {
-        vertices.set(vertexId, {
-            vertexId,
-            role,
-            labels: [label],
-        });
+        vertices.set(vertexId, { vertexId, role, labels: [label] });
         return;
     }
     const nextRole =
@@ -167,12 +174,7 @@ function mergeSectionRole(
 ): void {
     const existing = sections.get(sectionId);
     if (!existing) {
-        sections.set(sectionId, {
-            sectionId,
-            role,
-            labels: [label],
-            subSections,
-        });
+        sections.set(sectionId, { sectionId, role, labels: [label], subSections });
         return;
     }
     const nextRole =
@@ -194,17 +196,16 @@ function mergeSectionRole(
     });
 }
 
-export function buildActiveFrontClassificationOverlayModel(
+function seedTopologyLayer(
     topology: FrontierTopology | null,
-    plan: ActiveFrontTransitionPlan | null,
-): ActiveFrontClassificationOverlayModel {
+    sectionRole: OverlaySectionRole,
+): {
+    sections: Map<string, OverlaySectionClassification>;
+    vertices: Map<string, OverlayVertexClassification>;
+} {
     const sections = new Map<string, OverlaySectionClassification>();
     const vertices = new Map<string, OverlayVertexClassification>();
-
-    if (!topology) {
-        return { sections, vertices };
-    }
-
+    if (!topology) return { sections, vertices };
     for (const [vertexId] of topology.vertices) {
         vertices.set(vertexId, {
             vertexId,
@@ -212,54 +213,178 @@ export function buildActiveFrontClassificationOverlayModel(
             labels: ['vertex'],
         });
     }
-
     for (const [sectionId, section] of topology.sections) {
         sections.set(sectionId, {
             sectionId,
-            role: 'unchanged_section',
-            labels: ['unchanged'],
-            subSections: fullRange(section.points.length, 'unchanged_subsection'),
+            role: sectionRole,
+            labels: [roleLabel(sectionRole)],
+            subSections: fullRange(
+                section.points.length,
+                sectionRole === 'active_section' ? 'active_subsection' : 'unchanged_subsection',
+            ),
         });
     }
+    return { sections, vertices };
+}
+
+function collectPathSectionIds(pathSectionIds: string[][]): string[] {
+    return Array.from(new Set(pathSectionIds.flatMap((ids) => ids))).sort();
+}
+
+function collectVerticesForSections(
+    topology: FrontierTopology | null,
+    sectionIds: readonly string[],
+): string[] {
+    if (!topology) return [];
+    const out = new Set<string>();
+    for (const sectionId of sectionIds) {
+        const section = topology.sections.get(sectionId);
+        if (!section) continue;
+        out.add(section.startVertexId);
+        out.add(section.endVertexId);
+    }
+    return [...out];
+}
+
+function markPairDiagnostics(
+    prevTopology: FrontierTopology | null,
+    nextTopology: FrontierTopology | null,
+    pair: ActiveFrontPairDiagnostic,
+    prevSections: Map<string, OverlaySectionClassification>,
+    nextSections: Map<string, OverlaySectionClassification>,
+    prevVertices: Map<string, OverlayVertexClassification>,
+    nextVertices: Map<string, OverlayVertexClassification>,
+): void {
+    if (pair.outcome === 'planned') return;
+
+    if (pair.outcome === 'no_change_span') {
+        const prevSectionIds = collectPathSectionIds(pair.prevPathSectionIds);
+        const nextSectionIds = collectPathSectionIds(pair.nextPathSectionIds);
+        for (const sectionId of prevSectionIds) {
+            const pointCount = prevTopology?.sections.get(sectionId)?.points.length ?? 0;
+            mergeSectionRole(
+                prevSections,
+                sectionId,
+                'source_no_motion_section',
+                'source-still',
+                fullRange(pointCount, 'unchanged_subsection'),
+            );
+        }
+        for (const sectionId of nextSectionIds) {
+            const pointCount = nextTopology?.sections.get(sectionId)?.points.length ?? 0;
+            mergeSectionRole(
+                nextSections,
+                sectionId,
+                'no_motion_section',
+                'still',
+                fullRange(pointCount, 'unchanged_subsection'),
+            );
+        }
+        return;
+    }
+
+    const role = sectionRoleForDefect(pair.outcome);
+    const label = roleLabel(role);
+    mergeVertexRole(prevVertices, pair.anchorStartId, 'defect_anchor', label);
+    mergeVertexRole(prevVertices, pair.anchorEndId, 'defect_anchor', label);
+    mergeVertexRole(nextVertices, pair.anchorStartId, 'defect_anchor', label);
+    mergeVertexRole(nextVertices, pair.anchorEndId, 'defect_anchor', label);
+
+    const prevSectionIds = collectPathSectionIds(pair.prevPathSectionIds);
+    const nextSectionIds = collectPathSectionIds(pair.nextPathSectionIds);
+    for (const sectionId of prevSectionIds) {
+        const pointCount = prevTopology?.sections.get(sectionId)?.points.length ?? 0;
+        mergeSectionRole(
+            prevSections,
+            sectionId,
+            role,
+            `prev-${label}`,
+            fullRange(pointCount, 'defect_subsection'),
+        );
+    }
+    for (const sectionId of nextSectionIds) {
+        const pointCount = nextTopology?.sections.get(sectionId)?.points.length ?? 0;
+        mergeSectionRole(
+            nextSections,
+            sectionId,
+            role,
+            label,
+            fullRange(pointCount, 'defect_subsection'),
+        );
+    }
+}
+
+export function buildActiveFrontClassificationOverlayModel(
+    prevTopology: FrontierTopology | null,
+    nextTopology: FrontierTopology | null,
+    plan: ActiveFrontTransitionPlan | null,
+): ActiveFrontClassificationOverlayModel {
+    const nextLayer = seedTopologyLayer(nextTopology, 'unchanged_section');
+    const prevLayer = seedTopologyLayer(null, 'source_section');
 
     if (!plan) {
-        return { sections, vertices };
+        return {
+            nextSections: nextLayer.sections,
+            nextVertices: nextLayer.vertices,
+            prevSections: prevLayer.sections,
+            prevVertices: prevLayer.vertices,
+        };
     }
 
     for (const vertexId of plan.diagnostics.stableAnchorIds) {
-        mergeVertexRole(vertices, vertexId, 'stable_anchor', 'stable');
-    }
-
-    for (const pair of plan.diagnostics.pairDiagnostics) {
-        if (pair.outcome === 'planned' || pair.outcome === 'no_change_span') continue;
-        const role = outcomeToSectionRole(pair.outcome);
-        const label = roleLabel(role);
-        mergeVertexRole(vertices, pair.anchorStartId, 'defect_anchor', label);
-        mergeVertexRole(vertices, pair.anchorEndId, 'defect_anchor', label);
-        for (const sectionId of pair.defectSectionIds) {
-            const pointCount = topology.sections.get(sectionId)?.points.length ?? 0;
-            mergeSectionRole(
-                sections,
-                sectionId,
-                role,
-                label,
-                fullRange(pointCount, 'defect_subsection'),
-            );
+        mergeVertexRole(nextLayer.vertices, vertexId, 'stable_anchor', 'stable');
+        if (prevTopology?.vertices.has(vertexId)) {
+            mergeVertexRole(prevLayer.vertices, vertexId, 'stable_anchor', 'stable');
         }
     }
 
+    for (const pair of plan.diagnostics.pairDiagnostics) {
+        markPairDiagnostics(
+            prevTopology,
+            nextTopology,
+            pair,
+            prevLayer.sections,
+            nextLayer.sections,
+            prevLayer.vertices,
+            nextLayer.vertices,
+        );
+    }
+
     plan.fronts.forEach((front, frontIndex) => {
-        mergeVertexRole(vertices, front.anchorStartId, 'front_anchor', `front:${frontIndex}:start`);
-        mergeVertexRole(vertices, front.anchorEndId, 'front_anchor', `front:${frontIndex}:end`);
+        mergeVertexRole(nextLayer.vertices, front.anchorStartId, 'front_anchor', `front:${frontIndex}:start`);
+        mergeVertexRole(nextLayer.vertices, front.anchorEndId, 'front_anchor', `front:${frontIndex}:end`);
+        if (prevTopology?.vertices.has(front.anchorStartId)) {
+            mergeVertexRole(prevLayer.vertices, front.anchorStartId, 'front_anchor', `front:${frontIndex}:start`);
+        }
+        if (prevTopology?.vertices.has(front.anchorEndId)) {
+            mergeVertexRole(prevLayer.vertices, front.anchorEndId, 'front_anchor', `front:${frontIndex}:end`);
+        }
+
+        const prevSectionIds = new Set<string>();
+        front.prevPaths.forEach((path) => path.sectionIds.forEach((id) => prevSectionIds.add(id)));
+        for (const sectionId of prevSectionIds) {
+            const pointCount = prevTopology?.sections.get(sectionId)?.points.length ?? 0;
+            mergeSectionRole(
+                prevLayer.sections,
+                sectionId,
+                'source_section',
+                `source:${frontIndex}`,
+                fullRange(pointCount, 'unchanged_subsection'),
+            );
+        }
+        for (const vertexId of collectVerticesForSections(prevTopology, [...prevSectionIds])) {
+            mergeVertexRole(prevLayer.vertices, vertexId, 'stable_anchor', 'source');
+        }
+
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
-            const pointCount = topology.sections.get(sectionId)?.points.length ?? 0;
+            const pointCount = nextTopology?.sections.get(sectionId)?.points.length ?? 0;
             const localStart =
                 span.pathPointOffset + (span.activeStartIndex - span.startIndex);
             const localEnd =
                 span.pathPointOffset + (span.activeEndIndex - span.startIndex);
             mergeSectionRole(
-                sections,
+                nextLayer.sections,
                 sectionId,
                 'active_section',
                 `active:${frontIndex}:${localStart}-${localEnd}`,
@@ -268,14 +393,17 @@ export function buildActiveFrontClassificationOverlayModel(
         }
     });
 
-    return { sections, vertices };
+    return {
+        nextSections: nextLayer.sections,
+        nextVertices: nextLayer.vertices,
+        prevSections: prevLayer.sections,
+        prevVertices: prevLayer.vertices,
+    };
 }
 
 export function formatOverlaySectionLabel(section: OverlaySectionClassification): string {
     const parts = [roleLabel(section.role)];
     const active = section.subSections.find((sub) => sub.role === 'active_subsection');
-    if (active) {
-        parts.push(`${active.startPointIndex}-${active.endPointIndex}`);
-    }
+    if (active) parts.push(`${active.startPointIndex}-${active.endPointIndex}`);
     return parts.join(' ');
 }

@@ -122,13 +122,15 @@ describe('activeFrontClassificationOverlay', () => {
         const plan = planActiveFrontTransition(prev, next, ownership, {
             changeSpanPadPoints: 0,
         });
-        const overlay = buildActiveFrontClassificationOverlayModel(next, plan);
-        const section = overlay.sections.get('stable:section');
-        const startVertex = overlay.vertices.get('stable:start');
-        const endVertex = overlay.vertices.get('stable:end');
+        const overlay = buildActiveFrontClassificationOverlayModel(prev, next, plan);
+        const nextSection = overlay.nextSections.get('stable:section');
+        const prevSection = overlay.prevSections.get('stable:section');
+        const startVertex = overlay.nextVertices.get('stable:start');
+        const endVertex = overlay.nextVertices.get('stable:end');
 
-        expect(section?.role).toBe('active_section');
-        expect(section?.subSections.some((sub) => sub.role === 'active_subsection')).toBe(true);
+        expect(nextSection?.role).toBe('active_section');
+        expect(nextSection?.subSections.some((sub) => sub.role === 'active_subsection')).toBe(true);
+        expect(prevSection?.role).toBe('source_section');
         expect(startVertex?.role).toBe('front_anchor');
         expect(endVertex?.role).toBe('front_anchor');
     });

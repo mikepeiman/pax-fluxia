@@ -2459,3 +2459,19 @@
 - This should govern the next diagnostic pass:
   - start from visible behavior and requested diagnostics surface
   - then map the failure into planner/runtime stages
+## Update: 2026-05-06 - Upgrade Live PVV4 Overlay To PRE/NEXT Classification Surface
+
+- The prior overlay was insufficient because it mostly visualized only the `NEXT` topology.
+- Added runtime wiring so the overlay receives:
+  - `transitionPrevTopology`
+  - `next frontier topology`
+  - active-front plan
+  - active-front debug summary
+- The overlay now draws:
+  - dashed `PRE` source sections
+  - dashed `PRE` no-motion source pairs
+  - `NEXT` unchanged / no-motion / active / defect sections
+  - both `PRE` and `NEXT` vertex layers
+  - explicit `PRE` / `NEXT` labels
+- Purpose:
+  - make conquest-start pause actually useful for comparing source path, destination path, and active sub-span against the intended minimum changed frontier

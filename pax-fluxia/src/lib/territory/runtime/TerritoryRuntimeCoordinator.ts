@@ -6,6 +6,7 @@ import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContra
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { GeometrySnapshot } from '../contracts/GeometryContracts';
 import type { TransitionSnapshot } from '../contracts/TransitionContracts';
+import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import { normalizeTerritoryFrameInput } from './TerritoryConfigNormalizer';
 import { validateTerritoryModeSelection } from './TerritoryCompatibilityMatrix';
 import {
@@ -31,6 +32,7 @@ export interface TerritoryRuntimeOutput {
     transition: TransitionSnapshot;
     activeFrontPlan: import('../layers/transition/ActiveFrontTransition').ActiveFrontTransitionPlan | null;
     activeFrontDebug: import('../layers/transition/TransitionLayerCoordinator').ActiveFrontRuntimeDebugState;
+    transitionPrevTopology: FrontierTopology | null;
     presentation: TerritoryPresentationFrame;
     diagnostics: TerritoryRuntimeDiagnostics;
 }
@@ -273,6 +275,7 @@ export class TerritoryRuntimeCoordinator {
             transition: transition.snapshot,
             activeFrontPlan: transition.activeFrontPlan ?? null,
             activeFrontDebug: transition.activeFrontDebug,
+            transitionPrevTopology: transition.transitionPrevTopology ?? null,
             presentation,
             diagnostics,
         };

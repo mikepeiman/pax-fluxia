@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { FrontierTopology } from '../../contracts/FrontierTopologyContracts';
 import type { ActiveFrontTransitionPlan } from '../../layers/transition/ActiveFrontTransition';
+import type { ActiveFrontRuntimeDebugState } from '../../layers/transition/TransitionLayerCoordinator';
 import {
     buildActiveFrontClassificationOverlayModel,
     formatOverlaySectionLabel,
@@ -12,14 +13,18 @@ import { overlayConfig } from '../../devtools/overlayConfig';
 
 const COL = {
     unchangedSection: 0x4b5573,
+    noMotionSection: 0x8b93b2,
     activeSection: 0xf0b400,
     activeSubSection: 0x52ff8f,
+    prevSourceSection: 0xff73c6,
+    prevNoMotionSection: 0xc88dff,
     defectGap: 0xff4d6d,
     defectSplit: 0xff8c42,
     stableAnchor: 0x3cdcff,
     frontAnchor: 0x72ff5e,
     defectAnchor: 0xff4d6d,
     structuralVertex: 0xa0a8c8,
+    prevVertex: 0xffb5e8,
     sampleDot: 0xc88dff,
     bridge: 0x52ff8f,
     labelFill: 0xf4f7ff,
@@ -29,6 +34,12 @@ function sectionColor(section: OverlaySectionClassification): number {
     switch (section.role) {
         case 'active_section':
             return COL.activeSection;
+        case 'source_section':
+            return COL.prevSourceSection;
+        case 'source_no_motion_section':
+            return COL.prevNoMotionSection;
+        case 'no_motion_section':
+            return COL.noMotionSection;
         case 'defect_topology_gap':
             return COL.defectGap;
         case 'defect_unsupported_split':
@@ -38,7 +49,7 @@ function sectionColor(section: OverlaySectionClassification): number {
     }
 }
 
-function vertexColor(vertex: OverlayVertexClassification): number {
+function vertexColor(vertex: OverlayVertexClassification, prevLayer = false): number {
     switch (vertex.role) {
         case 'front_anchor':
             return COL.frontAnchor;
@@ -47,7 +58,7 @@ function vertexColor(vertex: OverlayVertexClassification): number {
         case 'stable_anchor':
             return COL.stableAnchor;
         default:
-            return COL.structuralVertex;
+            return prevLayer ? COL.prevVertex : COL.structuralVertex;
     }
 }
 
@@ -90,11 +101,42 @@ export class PixiTerritoryDebugOverlay {
         for (const label of this.labelPool) label.visible = false;
     }
 
-    private drawPolyline(points: readonly [number, number][], color: number, width: number, alpha: number): void {
+    private drawPolyline(
+        points: readonly [number, number][],
+        color: number,
+        width: number,
+        alpha: number,
+    ): void {
         if (points.length < 2) return;
         this.gfx.moveTo(points[0][0], points[0][1]);
         for (let i = 1; i < points.length; i += 1) {
             this.gfx.lineTo(points[i][0], points[i][1]);
+        }
+        this.gfx.stroke({ color, width, alpha });
+    }
+
+    private drawDashedPolyline(
+        points: readonly [number, number][],
+        color: number,
+        width: number,
+        alpha: number,
+        dash = 10,
+        gap = 6,
+    ): void {
+        if (points.length < 2) return;
+        for (let i = 0; i < points.length - 1; i += 1) {
+            const [x1, y1] = points[i]!;
+            const [x2, y2] = points[i + 1]!;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= 0.001) continue;
+            for (let d = 0; d < dist; d += dash + gap) {
+                const a = d / dist;
+                const b = Math.min((d + dash) / dist, 1);
+                this.gfx.moveTo(x1 + dx * a, y1 + dy * a);
+                this.gfx.lineTo(x1 + dx * b, y1 + dy * b);
+            }
         }
         this.gfx.stroke({ color, width, alpha });
     }
@@ -118,23 +160,44 @@ export class PixiTerritoryDebugOverlay {
     }
 
     update(
-        topology: FrontierTopology | null,
+        prevTopology: FrontierTopology | null,
+        nextTopology: FrontierTopology | null,
         plan: ActiveFrontTransitionPlan | null,
+        debug: ActiveFrontRuntimeDebugState | null,
     ): void {
         this.gfx.clear();
         this.hideLabels();
 
-        if (!overlayConfig.enabled || !topology) return;
+        if (!overlayConfig.enabled || !nextTopology) return;
 
-        const model = buildActiveFrontClassificationOverlayModel(topology, plan);
+        const model = buildActiveFrontClassificationOverlayModel(
+            prevTopology,
+            nextTopology,
+            plan,
+        );
         const showLabels = overlayConfig.showClassificationLabels;
 
-        for (const [sectionId, section] of topology.sections) {
-            const classification = model.sections.get(sectionId);
+        for (const [sectionId, classification] of model.prevSections) {
+            const section = prevTopology?.sections.get(sectionId);
+            if (!section) continue;
+            this.gfx.beginPath();
+            this.drawDashedPolyline(section.points, sectionColor(classification), 2.6, 0.95);
+            if (showLabels && section.points.length > 0) {
+                const mid = section.points[Math.floor(section.points.length / 2)]!;
+                this.acquireLabel(
+                    `PRE ${sectionId.split(':').slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    mid[0],
+                    mid[1],
+                );
+            }
+        }
+
+        for (const [sectionId, section] of nextTopology.sections) {
+            const classification = model.nextSections.get(sectionId);
             if (!classification) continue;
 
             this.gfx.beginPath();
-            this.drawPolyline(section.points, sectionColor(classification), 1.8, 0.75);
+            this.drawPolyline(section.points, sectionColor(classification), 2.4, 0.9);
 
             if (classification.role === 'active_section') {
                 const activeSubSection = classification.subSections.find(
@@ -146,11 +209,14 @@ export class PixiTerritoryDebugOverlay {
                         section.points,
                         activeSubSection,
                         COL.activeSubSection,
-                        4.2,
-                        0.95,
+                        4.6,
+                        0.98,
                     );
                 }
-            } else if (classification.role !== 'unchanged_section') {
+            } else if (
+                classification.role === 'defect_topology_gap' ||
+                classification.role === 'defect_unsupported_split'
+            ) {
                 const defectSubSection = classification.subSections.find(
                     (sub) => sub.role === 'defect_subsection',
                 );
@@ -160,8 +226,8 @@ export class PixiTerritoryDebugOverlay {
                         section.points,
                         defectSubSection,
                         sectionColor(classification),
-                        3.6,
-                        0.95,
+                        3.8,
+                        0.98,
                     );
                 }
             }
@@ -169,32 +235,47 @@ export class PixiTerritoryDebugOverlay {
             if (overlayConfig.showPolylineSamples) {
                 const stride = Math.max(1, overlayConfig.polylineSampleStride);
                 for (let i = stride; i < section.points.length - 1; i += stride) {
-                    const [x, y] = section.points[i];
+                    const [x, y] = section.points[i]!;
                     this.gfx.beginPath();
-                    this.gfx.circle(x, y, 1.8);
-                    this.gfx.fill({ color: COL.sampleDot, alpha: 0.8 });
+                    this.gfx.circle(x, y, 2);
+                    this.gfx.fill({ color: COL.sampleDot, alpha: 0.84 });
                 }
             }
 
             if (showLabels && section.points.length > 0) {
                 const mid = section.points[Math.floor(section.points.length / 2)]!;
                 this.acquireLabel(
-                    `${sectionId.split(':').slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    `NEXT ${sectionId.split(':').slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
                     mid[0],
                     mid[1],
                 );
             }
         }
 
-        for (const [vertexId, vertex] of topology.vertices) {
-            const classification = model.vertices.get(vertexId);
+        for (const [vertexId, classification] of model.prevVertices) {
+            const vertex = prevTopology?.vertices.get(vertexId);
+            if (!vertex) continue;
+            const [x, y] = vertex.point;
+            const isStructuralOnly = classification.role === 'structural_vertex';
+            if (isStructuralOnly && !overlayConfig.showAllVertices) continue;
+            this.gfx.beginPath();
+            this.gfx.circle(x, y, 3.6);
+            this.gfx.stroke({
+                color: vertexColor(classification, true),
+                alpha: 0.95,
+                width: 2.1,
+            });
+            if (showLabels) {
+                this.acquireLabel(`PRE ${classification.labels.join('|')}`, x, y);
+            }
+        }
+
+        for (const [vertexId, vertex] of nextTopology.vertices) {
+            const classification = model.nextVertices.get(vertexId);
             if (!classification) continue;
             const isStructuralOnly = classification.role === 'structural_vertex';
             if (isStructuralOnly && !overlayConfig.showAllVertices) continue;
-            if (
-                classification.role === 'front_anchor' &&
-                !overlayConfig.showActiveFront
-            ) {
+            if (classification.role === 'front_anchor' && !overlayConfig.showActiveFront) {
                 continue;
             }
 
@@ -214,24 +295,20 @@ export class PixiTerritoryDebugOverlay {
             } else if (classification.role === 'stable_anchor') {
                 this.gfx.circle(x, y, 5);
             } else {
-                this.gfx.circle(x, y, 3.5);
+                this.gfx.circle(x, y, 3.8);
             }
-            this.gfx.fill({ color, alpha: 0.95 });
-            this.gfx.stroke({ color: 0xffffff, alpha: 0.9, width: 1.2 });
+            this.gfx.fill({ color, alpha: 0.96 });
+            this.gfx.stroke({ color: 0xffffff, alpha: 0.92, width: 1.2 });
 
             if (showLabels) {
-                this.acquireLabel(
-                    `${classification.labels.join('|')} ${Math.round(x)},${Math.round(y)}`,
-                    x,
-                    y,
-                );
+                this.acquireLabel(`NEXT ${classification.labels.join('|')}`, x, y);
             }
         }
 
         if (overlayConfig.showActiveFront && plan) {
             plan.fronts.forEach((front, frontIndex) => {
-                const a = topology.vertices.get(front.anchorStartId);
-                const b = topology.vertices.get(front.anchorEndId);
+                const a = nextTopology.vertices.get(front.anchorStartId);
+                const b = nextTopology.vertices.get(front.anchorEndId);
                 if (!a || !b) return;
                 const [ax, ay] = a.point;
                 const [bx, by] = b.point;
@@ -249,7 +326,7 @@ export class PixiTerritoryDebugOverlay {
                     this.gfx.moveTo(ax + dx * d1, ay + dy * d1);
                     this.gfx.lineTo(ax + dx * d2, ay + dy * d2);
                 }
-                this.gfx.stroke({ color: COL.bridge, alpha: 0.7, width: 1.4 });
+                this.gfx.stroke({ color: COL.bridge, alpha: 0.72, width: 1.5 });
                 if (showLabels) {
                     this.acquireLabel(
                         `front ${frontIndex} sections=${front.activeSectionIds.size}`,
@@ -258,6 +335,14 @@ export class PixiTerritoryDebugOverlay {
                     );
                 }
             });
+        }
+
+        if (showLabels && debug) {
+            this.acquireLabel(
+                `AF ${debug.evaluation} fronts=${debug.frontCount} pairs=${debug.planSummary?.pairCount ?? 0} defects=${debug.defectPairCount} still=${debug.planSummary?.noChangePairCount ?? 0}`,
+                18,
+                20,
+            );
         }
     }
 

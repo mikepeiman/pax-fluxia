@@ -663,3 +663,8 @@
 - Reclassified `no_change_span` from defect to normal no-motion diagnostic outcome.
 - Active-front summary now separates `no-motion pairs` from real defects.
 - Freeze-on-unclassified now remains reserved for actual unresolved states.
+## Implementation Checkpoint 25
+- Strengthened the live PVV4 classification overlay to render both `PRE` and `NEXT` topology layers.
+- `PRE` source-path sections now render as dashed overlays instead of being effectively hidden.
+- `no_change_span` local pairs remain classified and visible as `no-motion` instead of being folded into generic unchanged display.
+- Runtime output now exposes `transitionPrevTopology` so the overlay can draw the source path at conquest pause.

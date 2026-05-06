@@ -56,8 +56,10 @@ export class GameCanvasTerritoryBridge {
 
         // Live debug overlay — updates from topology + plan each frame
         this.debugOverlay.update(
+            output.transitionPrevTopology ?? null,
             output.geometry.frontierTopology ?? null,
             output.activeFrontPlan,
+            output.activeFrontDebug,
         );
 
         this.pendingVFXCommands.push(
