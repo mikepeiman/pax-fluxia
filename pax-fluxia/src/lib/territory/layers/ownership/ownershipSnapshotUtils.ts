@@ -34,7 +34,7 @@ export function buildOwnershipContestedLaneIds(
 
 export function hashOwnershipState(
     starOwners: ReadonlyMap<string, string>,
-    virtualStarCount: number,
+    _virtualStarCount = 0,
 ): string {
     let hash = 2166136261;
     const entries = [...starOwners.entries()].sort((a, b) => a[0].localeCompare(b[0]));
@@ -52,16 +52,14 @@ export function hashOwnershipState(
         hash ^= 0x1f;
         hash = Math.imul(hash, 16777619);
     }
-    hash ^= virtualStarCount;
-    hash = Math.imul(hash, 16777619);
     return (hash >>> 0).toString(36);
 }
 
 export function buildOwnershipVersion(
     starOwners: ReadonlyMap<string, string>,
-    virtualStarCount: number,
+    _virtualStarCount = 0,
 ): string {
-    return `ownership:${hashOwnershipState(starOwners, virtualStarCount)}`;
+    return `ownership:${hashOwnershipState(starOwners)}`;
 }
 
 export function buildOwnershipSnapshotFromStarState(params: {
@@ -73,7 +71,8 @@ export function buildOwnershipSnapshotFromStarState(params: {
     const starOwners = buildOwnershipStarOwners(params.stars);
     const virtualStars = params.virtualStars ? [...params.virtualStars] : [];
     return {
-        version: buildOwnershipVersion(starOwners, virtualStars.length),
+        // Ownership identity must reflect ownership truth, not helper/VFX residue.
+        version: buildOwnershipVersion(starOwners),
         starOwners,
         contestedLaneIds: buildOwnershipContestedLaneIds(params.lanes, starOwners),
         conquestEvents: params.conquestEvents ? [...params.conquestEvents] : [],

@@ -2263,7 +2263,25 @@
   - that was never a valid part of PVV4; it was leftover helper/VFX drift
 - Merge note:
   - checkpoint `30f48f0af` removes the direct current-turn PVV4 misuse by taking single-star collapse centers from live star positions
-  - deeper cleanup still remains:
-    - remove remaining PVV4 dependence on `virtualStars`
-    - stop polluting active-path ownership identity with `virtualStarCount`
+- deeper cleanup still remains:
     - build the live conquest classification overlay requested by the user
+
+## Update: 2026-05-06 - Remove VirtualStars From Active Ownership Truth
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v5.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\modes\StarOwnershipSnapshotMode.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\ownershipSnapshotUtils.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\ownership\modes\StarOwnershipSnapshotMode.test.ts`
+- Exact behavior:
+  - the active ownership mode now emits `virtualStars: []`
+  - it no longer carries previous helper stars
+  - it no longer spawns conquest helper stars
+  - active ownership identity no longer changes with `virtualStarCount`
+- Merge note:
+  - this removes the active PVV4 ownership-layer virtual-star violation without forcing a larger shared-contract rewrite in the same checkpoint
+  - export/VFX code can still tolerate the field, but the active mode now emits none
+- Validation:
+  - `bun vitest run src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

@@ -527,3 +527,21 @@
   - remove remaining PVV4 dependence on `virtualStars`
   - stop including `virtualStarCount` in active-path ownership identity
   - build a live classification overlay that shows every vertex, section, and active sub-section at conquest start
+
+## Implementation Checkpoint 17
+
+- Completed the active ownership-path `virtualStars` removal:
+  - `pax-fluxia/src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.ts`
+  - `pax-fluxia/src/lib/territory/layers/ownership/ownershipSnapshotUtils.ts`
+  - `pax-fluxia/src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts`
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v5.md`
+- Exact behavior:
+  - `StarOwnershipSnapshotMode` no longer carries or spawns `virtualStars`
+  - active ownership snapshots now emit `virtualStars: []`
+  - ownership identity no longer changes with `virtualStarCount`
+- Result:
+  - `virtualStars` are no longer part of active PVV4 ownership truth
+  - the remaining task is the live classification overlay, not more virtual-star cleanup inside PVV4 conquest
+- Validation:
+  - `bun vitest run src/lib/territory/layers/ownership/ownershipSnapshotUtils.test.ts src/lib/territory/layers/ownership/modes/StarOwnershipSnapshotMode.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`
