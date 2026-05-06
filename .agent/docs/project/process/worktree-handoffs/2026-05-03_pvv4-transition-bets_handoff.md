@@ -2445,3 +2445,17 @@
   - it no longer triggers `freezeOnUnclassifiedBoundary`
 - Debug overlay/export text now says `no-motion pairs` instead of `no-span defects`.
 - The actual `2-star -> 1-star` snap case still needs fresh playtest after this false freeze is removed.
+## Update: 2026-05-06 - Post-Mortem On Misdiagnosing The Overlay Exchange
+
+- A documentation/thinking correction was added after a bad diagnostic response.
+- New files:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\POST_MORTEM_2026-05-06_FALSE_FREEZE_MISDIAGNOSIS_AND_MISSED_PRIMARY_ISSUES.md`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\thinking.md`
+- The explicit failure:
+  - I over-focused on `false freeze` semantics
+  - and failed to lead with the two primary issues the user actually needed addressed:
+    - inadequate visible overlay
+    - visibly poor transition violating the baseline lerp rule
+- This should govern the next diagnostic pass:
+  - start from visible behavior and requested diagnostics surface
+  - then map the failure into planner/runtime stages
