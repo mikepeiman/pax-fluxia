@@ -8,6 +8,7 @@ import type {
     SectionRef,
 } from '../../contracts/FrontierTopologyContracts';
 import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
+import type { TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import {
     planActiveFrontTransition,
     sampleActiveFrontSectionGeometry,
@@ -583,6 +584,39 @@ function setLoopSecondaryStarId(
     return topology;
 }
 
+function setLoopComponentId(
+    topology: FrontierTopology,
+    componentId: string,
+): FrontierTopology {
+    topology.loops = topology.loops.map((loop) => ({
+        ...loop,
+        componentId,
+    }));
+    return topology;
+}
+
+function makeRegion(
+    regionId: string,
+    ownerId: string,
+    center: Vec2,
+    radius: number,
+    anchorStarIds: string[],
+): TerritoryRegionShape {
+    const [cx, cy] = center;
+    return {
+        regionId,
+        ownerId,
+        anchorStarIds,
+        points: [
+            [cx - radius, cy - radius],
+            [cx + radius, cy - radius],
+            [cx + radius, cy + radius],
+            [cx - radius, cy + radius],
+        ],
+        confidence: 1,
+    };
+}
+
 describe('ActiveFrontTransition', () => {
     it('shrinks disappearing solo-owner loops to nothing without inventing a replacement loop', () => {
         const previousOwner = 'ai-1';
@@ -596,6 +630,9 @@ describe('ActiveFrontTransition', () => {
             starId,
         );
         const next = makeEmptyTopology('next');
+        const previousRegions: TerritoryRegionShape[] = [
+            makeRegion('region:prev', previousOwner, prevCenter, 12, [starId]),
+        ];
 
         const ownership: OwnershipSnapshot = {
             version: 'ownership:test',
@@ -614,10 +651,11 @@ describe('ActiveFrontTransition', () => {
 
         const plan = planActiveFrontTransition(prev, next, ownership, {}, [
             { id: starId, x: prevCenter[0], y: prevCenter[1] },
-        ]);
+        ], previousRegions, []);
         expect(plan.fronts).toHaveLength(0);
         expect(plan.collapseTargets).toHaveLength(1);
         expect(plan.diagnostics.summary.classification).toBe('collapse_only');
+        expect(plan.collapseTargets[0]?.regionId).toBe('region:prev');
         expect(plan.collapseTargets[0]?.center).toEqual(prevCenter);
 
         const frameAtStart = sampleActiveFrontTransition(plan, prev, next, 0);
@@ -659,25 +697,42 @@ describe('ActiveFrontTransition', () => {
         const nextOwner = 'ai-2';
         const mainlandStarId = 'star-mainland';
         const islandStarId = 'star-island';
+        const sharedComponentId = `${previousOwner}:0`;
 
-        const prevMainland = setLoopPrimaryStarId(
-            makeSquareTopology('prev-main', previousOwner, 'prev-main', [40, 40], 18),
-            previousOwner,
-            mainlandStarId,
+        const prevMainland = setLoopComponentId(
+            setLoopPrimaryStarId(
+                makeSquareTopology('prev-main', previousOwner, 'prev-main', [40, 40], 18),
+                previousOwner,
+                mainlandStarId,
+            ),
+            sharedComponentId,
         );
-        const prevIsland = setLoopPrimaryStarId(
-            makeSquareTopology('prev-island', previousOwner, 'prev-island', [140, 140], 8),
-            previousOwner,
-            islandStarId,
+        const prevIsland = setLoopComponentId(
+            setLoopPrimaryStarId(
+                makeSquareTopology('prev-island', previousOwner, 'prev-island', [140, 140], 8),
+                previousOwner,
+                islandStarId,
+            ),
+            sharedComponentId,
         );
-        const nextMainland = setLoopPrimaryStarId(
-            makeSquareTopology('next-main', previousOwner, 'next-main', [88, 40], 18),
-            previousOwner,
-            mainlandStarId,
+        const nextMainland = setLoopComponentId(
+            setLoopPrimaryStarId(
+                makeSquareTopology('next-main', previousOwner, 'next-main', [88, 40], 18),
+                previousOwner,
+                mainlandStarId,
+            ),
+            sharedComponentId,
         );
 
         const prev = mergeTopologies('prev', [prevMainland, prevIsland]);
         const next = mergeTopologies('next', [nextMainland]);
+        const previousRegions: TerritoryRegionShape[] = [
+            makeRegion('region:prev-main', previousOwner, [40, 40], 18, [mainlandStarId]),
+            makeRegion('region:prev-island', previousOwner, [140, 140], 8, [islandStarId]),
+        ];
+        const nextRegions: TerritoryRegionShape[] = [
+            makeRegion('region:next-main', previousOwner, [88, 40], 18, [mainlandStarId]),
+        ];
 
         const ownership: OwnershipSnapshot = {
             version: 'ownership:test',
@@ -700,10 +755,10 @@ describe('ActiveFrontTransition', () => {
         const plan = planActiveFrontTransition(prev, next, ownership, {}, [
             { id: mainlandStarId, x: 40, y: 40 },
             { id: islandStarId, x: 140, y: 140 },
-        ]);
+        ], previousRegions, nextRegions);
 
         expect(plan.collapseTargets).toHaveLength(1);
-        expect(plan.collapseTargets[0]?.loopId).toBe('prev-island:loop');
+        expect(plan.collapseTargets[0]?.regionId).toBe('region:prev-island');
         expect(plan.collapseTargets[0]?.center).toEqual([140, 140]);
     });
 
@@ -723,6 +778,9 @@ describe('ActiveFrontTransition', () => {
             previousOwner,
         );
         const next = makeEmptyTopology('next');
+        const previousRegions: TerritoryRegionShape[] = [
+            makeRegion('region:prev-island', previousOwner, [140, 140], 8, [islandStarId]),
+        ];
 
         const ownership: OwnershipSnapshot = {
             version: 'ownership:test',
@@ -745,10 +803,10 @@ describe('ActiveFrontTransition', () => {
         const plan = planActiveFrontTransition(prevIsland, next, ownership, {}, [
             { id: mainlandStarId, x: 40, y: 40 },
             { id: islandStarId, x: 140, y: 140 },
-        ]);
+        ], previousRegions, []);
 
         expect(plan.collapseTargets).toHaveLength(1);
-        expect(plan.collapseTargets[0]?.loopId).toBe('prev-island:loop');
+        expect(plan.collapseTargets[0]?.regionId).toBe('region:prev-island');
         expect(plan.collapseTargets[0]?.center).toEqual([140, 140]);
     });
 

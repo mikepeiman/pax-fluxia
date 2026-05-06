@@ -2386,3 +2386,27 @@
   - disappearance and collapse must be driven by region ownership plus region star arrays
   - not by section-local influence, proximity, centroid, or any other indirect cue
   - branch communication rules now explicitly prohibit overclaiming, verbosity against user request, and explanation in place of characterization
+
+## Update: 2026-05-06 - Move Island Collapse Onto Region Membership
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v9.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - active PVV4 collapse planning no longer infers island membership from boundary-section influence
+  - `TransitionLayerCoordinator` now passes region truth from `previousGeometry.territoryRegions` into the transition planner
+  - collapse eligibility on the island path now comes only from region membership:
+    - previous region owner matches `previousOwner`
+    - previous region has exactly one `anchorStarId`
+    - that exact star was conquered on the current tick
+  - collapse center is the conquered star's live position when available
+- Merge note:
+  - this removes the specific category error called out in the post-mortem from the active island path
+  - next likely extension after merge-back:
+    - move all full-region disappearance logic, including multi-star complete loss, onto the same region-membership model
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

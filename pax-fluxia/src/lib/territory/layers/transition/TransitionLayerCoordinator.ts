@@ -185,6 +185,8 @@ export class TransitionLayerCoordinator {
                         changeSpanPadPoints: input.tunables.pvv4ChangeSpanPadPoints,
                     },
                     input.stars,
+                    input.previousGeometry?.territoryRegions ?? [],
+                    input.geometry.territoryRegions,
                 );
                 activeFillPlan = null;
                 // Snapshot the prev topology so it survives the state overwrite

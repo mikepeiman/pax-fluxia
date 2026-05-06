@@ -618,3 +618,22 @@
 - Standing correction:
   - disappearance logic must start from authoritative region membership
   - communication must follow the requested response shape, avoid overclaiming, and stop substituting explanation for characterization
+
+## Implementation Checkpoint 22
+
+- Replaced section-influence-based island collapse planning with region-membership-based planning:
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/TransitionLayerCoordinator.ts`
+  - `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v9.md`
+- Exact behavior:
+  - `TransitionLayerCoordinator` now passes `previousGeometry.territoryRegions` and `geometry.territoryRegions` into active-front planning
+  - island collapse eligibility now comes only from `previousRegions[].anchorStarIds`
+  - a region collapses on this path only if it is a one-star previous region and that exact star was conquered on this tick
+  - boundary-local `primaryStarId` / `secondaryStarId` are no longer used to infer island membership for collapse
+- Result:
+  - the active PVV4 island-collapse decision is now made at the correct architectural layer
+  - the old category error is removed from the island path
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun run build` in `pax-fluxia/`
