@@ -2106,6 +2106,7 @@
         | null = null;
     let canonicalDebugGeometrySnapshot: CanonicalGeometrySnapshot | null = null;
     let canonicalDebugRuntimeOutput: TerritoryRuntimeOutput | null = null;
+    let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
     let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
         null;
     let transitionDiagnosticCaptureSession:
@@ -4385,6 +4386,125 @@
         debugTextContainer.addChild(label);
     }
 
+    function addDebugOverlayHudText(
+        text: string,
+        x: number,
+        y: number,
+        fill = AF_DEBUG_COLORS.labelFill,
+        fontSize = 10,
+        fontWeight: PIXI.TextStyleFontWeight = "700",
+    ): void {
+        if (!debugTextContainer) return;
+        const label = new PIXI.Text({
+            text,
+            style: {
+                fill,
+                fontSize,
+                fontFamily: "JetBrains Mono, Consolas, monospace",
+                fontWeight,
+                stroke: { color: 0x10131d, width: 3 },
+            },
+            resolution: 2,
+        });
+        label.x = x;
+        label.y = y;
+        debugTextContainer.addChild(label);
+    }
+
+    function renderActiveFrontDebugLegend(
+        debug: TerritoryRuntimeOutput["activeFrontDebug"] | null,
+    ): void {
+        if (!debugGraphics || !debugTextContainer) return;
+
+        const legendX = 14;
+        const legendY = 14;
+        const legendWidth = 250;
+        const legendHeight = 132;
+        const rowStartX = legendX + 12;
+        const labelX = legendX + 54;
+        const rowY0 = legendY + 42;
+        const rowStep = 14;
+
+        debugGraphics.beginPath();
+        debugGraphics.roundRect(legendX, legendY, legendWidth, legendHeight, 8);
+        debugGraphics.fill({ color: 0x0e1626, alpha: 0.82 });
+        debugGraphics.stroke({ color: 0x4fd9ff, alpha: 0.55, width: 1.2 });
+
+        addDebugOverlayHudText("AF Diagnostics", legendX + 12, legendY + 8, 0xeef8ff, 12, "800");
+        addDebugOverlayHudText(
+            `${debug?.evaluation ?? "idle"}  fronts=${debug?.frontCount ?? 0}  pairs=${debug?.planSummary?.pairCount ?? 0}  no-motion=${debug?.planSummary?.noChangePairCount ?? 0}  defects=${debug?.defectPairCount ?? 0}`,
+            legendX + 12,
+            legendY + 24,
+            0xc8d5f2,
+            9,
+            "600",
+        );
+
+        const drawLegendLine = (
+            y: number,
+            color: number,
+            label: string,
+            dashed = false,
+            width = 3,
+        ) => {
+            const points: ReadonlyArray<[number, number]> = [
+                [rowStartX, y],
+                [rowStartX + 28, y],
+            ];
+            if (dashed) {
+                drawDashedPolyline(debugGraphics, points, color, 0.95, width, 6, 4);
+            } else {
+                drawOpenPolyline(debugGraphics, points, color, 0.95, width);
+            }
+            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
+        };
+
+        const drawLegendCircle = (y: number, color: number, label: string) => {
+            debugGraphics.beginPath();
+            debugGraphics.circle(rowStartX + 14, y, 4.5);
+            debugGraphics.stroke({ color, alpha: 0.95, width: 2.1 });
+            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
+        };
+
+        const drawLegendDiamond = (y: number, color: number, label: string) => {
+            const x = rowStartX + 14;
+            const s = 6;
+            debugGraphics.beginPath();
+            debugGraphics.moveTo(x, y - s);
+            debugGraphics.lineTo(x + s, y);
+            debugGraphics.lineTo(x, y + s);
+            debugGraphics.lineTo(x - s, y);
+            debugGraphics.closePath();
+            debugGraphics.fill({ color, alpha: 0.96 });
+            debugGraphics.stroke({ color: 0xffffff, alpha: 0.9, width: 1 });
+            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
+        };
+
+        const drawLegendSquare = (y: number, color: number, label: string) => {
+            debugGraphics.beginPath();
+            debugGraphics.rect(rowStartX + 9, y - 5, 10, 10);
+            debugGraphics.fill({ color, alpha: 0.96 });
+            debugGraphics.stroke({ color: 0xffffff, alpha: 0.9, width: 1 });
+            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
+        };
+
+        const drawLegendDot = (y: number, color: number, label: string) => {
+            debugGraphics.beginPath();
+            debugGraphics.circle(rowStartX + 14, y, 2.5);
+            debugGraphics.fill({ color, alpha: 0.9 });
+            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
+        };
+
+        drawLegendLine(rowY0 + rowStep * 0, AF_DEBUG_COLORS.prevSourceSection, "PRE source", true, 2.6);
+        drawLegendLine(rowY0 + rowStep * 1, AF_DEBUG_COLORS.activeSection, "NEXT active", false, 2.8);
+        drawLegendLine(rowY0 + rowStep * 2, AF_DEBUG_COLORS.activeSubSection, "Active subspan", false, 4.6);
+        drawLegendLine(rowY0 + rowStep * 3, AF_DEBUG_COLORS.noMotionSection, "No-motion", false, 2.6);
+        drawLegendCircle(rowY0 + rowStep * 4, AF_DEBUG_COLORS.stableAnchor, "Stable anchor");
+        drawLegendDiamond(rowY0 + rowStep * 5, AF_DEBUG_COLORS.frontAnchor, "Front anchor");
+        drawLegendSquare(rowY0 + rowStep * 6, AF_DEBUG_COLORS.defectAnchor, "Defect");
+        drawLegendDot(rowY0 + rowStep * 7, AF_DEBUG_COLORS.sampleDot, "Sample points");
+    }
+
     function drawOpenPolyline(
         g: PIXI.Graphics,
         points: ReadonlyArray<[number, number]>,
@@ -4866,13 +4986,7 @@
             });
         }
 
-        if (showLabels && debug) {
-            addDebugOverlayLabel(
-                `AF ${debug.evaluation} fronts=${debug.frontCount} pairs=${debug.planSummary?.pairCount ?? 0} defects=${debug.defectPairCount} still=${debug.planSummary?.noChangePairCount ?? 0}`,
-                18,
-                20,
-            );
-        }
+        renderActiveFrontDebugLegend(debug);
     }
 
     function renderPerimeterFieldDebugOverlay(
@@ -5742,7 +5856,7 @@
                 lastTerritoryUpdateCostMs,
             });
             canonicalDebugRuntimeOutput = null;
-            let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
+            canonicalRuntimeOutput = null;
 
             // Hide all children first — only the active renderer will re-show its own
             const activeVoronoiContainer = voronoiContainer!;

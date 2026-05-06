@@ -714,3 +714,24 @@
   - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v16.md`
 - Validation:
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 30
+- Added a real top-left HUD legend for the active-front diagnostics overlay.
+- `GameCanvas.svelte` now draws a compact boxed `AF Diagnostics` key with:
+  - summary counts
+  - `PRE source`
+  - `NEXT active`
+  - `Active subspan`
+  - `No-motion`
+  - `Stable anchor`
+  - `Front anchor`
+  - `Defect`
+  - `Sample points`
+- Hardened runtime-output scope again:
+  - `canonicalRuntimeOutput` is now component-scoped
+  - queued territory render start clears it explicitly
+  - the overlay path no longer depends on a callback-local declaration
+- Created:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v17.md`
+- Validation:
+  - `bun run build` in `pax-fluxia/`

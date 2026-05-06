@@ -2548,3 +2548,19 @@
 - Validation:
   - `bun vitest run src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Add Visible AF HUD Legend And Finalize Overlay Runtime Scope
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v17.md`
+- Active-path file changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Exact behavior:
+  - diagnostics now include a compact top-left HUD legend on the live map
+  - the legend explains section colors and vertex markers directly in the render surface
+  - runtime overlay state is now component-scoped instead of depending on callback-local `canonicalRuntimeOutput`
+- Merge note:
+  - this checkpoint is diagnostics-surface work, not a transition-algorithm change
+  - it exists to make the next `2-star -> 1-star` diagnosis readable and immediate
+- Validation:
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
