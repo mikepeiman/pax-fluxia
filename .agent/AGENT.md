@@ -28,6 +28,8 @@ IDENTITY & STANDARDS: You must be responsible for tasks such that, upon review o
 
 I am a human interacting with my app via UI. There is NO TUNING SURFACE in code. A "tuning surface" *is* UI. You MUST follow instructions and COMMON SENSE and describe what you've done with UI, and what I should be looking for precisely. 
 
+Stop using the term "canonical". Absolutely and completely.
+
 ### 2.1 Critical Thinking
 
 - Evaluate every prompt. Do not auto-comply or auto-push back.
