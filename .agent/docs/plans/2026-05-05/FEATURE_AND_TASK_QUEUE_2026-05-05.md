@@ -248,6 +248,20 @@
 - Validation:
   - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
   - `bun run build`
+
+## Latest Process Checkpoint
+
+- Added standing thinking rules for work surface maps:
+  - `.agent/docs/project/process/thinking.md`
+- Added process/system doc:
+  - `.agent/docs/project/process/work_surface_maps.md`
+- Added first live work surface map:
+  - `.agent/docs/project/process/work-surfaces/active-front-export-overlay.md`
+- Added session note:
+  - `.agent/docs/sessions/2026-05-07/2026-05-07_work-surface-maps_v1.md`
+- Purpose:
+  - stop re-finding critical seams like the bundle generator
+  - capture current-area file / function / line references in one reusable map
 - Kept the public tuning surface stable for now:
   - `starMargin` still feeds the live base site-weight control
   - `msrStarBias` is retained only as a legacy no-op surface to avoid breaking the current panel/config path

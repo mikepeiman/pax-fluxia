@@ -55,6 +55,34 @@
 
 ## Live Action Log
 
+### 2026-05-07 - Added work surface map system for current subsystems
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\thinking.md`
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\work_surface_maps.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\work-surfaces\active-front-export-overlay.md`
+- Purpose:
+  - stop re-hunting the same subsystem seams during iterative work
+  - make discovered entry points, file references, and hot edit seams reusable
+- Exact change:
+  - added standing rule:
+    - create a work surface map before the second real pass in a subsystem
+  - defined a small standard for the maps:
+    - scope
+    - entry points
+    - key files
+    - read/write flow
+    - hot edit seams
+    - known traps
+  - created the first live map for:
+    - active-front export / overlay
+- Result:
+  - the current diagnostics/export work now has a reusable seam map instead of relying on working memory
+- Validation:
+  - artifact creation only; no runtime code changed in this checkpoint
+
 ### 2026-05-07 - Made snap-package renders actually show active-front diagnosis
 
 - Action:

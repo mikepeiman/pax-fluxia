@@ -52,3 +52,17 @@ Only include rules that would have meaningfully reduced error or increased succe
    - What governing algorithm or rule applies?
    - Which stage most likely violates that rule?
    - Am I about to answer a secondary issue instead of the primary one?
+
+11. Before the second pass in a subsystem, create a work surface map.
+   - Make one quick artifact for the current work area.
+   - Include:
+     - file paths
+     - function names
+     - line references
+     - read/write flow
+     - the hot edit seams
+   - Use it instead of re-hunting the same entry points.
+
+12. If you say `I found X`, write it down as a reusable artifact.
+   - Do not keep critical seam knowledge only in working memory.
+   - Convert it into a small map the same day.
