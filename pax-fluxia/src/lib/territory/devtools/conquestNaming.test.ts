@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { TerritoryConquestEvent } from '../contracts/OwnershipContracts';
 import {
+    buildConquestCaptureHash,
     buildConquestEventGroupFileLabel,
     buildConquestFilePrefix,
     formatConquestEventGroupLabel,
@@ -36,10 +37,18 @@ describe('conquestNaming', () => {
             'cq_S13-to-S14_S16-to-S21',
         );
         expect(
+            buildConquestCaptureHash(
+                '2026-05-04T23:07:58.665Z',
+                'transition:alpha',
+                conquestEvents,
+            ),
+        ).toMatch(/^h[a-z0-9]{7}$/);
+        expect(
             buildConquestFilePrefix(
                 '2026-05-04T23:07:58.665Z',
                 conquestEvents,
+                'transition:alpha',
             ),
-        ).toBe('19-07-58---665_cq_S13-to-S14_S16-to-S21');
+        ).toMatch(/^19-07-58---665_cq_S13-to-S14_S16-to-S21_h[a-z0-9]{7}$/);
     });
 });

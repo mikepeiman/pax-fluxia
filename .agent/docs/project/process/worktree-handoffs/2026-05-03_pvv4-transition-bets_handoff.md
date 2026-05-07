@@ -55,6 +55,46 @@
 
 ## Live Action Log
 
+### 2026-05-07 - Diagnosed snap-package algorithm mismatch and added capture hash IDs
+
+- Action:
+  - reviewed exported snap package:
+    - `14-14-52---673_cq_S16-to-S28_S40+1-to-S26_snap_tdp`
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+- Purpose:
+  - confirm whether the rendered reference frame proves the wrong transition algorithm is still live
+  - make every conquest capture uniquely traceable across folders and files
+- Exact diagnosis:
+  - one planned front used:
+    - `prevPathPointCounts = [11]`
+    - `nextPathPointCounts = [20]`
+    - `changeSpan = next[0..19]`
+  - one planned front used:
+    - `anchorStartId == anchorEndId`
+    - a closed loop around a repeated anchor
+  - meaning:
+    - the live transition path still runs on chain-index heuristics and `lerpArcAligned(...)`
+    - it is not yet the designed equal-number monotonic `PRE -> POST` change-vertex lerp
+- Exact change:
+  - added deterministic short conquest capture hash generation
+  - threaded the capture hash into:
+    - recorder export prefix
+    - bundle ID
+    - package zip name
+    - package root folder
+    - internal render filenames
+    - internal debug filenames
+- Result:
+  - snap package diagnosis is now concrete instead of visual-only
+  - multiple exported conquests can be reviewed side by side without ambiguous generic file names
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/conquestNaming.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
+
 ### 2026-05-07 - Fixed diagnostic export folder permission flow
 
 - Action:

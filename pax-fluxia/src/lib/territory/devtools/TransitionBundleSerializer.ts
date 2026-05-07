@@ -482,24 +482,27 @@ export function selectDiagnosticIntermediateFrames(
 
 function buildDiagnosticDebugFileNames(
     bundle: TransitionDebugBundle,
+    prefix?: string,
 ): DiagnosticPackageManifest['debugFiles'] {
+    const withPrefix = (filename: string) =>
+        prefix ? `${prefix}_${filename}` : filename;
     return {
         stageFiles: {
-            frameInput: '01_frame_input.json',
-            ownershipPrev: '02_ownership_prev.json',
-            ownershipNext: '02_ownership_next.json',
-            geometryPrevFull: '03_geometry_prev_full.json',
-            geometryNextFull: '03_geometry_next_full.json',
-            topologyPrevFull: '04_topology_prev_full.json',
-            topologyNextFull: '04_topology_next_full.json',
-            transitionSnapshot: '05_transition_snapshot.json',
-            transitionTruth: '05_transition_truth.json',
-            activeFrontPlan: '05_active_front_plan.json',
+            frameInput: withPrefix('01_frame_input.json'),
+            ownershipPrev: withPrefix('02_ownership_prev.json'),
+            ownershipNext: withPrefix('02_ownership_next.json'),
+            geometryPrevFull: withPrefix('03_geometry_prev_full.json'),
+            geometryNextFull: withPrefix('03_geometry_next_full.json'),
+            topologyPrevFull: withPrefix('04_topology_prev_full.json'),
+            topologyNextFull: withPrefix('04_topology_next_full.json'),
+            transitionSnapshot: withPrefix('05_transition_snapshot.json'),
+            transitionTruth: withPrefix('05_transition_truth.json'),
+            activeFrontPlan: withPrefix('05_active_front_plan.json'),
         },
         compactFiles: {
-            diagnostic: 'compact_diag.json',
-            topology: 'compact_topology.json',
-            geometrySnapshot: 'compact_geometry.json',
+            diagnostic: withPrefix('compact_diag.json'),
+            topology: withPrefix('compact_topology.json'),
+            geometrySnapshot: withPrefix('compact_geometry.json'),
         },
     };
 }
@@ -525,7 +528,11 @@ function inferTransitionExportOutcomeTag(
 }
 
 function buildTransitionExportPrefix(bundle: TransitionDebugBundle): string {
-    const base = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const base = buildConquestFilePrefix(
+        bundle.timestamp,
+        bundle.conquestEvents,
+        bundle.meta.transitionId,
+    );
     const outcomeTag = inferTransitionExportOutcomeTag(bundle);
     return outcomeTag ? `${base}_${outcomeTag}` : base;
 }
@@ -548,10 +555,17 @@ function buildTransitionTruthExport(bundle: TransitionDebugBundle): Record<strin
 function buildDiagnosticManifest(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
+    prefix?: string,
 ): DiagnosticPackageManifest {
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const adapterData = adapter?.buildData(bundle, selectedFrames);
-    const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle, prefix);
+    const manifestFrames = prefix
+        ? selectedFrames.map((frame) => ({
+              ...frame,
+              filename: `${prefix}_${frame.filename}`,
+          }))
+        : [...selectedFrames];
 
     return {
         exportKind: 'transition_diagnostic_package',
@@ -561,7 +575,7 @@ function buildDiagnosticManifest(
         transitionId: bundle.meta.transitionId,
         conquestEvents: bundle.conquestEvents,
         debugFiles,
-        selectedFrames: [...selectedFrames],
+        selectedFrames: manifestFrames,
         notes: [
             'Package contains PREV, NEXT, and up to 5 evenly spaced intermediate transition frames.',
             'Geometry and topology are compact exports intended for deterministic diagnosis and human inspection.',
@@ -604,17 +618,20 @@ export function buildDiagnosticBundleForInspection(
 function buildDiagnosticReadme(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
+    prefix?: string,
 ): string {
-    const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle, prefix);
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const conquestLine = bundle.conquestEvents.length
         ? `Conquest: ${formatConquestEventGroupLabel(bundle.conquestEvents)}`
         : 'Conquest: unavailable';
+    const renderName = (filename: string) =>
+        prefix ? `${prefix}_${filename}` : filename;
     const renderFrameLines = selectedFrames.length
         ? selectedFrames.map(
               (frame) =>
-                  `- render/${frame.filename} (progress=${frame.progress.toFixed(3)})`,
+                  `- render/${renderName(frame.filename)} (progress=${frame.progress.toFixed(3)})`,
           )
         : ['- No intermediate transition frames were captured for this bundle.'];
 
@@ -631,11 +648,12 @@ function buildDiagnosticReadme(
         '- debug/: compact geometry, topology, and capture metadata',
         '',
         'Render files:',
-        '- render/prev.png',
+        `- render/${renderName('prev.png')}`,
         ...renderFrameLines,
-        '- render/next.png',
+        `- render/${renderName('next.png')}`,
         ...supplementalCanvases.map(
-            (frame) => `- ${frame.filename} (${frame.label})`,
+            (frame) =>
+                `- render/${renderName(frame.filename.replace(/^render\//, ''))} (${frame.label})`,
         ),
         '',
         'Debug files:',
@@ -933,26 +951,29 @@ export async function downloadDiagnosticPackage(
     bundle: TransitionDebugBundle,
 ): Promise<void> {
     const prefix = buildTransitionExportPrefix(bundle);
+    const packageRoot = `${prefix}_tdp`;
     const zip = new JSZip();
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
-    const manifest = buildDiagnosticManifest(bundle, selectedFrames);
+    const manifest = buildDiagnosticManifest(bundle, selectedFrames, prefix);
     const compactGeometry = buildCompactGeometryExport(bundle, selectedFrames);
-    const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const debugFiles = buildDiagnosticDebugFileNames(bundle, prefix);
     const stageExports = buildDiagnosticStageExports(bundle);
+    const renderPath = (filename: string) => `${packageRoot}/render/${prefix}_${filename}`;
+    const debugPath = (filename: string) => `${packageRoot}/debug/${filename}`;
 
-    zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
+    zip.file(`${packageRoot}/README.md`, buildDiagnosticReadme(bundle, selectedFrames, prefix));
     zip.file(
-        `debug/${debugFiles.compactFiles.diagnostic}`,
+        debugPath(debugFiles.compactFiles.diagnostic),
         JSON.stringify(manifest, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.compactFiles.topology}`,
+        debugPath(debugFiles.compactFiles.topology),
         JSON.stringify(serializeTopologyPairCompact(bundle), null, 2),
     );
     zip.file(
-        `debug/${debugFiles.compactFiles.geometrySnapshot}`,
+        debugPath(debugFiles.compactFiles.geometrySnapshot),
         JSON.stringify(
             compactGeometry,
             (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),
@@ -960,43 +981,43 @@ export async function downloadDiagnosticPackage(
         ),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.frameInput}`,
+        debugPath(debugFiles.stageFiles.frameInput),
         JSON.stringify(stageExports.frameInput, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.ownershipPrev}`,
+        debugPath(debugFiles.stageFiles.ownershipPrev),
         JSON.stringify(stageExports.ownershipPrev, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.ownershipNext}`,
+        debugPath(debugFiles.stageFiles.ownershipNext),
         JSON.stringify(stageExports.ownershipNext, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.geometryPrevFull}`,
+        debugPath(debugFiles.stageFiles.geometryPrevFull),
         JSON.stringify(stageExports.geometryPrevFull, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.geometryNextFull}`,
+        debugPath(debugFiles.stageFiles.geometryNextFull),
         JSON.stringify(stageExports.geometryNextFull, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.topologyPrevFull}`,
+        debugPath(debugFiles.stageFiles.topologyPrevFull),
         JSON.stringify(stageExports.topologyPrevFull, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.topologyNextFull}`,
+        debugPath(debugFiles.stageFiles.topologyNextFull),
         JSON.stringify(stageExports.topologyNextFull, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.transitionSnapshot}`,
+        debugPath(debugFiles.stageFiles.transitionSnapshot),
         JSON.stringify(stageExports.transitionSnapshot, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.transitionTruth}`,
+        debugPath(debugFiles.stageFiles.transitionTruth),
         JSON.stringify(stageExports.transitionTruth, null, 2),
     );
     zip.file(
-        `debug/${debugFiles.stageFiles.activeFrontPlan}`,
+        debugPath(debugFiles.stageFiles.activeFrontPlan),
         JSON.stringify(stageExports.activeFrontPlan, null, 2),
     );
 
@@ -1004,7 +1025,7 @@ export async function downloadDiagnosticPackage(
         const prevCanvas =
             renderExportCanvas(bundle, bundle.prevCanvas, 'previous') ??
             bundle.prevCanvas;
-        await addCanvasToZip(zip, 'render/prev.png', prevCanvas);
+        await addCanvasToZip(zip, renderPath('prev.png'), prevCanvas);
     }
 
     for (const frame of selectedFrames) {
@@ -1017,18 +1038,19 @@ export async function downloadDiagnosticPackage(
                 'transition',
                 frame.sourceIndex,
             ) ?? source.canvas;
-        await addCanvasToZip(zip, `render/${frame.filename}`, frameCanvas);
+        await addCanvasToZip(zip, renderPath(frame.filename), frameCanvas);
     }
 
     if (bundle.nextCanvas) {
         const nextCanvas =
             renderExportCanvas(bundle, bundle.nextCanvas, 'next') ??
             bundle.nextCanvas;
-        await addCanvasToZip(zip, 'render/next.png', nextCanvas);
+        await addCanvasToZip(zip, renderPath('next.png'), nextCanvas);
     }
 
     for (const supplemental of supplementalCanvases) {
-        await addCanvasToZip(zip, supplemental.filename, supplemental.canvas);
+        const flattenedName = supplemental.filename.replace(/^render\//, '');
+        await addCanvasToZip(zip, renderPath(flattenedName), supplemental.canvas);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

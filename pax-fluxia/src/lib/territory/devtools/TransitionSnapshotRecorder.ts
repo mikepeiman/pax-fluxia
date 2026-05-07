@@ -312,7 +312,11 @@ export class TransitionSnapshotRecorder {
         const timestamp = now.toISOString();
         const transitionId = ctx.transition.envelope?.transitionId ?? `snap:${ctx.nowMs}`;
 
-        const exportPrefix = buildConquestFilePrefix(timestamp, ctx.conquestEvents);
+        const exportPrefix = buildConquestFilePrefix(
+            timestamp,
+            ctx.conquestEvents,
+            transitionId,
+        );
         const frameFiles = transitionFrames?.map((f, i) =>
             `${exportPrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
         ) ?? [];
@@ -420,7 +424,11 @@ export class TransitionSnapshotRecorder {
         const timestamp = now.toISOString();
         const transitionId = ctx.transition.envelope?.transitionId ?? `snap:${ctx.nowMs}`;
 
-        const exportPrefix = buildConquestFilePrefix(timestamp, ctx.conquestEvents);
+        const exportPrefix = buildConquestFilePrefix(
+            timestamp,
+            ctx.conquestEvents,
+            transitionId,
+        );
         const frameFiles = params.transitionFrames?.map((f, i) =>
             `${exportPrefix}_frame_${String(i).padStart(2, '0')}_t${Math.round(f.progress * 100).toString().padStart(3, '0')}.png`,
         ) ?? [];

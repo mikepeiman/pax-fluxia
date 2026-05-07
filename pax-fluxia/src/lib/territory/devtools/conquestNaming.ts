@@ -111,9 +111,59 @@ export function buildConquestEventGroupFileLabel(
     return sanitizeConquestLabelForFilename(`cq_${label}`);
 }
 
+function canonicalizeConquestEventForHash(event: TerritoryConquestEvent): string {
+    const attackers = listAttackerStarIds(event).join(',');
+    const scatterTargets = (event.scatterTargetIds ?? []).join(',');
+    const scatterCounts = (event.scatterShipCounts ?? []).join(',');
+    const transfers = (event.attackerShipTransfers ?? []).join(',');
+    return [
+        event.tick ?? '',
+        event.atMs ?? '',
+        event.conquestType ?? '',
+        event.previousOwner,
+        event.newOwner,
+        event.starId,
+        event.attackerStarId ?? '',
+        attackers,
+        scatterTargets,
+        scatterCounts,
+        transfers,
+        event.shipsCaptured ?? '',
+        event.shipsDestroyed ?? '',
+        event.shipsEscaped ?? '',
+        event.shipsTransferred ?? '',
+    ].join('|');
+}
+
+function fnv1a32(value: string): number {
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return hash >>> 0;
+}
+
+export function buildConquestCaptureHash(
+    timestamp: string,
+    transitionId: string,
+    conquestEvents: readonly TerritoryConquestEvent[],
+): string {
+    const hashInput = [
+        timestamp,
+        transitionId,
+        ...conquestEvents.map(canonicalizeConquestEventForHash),
+    ].join('||');
+    const hash = fnv1a32(hashInput).toString(36).padStart(7, '0');
+    return `h${hash.slice(-7)}`;
+}
+
 export function buildConquestFilePrefix(
     timestamp: string,
     conquestEvents: readonly TerritoryConquestEvent[],
+    transitionId?: string,
 ): string {
-    return `${filePrefixFromIsoTimestamp(timestamp)}_${buildConquestEventGroupFileLabel(conquestEvents)}`;
+    const base = `${filePrefixFromIsoTimestamp(timestamp)}_${buildConquestEventGroupFileLabel(conquestEvents)}`;
+    if (!transitionId) return base;
+    return `${base}_${buildConquestCaptureHash(timestamp, transitionId, conquestEvents)}`;
 }

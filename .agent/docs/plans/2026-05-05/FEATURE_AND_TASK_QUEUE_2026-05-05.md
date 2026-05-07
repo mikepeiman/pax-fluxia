@@ -106,6 +106,18 @@
 ## Latest Update
 
 - 2026-05-07:
+  - diagnosed current snap package as proof that the designed active-front algorithm is still not the live algorithm
+  - evidence:
+    - one planned front still moves a whole `POST` chain by index window
+    - one planned front is a degenerate self-anchored loop
+  - implemented deterministic short capture hash IDs for conquest captures
+  - capture hash now propagates into:
+    - bundle ID
+    - export/package prefix
+    - package zip name
+    - package root folder
+    - internal render/debug filenames
+- 2026-05-07:
   - fixed diagnostic export folder permission flow so background load/save paths no longer call `requestPermission()`
   - added explicit click-time export-folder pre-authorization
   - export UI now shows when a saved folder needs reconnect and falls back cleanly to browser downloads instead of throwing `User activation is required`
