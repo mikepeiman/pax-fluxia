@@ -248,7 +248,7 @@ async function persistExportDirectoryHandle(
     }
 }
 
-async function ensureWritableDirectoryPermission(
+async function queryWritableDirectoryPermission(
     handle: FileSystemDirectoryHandleLike,
 ): Promise<ExportPermissionState> {
     const descriptor: FileSystemPermissionDescriptorLike = {
@@ -257,10 +257,19 @@ async function ensureWritableDirectoryPermission(
     const queried = handle.queryPermission
         ? await handle.queryPermission(descriptor)
         : 'prompt';
+    return queried as ExportPermissionState;
+}
+
+async function requestWritableDirectoryPermission(
+    handle: FileSystemDirectoryHandleLike,
+): Promise<ExportPermissionState> {
+    const descriptor: FileSystemPermissionDescriptorLike = {
+        mode: 'readwrite',
+    };
+    const queried = await queryWritableDirectoryPermission(handle);
     if (queried === 'granted') return 'granted';
-    if (!handle.requestPermission) return queried as ExportPermissionState;
+    if (!handle.requestPermission) return queried;
     const requested = await handle.requestPermission(descriptor);
-    if (requested === 'granted') return 'granted';
     return requested as ExportPermissionState;
 }
 
@@ -275,13 +284,9 @@ async function ensureExportTargetLoaded(): Promise<void> {
                 await readPersistedExportDirectoryHandle();
             let permission: ExportPermissionState = 'unknown';
             if (diagnosticExportDirectoryHandle) {
-                permission = await ensureWritableDirectoryPermission(
+                permission = await queryWritableDirectoryPermission(
                     diagnosticExportDirectoryHandle,
                 );
-                if (permission !== 'granted') {
-                    diagnosticExportDirectoryHandle = null;
-                    await persistExportDirectoryHandle(null);
-                }
             }
             emitExportTargetState(permission);
         })();
@@ -303,7 +308,7 @@ async function writeBlobToDirectory(
 async function saveExportBlob(blob: Blob, filename: string): Promise<void> {
     await ensureExportTargetLoaded();
     if (diagnosticExportDirectoryHandle) {
-        const permission = await ensureWritableDirectoryPermission(
+        const permission = await queryWritableDirectoryPermission(
             diagnosticExportDirectoryHandle,
         );
         if (permission === 'granted') {
@@ -315,8 +320,6 @@ async function saveExportBlob(blob: Blob, filename: string): Promise<void> {
             emitExportTargetState(permission);
             return;
         }
-        diagnosticExportDirectoryHandle = null;
-        await persistExportDirectoryHandle(null);
         emitExportTargetState(permission);
     }
     triggerDownload(blob, filename);
@@ -328,7 +331,7 @@ export async function chooseDiagnosticExportDirectory(): Promise<void> {
         throw new Error('Directory export is not supported in this browser');
     }
     const handle = await picker({ mode: 'readwrite' });
-    const permission = await ensureWritableDirectoryPermission(handle);
+    const permission = await requestWritableDirectoryPermission(handle);
     if (permission !== 'granted') {
         emitExportTargetState(permission);
         throw new Error('Write permission was not granted for the export folder');
@@ -342,6 +345,25 @@ export async function clearDiagnosticExportDirectory(): Promise<void> {
     diagnosticExportDirectoryHandle = null;
     await persistExportDirectoryHandle(null);
     emitExportTargetState();
+}
+
+export async function prepareDiagnosticExportDirectoryForWrite(): Promise<ExportPermissionState> {
+    if (!supportsDirectoryExport()) {
+        emitExportTargetState();
+        return 'unknown';
+    }
+    if (!diagnosticExportDirectoryHandle) {
+        await ensureExportTargetLoaded();
+    }
+    if (!diagnosticExportDirectoryHandle) {
+        emitExportTargetState();
+        return 'unknown';
+    }
+    const permission = await requestWritableDirectoryPermission(
+        diagnosticExportDirectoryHandle,
+    );
+    emitExportTargetState(permission);
+    return permission;
 }
 
 void ensureExportTargetLoaded();

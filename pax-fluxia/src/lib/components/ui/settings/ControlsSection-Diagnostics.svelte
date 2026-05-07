@@ -31,6 +31,7 @@
         downloadAllDiagnosticPackages,
         downloadBundle,
         downloadDiagnosticPackage,
+        prepareDiagnosticExportDirectoryForWrite,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
     import { formatConquestEventGroupLabel } from "$lib/territory/devtools/conquestNaming";
     import { formatLocalCaptureTimeFromIsoTimestamp } from "$lib/territory/devtools/snapshotExport";
@@ -219,6 +220,7 @@
     async function downloadOne(bundle: TransitionDebugBundle): Promise<void> {
         downloading = bundle.id;
         try {
+            await prepareDiagnosticExportDirectoryForWrite();
             await downloadBundle(bundle, bundle.starPositions);
         } finally {
             downloading = null;
@@ -228,6 +230,7 @@
     async function packageOne(bundle: TransitionDebugBundle): Promise<void> {
         downloading = `pkg:${bundle.id}`;
         try {
+            await prepareDiagnosticExportDirectoryForWrite();
             await downloadDiagnosticPackage(bundle);
         } finally {
             downloading = null;
@@ -237,6 +240,7 @@
     async function downloadAll(): Promise<void> {
         downloading = "__all__";
         try {
+            await prepareDiagnosticExportDirectoryForWrite();
             const bundles = [...$transitionSnapshotRecorderStore.bundles];
             await downloadAllBundles(
                 bundles,
@@ -250,6 +254,7 @@
     async function packageAll(): Promise<void> {
         downloading = "__pkg_all__";
         try {
+            await prepareDiagnosticExportDirectoryForWrite();
             await downloadAllDiagnosticPackages(
                 $transitionSnapshotRecorderStore.bundles,
             );
@@ -631,6 +636,11 @@
         {#if !$diagnosticExportTargetStore.fsAccessSupported}
             . This browser does not support direct folder export, so files will go
             through the normal download path.
+        {:else if $diagnosticExportTargetStore.mode === "directory" &&
+            $diagnosticExportTargetStore.permission !== "granted"}
+            . This folder is saved, but browser write permission is not active right now.
+            Use <strong>Reconnect Export Folder</strong> before exporting, or the files
+            will fall back to browser downloads.
         {:else if $diagnosticExportTargetStore.mode === "directory"}
             . Diagnostic packages and image dumps will be written there directly instead
             of polluting `Downloads`.
@@ -648,8 +658,11 @@
         >
             {selectingExportFolder
                 ? "Choosing…"
-                : $diagnosticExportTargetStore.mode === "directory"
-                  ? "Change Export Folder"
+                : $diagnosticExportTargetStore.mode === "directory" &&
+                    $diagnosticExportTargetStore.permission !== "granted"
+                  ? "Reconnect Export Folder"
+                  : $diagnosticExportTargetStore.mode === "directory"
+                    ? "Change Export Folder"
                   : "Choose Export Folder"}
         </button>
         <button

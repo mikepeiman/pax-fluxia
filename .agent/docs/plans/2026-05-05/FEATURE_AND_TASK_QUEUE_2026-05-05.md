@@ -105,6 +105,11 @@
 
 ## Latest Update
 
+- 2026-05-07:
+  - fixed diagnostic export folder permission flow so background load/save paths no longer call `requestPermission()`
+  - added explicit click-time export-folder pre-authorization
+  - export UI now shows when a saved folder needs reconnect and falls back cleanly to browser downloads instead of throwing `User activation is required`
+
 - Created:
   - `.agent/docs/sessions/2026-05-05/2026-05-05_territory-runtime-recovery-plan_v4.md`
 - `v4` adds:

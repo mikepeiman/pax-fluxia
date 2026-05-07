@@ -55,6 +55,30 @@
 
 ## Live Action Log
 
+### 2026-05-07 - Fixed diagnostic export folder permission flow
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+- Purpose:
+  - stop package export from failing with `User activation is required`
+  - make direct-folder export request permission only from explicit user clicks
+- Exact change:
+  - split serializer permission flow into:
+    - query-only permission checks for persisted-handle load and background save
+    - explicit request path for deliberate export-folder authorization
+  - kept the persisted folder handle even when current permission is `prompt`/`denied`
+  - export buttons now pre-authorize folder writes before async package generation begins
+  - diagnostics UI now shows a reconnect state when the saved folder is present but not currently writable
+- Result:
+  - background reload no longer tries to request folder permission
+  - save path no longer throws on `requestPermission()` outside user activation
+  - export falls back to browser downloads if the saved folder is not currently writable
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
+
 ### 2026-05-07 - Added work surface map system for current subsystems
 
 - Action:
