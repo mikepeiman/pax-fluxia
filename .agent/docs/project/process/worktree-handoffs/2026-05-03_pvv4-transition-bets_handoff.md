@@ -55,6 +55,31 @@
 
 ## Live Action Log
 
+### 2026-05-07 - Recorded core algorithm verification failure
+
+- Action:
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\POST_MORTEM_2026-05-07_CORE_ALGORITHM_VERIFICATION_FAILURE.md`
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\communication.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\thinking.md`
+- Purpose:
+  - record the true scale of the failure after confirming the specified PV transition algorithm is still not the live motion core
+  - add a hard rule preventing future tuning/debugging against an unverified implementation
+- Exact characterization:
+  - foundational
+  - branch-invalidating
+  - costly
+  - misleading
+  - trust-breaking
+- Exact process correction:
+  - no more tuning/debugging of a specified algorithm without a prior live-path verification artifact showing:
+    - required algorithm
+    - live path
+    - match / partial / mismatch
+- Result:
+  - this branch now has a blunt record that a large amount of transition work happened before the core algorithm was proven live
+
 ### 2026-05-07 - Diagnosed snap-package algorithm mismatch and added capture hash IDs
 
 - Action:

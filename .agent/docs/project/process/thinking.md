@@ -66,3 +66,12 @@ Only include rules that would have meaningfully reduced error or increased succe
 12. If you say `I found X`, write it down as a reusable artifact.
    - Do not keep critical seam knowledge only in working memory.
    - Convert it into a small map the same day.
+
+13. Before tuning a specified algorithm, prove that the live path is that algorithm.
+   - Do not tune, debug, classify, or optimize a governed algorithm by assumption.
+   - First produce a short comparison:
+     - required algorithm
+     - live code path
+     - match / partial / mismatch
+   - If there is a mismatch, stop tuning work.
+   - Implementation verification is a gate, not a nice-to-have.

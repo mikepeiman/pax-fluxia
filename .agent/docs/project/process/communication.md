@@ -97,3 +97,12 @@ This file is the standing home for agentic communication rules and guidance for 
    - `topology gap` = pair exists on one side only
    - `unsupported split` = pair has a split shape the planner cannot yet map
    - `defect anchor` = one endpoint of a defective stable-anchor pair
+
+15. State the scale, scope, and impact when a failure is foundational.
+   - If an issue invalidates prior tuning, diagnosis, or claimed progress, say that directly.
+   - Use words like:
+     - `foundational`
+     - `branch-invalidating`
+     - `costly`
+     - `trust-breaking`
+   - Do not describe a core verification failure as if it were just another bug.
