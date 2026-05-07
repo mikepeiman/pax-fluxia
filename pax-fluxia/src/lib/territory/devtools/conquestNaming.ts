@@ -45,15 +45,25 @@ function abbreviateOwnerToken(ownerId: string): string {
 
 function abbreviateStarToken(starId: string): string {
     const starMatch = /^star-(\d+)$/i.exec(starId);
-    if (starMatch) return `s${starMatch[1]}`;
+    if (starMatch) return `S${starMatch[1]}`;
     const cleaned = sanitizeConquestLabelForFilename(starId)
         .replace(/[_-]+/g, '')
-        .toLowerCase();
-    return cleaned.slice(0, 12) || 's';
+        .toUpperCase();
+    return cleaned.slice(0, 12) || 'S';
 }
 
 function formatConquestEventFileCode(event: TerritoryConquestEvent): string {
-    return `${abbreviateStarToken(event.starId)}_${abbreviateOwnerToken(event.previousOwner)}-${abbreviateOwnerToken(event.newOwner)}`;
+    const attackers = listAttackerStarIds(event);
+    const target = abbreviateStarToken(event.starId);
+    if (attackers.length === 0) {
+        return `${abbreviateOwnerToken(event.previousOwner)}-to-${abbreviateOwnerToken(event.newOwner)}_${target}`;
+    }
+    const attackerLead = abbreviateStarToken(attackers[0]!);
+    const attackerToken =
+        attackers.length === 1
+            ? attackerLead
+            : `${attackerLead}+${attackers.length - 1}`;
+    return `${attackerToken}-to-${target}`;
 }
 
 function collapseConquestLabels(labels: readonly string[], forFile: boolean): string {

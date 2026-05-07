@@ -74,3 +74,26 @@ This file is the standing home for agentic communication rules and guidance for 
      - `Will this force a clarifying question that I should have prevented?`
    - If yes, rewrite before sending.
    - Use the project's established terms, not near-synonyms.
+
+12. Respond to explicit terminology corrections directly.
+   - If Mike says a term is wrong, answer that correction explicitly.
+   - Do not move on to implementation without answering the terminology point.
+
+13. UI labels and debug labels must use project terms.
+   - Use:
+     - `PRE front path`
+     - `POST front path`
+     - `Active front span`
+     - `Change anchor`
+     - `Defect anchor`
+   - Do not invent nearby labels like:
+     - `NEXT active`
+     - `Active subspan`
+     - `Front anchor`
+     - `Defect`
+
+14. Define every defect label in one sentence.
+   - `pair` = one stable-anchor pair
+   - `topology gap` = pair exists on one side only
+   - `unsupported split` = pair has a split shape the planner cannot yet map
+   - `defect anchor` = one endpoint of a defective stable-anchor pair

@@ -262,6 +262,27 @@
 - Purpose:
   - stop re-finding critical seams like the bundle generator
   - capture current-area file / function / line references in one reusable map
+
+## Latest Terminology / Package Checkpoint
+
+- Added post-mortem:
+  - `.agent/docs/project/process/POST_MORTEM_2026-05-07_TERMINOLOGY_NON_RESPONSE.md`
+- Added session note:
+  - `.agent/docs/sessions/2026-05-07/2026-05-07_terminology-and-package-diagnostics_v1.md`
+- Updated communication rules so terminology corrections must be answered directly.
+- Corrected live/export legend terms to project terms:
+  - `PRE front path`
+  - `POST front path`
+  - `Active front span`
+  - `Change anchor`
+  - `Defect anchor`
+- Made conquest package names more semantic:
+  - star-to-star labels
+  - `_snap` suffix for snap/classification-defect transition exports
+- Adjusted the exported front reference frame to focus on the actual conquest stars first, so a remote defect pair does not dominate the render.
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/conquestNaming.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
 - Kept the public tuning surface stable for now:
   - `starMargin` still feeds the live base site-weight control
   - `msrStarBias` is retained only as a legacy no-op surface to avoid breaking the current panel/config path

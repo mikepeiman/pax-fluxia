@@ -83,6 +83,41 @@
 - Validation:
   - artifact creation only; no runtime code changed in this checkpoint
 
+### 2026-05-07 - Corrected terminology handling and package render labeling
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\conquestNaming.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\communication.md`
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\POST_MORTEM_2026-05-07_TERMINOLOGY_NON_RESPONSE.md`
+- Purpose:
+  - correct the direct failure to answer terminology corrections
+  - make live/package labels use project terms
+  - make package names readable and semantic
+  - stop snap reference renders from centering a remote defect instead of the conquest locus
+- Exact change:
+  - live HUD legend now says:
+    - `PRE front path`
+    - `POST front path`
+    - `Active front span`
+    - `No-motion front path`
+    - `Stable anchor`
+    - `Change anchor`
+    - `Defect anchor`
+    - `Sample vertices`
+  - export legend now says:
+    - `Monotonic change vertices`
+  - conquest export names now use star-to-star labels
+  - transition export names now append `_snap` when the transition captured is a classification-defect / no-front snap case
+  - front reference render now prioritizes paths nearest the actual conquest stars
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/conquestNaming.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
+
 ### 2026-05-07 - Made snap-package renders actually show active-front diagnosis
 
 - Action:

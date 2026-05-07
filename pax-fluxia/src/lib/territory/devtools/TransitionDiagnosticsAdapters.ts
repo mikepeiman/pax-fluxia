@@ -393,7 +393,7 @@ function drawActiveFrontHudLegend(
         { label: 'Active front span', color: AF_COLORS.activeFront, dashed: false, width: 5 },
         { label: 'Change anchor', color: AF_COLORS.changeAnchor, marker: 'circle' },
         { label: 'Defect anchor', color: AF_COLORS.defectAnchor, marker: 'square' },
-        { label: 'Monotonic vertex path', color: AF_COLORS.correspondence, dashed: false },
+        { label: 'Monotonic change vertices', color: AF_COLORS.correspondence, dashed: false },
     ] as const;
     const x = 14;
     const y = 14;
@@ -431,6 +431,40 @@ function drawActiveFrontHudLegend(
         drawCanvasLabel(ctx, item.label, x + 42, rowY, AF_COLORS.text, '10px "JetBrains Mono", Consolas, monospace');
     });
     ctx.restore();
+}
+
+function buildConquestFocusPoints(
+    bundle: TransitionDebugBundle,
+): { id: string; point: [number, number] }[] {
+    const out: { id: string; point: [number, number] }[] = [];
+    const seen = new Set<string>();
+    for (const event of bundle.conquestEvents) {
+        const ids = [event.starId, event.attackerStarId, ...(event.attackerStarIds ?? [])];
+        for (const id of ids) {
+            if (!id || seen.has(id)) continue;
+            const point = bundle.starPositions.get(id);
+            if (!point) continue;
+            seen.add(id);
+            out.push({ id, point: [point.x, point.y] });
+        }
+    }
+    return out;
+}
+
+function minDistanceToFocus(
+    points: readonly [number, number][],
+    focusPoints: readonly { id: string; point: [number, number] }[],
+): number {
+    if (points.length === 0 || focusPoints.length === 0) return Number.POSITIVE_INFINITY;
+    let best = Number.POSITIVE_INFINITY;
+    for (const [x, y] of points) {
+        for (const focus of focusPoints) {
+            const dx = x - focus.point[0];
+            const dy = y - focus.point[1];
+            best = Math.min(best, Math.hypot(dx, dy));
+        }
+    }
+    return best;
 }
 
 function drawMonotonicCorrespondence(
@@ -473,8 +507,29 @@ function drawActiveFrontReferenceFrame(
     const plan = bundle.context.activeFrontPlan;
     const prevTopology = bundle.context.prevFrontierTopology;
     const nextTopology = bundle.context.nextFrontierTopology;
+    const focusPoints = buildConquestFocusPoints(bundle);
 
     drawActiveFrontHudLegend(ctx, debug);
+
+    for (const focus of focusPoints) {
+        drawCanvasCircle(
+            ctx,
+            focus.point[0],
+            focus.point[1],
+            11,
+            AF_COLORS.changeAnchor,
+            'transparent',
+            3,
+        );
+        drawCanvasLabel(
+            ctx,
+            focus.id,
+            focus.point[0] + 12,
+            focus.point[1] - 10,
+            AF_COLORS.changeAnchor,
+            'bold 11px "JetBrains Mono", Consolas, monospace',
+        );
+    }
 
     if (!plan || !prevTopology || !nextTopology) {
         drawCanvasLabel(ctx, 'No active-front plan/topology available for reference frame.', 18, 170, '#ffb4b4');
@@ -513,29 +568,43 @@ function drawActiveFrontReferenceFrame(
         }
     }
 
-    for (const pair of plan.diagnostics.pairDiagnostics as ActiveFrontPairDiagnostic[]) {
-        if (
-            pair.outcome !== 'defect_topology_gap' &&
-            pair.outcome !== 'defect_unsupported_split_mode'
-        ) {
-            continue;
-        }
-
-        for (const pathSectionIds of pair.prevPathSectionIds) {
-            const points = buildTopologyPathPoints(
-                prevTopology,
-                pathSectionIds,
-                pair.anchorStartId,
+    const defectPairs = (plan.diagnostics.pairDiagnostics as ActiveFrontPairDiagnostic[])
+        .filter(
+            (pair) =>
+                pair.outcome === 'defect_topology_gap' ||
+                pair.outcome === 'defect_unsupported_split_mode',
+        )
+        .map((pair) => {
+            const prevPaths = pair.prevPathSectionIds.map((pathSectionIds) =>
+                buildTopologyPathPoints(prevTopology, pathSectionIds, pair.anchorStartId),
             );
+            const nextPaths = pair.nextPathSectionIds.map((pathSectionIds) =>
+                buildTopologyPathPoints(nextTopology, pathSectionIds, pair.anchorStartId),
+            );
+            const distance = Math.min(
+                ...[...prevPaths, ...nextPaths].map((points) =>
+                    minDistanceToFocus(points, focusPoints),
+                ),
+            );
+            return { pair, prevPaths, nextPaths, distance };
+        })
+        .sort((a, b) => a.distance - b.distance);
+
+    const closestDefectDistance = defectPairs[0]?.distance ?? Number.POSITIVE_INFINITY;
+    const visibleDefects = defectPairs.filter(
+        (entry, index) =>
+            focusPoints.length === 0 ||
+            index === 0 ||
+            entry.distance <= closestDefectDistance + 160,
+    );
+
+    for (const entry of visibleDefects) {
+        const { pair, prevPaths, nextPaths } = entry;
+        for (const points of prevPaths) {
             drawCanvasPolyline(ctx, points, AF_COLORS.prevPath, 2, true);
         }
 
-        for (const pathSectionIds of pair.nextPathSectionIds) {
-            const points = buildTopologyPathPoints(
-                nextTopology,
-                pathSectionIds,
-                pair.anchorStartId,
-            );
+        for (const points of nextPaths) {
             drawCanvasPolyline(ctx, points, AF_COLORS.defectPath, 3, false);
         }
 

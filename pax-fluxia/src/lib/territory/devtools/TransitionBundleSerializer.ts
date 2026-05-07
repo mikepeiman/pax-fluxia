@@ -482,6 +482,32 @@ function buildDiagnosticDebugFileNames(
     };
 }
 
+function inferTransitionExportOutcomeTag(
+    bundle: TransitionDebugBundle,
+): string | null {
+    const debug = (
+        bundle.extraDiagnostics as
+            | { activeFrontDebug?: { evaluation?: string; frontCount?: number; collapseTargetCount?: number } }
+            | null
+    )?.activeFrontDebug;
+    if (!debug) return null;
+    if (debug.evaluation === 'classification_defect') return 'snap';
+    if (
+        bundle.conquestEvents.length > 0 &&
+        (debug.frontCount ?? 0) === 0 &&
+        (debug.collapseTargetCount ?? 0) === 0
+    ) {
+        return 'snap';
+    }
+    return null;
+}
+
+function buildTransitionExportPrefix(bundle: TransitionDebugBundle): string {
+    const base = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const outcomeTag = inferTransitionExportOutcomeTag(bundle);
+    return outcomeTag ? `${base}_${outcomeTag}` : base;
+}
+
 function buildTransitionTruthExport(bundle: TransitionDebugBundle): Record<string, unknown> {
     return {
         transitionId: bundle.meta.transitionId,
@@ -702,7 +728,7 @@ export async function downloadBundle(
     bundle: TransitionDebugBundle,
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
-    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const prefix = buildTransitionExportPrefix(bundle);
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const debugFiles = buildDiagnosticDebugFileNames(bundle);
@@ -884,7 +910,7 @@ export async function downloadBundle(
 export async function downloadDiagnosticPackage(
     bundle: TransitionDebugBundle,
 ): Promise<void> {
-    const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const prefix = buildTransitionExportPrefix(bundle);
     const zip = new JSZip();
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];

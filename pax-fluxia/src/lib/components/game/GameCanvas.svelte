@@ -4325,14 +4325,14 @@
     } as const;
 
     const AF_HUD_LEGEND_ITEMS = [
-        { label: "PRE source", color: AF_DEBUG_COLORS.prevSourceSection, kind: "dashed" },
-        { label: "NEXT active", color: AF_DEBUG_COLORS.activeSection, kind: "line" },
-        { label: "Active subspan", color: AF_DEBUG_COLORS.activeSubSection, kind: "thick" },
-        { label: "No-motion", color: AF_DEBUG_COLORS.noMotionSection, kind: "line" },
+        { label: "PRE front path", color: AF_DEBUG_COLORS.prevSourceSection, kind: "dashed" },
+        { label: "POST front path", color: AF_DEBUG_COLORS.activeSection, kind: "line" },
+        { label: "Active front span", color: AF_DEBUG_COLORS.activeSubSection, kind: "thick" },
+        { label: "No-motion front path", color: AF_DEBUG_COLORS.noMotionSection, kind: "line" },
         { label: "Stable anchor", color: AF_DEBUG_COLORS.stableAnchor, kind: "ring" },
-        { label: "Front anchor", color: AF_DEBUG_COLORS.frontAnchor, kind: "diamond" },
-        { label: "Defect", color: AF_DEBUG_COLORS.defectAnchor, kind: "square" },
-        { label: "Sample points", color: AF_DEBUG_COLORS.sampleDot, kind: "dot" },
+        { label: "Change anchor", color: AF_DEBUG_COLORS.frontAnchor, kind: "diamond" },
+        { label: "Defect anchor", color: AF_DEBUG_COLORS.defectAnchor, kind: "square" },
+        { label: "Sample vertices", color: AF_DEBUG_COLORS.sampleDot, kind: "dot" },
     ] as const;
 
     function colorToCssHex(color: number): string {
