@@ -218,7 +218,6 @@
     - `dxMaxDistancePx`
     - `dxWeight`
   - touched files:
-
     - `pax-fluxia/src/lib/territory/geometry/geometryTuning.ts`
     - `pax-fluxia/src/lib/territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts`
     - `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts`
@@ -226,6 +225,29 @@
     - `pax-fluxia/src/lib/config/geometry0319Debug.ts`
     - `pax-fluxia/src/lib/renderers/PowerVoronoiRenderer.ts`
     - `pax-fluxia/src/lib/territory/devtools/perimeterFieldGeometryArtifact.ts`
+
+## Latest Diagnostic Export Checkpoint
+
+- Added session note:
+  - `.agent/docs/sessions/2026-05-07/2026-05-07_territory-transition-diagnosis_v19.md`
+- Package renders for `active_front_live_capture` now include:
+  - legend HUD on every exported transition frame
+  - dedicated `render/front_reference.png`
+- `front_reference.png` is intended to make snap cases diagnosable in one image by showing:
+  - `PRE` front path
+  - `POST` front path
+  - active front span
+  - change anchors
+  - defect anchors
+  - monotonic change-vertex correspondence lines
+- Exporter wiring updated in:
+  - `pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.ts`
+  - `pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.ts`
+- README generation now lists the supplemental render explicitly.
+- `communication.md` now includes an ambiguity-prevention rule before replying.
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
 - Kept the public tuning surface stable for now:
   - `starMargin` still feeds the live base site-weight control
   - `msrStarBias` is retained only as a legacy no-op surface to avoid breaking the current panel/config path

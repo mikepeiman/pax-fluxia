@@ -3,6 +3,11 @@ import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import type { PowerVoronoiDiagnosticBundle } from '../pvCanonical/contracts';
 import type { ActiveFrontRuntimeDebugState } from '../layers/transition/TransitionLayerCoordinator';
+import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
+import type {
+    ActiveFrontPairDiagnostic,
+    ActiveFrontTransitionPlan,
+} from '../layers/transition/ActiveFrontTransition';
 import {
     boundsOf,
     compactFrontierTopologyForExport,
@@ -34,11 +39,15 @@ export interface TransitionDiagnosticsExportAdapter {
         selectedFrames: readonly DiagnosticPackageFrameRef[],
     ): TransitionDiagnosticsAdapterData;
     renderCanvas(args: {
+        bundle: TransitionDebugBundle;
         baseCanvas: HTMLCanvasElement | null;
         diagnostics: unknown;
         phase: 'previous' | 'next' | 'transition';
         sourceIndex?: number;
     }): HTMLCanvasElement | null;
+    renderSupplementalCanvases?(
+        bundle: TransitionDebugBundle,
+    ): { filename: string; label: string; canvas: HTMLCanvasElement }[];
 }
 
 interface PerimeterFieldCaptureFrameDiagnostics {
@@ -64,6 +73,22 @@ interface ActiveFrontLiveCaptureDiagnostics {
     activeFrontDebug: ActiveFrontRuntimeDebugState | null;
     activeFrontPlan: Record<string, unknown> | null;
 }
+
+const AF_COLORS = {
+    panelBg: 'rgba(10, 16, 28, 0.82)',
+    panelBorder: 'rgba(79, 217, 255, 0.55)',
+    title: '#eef8ff',
+    summary: '#c8d5f2',
+    prevPath: '#ff73c6',
+    nextPath: '#f0b400',
+    activeFront: '#52ff8f',
+    changeAnchor: '#3cdcff',
+    defectAnchor: '#ff4d6d',
+    defectPath: '#ff8c42',
+    correspondence: 'rgba(60, 220, 255, 0.52)',
+    text: '#f4f7ff',
+    shadow: '#10131d',
+} as const;
 
 function roundCoord(value: number): number {
     return Math.round(value * 100) / 100;
@@ -196,6 +221,351 @@ function cloneCanvas(baseCanvas: HTMLCanvasElement): HTMLCanvasElement {
     return canvas;
 }
 
+function createCanvasLike(
+    width: number,
+    height: number,
+    baseCanvas: HTMLCanvasElement | null,
+): HTMLCanvasElement | null {
+    if (baseCanvas) return cloneCanvas(baseCanvas);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, width, height);
+    return canvas;
+}
+
+function drawCanvasPolyline(
+    ctx: CanvasRenderingContext2D,
+    points: readonly [number, number][],
+    color: string,
+    lineWidth: number,
+    dashed = false,
+): void {
+    if (points.length < 2) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (dashed) {
+        ctx.setLineDash([8, 5]);
+    }
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i += 1) {
+        ctx.lineTo(points[i][0], points[i][1]);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawCanvasCircle(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    radius: number,
+    stroke: string,
+    fill = 'transparent',
+    lineWidth = 2,
+): void {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawCanvasSquare(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    fill: string,
+): void {
+    ctx.save();
+    ctx.fillStyle = fill;
+    ctx.fillRect(x - size / 2, y - size / 2, size, size);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+    ctx.restore();
+}
+
+function drawCanvasLabel(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    color = AF_COLORS.text,
+    font = '11px "JetBrains Mono", Consolas, monospace',
+): void {
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = AF_COLORS.shadow;
+    ctx.fillText(text, x + 1, y + 1);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+}
+
+function polylineArcLengths(points: readonly [number, number][]): number[] {
+    const lengths = [0];
+    for (let i = 1; i < points.length; i += 1) {
+        const [ax, ay] = points[i - 1];
+        const [bx, by] = points[i];
+        lengths.push(lengths[i - 1] + Math.hypot(bx - ax, by - ay));
+    }
+    return lengths;
+}
+
+function samplePolylineAtNormalizedT(
+    points: readonly [number, number][],
+    t: number,
+): [number, number] {
+    if (points.length === 0) return [0, 0];
+    if (points.length === 1) return [points[0][0], points[0][1]];
+    const clamped = Math.max(0, Math.min(1, t));
+    const lengths = polylineArcLengths(points);
+    const total = lengths[lengths.length - 1];
+    if (total <= 0) return [points[0][0], points[0][1]];
+    const target = total * clamped;
+    for (let i = 1; i < lengths.length; i += 1) {
+        if (lengths[i] < target) continue;
+        const segmentLength = lengths[i] - lengths[i - 1];
+        const localT =
+            segmentLength <= 0 ? 0 : (target - lengths[i - 1]) / segmentLength;
+        const [ax, ay] = points[i - 1];
+        const [bx, by] = points[i];
+        return [ax + (bx - ax) * localT, ay + (by - ay) * localT];
+    }
+    const last = points[points.length - 1];
+    return [last[0], last[1]];
+}
+
+function buildTopologyPathPoints(
+    topology: FrontierTopology | null,
+    sectionIds: readonly string[],
+    anchorStartId: string,
+): [number, number][] {
+    if (!topology || sectionIds.length === 0) return [];
+    const out: [number, number][] = [];
+    let currentVertexId: string | null = anchorStartId;
+    for (const sectionId of sectionIds) {
+        const section = topology.sections.get(sectionId);
+        if (!section) continue;
+        let points = section.points;
+        if (currentVertexId === section.endVertexId) {
+            points = [...section.points].reverse();
+            currentVertexId = section.startVertexId;
+        } else {
+            currentVertexId = section.endVertexId;
+        }
+        if (out.length === 0) {
+            out.push(...points);
+        } else {
+            out.push(...points.slice(1));
+        }
+    }
+    return out;
+}
+
+function drawActiveFrontHudLegend(
+    ctx: CanvasRenderingContext2D,
+    debug: ActiveFrontRuntimeDebugState | null,
+): void {
+    const lines = [
+        `AF ${debug?.evaluation ?? 'idle'}`,
+        `fronts=${debug?.frontCount ?? 0} pairs=${debug?.planSummary?.pairCount ?? 0}`,
+        `no-motion=${debug?.planSummary?.noChangePairCount ?? 0} defects=${debug?.defectPairCount ?? 0}`,
+    ];
+    const items = [
+        { label: 'PRE front path', color: AF_COLORS.prevPath, dashed: true },
+        { label: 'POST front path', color: AF_COLORS.nextPath, dashed: false },
+        { label: 'Active front span', color: AF_COLORS.activeFront, dashed: false, width: 5 },
+        { label: 'Change anchor', color: AF_COLORS.changeAnchor, marker: 'circle' },
+        { label: 'Defect anchor', color: AF_COLORS.defectAnchor, marker: 'square' },
+        { label: 'Monotonic vertex path', color: AF_COLORS.correspondence, dashed: false },
+    ] as const;
+    const x = 14;
+    const y = 14;
+    const width = 280;
+    const height = 28 + lines.length * 14 + items.length * 16 + 12;
+
+    ctx.save();
+    ctx.fillStyle = AF_COLORS.panelBg;
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = AF_COLORS.panelBorder;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, width, height);
+    drawCanvasLabel(ctx, 'AF Diagnostics', x + 10, y + 8, AF_COLORS.title, 'bold 12px "JetBrains Mono", Consolas, monospace');
+    lines.forEach((line, index) => {
+        drawCanvasLabel(ctx, line, x + 10, y + 24 + index * 14, AF_COLORS.summary, '10px "JetBrains Mono", Consolas, monospace');
+    });
+    items.forEach((item, index) => {
+        const rowY = y + 24 + lines.length * 14 + 10 + index * 16;
+        if ('marker' in item && item.marker === 'circle') {
+            drawCanvasCircle(ctx, x + 20, rowY + 6, 4.5, item.color);
+        } else if ('marker' in item && item.marker === 'square') {
+            drawCanvasSquare(ctx, x + 20, rowY + 6, 9, item.color);
+        } else {
+            drawCanvasPolyline(
+                ctx,
+                [
+                    [x + 8, rowY + 6],
+                    [x + 32, rowY + 6],
+                ],
+                item.color,
+                item.width ?? 3,
+                item.dashed ?? false,
+            );
+        }
+        drawCanvasLabel(ctx, item.label, x + 42, rowY, AF_COLORS.text, '10px "JetBrains Mono", Consolas, monospace');
+    });
+    ctx.restore();
+}
+
+function drawMonotonicCorrespondence(
+    ctx: CanvasRenderingContext2D,
+    prevPoints: readonly [number, number][],
+    nextPoints: readonly [number, number][],
+    startIndex: number,
+    endIndex: number,
+): void {
+    if (prevPoints.length < 2 || nextPoints.length < 2) return;
+    const maxIndex = Math.max(1, nextPoints.length - 1);
+    const startT = Math.max(0, Math.min(1, startIndex / maxIndex));
+    const endT = Math.max(startT, Math.min(1, endIndex / maxIndex));
+    const count = Math.min(10, Math.max(4, endIndex - startIndex + 1));
+    for (let i = 0; i < count; i += 1) {
+        const t = count === 1 ? startT : startT + ((endT - startT) * i) / (count - 1);
+        const prevPoint = samplePolylineAtNormalizedT(prevPoints, t);
+        const nextPoint = samplePolylineAtNormalizedT(nextPoints, t);
+        drawCanvasPolyline(ctx, [prevPoint, nextPoint], AF_COLORS.correspondence, 1.4);
+        drawCanvasCircle(ctx, prevPoint[0], prevPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
+        drawCanvasCircle(ctx, nextPoint[0], nextPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
+    }
+}
+
+function drawActiveFrontReferenceFrame(
+    bundle: TransitionDebugBundle,
+): HTMLCanvasElement | null {
+    const baseCanvas = bundle.nextCanvas ?? bundle.prevCanvas ?? null;
+    const canvas = createCanvasLike(
+        baseCanvas?.width ?? bundle.context.worldWidth,
+        baseCanvas?.height ?? bundle.context.worldHeight,
+        baseCanvas,
+    );
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const debug = (bundle.extraDiagnostics as ActiveFrontLiveCaptureDiagnostics | null)
+        ?.activeFrontDebug ?? null;
+    const plan = bundle.context.activeFrontPlan;
+    const prevTopology = bundle.context.prevFrontierTopology;
+    const nextTopology = bundle.context.nextFrontierTopology;
+
+    drawActiveFrontHudLegend(ctx, debug);
+
+    if (!plan || !prevTopology || !nextTopology) {
+        drawCanvasLabel(ctx, 'No active-front plan/topology available for reference frame.', 18, 170, '#ffb4b4');
+        return canvas;
+    }
+
+    for (const front of plan.fronts as ActiveFrontTransitionPlan['fronts']) {
+        for (const prevPath of front.prevPaths) {
+            drawCanvasPolyline(ctx, prevPath.points, AF_COLORS.prevPath, 3, true);
+        }
+        for (const nextPath of front.nextPaths) {
+            drawCanvasPolyline(ctx, nextPath.points, AF_COLORS.nextPath, 3, false);
+        }
+
+        if (front.splitMode === 'none' && front.changeSpan.base === 'next' && front.nextPaths[0]) {
+            const basePath = front.nextPaths[0].points;
+            const startIndex = Math.max(0, Math.min(front.changeSpan.startIndex, basePath.length - 1));
+            const endIndex = Math.max(startIndex, Math.min(front.changeSpan.endIndex, basePath.length - 1));
+            const activePoints = basePath.slice(startIndex, endIndex + 1);
+            drawCanvasPolyline(ctx, activePoints, AF_COLORS.activeFront, 5, false);
+            const startPoint = basePath[startIndex];
+            const endPoint = basePath[endIndex];
+            drawCanvasCircle(ctx, startPoint[0], startPoint[1], 6, AF_COLORS.changeAnchor);
+            drawCanvasCircle(ctx, endPoint[0], endPoint[1], 6, AF_COLORS.changeAnchor);
+            drawCanvasLabel(ctx, 'CA', startPoint[0] + 8, startPoint[1] - 12, AF_COLORS.changeAnchor);
+            drawCanvasLabel(ctx, 'CA', endPoint[0] + 8, endPoint[1] - 12, AF_COLORS.changeAnchor);
+            if (front.prevPaths[0]) {
+                drawMonotonicCorrespondence(
+                    ctx,
+                    front.prevPaths[0].points,
+                    front.nextPaths[0].points,
+                    startIndex,
+                    endIndex,
+                );
+            }
+        }
+    }
+
+    for (const pair of plan.diagnostics.pairDiagnostics as ActiveFrontPairDiagnostic[]) {
+        if (
+            pair.outcome !== 'defect_topology_gap' &&
+            pair.outcome !== 'defect_unsupported_split_mode'
+        ) {
+            continue;
+        }
+
+        for (const pathSectionIds of pair.prevPathSectionIds) {
+            const points = buildTopologyPathPoints(
+                prevTopology,
+                pathSectionIds,
+                pair.anchorStartId,
+            );
+            drawCanvasPolyline(ctx, points, AF_COLORS.prevPath, 2, true);
+        }
+
+        for (const pathSectionIds of pair.nextPathSectionIds) {
+            const points = buildTopologyPathPoints(
+                nextTopology,
+                pathSectionIds,
+                pair.anchorStartId,
+            );
+            drawCanvasPolyline(ctx, points, AF_COLORS.defectPath, 3, false);
+        }
+
+        const startVertex = nextTopology.vertices.get(pair.anchorStartId)
+            ?? prevTopology.vertices.get(pair.anchorStartId);
+        const endVertex = nextTopology.vertices.get(pair.anchorEndId)
+            ?? prevTopology.vertices.get(pair.anchorEndId);
+        if (startVertex) {
+            drawCanvasSquare(
+                ctx,
+                startVertex.point[0],
+                startVertex.point[1],
+                10,
+                AF_COLORS.defectAnchor,
+            );
+        }
+        if (endVertex) {
+            drawCanvasSquare(
+                ctx,
+                endVertex.point[0],
+                endVertex.point[1],
+                10,
+                AF_COLORS.defectAnchor,
+            );
+        }
+    }
+
+    return canvas;
+}
+
 function renderActiveFrontDiagnosticCanvas(args: {
     baseCanvas: HTMLCanvasElement | null;
     diagnostics: ActiveFrontLiveCaptureDiagnostics;
@@ -205,35 +575,7 @@ function renderActiveFrontDiagnosticCanvas(args: {
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const debug = args.diagnostics.activeFrontDebug;
-    const planSummary = debug?.planSummary ?? null;
-    const lines = [
-        `AF eval: ${debug?.evaluation ?? 'n/a'}`,
-        `path: ${debug?.pathUsed ?? 'n/a'}`,
-        `fronts: ${debug?.frontCount ?? 0} / collapses: ${debug?.collapseTargetCount ?? 0}`,
-        `sampled: ${typeof debug?.sampledProgress === 'number' ? debug.sampledProgress.toFixed(3) : 'n/a'}`,
-        `stable anchors: ${planSummary?.stableAnchorCount ?? 0} / pairs: ${planSummary?.pairCount ?? 0}`,
-        `planned: ${planSummary?.plannedPairCount ?? 0} / defect pairs: ${planSummary?.defectPairCount ?? 0}`,
-        `topology gaps: ${planSummary?.defectTopologyGapCount ?? 0} / split defects: ${planSummary?.defectUnsupportedSplitCount ?? 0}`,
-        `no-motion pairs: ${planSummary?.noChangePairCount ?? 0} / defect sections: ${planSummary?.defectSectionCount ?? 0}`,
-    ];
-    const panelWidth = 310;
-    const lineHeight = 16;
-    const panelHeight = lines.length * lineHeight + 18;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.74)';
-    ctx.fillRect(12, 12, panelWidth, panelHeight);
-    ctx.strokeStyle = 'rgba(103, 232, 249, 0.72)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(12, 12, panelWidth, panelHeight);
-
-    ctx.font = '12px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    for (let index = 0; index < lines.length; index += 1) {
-        ctx.fillStyle = index === 0 ? '#67e8f9' : '#f8fafc';
-        ctx.fillText(lines[index], 22, 22 + index * lineHeight);
-    }
+    drawActiveFrontHudLegend(ctx, args.diagnostics.activeFrontDebug);
     return canvas;
 }
 
@@ -409,6 +751,17 @@ const activeFrontLiveCaptureAdapter: TransitionDiagnosticsExportAdapter = {
             baseCanvas,
             diagnostics: diagnostics as ActiveFrontLiveCaptureDiagnostics,
         });
+    },
+    renderSupplementalCanvases(bundle) {
+        const reference = drawActiveFrontReferenceFrame(bundle);
+        if (!reference) return [];
+        return [
+            {
+                filename: 'render/front_reference.png',
+                label: 'PRE|POST front reference',
+                canvas: reference,
+            },
+        ];
     },
 };
 

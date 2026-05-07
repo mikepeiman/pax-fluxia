@@ -558,6 +558,8 @@ function buildDiagnosticReadme(
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): string {
     const debugFiles = buildDiagnosticDebugFileNames(bundle);
+    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
+    const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const conquestLine = bundle.conquestEvents.length
         ? `Conquest: ${formatConquestEventGroupLabel(bundle.conquestEvents)}`
         : 'Conquest: unavailable';
@@ -584,6 +586,9 @@ function buildDiagnosticReadme(
         '- render/prev.png',
         ...renderFrameLines,
         '- render/next.png',
+        ...supplementalCanvases.map(
+            (frame) => `- ${frame.filename} (${frame.label})`,
+        ),
         '',
         'Debug files:',
         `- debug/${debugFiles.stageFiles.frameInput}`,
@@ -685,6 +690,7 @@ function renderExportCanvas(
     const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
     if (!adapter) return baseCanvas;
     return adapter.renderCanvas({
+        bundle,
         baseCanvas,
         diagnostics: bundle.extraDiagnostics,
         phase,
@@ -697,6 +703,8 @@ export async function downloadBundle(
     starPositions: ReadonlyMap<string, { x: number; y: number }>,
 ): Promise<void> {
     const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
+    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
+    const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const debugFiles = buildDiagnosticDebugFileNames(bundle);
     const stageExports = buildDiagnosticStageExports(bundle);
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
@@ -759,6 +767,14 @@ export async function downloadBundle(
             );
             await new Promise((resolve) => setTimeout(resolve, 80));
         }
+    }
+
+    for (const supplemental of supplementalCanvases) {
+        const flattenedName = supplemental.filename.replace(/^render\//, '');
+        await saveExportBlob(
+            await canvasToBlob(supplemental.canvas),
+            `${prefix}_${flattenedName}`,
+        );
     }
 
     await saveExportBlob(
@@ -870,6 +886,8 @@ export async function downloadDiagnosticPackage(
 ): Promise<void> {
     const prefix = buildConquestFilePrefix(bundle.timestamp, bundle.conquestEvents);
     const zip = new JSZip();
+    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
+    const supplementalCanvases = adapter?.renderSupplementalCanvases?.(bundle) ?? [];
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);
     const compactGeometry = buildCompactGeometryExport(bundle, selectedFrames);
@@ -959,6 +977,10 @@ export async function downloadDiagnosticPackage(
             renderExportCanvas(bundle, bundle.nextCanvas, 'next') ??
             bundle.nextCanvas;
         await addCanvasToZip(zip, 'render/next.png', nextCanvas);
+    }
+
+    for (const supplemental of supplementalCanvases) {
+        await addCanvasToZip(zip, supplemental.filename, supplemental.canvas);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

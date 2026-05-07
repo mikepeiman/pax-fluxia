@@ -66,3 +66,11 @@ This file is the standing home for agentic communication rules and guidance for 
    - Dialogue is for working things out.
    - Plans are for settled direction.
    - Post-mortems are for blunt failure accounting.
+
+11. Run the ambiguity test before replying.
+   - Ask:
+     - `Will this leave Mike with uncertainty?`
+     - `Will this leave Mike with ambiguity or contradiction?`
+     - `Will this force a clarifying question that I should have prevented?`
+   - If yes, rewrite before sending.
+   - Use the project's established terms, not near-synonyms.

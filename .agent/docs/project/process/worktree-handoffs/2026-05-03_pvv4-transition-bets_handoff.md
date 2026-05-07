@@ -55,6 +55,35 @@
 
 ## Live Action Log
 
+### 2026-05-07 - Made snap-package renders actually show active-front diagnosis
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\project\process\communication.md`
+- Purpose:
+  - make snap-transition packages visually useful instead of forcing diagnosis from JSON alone
+  - ensure the exported render bundle shows the same active-front structure the live overlay was already showing
+- Exact change:
+  - active-front export frames now use the full AF legend HUD, not the old summary-only panel
+  - added supplemental package render:
+    - `render/front_reference.png`
+  - `front_reference.png` draws:
+    - dashed `PRE` front paths
+    - solid `POST` front paths
+    - active front span
+    - change anchors
+    - defect anchors
+    - monotonic change-vertex correspondence lines
+  - package README generation now lists the supplemental render explicitly
+  - added a standing ambiguity-prevention rule to `communication.md`
+- Result:
+  - a snap package can now directly show where the intended active front span was, where the defect anchors are, and how the monotonic correspondence should have mapped
+- Validation:
+  - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build`
+
 ### 2026-05-06 - Fixed diagnostics overlay crash and persisted toggle state
 
 - Action:
