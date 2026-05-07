@@ -1309,6 +1309,7 @@ let savedMaps: MapDefinition[] = $state(loadSavedMaps());
 
 // F-148: Default map preference — auto-load a saved map on game start
 let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || '');
+const supportsDevFilesystemPersistence = import.meta.env.DEV;
 
 function loadSavedMaps(): MapDefinition[] {
     try {
@@ -1334,6 +1335,7 @@ function persistSavedMaps(): void {
 
 /** Save a single map to filesystem (fire-and-forget) */
 function persistMapToFilesystem(map: MapDefinition): void {
+    if (!supportsDevFilesystemPersistence) return;
     try {
         fetch('/__maps', {
             method: 'POST',
@@ -1345,6 +1347,7 @@ function persistMapToFilesystem(map: MapDefinition): void {
 
 /** Delete a map from filesystem (fire-and-forget) */
 function deleteMapFromFilesystem(name: string): void {
+    if (!supportsDevFilesystemPersistence) return;
     try {
         fetch(`/__maps?name=${encodeURIComponent(name)}`, {
             method: 'DELETE',
@@ -1354,6 +1357,7 @@ function deleteMapFromFilesystem(name: string): void {
 
 /** Load maps from filesystem and merge with localStorage (async, called once at init) */
 async function loadFilesystemMaps(): Promise<void> {
+    if (!supportsDevFilesystemPersistence) return;
     try {
         const res = await fetch('/__maps');
         if (!res.ok) return;
@@ -1449,6 +1453,7 @@ function persistSavedGamesList(): void {
 }
 
 function persistGameToFilesystem(game: SavedGame): void {
+    if (!supportsDevFilesystemPersistence) return;
     try {
         fetch('/__games', {
             method: 'POST',
@@ -1459,6 +1464,7 @@ function persistGameToFilesystem(game: SavedGame): void {
 }
 
 function deleteGameFromFilesystem(id: string): void {
+    if (!supportsDevFilesystemPersistence) return;
     try {
         fetch(`/__games?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
             .catch(() => { /* noop */ });

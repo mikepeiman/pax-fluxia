@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
@@ -847,6 +848,23 @@
         void handleJoinSelectedRoom();
     }
 
+    function openLoadMapPanel() {
+        audioManager.play("click");
+        activeMobileTab = "setup";
+        if (getCustomMaps().length > 0) {
+            mapMode = "custom";
+            return;
+        }
+        if (getClassicMaps().length > 0) {
+            mapMode = "classic";
+        }
+    }
+
+    function openMapEditor() {
+        audioManager.play("click");
+        void goto("/map-editor");
+    }
+
     function handleMapModeChange(mode: MapMode) {
         mapMode = mode;
         if (mode === "random") {
@@ -1149,9 +1167,12 @@
                 summary={commandSummary}
                 selectedRoomLabel={selectedRoomLabel}
                 startDisabled={multiplayerStore.isConnected || startPending}
+                loadMapDisabled={getCustomMaps().length === 0 && getClassicMaps().length === 0}
                 createDisabled={mapMode === "custom" || multiplayerStore.isConnected}
                 joinDisabled={!selectedRoom || multiplayerStore.isConnected}
+                onOpenEditor={openMapEditor}
                 onStart={triggerStartAction}
+                onLoadMap={openLoadMapPanel}
                 onCreateLobby={triggerCreateLobbyAction}
                 onJoinSelected={triggerJoinSelectedAction}
             />

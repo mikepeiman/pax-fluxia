@@ -30,7 +30,6 @@
         PANEL_STORAGE_KEY,
         VISUALS_STORAGE_KEY,
         ANIM_LOCK_STORAGE_KEY,
-        TIER_STORAGE_KEY,
         loadVisuals,
         saveVisuals,
         applyVisuals,
@@ -42,7 +41,6 @@
         saveAnimLockRatios,
         loadAnimLockModes,
         saveAnimLockModes,
-        loadTier,
         saveTier,
         exportConfigJSON as exportConfigJSONBase,
         type AnimLockMode,
@@ -87,6 +85,11 @@
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
+    import {
+        canAccessAudience,
+        resolveAudienceAccess,
+        type AudienceAccess,
+    } from "$lib/shell/audience";
 
     // Aliases for the imported arrays (matches existing template references)
     const logCategories = LOG_CATEGORIES;
@@ -130,8 +133,27 @@
         };
     });
 
+    function getCurrentSearchParams(): URLSearchParams | null {
+        if (typeof window === "undefined") return null;
+        try {
+            return new URL(window.location.href).searchParams;
+        } catch {
+            return null;
+        }
+    }
+
+    function audienceToTier(access: AudienceAccess): SettingsTier {
+        if (canAccessAudience("internal", access)) return "developer";
+        if (canAccessAudience("advanced", access)) return "advanced";
+        return "basic";
+    }
+
+    const fallbackAudienceAccess = resolveAudienceAccess({
+        isDev: import.meta.env.DEV,
+        searchParams: getCurrentSearchParams(),
+    });
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
-    let activeTier = $state<SettingsTier>(loadTier());
+    let activeTier = $state<SettingsTier>(audienceToTier(fallbackAudienceAccess));
 
     // Panel settings (persisted via panelSync)
     let panel = $state(loadPanelSettings(panelDefaultsFromConfig()));
@@ -326,6 +348,13 @@
 
     function applyCategoryPresetValues(preset: CategoryPreset) {
         applyConfigPatch(preset.values as Record<string, unknown>);
+    }
+
+    function syncTierFromAudience() {
+        const nextTier = audienceToTier(audienceAccess);
+        if (activeTier === nextTier) return;
+        activeTier = nextTier;
+        saveTier(nextTier);
     }
 
     function setTier(tier: SettingsTier) {
@@ -728,11 +757,37 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         // Reload to fully reinitialize from clean state
         window.location.reload();
     }
-
-    // =========================================================================
-    // Settings header utilities
-    // =========================================================================
+    let showSaveMapDrawer = $state(false);
     let showLoadMapDrawer = $state(false);
+    let showSaveGameDrawer = $state(false);
+    let showLoadGameDrawer = $state(false);
+    let saveMapName = $state("");
+    let saveGameName = $state("");
+
+    function closeUtilityDrawers() {
+        showSaveMapDrawer = false;
+        showLoadMapDrawer = false;
+        showSaveGameDrawer = false;
+        showLoadGameDrawer = false;
+    }
+
+    function toggleUtilityDrawer(
+        drawer: "saveMap" | "loadMap" | "saveGame" | "loadGame",
+    ) {
+        const nextSaveMap = drawer === "saveMap" ? !showSaveMapDrawer : false;
+        const nextLoadMap = drawer === "loadMap" ? !showLoadMapDrawer : false;
+        const nextSaveGame = drawer === "saveGame" ? !showSaveGameDrawer : false;
+        const nextLoadGame = drawer === "loadGame" ? !showLoadGameDrawer : false;
+
+        showSaveMapDrawer = nextSaveMap;
+        showLoadMapDrawer = nextLoadMap;
+        showSaveGameDrawer = nextSaveGame;
+        showLoadGameDrawer = nextLoadGame;
+
+        if (nextSaveGame && !saveGameName.trim()) {
+            saveGameName = `Session ${new Date().toISOString().slice(0, 10)}`;
+        }
+    }
 
     function getLoadableMaps(): MapDefinition[] {
         return [...gameStore.savedMaps].sort((left, right) => {
@@ -753,6 +808,56 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         configStatusColor = "#4ade80";
     }
 
+    function getSavedGames() {
+        return [...gameStore.savedGames].sort(
+            (left, right) => right.createdAt - left.createdAt,
+        );
+    }
+
+    function handleSaveMapFromSettings() {
+        const name = saveMapName.trim();
+        if (!name) return;
+        gameStore.saveCurrentMap(name);
+        saveMapName = "";
+        showSaveMapDrawer = false;
+        configStatus = `Saved map "${name}"`;
+        configStatusColor = "#4ade80";
+    }
+
+    function handleSaveGameFromSettings() {
+        const name = saveGameName.trim();
+        if (!name) return;
+        gameStore.saveCurrentGame(name);
+        saveGameName = "";
+        showSaveGameDrawer = false;
+        configStatus = `Saved game "${name}"`;
+        configStatusColor = "#4ade80";
+    }
+
+    async function handleLoadSavedGameFromSettings(game: any) {
+        showLoadGameDrawer = false;
+        gameStore.loadSavedGame(game, false);
+        await gameStore.startGame();
+        configStatus = `Loaded game "${game.name}"`;
+        configStatusColor = "#4ade80";
+    }
+
+    function handleRestartFromSettings() {
+        closeUtilityDrawers();
+        activeGameStore.playAgain();
+    }
+
+    function handleQuitFromSettings() {
+        closeUtilityDrawers();
+        activeGameStore.returnToMenu();
+    }
+
+    function handleDeleteSavedGameFromSettings(id: string) {
+        gameStore.deleteSavedGame(id);
+        configStatus = "Deleted saved game";
+        configStatusColor = "#4ade80";
+    }
+
     // =========================================================================
     // Icon Toolbar — sections definition
     // =========================================================================
@@ -761,12 +866,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     interface Props {
         forceOpenSection?: SectionId | null;
         forceOpenSectionNonce?: number;
+        audienceAccess?: AudienceAccess;
+        onRequestShowAdvanced?: () => void;
+        onRequestInternalTools?: () => void;
     }
 
     let {
         forceOpenSection = null,
         forceOpenSectionNonce = 0,
+        audienceAccess = fallbackAudienceAccess,
+        onRequestShowAdvanced,
+        onRequestInternalTools,
     }: Props = $props();
+
+    $effect(() => {
+        syncTierFromAudience();
+    });
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
     function loadOpenSections(): SectionId[] {
@@ -788,6 +903,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let sectionOrder = $state<SectionId[]>(loadOpenSections());
     // Set for O(1) membership checks
     let openSections = $derived(new Set(sectionOrder));
+    let advancedSectionsVisible = $derived(
+        canAccessAudience("advanced", audienceAccess),
+    );
+    let internalSectionsVisible = $derived(
+        canAccessAudience("internal", audienceAccess),
+    );
 
     function persistSectionOrder() {
         if (typeof window !== "undefined") {
@@ -851,6 +972,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     );
 
     function isSectionVisible(section: SettingsSectionDefinition): boolean {
+        if (!canAccessAudience(section.audience, audienceAccess)) return false;
         if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
         if (TERRITORY_MODE_SECTION_IDS.has(section.id as SectionId)) {
             return section.id === activeTerritoryModeSectionId;
@@ -881,9 +1003,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         if (!forceOpenSection) return;
         if (forceOpenSectionNonce === lastForceOpenSectionNonce) return;
         lastForceOpenSectionNonce = forceOpenSectionNonce;
-        if (activeTier !== "developer") {
-            setTier("developer");
-        }
+        ensureSectionAudience(getSectionDefinition(forceOpenSection));
         openSection(forceOpenSection);
     });
 
@@ -927,7 +1047,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let settingsSearchQuery = $state("");
     const sectionBodyNodes = new Map<SectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
-        searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode),
+        searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode).filter(
+            (result) =>
+                canAccessAudience(
+                    getSectionDefinition(result.sectionId).audience,
+                    audienceAccess,
+                ),
+        ),
     );
     let matchedSectionIds = $derived.by(() =>
         settingsSearchQuery.trim()
@@ -964,11 +1090,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             .trim();
     }
 
+    function ensureSectionAudience(section: SettingsSectionDefinition) {
+        if (section.audience === "advanced" && !advancedSectionsVisible) {
+            onRequestShowAdvanced?.();
+        }
+        if (section.audience === "internal" && !internalSectionsVisible) {
+            onRequestInternalTools?.();
+        }
+    }
+
     function revealSearchSection(sectionId: SectionId) {
         const section = getSectionDefinition(sectionId);
-        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) {
-            setTier(section.tier);
-        }
+        ensureSectionAudience(section);
         openSection(sectionId);
     }
 
@@ -1177,37 +1310,256 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         {/if}
 
+        {#if false}
+        <div class="settings-utility-groups">
+            <div class="settings-utility-card">
+                <div class="settings-utility-card__label">Map</div>
+                <div class="settings-utility-card__actions">
+                    <button
+                        class="full-io-btn full-load-map-btn"
+                        onclick={() => toggleUtilityDrawer("loadMap")}
+                        title="Load a saved map and restart the current game"
+                    >
+                        Load
+                    </button>
+                    <button
+                        class="full-io-btn"
+                        onclick={() => toggleUtilityDrawer("saveMap")}
+                        title="Save the current map topology"
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
+            <div class="settings-utility-card">
+                <div class="settings-utility-card__label">Game + Map</div>
+                <div class="settings-utility-card__actions">
+                    <button
+                        class="full-io-btn full-load-map-btn"
+                        onclick={() => toggleUtilityDrawer("loadGame")}
+                        title="Load a saved game and resume the full session"
+                    >
+                        Load
+                    </button>
+                    <button
+                        class="full-io-btn"
+                        onclick={() => toggleUtilityDrawer("saveGame")}
+                        title="Save the current game state and map"
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
+            <div class="settings-utility-card">
+                <div class="settings-utility-card__label">Session</div>
+                <div class="settings-utility-card__actions">
+                    <button
+                        class="full-io-btn"
+                        onclick={handleQuitFromSettings}
+                        title="Exit to the main menu"
+                    >
+                        Quit
+                    </button>
+                    <button
+                        class="full-io-btn"
+                        onclick={handleRestartFromSettings}
+                        title="Restart using the current match setup"
+                    >
+                        Restart
+                    </button>
+                </div>
+            </div>
+        </div>
+        {#if showSaveMapDrawer}
+            <div class="full-load-map-drawer">
+                <div class="settings-inline-row">
+                    <input
+                        class="settings-inline-input"
+                        type="text"
+                        placeholder="Map name"
+                        bind:value={saveMapName}
+                        onkeydown={(event) => {
+                            if (event.key === "Enter") handleSaveMapFromSettings();
+                            if (event.key === "Escape") showSaveMapDrawer = false;
+                        }}
+                    />
+                    <button
+                        class="full-io-btn"
+                        onclick={handleSaveMapFromSettings}
+                        disabled={!saveMapName.trim()}
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
+        {/if}
+        {#if showLoadMapDrawer}
+            <div class="full-load-map-drawer">
+                {#if gameStore.savedMaps.length === 0}
+                    <div class="full-load-map-empty">No saved maps available.</div>
+                {:else}
+                    <div class="full-load-map-list">
+                        {#each getLoadableMaps() as map}
+                            <button
+                                class="full-load-map-item"
+                                onclick={() => void handleLoadMapFromSettings(map)}
+                                title={`Load ${map.metadata.name}`}
+                            >
+                                <span class="full-load-map-item__name">{map.metadata.name}</span>
+                                <span class="full-load-map-item__meta">
+                                    {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
+                                </span>
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {/if}
+        {#if showSaveGameDrawer}
+            <div class="full-load-map-drawer">
+                <div class="settings-inline-row">
+                    <input
+                        class="settings-inline-input"
+                        type="text"
+                        placeholder="Save name"
+                        bind:value={saveGameName}
+                        onkeydown={(event) => {
+                            if (event.key === "Enter") handleSaveGameFromSettings();
+                            if (event.key === "Escape") showSaveGameDrawer = false;
+                        }}
+                    />
+                    <button
+                        class="full-io-btn"
+                        onclick={handleSaveGameFromSettings}
+                        disabled={!saveGameName.trim()}
+                    >
+                        Save
+                    </button>
+                </div>
+            </div>
+        {/if}
+        {#if showLoadGameDrawer}
+            <div class="full-load-map-drawer">
+                {#if gameStore.savedGames.length === 0}
+                    <div class="full-load-map-empty">No saved games available.</div>
+                {:else}
+                    <div class="full-load-map-list">
+                        {#each getSavedGames() as game}
+                            <div class="full-load-map-item full-load-map-item--saved-game">
+                                <button
+                                    class="full-load-map-item__button"
+                                    onclick={() => void handleLoadSavedGameFromSettings(game)}
+                                    title={`Load ${game.name}`}
+                                >
+                                    <span class="full-load-map-item__name">{game.name}</span>
+                                    <span class="full-load-map-item__meta">
+                                        Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}
+                                    </span>
+                                </button>
+                                <button
+                                    class="full-io-btn full-reset-btn full-delete-btn"
+                                    onclick={() => handleDeleteSavedGameFromSettings(game.id)}
+                                    title="Delete saved game"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {/if}
+        {/if}
+        {#if internalSectionsVisible}
+            <div class="settings-utility-row settings-utility-row--internal">
+                <button
+                    class="full-io-btn full-export-btn"
+                    onclick={() => {
+                        exportConfigJSONBase();
+                        configStatus = "Exported JSON";
+                        configStatusColor = "#4ade80";
+                    }}
+                    title="Export the current game config as JSON"
+                >
+                    JSON
+                </button>
+                <button
+                    class="full-io-btn full-export-btn"
+                    onclick={exportConfigMD}
+                    title="Export the current game config as Markdown"
+                >
+                    Markdown
+                </button>
+                <button
+                    class="full-io-btn full-import-btn"
+                    onclick={() => {
+                        const input = document.getElementById(
+                            "settings-config-import-input",
+                        ) as HTMLInputElement | null;
+                        input?.click();
+                    }}
+                    title="Import a saved game config from JSON"
+                >
+                    Import
+                </button>
+                {#if advancedSectionsVisible}
+                    <button
+                        class="full-io-btn full-reset-btn"
+                        onclick={resetToDefaults}
+                        title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
+                    >
+                        Clear All
+                    </button>
+                {/if}
+            </div>
+            <input
+                id="settings-config-import-input"
+                type="file"
+                accept=".json"
+                style="display:none;"
+                onchange={importConfigJSON}
+            />
+        {/if}
+        {#if configStatus}
+            <div class="settings-utility-status" style={`color:${configStatusColor};`}>
+                {configStatus}
+            </div>
+        {/if}
+
+        {#if false}
         <div class="settings-utility-row">
-            <button
-                class="full-io-btn full-export-btn"
-                onclick={() => {
-                    exportConfigJSONBase();
-                    configStatus = "✅ Exported JSON";
-                    configStatusColor = "#4ade80";
-                }}
-                title="Export the current game config as JSON"
-            >
-                📥 Export JSON
-            </button>
-            <button
-                class="full-io-btn full-export-btn"
-                onclick={exportConfigMD}
-                title="Export the current game config as Markdown"
-            >
-                📄 Export MD
-            </button>
-            <button
-                class="full-io-btn full-import-btn"
-                onclick={() => {
-                    const input = document.getElementById(
-                        "settings-config-import-input",
-                    ) as HTMLInputElement | null;
-                    input?.click();
-                }}
-                title="Import a saved game config from JSON"
-            >
-                📤 Import JSON
-            </button>
+            {#if internalSectionsVisible}
+                <button
+                    class="full-io-btn full-export-btn"
+                    onclick={() => {
+                        exportConfigJSONBase();
+                        configStatus = "✅ Exported JSON";
+                        configStatusColor = "#4ade80";
+                    }}
+                    title="Export the current game config as JSON"
+                >
+                    📥 Export JSON
+                </button>
+                <button
+                    class="full-io-btn full-export-btn"
+                    onclick={exportConfigMD}
+                    title="Export the current game config as Markdown"
+                >
+                    📄 Export MD
+                </button>
+                <button
+                    class="full-io-btn full-import-btn"
+                    onclick={() => {
+                        const input = document.getElementById(
+                            "settings-config-import-input",
+                        ) as HTMLInputElement | null;
+                        input?.click();
+                    }}
+                    title="Import a saved game config from JSON"
+                >
+                    📤 Import JSON
+                </button>
+            {/if}
             <button
                 class="full-io-btn full-load-map-btn"
                 onclick={() => {
@@ -1217,13 +1569,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             >
                 🗺 Load Map
             </button>
-            <button
-                class="full-io-btn full-reset-btn"
-                onclick={resetToDefaults}
-                title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
-            >
-                🗑️ Clear All
-            </button>
+            {#if advancedSectionsVisible}
+                <button
+                    class="full-io-btn full-reset-btn"
+                    onclick={resetToDefaults}
+                    title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
+                >
+                    🗑️ Clear All
+                </button>
+            {/if}
         </div>
         <input
             id="settings-config-import-input"
@@ -1260,6 +1614,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </div>
         {/if}
+        {/if}
     </div>
 
     <!-- Icon Toolbar -->
@@ -1280,16 +1635,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </button>
         {/each}
-        <button
-            class="icon-btn reset-icon"
-            title="Reset All"
-            onclick={resetToDefaults}
-        >
-            <span class="icon-emoji">↺</span>
-            {#if !hasVisibleOpenSections}
-                <span class="icon-label">Reset</span>
-            {/if}
-        </button>
+        {#if advancedSectionsVisible}
+            <button
+                class="icon-btn reset-icon"
+                title="Reset All"
+                onclick={resetToDefaults}
+            >
+                <span class="icon-emoji">↺</span>
+                {#if !hasVisibleOpenSections}
+                    <span class="icon-label">Reset</span>
+                {/if}
+            </button>
+        {/if}
     </div>
 
     <!-- Stacked Section Panels -->
@@ -2066,8 +2423,38 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 6px;
         flex-wrap: wrap;
     }
+    .settings-utility-row--internal {
+        padding-top: 2px;
+    }
+    .settings-utility-groups {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .settings-utility-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.46);
+        min-width: 0;
+    }
+    .settings-utility-card__label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.78);
+    }
+    .settings-utility-card__actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
     .full-io-btn {
-        flex: 1 1 140px;
+        flex: 1 1 120px;
         padding: 3px 8px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 6px;
@@ -2110,6 +2497,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: #ff4444;
         color: #ff4444;
         box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
+    }
+    .full-delete-btn {
+        flex: 0 0 auto;
+        min-width: 42px;
+        padding-inline: 0;
     }
     .full-load-map-btn {
         border-color: rgba(125, 211, 252, 0.28);
@@ -2160,7 +2552,36 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             background 0.15s,
             transform 0.15s;
     }
+    .full-load-map-item--saved-game {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+    }
+    .full-load-map-item__button {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #d7e2f0;
+        cursor: pointer;
+        text-align: left;
+        transition:
+            border-color 0.15s,
+            background 0.15s,
+            transform 0.15s;
+    }
     .full-load-map-item:hover {
+        border-color: rgba(125, 211, 252, 0.32);
+        background: rgba(125, 211, 252, 0.08);
+        transform: translateY(-1px);
+    }
+    .full-load-map-item__button:hover {
         border-color: rgba(125, 211, 252, 0.32);
         background: rgba(125, 211, 252, 0.08);
         transform: translateY(-1px);
@@ -2174,6 +2595,32 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         font-size: 10px;
         letter-spacing: 0.03em;
         color: #8ea3bc;
+    }
+    .settings-inline-row {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+    }
+    .settings-inline-input {
+        flex: 1;
+        min-width: 0;
+        padding: 9px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #f8fafc;
+        font-size: 13px;
+    }
+    .settings-inline-input:focus {
+        outline: none;
+        border-color: rgba(96, 165, 250, 0.68);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
+    }
+
+    @media (max-width: 860px) {
+        .settings-utility-groups {
+            grid-template-columns: 1fr;
+        }
     }
 
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */

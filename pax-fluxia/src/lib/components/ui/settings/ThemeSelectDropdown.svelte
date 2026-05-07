@@ -431,8 +431,8 @@
     text-align: left;
     cursor: pointer;
     transition:
-      background 0.15s,
-      color 0.15s;
+      background 0.2s,
+      color 0.2s;
   }
 
   .theme-select-dropdown__option:hover,
@@ -463,7 +463,7 @@
     border: 1px solid rgba(74, 222, 128, 0.55);
     background: transparent;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.2s ease;
   }
 
   .theme-select-dropdown__option-indicator.visible {

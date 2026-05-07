@@ -177,6 +177,7 @@
 
 <div
   class="game-theme-manager"
+  class:game-theme-manager--menu={variant === "menu"}
   class:game-theme-manager--drawer={variant === "drawer"}>
   <div class="game-theme-manager__header">
     <span class="game-theme-manager__icon">🎨</span>
@@ -187,42 +188,46 @@
       onclick={() => {
         showThemeChips = !showThemeChips;
       }}>
-      {showThemeChips ? "Hide Library" : "Browse Library"}
+      {showThemeChips ? "Hide Library" : "Library"}
     </button>
   </div>
 
   <div class="game-theme-manager__top-row">
     <div class="game-theme-manager__actions" class:hidden={showSaveInput}>
-      <ThemeSelectDropdown
-        idBase={variant === "drawer" ? "mobile-theme-manager" : "menu-theme-manager"}
-        variant="shell"
-        {themeFamilyGroups}
-        {selectedThemeName}
-        placeholder="Select theme..."
-        getThemeOptionLabel={getThemeOptionLabel}
-        onSelectTheme={handleApplyTheme} />
-      {#if selectedThemeName}
+      <div class="game-theme-manager__select-wrap">
+        <ThemeSelectDropdown
+          idBase={variant === "drawer" ? "mobile-theme-manager" : "menu-theme-manager"}
+          variant="shell"
+          {themeFamilyGroups}
+          {selectedThemeName}
+          placeholder="Select theme..."
+          getThemeOptionLabel={getThemeOptionLabel}
+          onSelectTheme={handleApplyTheme} />
+      </div>
+      <div class="game-theme-manager__button-row">
         <button
           type="button"
-          class="theme-manager-btn theme-manager-btn--update"
-          class:flash={saveFlash}
-          disabled={!selectedThemeIsUserTheme}
-          onclick={handleUpdateTheme}
-          title={selectedThemeIsUserTheme
-            ? `Update ${selectedThemeName} with current settings`
-            : "Built-in themes cannot be overwritten. Use Add to save a new theme."}>
-          Update
+          class="theme-manager-btn"
+          onclick={() => {
+            showSaveInput = true;
+          }}
+          title="Save the current look as a new theme">
+          Save Copy
         </button>
-      {/if}
-      <button
-        type="button"
-        class="theme-manager-btn"
-        onclick={() => {
-          showSaveInput = true;
-        }}
-        title="Create a new theme from the current game settings">
-        Add
-      </button>
+        {#if selectedThemeName}
+          <button
+            type="button"
+            class="theme-manager-btn theme-manager-btn--update"
+            class:flash={saveFlash}
+            disabled={!selectedThemeIsUserTheme}
+            onclick={handleUpdateTheme}
+            title={selectedThemeIsUserTheme
+              ? `Update ${selectedThemeName} with current settings`
+              : "Built-in themes cannot be overwritten. Use Save Copy to create your own theme."}>
+            Update
+          </button>
+        {/if}
+      </div>
     </div>
 
     <div class="game-theme-manager__save-row" class:open={showSaveInput}>
@@ -238,22 +243,24 @@
             saveName = "";
           }
         }} />
-      <button
-        type="button"
-        class="theme-manager-btn theme-manager-btn--ghost"
-        onclick={() => {
-          showSaveInput = false;
-          saveName = "";
-        }}>
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="theme-manager-btn theme-manager-btn--confirm"
-        class:flash={saveFlash}
-        onclick={handleSaveTheme}>
-        Save
-      </button>
+      <div class="game-theme-manager__save-actions">
+        <button
+          type="button"
+          class="theme-manager-btn theme-manager-btn--ghost"
+          onclick={() => {
+            showSaveInput = false;
+            saveName = "";
+          }}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="theme-manager-btn theme-manager-btn--confirm"
+          class:flash={saveFlash}
+          onclick={handleSaveTheme}>
+          Save
+        </button>
+      </div>
     </div>
   </div>
 
@@ -287,8 +294,10 @@
               <span class="theme-family-name">{group.label}</span>
               <span class="theme-family-count">{group.themes.length}</span>
             </div>
-            <p class="theme-family-description">{group.description}</p>
-            <p class="theme-family-summary">{getThemeGroupSummary(group)}</p>
+            {#if variant === "drawer"}
+              <p class="theme-family-description">{group.description}</p>
+              <p class="theme-family-summary">{getThemeGroupSummary(group)}</p>
+            {/if}
           </div>
           <div class="theme-chip-row">
             {#each group.themes as theme}
@@ -296,12 +305,15 @@
               <button
                 type="button"
                 class="theme-chip"
+                class:theme-chip--menu={variant === "menu"}
                 class:active={themeStore.selectedThemeName === theme.name}
                 onclick={() => handleApplyTheme(theme.name)}
-                title={getThemeChipTitle(theme)}>
-                <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
-                  {THEME_STATUS_LABELS[routing.status]}
-                </span>
+                title={variant === "drawer" ? getThemeChipTitle(theme) : theme.name}>
+                {#if variant === "drawer"}
+                  <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
+                    {THEME_STATUS_LABELS[routing.status]}
+                  </span>
+                {/if}
                 <span class="theme-chip-name">{theme.name}</span>
                 {#if themeStore.isUserTheme(theme.name)}
                   <span
@@ -333,15 +345,22 @@
   .game-theme-manager {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid rgba(255, 230, 160, 0.08);
+    border-radius: 12px;
     background:
-      linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(8, 12, 20, 0.92)),
+      linear-gradient(180deg, rgba(16, 21, 33, 0.92), rgba(8, 11, 20, 0.94)),
       rgba(255, 255, 255, 0.02);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
     min-width: 0;
+  }
+
+  .game-theme-manager--menu {
+    background:
+      linear-gradient(180deg, rgba(19, 24, 38, 0.95), rgba(10, 14, 24, 0.97)),
+      rgba(255, 255, 255, 0.02);
   }
 
   .game-theme-manager--drawer {
@@ -352,7 +371,7 @@
   .game-theme-manager__header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
   }
 
@@ -381,9 +400,9 @@
     letter-spacing: 0.06em;
     cursor: pointer;
     transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s;
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s;
   }
 
   .game-theme-manager__toggle:hover {
@@ -400,10 +419,23 @@
   .game-theme-manager__actions,
   .game-theme-manager__save-row {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
     gap: 6px;
     width: 100%;
     min-width: 0;
+  }
+
+  .game-theme-manager__select-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .game-theme-manager__button-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
   }
 
   .game-theme-manager__actions.hidden {
@@ -418,6 +450,13 @@
     display: flex;
   }
 
+  .game-theme-manager__save-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
   .game-theme-manager__save-input {
     flex: 1;
     min-width: 0;
@@ -425,6 +464,7 @@
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.22);
     color: #fff;
+    min-height: 38px;
     padding: 0 12px;
     font-size: 0.8rem;
   }
@@ -437,28 +477,32 @@
 
   .theme-manager-btn,
   .theme-manager-mini-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     color: rgba(226, 232, 240, 0.74);
     cursor: pointer;
     transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s,
-      transform 0.18s;
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
   }
 
   .theme-manager-btn {
     padding: 0 12px;
     font-size: 0.76rem;
     font-weight: 700;
-    white-space: nowrap;
+    min-height: 34px;
   }
 
   .theme-manager-mini-btn {
+    min-height: 34px;
     padding: 5px 10px;
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.04em;
   }
@@ -498,8 +542,9 @@
   }
 
   .game-theme-manager__utility-row {
-    display: flex;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .game-theme-manager__status {
@@ -529,10 +574,10 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 8px;
+    padding: 10px;
     border-radius: 10px;
-    border: 1px solid rgba(125, 211, 252, 0.12);
-    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .theme-family-header {
@@ -589,7 +634,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
+    padding: 6px 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.04);
@@ -597,9 +642,9 @@
     font-size: 0.72rem;
     cursor: pointer;
     transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s;
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s;
   }
 
   .theme-chip:hover {
@@ -612,6 +657,17 @@
     background: rgba(74, 222, 128, 0.12);
     border-color: rgba(74, 222, 128, 0.4);
     color: #86efac;
+  }
+
+  .theme-chip--menu {
+    gap: 8px;
+    padding: 7px 12px;
+    background: rgba(18, 24, 38, 0.78);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .game-theme-manager--menu .theme-chip-name {
+    font-weight: 600;
   }
 
   .theme-chip-status {

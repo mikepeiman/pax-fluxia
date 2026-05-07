@@ -7,11 +7,12 @@
         "dev:node": "bun run dev",
         "start": "bun src/index.ts",
         "start:prod": "bun run src/prod.ts",
-        "build": "bun build src/index.ts --outdir dist --target node"
+        "build": "bun build src/index.ts --outdir dist --target bun"
     },
     "dependencies": {
         "@pax/common": "workspace:*",
         "@colyseus/bun-websockets": "^0.17.6",
+        "@colyseus/core": "^0.17.33",
         "@colyseus/schema": "^4.0.0",
         "@colyseus/ws-transport": "^0.17.0",
         "colyseus": "^0.17.8",
