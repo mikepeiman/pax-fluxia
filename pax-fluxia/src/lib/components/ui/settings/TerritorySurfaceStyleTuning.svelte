@@ -200,7 +200,7 @@
         return boolVal(
             "territoryFrontierOuterBorderEnabled",
             "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
-            isEmberLatticeFamily()
+            usesEdgeForwardDefaults()
                 ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED
                 : false,
         );
@@ -571,7 +571,7 @@
                     When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. The fill surface stays on the same geometry either way; this toggle only changes how the frontier stroke is presented.
                 </div>
 
-                {#if isEmberLatticeFamily()}
+                {#if usesEdgeForwardDefaults()}
                     <label
                         class="toggle-row"
                         class:disabled={currentBorderMode() === "off"}

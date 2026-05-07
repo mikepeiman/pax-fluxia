@@ -44,7 +44,7 @@ export const metaballGridPhaseEdgesModeDefaults = {
     METABALL_GRID_BORDER_CHAIKIN_PASSES: 4,
     METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'contour_matched' as const,
-    TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: false,
+    TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: true,
 } as const;
 
 export const metaballGridPhaseEdgesGeometryDefaults = {
