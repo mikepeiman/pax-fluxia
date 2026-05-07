@@ -2105,7 +2105,7 @@
         | PerimeterFieldDebugSnapshot
         | null = null;
     let canonicalDebugGeometrySnapshot: CanonicalGeometrySnapshot | null = null;
-    let canonicalDebugRuntimeOutput: TerritoryRuntimeOutput | null = null;
+    let canonicalDebugRuntimeOutput = $state<TerritoryRuntimeOutput | null>(null);
     let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
     let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
         null;
@@ -4324,6 +4324,21 @@
         labelFill: 0xf4f7ff,
     } as const;
 
+    const AF_HUD_LEGEND_ITEMS = [
+        { label: "PRE source", color: AF_DEBUG_COLORS.prevSourceSection, kind: "dashed" },
+        { label: "NEXT active", color: AF_DEBUG_COLORS.activeSection, kind: "line" },
+        { label: "Active subspan", color: AF_DEBUG_COLORS.activeSubSection, kind: "thick" },
+        { label: "No-motion", color: AF_DEBUG_COLORS.noMotionSection, kind: "line" },
+        { label: "Stable anchor", color: AF_DEBUG_COLORS.stableAnchor, kind: "ring" },
+        { label: "Front anchor", color: AF_DEBUG_COLORS.frontAnchor, kind: "diamond" },
+        { label: "Defect", color: AF_DEBUG_COLORS.defectAnchor, kind: "square" },
+        { label: "Sample points", color: AF_DEBUG_COLORS.sampleDot, kind: "dot" },
+    ] as const;
+
+    function colorToCssHex(color: number): string {
+        return `#${color.toString(16).padStart(6, "0")}`;
+    }
+
     function activeFrontSectionColor(
         section: OverlaySectionClassification,
     ): number {
@@ -4384,125 +4399,6 @@
         label.x = x + 8;
         label.y = y - 10;
         debugTextContainer.addChild(label);
-    }
-
-    function addDebugOverlayHudText(
-        text: string,
-        x: number,
-        y: number,
-        fill = AF_DEBUG_COLORS.labelFill,
-        fontSize = 10,
-        fontWeight: PIXI.TextStyleFontWeight = "700",
-    ): void {
-        if (!debugTextContainer) return;
-        const label = new PIXI.Text({
-            text,
-            style: {
-                fill,
-                fontSize,
-                fontFamily: "JetBrains Mono, Consolas, monospace",
-                fontWeight,
-                stroke: { color: 0x10131d, width: 3 },
-            },
-            resolution: 2,
-        });
-        label.x = x;
-        label.y = y;
-        debugTextContainer.addChild(label);
-    }
-
-    function renderActiveFrontDebugLegend(
-        debug: TerritoryRuntimeOutput["activeFrontDebug"] | null,
-    ): void {
-        if (!debugGraphics || !debugTextContainer) return;
-
-        const legendX = 14;
-        const legendY = 14;
-        const legendWidth = 250;
-        const legendHeight = 132;
-        const rowStartX = legendX + 12;
-        const labelX = legendX + 54;
-        const rowY0 = legendY + 42;
-        const rowStep = 14;
-
-        debugGraphics.beginPath();
-        debugGraphics.roundRect(legendX, legendY, legendWidth, legendHeight, 8);
-        debugGraphics.fill({ color: 0x0e1626, alpha: 0.82 });
-        debugGraphics.stroke({ color: 0x4fd9ff, alpha: 0.55, width: 1.2 });
-
-        addDebugOverlayHudText("AF Diagnostics", legendX + 12, legendY + 8, 0xeef8ff, 12, "800");
-        addDebugOverlayHudText(
-            `${debug?.evaluation ?? "idle"}  fronts=${debug?.frontCount ?? 0}  pairs=${debug?.planSummary?.pairCount ?? 0}  no-motion=${debug?.planSummary?.noChangePairCount ?? 0}  defects=${debug?.defectPairCount ?? 0}`,
-            legendX + 12,
-            legendY + 24,
-            0xc8d5f2,
-            9,
-            "600",
-        );
-
-        const drawLegendLine = (
-            y: number,
-            color: number,
-            label: string,
-            dashed = false,
-            width = 3,
-        ) => {
-            const points: ReadonlyArray<[number, number]> = [
-                [rowStartX, y],
-                [rowStartX + 28, y],
-            ];
-            if (dashed) {
-                drawDashedPolyline(debugGraphics, points, color, 0.95, width, 6, 4);
-            } else {
-                drawOpenPolyline(debugGraphics, points, color, 0.95, width);
-            }
-            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
-        };
-
-        const drawLegendCircle = (y: number, color: number, label: string) => {
-            debugGraphics.beginPath();
-            debugGraphics.circle(rowStartX + 14, y, 4.5);
-            debugGraphics.stroke({ color, alpha: 0.95, width: 2.1 });
-            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
-        };
-
-        const drawLegendDiamond = (y: number, color: number, label: string) => {
-            const x = rowStartX + 14;
-            const s = 6;
-            debugGraphics.beginPath();
-            debugGraphics.moveTo(x, y - s);
-            debugGraphics.lineTo(x + s, y);
-            debugGraphics.lineTo(x, y + s);
-            debugGraphics.lineTo(x - s, y);
-            debugGraphics.closePath();
-            debugGraphics.fill({ color, alpha: 0.96 });
-            debugGraphics.stroke({ color: 0xffffff, alpha: 0.9, width: 1 });
-            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
-        };
-
-        const drawLegendSquare = (y: number, color: number, label: string) => {
-            debugGraphics.beginPath();
-            debugGraphics.rect(rowStartX + 9, y - 5, 10, 10);
-            debugGraphics.fill({ color, alpha: 0.96 });
-            debugGraphics.stroke({ color: 0xffffff, alpha: 0.9, width: 1 });
-            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
-        };
-
-        const drawLegendDot = (y: number, color: number, label: string) => {
-            debugGraphics.beginPath();
-            debugGraphics.circle(rowStartX + 14, y, 2.5);
-            debugGraphics.fill({ color, alpha: 0.9 });
-            addDebugOverlayHudText(label, labelX, y - 7, 0xf4f7ff, 9, "600");
-        };
-
-        drawLegendLine(rowY0 + rowStep * 0, AF_DEBUG_COLORS.prevSourceSection, "PRE source", true, 2.6);
-        drawLegendLine(rowY0 + rowStep * 1, AF_DEBUG_COLORS.activeSection, "NEXT active", false, 2.8);
-        drawLegendLine(rowY0 + rowStep * 2, AF_DEBUG_COLORS.activeSubSection, "Active subspan", false, 4.6);
-        drawLegendLine(rowY0 + rowStep * 3, AF_DEBUG_COLORS.noMotionSection, "No-motion", false, 2.6);
-        drawLegendCircle(rowY0 + rowStep * 4, AF_DEBUG_COLORS.stableAnchor, "Stable anchor");
-        drawLegendDiamond(rowY0 + rowStep * 5, AF_DEBUG_COLORS.frontAnchor, "Front anchor");
-        drawLegendSquare(rowY0 + rowStep * 6, AF_DEBUG_COLORS.defectAnchor, "Defect");
-        drawLegendDot(rowY0 + rowStep * 7, AF_DEBUG_COLORS.sampleDot, "Sample points");
     }
 
     function drawOpenPolyline(
@@ -4986,7 +4882,6 @@
             });
         }
 
-        renderActiveFrontDebugLegend(debug);
     }
 
     function renderPerimeterFieldDebugOverlay(
@@ -8698,6 +8593,40 @@
         aria-hidden="true"
         bind:this={interactionOverlayCanvas}
     ></canvas>
+
+    {#if overlayConfig.enabled}
+        <div class="canvas-hud" aria-hidden="true">
+            <section class="af-hud-legend">
+                <header class="af-hud-header">
+                    <div class="af-hud-title">AF Diagnostics</div>
+                    <div class="af-hud-summary">
+                        {canonicalDebugRuntimeOutput?.activeFrontDebug?.evaluation ?? "idle"}
+                        · fronts={canonicalDebugRuntimeOutput?.activeFrontDebug?.frontCount ?? 0}
+                        · pairs={canonicalDebugRuntimeOutput?.activeFrontDebug?.planSummary
+                            ?.pairCount ?? 0}
+                        · no-motion={canonicalDebugRuntimeOutput?.activeFrontDebug?.planSummary
+                            ?.noChangePairCount ?? 0}
+                        · defects={canonicalDebugRuntimeOutput?.activeFrontDebug?.defectPairCount ??
+                            0}
+                    </div>
+                </header>
+
+                <div class="af-hud-items">
+                    {#each AF_HUD_LEGEND_ITEMS as item}
+                        <div class="af-hud-item">
+                            <span class="af-hud-swatch" data-kind={item.kind}>
+                                <span
+                                    class="af-hud-swatch-ink"
+                                    style={`--af-color: ${colorToCssHex(item.color)}`}
+                                ></span>
+                            </span>
+                            <span class="af-hud-label">{item.label}</span>
+                        </div>
+                    {/each}
+                </div>
+            </section>
+        </div>
+    {/if}
 </div>
 
 <!-- FPS / Ship Count Overlay -->
@@ -8728,6 +8657,152 @@
         position: absolute;
         inset: 0;
         z-index: 6;
+    }
+
+    .canvas-hud {
+        position: absolute;
+        inset: 0;
+        z-index: 7;
+        pointer-events: none;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+            "top-left top-right"
+            "center-left center-right"
+            "bottom-left bottom-right";
+        padding: 12px;
+    }
+
+    .af-hud-legend {
+        grid-area: top-left;
+        justify-self: start;
+        align-self: start;
+        width: min(280px, calc(100vw - 24px));
+        padding: 10px 12px;
+        border: 1px solid rgba(79, 217, 255, 0.35);
+        border-radius: 8px;
+        background: rgba(10, 16, 28, 0.82);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+        color: #f4f7ff;
+        font-family:
+            "JetBrains Mono",
+            Consolas,
+            monospace;
+    }
+
+    .af-hud-header {
+        display: grid;
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .af-hud-title {
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: 0.02em;
+        color: #eef8ff;
+    }
+
+    .af-hud-summary {
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: #c8d5f2;
+        text-wrap: balance;
+    }
+
+    .af-hud-items {
+        display: grid;
+        gap: 5px;
+    }
+
+    .af-hud-item {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        align-items: center;
+        gap: 8px;
+        min-height: 12px;
+    }
+
+    .af-hud-swatch {
+        position: relative;
+        display: block;
+        width: 34px;
+        height: 12px;
+    }
+
+    .af-hud-swatch-ink {
+        --af-color: #ffffff;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: block;
+        width: 30px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--af-color);
+    }
+
+    .af-hud-swatch[data-kind="dashed"] .af-hud-swatch-ink {
+        background: repeating-linear-gradient(
+            90deg,
+            var(--af-color) 0 6px,
+            transparent 6px 10px
+        );
+    }
+
+    .af-hud-swatch[data-kind="thick"] .af-hud-swatch-ink {
+        height: 5px;
+    }
+
+    .af-hud-swatch[data-kind="ring"] .af-hud-swatch-ink,
+    .af-hud-swatch[data-kind="diamond"] .af-hud-swatch-ink,
+    .af-hud-swatch[data-kind="square"] .af-hud-swatch-ink,
+    .af-hud-swatch[data-kind="dot"] .af-hud-swatch-ink {
+        width: 10px;
+        height: 10px;
+        left: 10px;
+        top: 1px;
+        transform: none;
+        border-radius: 50%;
+        background: transparent;
+    }
+
+    .af-hud-swatch[data-kind="ring"] .af-hud-swatch-ink {
+        border: 2px solid var(--af-color);
+    }
+
+    .af-hud-swatch[data-kind="diamond"] .af-hud-swatch-ink {
+        background: var(--af-color);
+        border: 1px solid rgba(255, 255, 255, 0.92);
+        border-radius: 2px;
+        transform: rotate(45deg);
+        top: 1px;
+    }
+
+    .af-hud-swatch[data-kind="square"] .af-hud-swatch-ink {
+        background: var(--af-color);
+        border: 1px solid rgba(255, 255, 255, 0.92);
+        border-radius: 1px;
+    }
+
+    .af-hud-swatch[data-kind="dot"] .af-hud-swatch-ink {
+        width: 6px;
+        height: 6px;
+        left: 12px;
+        top: 3px;
+        border-radius: 50%;
+        background: var(--af-color);
+    }
+
+    .af-hud-label {
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: #f4f7ff;
     }
 
     .fps-overlay {

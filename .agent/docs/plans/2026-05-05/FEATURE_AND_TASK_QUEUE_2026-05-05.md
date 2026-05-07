@@ -735,3 +735,15 @@
   - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v17.md`
 - Validation:
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 31
+- Replaced the AF legend’s Pixi/world-space drawing with a normal HTML HUD overlay.
+- `GameCanvas.svelte` now uses a named grid HUD layer:
+  - `canvas-hud`
+  - `grid-template-areas`
+  - legend anchored at `top-left`
+- `canonicalDebugRuntimeOutput` was also made reactive with `$state(...)` because the HUD now binds to it directly in markup.
+- Created:
+  - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v18.md`
+- Validation:
+  - `bun run build` in `pax-fluxia/`

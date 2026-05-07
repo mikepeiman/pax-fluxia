@@ -2564,3 +2564,19 @@
   - it exists to make the next `2-star -> 1-star` diagnosis readable and immediate
 - Validation:
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-06 - Move AF Legend Into Named HUD Grid Layout
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-06\2026-05-06_territory-transition-diagnosis_v18.md`
+- Active-path file changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Exact behavior:
+  - AF diagnostics legend is no longer drawn in Pixi/world space
+  - it is now rendered as a normal HTML HUD overlay
+  - the overlay uses a named grid layout and anchors the legend at `top-left`
+- Merge note:
+  - this is a presentation-surface correction only
+  - the purpose is to make diagnostics readable without depending on camera/world coordinates
+- Validation:
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
