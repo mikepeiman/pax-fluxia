@@ -151,6 +151,13 @@ export interface ActiveFrontChangeAnchors {
     endPoint: [number, number];
 }
 
+export interface ActiveFrontMonotonicCorrespondence {
+    prevFront: [number, number][];
+    postFront: [number, number][];
+    activeFront: [number, number][];
+    changeAnchors: ActiveFrontChangeAnchors;
+}
+
 const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
     'junction_3way',
     'world_intersection',
@@ -266,7 +273,14 @@ export function planActiveFrontTransition(
             pairDiagnostics.push(pairDiagnostic);
             continue;
         }
-        pairDiagnostic.changeAnchorWindow = null;
+        const localChangeWindow = buildLocalChangeWindow(
+            prevPaths,
+            nextPaths,
+            splitMode,
+            base,
+            { startIndex, endIndex },
+        );
+        pairDiagnostic.changeAnchorWindow = localChangeWindow;
 
         const {
             sectionSpans,
@@ -287,7 +301,7 @@ export function planActiveFrontTransition(
             prevPaths,
             nextPaths,
             changeSpan: { startIndex, endIndex, base },
-            localChangeWindow: null,
+            localChangeWindow,
             sectionSpans,
             activeSectionIds,
             defectSectionIds,
@@ -1007,6 +1021,46 @@ function findChangeSpan(
     return { startIndex, endIndex };
 }
 
+function buildLocalChangeWindow(
+    prevPaths: readonly ChainPath[],
+    nextPaths: readonly ChainPath[],
+    splitMode: SplitMode,
+    base: 'prev' | 'next',
+    changeSpan: { startIndex: number; endIndex: number },
+): LocalChangeWindow | null {
+    if (splitMode !== 'none' || base !== 'next') {
+        return null;
+    }
+
+    const prevPoints = prevPaths[0]?.points ?? [];
+    const nextPoints = nextPaths[0]?.points ?? [];
+    if (prevPoints.length === 0 || nextPoints.length === 0) {
+        return null;
+    }
+
+    const nextAnchorStartIndex = clampIndex(changeSpan.startIndex, nextPoints.length);
+    const nextAnchorEndIndex = clampIndex(changeSpan.endIndex, nextPoints.length);
+    if (nextAnchorStartIndex === -1 || nextAnchorEndIndex === -1) {
+        return null;
+    }
+
+    const startPoint = nextPoints[nextAnchorStartIndex];
+    const endPoint = nextPoints[nextAnchorEndIndex];
+    if (!startPoint || !endPoint) {
+        return null;
+    }
+    const nextTable = buildArcLengthTable(nextPoints);
+    const prevStartParam = normalizedParamAtIndex(nextTable, nextAnchorStartIndex);
+    const prevEndParam = normalizedParamAtIndex(nextTable, nextAnchorEndIndex);
+
+    return {
+        nextAnchorStartIndex,
+        nextAnchorEndIndex,
+        prevStartParam,
+        prevEndParam,
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Helper: build section spans for sampling
 // ---------------------------------------------------------------------------
@@ -1112,62 +1166,119 @@ function buildSectionSpans(
 
 function buildInterpolatedPaths(
     plan: ActiveFrontPlan,
-    prev: FrontierTopology,
-    next: FrontierTopology,
+    _prev: FrontierTopology,
+    _next: FrontierTopology,
     t: number,
 ): Vec2[][] {
     if (plan.splitMode === 'none') {
-        const prevChain = concatSections(
-            prev,
-            plan.prevPaths[0].sectionIds,
-            plan.prevPaths[0].anchorStartId,
-        );
-        const nextChain = concatSections(
-            next,
-            plan.nextPaths[0].sectionIds,
-            plan.nextPaths[0].anchorStartId,
-        );
-        return [lerpArcAligned(prevChain, nextChain, t)];
+        return [buildInterpolatedActiveFrontPath(plan, t)];
     }
     if (plan.splitMode === '1to2') {
-        const prevChain = concatSections(
-            prev,
-            plan.prevPaths[0].sectionIds,
-            plan.prevPaths[0].anchorStartId,
-        );
-        const nextA = concatSections(
-            next,
-            plan.nextPaths[0].sectionIds,
-            plan.nextPaths[0].anchorStartId,
-        );
-        const nextB = concatSections(
-            next,
-            plan.nextPaths[1].sectionIds,
-            plan.nextPaths[1].anchorStartId,
-        );
+        const prevChain = plan.prevPaths[0]?.points ?? [];
+        const nextA = plan.nextPaths[0]?.points ?? [];
+        const nextB = plan.nextPaths[1]?.points ?? [];
         const { prevForNext0, prevForNext1 } = splitByNearest(prevChain, nextA, nextB);
         return [
-            lerpArcAligned(prevForNext0, nextA, t),
-            lerpArcAligned(prevForNext1, nextB, t),
+            lerpMonotonicWholeFront(prevForNext0, nextA, t),
+            lerpMonotonicWholeFront(prevForNext1, nextB, t),
         ];
     }
-    const prevA = concatSections(
-        prev,
-        plan.prevPaths[0].sectionIds,
-        plan.prevPaths[0].anchorStartId,
-    );
-    const prevB = concatSections(
-        prev,
-        plan.prevPaths[1].sectionIds,
-        plan.prevPaths[1].anchorStartId,
-    );
-    const nextChain = concatSections(
-        next,
-        plan.nextPaths[0].sectionIds,
-        plan.nextPaths[0].anchorStartId,
-    );
+    const prevA = plan.prevPaths[0]?.points ?? [];
+    const prevB = plan.prevPaths[1]?.points ?? [];
+    const nextChain = plan.nextPaths[0]?.points ?? [];
     const mergedPrev = mergeByNearest(prevA, prevB, nextChain);
-    return [lerpArcAligned(mergedPrev, nextChain, t)];
+    return [lerpMonotonicWholeFront(mergedPrev, nextChain, t)];
+}
+
+function buildInterpolatedActiveFrontPath(plan: ActiveFrontPlan, t: number): Vec2[] {
+    const nextPath = plan.nextPaths[0]?.points.map((point) => [point[0], point[1]] as Vec2) ?? [];
+    const correspondence = getActiveFrontMonotonicCorrespondence(plan, t);
+    if (!correspondence) {
+        return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
+    }
+
+    const startIndex = plan.localChangeWindow?.nextAnchorStartIndex ?? -1;
+    if (startIndex < 0) {
+        return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
+    }
+
+    for (let i = 0; i < correspondence.activeFront.length; i += 1) {
+        const index = startIndex + i;
+        if (index < 0 || index >= nextPath.length) continue;
+        nextPath[index] = correspondence.activeFront[i]!;
+    }
+    return nextPath;
+}
+
+function lerpMonotonicWholeFront(prev: Vec2[], next: Vec2[], t: number): Vec2[] {
+    if (next.length === 0) return [];
+    const prevSamples = samplePolylineBetweenParams(
+        prev.length > 0 ? prev : next,
+        0,
+        1,
+        next.length,
+    );
+    return prevSamples.map((prevPoint, index) =>
+        lerpPoint(prevPoint, next[index]!, t),
+    );
+}
+
+export function getActiveFrontMonotonicCorrespondence(
+    front: ActiveFrontTransitionPlan['fronts'][number],
+    progress = 1,
+): ActiveFrontMonotonicCorrespondence | null {
+    if (front.splitMode !== 'none') {
+        return null;
+    }
+
+    const localChangeWindow = front.localChangeWindow;
+    const prevPath = front.prevPaths[0]?.points ?? [];
+    const postPath = front.nextPaths[0]?.points ?? [];
+    if (!localChangeWindow || prevPath.length === 0 || postPath.length === 0) {
+        return null;
+    }
+
+    const startIndex = clampIndex(localChangeWindow.nextAnchorStartIndex, postPath.length);
+    const endIndex = clampIndex(localChangeWindow.nextAnchorEndIndex, postPath.length);
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        return null;
+    }
+
+    const postFront = postPath
+        .slice(startIndex, endIndex + 1)
+        .map((point) => [point[0], point[1]] as Vec2);
+    if (postFront.length === 0) {
+        return null;
+    }
+
+    const prevFront = samplePolylineBetweenParams(
+        prevPath,
+        localChangeWindow.prevStartParam,
+        localChangeWindow.prevEndParam,
+        postFront.length,
+    );
+    const t = Math.min(Math.max(progress, 0), 1);
+    const activeFront = prevFront.map((prevPoint, index) =>
+        lerpPoint(prevPoint, postFront[index]!, t),
+    );
+
+    return {
+        prevFront,
+        postFront,
+        activeFront,
+        changeAnchors: {
+            startPoint: [postFront[0][0], postFront[0][1]],
+            endPoint: [
+                postFront[postFront.length - 1][0],
+                postFront[postFront.length - 1][1],
+            ],
+        },
+    };
+}
+
+function clampIndex(index: number, pointCount: number): number {
+    if (pointCount <= 0 || index < 0) return -1;
+    return Math.min(index, pointCount - 1);
 }
 
 function concatSections(
@@ -1229,27 +1340,7 @@ function mergeByNearest(prevA: Vec2[], prevB: Vec2[], next: Vec2[]): Vec2[] {
 export function getActiveFrontChangeAnchors(
     front: ActiveFrontTransitionPlan['fronts'][number],
 ): ActiveFrontChangeAnchors | null {
-    if (front.splitMode !== 'none' || front.changeSpan.base !== 'next') {
-        return null;
-    }
-
-    const basePath = front.nextPaths[0]?.points;
-    if (!basePath || basePath.length === 0) {
-        return null;
-    }
-
-    const startIndex = Math.max(0, Math.min(front.changeSpan.startIndex, basePath.length - 1));
-    const endIndex = Math.max(0, Math.min(front.changeSpan.endIndex, basePath.length - 1));
-    const startPoint = basePath[startIndex];
-    const endPoint = basePath[endIndex];
-    if (!startPoint || !endPoint) {
-        return null;
-    }
-
-    return {
-        startPoint: [startPoint[0], startPoint[1]],
-        endPoint: [endPoint[0], endPoint[1]],
-    };
+    return getActiveFrontMonotonicCorrespondence(front)?.changeAnchors ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1416,6 +1507,17 @@ function buildArcLengthTable(points: readonly Vec2[]): { cumulative: number[]; t
         cumulative[i] = total;
     }
     return { cumulative, total };
+}
+
+function normalizedParamAtIndex(
+    table: { cumulative: number[]; total: number },
+    index: number,
+): number {
+    if (index <= 0 || table.cumulative.length === 0 || table.total <= 0) {
+        return 0;
+    }
+    const clampedIndex = Math.min(index, table.cumulative.length - 1);
+    return table.cumulative[clampedIndex]! / table.total;
 }
 
 function samplePolylineAtParam(

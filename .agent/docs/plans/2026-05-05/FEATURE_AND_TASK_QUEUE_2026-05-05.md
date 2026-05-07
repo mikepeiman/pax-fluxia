@@ -777,6 +777,23 @@
 - Validation:
   - `bun run build` in `pax-fluxia/`
 
+## Implementation Checkpoint 32
+- Replaced the active no-split PVV4 motion core with real active-front correspondence.
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts` now:
+  - computes a local no-split change window
+  - samples equal-number monotonic `PRE` and `POST` active-front vertices
+  - lerps those vertex pairs directly
+  - exposes the result through `getActiveFrontMonotonicCorrespondence(...)`
+- `pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.ts` now draws `front_reference.png` from that same correspondence data instead of the older whole-path proxy.
+- Legend terminology was tightened in the live HUD and package reference render:
+  - `PRE front`
+  - `POST front`
+  - `Active front`
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build` in `pax-fluxia/`
+
 ## Implementation Checkpoint 29
 - Corrected the outer diagnostics overlay path to use component-level debug state instead of any callback-local `canonicalRuntimeOutput`.
 - Exact change:

@@ -2761,3 +2761,24 @@
   - the purpose is to make diagnostics readable without depending on camera/world coordinates
 - Validation:
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-07 - Replace No-Split Motion Core With Real Active-Front Correspondence
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-07\2026-05-07_territory-transition-diagnosis_v21.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Exact behavior:
+  - no-split active fronts now build a local `PRE` front and `POST` front with equal-number monotonic change vertices
+  - runtime motion now lerps those vertex pairs directly instead of using the older whole-chain `lerpArcAligned(...)` behavior for no-split fronts
+  - `front_reference.png` now draws the same correspondence data used by the runtime
+- Merge note:
+  - this closes the specific “specified algorithm not actually running” gap for the no-split case
+  - split/merge fronts still need a richer branch-local active-front construction if they are to match the same standard fully
+- Validation:
+  - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

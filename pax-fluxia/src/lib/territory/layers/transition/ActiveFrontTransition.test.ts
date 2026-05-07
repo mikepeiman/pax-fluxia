@@ -10,6 +10,7 @@ import type {
 import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
 import type { TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import {
+    getActiveFrontMonotonicCorrespondence,
     planActiveFrontTransition,
     sampleActiveFrontSectionGeometry,
     sampleActiveFrontTransition,
@@ -924,6 +925,15 @@ describe('ActiveFrontTransition', () => {
             changeSpanPadPoints: 0,
         });
         expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        const front = plan.fronts[0];
+        expect(front).toBeTruthy();
+
+        const correspondence = getActiveFrontMonotonicCorrespondence(front!);
+        expect(correspondence).toBeTruthy();
+        expect(correspondence?.prevFront).toHaveLength(1);
+        expect(correspondence?.postFront).toHaveLength(1);
+        expect(correspondence?.changeAnchors.startPoint).toEqual([60, -12]);
+        expect(correspondence?.changeAnchors.endPoint).toEqual([60, -12]);
 
         const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
         const sampled = sectionGeometry.get('stable:section');
@@ -934,6 +944,61 @@ describe('ActiveFrontTransition', () => {
         expect(sampled?.[4]).toEqual([80, 0]);
         expect(sampled?.[5]).toEqual([100, 0]);
         expect(sampled?.[3]?.[1]).toBeCloseTo(0, 6);
+    });
+
+    it('builds equal-number monotonic change vertices from PRE front to POST front', () => {
+        const prev = makeSingleSectionTopology('prev', 'red', 'blue', [
+            [0, 0],
+            [20, 0],
+            [40, 0],
+            [60, 0],
+            [80, 0],
+            [100, 0],
+        ], 'stable');
+        const next = makeSingleSectionTopology('next', 'red', 'blue', [
+            [0, 0],
+            [20, -4],
+            [40, -10],
+            [60, -10],
+            [80, -4],
+            [100, 0],
+        ], 'stable');
+
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            changeSpanPadPoints: 0,
+        });
+        const front = plan.fronts[0];
+        expect(front).toBeTruthy();
+
+        const correspondence = getActiveFrontMonotonicCorrespondence(front!);
+        expect(correspondence).toBeTruthy();
+        expect(correspondence?.postFront).toHaveLength(4);
+        expect(correspondence?.prevFront).toHaveLength(4);
+        expect([
+            correspondence?.changeAnchors.startPoint,
+            correspondence?.changeAnchors.endPoint,
+        ]).toEqual(expect.arrayContaining([
+            [20, -4],
+            [80, -4],
+        ]));
+
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sampled = sectionGeometry.get('stable:section');
+        expect(sampled).toBeTruthy();
+        expect(sampled?.[0]).toEqual([0, 0]);
+        expect(sampled?.[5]).toEqual([100, 0]);
+        expect(sampled?.[1]?.[1]).toBeCloseTo(-2, 6);
+        expect(sampled?.[2]?.[1]).toBeCloseTo(-5, 6);
+        expect(sampled?.[3]?.[1]).toBeCloseTo(-5, 6);
+        expect(sampled?.[4]?.[1]).toBeCloseTo(-2, 6);
     });
 
     it('supports bounded 1to2 split fronts without classification defects', () => {

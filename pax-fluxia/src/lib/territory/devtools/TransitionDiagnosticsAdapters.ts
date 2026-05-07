@@ -5,9 +5,11 @@ import type { PowerVoronoiDiagnosticBundle } from '../pvCanonical/contracts';
 import type { ActiveFrontRuntimeDebugState } from '../layers/transition/TransitionLayerCoordinator';
 import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import type {
+    ActiveFrontMonotonicCorrespondence,
     ActiveFrontPairDiagnostic,
     ActiveFrontTransitionPlan,
 } from '../layers/transition/ActiveFrontTransition';
+import { getActiveFrontMonotonicCorrespondence } from '../layers/transition/ActiveFrontTransition';
 import {
     boundsOf,
     compactFrontierTopologyForExport,
@@ -388,9 +390,9 @@ function drawActiveFrontHudLegend(
         `no-motion=${debug?.planSummary?.noChangePairCount ?? 0} defects=${debug?.defectPairCount ?? 0}`,
     ];
     const items = [
-        { label: 'PRE front path', color: AF_COLORS.prevPath, dashed: true },
-        { label: 'POST front path', color: AF_COLORS.nextPath, dashed: false },
-        { label: 'Active front span', color: AF_COLORS.activeFront, dashed: false, width: 5 },
+        { label: 'PRE front', color: AF_COLORS.prevPath, dashed: true },
+        { label: 'POST front', color: AF_COLORS.nextPath, dashed: false },
+        { label: 'Active front', color: AF_COLORS.activeFront, dashed: false, width: 5 },
         { label: 'Change anchor', color: AF_COLORS.changeAnchor, marker: 'circle' },
         { label: 'Defect anchor', color: AF_COLORS.defectAnchor, marker: 'square' },
         { label: 'Monotonic change vertices', color: AF_COLORS.correspondence, dashed: false },
@@ -469,20 +471,13 @@ function minDistanceToFocus(
 
 function drawMonotonicCorrespondence(
     ctx: CanvasRenderingContext2D,
-    prevPoints: readonly [number, number][],
-    nextPoints: readonly [number, number][],
-    startIndex: number,
-    endIndex: number,
+    correspondence: ActiveFrontMonotonicCorrespondence,
 ): void {
-    if (prevPoints.length < 2 || nextPoints.length < 2) return;
-    const maxIndex = Math.max(1, nextPoints.length - 1);
-    const startT = Math.max(0, Math.min(1, startIndex / maxIndex));
-    const endT = Math.max(startT, Math.min(1, endIndex / maxIndex));
-    const count = Math.min(10, Math.max(4, endIndex - startIndex + 1));
-    for (let i = 0; i < count; i += 1) {
-        const t = count === 1 ? startT : startT + ((endT - startT) * i) / (count - 1);
-        const prevPoint = samplePolylineAtNormalizedT(prevPoints, t);
-        const nextPoint = samplePolylineAtNormalizedT(nextPoints, t);
+    const pairCount = Math.min(correspondence.prevFront.length, correspondence.postFront.length);
+    if (pairCount === 0) return;
+    for (let i = 0; i < pairCount; i += 1) {
+        const prevPoint = correspondence.prevFront[i]!;
+        const nextPoint = correspondence.postFront[i]!;
         drawCanvasPolyline(ctx, [prevPoint, nextPoint], AF_COLORS.correspondence, 1.4);
         drawCanvasCircle(ctx, prevPoint[0], prevPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
         drawCanvasCircle(ctx, nextPoint[0], nextPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
@@ -544,27 +539,16 @@ function drawActiveFrontReferenceFrame(
             drawCanvasPolyline(ctx, nextPath.points, AF_COLORS.nextPath, 3, false);
         }
 
-        if (front.splitMode === 'none' && front.changeSpan.base === 'next' && front.nextPaths[0]) {
-            const basePath = front.nextPaths[0].points;
-            const startIndex = Math.max(0, Math.min(front.changeSpan.startIndex, basePath.length - 1));
-            const endIndex = Math.max(startIndex, Math.min(front.changeSpan.endIndex, basePath.length - 1));
-            const activePoints = basePath.slice(startIndex, endIndex + 1);
-            drawCanvasPolyline(ctx, activePoints, AF_COLORS.activeFront, 5, false);
-            const startPoint = basePath[startIndex];
-            const endPoint = basePath[endIndex];
+        const correspondence = getActiveFrontMonotonicCorrespondence(front);
+        if (correspondence) {
+            drawCanvasPolyline(ctx, correspondence.activeFront, AF_COLORS.activeFront, 5, false);
+            const startPoint = correspondence.changeAnchors.startPoint;
+            const endPoint = correspondence.changeAnchors.endPoint;
             drawCanvasCircle(ctx, startPoint[0], startPoint[1], 6, AF_COLORS.changeAnchor);
             drawCanvasCircle(ctx, endPoint[0], endPoint[1], 6, AF_COLORS.changeAnchor);
             drawCanvasLabel(ctx, 'CA', startPoint[0] + 8, startPoint[1] - 12, AF_COLORS.changeAnchor);
             drawCanvasLabel(ctx, 'CA', endPoint[0] + 8, endPoint[1] - 12, AF_COLORS.changeAnchor);
-            if (front.prevPaths[0]) {
-                drawMonotonicCorrespondence(
-                    ctx,
-                    front.prevPaths[0].points,
-                    front.nextPaths[0].points,
-                    startIndex,
-                    endIndex,
-                );
-            }
+            drawMonotonicCorrespondence(ctx, correspondence);
         }
     }
 
