@@ -6,7 +6,7 @@
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
-    import { log } from "$lib/utils/logger";
+    import { log, logFlags } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import {
@@ -3917,8 +3917,20 @@
         territoryWorldWidth = viewportFrame.width;
         territoryWorldHeight = viewportFrame.height;
         if (voronoiContainer) {
+            const prevX = voronoiContainer.x;
+            const prevY = voronoiContainer.y;
             voronoiContainer.x = territoryWorldMinX;
             voronoiContainer.y = territoryWorldMinY;
+            // Phase 0 diagnostic (gated by logFlags.renderer; OFF by default).
+            // updateTerritoryViewportFrame is the second writer of voronoiContainer.position
+            // and is mode-unaware. Surfacing prev/new vs activeTerritoryMode reveals when
+            // it clobbers Phase Field's case-set (0,0) and pushes the territory layer
+            // off the starmap until the next territory present runs. See
+            // .agent/docs/project/implementation-plans/2026-05-08/.
+            log.renderer(
+                "TerritoryFrame",
+                `voronoiContainer (${prevX.toFixed(2)},${prevY.toFixed(2)}) -> (${territoryWorldMinX.toFixed(2)},${territoryWorldMinY.toFixed(2)}) frame=${territoryWorldWidth.toFixed(0)}x${territoryWorldHeight.toFixed(0)} mode=${resolveActiveTerritoryMode()}`,
+            );
         }
     }
 
@@ -5356,6 +5368,12 @@
                           territoryPresentationFrame,
                       )
                     : null;
+            // Phase 0 diagnostic: capture container.position before the per-mode
+            // case block runs. The preamble below sets it to (frame.minX, .minY);
+            // the Phase Field case overrides to (0, 0). The post-switch log compares
+            // these so a misalignment shows up as a clear "preamble vs final" delta.
+            const containerPosPreSwitchX = activeVoronoiContainer.x;
+            const containerPosPreSwitchY = activeVoronoiContainer.y;
             activeVoronoiContainer.x = territoryPresentationFrame.minX;
             activeVoronoiContainer.y = territoryPresentationFrame.minY;
             for (const child of activeVoronoiContainer.children) {
@@ -6335,6 +6353,47 @@
                     }
                     // 'none' or unrecognized — no territory rendering
                 }
+                    // Phase 0 diagnostic (gated by logFlags.renderer; OFF by default).
+                    // Surfaces the per-frame coordinate contract for the active family:
+                    //   - voronoiContainer.position before/after the per-mode case
+                    //   - territoryPresentationFrame and GAME_WIDTH/HEIGHT (map rect)
+                    //   - resolved geometry counts (worldBorder/displayWorldBorder/displayFrontier)
+                    //   - first/last point of displayWorldBorderPolylines[0] (eyeball "almost straight")
+                    // Enable at runtime via: window.logFlags.renderer = true
+                    // See .agent/docs/project/implementation-plans/2026-05-08/.
+                    if (logFlags.renderer && activeModeNeedsGeometry) {
+                        const containerPosPostSwitchX = activeVoronoiContainer.x;
+                        const containerPosPostSwitchY = activeVoronoiContainer.y;
+                        const diagGeometry = getCurrentRenderFamilyGeometry(
+                            stars,
+                            lanes,
+                            renderFamilyConfigSource,
+                        );
+                        const worldBorderCount =
+                            diagGeometry.worldBorderPolylines?.length ?? 0;
+                        const displayWorldBorderCount =
+                            diagGeometry.displayWorldBorderPolylines?.length ?? 0;
+                        const displayFrontierCount =
+                            diagGeometry.displayFrontierPolylines?.length ?? 0;
+                        const firstDisplayWorldBorder =
+                            diagGeometry.displayWorldBorderPolylines?.[0];
+                        const firstPoint =
+                            firstDisplayWorldBorder?.points?.[0];
+                        const lastPoint =
+                            firstDisplayWorldBorder?.points?.[
+                                firstDisplayWorldBorder.points.length - 1
+                            ];
+                        const fmtPt = (
+                            p: readonly [number, number] | undefined,
+                        ) =>
+                            p
+                                ? `(${p[0].toFixed(2)},${p[1].toFixed(2)})`
+                                : "n/a";
+                        log.renderer(
+                            "TerritoryPresent",
+                            `mode=${activeMode} container pre=(${containerPosPreSwitchX.toFixed(2)},${containerPosPreSwitchY.toFixed(2)}) post=(${containerPosPostSwitchX.toFixed(2)},${containerPosPostSwitchY.toFixed(2)}) frame=(${territoryPresentationFrame.minX.toFixed(2)},${territoryPresentationFrame.minY.toFixed(2)} ${territoryPresentationFrame.width.toFixed(0)}x${territoryPresentationFrame.height.toFixed(0)}) map=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} geomVer=${diagGeometry.version} src=${(renderFamilyConfigSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ?? "default"} worldBorders=${worldBorderCount} displayWorldBorders=${displayWorldBorderCount} displayFrontiers=${displayFrontierCount} dwb0First=${fmtPt(firstPoint)} dwb0Last=${fmtPt(lastPoint)}`,
+                        );
+                    }
                     if (activeModeNeedsGeometry && !geometryReady) {
                         lastRenderFailure =
                             `${activeMode} requires resolved geometry, but none was supplied`;
