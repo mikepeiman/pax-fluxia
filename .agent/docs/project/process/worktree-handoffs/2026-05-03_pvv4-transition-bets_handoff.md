@@ -2846,3 +2846,30 @@
   - no gameplay or transition-planning claim is attached to this checkpoint
 - Validation:
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-08 - Unify AF Legend And Make No-Split TVs Drive Rendered Motion
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-08\2026-05-08_active-front-tv-and-legend-fix_v2.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontDebugStyle.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionDiagnosticsAdapters.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontClassificationOverlay.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+- Exact behavior:
+  - the live HUD legend and exported debug-render legend now come from one shared source
+  - all rendered AF symbols now have explicit legend entries
+  - no-split active-front windows now use true `PRE` and `POST` change spans instead of nearest-point projection
+  - no-split rendered active-front geometry now uses the correspondence TVs directly, rather than writing motion back into the old `POST` sample count
+- Package diagnosis locked:
+  - the failed red defect front in `14-14-52---673_cq_S16-to-S28_S40+1-to-S26_snap_tdp` is a `missing corresponding frontier` case
+  - one local conquest front is valid and planned
+  - the other local conquest front fractures into self-anchored / world-bound pieces on the `POST` side, so current planner classifies it as defect and it snaps
+- Merge note:
+  - this is not a small tuning tweak
+  - it is the first checkpoint where no-split TV correspondence is actually wired into the rendered section geometry instead of remaining mostly diagnostic-only
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/components/ui/settings/settingsSearch.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

@@ -105,25 +105,25 @@ function buildActiveRanges(
 function roleLabel(role: OverlaySectionRole | OverlayVertexRole): string {
     switch (role) {
         case 'active_section':
-            return 'active';
+            return 'active front';
         case 'source_section':
-            return 'source';
+            return 'PRE front';
         case 'source_no_motion_section':
-            return 'source-still';
+            return 'PRE no-motion';
         case 'no_motion_section':
-            return 'still';
+            return 'no-motion';
         case 'unchanged_section':
             return 'unchanged';
         case 'defect_topology_gap':
-            return 'gap';
+            return 'defect front: missing corresponding frontier';
         case 'defect_unsupported_split':
-            return 'split';
+            return 'defect front: split/merge mismatch';
         case 'front_anchor':
-            return 'front';
+            return 'change anchor';
         case 'defect_anchor':
-            return 'defect';
+            return 'defect anchor';
         case 'stable_anchor':
-            return 'stable';
+            return 'stable anchor';
         default:
             return 'vertex';
     }

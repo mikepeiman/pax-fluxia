@@ -175,6 +175,11 @@
         type OverlayVertexClassification,
     } from "$lib/territory/devtools/activeFrontClassificationOverlay";
     import {
+        ACTIVE_FRONT_DEBUG_COLORS as AF_DEBUG_COLORS,
+        ACTIVE_FRONT_LEGEND_ITEMS as AF_HUD_LEGEND_ITEMS,
+        activeFrontColorToCssHex,
+    } from "$lib/territory/devtools/activeFrontDebugStyle";
+    import {
         buildRulerMeasurement,
         getRulerCssColor,
         getRulerMeasurement,
@@ -4344,40 +4349,6 @@
         return getPerimeterDebugLoops(geometry);
     }
 
-    const AF_DEBUG_COLORS = {
-        unchangedSection: 0x4b5573,
-        noMotionSection: 0x8b93b2,
-        activeSection: 0xf0b400,
-        activeSubSection: 0x52ff8f,
-        prevSourceSection: 0xff73c6,
-        prevNoMotionSection: 0xc88dff,
-        defectGap: 0xff4d6d,
-        defectSplit: 0xff8c42,
-        stableAnchor: 0x3cdcff,
-        frontAnchor: 0x72ff5e,
-        defectAnchor: 0xff4d6d,
-        transitionVertex: 0x7de7ff,
-        structuralVertex: 0xa0a8c8,
-        prevVertex: 0xffb5e8,
-        sampleDot: 0xc88dff,
-        bridge: 0x52ff8f,
-        labelFill: 0xf4f7ff,
-    } as const;
-
-    const AF_HUD_LEGEND_ITEMS = [
-        { label: "PRE front", color: AF_DEBUG_COLORS.prevSourceSection, kind: "dashed" },
-        { label: "POST front", color: AF_DEBUG_COLORS.activeSection, kind: "line" },
-        { label: "Active front", color: AF_DEBUG_COLORS.activeSubSection, kind: "thick" },
-        { label: "Stable anchor", color: AF_DEBUG_COLORS.stableAnchor, kind: "ring" },
-        { label: "Change anchor", color: AF_DEBUG_COLORS.frontAnchor, kind: "diamond" },
-        { label: "Defect anchor", color: AF_DEBUG_COLORS.defectAnchor, kind: "square" },
-        { label: "Transition vertices (TVs)", color: AF_DEBUG_COLORS.transitionVertex, kind: "dot" },
-    ] as const;
-
-    function colorToCssHex(color: number): string {
-        return `#${color.toString(16).padStart(6, "0")}`;
-    }
-
     function activeFrontSectionColor(
         section: OverlaySectionClassification,
     ): number {
@@ -4385,15 +4356,15 @@
             case "active_section":
                 return AF_DEBUG_COLORS.activeSection;
             case "source_section":
-                return AF_DEBUG_COLORS.prevSourceSection;
+                return AF_DEBUG_COLORS.prevFront;
             case "source_no_motion_section":
                 return AF_DEBUG_COLORS.prevNoMotionSection;
             case "no_motion_section":
                 return AF_DEBUG_COLORS.noMotionSection;
             case "defect_topology_gap":
-                return AF_DEBUG_COLORS.defectGap;
+                return AF_DEBUG_COLORS.defectMissingFrontier;
             case "defect_unsupported_split":
-                return AF_DEBUG_COLORS.defectSplit;
+                return AF_DEBUG_COLORS.defectSplitMerge;
             default:
                 return AF_DEBUG_COLORS.unchangedSection;
         }
@@ -4405,7 +4376,7 @@
     ): number {
         switch (vertex.role) {
             case "front_anchor":
-                return AF_DEBUG_COLORS.frontAnchor;
+                return AF_DEBUG_COLORS.changeAnchor;
             case "defect_anchor":
                 return AF_DEBUG_COLORS.defectAnchor;
             case "stable_anchor":
@@ -4824,7 +4795,7 @@
                         debugGraphics,
                         section.points,
                         activeSubSection,
-                        AF_DEBUG_COLORS.activeSubSection,
+                        AF_DEBUG_COLORS.activeFront,
                         0.98,
                         4.6,
                     );
@@ -4957,7 +4928,7 @@
                 drawDashedPolyline(
                     debugGraphics,
                     correspondence.prevFront,
-                    AF_DEBUG_COLORS.prevSourceSection,
+                    AF_DEBUG_COLORS.prevFront,
                     0.98,
                     2.8,
                     7,
@@ -4973,7 +4944,7 @@
                 drawOpenPolyline(
                     debugGraphics,
                     correspondence.activeFront,
-                    AF_DEBUG_COLORS.activeSubSection,
+                    AF_DEBUG_COLORS.activeFront,
                     1,
                     4.8,
                 );
@@ -8760,7 +8731,7 @@
                             <span class="af-hud-swatch" data-kind={item.kind}>
                                 <span
                                     class="af-hud-swatch-ink"
-                                    style={`--af-color: ${colorToCssHex(item.color)}`}
+                                    style={`--af-color: ${activeFrontColorToCssHex(item.color)}`}
                                 ></span>
                             </span>
                             <span class="af-hud-label">{item.label}</span>

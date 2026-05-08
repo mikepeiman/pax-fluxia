@@ -935,7 +935,7 @@ describe('ActiveFrontTransition', () => {
         expect(correspondence?.changeAnchors.startPoint).toEqual([60, -12]);
         expect(correspondence?.changeAnchors.endPoint).toEqual([60, -12]);
 
-        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 1);
         const sampled = sectionGeometry.get('stable:section');
         expect(sampled).toBeTruthy();
         expect(sampled?.[0]).toEqual([0, 0]);
@@ -978,7 +978,7 @@ describe('ActiveFrontTransition', () => {
         const front = plan.fronts[0];
         expect(front).toBeTruthy();
 
-        const correspondence = getActiveFrontMonotonicCorrespondence(front!);
+        const correspondence = getActiveFrontMonotonicCorrespondence(front!, 1, 4);
         expect(correspondence).toBeTruthy();
         expect(correspondence?.postFront).toHaveLength(4);
         expect(correspondence?.prevFront).toHaveLength(4);
@@ -990,7 +990,7 @@ describe('ActiveFrontTransition', () => {
             [80, -4],
         ]));
 
-        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5);
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 4);
         const sampled = sectionGeometry.get('stable:section');
         expect(sampled).toBeTruthy();
         expect(sampled?.[0]).toEqual([0, 0]);

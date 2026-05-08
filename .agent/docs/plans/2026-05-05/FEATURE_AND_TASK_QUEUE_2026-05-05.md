@@ -873,3 +873,28 @@
 - Validation:
   - `bun vitest run src/lib/territory/integration/TerritorySettingsBridge.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 33
+- Added one shared active-front legend/style source:
+  - `pax-fluxia/src/lib/territory/devtools/activeFrontDebugStyle.ts`
+- Unified live HUD legend and exported render legend to that one source.
+- Added explicit legend coverage for all rendered AF symbols, including:
+  - defect-front classes
+  - TVs
+  - sample points
+  - change anchors
+  - defect anchors
+- Reworked no-split local change-window mapping:
+  - it now derives true `PRE` and `POST` change spans directly
+  - it no longer uses nearest-point projection between fronts for the no-split case
+- Reworked no-split rendered active-front geometry:
+  - section geometry now uses the correspondence TVs directly
+  - the rendered active front is no longer constrained to the old `POST` section point count
+- Snap-package diagnosis locked for the supplied dual-conquest case:
+  - one local front is valid
+  - the failed red defect front is a `missing corresponding frontier` case around a self-anchored / world-bound run
+- Created:
+  - `.agent/docs/sessions/2026-05-08/2026-05-08_active-front-tv-and-legend-fix_v2.md`
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/components/ui/settings/settingsSearch.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `pax-fluxia/`

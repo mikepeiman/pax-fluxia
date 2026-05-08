@@ -16,6 +16,11 @@ import {
     compactGeometrySnapshotForExport,
     downsamplePoints,
 } from './snapshotExport';
+import {
+    ACTIVE_FRONT_DEBUG_COLORS as AF_COLORS,
+    ACTIVE_FRONT_LEGEND_ITEMS,
+    activeFrontColorToCssHex,
+} from './activeFrontDebugStyle';
 
 export interface DiagnosticPackageFrameRef {
     progress: number;
@@ -76,17 +81,11 @@ interface ActiveFrontLiveCaptureDiagnostics {
     activeFrontPlan: Record<string, unknown> | null;
 }
 
-const AF_COLORS = {
+const AF_CANVAS_COLORS = {
     panelBg: 'rgba(10, 16, 28, 0.82)',
     panelBorder: 'rgba(79, 217, 255, 0.55)',
     title: '#eef8ff',
     summary: '#c8d5f2',
-    prevPath: '#ff73c6',
-    nextPath: '#f0b400',
-    activeFront: '#52ff8f',
-    changeAnchor: '#3cdcff',
-    defectAnchor: '#ff4d6d',
-    defectPath: '#ff8c42',
     correspondence: 'rgba(60, 220, 255, 0.52)',
     text: '#f4f7ff',
     shadow: '#10131d',
@@ -305,14 +304,14 @@ function drawCanvasLabel(
     text: string,
     x: number,
     y: number,
-    color = AF_COLORS.text,
+    color = AF_CANVAS_COLORS.text,
     font = '11px "JetBrains Mono", Consolas, monospace',
 ): void {
     ctx.save();
     ctx.font = font;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = AF_COLORS.shadow;
+    ctx.fillStyle = AF_CANVAS_COLORS.shadow;
     ctx.fillText(text, x + 1, y + 1);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
@@ -389,35 +388,47 @@ function drawActiveFrontHudLegend(
         `fronts=${debug?.frontCount ?? 0} pairs=${debug?.planSummary?.pairCount ?? 0}`,
         `no-motion=${debug?.planSummary?.noChangePairCount ?? 0} defects=${debug?.defectPairCount ?? 0}`,
     ];
-    const items = [
-        { label: 'PRE front', color: AF_COLORS.prevPath, dashed: true },
-        { label: 'POST front', color: AF_COLORS.nextPath, dashed: false },
-        { label: 'Active front', color: AF_COLORS.activeFront, dashed: false, width: 5 },
-        { label: 'Change anchor', color: AF_COLORS.changeAnchor, marker: 'circle' },
-        { label: 'Defect anchor', color: AF_COLORS.defectAnchor, marker: 'square' },
-        { label: 'Monotonic change vertices', color: AF_COLORS.correspondence, dashed: false },
-    ] as const;
     const x = 14;
     const y = 14;
-    const width = 280;
-    const height = 28 + lines.length * 14 + items.length * 16 + 12;
+    const width = 372;
+    const height = 28 + lines.length * 14 + ACTIVE_FRONT_LEGEND_ITEMS.length * 16 + 12;
 
     ctx.save();
-    ctx.fillStyle = AF_COLORS.panelBg;
+    ctx.fillStyle = AF_CANVAS_COLORS.panelBg;
     ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = AF_COLORS.panelBorder;
+    ctx.strokeStyle = AF_CANVAS_COLORS.panelBorder;
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, width, height);
-    drawCanvasLabel(ctx, 'AF Diagnostics', x + 10, y + 8, AF_COLORS.title, 'bold 12px "JetBrains Mono", Consolas, monospace');
+    drawCanvasLabel(ctx, 'AF Diagnostics', x + 10, y + 8, AF_CANVAS_COLORS.title, 'bold 12px "JetBrains Mono", Consolas, monospace');
     lines.forEach((line, index) => {
-        drawCanvasLabel(ctx, line, x + 10, y + 24 + index * 14, AF_COLORS.summary, '10px "JetBrains Mono", Consolas, monospace');
+        drawCanvasLabel(ctx, line, x + 10, y + 24 + index * 14, AF_CANVAS_COLORS.summary, '10px "JetBrains Mono", Consolas, monospace');
     });
-    items.forEach((item, index) => {
+    ACTIVE_FRONT_LEGEND_ITEMS.forEach((item, index) => {
         const rowY = y + 24 + lines.length * 14 + 10 + index * 16;
-        if ('marker' in item && item.marker === 'circle') {
-            drawCanvasCircle(ctx, x + 20, rowY + 6, 4.5, item.color);
-        } else if ('marker' in item && item.marker === 'square') {
-            drawCanvasSquare(ctx, x + 20, rowY + 6, 9, item.color);
+        if (item.kind === 'ring') {
+            drawCanvasCircle(ctx, x + 20, rowY + 6, 4.5, activeFrontColorToCssHex(item.color));
+        } else if (item.kind === 'square') {
+            drawCanvasSquare(ctx, x + 20, rowY + 6, 9, activeFrontColorToCssHex(item.color));
+        } else if (item.kind === 'diamond') {
+            ctx.save();
+            ctx.translate(x + 20, rowY + 6);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = activeFrontColorToCssHex(item.color);
+            ctx.fillRect(-4.5, -4.5, 9, 9);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-4.5, -4.5, 9, 9);
+            ctx.restore();
+        } else if (item.kind === 'dot') {
+            drawCanvasCircle(
+                ctx,
+                x + 20,
+                rowY + 6,
+                3.2,
+                activeFrontColorToCssHex(item.color),
+                activeFrontColorToCssHex(item.color),
+                1,
+            );
         } else {
             drawCanvasPolyline(
                 ctx,
@@ -425,12 +436,12 @@ function drawActiveFrontHudLegend(
                     [x + 8, rowY + 6],
                     [x + 32, rowY + 6],
                 ],
-                item.color,
-                item.width ?? 3,
-                item.dashed ?? false,
+                activeFrontColorToCssHex(item.color),
+                item.kind === 'thick' ? 5 : 3,
+                item.kind === 'dashed',
             );
         }
-        drawCanvasLabel(ctx, item.label, x + 42, rowY, AF_COLORS.text, '10px "JetBrains Mono", Consolas, monospace');
+        drawCanvasLabel(ctx, item.label, x + 42, rowY, AF_CANVAS_COLORS.text, '10px "JetBrains Mono", Consolas, monospace');
     });
     ctx.restore();
 }
@@ -478,10 +489,44 @@ function drawMonotonicCorrespondence(
     for (let i = 0; i < pairCount; i += 1) {
         const prevPoint = correspondence.prevFront[i]!;
         const nextPoint = correspondence.postFront[i]!;
-        drawCanvasPolyline(ctx, [prevPoint, nextPoint], AF_COLORS.correspondence, 1.4);
-        drawCanvasCircle(ctx, prevPoint[0], prevPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
-        drawCanvasCircle(ctx, nextPoint[0], nextPoint[1], 2.3, AF_COLORS.changeAnchor, AF_COLORS.changeAnchor, 1);
+        drawCanvasPolyline(ctx, [prevPoint, nextPoint], AF_CANVAS_COLORS.correspondence, 1.4);
+        drawCanvasCircle(
+            ctx,
+            prevPoint[0],
+            prevPoint[1],
+            2.3,
+            activeFrontColorToCssHex(AF_COLORS.transitionVertex),
+            activeFrontColorToCssHex(AF_COLORS.transitionVertex),
+            1,
+        );
+        drawCanvasCircle(
+            ctx,
+            nextPoint[0],
+            nextPoint[1],
+            2.3,
+            activeFrontColorToCssHex(AF_COLORS.transitionVertex),
+            activeFrontColorToCssHex(AF_COLORS.transitionVertex),
+            1,
+        );
     }
+}
+
+function drawCanvasDiamond(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    fill: string,
+): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = fill;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
 }
 
 function drawActiveFrontReferenceFrame(
@@ -512,7 +557,7 @@ function drawActiveFrontReferenceFrame(
             focus.point[0],
             focus.point[1],
             11,
-            AF_COLORS.changeAnchor,
+            activeFrontColorToCssHex(AF_COLORS.changeAnchor),
             'transparent',
             3,
         );
@@ -521,7 +566,7 @@ function drawActiveFrontReferenceFrame(
             focus.id,
             focus.point[0] + 12,
             focus.point[1] - 10,
-            AF_COLORS.changeAnchor,
+            activeFrontColorToCssHex(AF_COLORS.changeAnchor),
             'bold 11px "JetBrains Mono", Consolas, monospace',
         );
     }
@@ -533,21 +578,21 @@ function drawActiveFrontReferenceFrame(
 
     for (const front of plan.fronts as ActiveFrontTransitionPlan['fronts']) {
         for (const prevPath of front.prevPaths) {
-            drawCanvasPolyline(ctx, prevPath.points, AF_COLORS.prevPath, 3, true);
+            drawCanvasPolyline(ctx, prevPath.points, activeFrontColorToCssHex(AF_COLORS.prevFront), 3, true);
         }
         for (const nextPath of front.nextPaths) {
-            drawCanvasPolyline(ctx, nextPath.points, AF_COLORS.nextPath, 3, false);
+            drawCanvasPolyline(ctx, nextPath.points, activeFrontColorToCssHex(AF_COLORS.activeSection), 3, false);
         }
 
         const correspondence = getActiveFrontMonotonicCorrespondence(front);
         if (correspondence) {
-            drawCanvasPolyline(ctx, correspondence.activeFront, AF_COLORS.activeFront, 5, false);
+            drawCanvasPolyline(ctx, correspondence.activeFront, activeFrontColorToCssHex(AF_COLORS.activeFront), 5, false);
             const startPoint = correspondence.changeAnchors.startPoint;
             const endPoint = correspondence.changeAnchors.endPoint;
-            drawCanvasCircle(ctx, startPoint[0], startPoint[1], 6, AF_COLORS.changeAnchor);
-            drawCanvasCircle(ctx, endPoint[0], endPoint[1], 6, AF_COLORS.changeAnchor);
-            drawCanvasLabel(ctx, 'CA', startPoint[0] + 8, startPoint[1] - 12, AF_COLORS.changeAnchor);
-            drawCanvasLabel(ctx, 'CA', endPoint[0] + 8, endPoint[1] - 12, AF_COLORS.changeAnchor);
+            drawCanvasDiamond(ctx, startPoint[0], startPoint[1], 11, activeFrontColorToCssHex(AF_COLORS.changeAnchor));
+            drawCanvasDiamond(ctx, endPoint[0], endPoint[1], 11, activeFrontColorToCssHex(AF_COLORS.changeAnchor));
+            drawCanvasLabel(ctx, 'CA', startPoint[0] + 8, startPoint[1] - 12, activeFrontColorToCssHex(AF_COLORS.changeAnchor));
+            drawCanvasLabel(ctx, 'CA', endPoint[0] + 8, endPoint[1] - 12, activeFrontColorToCssHex(AF_COLORS.changeAnchor));
             drawMonotonicCorrespondence(ctx, correspondence);
         }
     }
@@ -585,11 +630,15 @@ function drawActiveFrontReferenceFrame(
     for (const entry of visibleDefects) {
         const { pair, prevPaths, nextPaths } = entry;
         for (const points of prevPaths) {
-            drawCanvasPolyline(ctx, points, AF_COLORS.prevPath, 2, true);
+            drawCanvasPolyline(ctx, points, activeFrontColorToCssHex(AF_COLORS.prevFront), 2, true);
         }
 
         for (const points of nextPaths) {
-            drawCanvasPolyline(ctx, points, AF_COLORS.defectPath, 3, false);
+            const defectColor =
+                pair.outcome === 'defect_unsupported_split_mode'
+                    ? AF_COLORS.defectSplitMerge
+                    : AF_COLORS.defectMissingFrontier;
+            drawCanvasPolyline(ctx, points, activeFrontColorToCssHex(defectColor), 3, false);
         }
 
         const startVertex = nextTopology.vertices.get(pair.anchorStartId)
@@ -602,7 +651,7 @@ function drawActiveFrontReferenceFrame(
                 startVertex.point[0],
                 startVertex.point[1],
                 10,
-                AF_COLORS.defectAnchor,
+                activeFrontColorToCssHex(AF_COLORS.defectAnchor),
             );
         }
         if (endVertex) {
@@ -611,7 +660,7 @@ function drawActiveFrontReferenceFrame(
                 endVertex.point[0],
                 endVertex.point[1],
                 10,
-                AF_COLORS.defectAnchor,
+                activeFrontColorToCssHex(AF_COLORS.defectAnchor),
             );
         }
     }
