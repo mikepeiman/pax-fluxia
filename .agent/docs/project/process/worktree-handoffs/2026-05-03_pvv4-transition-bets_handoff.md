@@ -2782,3 +2782,31 @@
   - `bun vitest run src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
   - `bun vitest run src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-07 - Expose TV Count And Persist Last-Conquest Overlay
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-07\2026-05-07_territory-transition-diagnosis_v22.md`
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\contracts\TerritoryFrameInput.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\integration\TerritorySettingsBridge.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryConfigNormalizer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-PVV4Transition.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\overlayConfig.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\TransitionLayerCoordinator.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Exact behavior:
+  - `TV` now has an explicit gameplay-facing meaning in this branch: `transition vertex`
+  - live PVV4 TV count is now driven from the shared setting `TERRITORY_MORPH_CONTROL_POINTS`
+  - that control is now exposed directly in the PVV4 transition panel
+  - diagnostics now have a `Show last conquest overlay` toggle
+  - the last conquest overlay now persists even for failed/snap captures instead of depending on `topologyPathSelected`
+  - live overlay now renders TVs as a dedicated visible layer with stronger correspondence lines and larger active-TV dots
+- Merge note:
+  - this is a control-surface and diagnostics-surface checkpoint, not a claim of fully-correct live conquest motion
+  - it exists to make the remaining transition-truth failures visible and tunable in the actual runtime
+- Validation:
+  - `bun vitest run src/lib/territory/integration/TerritorySettingsBridge.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

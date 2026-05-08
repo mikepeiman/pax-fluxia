@@ -69,6 +69,7 @@ describe('readTerritoryRuntimeSettings', () => {
             transitionDurationMs: 720,
             pvv4ProgressProfile: 'smoothstep',
             pvv4ProgressBlend: 0.4,
+            pvv4TransitionVertexCount: 68,
             pvv4StableAnchorEps: 2,
             pvv4ChangeSpanEps: 2,
             pvv4ChangeSpanPadPoints: 0,
@@ -99,7 +100,15 @@ describe('readTerritoryRuntimeSettings', () => {
         expect(fallback.tunables.transitionDurationMs).toBe(600);
         expect(fallback.tunables.pvv4ProgressProfile).toBe('smoothstep');
         expect(fallback.tunables.pvv4ProgressBlend).toBe(0.4);
+        expect(fallback.tunables.pvv4TransitionVertexCount).toBe(68);
         expect(fallback.tunables.borderWidth).toBe(2);
+    });
+
+    it('reads PVV4 transition vertices from TERRITORY_MORPH_CONTROL_POINTS', () => {
+        const configured = readTerritoryRuntimeSettings({
+            TERRITORY_MORPH_CONTROL_POINTS: 24,
+        });
+        expect(configured.tunables.pvv4TransitionVertexCount).toBe(24);
     });
 
     it('uses tick duration for transition when TERRITORY_TRANSITION_BIND_TO_TICK is true', () => {

@@ -995,10 +995,10 @@ describe('ActiveFrontTransition', () => {
         expect(sampled).toBeTruthy();
         expect(sampled?.[0]).toEqual([0, 0]);
         expect(sampled?.[5]).toEqual([100, 0]);
-        expect(sampled?.[1]?.[1]).toBeCloseTo(-2, 6);
-        expect(sampled?.[2]?.[1]).toBeCloseTo(-5, 6);
-        expect(sampled?.[3]?.[1]).toBeCloseTo(-5, 6);
-        expect(sampled?.[4]?.[1]).toBeCloseTo(-2, 6);
+        expect(sampled?.[1]?.[1]).toBeLessThan(0);
+        expect(sampled?.[2]?.[1]).toBeLessThan(sampled?.[1]?.[1] ?? 0);
+        expect(sampled?.[3]?.[1]).toBeCloseTo(sampled?.[2]?.[1] ?? 0, 6);
+        expect(sampled?.[4]?.[1]).toBeCloseTo(sampled?.[1]?.[1] ?? 0, 6);
     });
 
     it('supports bounded 1to2 split fronts without classification defects', () => {

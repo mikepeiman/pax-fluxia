@@ -4,8 +4,10 @@
 export const OVERLAY_PANEL_KEYS = {
     enabled: 'debugOverlayEnabled',
     pauseOnConquestStart: 'debugOverlayPauseOnConquestStart',
+    showLastConquestOverlay: 'debugOverlayShowLastConquestOverlay',
     showAllVertices: 'debugOverlayShowVertices',
     showActiveFront: 'debugOverlayShowActiveFront',
+    showTransitionVertices: 'debugOverlayShowTransitionVertices',
     showClassificationLabels: 'debugOverlayShowClassificationLabels',
     showPolylineSamples: 'debugOverlayShowPolylineSamples',
     freezeOnUnclassifiedBoundary: 'debugOverlayFreezeOnUnclassifiedBoundary',
@@ -16,10 +18,14 @@ export const overlayConfig = {
     enabled: false,
     /** Pause immediately when a new PVV4 conquest transition starts. */
     pauseOnConquestStart: false,
+    /** Hold and render the last conquest overlay snapshot instead of the current frame. */
+    showLastConquestOverlay: false,
     /** Draw every structural frontier vertex. */
     showAllVertices: true,
     /** Highlight active front sections and anchors. */
     showActiveFront: true,
+    /** Draw explicit transition vertices and their PRE/POST correspondence. */
+    showTransitionVertices: true,
     /** Show per-section and per-vertex classification labels. */
     showClassificationLabels: true,
     /** Draw sampled points along each section polyline. */
@@ -47,6 +53,10 @@ export function applyOverlayConfigFromPanel(
         OVERLAY_PANEL_KEYS.pauseOnConquestStart,
         overlayConfig.pauseOnConquestStart,
     );
+    overlayConfig.showLastConquestOverlay = readBool(
+        OVERLAY_PANEL_KEYS.showLastConquestOverlay,
+        overlayConfig.showLastConquestOverlay,
+    );
     overlayConfig.showAllVertices = readBool(
         OVERLAY_PANEL_KEYS.showAllVertices,
         overlayConfig.showAllVertices,
@@ -54,6 +64,10 @@ export function applyOverlayConfigFromPanel(
     overlayConfig.showActiveFront = readBool(
         OVERLAY_PANEL_KEYS.showActiveFront,
         overlayConfig.showActiveFront,
+    );
+    overlayConfig.showTransitionVertices = readBool(
+        OVERLAY_PANEL_KEYS.showTransitionVertices,
+        overlayConfig.showTransitionVertices,
     );
     overlayConfig.showClassificationLabels = readBool(
         OVERLAY_PANEL_KEYS.showClassificationLabels,

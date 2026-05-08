@@ -151,7 +151,10 @@
         buildTerritoryGeometryCacheKeyParts,
         readNormalizedTerritoryGeometryTunables,
     } from "$lib/territory/geometry/geometryTuning";
-    import { compactActiveFrontTransitionPlan } from "$lib/territory/layers/transition/ActiveFrontTransition";
+    import {
+        compactActiveFrontTransitionPlan,
+        getActiveFrontMonotonicCorrespondence,
+    } from "$lib/territory/layers/transition/ActiveFrontTransition";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -2085,6 +2088,11 @@
         frames: TransitionDiagnosticCapturedTransitionFrame[];
     };
 
+    type ActiveFrontOverlayRuntime = Pick<
+        TerritoryRuntimeOutput,
+        "geometry" | "activeFrontPlan" | "activeFrontDebug" | "transitionPrevTopology"
+    >;
+
     type TransitionDiagnosticFrameInput = {
         activeMode: string;
         activeTransition: RenderFamilyActiveTransition | null;
@@ -2107,6 +2115,7 @@
     let canonicalDebugGeometrySnapshot: CanonicalGeometrySnapshot | null = null;
     let canonicalDebugRuntimeOutput = $state<TerritoryRuntimeOutput | null>(null);
     let canonicalRuntimeOutput: TerritoryRuntimeOutput | null = null;
+    let canonicalLastConquestOverlayRuntime = $state<ActiveFrontOverlayRuntime | null>(null);
     let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
         null;
     let transitionDiagnosticCaptureSession:
@@ -2158,11 +2167,41 @@
     }
 
     function resetTransitionDiagnosticCaptureState(): void {
+        canonicalLastConquestOverlayRuntime = null;
         transitionDiagnosticStableFrame = null;
         transitionDiagnosticCaptureSession = null;
         transitionDiagnosticCaptureState = {
             status: "idle",
         };
+    }
+
+    function buildActiveFrontOverlayRuntimeSnapshot(
+        runtimeOutput: TerritoryRuntimeOutput | null,
+    ): ActiveFrontOverlayRuntime | null {
+        if (!runtimeOutput) return null;
+        return {
+            geometry: runtimeOutput.geometry,
+            activeFrontPlan: runtimeOutput.activeFrontPlan,
+            activeFrontDebug: runtimeOutput.activeFrontDebug,
+            transitionPrevTopology: runtimeOutput.transitionPrevTopology,
+        };
+    }
+
+    function captureLastConquestOverlayRuntime(
+        runtimeOutput: TerritoryRuntimeOutput | null,
+    ): void {
+        if (!runtimeOutput?.activeFrontDebug?.hasNewConquests) {
+            return;
+        }
+        canonicalLastConquestOverlayRuntime =
+            buildActiveFrontOverlayRuntimeSnapshot(runtimeOutput);
+    }
+
+    function resolveDisplayedActiveFrontOverlayRuntime(): ActiveFrontOverlayRuntime | null {
+        if (overlayConfig.showLastConquestOverlay) {
+            return canonicalLastConquestOverlayRuntime ?? canonicalDebugRuntimeOutput;
+        }
+        return canonicalDebugRuntimeOutput;
     }
 
     function buildTransitionDiagnosticCaptureKey(
@@ -4317,6 +4356,7 @@
         stableAnchor: 0x3cdcff,
         frontAnchor: 0x72ff5e,
         defectAnchor: 0xff4d6d,
+        transitionVertex: 0x7de7ff,
         structuralVertex: 0xa0a8c8,
         prevVertex: 0xffb5e8,
         sampleDot: 0xc88dff,
@@ -4328,11 +4368,10 @@
         { label: "PRE front", color: AF_DEBUG_COLORS.prevSourceSection, kind: "dashed" },
         { label: "POST front", color: AF_DEBUG_COLORS.activeSection, kind: "line" },
         { label: "Active front", color: AF_DEBUG_COLORS.activeSubSection, kind: "thick" },
-        { label: "No-motion frontier", color: AF_DEBUG_COLORS.noMotionSection, kind: "line" },
         { label: "Stable anchor", color: AF_DEBUG_COLORS.stableAnchor, kind: "ring" },
         { label: "Change anchor", color: AF_DEBUG_COLORS.frontAnchor, kind: "diamond" },
         { label: "Defect anchor", color: AF_DEBUG_COLORS.defectAnchor, kind: "square" },
-        { label: "Sample vertices", color: AF_DEBUG_COLORS.sampleDot, kind: "dot" },
+        { label: "Transition vertices (TVs)", color: AF_DEBUG_COLORS.transitionVertex, kind: "dot" },
     ] as const;
 
     function colorToCssHex(color: number): string {
@@ -4469,6 +4508,52 @@
             g.lineTo(points[i][0], points[i][1]);
         }
         g.stroke({ color, alpha, width });
+    }
+
+    function drawTransitionVertexDot(
+        g: PIXI.Graphics,
+        point: Readonly<[number, number]>,
+        color: number,
+        radius: number,
+    ): void {
+        g.beginPath();
+        g.circle(point[0], point[1], radius);
+        g.fill({ color, alpha: 0.98 });
+        g.stroke({ color: 0xffffff, alpha: 0.92, width: 1.1 });
+    }
+
+    function drawTransitionVertexCorrespondence(
+        g: PIXI.Graphics,
+        correspondence: NonNullable<
+            ReturnType<typeof getActiveFrontMonotonicCorrespondence>
+        >,
+    ): void {
+        const pairCount = Math.min(
+            correspondence.prevFront.length,
+            correspondence.postFront.length,
+            correspondence.activeFront.length,
+        );
+        for (let i = 0; i < pairCount; i += 1) {
+            const prevPoint = correspondence.prevFront[i]!;
+            const postPoint = correspondence.postFront[i]!;
+            const activePoint = correspondence.activeFront[i]!;
+            g.beginPath();
+            g.moveTo(prevPoint[0], prevPoint[1]);
+            g.lineTo(postPoint[0], postPoint[1]);
+            g.stroke({
+                color: AF_DEBUG_COLORS.transitionVertex,
+                alpha: 0.58,
+                width: 1.35,
+            });
+            drawTransitionVertexDot(g, prevPoint, AF_DEBUG_COLORS.prevSourceSection, 1.9);
+            drawTransitionVertexDot(g, postPoint, AF_DEBUG_COLORS.activeSection, 1.9);
+            drawTransitionVertexDot(
+                g,
+                activePoint,
+                AF_DEBUG_COLORS.transitionVertex,
+                4.5,
+            );
+        }
     }
 
     function drawClosedPolyline(
@@ -4678,7 +4763,7 @@
     }
 
     function renderActiveFrontDebugOverlay(
-        runtimeOutput: TerritoryRuntimeOutput | null,
+        runtimeOutput: ActiveFrontOverlayRuntime | null,
     ): void {
         if (!debugGraphics || !overlayConfig.enabled) return;
         const nextTopology = runtimeOutput?.geometry.frontierTopology ?? null;
@@ -4707,7 +4792,7 @@
             if (showLabels && section.points.length > 0) {
                 const mid = section.points[Math.floor(section.points.length / 2)]!;
                 addDebugOverlayLabel(
-                    `PRE ${sectionId.split(":").slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    `PRE front ${formatOverlaySectionLabel(classification)}`,
                     mid[0],
                     mid[1],
                 );
@@ -4775,7 +4860,7 @@
             if (showLabels && section.points.length > 0) {
                 const mid = section.points[Math.floor(section.points.length / 2)]!;
                 addDebugOverlayLabel(
-                    `NEXT ${sectionId.split(":").slice(-1)[0]} ${formatOverlaySectionLabel(classification)}`,
+                    `POST front ${formatOverlaySectionLabel(classification)}`,
                     mid[0],
                     mid[1],
                 );
@@ -4797,7 +4882,13 @@
             });
             if (showLabels) {
                 addDebugOverlayLabel(
-                    `PRE ${classification.labels.join("|")}`,
+                    `PRE ${classification.role === "front_anchor"
+                        ? "change anchor"
+                        : classification.role === "defect_anchor"
+                          ? "defect anchor"
+                          : classification.role === "stable_anchor"
+                            ? "stable anchor"
+                            : "vertex"}`,
                     x,
                     y,
                 );
@@ -4838,7 +4929,13 @@
 
             if (showLabels) {
                 addDebugOverlayLabel(
-                    `NEXT ${classification.labels.join("|")}`,
+                    `POST ${classification.role === "front_anchor"
+                        ? "change anchor"
+                        : classification.role === "defect_anchor"
+                          ? "defect anchor"
+                          : classification.role === "stable_anchor"
+                            ? "stable anchor"
+                            : "vertex"}`,
                     x,
                     y,
                 );
@@ -4847,36 +4944,50 @@
 
         if (overlayConfig.showActiveFront && plan) {
             plan.fronts.forEach((front, frontIndex) => {
-                const a = nextTopology.vertices.get(front.anchorStartId);
-                const b = nextTopology.vertices.get(front.anchorEndId);
-                if (!a || !b) return;
-                const [ax, ay] = a.point;
-                const [bx, by] = b.point;
-                const dx = bx - ax;
-                const dy = by - ay;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist <= 0.001) return;
-
-                const dash = 7;
-                const gap = 4;
-                const step = dash + gap;
-                debugGraphics.beginPath();
-                for (let d = 0; d < dist; d += step) {
-                    const d1 = d / dist;
-                    const d2 = Math.min((d + dash) / dist, 1);
-                    debugGraphics.moveTo(ax + dx * d1, ay + dy * d1);
-                    debugGraphics.lineTo(ax + dx * d2, ay + dy * d2);
+                const correspondence = getActiveFrontMonotonicCorrespondence(
+                    front,
+                    debug?.sampledProgress ?? 1,
+                    plan.diagnostics.tunables.transitionVertexCount,
+                );
+                if (!correspondence) return;
+                drawDashedPolyline(
+                    debugGraphics,
+                    correspondence.prevFront,
+                    AF_DEBUG_COLORS.prevSourceSection,
+                    0.98,
+                    2.8,
+                    7,
+                    4,
+                );
+                drawOpenPolyline(
+                    debugGraphics,
+                    correspondence.postFront,
+                    AF_DEBUG_COLORS.activeSection,
+                    0.96,
+                    2.8,
+                );
+                drawOpenPolyline(
+                    debugGraphics,
+                    correspondence.activeFront,
+                    AF_DEBUG_COLORS.activeSubSection,
+                    1,
+                    4.8,
+                );
+                if (overlayConfig.showTransitionVertices) {
+                    drawTransitionVertexCorrespondence(
+                        debugGraphics,
+                        correspondence,
+                    );
                 }
-                debugGraphics.stroke({
-                    color: AF_DEBUG_COLORS.bridge,
-                    alpha: 0.72,
-                    width: 1.5,
-                });
-                if (showLabels) {
+                if (showLabels && correspondence.activeFront.length > 0) {
+                    const mid =
+                        correspondence.activeFront[
+                            Math.floor(correspondence.activeFront.length / 2)
+                        ]!;
                     addDebugOverlayLabel(
-                        `front ${frontIndex} sections=${front.activeSectionIds.size}`,
-                        (ax + bx) / 2,
-                        (ay + by) / 2,
+                        `AF ${frontIndex} TVs=${correspondence.activeFront.length}`,
+                        mid[0],
+                        mid[1],
                     );
                 }
             });
@@ -4888,7 +4999,7 @@
         activeMode: string,
         stars: ReadonlyArray<StarState>,
         lanes: ReadonlyArray<StarConnection>,
-        runtimeOutput: TerritoryRuntimeOutput | null,
+        runtimeOutput: ActiveFrontOverlayRuntime | null,
     ): void {
         if (!debugGraphics) return;
         const showClassification = overlayConfig.enabled;
@@ -6440,6 +6551,7 @@
                         canonicalDebugGeometrySnapshot =
                             canonicalRuntimeOutput?.geometry ?? null;
                         canonicalDebugRuntimeOutput = canonicalRuntimeOutput;
+                        captureLastConquestOverlayRuntime(canonicalRuntimeOutput);
                         canonicalBridge?.consumeVFXCommands();
                         break;
                     }
@@ -6483,6 +6595,9 @@
                                         canonicalRuntimeOutput?.geometry ?? null;
                                     canonicalDebugRuntimeOutput =
                                         canonicalRuntimeOutput;
+                                    captureLastConquestOverlayRuntime(
+                                        canonicalRuntimeOutput,
+                                    );
                                     canonicalBridge.consumeVFXCommands();
                                     renderedByCanonicalBridge = true;
                                 } catch (error) {
@@ -6502,6 +6617,7 @@
                         if (!useCleanArchitecture) {
                             canonicalDebugGeometrySnapshot = null;
                             canonicalDebugRuntimeOutput = null;
+                            canonicalLastConquestOverlayRuntime = null;
                             canonicalBridge?.reset();
                             canonicalBridge = null;
                         }
@@ -6661,6 +6777,8 @@
                             msrDiagnostics?.summary.invariantFailures.at(-1) ??
                             null,
                     });
+                    const displayedActiveFrontOverlayRuntime =
+                        resolveDisplayedActiveFrontOverlayRuntime();
                     if (canonicalRuntimeOutput) {
                         transitionDiagnosticCaptureState = {
                             status: "canonical_runtime",
@@ -6717,7 +6835,7 @@
                 activeTerritoryMode,
                 stars,
                 activeGameStore.connections as StarConnection[],
-                canonicalDebugRuntimeOutput,
+                displayedActiveFrontOverlayRuntime,
             );
         });
 
@@ -8599,8 +8717,9 @@
             <section class="af-hud-legend">
                 <header class="af-hud-header">
                     <div class="af-hud-title">AF Diagnostics</div>
-                    <div class="af-hud-summary">
-                        {canonicalDebugRuntimeOutput?.activeFrontDebug?.evaluation ?? "idle"}
+                    <div class="af-hud-summary af-hud-summary--legacy">
+                        {resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontDebug
+                            ?.evaluation ?? "idle"}
                         · fronts={canonicalDebugRuntimeOutput?.activeFrontDebug?.frontCount ?? 0}
                         · pairs={canonicalDebugRuntimeOutput?.activeFrontDebug?.planSummary
                             ?.pairCount ?? 0}
@@ -8608,6 +8727,25 @@
                             ?.noChangePairCount ?? 0}
                         · defects={canonicalDebugRuntimeOutput?.activeFrontDebug?.defectPairCount ??
                             0}
+                    </div>
+                    <div class="af-hud-summary">
+                        {resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontDebug
+                            ?.evaluation ?? "idle"}
+                        | fronts={resolveDisplayedActiveFrontOverlayRuntime()
+                            ?.activeFrontDebug?.frontCount ?? 0}
+                        | pairs={resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontDebug
+                            ?.planSummary?.pairCount ?? 0}
+                        | no-motion={resolveDisplayedActiveFrontOverlayRuntime()
+                            ?.activeFrontDebug?.planSummary?.noChangePairCount ?? 0}
+                        | defects={resolveDisplayedActiveFrontOverlayRuntime()
+                            ?.activeFrontDebug?.defectPairCount ?? 0}
+                    </div>
+                    <div class="af-hud-summary af-hud-summary--secondary">
+                        TVs={resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontPlan
+                            ?.diagnostics.tunables.transitionVertexCount ?? 0}
+                        {#if overlayConfig.showLastConquestOverlay}
+                            source=last conquest
+                        {/if}
                     </div>
                 </header>
 
@@ -8711,6 +8849,15 @@
         line-height: 1.35;
         color: #c8d5f2;
         text-wrap: balance;
+    }
+
+    .af-hud-summary--legacy {
+        display: none;
+    }
+
+    .af-hud-summary--secondary {
+        margin-top: 2px;
+        color: #9fd2ff;
     }
 
     .af-hud-items {

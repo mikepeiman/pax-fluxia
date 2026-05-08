@@ -838,3 +838,30 @@
   - `.agent/docs/sessions/2026-05-06/2026-05-06_territory-transition-diagnosis_v18.md`
 - Validation:
   - `bun run build` in `pax-fluxia/`
+
+## Implementation Checkpoint 32
+- Added explicit PVV4 `TV` control exposure.
+  - `TV` = `transition vertex`
+  - runtime tunable: `pvv4TransitionVertexCount`
+  - wired from existing shared config: `TERRITORY_MORPH_CONTROL_POINTS`
+  - exposed in `ControlsSection-PVV4Transition.svelte` as `Transition Vertices (TVs)`
+- Hardened diagnostics overlay persistence.
+  - added `Show last conquest overlay`
+  - last-conquest capture now survives failed/snap conquests instead of depending on `topologyPathSelected`
+- Made TVs visually explicit in the live overlay.
+  - stronger TV correspondence lines
+  - larger dedicated active-TV dots
+  - smaller PRE/POST sample dots to reduce clutter
+- Updated the AF HUD summary to show:
+  - evaluation
+  - fronts
+  - pairs
+  - no-motion
+  - defects
+  - TV count
+  - `source=last conquest` when applicable
+- Created:
+  - `.agent/docs/sessions/2026-05-07/2026-05-07_territory-transition-diagnosis_v22.md`
+- Validation:
+  - `bun vitest run src/lib/territory/integration/TerritorySettingsBridge.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
+  - `bun run build` in `pax-fluxia/`

@@ -11,6 +11,7 @@
     }
 
     type Pvv4ConfigKey =
+        | "TERRITORY_MORPH_CONTROL_POINTS"
         | "PVV4_PROGRESS_PROFILE"
         | "PVV4_PROGRESS_BLEND"
         | "PVV4_STABLE_ANCHOR_EPS"
@@ -45,6 +46,7 @@
     ];
 
     const PVV4_CONTROL_DEFAULTS: Record<Pvv4ConfigKey, string | number> = {
+        TERRITORY_MORPH_CONTROL_POINTS: DEFAULT_GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS,
         PVV4_PROGRESS_PROFILE: DEFAULT_GAME_CONFIG.PVV4_PROGRESS_PROFILE,
         PVV4_PROGRESS_BLEND: DEFAULT_GAME_CONFIG.PVV4_PROGRESS_BLEND,
         PVV4_STABLE_ANCHOR_EPS: DEFAULT_GAME_CONFIG.PVV4_STABLE_ANCHOR_EPS,
@@ -167,6 +169,34 @@
         <h4 class="sub-heading">Bet A · Timing</h4>
         <div class="row-hint">
             Applies live during sampling. Safe to adjust while a conquest transition is already in motion.
+        </div>
+
+        <div class="var-row">
+            <div class="row-top">
+                <span
+                    class="var-name"
+                    data-setting-config-key="TERRITORY_MORPH_CONTROL_POINTS"
+                    data-setting-description="TV count for PVV4: the equal-number transition vertices used to build and lerp the active front."
+                >
+                    Transition Vertices (TVs)
+                </span>
+                <span class="val">{Math.round(Number(panel.territoryMorphControlPoints ?? GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS ?? 68))}</span>
+            </div>
+            <div class="row-hint row-hint--tight">
+                Uses the shared `TERRITORY_MORPH_CONTROL_POINTS` setting as the live PVV4 active-front TV count.
+            </div>
+            <input
+                type="range"
+                min="5"
+                max="300"
+                step="1"
+                value={panel.territoryMorphControlPoints ?? GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS ?? 68}
+                oninput={(event) =>
+                    updateConfig(
+                        "TERRITORY_MORPH_CONTROL_POINTS",
+                        Number((event.target as HTMLInputElement).value),
+                    )}
+            />
         </div>
 
         <div class="var-row">

@@ -80,8 +80,14 @@
     let overlayPauseOnConquestStart = $state(
         overlayConfig.pauseOnConquestStart,
     );
+    let overlayShowLastConquest = $state(
+        overlayConfig.showLastConquestOverlay,
+    );
     let overlayShowVertices = $state(overlayConfig.showAllVertices);
     let overlayShowActiveFront = $state(overlayConfig.showActiveFront);
+    let overlayShowTransitionVertices = $state(
+        overlayConfig.showTransitionVertices,
+    );
     let overlayShowClassificationLabels = $state(
         overlayConfig.showClassificationLabels,
     );
@@ -106,8 +112,10 @@
     function syncOverlayState(): void {
         overlayEnabled = overlayConfig.enabled;
         overlayPauseOnConquestStart = overlayConfig.pauseOnConquestStart;
+        overlayShowLastConquest = overlayConfig.showLastConquestOverlay;
         overlayShowVertices = overlayConfig.showAllVertices;
         overlayShowActiveFront = overlayConfig.showActiveFront;
+        overlayShowTransitionVertices = overlayConfig.showTransitionVertices;
         overlayShowClassificationLabels =
             overlayConfig.showClassificationLabels;
         overlayPolylineSamples = overlayConfig.showPolylineSamples;
@@ -140,11 +148,31 @@
         syncOverlayState();
     }
 
+    function toggleOverlayLastConquest(): void {
+        overlayConfig.showLastConquestOverlay =
+            !overlayConfig.showLastConquestOverlay;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showLastConquestOverlay,
+            overlayConfig.showLastConquestOverlay,
+        );
+        syncOverlayState();
+    }
+
     function toggleOverlayActiveFront(): void {
         overlayConfig.showActiveFront = !overlayConfig.showActiveFront;
         updatePanel(
             OVERLAY_PANEL_KEYS.showActiveFront,
             overlayConfig.showActiveFront,
+        );
+        syncOverlayState();
+    }
+
+    function toggleOverlayTransitionVertices(): void {
+        overlayConfig.showTransitionVertices =
+            !overlayConfig.showTransitionVertices;
+        updatePanel(
+            OVERLAY_PANEL_KEYS.showTransitionVertices,
+            overlayConfig.showTransitionVertices,
         );
         syncOverlayState();
     }
@@ -412,10 +440,26 @@
         <label class="toggle-row indent">
             <input
                 type="checkbox"
+                checked={overlayShowLastConquest}
+                onchange={toggleOverlayLastConquest}
+            />
+            <span class="var-name">Show last conquest overlay</span>
+        </label>
+        <label class="toggle-row indent">
+            <input
+                type="checkbox"
                 checked={overlayShowActiveFront}
                 onchange={toggleOverlayActiveFront}
             />
-            <span class="var-name">Active front bridge + anchors + gold sections</span>
+            <span class="var-name">Active front + anchors</span>
+        </label>
+        <label class="toggle-row indent">
+            <input
+                type="checkbox"
+                checked={overlayShowTransitionVertices}
+                onchange={toggleOverlayTransitionVertices}
+            />
+            <span class="var-name">Transition vertices (TVs)</span>
         </label>
         <label class="toggle-row indent">
             <input

@@ -19,6 +19,7 @@ export interface TerritoryTunables extends TerritoryGeometryTunables {
     transitionDurationMs: number;
     pvv4ProgressProfile: Pvv4ProgressProfileId;
     pvv4ProgressBlend: number;
+    pvv4TransitionVertexCount: number;
     pvv4StableAnchorEps: number;
     pvv4ChangeSpanEps: number;
     pvv4ChangeSpanPadPoints: number;

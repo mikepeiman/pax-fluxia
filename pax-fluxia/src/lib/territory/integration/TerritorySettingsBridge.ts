@@ -112,6 +112,10 @@ export function readTerritoryRuntimeSettings(
                 config.PVV4_PROGRESS_PROFILE,
             ),
             pvv4ProgressBlend: asNumber(config.PVV4_PROGRESS_BLEND, 0.4),
+            pvv4TransitionVertexCount: asNumber(
+                config.TERRITORY_MORPH_CONTROL_POINTS,
+                68,
+            ),
             pvv4StableAnchorEps: asNumber(config.PVV4_STABLE_ANCHOR_EPS, 2),
             pvv4ChangeSpanEps: asNumber(config.PVV4_CHANGE_SPAN_EPS, 2),
             pvv4ChangeSpanPadPoints: asNumber(

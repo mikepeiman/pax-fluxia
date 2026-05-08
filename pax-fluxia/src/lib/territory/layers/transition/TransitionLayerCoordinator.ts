@@ -183,6 +183,8 @@ export class TransitionLayerCoordinator {
                         stableAnchorEps: input.tunables.pvv4StableAnchorEps,
                         changeSpanEps: input.tunables.pvv4ChangeSpanEps,
                         changeSpanPadPoints: input.tunables.pvv4ChangeSpanPadPoints,
+                        transitionVertexCount:
+                            input.tunables.pvv4TransitionVertexCount,
                     },
                     input.stars,
                     input.previousGeometry?.territoryRegions ?? [],
@@ -255,12 +257,14 @@ export class TransitionLayerCoordinator {
                 samplePrevTopo,
                 nextTopo,
                 sampledProgress,
+                input.tunables.pvv4TransitionVertexCount,
             );
             borderFrame = sampleActiveFrontBorderFrame(
                 activeFrontPlan,
                 samplePrevTopo,
                 nextTopo,
                 sampledProgress,
+                input.tunables.pvv4TransitionVertexCount,
             );
         } else {
             // ── LEGACY SAMPLING (independent fill + border) ──────────────

@@ -129,6 +129,7 @@ export interface ActiveFrontPlanDiagnosticsSummary {
 
 export interface ActiveFrontPlanDiagnostics {
     tunables: {
+        transitionVertexCount: number;
         stableAnchorEps: number;
         changeSpanEps: number;
         changeSpanPadPoints: number;
@@ -167,8 +168,10 @@ const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
 const DEFAULT_STABLE_ANCHOR_EPS = 2;
 const DEFAULT_CHANGE_SPAN_EPS = 2;
 const DEFAULT_CHANGE_SPAN_PAD_POINTS = 0;
+const DEFAULT_TRANSITION_VERTEX_COUNT = 68;
 
 interface ActiveFrontPlanningTunables {
+    transitionVertexCount?: TerritoryTunables['pvv4TransitionVertexCount'];
     stableAnchorEps?: TerritoryTunables['pvv4StableAnchorEps'];
     changeSpanEps?: TerritoryTunables['pvv4ChangeSpanEps'];
     changeSpanPadPoints?: TerritoryTunables['pvv4ChangeSpanPadPoints'];
@@ -197,6 +200,9 @@ export function planActiveFrontTransition(
     const changeSpanEps = tunables.changeSpanEps ?? DEFAULT_CHANGE_SPAN_EPS;
     const changeSpanPadPoints =
         tunables.changeSpanPadPoints ?? DEFAULT_CHANGE_SPAN_PAD_POINTS;
+    const transitionVertexCount = normalizeTransitionVertexCount(
+        tunables.transitionVertexCount,
+    );
 
     const anchors = findStableAnchors(prev, next, stableAnchorEps);
     const prevChains = dedupeChainsByGeometry(buildChainsBetweenAnchors(prev, anchors));
@@ -326,6 +332,7 @@ export function planActiveFrontTransition(
         pairDiagnostics,
         fronts,
         collapseTargets,
+        transitionVertexCount,
         stableAnchorEps,
         changeSpanEps,
         changeSpanPadPoints,
@@ -356,6 +363,7 @@ function buildActiveFrontPlanDiagnostics(input: {
     pairDiagnostics: ActiveFrontPairDiagnostic[];
     fronts: ActiveFrontPlan[];
     collapseTargets: CollapseTarget[];
+    transitionVertexCount: number;
     stableAnchorEps: number;
     changeSpanEps: number;
     changeSpanPadPoints: number;
@@ -392,6 +400,7 @@ function buildActiveFrontPlanDiagnostics(input: {
 
     return {
         tunables: {
+            transitionVertexCount: input.transitionVertexCount,
             stableAnchorEps: input.stableAnchorEps,
             changeSpanEps: input.changeSpanEps,
             changeSpanPadPoints: input.changeSpanPadPoints,
@@ -467,6 +476,7 @@ export function sampleActiveFrontSectionGeometry(
     prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
+    transitionVertexCount?: number,
 ): ReadonlyMap<string, [number, number][]> {
     const t = Math.min(Math.max(progress, 0), 1);
     const sectionGeometry = new Map<string, Vec2[]>();
@@ -481,7 +491,13 @@ export function sampleActiveFrontSectionGeometry(
 
     // Replace only the local moving interval inside each active section.
     for (const front of plan.fronts) {
-        const interpolatedPaths = buildInterpolatedPaths(front, prev, next, t);
+        const interpolatedPaths = buildInterpolatedPaths(
+            front,
+            prev,
+            next,
+            t,
+            transitionVertexCount ?? plan.diagnostics.tunables.transitionVertexCount,
+        );
 
         for (const [sectionId, span] of front.sectionSpans) {
             if (!front.activeSectionIds.has(sectionId)) continue;
@@ -530,9 +546,16 @@ export function sampleActiveFrontTransition(
     _prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
+    transitionVertexCount?: number,
 ): FillTransitionFrame {
     const t = Math.min(Math.max(progress, 0), 1);
-    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, _prev, next, t);
+    const sectionGeometry = sampleActiveFrontSectionGeometry(
+        plan,
+        _prev,
+        next,
+        t,
+        transitionVertexCount,
+    );
 
     const regions: { ownerId: string; points: Vec2[] }[] = [];
 
@@ -561,8 +584,15 @@ export function sampleActiveFrontBorderFrame(
     prev: FrontierTopology,
     next: FrontierTopology,
     progress: number,
+    transitionVertexCount?: number,
 ): BorderTransitionFrame {
-    const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, progress);
+    const sectionGeometry = sampleActiveFrontSectionGeometry(
+        plan,
+        prev,
+        next,
+        progress,
+        transitionVertexCount,
+    );
     return {
         frontiers: [...next.sections.values()].map((section) => ({
             ownerPairKey: section.ownerPairKey,
@@ -1169,9 +1199,10 @@ function buildInterpolatedPaths(
     _prev: FrontierTopology,
     _next: FrontierTopology,
     t: number,
+    transitionVertexCount: number,
 ): Vec2[][] {
     if (plan.splitMode === 'none') {
-        return [buildInterpolatedActiveFrontPath(plan, t)];
+        return [buildInterpolatedActiveFrontPath(plan, t, transitionVertexCount)];
     }
     if (plan.splitMode === '1to2') {
         const prevChain = plan.prevPaths[0]?.points ?? [];
@@ -1190,9 +1221,17 @@ function buildInterpolatedPaths(
     return [lerpMonotonicWholeFront(mergedPrev, nextChain, t)];
 }
 
-function buildInterpolatedActiveFrontPath(plan: ActiveFrontPlan, t: number): Vec2[] {
+function buildInterpolatedActiveFrontPath(
+    plan: ActiveFrontPlan,
+    t: number,
+    transitionVertexCount: number,
+): Vec2[] {
     const nextPath = plan.nextPaths[0]?.points.map((point) => [point[0], point[1]] as Vec2) ?? [];
-    const correspondence = getActiveFrontMonotonicCorrespondence(plan, t);
+    const correspondence = getActiveFrontMonotonicCorrespondence(
+        plan,
+        t,
+        transitionVertexCount,
+    );
     if (!correspondence) {
         return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
     }
@@ -1202,10 +1241,19 @@ function buildInterpolatedActiveFrontPath(plan: ActiveFrontPlan, t: number): Vec
         return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
     }
 
-    for (let i = 0; i < correspondence.activeFront.length; i += 1) {
+    const endIndex = plan.localChangeWindow?.nextAnchorEndIndex ?? startIndex;
+    const activePointCount = Math.max(1, endIndex - startIndex + 1);
+    const resampledActiveFront = samplePolylineBetweenParams(
+        correspondence.activeFront,
+        0,
+        1,
+        activePointCount,
+    );
+
+    for (let i = 0; i < resampledActiveFront.length; i += 1) {
         const index = startIndex + i;
         if (index < 0 || index >= nextPath.length) continue;
-        nextPath[index] = correspondence.activeFront[i]!;
+        nextPath[index] = resampledActiveFront[i]!;
     }
     return nextPath;
 }
@@ -1226,6 +1274,7 @@ function lerpMonotonicWholeFront(prev: Vec2[], next: Vec2[], t: number): Vec2[] 
 export function getActiveFrontMonotonicCorrespondence(
     front: ActiveFrontTransitionPlan['fronts'][number],
     progress = 1,
+    transitionVertexCount?: number,
 ): ActiveFrontMonotonicCorrespondence | null {
     if (front.splitMode !== 'none') {
         return null;
@@ -1251,20 +1300,34 @@ export function getActiveFrontMonotonicCorrespondence(
         return null;
     }
 
+    const sampledVertexCount =
+        startIndex === endIndex
+            ? 1
+            : normalizeTransitionVertexCount(
+                transitionVertexCount,
+                postFront.length,
+            );
+    const sampledPostFront = samplePolylineBetweenParams(
+        postFront,
+        0,
+        1,
+        sampledVertexCount,
+    );
+
     const prevFront = samplePolylineBetweenParams(
         prevPath,
         localChangeWindow.prevStartParam,
         localChangeWindow.prevEndParam,
-        postFront.length,
+        sampledVertexCount,
     );
     const t = Math.min(Math.max(progress, 0), 1);
     const activeFront = prevFront.map((prevPoint, index) =>
-        lerpPoint(prevPoint, postFront[index]!, t),
+        lerpPoint(prevPoint, sampledPostFront[index]!, t),
     );
 
     return {
         prevFront,
-        postFront,
+        postFront: sampledPostFront,
         activeFront,
         changeAnchors: {
             startPoint: [postFront[0][0], postFront[0][1]],
@@ -1279,6 +1342,15 @@ export function getActiveFrontMonotonicCorrespondence(
 function clampIndex(index: number, pointCount: number): number {
     if (pointCount <= 0 || index < 0) return -1;
     return Math.min(index, pointCount - 1);
+}
+
+function normalizeTransitionVertexCount(
+    value: number | null | undefined,
+    fallback = DEFAULT_TRANSITION_VERTEX_COUNT,
+): number {
+    const raw =
+        typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    return Math.max(1, Math.min(300, Math.round(raw)));
 }
 
 function concatSections(
