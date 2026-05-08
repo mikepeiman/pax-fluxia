@@ -30,6 +30,7 @@ type SettingMeta = {
     key: string;
     panelKey?: string;
     description?: string;
+    aliases?: string[];
 };
 
 type SettingMetaMap = Record<string, SettingMeta>;
@@ -40,6 +41,7 @@ export type SearchableSettingRecord = {
     key: string;
     panelKey: string;
     description?: string;
+    aliases?: string[];
 };
 
 type LabelScopeMap = Partial<Record<SettingScope, SettingMetaMap>>;
@@ -496,8 +498,18 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Fill Path': { key: 'TERRITORY_FILL_TRANSITION_MODE' },
         'Border Path': { key: 'TERRITORY_BORDER_TRANSITION' },
         'Transition Easing': { key: 'BORDER_TRANS_EASING' },
-        'Morph Control Points': { key: 'TERRITORY_MORPH_CONTROL_POINTS' },
-        'Morph Easing': { key: 'DF_MORPH_EASING' },
+        'Transition Vertices (TVs)': {
+            key: 'TERRITORY_MORPH_CONTROL_POINTS',
+            description:
+                'PVV4 active-front TV count. TV means transition vertex.',
+            aliases: ['Morph Control Points', 'TV count', 'transition vertices', 'TVs'],
+        },
+        'Territory Engine Morph Easing': {
+            key: 'DF_MORPH_EASING',
+            description:
+                'Legacy territory-engine fill/border morph easing. Not the PVV4 conquest transition curve.',
+            aliases: ['Morph Easing'],
+        },
         'Boundary Mode': { key: 'TERRITORY_BOUNDARY_MODE' },
         'Fill Alpha': { key: 'VORONOI_ALPHA' },
         'Neutral Transparent': { key: 'NEUTRAL_TERRITORY_TRANSPARENT' },
@@ -694,6 +706,7 @@ export function getSearchableSettingRecords(): SearchableSettingRecord[] {
                 key: meta.key,
                 panelKey: resolvePanelKey(meta.key, meta.panelKey),
                 description: meta.description || buildFallbackDescription(label, meta),
+                aliases: meta.aliases,
             });
         }
     }

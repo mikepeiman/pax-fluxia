@@ -55,6 +55,27 @@
 
 ## Live Action Log
 
+### 2026-05-08 - Removed stale morph-control duplicate and fixed TV search routing
+
+- Action:
+  - edited:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\AGENT.md`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingMetadata.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsSearch.ts`
+  - created:
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\ui\settings\settingsSearch.test.ts`
+    - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-08\2026-05-08_transition-vertex-search-and-overlay_v1.md`
+- Purpose:
+  - eliminate a concrete UI/search confusion where the user could find a live PVV4 conquest control through stale Render Families wording
+  - add a standing AGENT rule that mentioned UI/features must be traced and verified in the actual UI
+  - make moving TVs visible as moving points rather than reading as static endpoint dots with path lines
+- Result:
+  - old duplicate `Morph Control Points` slider removed from the legacy territory panel
+  - search for `morph` can resolve to the real PVV4 `Transition Vertices (TVs)` control while preserving legacy aliases
+  - overlay now emphasizes the moving active TV with a halo and dot, while down-weighting correspondence scaffolding
+
 ### 2026-05-07 - Recorded core algorithm verification failure
 
 - Action:

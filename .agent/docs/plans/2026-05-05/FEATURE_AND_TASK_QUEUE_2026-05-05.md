@@ -105,6 +105,14 @@
 
 ## Latest Update
 
+- 2026-05-08:
+  - traced `Morph Control Points` search confusion to two concrete causes:
+    - stale duplicate slider still present in the legacy Render Families territory panel
+    - settings search metadata still describing the old wording and not explicitly routing `TERRITORY_MORPH_CONTROL_POINTS` as a PVV4 Transition control
+  - removed the stale duplicate slider from the old territory panel
+  - renamed the remaining legacy control to `Territory Engine Morph Easing`
+  - changed searchable metadata to expose the live PVV4 control as `Transition Vertices (TVs)` with legacy aliases
+  - updated the live overlay so moving TVs dominate visually instead of static endpoint dots and heavy correspondence scaffolding
 - 2026-05-07:
   - diagnosed current snap package as proof that the designed active-front algorithm is still not the live algorithm
   - evidence:

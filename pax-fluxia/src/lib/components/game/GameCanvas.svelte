@@ -4542,16 +4542,20 @@
             g.lineTo(postPoint[0], postPoint[1]);
             g.stroke({
                 color: AF_DEBUG_COLORS.transitionVertex,
-                alpha: 0.58,
-                width: 1.35,
+                alpha: 0.2,
+                width: 1,
             });
-            drawTransitionVertexDot(g, prevPoint, AF_DEBUG_COLORS.prevSourceSection, 1.9);
-            drawTransitionVertexDot(g, postPoint, AF_DEBUG_COLORS.activeSection, 1.9);
+            g.beginPath();
+            g.circle(activePoint[0], activePoint[1], 8.5);
+            g.fill({
+                color: AF_DEBUG_COLORS.transitionVertex,
+                alpha: 0.18,
+            });
             drawTransitionVertexDot(
                 g,
                 activePoint,
                 AF_DEBUG_COLORS.transitionVertex,
-                4.5,
+                5.2,
             );
         }
     }

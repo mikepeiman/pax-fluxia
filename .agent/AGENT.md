@@ -41,6 +41,7 @@ This work costs money. Minimize token waste. Be tactical, concise, and explicit.
 
 - User wording is specification, not vague symptom text.
 - Do not guess. Read definitions before using them.
+- If a UI element, function, or feature is mentioned, it is worth tracing and confirming that it is present, correct, wired up, and available in the UI.
 - Every definition must have a consumer. Trace:
   - definition
   - usage

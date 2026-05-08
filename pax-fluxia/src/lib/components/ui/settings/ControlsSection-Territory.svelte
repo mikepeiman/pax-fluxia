@@ -1546,25 +1546,11 @@
 
       <div class="var-row">
         <div class="row-top">
-          <span class="var-name">Morph Control Points</span><span class="val"
-            >{panel.territoryMorphControlPoints ??
-              GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span>
+          <span class="var-name">Territory Engine Morph Easing</span>
         </div>
-        <input
-          type="range"
-          min="5"
-          max="300"
-          step="1"
-          value={panel.territoryMorphControlPoints ??
-            GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
-          oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            updatePanel("territoryMorphControlPoints", v);
-          }} />
-      </div>
-      <div class="var-row">
-        <div class="row-top">
-          <span class="var-name">Morph Easing</span>
+        <div class="row-bottom" style="font-size: 10px; opacity: 0.7;">
+          Legacy territory-engine fill/border easing. PVV4 transition tuning lives in the
+          dedicated PVV4 Transition section.
         </div>
         <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
           {#each MORPH_EASING_OPTIONS as easing}

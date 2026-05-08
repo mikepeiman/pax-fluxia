@@ -90,9 +90,13 @@ function isPvv4TransitionRecord(record: SearchableSettingRecord): boolean {
     const key = record.key;
     const label = record.label.toLowerCase();
     return (
+        key === "TERRITORY_MORPH_CONTROL_POINTS" ||
+        key === "TERRITORY_TRANSITION_MS" ||
         key.startsWith("PVV4_") ||
         label.includes("pvv4") ||
         label.includes("active front") ||
+        label.includes("transition vertices") ||
+        label.includes("tv count") ||
         label.includes("frontline progress") ||
         label.includes("stable anchor") ||
         label.includes("changed span")
@@ -171,6 +175,7 @@ function buildSettingEntries(): SearchIndexEntry[] {
         const searchText = [
             record.sectionLabel,
             record.label,
+            ...(record.aliases ?? []),
             record.key,
             record.key.replace(/_/g, " "),
             record.panelKey,
@@ -200,6 +205,7 @@ function buildSettingEntries(): SearchIndexEntry[] {
             priority: 3,
             sourceText: [
                 record.label,
+                ...(record.aliases ?? []),
                 record.description ?? "",
                 record.key,
                 record.key.replace(/_/g, " "),
@@ -221,6 +227,7 @@ function buildSectionEntries(): SearchIndexEntry[] {
             ...subsectionLabels,
             ...sectionRecords.flatMap((record) => [
                 record.label,
+                ...(record.aliases ?? []),
                 record.description ?? "",
                 record.key,
                 record.key.replace(/_/g, " "),
