@@ -2810,3 +2810,18 @@
 - Validation:
   - `bun vitest run src/lib/territory/integration/TerritorySettingsBridge.test.ts src/lib/territory/layers/transition/ActiveFrontTransition.test.ts src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-07 - Fix `displayedActiveFrontOverlayRuntime` Scope Leak
+
+- New diagnosis doc:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\.agent\docs\sessions\2026-05-07\2026-05-07_territory-transition-diagnosis_v23.md`
+- Active-path file changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+- Exact behavior:
+  - fixed the overlay render crash caused by referencing `displayedActiveFrontOverlayRuntime` outside the block where it had been declared
+  - the selected overlay runtime is now resolved at frame scope before the perimeter debug overlay render
+- Merge note:
+  - this is a runtime scope correction only
+  - no gameplay or transition-planning claim is attached to this checkpoint
+- Validation:
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`

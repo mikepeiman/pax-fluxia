@@ -6777,8 +6777,6 @@
                             msrDiagnostics?.summary.invariantFailures.at(-1) ??
                             null,
                     });
-                    const displayedActiveFrontOverlayRuntime =
-                        resolveDisplayedActiveFrontOverlayRuntime();
                     if (canonicalRuntimeOutput) {
                         transitionDiagnosticCaptureState = {
                             status: "canonical_runtime",
@@ -6818,6 +6816,9 @@
                 });
             }
         } // end territory pause guard
+
+        const displayedActiveFrontOverlayRuntime =
+            resolveDisplayedActiveFrontOverlayRuntime();
 
         if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_territory")) {
             maybeRenderShipsBeforeInputYield({
