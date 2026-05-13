@@ -4,6 +4,7 @@ import type {
     ActiveFrontPairOutcome,
     ActiveFrontTransitionPlan,
 } from '../layers/transition/ActiveFrontTransition';
+import { getActiveFrontChangeAnchors } from '../layers/transition/ActiveFrontTransition';
 
 export type OverlayVertexRole =
     | 'structural_vertex'
@@ -246,6 +247,26 @@ function collectVerticesForSections(
     return [...out];
 }
 
+function findVertexIdsAtPoint(
+    topology: FrontierTopology | null,
+    point: readonly [number, number],
+    eps = 1e-3,
+): string[] {
+    if (!topology) return [];
+    const out: string[] = [];
+    for (const [vertexId, vertex] of topology.vertices) {
+        if (
+            Math.hypot(
+                vertex.point[0] - point[0],
+                vertex.point[1] - point[1],
+            ) <= eps
+        ) {
+            out.push(vertexId);
+        }
+    }
+    return out;
+}
+
 function markPairDiagnostics(
     prevTopology: FrontierTopology | null,
     nextTopology: FrontierTopology | null,
@@ -351,6 +372,16 @@ export function buildActiveFrontClassificationOverlayModel(
     }
 
     plan.fronts.forEach((front, frontIndex) => {
+        const changeAnchors = getActiveFrontChangeAnchors(front);
+        if (changeAnchors) {
+            for (const vertexId of findVertexIdsAtPoint(nextTopology, changeAnchors.startPoint)) {
+                mergeVertexRole(nextLayer.vertices, vertexId, 'front_anchor', `CA:${frontIndex}:start`);
+            }
+            for (const vertexId of findVertexIdsAtPoint(nextTopology, changeAnchors.endPoint)) {
+                mergeVertexRole(nextLayer.vertices, vertexId, 'front_anchor', `CA:${frontIndex}:end`);
+            }
+        }
+
         const prevSectionIds = new Set<string>();
         front.prevPaths.forEach((path) => path.sectionIds.forEach((id) => prevSectionIds.add(id)));
         for (const sectionId of prevSectionIds) {

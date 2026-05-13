@@ -2911,3 +2911,32 @@
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/components/ui/settings/settingsSearch.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
   - root `bun run build` remains blocked outside this change by missing `@colyseus/core` in `pax-server`.
+
+## Update: 2026-05-13 - Region-First Multi-Front Planning And Full-Front TV Distribution
+
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontClassificationOverlay.ts`
+- Root cause:
+  - TV distribution still used the narrow raw change interval for parts of the plan, so visible TV dots could occupy only part of the active front.
+  - The fallback planner still depended on anchor-pair correspondence, so a changed region that rewired one old region boundary into multiple new frontiers could remain a defect or snap.
+- Exact behavior now:
+  - for no-split fronts, TVs are distributed across the full active front between Change Anchors, using active section extents rather than the raw change span
+  - first and last active TVs are pinned to the Change Anchors
+  - region-level fallback sources are selected from conquest-local PRE frontiers, not only from PRE-only topology-gap pairs
+  - one changed region can emit multiple planned active fronts when dual conquest rewires the boundary
+  - package render labels and Change Anchor markers use the same active-front correspondence source as the TV trace
+  - the classification overlay marks Change Anchors by actual CA points instead of old anchor-pair IDs
+- Package evidence:
+  - `11-14-05---668_cq_S3+1-to-S2_S4-to-S5_h1evqkep_snap_tdp` now plans `frontCount=5`, `defectPairCount=0`, `hasClassificationDefect=false`
+  - `11-13-56---137_cq_S21-to-S39_S29-to-S15_h0vlyq1n_snap_tdp` now plans `frontCount=4`, `defectPairCount=0`, `hasClassificationDefect=false`
+  - validation script checked `t=0.5` TV traces with requested TV count 10; every first/last active TV equals its Change Anchor
+- Merge note:
+  - this does not remove split-mode limitations; it specifically handles no-split changed-region frontiers whose anchor-pair identity rewires across PRE/POST
+  - `common/resources/settings-live/current-settings.json`, root `package.json`, and `pax-fluxia/test-results/` remain unrelated dirty worktree state and must not be swept into this checkpoint
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts`
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/activeFrontClassificationOverlay.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia` passed; existing Svelte unused-selector and chunk-size warnings remain

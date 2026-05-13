@@ -238,8 +238,6 @@ export function renderTransitionFrame(
     }
 
     const activeSectionIds = new Set<string>();
-    const anchorIds = new Set<string>();
-    const anchorLabel = new Map<string, string>();
     const sampledSectionGeometry = sampleActiveFrontSectionGeometry(
         plan,
         prevTopo,
@@ -251,10 +249,6 @@ export function renderTransitionFrame(
         for (const id of front.activeSectionIds) {
             activeSectionIds.add(id);
         }
-        anchorIds.add(front.anchorStartId);
-        anchorIds.add(front.anchorEndId);
-        anchorLabel.set(front.anchorStartId, `CA${fi}-start`);
-        anchorLabel.set(front.anchorEndId, `CA${fi}-end`);
     });
 
     for (const [sectionId, section] of nextTopo.sections) {
@@ -270,35 +264,28 @@ export function renderTransitionFrame(
     }
 
     plan.fronts.forEach((front, fi) => {
-        const a =
-            nextTopo.vertices.get(front.anchorStartId) ??
-            prevTopo.vertices.get(front.anchorStartId);
-        const b =
-            nextTopo.vertices.get(front.anchorEndId) ??
-            prevTopo.vertices.get(front.anchorEndId);
-        if (!a || !b) return;
-
-        drawPolyline(ctx, [a.point, b.point], C.afBridge, 1.5, true);
-
-        const mx = (a.point[0] + b.point[0]) / 2;
-        const my = (a.point[1] + b.point[1]) / 2;
-        drawLabel(ctx, `front ${fi}  (${front.activeSectionIds.size} sections)`, mx - 10, my - 14, C.labelAf, 11);
-
-        const changeAnchors = getActiveFrontChangeAnchors(front);
+        const correspondence =
+            front.splitMode === 'none'
+                ? getActiveFrontMonotonicCorrespondence(
+                    front,
+                    progress,
+                    tvCount,
+                )
+                : null;
+        const changeAnchors = correspondence?.changeAnchors ?? getActiveFrontChangeAnchors(front);
         if (!changeAnchors) return;
         const [sx, sy] = changeAnchors.startPoint;
         const [ex, ey] = changeAnchors.endPoint;
+        drawPolyline(ctx, [changeAnchors.startPoint, changeAnchors.endPoint], C.afBridge, 1.5, true);
+        const mx = (sx + ex) / 2;
+        const my = (sy + ey) / 2;
+        drawLabel(ctx, `front ${fi}  (${front.activeSectionIds.size} sections)`, mx - 10, my - 14, C.labelAf, 11);
         drawDiamond(ctx, sx, sy, 7, C.anchorFill, C.anchorStroke);
         drawDiamond(ctx, ex, ey, 7, C.anchorFill, C.anchorStroke);
         drawLabel(ctx, `CA${fi}-start`, sx + 8, sy - 8, C.labelAf, 10);
         drawLabel(ctx, `CA${fi}-end`, ex + 8, ey - 8, C.labelAf, 10);
 
         if (front.splitMode === 'none') {
-            const correspondence = getActiveFrontMonotonicCorrespondence(
-                front,
-                progress,
-                tvCount,
-            );
             if (correspondence) {
                 drawPolyline(ctx, correspondence.prevFront, C.prevFront, 2.5, true);
                 drawPolyline(ctx, correspondence.postFront, C.postFront, 2.5);
@@ -321,7 +308,6 @@ export function renderTransitionFrame(
 
     if (showAllVertices) {
         for (const [vertexId, vertex] of nextTopo.vertices) {
-            if (anchorIds.has(vertexId)) continue;
             const [x, y] = vertex.point;
             drawCircle(ctx, x, y, 2.5, C.vertex);
             if (showVertexLabels) {
@@ -333,17 +319,6 @@ export function renderTransitionFrame(
                     .replace('star_anchor', 'SA');
                 drawLabel(ctx, `${kind}:${vertexId.slice(0, 6)}`, x + 4, y - 9, C.labelNormal);
             }
-        }
-    }
-
-    for (const anchorId of anchorIds) {
-        const vertex = nextTopo.vertices.get(anchorId) ?? prevTopo.vertices.get(anchorId);
-        if (!vertex) continue;
-        const [x, y] = vertex.point;
-        drawDiamond(ctx, x, y, 9, C.anchorFill, C.anchorStroke);
-        if (showVertexLabels) {
-            const label = anchorLabel.get(anchorId) ?? anchorId.slice(0, 10);
-            drawLabel(ctx, `A ${label} (${Math.round(x)},${Math.round(y)})`, x + 12, y - 11, C.labelAnchor, 10);
         }
     }
 

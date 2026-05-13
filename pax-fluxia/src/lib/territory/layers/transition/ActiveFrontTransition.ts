@@ -19,6 +19,7 @@ export type ActiveFrontSplitMode = 'none' | '1to2' | '2to1';
 type SplitMode = ActiveFrontSplitMode;
 export type ActiveFrontPairOutcome =
     | 'planned'
+    | 'planned_region_front'
     | 'no_change_span'
     | 'defect_topology_gap'
     | 'defect_unsupported_split_mode'
@@ -347,6 +348,17 @@ export function planActiveFrontTransition(
         pairDiagnostics.push(pairDiagnostic);
     }
 
+    planRegionLevelActiveFrontFallbacks({
+        fronts,
+        pairDiagnostics,
+        prev,
+        next,
+        prevByKey,
+        nextByKey,
+        conquestEvents: ownership.conquestEvents,
+        previousRegions,
+    });
+
     const collapseTargets = planCollapseTargets(
         ownership.conquestEvents,
         stars,
@@ -384,6 +396,266 @@ function collectPathSectionIds(prevPaths: readonly ChainPath[], nextPaths: reado
     ).sort();
 }
 
+function planRegionLevelActiveFrontFallbacks(args: {
+    fronts: ActiveFrontPlan[];
+    pairDiagnostics: ActiveFrontPairDiagnostic[];
+    prev: FrontierTopology;
+    next: FrontierTopology;
+    prevByKey: ReadonlyMap<string, ChainPath[]>;
+    nextByKey: ReadonlyMap<string, ChainPath[]>;
+    conquestEvents: readonly TerritoryConquestEvent[];
+    previousRegions: readonly TerritoryRegionShape[];
+}): void {
+    if (args.conquestEvents.length === 0) return;
+
+    const usedNextSectionIds = new Set<string>();
+    for (const front of args.fronts) {
+        for (const sectionId of front.activeSectionIds) {
+            usedNextSectionIds.add(sectionId);
+        }
+    }
+
+    const prevOnly = args.pairDiagnostics
+        .map((diagnostic) => ({
+            diagnostic,
+            paths: args.prevByKey.get(diagnostic.anchorKey) ?? [],
+        }))
+        .filter((entry) =>
+            entry.diagnostic.outcome === 'defect_topology_gap'
+            && entry.diagnostic.prevPathCount > 0
+            && entry.diagnostic.nextPathCount === 0
+            && entry.paths.length > 0,
+        );
+
+    const nextOnly = args.pairDiagnostics
+        .map((diagnostic) => ({
+            diagnostic,
+            paths: args.nextByKey.get(diagnostic.anchorKey) ?? [],
+        }))
+        .filter((entry) =>
+            entry.diagnostic.outcome === 'defect_topology_gap'
+            && entry.diagnostic.nextPathCount > 0
+            && entry.diagnostic.prevPathCount === 0
+            && entry.paths.length > 0,
+        );
+
+    if (nextOnly.length === 0) return;
+
+    const sourceEntries = buildRegionFrontSourceEntries({
+        prev: args.prev,
+        prevByKey: args.prevByKey,
+        pairDiagnostics: args.pairDiagnostics,
+        prevOnly,
+        conquestEvents: args.conquestEvents,
+        previousRegions: args.previousRegions,
+    });
+    if (sourceEntries.length === 0) return;
+
+    const consumedSourceKeys = new Set<string>();
+    for (const nextEntry of nextOnly) {
+        for (const nextPath of nextEntry.paths) {
+            if (nextPath.sectionIds.every((sectionId) => usedNextSectionIds.has(sectionId))) {
+                continue;
+            }
+            if (!pathsTouchAnyConquest(
+                args.next,
+                [nextPath],
+                args.conquestEvents,
+                args.previousRegions,
+            )) {
+                continue;
+            }
+
+            const source = selectNearestRegionFrontSource(
+                nextPath,
+                sourceEntries,
+                consumedSourceKeys,
+            );
+            if (!source) continue;
+
+            const prevPath = orientPrevPathForNext(source.path, nextPath);
+            const fullChangeSpan = {
+                base: 'next' as const,
+                startIndex: 0,
+                endIndex: Math.max(0, nextPath.points.length - 1),
+            };
+            const {
+                sectionSpans,
+                activeSectionIds,
+                defectSectionIds,
+                sectionReversed,
+            } = buildSectionSpans([nextPath], 'none', 'next', fullChangeSpan);
+            if (activeSectionIds.size === 0) continue;
+
+            args.fronts.push({
+                anchorStartId: nextPath.anchorStartId,
+                anchorEndId: nextPath.anchorEndId,
+                splitMode: 'none',
+                prevPaths: [prevPath],
+                nextPaths: [nextPath],
+                changeSpan: fullChangeSpan,
+                localChangeWindow: buildFullPathWindow(prevPath, nextPath),
+                sectionSpans,
+                activeSectionIds,
+                defectSectionIds,
+                sectionReversed,
+            });
+
+            for (const sectionId of activeSectionIds) {
+                usedNextSectionIds.add(sectionId);
+            }
+            nextEntry.diagnostic.outcome = 'planned_region_front';
+            nextEntry.diagnostic.activeSectionIds = [...activeSectionIds].sort();
+            nextEntry.diagnostic.defectSectionIds = [];
+
+            if (source.consumeDiagnostic) {
+                source.diagnostic.outcome = 'planned_region_front';
+                source.diagnostic.defectSectionIds = [];
+            }
+            consumedSourceKeys.add(source.sourceKey);
+        }
+    }
+}
+
+interface RegionFrontSourceEntry {
+    diagnostic: ActiveFrontPairDiagnostic;
+    path: ChainPath;
+    sourceKey: string;
+    consumeDiagnostic: boolean;
+}
+
+function buildRegionFrontSourceEntries(args: {
+    prev: FrontierTopology;
+    prevByKey: ReadonlyMap<string, ChainPath[]>;
+    pairDiagnostics: readonly ActiveFrontPairDiagnostic[];
+    prevOnly: readonly { diagnostic: ActiveFrontPairDiagnostic; paths: ChainPath[] }[];
+    conquestEvents: readonly TerritoryConquestEvent[];
+    previousRegions: readonly TerritoryRegionShape[];
+}): RegionFrontSourceEntry[] {
+    const entries: RegionFrontSourceEntry[] = [];
+    const seen = new Set<string>();
+    const addSource = (
+        diagnostic: ActiveFrontPairDiagnostic,
+        path: ChainPath,
+        consumeDiagnostic: boolean,
+    ): void => {
+        const sourceKey = `${diagnostic.anchorKey}|${serializePathPoints(path.points)}`;
+        if (seen.has(sourceKey)) return;
+        seen.add(sourceKey);
+        entries.push({ diagnostic, path, sourceKey, consumeDiagnostic });
+    };
+
+    for (const entry of args.prevOnly) {
+        for (const path of entry.paths) {
+            if (!pathsTouchAnyConquest(
+                args.prev,
+                [path],
+                args.conquestEvents,
+                args.previousRegions,
+            )) {
+                continue;
+            }
+            addSource(entry.diagnostic, path, true);
+        }
+    }
+
+    for (const diagnostic of args.pairDiagnostics) {
+        const paths = args.prevByKey.get(diagnostic.anchorKey) ?? [];
+        for (const path of paths) {
+            if (!pathsTouchAnyConquest(
+                args.prev,
+                [path],
+                args.conquestEvents,
+                args.previousRegions,
+            )) {
+                continue;
+            }
+            addSource(diagnostic, path, false);
+        }
+    }
+
+    return entries;
+}
+
+function selectNearestRegionFrontSource(
+    nextPath: ChainPath,
+    sourceEntries: readonly RegionFrontSourceEntry[],
+    consumedSourceKeys: ReadonlySet<string>,
+): RegionFrontSourceEntry | null {
+    let best: { source: RegionFrontSourceEntry; score: number } | null = null;
+    const preferredSources = sourceEntries.filter(
+        (entry) => entry.consumeDiagnostic && !consumedSourceKeys.has(entry.sourceKey),
+    );
+    const unusedSources = sourceEntries.filter(
+        (entry) => !consumedSourceKeys.has(entry.sourceKey),
+    );
+    const searchEntries =
+        preferredSources.length > 0
+            ? preferredSources
+            : unusedSources.length > 0
+                ? unusedSources
+                : sourceEntries;
+    for (const source of searchEntries) {
+        const score = pathCorrespondenceScore(source.path, nextPath);
+        if (!best || score < best.score) {
+            best = { source, score };
+        }
+    }
+    return best?.source ?? null;
+}
+
+function pathCorrespondenceScore(prevPath: ChainPath, nextPath: ChainPath): number {
+    const prevCentroid = polylineCentroid(prevPath.points);
+    const nextCentroid = polylineCentroid(nextPath.points);
+    const endpointScore = Math.min(
+        endpointDistanceScore(prevPath.points, nextPath.points),
+        endpointDistanceScore([...prevPath.points].reverse(), nextPath.points),
+    );
+    return distance(prevCentroid, nextCentroid) + endpointScore * 0.35;
+}
+
+function endpointDistanceScore(a: readonly Vec2[], b: readonly Vec2[]): number {
+    if (a.length === 0 || b.length === 0) return Number.POSITIVE_INFINITY;
+    return distance(a[0]!, b[0]!) + distance(a[a.length - 1]!, b[b.length - 1]!);
+}
+
+function polylineCentroid(points: readonly Vec2[]): Vec2 {
+    if (points.length === 0) return [0, 0];
+    let x = 0;
+    let y = 0;
+    for (const point of points) {
+        x += point[0];
+        y += point[1];
+    }
+    return [x / points.length, y / points.length];
+}
+
+function orientPrevPathForNext(prevPath: ChainPath, nextPath: ChainPath): ChainPath {
+    const asIs = endpointDistanceScore(prevPath.points, nextPath.points);
+    const reversed = endpointDistanceScore([...prevPath.points].reverse(), nextPath.points);
+    if (reversed + 1e-6 >= asIs) {
+        return prevPath;
+    }
+    return {
+        ...prevPath,
+        anchorStartId: prevPath.anchorEndId,
+        anchorEndId: prevPath.anchorStartId,
+        sectionIds: [...prevPath.sectionIds].reverse(),
+        points: [...prevPath.points].reverse().map((point) => [point[0], point[1]] as Vec2),
+    };
+}
+
+function buildFullPathWindow(prevPath: ChainPath, nextPath: ChainPath): LocalChangeWindow {
+    return {
+        nextAnchorStartIndex: 0,
+        nextAnchorEndIndex: Math.max(0, nextPath.points.length - 1),
+        nextStartParam: 0,
+        nextEndParam: 1,
+        prevStartParam: 0,
+        prevEndParam: Math.max(0, prevPath.points.length - 1) === 0 ? 0 : 1,
+    };
+}
+
 function buildActiveFrontPlanDiagnostics(input: {
     stableAnchorIds: string[];
     prevChainCount: number;
@@ -405,7 +677,7 @@ function buildActiveFrontPlanDiagnostics(input: {
         0,
     ) + input.pairDiagnostics.reduce((total, pair) => total + pair.defectSectionIds.length, 0);
     const plannedPairCount = input.pairDiagnostics.filter(
-        (pair) => pair.outcome === 'planned',
+        (pair) => pair.outcome === 'planned' || pair.outcome === 'planned_region_front',
     ).length;
     const defectTopologyGapCount = input.pairDiagnostics.filter(
         (pair) => pair.outcome === 'defect_topology_gap',
@@ -479,6 +751,7 @@ export function compactActiveFrontTransitionPlan(
             splitMode: front.splitMode,
             changeSpan: front.changeSpan,
             changeAnchorWindow: front.localChangeWindow,
+            activeFrontWindow: resolveActiveFrontWindow(front),
             activeSectionIds: [...front.activeSectionIds].sort(),
             defectSectionIds: [...front.defectSectionIds].sort(),
             prevPaths: front.prevPaths.map((path) => ({
@@ -545,9 +818,9 @@ export function sampleActiveFrontSectionGeometry(
                     effectiveVertexCount,
                 )
                 : null;
-        const localChangeWindow =
+        const activeFrontWindow =
             front.splitMode === 'none'
-                ? resolveLocalChangeWindow(front)
+                ? resolveActiveFrontWindow(front)
                 : null;
         const interpolatedPaths =
             front.splitMode === 'none' && correspondence
@@ -573,38 +846,38 @@ export function sampleActiveFrontSectionGeometry(
                 ? [...nextSection.points].reverse().map((point) => [point[0], point[1]] as Vec2)
                 : nextSection.points.map((point) => [point[0], point[1]] as Vec2);
 
-            if (correspondence && localChangeWindow) {
+            if (correspondence && activeFrontWindow) {
                 const nextPath = front.nextPaths[span.pathIndex]?.points ?? [];
                 const nextTable = buildArcLengthTable(nextPath);
                 const spanStartParam = normalizedParamAtIndex(nextTable, span.startIndex);
                 const spanEndParam = normalizedParamAtIndex(nextTable, span.endIndex);
                 const overlapStartParam = Math.max(
                     Math.min(spanStartParam, spanEndParam),
-                    localChangeWindow.nextStartParam,
+                    activeFrontWindow.nextStartParam,
                 );
                 const overlapEndParam = Math.min(
                     Math.max(spanStartParam, spanEndParam),
-                    localChangeWindow.nextEndParam,
+                    activeFrontWindow.nextEndParam,
                 );
                 if (overlapEndParam < overlapStartParam - 1e-9) {
                     continue;
                 }
                 const windowSpan = Math.max(
                     1e-9,
-                    localChangeWindow.nextEndParam - localChangeWindow.nextStartParam,
+                    activeFrontWindow.nextEndParam - activeFrontWindow.nextStartParam,
                 );
                 const sectionStartU = Math.min(
                     1,
                     Math.max(
                         0,
-                        (overlapStartParam - localChangeWindow.nextStartParam) / windowSpan,
+                        (overlapStartParam - activeFrontWindow.nextStartParam) / windowSpan,
                     ),
                 );
                 const sectionEndU = Math.min(
                     1,
                     Math.max(
                         sectionStartU,
-                        (overlapEndParam - localChangeWindow.nextStartParam) / windowSpan,
+                        (overlapEndParam - activeFrontWindow.nextStartParam) / windowSpan,
                     ),
                 );
                 const activeSectionPoints = sampleExistingTransitionVerticesBetweenParams(
@@ -1188,6 +1461,20 @@ function anchorPairTouchesConquest(
     return false;
 }
 
+function pathsTouchAnyConquest(
+    topo: FrontierTopology,
+    paths: readonly ChainPath[],
+    conquestEvents: readonly TerritoryConquestEvent[],
+    previousRegions: readonly TerritoryRegionShape[],
+): boolean {
+    for (const event of conquestEvents) {
+        if (pathsTouchConquest(topo, paths, event, previousRegions)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function pathsTouchConquest(
     topo: FrontierTopology,
     paths: readonly ChainPath[],
@@ -1460,8 +1747,8 @@ function buildSectionSpans(
             if (existing) {
                 sectionSpans.set(sectionId, {
                     ...existing,
-                    activeStartIndex,
-                    activeEndIndex,
+                    activeStartIndex: span.startIndex,
+                    activeEndIndex: span.endIndex,
                 });
             }
         }
@@ -1516,12 +1803,13 @@ function buildInterpolatedActiveFrontPath(
         return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
     }
 
-    const startIndex = plan.localChangeWindow?.nextAnchorStartIndex ?? -1;
+    const activeFrontWindow = resolveActiveFrontWindow(plan);
+    const startIndex = activeFrontWindow?.nextAnchorStartIndex ?? -1;
     if (startIndex < 0) {
         return lerpMonotonicWholeFront(plan.prevPaths[0]?.points ?? [], nextPath, t);
     }
 
-    const endIndex = plan.localChangeWindow?.nextAnchorEndIndex ?? startIndex;
+    const endIndex = activeFrontWindow?.nextAnchorEndIndex ?? startIndex;
     const activePointCount = Math.max(1, endIndex - startIndex + 1);
     const resampledActiveFront = samplePolylineBetweenParams(
         correspondence.activeFront,
@@ -1570,6 +1858,56 @@ function resolveLocalChangeWindow(
     );
 }
 
+function resolveActiveFrontWindow(
+    front: ActiveFrontTransitionPlan['fronts'][number],
+): LocalChangeWindow | null {
+    if (front.splitMode !== 'none') {
+        return null;
+    }
+
+    const prevPath = front.prevPaths[0]?.points ?? [];
+    const nextPath = front.nextPaths[0]?.points ?? [];
+    if (prevPath.length === 0 || nextPath.length === 0) {
+        return null;
+    }
+
+    let startIndex = Number.POSITIVE_INFINITY;
+    let endIndex = Number.NEGATIVE_INFINITY;
+    for (const [sectionId, span] of front.sectionSpans) {
+        if (!front.activeSectionIds.has(sectionId)) continue;
+        if (span.pathIndex !== 0) continue;
+        startIndex = Math.min(startIndex, span.startIndex);
+        endIndex = Math.max(endIndex, span.endIndex);
+    }
+
+    if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
+        return resolveLocalChangeWindow(front);
+    }
+
+    const clampedStartIndex = clampIndex(startIndex, nextPath.length);
+    const clampedEndIndex = clampIndex(endIndex, nextPath.length);
+    if (clampedStartIndex === -1 || clampedEndIndex === -1) {
+        return resolveLocalChangeWindow(front);
+    }
+
+    const nextTable = buildArcLengthTable(nextPath);
+    const nextStartParam = normalizedParamAtIndex(nextTable, clampedStartIndex);
+    const nextEndParam = normalizedParamAtIndex(nextTable, clampedEndIndex);
+    const startPoint = samplePolylineAtParam(nextPath, nextTable, nextStartParam);
+    const endPoint = samplePolylineAtParam(nextPath, nextTable, nextEndParam);
+    const prevStart = projectPointToPolyline(startPoint, prevPath);
+    const prevEnd = projectPointToPolylineWithParamFloor(endPoint, prevPath, prevStart.param);
+
+    return {
+        nextAnchorStartIndex: clampedStartIndex,
+        nextAnchorEndIndex: clampedEndIndex,
+        nextStartParam,
+        nextEndParam,
+        prevStartParam: prevStart.param,
+        prevEndParam: Math.max(prevStart.param, prevEnd.param),
+    };
+}
+
 export function getActiveFrontMonotonicCorrespondence(
     front: ActiveFrontTransitionPlan['fronts'][number],
     progress = 1,
@@ -1579,20 +1917,20 @@ export function getActiveFrontMonotonicCorrespondence(
         return null;
     }
 
-    const localChangeWindow = resolveLocalChangeWindow(front);
+    const activeFrontWindow = resolveActiveFrontWindow(front);
     const prevPath = front.prevPaths[0]?.points ?? [];
     const postPath = front.nextPaths[0]?.points ?? [];
-    if (!localChangeWindow || prevPath.length === 0 || postPath.length === 0) {
+    if (!activeFrontWindow || prevPath.length === 0 || postPath.length === 0) {
         return null;
     }
     const sampledVertexCount =
-        Math.abs(localChangeWindow.nextEndParam - localChangeWindow.nextStartParam) <= 1e-6
+        Math.abs(activeFrontWindow.nextEndParam - activeFrontWindow.nextStartParam) <= 1e-6
             ? 1
             : normalizeTransitionVertexCount(transitionVertexCount);
     const sampledPostFront = samplePolylineBetweenParams(
         postPath,
-        localChangeWindow.nextStartParam,
-        localChangeWindow.nextEndParam,
+        activeFrontWindow.nextStartParam,
+        activeFrontWindow.nextEndParam,
         sampledVertexCount,
     );
     if (sampledPostFront.length === 0) {
@@ -1601,14 +1939,22 @@ export function getActiveFrontMonotonicCorrespondence(
 
     const prevFront = samplePolylineBetweenParams(
         prevPath,
-        localChangeWindow.prevStartParam,
-        localChangeWindow.prevEndParam,
+        activeFrontWindow.prevStartParam,
+        activeFrontWindow.prevEndParam,
         sampledVertexCount,
     );
     const t = Math.min(Math.max(progress, 0), 1);
     const activeFront = prevFront.map((prevPoint, index) =>
         lerpPoint(prevPoint, sampledPostFront[index]!, t),
     );
+    if (activeFront.length > 0) {
+        activeFront[0] = [sampledPostFront[0][0], sampledPostFront[0][1]];
+        const lastIndex = activeFront.length - 1;
+        activeFront[lastIndex] = [
+            sampledPostFront[lastIndex][0],
+            sampledPostFront[lastIndex][1],
+        ];
+    }
 
     return {
         prevFront,

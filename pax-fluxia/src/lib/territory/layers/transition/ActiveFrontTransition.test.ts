@@ -722,6 +722,93 @@ function makeRegion(
     };
 }
 
+function makeGapTopology(
+    version: string,
+    sectionSpecs: readonly {
+        id: string;
+        startVertexId: string;
+        endVertexId: string;
+        leftOwnerId: string;
+        rightOwnerId: string;
+        leftStarId: string;
+        rightStarId: string;
+    }[],
+): FrontierTopology {
+    const vertexPoints = new Map<string, Vec2>([
+        ['A', [0, 0]],
+        ['B', [100, 0]],
+        ['C', [0, 100]],
+        ['D', [100, 100]],
+    ]);
+    const sections = new Map<string, FrontierSection>();
+    const sectionsByVertex = new Map<string, string[]>();
+    const sectionsByOwnerPair = new Map<string, string[]>();
+    const sectionsByOwner = new Map<string, string[]>();
+
+    for (const spec of sectionSpecs) {
+        const start = vertexPoints.get(spec.startVertexId)!;
+        const end = vertexPoints.get(spec.endVertexId)!;
+        const ownerPairKey = `${spec.leftOwnerId}|${spec.rightOwnerId}`;
+        sections.set(spec.id, {
+            id: spec.id,
+            kind: 'owner_border',
+            startVertexId: spec.startVertexId,
+            endVertexId: spec.endVertexId,
+            leftOwnerId: spec.leftOwnerId,
+            rightOwnerId: spec.rightOwnerId,
+            points: [start, end],
+            length: 100,
+            ownerPairKey,
+            leftInfluence: {
+                ownerId: spec.leftOwnerId,
+                primaryStarId: spec.leftStarId,
+                primaryScore: 1,
+            },
+            rightInfluence: {
+                ownerId: spec.rightOwnerId,
+                primaryStarId: spec.rightStarId,
+                primaryScore: 1,
+            },
+        });
+        for (const vertexId of [spec.startVertexId, spec.endVertexId]) {
+            const list = sectionsByVertex.get(vertexId) ?? [];
+            list.push(spec.id);
+            sectionsByVertex.set(vertexId, list);
+        }
+        const pairSections = sectionsByOwnerPair.get(ownerPairKey) ?? [];
+        pairSections.push(spec.id);
+        sectionsByOwnerPair.set(ownerPairKey, pairSections);
+        for (const ownerId of [spec.leftOwnerId, spec.rightOwnerId]) {
+            const ownerSections = sectionsByOwner.get(ownerId) ?? [];
+            ownerSections.push(spec.id);
+            sectionsByOwner.set(ownerId, ownerSections);
+        }
+    }
+
+    const vertices = new Map<string, FrontierVertex>();
+    for (const [vertexId, point] of vertexPoints) {
+        vertices.set(vertexId, {
+            id: vertexId,
+            kind: 'world_intersection',
+            point,
+            incidentSectionIds: sectionsByVertex.get(vertexId) ?? [],
+            ownerIds: [],
+        });
+    }
+
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 200, height: 200 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair,
+        sectionsByVertex,
+        sectionsByOwner,
+    };
+}
+
 describe('ActiveFrontTransition', () => {
     it('shrinks disappearing solo-owner loops to nothing without inventing a replacement loop', () => {
         const previousOwner = 'ai-1';
@@ -999,7 +1086,7 @@ describe('ActiveFrontTransition', () => {
         expect([...plan.fronts[0]!.activeSectionIds]).toContain('stable:section');
     });
 
-    it('moves only the local changed interval inside a single active section', () => {
+    it('distributes TVs across the full active section, not the narrow raw change span', () => {
         const prev = makeSingleSectionTopology('prev', 'red', 'blue', [
             [0, 0],
             [20, 0],
@@ -1034,19 +1121,24 @@ describe('ActiveFrontTransition', () => {
 
         const correspondence = getActiveFrontMonotonicCorrespondence(front!);
         expect(correspondence).toBeTruthy();
-        expect(correspondence?.prevFront).toHaveLength(1);
-        expect(correspondence?.postFront).toHaveLength(1);
-        expect(correspondence?.changeAnchors.startPoint).toEqual([60, -12]);
-        expect(correspondence?.changeAnchors.endPoint).toEqual([60, -12]);
+        expect(correspondence?.prevFront).toHaveLength(68);
+        expect(correspondence?.postFront).toHaveLength(68);
+        expect([
+            correspondence?.changeAnchors.startPoint,
+            correspondence?.changeAnchors.endPoint,
+        ]).toEqual(expect.arrayContaining([
+            [0, 0],
+            [100, 0],
+        ]));
 
-        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 1);
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 6);
         const sampled = sectionGeometry.get('stable:section');
         expect(sampled).toBeTruthy();
-        expect(sampled?.[0]).toEqual([0, 0]);
-        expect(sampled?.[1]).toEqual([20, 0]);
-        expect(sampled?.[2]).toEqual([40, 0]);
-        expect(sampled?.[4]).toEqual([80, 0]);
-        expect(sampled?.[5]).toEqual([100, 0]);
+        expect(sampled).toHaveLength(6);
+        expect(sampled?.[0]?.[0]).toBeCloseTo(0, 6);
+        expect(sampled?.[0]?.[1]).toBeCloseTo(0, 6);
+        expect(sampled?.[5]?.[0]).toBeCloseTo(100, 6);
+        expect(sampled?.[5]?.[1]).toBeCloseTo(0, 6);
         expect(sampled?.[3]?.[1]).toBeCloseTo(0, 6);
     });
 
@@ -1090,19 +1182,18 @@ describe('ActiveFrontTransition', () => {
             correspondence?.changeAnchors.startPoint,
             correspondence?.changeAnchors.endPoint,
         ]).toEqual(expect.arrayContaining([
-            [20, -4],
-            [80, -4],
+            [0, 0],
+            [100, 0],
         ]));
 
         const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 4);
         const sampled = sectionGeometry.get('stable:section');
         expect(sampled).toBeTruthy();
+        expect(sampled).toHaveLength(4);
         expect(sampled?.[0]).toEqual([0, 0]);
-        expect(sampled?.[5]).toEqual([100, 0]);
+        expect(sampled?.[sampled.length - 1]).toEqual([100, 0]);
         expect(sampled?.[1]?.[1]).toBeLessThan(0);
-        expect(sampled?.[2]?.[1]).toBeLessThan(sampled?.[1]?.[1] ?? 0);
-        expect(sampled?.[3]?.[1]).toBeCloseTo(sampled?.[2]?.[1] ?? 0, 6);
-        expect(sampled?.[4]?.[1]).toBeCloseTo(sampled?.[1]?.[1] ?? 0, 6);
+        expect(sampled?.[2]?.[1]).toBeLessThan(0);
     });
 
     it('rebuilds active section geometry from the full CA-to-CA TV interval', () => {
@@ -1549,5 +1640,176 @@ describe('ActiveFrontTransition', () => {
         expect(plan.fronts).toHaveLength(1);
         expect(plan.diagnostics.pairDiagnostics[0]?.prevPathCount).toBe(1);
         expect(plan.diagnostics.pairDiagnostics[0]?.nextPathCount).toBe(1);
+    });
+
+    it('plans multiple region-level active fronts when dual conquest rewires anchor pairs', () => {
+        const previousOwner = 'human-player';
+        const newOwner = 'ai-3';
+        const prev = makeGapTopology('prev', [
+            {
+                id: 'prev:top',
+                startVertexId: 'A',
+                endVertexId: 'B',
+                leftOwnerId: previousOwner,
+                rightOwnerId: newOwner,
+                leftStarId: 'star-2',
+                rightStarId: 'star-3',
+            },
+            {
+                id: 'prev:bottom',
+                startVertexId: 'C',
+                endVertexId: 'D',
+                leftOwnerId: previousOwner,
+                rightOwnerId: newOwner,
+                leftStarId: 'star-5',
+                rightStarId: 'star-4',
+            },
+        ]);
+        const next = makeGapTopology('next', [
+            {
+                id: 'next:left',
+                startVertexId: 'A',
+                endVertexId: 'C',
+                leftOwnerId: newOwner,
+                rightOwnerId: previousOwner,
+                leftStarId: 'star-2',
+                rightStarId: 'star-9',
+            },
+            {
+                id: 'next:right',
+                startVertexId: 'B',
+                endVertexId: 'D',
+                leftOwnerId: newOwner,
+                rightOwnerId: previousOwner,
+                leftStarId: 'star-5',
+                rightStarId: 'star-11',
+            },
+        ]);
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map([
+                ['star-2', newOwner],
+                ['star-5', newOwner],
+            ]),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: 'star-2',
+                    previousOwner,
+                    newOwner,
+                    attackerStarId: 'star-3',
+                    attackerStarIds: ['star-3'],
+                    atMs: 100,
+                },
+                {
+                    starId: 'star-5',
+                    previousOwner,
+                    newOwner,
+                    attackerStarId: 'star-4',
+                    attackerStarIds: ['star-4'],
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            transitionVertexCount: 5,
+        });
+
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        expect(plan.diagnostics.summary.hasClassificationDefect).toBe(false);
+        expect(plan.fronts).toHaveLength(2);
+        expect(plan.fronts.map((front) => [...front.activeSectionIds]).flat().sort()).toEqual([
+            'next:left',
+            'next:right',
+        ]);
+
+        const correspondences = plan.fronts.map((front) =>
+            getActiveFrontMonotonicCorrespondence(front, 0.5, 5),
+        );
+        expect(correspondences[0]?.activeFront).toHaveLength(5);
+        expect(correspondences[1]?.activeFront).toHaveLength(5);
+        expect(correspondences.map((item) => item?.changeAnchors)).toEqual(
+            expect.arrayContaining([
+                { startPoint: [0, 0], endPoint: [0, 100] },
+                { startPoint: [100, 0], endPoint: [100, 100] },
+            ]),
+        );
+    });
+
+    it('plans a next-only changed-region front from the nearest conquest-local PRE front', () => {
+        const previousOwner = 'human-player';
+        const newOwner = 'ai-3';
+        const prev = makeGapTopology('prev', [
+            {
+                id: 'prev:source',
+                startVertexId: 'A',
+                endVertexId: 'B',
+                leftOwnerId: previousOwner,
+                rightOwnerId: newOwner,
+                leftStarId: 'star-captured',
+                rightStarId: 'star-attacker',
+            },
+        ]);
+        const next = makeGapTopology('next', [
+            {
+                id: 'next:source-still-present',
+                startVertexId: 'A',
+                endVertexId: 'B',
+                leftOwnerId: previousOwner,
+                rightOwnerId: newOwner,
+                leftStarId: 'star-captured',
+                rightStarId: 'star-attacker',
+            },
+            {
+                id: 'next:new-region-front',
+                startVertexId: 'C',
+                endVertexId: 'D',
+                leftOwnerId: newOwner,
+                rightOwnerId: previousOwner,
+                leftStarId: 'star-captured',
+                rightStarId: 'star-survivor',
+            },
+        ]);
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map([
+                ['star-captured', newOwner],
+            ]),
+            contestedLaneIds: [],
+            conquestEvents: [
+                {
+                    starId: 'star-captured',
+                    previousOwner,
+                    newOwner,
+                    attackerStarId: 'star-attacker',
+                    attackerStarIds: ['star-attacker'],
+                    atMs: 100,
+                },
+            ],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            transitionVertexCount: 6,
+        });
+
+        expect(plan.diagnostics.summary.classification).toBe('animated_fronts');
+        expect(plan.diagnostics.summary.hasClassificationDefect).toBe(false);
+        expect(plan.fronts).toHaveLength(1);
+        expect([...plan.fronts[0]!.activeSectionIds]).toEqual(['next:new-region-front']);
+        expect(
+            plan.diagnostics.pairDiagnostics.find(
+                (pair) => pair.nextPathSectionIds.flat().includes('next:new-region-front'),
+            )?.outcome,
+        ).toBe('planned_region_front');
+
+        const correspondence = getActiveFrontMonotonicCorrespondence(plan.fronts[0]!, 0.5, 6);
+        expect(correspondence?.activeFront).toHaveLength(6);
+        expect(correspondence?.changeAnchors).toEqual({
+            startPoint: [0, 100],
+            endPoint: [100, 100],
+        });
     });
 });
