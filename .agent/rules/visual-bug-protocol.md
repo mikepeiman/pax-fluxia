@@ -50,4 +50,18 @@ When the user says "still broken" or "same as before" after your fix:
 
 Read the user's EXACT WORDS. Act on THOSE, not your interpretation.
 
+## UI / Debug Gate Audit
+
+Before interpreting a visual overlay, animation, or diagnostics screenshot, identify every UI/debug control that can change what is visible and verify its current state.
+
+For territory transition diagnostics, this includes:
+- active-front diagnostics on/off
+- last-conquest overlay on/off
+- live versus frozen overlay source
+- displayed transition progress
+- territory render mode
+- pause/freeze conditions
+
+If a diagnostic overlay says it is frozen, paused, or sourced from the last conquest, do not treat it as evidence of live animation behavior until the live view is enabled and observed.
+
 </MEMORY>

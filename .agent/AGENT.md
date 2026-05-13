@@ -164,7 +164,7 @@ When removing, renaming, or commenting out any symbol:
 
 ### 3.4 Regression / Process Docs
 
-- If you introduce a major bug and then fix it, automatically write a dated post-mortem under `.agent/docs/project/post-mortems/`.
+- If you introduce a major bug and then fix it, automatically write a dated post-mortem in the current daily session directory: `.agent/docs/sessions/YYYY-MM-DD/`.
 - Summarize:
   - cause
   - mistaken reasoning
@@ -449,7 +449,7 @@ Mandatory:
 
 ## 9. Post-Mortem Trigger
 
-Write a dated post-mortem under `.agent/docs/project/post-mortems/` when:
+Write a dated post-mortem under the current daily session directory, `.agent/docs/sessions/YYYY-MM-DD/`, when:
 
 - you declared "done" and it was not done
 - the same bug recurs
