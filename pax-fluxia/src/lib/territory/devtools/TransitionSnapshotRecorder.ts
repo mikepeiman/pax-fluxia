@@ -280,7 +280,8 @@ export class TransitionSnapshotRecorder {
                 fillAlpha: 0.35,
                 showVertexLabels: true,
                 showAllVertices: true,
-                morphSamplesPerSection: 14,
+                transitionVertexCount:
+                    ctx.frameInput.tunables.pvv4TransitionVertexCount,
             };
             try {
                 transitionFrames = renderTransitionFrameSeries(

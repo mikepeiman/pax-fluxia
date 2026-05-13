@@ -2873,3 +2873,41 @@
 - Validation:
   - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/components/ui/settings/settingsSearch.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts`
   - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+
+## Update: 2026-05-13 - Prove And Repair TV Motion Through Section Geometry
+
+- Active-path files changed:
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\layers\transition\ActiveFrontTransition.test.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\components\game\GameCanvas.svelte`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionBundleSerializer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionFrontierFrameRenderer.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\TransitionSnapshotRecorder.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\devtools\activeFrontClassificationOverlay.ts`
+  - `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia\src\lib\territory\runtime\TerritoryRuntimeCoordinator.ts`
+- Root cause:
+  - TV correspondence was being built, and the live overlay could show moving TV positions.
+  - Rendered loop rebuild still used stale section geometry because `buildChainPoints(...)` excluded the deduped shared vertex from the following section span.
+  - The active section could therefore appear to have only its terminal endpoint, so `sampleActiveFrontSectionGeometry(...)` could not write the full CA-to-CA TV set into the section geometry.
+- Exact behavior now:
+  - compact active-front exports include `tvTrace` at `t=0, 0.25, 0.5, 0.75, 1`.
+  - `tvTrace` records requested TV count, plan TV count, used TV count, CAs, PRE TV coordinates, POST TV coordinates, active TV coordinates, and per-section geometry used to rebuild loops.
+  - section spans now include reused shared vertices, so active section geometry receives the TV set instead of collapsing to a single endpoint.
+  - package transition frames draw actual TVs from the active-front correspondence, use the captured TV count, and use the shared AF legend data.
+  - directory export permission no longer calls `requestPermission()` without user activation; it queries permission and falls back to browser download when needed.
+- Browser evidence:
+  - `C:\Users\mikep\AppData\Local\Temp\pax-tv-evidence-1778683804164\run-analysis.json`
+  - `case_01_simple_no_split_tv12`: requested/plan/used TV count = 12; `movedCount=12`; no defects.
+  - `case_02_simple_no_split_tv68`: requested/plan/used TV count = 68; `movedCount=68`; no defects.
+  - `case_03_simple_no_split_tv160`: requested/plan/used TV count = 160; `movedCount=160`; no defects.
+  - Screenshots at `t=0, .25, .5, .75, 1` show live TVs moving and density changing with TV count.
+  - Last-conquest overlay proof: `C:\Users\mikep\AppData\Local\Temp\pax-last-overlay-proof2-1778684076886\during_or_after.png` shows `source=frozen-last-conquest`.
+  - Defect-label smoke proof: `C:\Users\mikep\AppData\Local\Temp\pax-dual-proof-1778684140653\frame_t25.png` shows explicit `missing corresponding frontier` defect labeling.
+- Merge note:
+  - this proves the no-split browser-visible TV chain from control value to active-front trace to section geometry to rendered pixels.
+  - split/merge defects remain classified and visible, not solved as smooth active fronts.
+  - `common/resources/settings-live/current-settings.json` was intentionally left unstaged.
+- Validation:
+  - `bunx vitest run pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.test.ts pax-fluxia/src/lib/components/ui/settings/settingsSearch.test.ts pax-fluxia/src/lib/territory/devtools/TransitionDiagnosticsAdapters.test.ts pax-fluxia/src/lib/territory/devtools/TransitionBundleSerializer.test.ts`
+  - `bun run build` in `C:\Users\mikep\.codex\worktrees\dcc7\pax-fluxia\pax-fluxia`
+  - root `bun run build` remains blocked outside this change by missing `@colyseus/core` in `pax-server`.

@@ -351,15 +351,6 @@ export function buildActiveFrontClassificationOverlayModel(
     }
 
     plan.fronts.forEach((front, frontIndex) => {
-        mergeVertexRole(nextLayer.vertices, front.anchorStartId, 'front_anchor', `front:${frontIndex}:start`);
-        mergeVertexRole(nextLayer.vertices, front.anchorEndId, 'front_anchor', `front:${frontIndex}:end`);
-        if (prevTopology?.vertices.has(front.anchorStartId)) {
-            mergeVertexRole(prevLayer.vertices, front.anchorStartId, 'front_anchor', `front:${frontIndex}:start`);
-        }
-        if (prevTopology?.vertices.has(front.anchorEndId)) {
-            mergeVertexRole(prevLayer.vertices, front.anchorEndId, 'front_anchor', `front:${frontIndex}:end`);
-        }
-
         const prevSectionIds = new Set<string>();
         front.prevPaths.forEach((path) => path.sectionIds.forEach((id) => prevSectionIds.add(id)));
         for (const sectionId of prevSectionIds) {

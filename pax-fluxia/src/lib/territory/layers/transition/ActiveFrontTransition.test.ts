@@ -10,6 +10,7 @@ import type {
 import type { OwnershipSnapshot } from '../../contracts/OwnershipContracts';
 import type { TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import {
+    type ActiveFrontTransitionPlan,
     getActiveFrontMonotonicCorrespondence,
     planActiveFrontTransition,
     sampleActiveFrontSectionGeometry,
@@ -226,6 +227,109 @@ function makeSingleSectionTopology(
         sectionsByOwner: new Map([
             [ownerA, [sectionId]],
             [ownerB, [sectionId]],
+        ]),
+    };
+}
+
+function makeTwoSectionTopology(
+    version: string,
+    ownerA: string,
+    ownerB: string,
+    firstPoints: Vec2[],
+    secondPoints: Vec2[],
+    identityPrefix = version,
+): FrontierTopology {
+    const startVertexId = `${identityPrefix}:start`;
+    const middleVertexId = `${identityPrefix}:middle`;
+    const endVertexId = `${identityPrefix}:end`;
+    const firstSectionId = `${identityPrefix}:section:0`;
+    const secondSectionId = `${identityPrefix}:section:1`;
+    const makeOwnerSection = (
+        id: string,
+        startId: string,
+        endId: string,
+        points: Vec2[],
+    ): FrontierSection => ({
+        id,
+        kind: 'owner_border',
+        startVertexId: startId,
+        endVertexId: endId,
+        leftOwnerId: ownerA,
+        rightOwnerId: ownerB,
+        points,
+        length: 100,
+        ownerPairKey: `${ownerA}|${ownerB}`,
+        leftInfluence: {
+            ownerId: ownerA,
+            primaryStarId: `${ownerA}:star`,
+            primaryScore: 1,
+        },
+        rightInfluence: {
+            ownerId: ownerB,
+            primaryStarId: `${ownerB}:star`,
+            primaryScore: 1,
+        },
+    });
+
+    const vertices = new Map<string, FrontierVertex>([
+        [
+            startVertexId,
+            {
+                id: startVertexId,
+                kind: 'world_intersection',
+                point: firstPoints[0],
+                incidentSectionIds: [firstSectionId],
+                ownerIds: [ownerA, ownerB],
+            },
+        ],
+        [
+            middleVertexId,
+            {
+                id: middleVertexId,
+                kind: 'lane_anchor',
+                point: firstPoints[firstPoints.length - 1],
+                incidentSectionIds: [firstSectionId, secondSectionId],
+                ownerIds: [ownerA, ownerB],
+            },
+        ],
+        [
+            endVertexId,
+            {
+                id: endVertexId,
+                kind: 'world_intersection',
+                point: secondPoints[secondPoints.length - 1],
+                incidentSectionIds: [secondSectionId],
+                ownerIds: [ownerA, ownerB],
+            },
+        ],
+    ]);
+    const sections = new Map<string, FrontierSection>([
+        [
+            firstSectionId,
+            makeOwnerSection(firstSectionId, startVertexId, middleVertexId, firstPoints),
+        ],
+        [
+            secondSectionId,
+            makeOwnerSection(secondSectionId, middleVertexId, endVertexId, secondPoints),
+        ],
+    ]);
+
+    return {
+        version,
+        ownershipVersion: `ownership:${version}`,
+        worldBounds: { width: 200, height: 200 },
+        vertices,
+        sections,
+        loops: [],
+        sectionsByOwnerPair: new Map([[`${ownerA}|${ownerB}`, [firstSectionId, secondSectionId]]]),
+        sectionsByVertex: new Map([
+            [startVertexId, [firstSectionId]],
+            [middleVertexId, [firstSectionId, secondSectionId]],
+            [endVertexId, [secondSectionId]],
+        ]),
+        sectionsByOwner: new Map([
+            [ownerA, [firstSectionId, secondSectionId]],
+            [ownerB, [firstSectionId, secondSectionId]],
         ]),
     };
 }
@@ -999,6 +1103,192 @@ describe('ActiveFrontTransition', () => {
         expect(sampled?.[2]?.[1]).toBeLessThan(sampled?.[1]?.[1] ?? 0);
         expect(sampled?.[3]?.[1]).toBeCloseTo(sampled?.[2]?.[1] ?? 0, 6);
         expect(sampled?.[4]?.[1]).toBeCloseTo(sampled?.[1]?.[1] ?? 0, 6);
+    });
+
+    it('rebuilds active section geometry from the full CA-to-CA TV interval', () => {
+        const ownerA = 'red';
+        const ownerB = 'blue';
+        const prevPath: Vec2[] = [
+            [0, 0],
+            [25, 0],
+            [50, 0],
+            [75, 0],
+            [100, 0],
+        ];
+        const postPath: Vec2[] = [
+            [0, -20],
+            [25, -20],
+            [50, -20],
+            [75, -20],
+            [100, -20],
+        ];
+        const middleSection = makeSingleSectionTopology(
+            'next',
+            ownerA,
+            ownerB,
+            postPath.slice(1, 4),
+            'middle',
+        ).sections.get('middle:section')!;
+        const next: FrontierTopology = {
+            ...makeSingleSectionTopology('next', ownerA, ownerB, postPath, 'whole'),
+            sections: new Map([['middle:section', middleSection]]),
+        };
+        const prev = {
+            ...next,
+            version: 'prev',
+        };
+        const plan: ActiveFrontTransitionPlan = {
+            prevVersion: 'prev',
+            nextVersion: 'next',
+            collapseTargets: [],
+            diagnostics: {
+                tunables: {
+                    transitionVertexCount: 7,
+                    stableAnchorEps: 2,
+                    changeSpanEps: 2,
+                    changeSpanPadPoints: 0,
+                },
+                stableAnchorIds: ['A', 'B'],
+                pairDiagnostics: [],
+                summary: {
+                    classification: 'animated_fronts',
+                    hasClassificationDefect: false,
+                    stableAnchorCount: 2,
+                    prevChainCount: 1,
+                    nextChainCount: 1,
+                    pairCount: 1,
+                    plannedPairCount: 1,
+                    defectPairCount: 0,
+                    noChangePairCount: 0,
+                    defectTopologyGapCount: 0,
+                    defectUnsupportedSplitCount: 0,
+                    frontCount: 1,
+                    activeSectionCount: 1,
+                    defectSectionCount: 0,
+                    collapseTargetCount: 0,
+                },
+            },
+            fronts: [
+                {
+                    anchorStartId: 'A',
+                    anchorEndId: 'B',
+                    splitMode: 'none',
+                    prevPaths: [
+                        {
+                            anchorStartId: 'A',
+                            anchorEndId: 'B',
+                            sectionIds: ['middle:section'],
+                            points: prevPath,
+                            sectionSpans: new Map(),
+                            sectionReversed: new Map(),
+                        },
+                    ],
+                    nextPaths: [
+                        {
+                            anchorStartId: 'A',
+                            anchorEndId: 'B',
+                            sectionIds: ['middle:section'],
+                            points: postPath,
+                            sectionSpans: new Map([
+                                [
+                                    'middle:section',
+                                    {
+                                        startIndex: 1,
+                                        endIndex: 3,
+                                        pathPointOffset: 0,
+                                    },
+                                ],
+                            ]),
+                            sectionReversed: new Map([['middle:section', false]]),
+                        },
+                    ],
+                    changeSpan: { base: 'next', startIndex: 2, endIndex: 2 },
+                    localChangeWindow: {
+                        nextAnchorStartIndex: 1,
+                        nextAnchorEndIndex: 3,
+                        nextStartParam: 0.25,
+                        nextEndParam: 0.75,
+                        prevStartParam: 0.25,
+                        prevEndParam: 0.75,
+                    },
+                    sectionSpans: new Map([
+                        [
+                            'middle:section',
+                            {
+                                startIndex: 1,
+                                endIndex: 3,
+                                pathPointOffset: 0,
+                                pathIndex: 0,
+                                activeStartIndex: 2,
+                                activeEndIndex: 2,
+                            },
+                        ],
+                    ]),
+                    activeSectionIds: new Set(['middle:section']),
+                    defectSectionIds: new Set(),
+                    sectionReversed: new Map([['middle:section', false]]),
+                },
+            ],
+        };
+
+        const sectionGeometry = sampleActiveFrontSectionGeometry(plan, prev, next, 0.5, 7);
+        const sampled = sectionGeometry.get('middle:section');
+        const correspondence = getActiveFrontMonotonicCorrespondence(plan.fronts[0]!, 0.5, 7);
+
+        expect(sampled).toBeTruthy();
+        expect(correspondence).toBeTruthy();
+        expect(sampled).toHaveLength(7);
+        for (let i = 0; i < 7; i += 1) {
+            expect(sampled?.[i]?.[0]).toBeCloseTo(correspondence?.activeFront[i]?.[0] ?? 0, 6);
+            expect(sampled?.[i]?.[1]).toBeCloseTo(correspondence?.activeFront[i]?.[1] ?? 0, 6);
+        }
+    });
+
+    it('keeps the shared vertex inside a deduped section span', () => {
+        const prev = makeTwoSectionTopology(
+            'prev',
+            'red',
+            'blue',
+            [
+                [0, 0],
+                [50, 0],
+            ],
+            [
+                [50, 0],
+                [100, 0],
+            ],
+            'stable',
+        );
+        const next = makeTwoSectionTopology(
+            'next',
+            'red',
+            'blue',
+            [
+                [0, 0],
+                [50, -20],
+            ],
+            [
+                [50, -20],
+                [100, 0],
+            ],
+            'stable',
+        );
+        const ownership: OwnershipSnapshot = {
+            version: 'ownership:test',
+            starOwners: new Map(),
+            contestedLaneIds: [],
+            conquestEvents: [],
+            virtualStars: [],
+        };
+
+        const plan = planActiveFrontTransition(prev, next, ownership, {
+            changeSpanPadPoints: 0,
+        });
+        const front = plan.fronts[0];
+        const secondSpan = front?.sectionSpans.get('stable:section:1');
+
+        expect(secondSpan).toBeTruthy();
+        expect((secondSpan?.endIndex ?? 0) - (secondSpan?.startIndex ?? 0)).toBe(1);
     });
 
     it('supports bounded 1to2 split fronts without classification defects', () => {

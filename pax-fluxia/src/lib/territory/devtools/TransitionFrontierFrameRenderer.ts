@@ -7,9 +7,15 @@ import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
 import {
     getActiveFrontChangeAnchors,
+    getActiveFrontMonotonicCorrespondence,
     sampleActiveFrontSectionGeometry,
     sampleActiveFrontTransition,
 } from '../layers/transition/ActiveFrontTransition';
+import {
+    ACTIVE_FRONT_DEBUG_COLORS,
+    ACTIVE_FRONT_LEGEND_ITEMS,
+    activeFrontColorToCssHex,
+} from './activeFrontDebugStyle';
 import type { OwnerColorResolver } from './TransitionGeometryRenderer';
 
 export const FRAME_PROGRESS_VALUES = [0.0, 0.17, 0.33, 0.5, 0.67, 0.83, 1.0] as const;
@@ -21,26 +27,31 @@ export interface FrameRenderOptions {
     fillAlpha?: number;
     showVertexLabels?: boolean;
     showAllVertices?: boolean;
+    transitionVertexCount?: number;
+    /** @deprecated Use transitionVertexCount. Kept for older package callers. */
     morphSamplesPerSection?: number;
 }
 
 const C = {
     bg: '#111111',
     staticSection: 'rgba(110, 110, 140, 0.6)',
-    activeSection: 'rgba(255, 175, 0, 0.95)',
-    morphSample: 'rgba(255, 100, 200, 0.95)',
+    activeSection: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.activeSection),
     vertex: 'rgba(160, 160, 210, 0.85)',
-    anchorFill: 'rgba(0, 255, 255, 0.95)',
+    anchorFill: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.changeAnchor),
     anchorStroke: '#ffffff',
-    afBridge: 'rgba(80, 255, 120, 0.95)',
+    afBridge: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.activeFront),
     collapseLine: 'rgba(255, 80, 80, 0.85)',
     collapseCenter: 'rgba(255, 80, 80, 0.9)',
     labelNormal: '#9999cc',
     labelAnchor: '#00ffff',
     labelCollapse: 'rgba(255, 160, 160, 1)',
     labelAf: '#66ff88',
-    hudBg: 'rgba(0, 0, 0, 0.72)',
-    hudText: '#ffffff',
+    prevFront: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.prevFront),
+    postFront: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.activeSection),
+    activeFront: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.activeFront),
+    tv: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.transitionVertex),
+    defectMissing: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.defectMissingFrontier),
+    defectSplit: activeFrontColorToCssHex(ACTIVE_FRONT_DEBUG_COLORS.defectSplitMerge),
 } as const;
 
 function drawPolyline(
@@ -48,8 +59,11 @@ function drawPolyline(
     pts: readonly [number, number][],
     style: string,
     width: number,
+    dashed = false,
 ): void {
     if (pts.length < 2) return;
+    ctx.save();
+    if (dashed) ctx.setLineDash([7, 5]);
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i += 1) {
@@ -60,43 +74,7 @@ function drawPolyline(
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
-}
-
-function samplePolylineEven(
-    pts: readonly [number, number][],
-    numSamples: number,
-): [number, number][] {
-    if (pts.length < 2 || numSamples < 2) return [...pts];
-    const segLen: number[] = [];
-    let total = 0;
-    for (let i = 0; i < pts.length - 1; i += 1) {
-        const dx = pts[i + 1][0] - pts[i][0];
-        const dy = pts[i + 1][1] - pts[i][1];
-        const length = Math.sqrt(dx * dx + dy * dy);
-        segLen.push(length);
-        total += length;
-    }
-    if (total < 1e-6) return [pts[0]];
-
-    const out: [number, number][] = [];
-    for (let s = 0; s < numSamples; s += 1) {
-        const target = (s / (numSamples - 1)) * total;
-        let acc = 0;
-        let seg = 0;
-        while (seg < segLen.length && acc + segLen[seg] < target) {
-            acc += segLen[seg];
-            seg += 1;
-        }
-        if (seg >= segLen.length) {
-            out.push(pts[pts.length - 1]);
-            continue;
-        }
-        const localT = segLen[seg] > 1e-6 ? (target - acc) / segLen[seg] : 0;
-        const [x0, y0] = pts[seg];
-        const [x1, y1] = pts[seg + 1];
-        out.push([x0 + localT * (x1 - x0), y0 + localT * (y1 - y0)]);
-    }
-    return out;
+    ctx.restore();
 }
 
 function drawCircle(
@@ -152,6 +130,61 @@ function drawLabel(
     ctx.fillText(text, x, y);
 }
 
+function drawFrameLegend(
+    ctx: CanvasRenderingContext2D,
+    lines: readonly string[],
+): void {
+    const x = 12;
+    const y = 12;
+    const width = 372;
+    const rowStartY = y + 24 + lines.length * 14 + 10;
+    const height = 28 + lines.length * 14 + ACTIVE_FRONT_LEGEND_ITEMS.length * 16 + 12;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(4, 18, 24, 0.84)';
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = 'rgba(80, 220, 255, 0.75)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, width, height);
+    drawLabel(ctx, 'AF Diagnostics', x + 10, y + 8, '#bdf8ff', 12);
+    ctx.font = 'bold 12px monospace';
+    lines.forEach((line, index) => {
+        drawLabel(ctx, line, x + 10, y + 24 + index * 14, '#d8eef8', 10);
+    });
+
+    ACTIVE_FRONT_LEGEND_ITEMS.forEach((item, index) => {
+        const rowY = rowStartY + index * 16;
+        const color = activeFrontColorToCssHex(item.color);
+        if (item.kind === 'ring') {
+            ctx.beginPath();
+            ctx.arc(x + 20, rowY + 6, 4.5, 0, Math.PI * 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else if (item.kind === 'square') {
+            ctx.fillStyle = color;
+            ctx.fillRect(x + 15.5, rowY + 1.5, 9, 9);
+        } else if (item.kind === 'diamond') {
+            drawDiamond(ctx, x + 20, rowY + 6, 5, color, '#ffffff');
+        } else if (item.kind === 'dot') {
+            drawCircle(ctx, x + 20, rowY + 6, 3.2, color);
+        } else {
+            drawPolyline(
+                ctx,
+                [
+                    [x + 8, rowY + 6],
+                    [x + 32, rowY + 6],
+                ],
+                color,
+                item.kind === 'thick' ? 5 : 3,
+                item.kind === 'dashed',
+            );
+        }
+        drawLabel(ctx, item.label, x + 42, rowY, '#e7f8ff', 10);
+    });
+    ctx.restore();
+}
+
 export function renderTransitionFrame(
     prevTopo: FrontierTopology,
     nextTopo: FrontierTopology,
@@ -164,8 +197,13 @@ export function renderTransitionFrame(
         height,
         showVertexLabels = true,
         showAllVertices = true,
-        morphSamplesPerSection = 14,
+        transitionVertexCount,
+        morphSamplesPerSection,
     } = options;
+    const tvCount =
+        transitionVertexCount ??
+        morphSamplesPerSection ??
+        plan.diagnostics.tunables.transitionVertexCount;
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -215,8 +253,8 @@ export function renderTransitionFrame(
         }
         anchorIds.add(front.anchorStartId);
         anchorIds.add(front.anchorEndId);
-        anchorLabel.set(front.anchorStartId, `SA${fi}-start`);
-        anchorLabel.set(front.anchorEndId, `SA${fi}-end`);
+        anchorLabel.set(front.anchorStartId, `CA${fi}-start`);
+        anchorLabel.set(front.anchorEndId, `CA${fi}-end`);
     });
 
     for (const [sectionId, section] of nextTopo.sections) {
@@ -229,11 +267,6 @@ export function renderTransitionFrame(
         const curr = sampledSectionGeometry.get(sectionId) ?? nextSec?.points;
         if (!curr) continue;
         drawPolyline(ctx, curr, C.activeSection, 3.5);
-
-        const samples = samplePolylineEven(curr, morphSamplesPerSection);
-        for (const [sx, sy] of samples) {
-            drawCircle(ctx, sx, sy, 2.2, C.morphSample);
-        }
     }
 
     plan.fronts.forEach((front, fi) => {
@@ -245,27 +278,45 @@ export function renderTransitionFrame(
             prevTopo.vertices.get(front.anchorEndId);
         if (!a || !b) return;
 
-        ctx.beginPath();
-        ctx.setLineDash([6, 4]);
-        ctx.moveTo(a.point[0], a.point[1]);
-        ctx.lineTo(b.point[0], b.point[1]);
-        ctx.strokeStyle = C.afBridge;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.setLineDash([]);
+        drawPolyline(ctx, [a.point, b.point], C.afBridge, 1.5, true);
 
         const mx = (a.point[0] + b.point[0]) / 2;
         const my = (a.point[1] + b.point[1]) / 2;
-        drawLabel(ctx, `SA${fi}  (${front.activeSectionIds.size} secs)`, mx - 10, my - 14, C.labelAf, 11);
+        drawLabel(ctx, `front ${fi}  (${front.activeSectionIds.size} sections)`, mx - 10, my - 14, C.labelAf, 11);
 
         const changeAnchors = getActiveFrontChangeAnchors(front);
         if (!changeAnchors) return;
         const [sx, sy] = changeAnchors.startPoint;
         const [ex, ey] = changeAnchors.endPoint;
-        drawCircle(ctx, sx, sy, 4.5, C.anchorFill);
-        drawCircle(ctx, ex, ey, 4.5, C.anchorFill);
-        drawLabel(ctx, `AF${fi}-start`, sx + 8, sy - 8, C.labelAf, 10);
-        drawLabel(ctx, `AF${fi}-end`, ex + 8, ey - 8, C.labelAf, 10);
+        drawDiamond(ctx, sx, sy, 7, C.anchorFill, C.anchorStroke);
+        drawDiamond(ctx, ex, ey, 7, C.anchorFill, C.anchorStroke);
+        drawLabel(ctx, `CA${fi}-start`, sx + 8, sy - 8, C.labelAf, 10);
+        drawLabel(ctx, `CA${fi}-end`, ex + 8, ey - 8, C.labelAf, 10);
+
+        if (front.splitMode === 'none') {
+            const correspondence = getActiveFrontMonotonicCorrespondence(
+                front,
+                progress,
+                tvCount,
+            );
+            if (correspondence) {
+                drawPolyline(ctx, correspondence.prevFront, C.prevFront, 2.5, true);
+                drawPolyline(ctx, correspondence.postFront, C.postFront, 2.5);
+                drawPolyline(ctx, correspondence.activeFront, C.activeFront, 5);
+                for (const [tx, ty] of correspondence.activeFront) {
+                    drawCircle(ctx, tx, ty, 3.2, C.tv);
+                }
+            }
+            return;
+        }
+
+        const defectColor =
+            front.splitMode === '1to2' || front.splitMode === '2to1'
+                ? C.defectSplit
+                : C.defectMissing;
+        for (const path of [...front.prevPaths, ...front.nextPaths]) {
+            drawPolyline(ctx, path.points, defectColor, 3.5);
+        }
     });
 
     if (showAllVertices) {
@@ -308,16 +359,11 @@ export function renderTransitionFrame(
         drawLabel(ctx, `X ${target.ownerId}`, cx + 8, cy - 7, C.labelCollapse, 10);
     }
 
-    const pct = `t=${(progress * 100).toFixed(0).padStart(3)}%`;
-    const info = `${pct}  fronts=${plan.fronts.length}  active_secs=${activeSectionIds.size}`;
-    ctx.font = 'bold 11px monospace';
-    const hudW = ctx.measureText(info).width + 18;
-    ctx.fillStyle = C.hudBg;
-    ctx.fillRect(8, 8, hudW, 22);
-    ctx.fillStyle = C.hudText;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(info, 16, 13);
+    const pct = `t=${progress.toFixed(2)}`;
+    drawFrameLegend(ctx, [
+        `${pct} fronts=${plan.fronts.length} active_sections=${activeSectionIds.size}`,
+        `TVs=${tvCount}`,
+    ]);
 
     return canvas;
 }

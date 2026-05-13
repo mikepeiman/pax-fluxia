@@ -230,6 +230,9 @@ export class TerritoryRuntimeCoordinator {
                     activeFrontDebug: transition.activeFrontDebug,
                     activeFrontPlan: compactActiveFrontTransitionPlan(
                         transition.activeFrontPlan ?? null,
+                        transition.transitionPrevTopology ?? null,
+                        geometry.frontierTopology ?? null,
+                        input.tunables.pvv4TransitionVertexCount,
                     ),
                 },
             });

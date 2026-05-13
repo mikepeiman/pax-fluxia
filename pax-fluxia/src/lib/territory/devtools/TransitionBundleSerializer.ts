@@ -20,6 +20,7 @@ import {
     buildConquestFilePrefix,
     formatConquestEventGroupLabel,
 } from './conquestNaming';
+import { compactActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
 import { writable } from 'svelte/store';
 
 export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
@@ -359,7 +360,7 @@ export async function prepareDiagnosticExportDirectoryForWrite(): Promise<Export
         emitExportTargetState();
         return 'unknown';
     }
-    const permission = await requestWritableDirectoryPermission(
+    const permission = await queryWritableDirectoryPermission(
         diagnosticExportDirectoryHandle,
     );
     emitExportTargetState(permission);
@@ -741,8 +742,11 @@ function buildDiagnosticStageExports(bundle: TransitionDebugBundle): {
             bundle.context.transition,
         ),
         transitionTruth: buildTransitionTruthExport(bundle),
-        activeFrontPlan: toSerializableExportValue(
+        activeFrontPlan: compactActiveFrontTransitionPlan(
             bundle.context.activeFrontPlan ?? null,
+            bundle.context.prevFrontierTopology ?? null,
+            bundle.context.nextFrontierTopology ?? null,
+            bundle.context.frameInput.tunables.pvv4TransitionVertexCount,
         ),
     };
 }

@@ -163,6 +163,29 @@ export interface ActiveFrontMonotonicCorrespondence {
     changeAnchors: ActiveFrontChangeAnchors;
 }
 
+export interface ActiveFrontTvTraceFrame {
+    progress: number;
+    prevFront: [number, number][];
+    postFront: [number, number][];
+    activeFront: [number, number][];
+    activeSectionGeometry: Record<string, [number, number][]>;
+}
+
+export interface ActiveFrontTvTraceEntry {
+    frontIndex: number;
+    splitMode: ActiveFrontSplitMode;
+    anchorStartId: string;
+    anchorEndId: string;
+    requestedTransitionVertexCount: number;
+    planTransitionVertexCount: number;
+    usedTransitionVertexCount: number;
+    changeAnchors: ActiveFrontChangeAnchors | null;
+    activeSectionIds: string[];
+    defectSectionIds: string[];
+    traceFrames: ActiveFrontTvTraceFrame[];
+    skippedReason: string | null;
+}
+
 const STABLE_ANCHOR_KINDS: Set<FrontierVertexKind> = new Set([
     'junction_3way',
     'world_intersection',
@@ -434,12 +457,21 @@ function buildActiveFrontPlanDiagnostics(input: {
 
 export function compactActiveFrontTransitionPlan(
     plan: ActiveFrontTransitionPlan | null | undefined,
+    prev?: FrontierTopology | null,
+    next?: FrontierTopology | null,
+    requestedTransitionVertexCount?: number | null,
 ): Record<string, unknown> | null {
     if (!plan) return null;
     return {
         prevVersion: plan.prevVersion,
         nextVersion: plan.nextVersion,
         diagnostics: plan.diagnostics,
+        tvTrace: buildActiveFrontTvTrace(
+            plan,
+            prev ?? null,
+            next ?? null,
+            requestedTransitionVertexCount ?? plan.diagnostics.tunables.transitionVertexCount,
+        ),
         fronts: plan.fronts.map((front) => ({
             changeAnchors: getActiveFrontChangeAnchors(front),
             anchorStartId: front.anchorStartId,
@@ -461,6 +493,13 @@ export function compactActiveFrontTransitionPlan(
                 sectionIds: [...path.sectionIds],
                 pointCount: path.points.length,
             })),
+            sectionSpans: [...front.sectionSpans.entries()]
+                .map(([sectionId, span]) => ({
+                    sectionId,
+                    ...span,
+                    reversed: front.sectionReversed.get(sectionId) === true,
+                }))
+                .sort((a, b) => a.sectionId.localeCompare(b.sectionId)),
         })),
         collapseTargets: plan.collapseTargets.map((target) => ({
             regionId: target.regionId,
@@ -537,8 +576,19 @@ export function sampleActiveFrontSectionGeometry(
             if (correspondence && localChangeWindow) {
                 const nextPath = front.nextPaths[span.pathIndex]?.points ?? [];
                 const nextTable = buildArcLengthTable(nextPath);
-                const activeStartParam = normalizedParamAtIndex(nextTable, span.activeStartIndex);
-                const activeEndParam = normalizedParamAtIndex(nextTable, span.activeEndIndex);
+                const spanStartParam = normalizedParamAtIndex(nextTable, span.startIndex);
+                const spanEndParam = normalizedParamAtIndex(nextTable, span.endIndex);
+                const overlapStartParam = Math.max(
+                    Math.min(spanStartParam, spanEndParam),
+                    localChangeWindow.nextStartParam,
+                );
+                const overlapEndParam = Math.min(
+                    Math.max(spanStartParam, spanEndParam),
+                    localChangeWindow.nextEndParam,
+                );
+                if (overlapEndParam < overlapStartParam - 1e-9) {
+                    continue;
+                }
                 const windowSpan = Math.max(
                     1e-9,
                     localChangeWindow.nextEndParam - localChangeWindow.nextStartParam,
@@ -547,14 +597,14 @@ export function sampleActiveFrontSectionGeometry(
                     1,
                     Math.max(
                         0,
-                        (activeStartParam - localChangeWindow.nextStartParam) / windowSpan,
+                        (overlapStartParam - localChangeWindow.nextStartParam) / windowSpan,
                     ),
                 );
                 const sectionEndU = Math.min(
                     1,
                     Math.max(
                         sectionStartU,
-                        (activeEndParam - localChangeWindow.nextStartParam) / windowSpan,
+                        (overlapEndParam - localChangeWindow.nextStartParam) / windowSpan,
                     ),
                 );
                 const activeSectionPoints = sampleExistingTransitionVerticesBetweenParams(
@@ -562,10 +612,28 @@ export function sampleActiveFrontSectionGeometry(
                     sectionStartU,
                     sectionEndU,
                 );
+                const overlapStartIndex = indexAtNormalizedParam(
+                    nextTable,
+                    nextPath.length,
+                    overlapStartParam,
+                );
+                const overlapEndIndex = indexAtNormalizedParam(
+                    nextTable,
+                    nextPath.length,
+                    overlapEndParam,
+                );
+                const clampedStartIndex = Math.max(
+                    span.startIndex,
+                    Math.min(span.endIndex, overlapStartIndex),
+                );
+                const clampedEndIndex = Math.max(
+                    clampedStartIndex,
+                    Math.min(span.endIndex, overlapEndIndex),
+                );
                 const localStartIndex =
-                    span.pathPointOffset + (span.activeStartIndex - span.startIndex);
+                    span.pathPointOffset + (clampedStartIndex - span.startIndex);
                 const localEndIndex =
-                    span.pathPointOffset + (span.activeEndIndex - span.startIndex);
+                    span.pathPointOffset + (clampedEndIndex - span.startIndex);
                 const prefix = workingPoints.slice(0, Math.max(0, localStartIndex));
                 const suffix = workingPoints.slice(
                     Math.min(workingPoints.length, localEndIndex + 1),
@@ -668,6 +736,101 @@ export function sampleActiveFrontBorderFrame(
             points: sectionGeometry.get(section.id) ?? section.points,
         })),
     };
+}
+
+export function buildActiveFrontTvTrace(
+    plan: ActiveFrontTransitionPlan | null | undefined,
+    prev: FrontierTopology | null | undefined,
+    next: FrontierTopology | null | undefined,
+    requestedTransitionVertexCount?: number | null,
+    progressSamples: readonly number[] = [0, 0.25, 0.5, 0.75, 1],
+): ActiveFrontTvTraceEntry[] {
+    if (!plan) return [];
+    const planTransitionVertexCount = plan.diagnostics.tunables.transitionVertexCount;
+    const usedTransitionVertexCount = normalizeTransitionVertexCount(
+        requestedTransitionVertexCount ?? planTransitionVertexCount,
+    );
+    const canReadSectionGeometry = Boolean(prev && next);
+    const sectionGeometryByProgress = new Map<number, ReadonlyMap<string, [number, number][]>>();
+
+    const readSectionGeometry = (progress: number): ReadonlyMap<string, [number, number][]> => {
+        if (!prev || !next) return new Map();
+        const existing = sectionGeometryByProgress.get(progress);
+        if (existing) return existing;
+        const geometry = sampleActiveFrontSectionGeometry(
+            plan,
+            prev,
+            next,
+            progress,
+            usedTransitionVertexCount,
+        );
+        sectionGeometryByProgress.set(progress, geometry);
+        return geometry;
+    };
+
+    return plan.fronts.map((front, frontIndex) => {
+        const activeSectionIds = [...front.activeSectionIds].sort();
+        const defectSectionIds = [...front.defectSectionIds].sort();
+        const baseCorrespondence =
+            front.splitMode === 'none'
+                ? getActiveFrontMonotonicCorrespondence(
+                    front,
+                    0,
+                    usedTransitionVertexCount,
+                )
+                : null;
+        const traceFrames: ActiveFrontTvTraceFrame[] = [];
+        let skippedReason: string | null = null;
+
+        if (front.splitMode !== 'none') {
+            skippedReason = `split mode ${front.splitMode} does not yet expose TV correspondence`;
+        } else if (!baseCorrespondence) {
+            skippedReason = 'no active-front correspondence';
+        } else {
+            for (const rawProgress of progressSamples) {
+                const progress = Math.min(1, Math.max(0, rawProgress));
+                const correspondence = getActiveFrontMonotonicCorrespondence(
+                    front,
+                    progress,
+                    usedTransitionVertexCount,
+                );
+                if (!correspondence) continue;
+                const sectionGeometry = readSectionGeometry(progress);
+                traceFrames.push({
+                    progress,
+                    prevFront: correspondence.prevFront,
+                    postFront: correspondence.postFront,
+                    activeFront: correspondence.activeFront,
+                    activeSectionGeometry: Object.fromEntries(
+                        activeSectionIds.map((sectionId) => [
+                            sectionId,
+                            sectionGeometry.get(sectionId) ?? [],
+                        ]),
+                    ),
+                });
+            }
+            if (!canReadSectionGeometry) {
+                skippedReason = 'section geometry unavailable: missing PRE or POST topology';
+            }
+        }
+
+        return {
+            frontIndex,
+            splitMode: front.splitMode,
+            anchorStartId: front.anchorStartId,
+            anchorEndId: front.anchorEndId,
+            requestedTransitionVertexCount: normalizeTransitionVertexCount(
+                requestedTransitionVertexCount ?? planTransitionVertexCount,
+            ),
+            planTransitionVertexCount,
+            usedTransitionVertexCount,
+            changeAnchors: baseCorrespondence?.changeAnchors ?? null,
+            activeSectionIds,
+            defectSectionIds,
+            traceFrames,
+            skippedReason,
+        };
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -809,10 +972,14 @@ function buildChainPoints(
 
         const reversed = section.startVertexId !== currentVertex;
         const orientedPoints = getOrientedSectionPoints(section, currentVertex);
-        const startIndex = points.length;
-        const pathPointOffset = appendPolyline(points, orientedPoints);
+        const startBeforeAppend = points.length;
+        const skippedSharedPointCount = appendPolyline(points, orientedPoints);
+        const startIndex =
+            skippedSharedPointCount > 0
+                ? Math.max(0, startBeforeAppend - skippedSharedPointCount)
+                : startBeforeAppend;
         const endIndex = points.length - 1;
-        sectionSpans.set(sectionId, { startIndex, endIndex, pathPointOffset });
+        sectionSpans.set(sectionId, { startIndex, endIndex, pathPointOffset: 0 });
         sectionReversed.set(sectionId, reversed);
 
         currentVertex = otherVertex(section, currentVertex);

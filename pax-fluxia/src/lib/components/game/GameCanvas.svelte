@@ -2209,6 +2209,13 @@
         return canonicalDebugRuntimeOutput;
     }
 
+    function resolveDisplayedActiveFrontOverlaySource(): "live" | "frozen-last-conquest" {
+        return overlayConfig.showLastConquestOverlay &&
+            canonicalLastConquestOverlayRuntime
+            ? "frozen-last-conquest"
+            : "live";
+    }
+
     function buildTransitionDiagnosticCaptureKey(
         activeTransition: RenderFamilyActiveTransition | null,
     ): string | null {
@@ -4493,6 +4500,22 @@
         g.stroke({ color: 0xffffff, alpha: 0.92, width: 1.1 });
     }
 
+    function drawChangeAnchorDiamond(
+        g: PIXI.Graphics,
+        point: Readonly<[number, number]>,
+    ): void {
+        const [x, y] = point;
+        const s = 9;
+        g.beginPath();
+        g.moveTo(x, y - s);
+        g.lineTo(x + s, y);
+        g.lineTo(x, y + s);
+        g.lineTo(x - s, y);
+        g.closePath();
+        g.fill({ color: AF_DEBUG_COLORS.changeAnchor, alpha: 0.96 });
+        g.stroke({ color: 0xffffff, alpha: 0.95, width: 1.4 });
+    }
+
     function drawTransitionVertexCorrespondence(
         g: PIXI.Graphics,
         correspondence: NonNullable<
@@ -4947,6 +4970,14 @@
                     AF_DEBUG_COLORS.activeFront,
                     1,
                     4.8,
+                );
+                drawChangeAnchorDiamond(
+                    debugGraphics,
+                    correspondence.changeAnchors.startPoint,
+                );
+                drawChangeAnchorDiamond(
+                    debugGraphics,
+                    correspondence.changeAnchors.endPoint,
                 );
                 if (overlayConfig.showTransitionVertices) {
                     drawTransitionVertexCorrespondence(
@@ -6760,6 +6791,10 @@
                                 canonicalRuntimeOutput.activeFrontDebug,
                             activeFrontPlan: compactActiveFrontTransitionPlan(
                                 canonicalRuntimeOutput.activeFrontPlan,
+                                canonicalRuntimeOutput.transitionPrevTopology,
+                                canonicalRuntimeOutput.geometry.frontierTopology,
+                                canonicalRuntimeOutput.activeFrontPlan?.diagnostics
+                                    .tunables.transitionVertexCount,
                             ),
                         };
                     }
@@ -8719,9 +8754,9 @@
                     <div class="af-hud-summary af-hud-summary--secondary">
                         TVs={resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontPlan
                             ?.diagnostics.tunables.transitionVertexCount ?? 0}
-                        {#if overlayConfig.showLastConquestOverlay}
-                            source=last conquest
-                        {/if}
+                        | progress={resolveDisplayedActiveFrontOverlayRuntime()?.activeFrontDebug
+                            ?.sampledProgress?.toFixed(3) ?? "n/a"}
+                        | source={resolveDisplayedActiveFrontOverlaySource()}
                     </div>
                 </header>
 
