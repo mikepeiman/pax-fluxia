@@ -35,12 +35,12 @@ export function formatConquestEventLabel(event: TerritoryConquestEvent): string 
 }
 
 function abbreviateOwnerToken(ownerId: string): string {
-    if (ownerId === 'human-player') return 'hp';
-    if (ownerId === 'world') return 'w';
+    if (ownerId === 'human-player') return 'HP';
+    if (ownerId === 'world') return 'W';
     const aiMatch = /^ai-(\d+)$/i.exec(ownerId);
-    if (aiMatch) return `a${aiMatch[1]}`;
+    if (aiMatch) return `AI${aiMatch[1]}`;
     const cleaned = ownerId.replace(/[^a-zA-Z0-9]+/g, '').toLowerCase();
-    return cleaned.slice(0, 8) || 'u';
+    return cleaned.slice(0, 8).toUpperCase() || 'U';
 }
 
 function abbreviateStarToken(starId: string): string {
@@ -55,15 +55,17 @@ function abbreviateStarToken(starId: string): string {
 function formatConquestEventFileCode(event: TerritoryConquestEvent): string {
     const attackers = listAttackerStarIds(event);
     const target = abbreviateStarToken(event.starId);
+    const victor = abbreviateOwnerToken(event.newOwner);
+    const loser = abbreviateOwnerToken(event.previousOwner);
     if (attackers.length === 0) {
-        return `${abbreviateOwnerToken(event.previousOwner)}-to-${abbreviateOwnerToken(event.newOwner)}_${target}`;
+        return `${victor}-unknown_to_${loser}-${target}`;
     }
     const attackerLead = abbreviateStarToken(attackers[0]!);
     const attackerToken =
         attackers.length === 1
             ? attackerLead
             : `${attackerLead}+${attackers.length - 1}`;
-    return `${attackerToken}-to-${target}`;
+    return `${victor}-${attackerToken}_to_${loser}-${target}`;
 }
 
 function collapseConquestLabels(labels: readonly string[], forFile: boolean): string {

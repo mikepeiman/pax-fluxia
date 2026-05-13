@@ -216,7 +216,7 @@ Code reference:
 
 `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:607`
 
-Problem: centroid plus endpoint distance is not enough. It does not reject a POST path that is folded, contains repeated reversed sections, or mixes multiple owner-pair transitions. It also does not evaluate the actual TV travel cost.
+Problem: centroid matching is present here and violates the PVV4 active-front premise. Region-level fallback currently ranks a PRE source path by polyline centroid plus endpoint distance before any game-world front decomposition or TV correspondence cost is evaluated. This must be removed entirely from the PVV4 path.
 
 ## Current TV Correspondence Flow
 
@@ -332,6 +332,39 @@ Wrong assumption: once an active front is selected, equal-count arc-length point
 
 Correct rule: equal-count TVs are necessary but not sufficient. The PRE and POST active front must first be the same local moving border in game terms, and then the TV pairing must minimize local travel while preserving order.
 
+## Centroid Audit
+
+Active PVV4 path:
+
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:599` calls `pathCorrespondenceScore(source.path, nextPath)`.
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:607` defines `pathCorrespondenceScore`.
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:608` computes `prevCentroid = polylineCentroid(prevPath.points)`.
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:609` computes `nextCentroid = polylineCentroid(nextPath.points)`.
+- `pax-fluxia/src/lib/territory/layers/transition/ActiveFrontTransition.ts:614` returns `distance(prevCentroid, nextCentroid) + endpointScore * 0.35`.
+
+This is the active violation. It is not an incidental comment. It directly affects which PRE border is chosen as the source for a region-level active front.
+
+Legacy path:
+
+- `pax-fluxia/src/lib/territory/layers/transition/modes/ActiveFrontFillMode.ts:435` documents centroid matching in `legacy_fill_active_front`.
+- `pax-fluxia/src/lib/territory/layers/transition/modes/ActiveFrontFillMode.ts:439` defines `computeCentroid`.
+- `pax-fluxia/src/lib/territory/layers/transition/modes/ActiveFrontFillMode.ts:525` collapses a missing PRE frontier to a centroid point.
+
+This is not the current PVV4 path when `pv_frontline` is selected, but it remains semantic debt. It should either be deleted if the mode is retired, or quarantined under explicit legacy naming so it cannot be mistaken for the current design.
+
+Centroid excision plan:
+
+1. Delete `polylineCentroid` from `ActiveFrontTransition.ts`.
+2. Replace `pathCorrespondenceScore` with `frontCorrespondenceCost`.
+3. `frontCorrespondenceCost` must use only:
+   - conquest event star ownership data
+   - PRE/POST region membership
+   - owner-pair compatibility
+   - local border component topology
+   - monotone TV travel cost
+4. Add a test that fails if `ActiveFrontTransition.ts` contains `centroid`.
+5. Audit `legacy_fill_active_front`; retire it or mark it as non-PVV4 legacy in UI and docs.
+
 ## Correct Fix Direction
 
 The next fix should not tune easing, smoothing, or TV count first. Those controls cannot fix a wrong correspondence.
@@ -340,8 +373,8 @@ Required fix sequence:
 
 1. Build active fronts from region/star ownership changes first.
 2. Allow one changed region to emit multiple active fronts.
-3. Reject or split a planned front if it mixes incompatible owner-pair transitions.
-4. Reject or split a planned front if it contains the same section in both directions.
+3. Split a planned front if it mixes multiple valid local border transitions.
+4. Treat a repeated reversed section as evidence that the candidate is not one simple active front; decompose it into valid local fronts rather than discarding the conquest.
 5. Compute TV correspondence by local travel cost, not by raw array index.
 6. Use the solved TV correspondence cost as part of PRE source selection.
 
@@ -411,7 +444,7 @@ Primary code location:
 Specific functions:
 
 - `planRegionLevelActiveFrontFallbacks` at line 399: this is where region-derived fronts are currently created from topology gaps.
-- `pathCorrespondenceScore` at line 607: this must use local correspondence cost, not only centroid and endpoint distance.
+- `pathCorrespondenceScore` at line 607: this must be deleted or rewritten so no centroid distance participates in PVV4 active-front source selection.
 - `resolveActiveFrontWindow` at line 1861: this currently projects POST Change Anchors onto the selected PRE path. It should stop inventing a PRE window that does not belong to the same local front.
 - `getActiveFrontMonotonicCorrespondence` at line 1911: this is where index-paired TVs are currently built. This should become the minimum-distance monotone TV solver.
 
@@ -554,10 +587,10 @@ That would reveal start/end jerk without changing gameplay.
 
 The next code patch should do three things:
 
-1. Add planner validation for invalid active fronts:
-   - reject or split mixed owner-pair fronts
-   - reject or split fronts with repeated reversed sections
-   - emit a clear diagnostic if neither split nor solve is available
+1. Add planner decomposition for complex active fronts:
+   - split mixed owner-pair fronts into valid local active fronts
+   - split fronts with repeated reversed sections before correspondence
+   - emit a clear diagnostic only when decomposition cannot produce valid local fronts
 
 2. Replace index TV pairing for region-level fronts with monotone minimum-distance correspondence:
    - keep equal-number TVs

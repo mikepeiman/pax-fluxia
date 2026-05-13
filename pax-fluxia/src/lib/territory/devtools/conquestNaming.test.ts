@@ -34,7 +34,7 @@ describe('conquestNaming', () => {
 
     it('builds compact file-safe conquest labels for export packages', () => {
         expect(buildConquestEventGroupFileLabel(conquestEvents)).toBe(
-            'cq_S13-to-S14_S16-to-S21',
+            'cq_AI5-S13_to_HP-S14_AI3-S16_to_AI4-S21',
         );
         expect(
             buildConquestCaptureHash(
@@ -49,6 +49,6 @@ describe('conquestNaming', () => {
                 conquestEvents,
                 'transition:alpha',
             ),
-        ).toMatch(/^19-07-58---665_cq_S13-to-S14_S16-to-S21_h[a-z0-9]{7}$/);
+        ).toMatch(/^\d{2}-07-58---665_cq_AI5-S13_to_HP-S14_AI3-S16_to_AI4-S21_h[a-z0-9]{7}$/);
     });
 });
