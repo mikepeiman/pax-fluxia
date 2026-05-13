@@ -129,6 +129,10 @@
         metaballGridPhaseFieldModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
     import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import {
+        GridGradientFamily,
+        createGridGradientFamily,
+    } from "$lib/territory/families/gridGradient/GridGradientFamily";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -1961,7 +1965,8 @@
             mode === "metaball_grid" ||
             mode === "metaball_grid_phase_edges" ||
             mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field"
+            mode === "metaball_grid_phase_field" ||
+            mode === "grid_gradient"
         );
     }
 
@@ -2890,13 +2895,15 @@
             mode === "metaball_grid" ||
             mode === "metaball_grid_phase_edges" ||
             mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field"
+            mode === "metaball_grid_phase_field" ||
+            mode === "grid_gradient"
         ) {
             const family = getRenderFamily(mode);
             if (
                 family instanceof MetaballGridFamily ||
                 family instanceof MetaballGridPhaseEdgesFamily ||
-                family instanceof MetaballGridPhaseFieldFamily
+                family instanceof MetaballGridPhaseFieldFamily ||
+                family instanceof GridGradientFamily
             ) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
@@ -5390,6 +5397,7 @@
                     activeMode === "metaball_grid_phase_edges" ||
                     activeMode === "metaball_grid_ember_lattice" ||
                     activeMode === "metaball_grid_phase_field" ||
+                    activeMode === "grid_gradient" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
@@ -5498,6 +5506,17 @@
                 ) {
                     activeVoronoiContainer.removeChild(
                         metaballGridPhaseFieldFamily.displayRoot,
+                    );
+                }
+                const gridGradientFamily = getRenderFamily("grid_gradient");
+                if (
+                    activeMode !== "grid_gradient" &&
+                    gridGradientFamily instanceof GridGradientFamily &&
+                    gridGradientFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        gridGradientFamily.displayRoot,
                     );
                 }
 
@@ -6036,6 +6055,83 @@
                             geometry,
                             ownership,
                         };
+                        break;
+                    }
+                    case "grid_gradient": {
+                        let fam = getRenderFamily("grid_gradient");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createGridGradientFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("grid_gradient")!;
+                        }
+                        const gg = fam as GridGradientFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.grid_gradient",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    territoryPresentationStars,
+                                    activeTransition,
+                                ),
+                        );
+                        const geometry = readFamilyGeometry();
+                        const diagnosticPrevFrame = activeTransition
+                            ? getTransitionDiagnosticPrevFrame({
+                                  activeMode,
+                                  activeTransition,
+                                  stars,
+                                  lanes,
+                              })
+                            : null;
+                        const ggInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.grid_gradient",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars: territoryPresentationStars,
+                                    lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
+                                        diagnosticPrevFrame?.geometry ?? null,
+                                    ),
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionSessions:
+                                        renderFamilyTransitionState.activeSessions,
+                                    tunableKeys: gg.tunableKeys,
+                                }),
+                        );
+                        gg.update(ggInput);
+                        if (gg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(gg.displayRoot);
+                        }
+                        gg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            configSource: renderFamilyConfigSource,
+                        });
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
                         break;
                     }
                     case "perimeter_field": {
@@ -6915,6 +7011,11 @@
             metaballGridFamily instanceof MetaballGridPhaseFieldFamily
                 ? metaballGridFamily.getDebugSnapshot()
                 : null;
+        const gridGradientFamily = getRenderFamily("grid_gradient");
+        const gridGradientDebug =
+            gridGradientFamily instanceof GridGradientFamily
+                ? gridGradientFamily.getDebugSnapshot()
+                : null;
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
             .slice()
             .sort((a, b) => a.id - b.id)
@@ -6944,6 +7045,7 @@
             renderMode: GAME_CONFIG.TERRITORY_RENDER_MODE,
             ownerStarCounts,
             metaballGridDebug,
+            gridGradientDebug,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress: Number(lastRenderedTickProgress.toFixed(4)),

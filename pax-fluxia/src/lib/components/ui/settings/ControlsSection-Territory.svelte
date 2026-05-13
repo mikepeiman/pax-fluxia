@@ -13,6 +13,7 @@
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import MetaballGridTuning from "./MetaballGridTuning.svelte";
+  import GridGradientTuning from "./GridGradientTuning.svelte";
   import {
     metaballGridFamilyConfigDefaults,
     metaballGridPhaseEdgesModeDefaults,
@@ -106,6 +107,7 @@
     | "metaball"
     | "perimeter-field"
     | "metaball-grid"
+    | "grid-gradient"
     | "topology"
     | "surface";
 
@@ -164,8 +166,16 @@
     return activeStyle === "perimeter_field" || isMetaballGridStyle();
   }
 
+  function supportsGridGradientStyleCard(): boolean {
+    return resolveActiveStyleId() === "grid_gradient";
+  }
+
   function hasTerritoryStyleControls(): boolean {
-    return supportsRuntimeSurfaceStyleCard() || supportsSharedSurfaceStyleCard();
+    return (
+      supportsRuntimeSurfaceStyleCard() ||
+      supportsSharedSurfaceStyleCard() ||
+      supportsGridGradientStyleCard()
+    );
   }
 
   function resolvedStyleSubsection():
@@ -545,6 +555,10 @@
     );
   }
 
+  function isGridGradientStyle(): boolean {
+    return resolveActiveStyleId() === "grid_gradient";
+  }
+
   function isMetaballGridPhaseEdgesStyle(): boolean {
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
   }
@@ -564,7 +578,7 @@
   });
 
   function showsDerivedGeometryInput(): boolean {
-    return isMetaballGridStyle();
+    return isMetaballGridStyle() || isGridGradientStyle();
   }
   function resolveActiveTransitionModeId(): string {
     return coerceVsTransitionModeForRenderMode(
@@ -608,6 +622,14 @@
         id: "metaball-grid",
         label: "Grid",
         icon: "▦",
+      });
+    }
+
+    if (isGridGradientStyle()) {
+      modules.unshift({
+        id: "grid-gradient",
+        label: "Gradient",
+        icon: "GG",
       });
     }
 
@@ -2051,6 +2073,15 @@
   </div>
 {/if}
 
+{#if showStylesView && showRendererModule("grid-gradient") && isGridGradientStyle()}
+  <div class="engine-control-group territory-module-card">
+    <div class="territory-card__header">
+      <h4 class="axis-card-title">Grid Gradient (Experimental)</h4>
+    </div>
+    <GridGradientTuning {panel} {updatePanel} />
+  </div>
+{/if}
+
 </div>
 </div>
 {/if}
@@ -2248,6 +2279,15 @@
               );
             }} />
         </div>
+      </div>
+    {/if}
+
+    {#if supportsGridGradientStyleCard() && !showTuningView}
+      <div class="engine-control-group territory-module-card">
+        <div class="territory-card__header">
+          <h4 class="axis-card-title">Grid Gradient (Experimental)</h4>
+        </div>
+        <GridGradientTuning {panel} {updatePanel} />
       </div>
     {/if}
 

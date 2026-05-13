@@ -103,6 +103,13 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
             'Fill-first conquest mode with conquest-local PRE/POST compositing, frontier emphasis, and finish-tail controls',
         legacyDispatch: true,
     },
+    {
+        id: 'grid_gradient',
+        label: 'Grid Gradient',
+        shortDescription:
+            'Experimental render-family mode using PV geometry with invisible grid samples that grow toward region centers',
+        legacyDispatch: true,
+    },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },
     { id: 'graph', label: 'Lane graph', shortDescription: 'Graph/lane influence', legacyDispatch: true },
     { id: 'contour', label: 'Contour', shortDescription: 'Marching squares worker', legacyDispatch: true },

@@ -475,6 +475,20 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Frontier Fade End': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
         },
+        'Grid Gradient Enabled': { key: 'GRID_GRADIENT_ENABLED' },
+        'Grid Gradient Spacing': { key: 'GRID_GRADIENT_SPACING_PX' },
+        'Grid Gradient Max Cells': { key: 'GRID_GRADIENT_MAX_CELLS' },
+        'Grid Gradient Shape': { key: 'GRID_GRADIENT_CELL_SHAPE' },
+        'Grid Gradient Center Size': { key: 'GRID_GRADIENT_CENTER_SIZE_PX' },
+        'Grid Gradient Edge Size': { key: 'GRID_GRADIENT_EDGE_SIZE_PX' },
+        'Grid Gradient Curve': { key: 'GRID_GRADIENT_CURVE_POWER' },
+        'Grid Gradient Border Offset': { key: 'GRID_GRADIENT_BORDER_OFFSET_PX' },
+        'Grid Gradient Vector Borders': {
+            key: 'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
+        },
+        'Grid Gradient Border Dots': { key: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
+        'Grid Gradient Dot Size': { key: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
+        'Grid Gradient Dot Style': { key: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
         'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
         'Frontier Border Geometry': {
             key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',

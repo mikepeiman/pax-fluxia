@@ -3,6 +3,7 @@ export type TerritoryArchitecturePath = 'clean' | 'legacy';
 export type TerritoryRuntimeRoute =
     | 'runtime_clean_bridge'
     | 'runtime_legacy_bridge'
+    | 'render_family_renderer'
     | 'legacy_style_renderer';
 
 export interface TerritoryArchitectureRouteInput {
@@ -15,6 +16,7 @@ export interface TerritoryArchitectureRouteDecision {
     architecturePath: TerritoryArchitecturePath;
     route: TerritoryRuntimeRoute;
     isRuntimeSurfaceStyle: boolean;
+    isRenderFamilySurfaceStyle: boolean;
 }
 
 function resolveArchitecturePath(raw: string | undefined): TerritoryArchitecturePath {
@@ -29,6 +31,24 @@ export function resolveTerritoryArchitectureRoute(
     const isRuntimeSurfaceStyle =
         renderMode === 'territory_runtime' ||
         renderMode === 'power_voronoi_runtime';
+    const isRenderFamilySurfaceStyle =
+        renderMode === 'metaball' ||
+        renderMode === 'metaball_grid' ||
+        renderMode === 'metaball_grid_phase_edges' ||
+        renderMode === 'metaball_grid_ember_lattice' ||
+        renderMode === 'metaball_grid_phase_field' ||
+        renderMode === 'perimeter_field' ||
+        renderMode === 'grid_gradient';
+
+    if (isRenderFamilySurfaceStyle) {
+        return {
+            renderMode,
+            architecturePath,
+            route: 'render_family_renderer',
+            isRuntimeSurfaceStyle,
+            isRenderFamilySurfaceStyle,
+        };
+    }
 
     if (!isRuntimeSurfaceStyle) {
         return {
@@ -36,6 +56,7 @@ export function resolveTerritoryArchitectureRoute(
             architecturePath,
             route: 'legacy_style_renderer',
             isRuntimeSurfaceStyle,
+            isRenderFamilySurfaceStyle,
         };
     }
 
@@ -45,6 +66,7 @@ export function resolveTerritoryArchitectureRoute(
             architecturePath,
             route: 'runtime_clean_bridge',
             isRuntimeSurfaceStyle,
+            isRenderFamilySurfaceStyle,
         };
     }
 
@@ -56,5 +78,6 @@ export function resolveTerritoryArchitectureRoute(
                 ? 'runtime_clean_bridge'
                 : 'runtime_legacy_bridge',
         isRuntimeSurfaceStyle,
+        isRenderFamilySurfaceStyle,
     };
 }

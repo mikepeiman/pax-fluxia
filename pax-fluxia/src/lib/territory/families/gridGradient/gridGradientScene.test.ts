@@ -1,0 +1,196 @@
+import { describe, expect, it } from 'vitest';
+import type { GridClassification } from '../metaballGrid/metaballGridTypes';
+import {
+    buildGridGradientBorderDots,
+    buildGridGradientNoisePolygon,
+    resolveGridGradientCellSize,
+} from './gridGradientScene';
+
+function makeClassification(): GridClassification {
+    const vstars = [
+        {
+            id: 'g:0:0',
+            ix: 0,
+            iy: 0,
+            x: 5,
+            y: 5,
+            prevOwnerId: 'red',
+            nextOwnerId: 'red',
+            role: 'native',
+            eventId: null,
+        },
+        {
+            id: 'g:1:0',
+            ix: 1,
+            iy: 0,
+            x: 15,
+            y: 5,
+            prevOwnerId: 'blue',
+            nextOwnerId: 'blue',
+            role: 'native',
+            eventId: null,
+        },
+        {
+            id: 'g:0:1',
+            ix: 0,
+            iy: 1,
+            x: 5,
+            y: 15,
+            prevOwnerId: 'red',
+            nextOwnerId: 'red',
+            role: 'native',
+            eventId: null,
+        },
+        {
+            id: 'g:1:1',
+            ix: 1,
+            iy: 1,
+            x: 15,
+            y: 15,
+            prevOwnerId: 'blue',
+            nextOwnerId: 'blue',
+            role: 'native',
+            eventId: null,
+        },
+    ] as const;
+
+    return {
+        cols: 2,
+        rows: 2,
+        spacingPx: 10,
+        requestedSpacingPx: 10,
+        originMode: 'centered',
+        distribution: 'square',
+        vstars,
+        emittableVstars: vstars,
+        byRole: {
+            native: vstars.map((v) => v.id),
+            dispossessed: [],
+            emergent: [],
+            vacating: [],
+            outside: [],
+        },
+        dispossessedByEventId: {},
+        defaultEventId: '__default__',
+    };
+}
+
+describe('grid gradient scene helpers', () => {
+    it('makes center cells larger than edge cells', () => {
+        const edge = resolveGridGradientCellSize({
+            distancePx: 0,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1.5,
+            centerSizePx: 10,
+            curvePower: 1.6,
+            borderOffsetPx: 0,
+        });
+        const center = resolveGridGradientCellSize({
+            distancePx: 100,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1.5,
+            centerSizePx: 10,
+            curvePower: 1.6,
+            borderOffsetPx: 0,
+        });
+
+        expect(edge).toBeCloseTo(1.5);
+        expect(center).toBeCloseTo(10);
+        expect(center).toBeGreaterThan(edge);
+    });
+
+    it('uses border offset to suppress fill near borders', () => {
+        const hidden = resolveGridGradientCellSize({
+            distancePx: 4,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1,
+            centerSizePx: 8,
+            curvePower: 1,
+            borderOffsetPx: 8,
+        });
+        const visible = resolveGridGradientCellSize({
+            distancePx: 12,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1,
+            centerSizePx: 8,
+            curvePower: 1,
+            borderOffsetPx: 8,
+        });
+
+        expect(hidden).toBe(0);
+        expect(visible).toBeGreaterThan(0);
+    });
+
+    it('lets curve power change size progression', () => {
+        const gentle = resolveGridGradientCellSize({
+            distancePx: 50,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1,
+            centerSizePx: 9,
+            curvePower: 0.5,
+            borderOffsetPx: 0,
+        });
+        const steep = resolveGridGradientCellSize({
+            distancePx: 50,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 1,
+            centerSizePx: 9,
+            curvePower: 3,
+            borderOffsetPx: 0,
+        });
+
+        expect(gentle).toBeGreaterThan(steep);
+    });
+
+    it('builds one blended dot per differing grid edge', () => {
+        const dots = buildGridGradientBorderDots({
+            classification: makeClassification(),
+            colorByOwnerId: new Map([
+                ['red', 0xff0000],
+                ['blue', 0x0000ff],
+            ]),
+            dotSizePx: 2,
+            style: 'blended',
+            alpha: 0.5,
+        });
+
+        expect(dots).toHaveLength(2);
+        expect(dots.every((dot) => dot.ownerId === null)).toBe(true);
+        expect(dots.every((dot) => dot.color === 0x800080)).toBe(true);
+    });
+
+    it('builds two owner-colored dots for butted borders', () => {
+        const dots = buildGridGradientBorderDots({
+            classification: makeClassification(),
+            colorByOwnerId: new Map([
+                ['red', 0xff0000],
+                ['blue', 0x0000ff],
+            ]),
+            dotSizePx: 2,
+            style: 'butted',
+            alpha: 0.5,
+        });
+
+        expect(dots).toHaveLength(4);
+        expect(dots.filter((dot) => dot.ownerId === 'red')).toHaveLength(2);
+        expect(dots.filter((dot) => dot.ownerId === 'blue')).toHaveLength(2);
+    });
+
+    it('generates stable noise polygons', () => {
+        const first = buildGridGradientNoisePolygon({
+            x: 10,
+            y: 20,
+            radiusPx: 5,
+            cellId: 'g:1:2',
+        });
+        const second = buildGridGradientNoisePolygon({
+            x: 10,
+            y: 20,
+            radiusPx: 5,
+            cellId: 'g:1:2',
+        });
+
+        expect(first).toEqual(second);
+        expect(first).toHaveLength(16);
+    });
+});

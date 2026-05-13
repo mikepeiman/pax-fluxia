@@ -6,6 +6,7 @@
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import {
@@ -61,6 +62,9 @@
             liveRenderMode === "metaball_grid_ember_lattice" ||
             liveRenderMode === "metaball_grid_phase_field",
     );
+    const showGridGradientDiagnostics = $derived(
+        liveRenderMode === "grid_gradient",
+    );
     const showTerritoryEngineTraceDiagnostics = $derived(
         liveRenderMode === "territory_engine"
         || activeRenderMode === "territory_engine",
@@ -71,7 +75,8 @@
             liveRenderMode === "metaball_grid" ||
             liveRenderMode === "metaball_grid_phase_edges" ||
             liveRenderMode === "metaball_grid_ember_lattice" ||
-            liveRenderMode === "metaball_grid_phase_field",
+            liveRenderMode === "metaball_grid_phase_field" ||
+            liveRenderMode === "grid_gradient",
     );
     const bundleList = $derived(
         [...$transitionSnapshotRecorderStore.bundles].reverse(),
@@ -702,6 +707,19 @@
                 Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
+    {/if}
+    {#if showGridGradientDiagnostics}
+        <div class="status-grid">
+            <div><span>Family</span><code>{$gridGradientStats.familyLabel}</code></div>
+            <div><span>Source</span><code>{$gridGradientStats.geometrySource ?? "n/a"}</code></div>
+            <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
+            <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
+            <div><span>Fill</span><span>{$gridGradientStats.cellShape} / {$gridGradientStats.edgeSizePx.toFixed(1)}px edge / {$gridGradientStats.centerSizePx.toFixed(1)}px center / curve {$gridGradientStats.curvePower.toFixed(2)}</span></div>
+            <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
+            <div><span>Borders</span><span>{$gridGradientStats.vectorBordersEnabled ? "vector on" : "vector off"} / {$gridGradientStats.borderDotsEnabled ? `${$gridGradientStats.borderDotStyle} dots` : "dots off"}</span></div>
+            <div><span>Border Count</span><span>{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</span></div>
+            <div><span>Frame</span><span>{$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</span></div>
+        </div>
     {/if}
     {#if showPerimeterFieldDiagnostics}
         <PerimeterFieldDiagnosticsPanel />
