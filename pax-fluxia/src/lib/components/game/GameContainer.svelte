@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { fade, slide } from "svelte/transition";
   import {
     pushStateCompat as pushState,
     replaceStateCompat as replaceState,
@@ -34,6 +35,14 @@
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
+    canAccessAudience,
+    resolveAudienceAccess,
+    saveForcePublicShell,
+    saveInternalToolsUnlocked,
+    saveShowAdvanced,
+    type AudienceAccess,
+  } from "$lib/shell/audience";
+  import {
     applyTopbarTerritoryModeShortcut,
     getTopbarTerritoryModeOptions,
   } from "$lib/territory/ui/territoryModeShortcuts";
@@ -65,6 +74,46 @@
     } catch {
       return "imperial";
     }
+  }
+
+  function getCurrentSearchParams(): URLSearchParams | null {
+    if (typeof window === "undefined") return null;
+    try {
+      return new URL(window.location.href).searchParams;
+    } catch {
+      return null;
+    }
+  }
+
+  const initialAudienceAccess = resolveAudienceAccess({
+    isDev: import.meta.env.DEV,
+    searchParams: getCurrentSearchParams(),
+  });
+  let audienceAccess = $state<AudienceAccess>(initialAudienceAccess);
+  const showAdvancedAudience = $derived(
+    canAccessAudience("advanced", audienceAccess),
+  );
+  const showInternalTools = $derived(
+    canAccessAudience("internal", audienceAccess),
+  );
+  const showTopbarAudienceControls = $derived(
+    !audienceAccess.isDev || audienceAccess.forcePublicShell,
+  );
+
+  function setShowAdvancedVisibility(showAdvanced: boolean) {
+    audienceAccess = { ...audienceAccess, showAdvanced };
+    saveShowAdvanced(showAdvanced);
+  }
+
+  function setForcePublicShell(forcePublicShell: boolean) {
+    audienceAccess = { ...audienceAccess, forcePublicShell };
+    saveForcePublicShell(forcePublicShell);
+  }
+
+  function setInternalToolsVisibility(internalToolsUnlocked: boolean) {
+    if (audienceAccess.isDev && !audienceAccess.forcePublicShell) return;
+    audienceAccess = { ...audienceAccess, internalToolsUnlocked };
+    saveInternalToolsUnlocked(internalToolsUnlocked);
   }
 
   // ── Panel visibility states ──
@@ -132,6 +181,12 @@
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
 
+  type MenuActionPanel = "saveMap" | "loadMap" | "saveGame" | "loadGame";
+  type MenuConfirmDialog =
+    | { kind: "restart" }
+    | { kind: "deleteMap"; mapName: string }
+    | { kind: "deleteSavedGame"; gameId: string; gameName: string };
+
   // ── Map save/load (F-70 in menu) ──
   let showSaveMapInput = $state(false);
   let saveMapName = $state("");
@@ -143,6 +198,41 @@
   let saveGameName = $state("");
   let saveGameFeedback = $state("");
   let showLoadGameList = $state(false);
+  let pendingMenuConfirm = $state<MenuConfirmDialog | null>(null);
+  const menuActionPanelElements: Partial<
+    Record<MenuActionPanel, HTMLDivElement | null>
+  > = {};
+
+  function closeMenuActionPanels() {
+    showSaveMapInput = false;
+    showLoadMapList = false;
+    showSaveGameInput = false;
+    showLoadGameList = false;
+  }
+
+  async function toggleMenuActionPanel(panel: MenuActionPanel) {
+    const nextSaveMap = panel === "saveMap" ? !showSaveMapInput : false;
+    const nextLoadMap = panel === "loadMap" ? !showLoadMapList : false;
+    const nextSaveGame = panel === "saveGame" ? !showSaveGameInput : false;
+    const nextLoadGame = panel === "loadGame" ? !showLoadGameList : false;
+
+    showSaveMapInput = nextSaveMap;
+    showLoadMapList = nextLoadMap;
+    showSaveGameInput = nextSaveGame;
+    showLoadGameList = nextLoadGame;
+
+    if (nextSaveGame && !saveGameName) {
+      saveGameName = suggestGameName();
+    }
+
+    if (nextSaveMap || nextLoadMap || nextSaveGame || nextLoadGame) {
+      await tick();
+      menuActionPanelElements[panel]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }
 
   function suggestGameName(): string {
     const date = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
@@ -151,13 +241,7 @@
   }
 
   function openSaveGame() {
-    showSaveGameInput = !showSaveGameInput;
-    showSaveMapInput = false;
-    showLoadMapList = false;
-    showLoadGameList = false;
-    if (showSaveGameInput && !saveGameName) {
-      saveGameName = suggestGameName();
-    }
+    toggleMenuActionPanel("saveGame");
   }
 
   function handleSaveMap() {
@@ -166,7 +250,7 @@
     gameStore.saveCurrentMap(name);
     saveMapFeedback = `✓ Map saved "${name}"`;
     saveMapName = "";
-    showSaveMapInput = false;
+    closeMenuActionPanels();
     setTimeout(() => (saveMapFeedback = ""), 2500);
   }
 
@@ -176,28 +260,54 @@
     gameStore.saveCurrentGame(name);
     saveGameFeedback = `✓ Game saved "${name}"`;
     saveGameName = "";
-    showSaveGameInput = false;
+    closeMenuActionPanels();
     setTimeout(() => (saveGameFeedback = ""), 2500);
   }
 
   async function handleLoadMap(map: any) {
     gameStore.loadSavedMap(map);
-    showLoadMapList = false;
+    closeMenuActionPanels();
     await gameStore.startGame();
   }
 
   async function handleLoadSavedGame(game: any, freshStart = false) {
     gameStore.loadSavedGame(game, freshStart);
-    showLoadGameList = false;
+    closeMenuActionPanels();
     await gameStore.startGame();
   }
 
   function handleDeleteMap(name: string) {
-    gameStore.deleteSavedMap(name);
+    pendingMenuConfirm = { kind: "deleteMap", mapName: name };
   }
 
-  function handleDeleteSavedGame(id: string) {
-    gameStore.deleteSavedGame(id);
+  function handleDeleteSavedGame(id: string, gameName = "this saved game") {
+    pendingMenuConfirm = { kind: "deleteSavedGame", gameId: id, gameName };
+  }
+
+  function requestRestartGame() {
+    pendingMenuConfirm = { kind: "restart" };
+  }
+
+  function confirmPendingMenuAction() {
+    if (!pendingMenuConfirm) return;
+    const action = pendingMenuConfirm;
+    pendingMenuConfirm = null;
+
+    switch (action.kind) {
+      case "restart":
+        activeGameStore.playAgain();
+        break;
+      case "deleteMap":
+        gameStore.deleteSavedMap(action.mapName);
+        break;
+      case "deleteSavedGame":
+        gameStore.deleteSavedGame(action.gameId);
+        break;
+    }
+  }
+
+  function cancelPendingMenuAction() {
+    pendingMenuConfirm = null;
   }
 
   const showResults = $derived(
@@ -354,6 +464,7 @@
   let showExitConfirm = $state(false);
   let lastShellViewKey = "";
   const topbarTerritoryModeOptions = getTopbarTerritoryModeOptions();
+  const visibleTopbarTerritoryModeOptions = topbarTerritoryModeOptions;
   let topbarActiveTerritoryModeId = $state(GAME_CONFIG.TERRITORY_RENDER_MODE);
   const currentThemeName = $derived(
     themeStore.selectedThemeName || "Phase Field Default",
@@ -519,21 +630,38 @@
     <GameHudTopBar
       onMenuClick={() => gameStore.setView("menu")}
       onSettingsClick={toggleSettingsPanel}
-      onDiagnosticsClick={openDiagnostics}
+      showAudienceModeToggle={audienceAccess.isDev}
+      publicShellActive={audienceAccess.forcePublicShell}
+      onSwitchToPublicShell={() => setForcePublicShell(true)}
+      onSwitchToDevShell={() => setForcePublicShell(false)}
+      showAdvancedToggle={showTopbarAudienceControls}
+      advancedActive={showAdvancedAudience}
+      onAdvancedToggle={() =>
+        setShowAdvancedVisibility(!audienceAccess.showAdvanced)}
+      showInternalToggle={showTopbarAudienceControls}
+      internalActive={showInternalTools}
+      onInternalToggle={() =>
+        setInternalToolsVisibility(!audienceAccess.internalToolsUnlocked)}
+      onDiagnosticsClick={showInternalTools ? openDiagnostics : undefined}
       onThemesClick={openThemeShortcuts}
-      onRulerToggle={toggleRulerDiagnostics}
-      onAuthoredMeasurementsToggle={activeGameStore.mapDiagnostics.measurements.length > 0
+      onRulerToggle={showInternalTools ? toggleRulerDiagnostics : undefined}
+      onAuthoredMeasurementsToggle={showInternalTools &&
+        activeGameStore.mapDiagnostics.measurements.length > 0
         ? () => authoredMeasurementsUi.toggle()
         : undefined}
       onFitViewport={() => gameCanvasRef?.centerAndFit?.()}
       onHelpClick={() => alert("Help & controls guide coming soon!")}
-      diagnosticsActive={showSettingsPanel &&
+      diagnosticsActive={showInternalTools &&
+        showSettingsPanel &&
         forceOpenSettingsSection === "diagnostics"}
-      rulerActive={$rulerTool.enabled}
-      authoredMeasurementsActive={$authoredMeasurementsUi.visible}
-      authoredMeasurementsAvailable={activeGameStore.mapDiagnostics.measurements.length > 0}
+      rulerActive={showInternalTools ? $rulerTool.enabled : false}
+      authoredMeasurementsActive={showInternalTools
+        ? $authoredMeasurementsUi.visible
+        : false}
+      authoredMeasurementsAvailable={showInternalTools &&
+        activeGameStore.mapDiagnostics.measurements.length > 0}
       onModeSelect={handleTopbarTerritoryModeSelect}
-      modeOptions={topbarTerritoryModeOptions}
+      modeOptions={visibleTopbarTerritoryModeOptions}
       fallbackActiveModeId={topbarActiveTerritoryModeId}
       currentThemeName={currentThemeName}
     />
@@ -637,6 +765,9 @@
           >
           <div class="panel-section section-tuning">
             <GameSettingsPanel
+              {audienceAccess}
+              onRequestShowAdvanced={() => setShowAdvancedVisibility(true)}
+              onRequestInternalTools={() => setInternalToolsVisibility(true)}
               forceOpenSection={forceOpenSettingsSection}
               forceOpenSectionNonce={forceOpenSettingsSectionNonce}
             />
@@ -710,15 +841,17 @@
                 <span class="mi-icon">⚙</span>
                 <span class="mi-label">Settings</span>
               </button>
-              <button
-                class="menu-item"
-                class:active={showSettingsPanel &&
-                  forceOpenSettingsSection === "diagnostics"}
-                onclick={openDiagnostics}
-              >
-                <span class="mi-icon">◎</span>
-                <span class="mi-label">Diagnostics</span>
-              </button>
+              {#if showInternalTools}
+                <button
+                  class="menu-item"
+                  class:active={showSettingsPanel &&
+                    forceOpenSettingsSection === "diagnostics"}
+                  onclick={openDiagnostics}
+                >
+                  <span class="mi-icon">◎</span>
+                  <span class="mi-label">Diagnostics</span>
+                </button>
+              {/if}
               <div class="menu-theme-manager" bind:this={menuThemeManagerElement}>
                 <GameThemeManager />
               </div>
@@ -751,6 +884,201 @@
                 <span class="mi-label">Chat</span>
               </button>
               <hr class="menu-divider" />
+              <div class="menu-action-list">
+                <div class="menu-action-section">
+                  <div class="menu-action-label">
+                    <div class="menu-action-label__title">Map</div>
+                  </div>
+                  <div class="menu-action-body">
+                    <div class="menu-action-controls">
+                      <button
+                        class="menu-action-btn menu-action-btn--load"
+                        class:is-open={showLoadMapList}
+                        onclick={() => void toggleMenuActionPanel("loadMap")}
+                      >
+                        Load
+                      </button>
+                      <button
+                        class="menu-action-btn"
+                        class:is-open={showSaveMapInput}
+                        onclick={() => void toggleMenuActionPanel("saveMap")}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  {#if showLoadMapList}
+                    <div
+                      class="menu-action-panel"
+                      bind:this={menuActionPanelElements.loadMap}
+                      transition:slide|local={{ duration: 200 }}>
+                      <div class="map-list map-list--menu">
+                        {#if gameStore.savedMaps.length === 0}
+                          <div class="map-list-empty">No saved maps</div>
+                        {:else}
+                          {#each gameStore.savedMaps as map}
+                            <div class="map-list-item">
+                              <button
+                                class="map-load-btn"
+                                onclick={() => handleLoadMap(map)}
+                                title="Load and restart with this map"
+                              >
+                                {map.metadata.name}
+                              </button>
+                              <button
+                                class="map-delete-btn"
+                                onclick={() => handleDeleteMap(map.metadata.name)}
+                                title="Delete">X</button
+                              >
+                            </div>
+                          {/each}
+                        {/if}
+                      </div>
+                    </div>
+                  {/if}
+                  {#if showSaveMapInput}
+                    <div
+                      class="menu-action-panel"
+                      bind:this={menuActionPanelElements.saveMap}
+                      transition:slide|local={{ duration: 200 }}>
+                      <div class="map-save-row map-save-row--menu">
+                        <input
+                          type="text"
+                          class="map-name-input"
+                          placeholder="Map name..."
+                          bind:value={saveMapName}
+                          onkeydown={(e) => {
+                            if (e.key === "Enter") handleSaveMap();
+                            if (e.key === "Escape") closeMenuActionPanels();
+                          }}
+                        />
+                        <button
+                          class="map-save-btn"
+                          onclick={handleSaveMap}
+                          disabled={!saveMapName.trim()}>Save</button
+                        >
+                      </div>
+                    </div>
+                  {/if}
+                  {#if saveMapFeedback}
+                    <div class="menu-action-feedback" transition:fade|local={{ duration: 200 }}>
+                      {saveMapFeedback}
+                    </div>
+                  {/if}
+                </div>
+                <div class="menu-action-section">
+                  <div class="menu-action-label">
+                    <div class="menu-action-label__title">Game + Map</div>
+                  </div>
+                  <div class="menu-action-body">
+                    <div class="menu-action-controls">
+                      <button
+                        class="menu-action-btn menu-action-btn--load"
+                        class:is-open={showLoadGameList}
+                        onclick={() => void toggleMenuActionPanel("loadGame")}
+                      >
+                        Load
+                      </button>
+                      <button
+                        class="menu-action-btn"
+                        class:is-open={showSaveGameInput}
+                        onclick={() => void toggleMenuActionPanel("saveGame")}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  {#if showLoadGameList}
+                    <div
+                      class="menu-action-panel"
+                      bind:this={menuActionPanelElements.loadGame}
+                      transition:slide|local={{ duration: 200 }}>
+                      <div class="map-list map-list--menu">
+                        {#if gameStore.savedGames.length === 0}
+                          <div class="map-list-empty">No saved games</div>
+                        {:else}
+                          {#each gameStore.savedGames as game}
+                            <div class="map-list-item map-list-item--saved-game">
+                              <button
+                                class="map-load-btn map-load-btn--saved-game"
+                                onclick={() => handleLoadSavedGame(game)}
+                                title={`Load ${game.name}`}
+                              >
+                                <span class="saved-game-name">{game.name}</span>
+                                <span class="saved-game-meta">
+                                  Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}
+                                </span>
+                              </button>
+                              <button
+                                class="map-delete-btn"
+                                onclick={() => handleDeleteSavedGame(game.id, game.name)}
+                                title="Delete">X</button
+                              >
+                            </div>
+                          {/each}
+                        {/if}
+                      </div>
+                    </div>
+                  {/if}
+                  {#if showSaveGameInput}
+                    <div
+                      class="menu-action-panel"
+                      bind:this={menuActionPanelElements.saveGame}
+                      transition:slide|local={{ duration: 200 }}>
+                      <div class="map-save-row map-save-row--menu">
+                        <input
+                          type="text"
+                          class="map-name-input"
+                          placeholder="Save name..."
+                          bind:value={saveGameName}
+                          onkeydown={(e) => {
+                            if (e.key === "Enter") handleSaveGame();
+                            if (e.key === "Escape") closeMenuActionPanels();
+                          }}
+                        />
+                        <button
+                          class="map-save-btn"
+                          onclick={handleSaveGame}
+                          disabled={!saveGameName.trim()}>Save</button
+                        >
+                      </div>
+                    </div>
+                  {/if}
+                  {#if saveGameFeedback}
+                    <div class="menu-action-feedback" transition:fade|local={{ duration: 200 }}>
+                      {saveGameFeedback}
+                    </div>
+                  {/if}
+                </div>
+                <div class="menu-action-section">
+                  <div class="menu-action-label">
+                    <div class="menu-action-label__title">Session</div>
+                  </div>
+                  <div class="menu-action-body">
+                    <div class="menu-action-controls">
+                      <button
+                        class="menu-action-btn menu-action-btn--quit"
+                        onclick={() => {
+                          audioManager.play("click");
+                          showSurrenderModal = true;
+                        }}
+                      >
+                        Quit
+                      </button>
+                      <button
+                        class="menu-action-btn menu-action-btn--restart"
+                        onclick={() => {
+                          audioManager.play("click");
+                          requestRestartGame();
+                        }}
+                      >
+                        Restart
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {#if false}
               <!-- Save Map (topology only) -->
               <button
                 class="menu-item"
@@ -885,7 +1213,7 @@
                 class="menu-item"
                 onclick={() => {
                   audioManager.play("click");
-                  activeGameStore.playAgain();
+                  requestRestartGame();
                 }}
               >
                 <span class="mi-icon">🔄</span>
@@ -901,6 +1229,7 @@
                 <span class="mi-icon">🏳</span>
                 <span class="mi-label">Quit Game</span>
               </button>
+              {/if}
             </div>
           {/if}
         </div>
@@ -976,6 +1305,61 @@
         </div>
       </div>
     {/if}
+
+    {#if pendingMenuConfirm}
+      <div
+        class="modal-overlay modal-overlay--fixed"
+        role="dialog"
+        aria-modal="true"
+        transition:fade|local={{ duration: 200 }}
+      >
+        <div
+          class="surrender-modal glass-panel"
+          transition:fade|local={{ duration: 200 }}
+        >
+          {#if pendingMenuConfirm.kind === "restart"}
+            <h3 class="surrender-modal__title">Restart Session?</h3>
+            <p class="surrender-modal__desc">
+              Restart from the beginning and discard unsaved progress.
+            </p>
+            <div class="surrender-modal__actions">
+              <button class="btn btn--primary btn--md" onclick={confirmPendingMenuAction}>
+                Restart
+                <span class="btn-sub">Begin this session again</span>
+              </button>
+            </div>
+          {:else if pendingMenuConfirm.kind === "deleteMap"}
+            <h3 class="surrender-modal__title">Delete Saved Map?</h3>
+            <p class="surrender-modal__desc">
+              Remove "{pendingMenuConfirm.mapName}" from your saved maps.
+            </p>
+            <div class="surrender-modal__actions">
+              <button class="btn btn--primary btn--md" onclick={confirmPendingMenuAction}>
+                Delete Map
+                <span class="btn-sub">This cannot be undone</span>
+              </button>
+            </div>
+          {:else}
+            <h3 class="surrender-modal__title">Delete Saved Game?</h3>
+            <p class="surrender-modal__desc">
+              Remove "{pendingMenuConfirm.gameName}" from your saved sessions.
+            </p>
+            <div class="surrender-modal__actions">
+              <button class="btn btn--primary btn--md" onclick={confirmPendingMenuAction}>
+                Delete Save
+                <span class="btn-sub">This cannot be undone</span>
+              </button>
+            </div>
+          {/if}
+          <button
+            class="btn btn--ghost btn--sm surrender-modal__cancel"
+            onclick={cancelPendingMenuAction}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- ═══ MOBILE CONTROL RIBBON + DRAWER (hidden on desktop) ═══ -->
@@ -1008,17 +1392,19 @@
           <span class="fab-icon">⚙</span>
           <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
         </button>
-        <button
-          class="fab-item"
-          onclick={() => {
-            audioManager.play("click");
-            openDiagnostics();
-            showSettingsFab = false;
-          }}
-        >
-          <span class="fab-icon">◎</span>
-          <span>Diagnostics</span>
-        </button>
+        {#if showInternalTools}
+          <button
+            class="fab-item"
+            onclick={() => {
+              audioManager.play("click");
+              openDiagnostics();
+              showSettingsFab = false;
+            }}
+          >
+            <span class="fab-icon">◎</span>
+            <span>Diagnostics</span>
+          </button>
+        {/if}
         <button
           class="fab-item"
           onclick={() => {
@@ -1034,7 +1420,7 @@
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
-            activeGameStore.playAgain();
+            requestRestartGame();
             showSettingsFab = false;
           }}
         >
@@ -1367,7 +1753,7 @@
       font-size: 1.1rem;
       cursor: pointer;
       z-index: 610;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
     }
     .drawer-close:active {
       background: rgba(0, 255, 255, 0.15);
@@ -1596,7 +1982,7 @@
     cursor: col-resize;
     z-index: 25;
     background: transparent;
-    transition: background 0.15s;
+    transition: background 0.2s;
   }
   .resize-handle:hover,
   .resize-handle.active,
@@ -1634,7 +2020,7 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     cursor: pointer;
-    transition: color 0.15s;
+    transition: color 0.2s;
   }
   .menu-header:hover {
     color: rgba(255, 255, 255, 0.7);
@@ -1647,8 +2033,8 @@
   .menu-items {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 4px 0;
+    gap: 6px;
+    padding: 6px 0 8px;
   }
 
   .menu-item {
@@ -1656,27 +2042,33 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: rgba(255, 255, 255, 0.6);
+    min-height: 40px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.68);
     font-family: "Montserrat", sans-serif;
     font-size: 0.78rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
     text-align: left;
   }
   .menu-item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
     color: #fff;
   }
   .menu-item.active {
-    background: rgba(80, 120, 255, 0.12);
-    border-color: rgba(80, 120, 255, 0.3);
-    color: #93c5fd;
+    background: rgba(68, 96, 180, 0.16);
+    border-color: rgba(96, 165, 250, 0.28);
+    color: #cfe2ff;
   }
 
   .mi-icon {
@@ -1693,12 +2085,139 @@
   .menu-divider {
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 4px 0;
+    margin: 8px 0 4px;
+  }
+
+  .menu-action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 12px 8px;
+  }
+
+  .menu-action-section {
+    display: grid;
+    grid-template-columns: minmax(92px, auto) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 8px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(9, 14, 28, 0.86)),
+      rgba(255, 255, 255, 0.02);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .menu-action-label {
+    min-width: 0;
+    padding-top: 9px;
+  }
+
+  .menu-action-label__title {
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.82);
+  }
+
+  .menu-action-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .menu-action-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .menu-action-btn {
+    width: 100%;
+    min-height: 34px;
+    min-width: 0;
+    padding: 0 12px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 9px;
+    background: rgba(13, 18, 32, 0.82);
+    color: rgba(241, 245, 249, 0.92);
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease,
+      background 0.2s ease,
+      color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .menu-action-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(125, 211, 252, 0.3);
+    background: rgba(24, 33, 54, 0.94);
+    color: #fff;
+  }
+
+  .menu-action-btn.is-open {
+    border-color: rgba(125, 211, 252, 0.34);
+    background: rgba(24, 33, 54, 0.96);
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.12);
+  }
+
+  .menu-action-btn--load {
+    color: #c7e7ff;
+    border-color: rgba(125, 211, 252, 0.24);
+  }
+
+  .menu-action-btn--restart {
+    color: #d9f99d;
+    border-color: rgba(163, 230, 53, 0.2);
+  }
+
+  .menu-action-btn--quit {
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.2);
+  }
+
+  .menu-action-panel {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgba(9, 14, 26, 0.96), rgba(6, 10, 18, 0.98)),
+      rgba(255, 255, 255, 0.02);
+    box-shadow:
+      0 12px 28px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .menu-action-feedback {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 100%;
+    color: #6ee7b7;
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
   }
 
   .menu-theme-manager {
     width: 100%;
-    padding: 6px 12px 10px 42px;
+    padding: 4px 12px 6px;
   }
 
   .menu-item.quit-item:hover {
@@ -1713,12 +2232,23 @@
     gap: 6px;
     padding: 4px 12px 4px 42px;
   }
+  .map-save-row--menu {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+    min-width: 0;
+    padding: 0;
+  }
   .map-name-input {
     flex: 1;
-    padding: 4px 8px;
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 10px;
     background: rgba(20, 20, 35, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
     color: #fff;
     font-family: "Montserrat", sans-serif;
     font-size: 0.72rem;
@@ -1728,18 +2258,26 @@
     outline: none;
   }
   .map-save-btn {
-    padding: 4px 10px;
+    min-width: 70px;
+    padding: 0 12px;
+    white-space: nowrap;
     background: rgba(80, 200, 120, 0.2);
     border: 1px solid rgba(80, 200, 120, 0.4);
-    border-radius: 4px;
+    border-radius: 8px;
     color: #6ee7b7;
     font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
   }
   .map-save-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
     background: rgba(80, 200, 120, 0.3);
+    border-color: rgba(110, 231, 183, 0.56);
   }
   .map-save-btn:disabled {
     opacity: 0.4;
@@ -1757,6 +2295,10 @@
     gap: 2px;
     padding: 4px 12px 4px 42px;
   }
+  .map-list--menu {
+    gap: 8px;
+    padding: 0;
+  }
   .map-list-empty {
     color: rgba(255, 255, 255, 0.35);
     font-size: 0.7rem;
@@ -1765,36 +2307,60 @@
   .map-list-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+  }
+  .map-list-item--saved-game {
+    align-items: stretch;
+    gap: 6px;
   }
   .map-load-btn {
     flex: 1;
-    padding: 4px 8px;
-    background: rgba(80, 140, 255, 0.1);
-    border: 1px solid rgba(80, 140, 255, 0.2);
-    border-radius: 4px;
+    min-height: 36px;
+    padding: 6px 10px;
+    background: rgba(80, 140, 255, 0.08);
+    border: 1px solid rgba(80, 140, 255, 0.16);
+    border-radius: 8px;
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.72rem;
     cursor: pointer;
     text-align: left;
-    transition: all 0.15s;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
   }
   .map-load-btn:hover {
+    transform: translateY(-1px);
     background: rgba(80, 140, 255, 0.2);
     border-color: rgba(80, 140, 255, 0.4);
     color: #93c5fd;
   }
+  .map-load-btn--saved-game {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 10px;
+  }
   .map-delete-btn {
+    min-width: 28px;
+    min-height: 28px;
     padding: 4px 6px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: 8px;
     color: rgba(255, 255, 255, 0.3);
     font-size: 0.7rem;
     cursor: pointer;
-    transition: all 0.15s;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
   }
   .map-delete-btn:hover {
+    transform: translateY(-1px);
     background: rgba(255, 80, 80, 0.15);
     border-color: rgba(255, 80, 80, 0.3);
     color: #fca5a5;
@@ -2061,7 +2627,7 @@
     font-family: inherit;
     cursor: pointer;
     border-radius: 8px;
-    transition: background 0.15s;
+    transition: background 0.2s;
     text-align: left;
   }
   .fab-item:hover {

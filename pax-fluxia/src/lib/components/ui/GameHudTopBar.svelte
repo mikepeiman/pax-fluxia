@@ -6,6 +6,16 @@
     interface Props {
         onMenuClick: () => void;
         onSettingsClick?: () => void;
+        showAudienceModeToggle?: boolean;
+        publicShellActive?: boolean;
+        onSwitchToPublicShell?: () => void;
+        onSwitchToDevShell?: () => void;
+        showAdvancedToggle?: boolean;
+        advancedActive?: boolean;
+        onAdvancedToggle?: () => void;
+        showInternalToggle?: boolean;
+        internalActive?: boolean;
+        onInternalToggle?: () => void;
         onDiagnosticsClick?: () => void;
         onThemesClick?: () => void;
         onRulerToggle?: () => void;
@@ -25,6 +35,16 @@
     let {
         onMenuClick,
         onSettingsClick,
+        showAudienceModeToggle = false,
+        publicShellActive = false,
+        onSwitchToPublicShell,
+        onSwitchToDevShell,
+        showAdvancedToggle = false,
+        advancedActive = false,
+        onAdvancedToggle,
+        showInternalToggle = false,
+        internalActive = false,
+        onInternalToggle,
         onDiagnosticsClick,
         onThemesClick,
         onRulerToggle,
@@ -85,6 +105,55 @@
     </div>
 
     <div class="game-hud-topbar__right">
+        {#if showAudienceModeToggle || showAdvancedToggle || showInternalToggle}
+            <div class="audience-shortcuts">
+                {#if showAudienceModeToggle}
+                    <div class="audience-mode-toggle" aria-label="Shell mode">
+                        <button
+                            type="button"
+                            class="audience-pill"
+                            class:active={!publicShellActive}
+                            onclick={onSwitchToDevShell}
+                            title="Switch to the full development shell"
+                        >
+                            Dev
+                        </button>
+                        <button
+                            type="button"
+                            class="audience-pill"
+                            class:active={publicShellActive}
+                            onclick={onSwitchToPublicShell}
+                            title="Preview the public shell without leaving dev"
+                        >
+                            Public
+                        </button>
+                    </div>
+                {/if}
+                {#if showAdvancedToggle && onAdvancedToggle}
+                    <button
+                        type="button"
+                        class="audience-pill"
+                        class:active={advancedActive}
+                        onclick={onAdvancedToggle}
+                        title={advancedActive ? "Hide advanced settings" : "Show advanced settings"}
+                    >
+                        Advanced
+                    </button>
+                {/if}
+                {#if showInternalToggle && onInternalToggle}
+                    <button
+                        type="button"
+                        class="audience-pill"
+                        class:active={internalActive}
+                        onclick={onInternalToggle}
+                        title={internalActive ? "Hide internal tools" : "Unlock internal tools"}
+                    >
+                        Internal
+                    </button>
+                {/if}
+            </div>
+        {/if}
+
         {#if onThemesClick}
             <div class="theme-shortcuts">
                 <button
@@ -355,6 +424,56 @@
         align-items: center;
         gap: 6px;
         min-width: 0;
+    }
+
+    .audience-shortcuts {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .audience-mode-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .audience-pill {
+        min-height: 30px;
+        padding: 0 10px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.76);
+        color: rgba(226, 232, 240, 0.86);
+        font-family: "Montserrat", sans-serif;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            transform 0.14s ease,
+            border-color 0.14s ease,
+            background 0.14s ease,
+            color 0.14s ease;
+    }
+
+    .audience-pill:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125, 211, 252, 0.36);
+        color: #fff;
+    }
+
+    .audience-pill.active {
+        border-color: rgba(248, 250, 252, 0.58);
+        background: rgba(59, 130, 246, 0.18);
+        color: rgba(255, 255, 255, 0.98);
     }
 
     .quick-action-btn {

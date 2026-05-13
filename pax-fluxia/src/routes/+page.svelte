@@ -12,6 +12,7 @@
     pushHomeRouteDiagEvent,
     resetHomeRouteDiagnostics,
   } from "$lib/utils/homeRouteDiagnostics";
+  import { canAccessAudience, resolveAudienceAccess } from "$lib/shell/audience";
 
   const EMPTY_HOME_ROUTE_DIAG: HomeRouteDiagSnapshot = {
     lastUpdatedAt: null,
@@ -55,6 +56,11 @@
   let benchmarkDisposer: (() => void) | null = null;
   let gameContainerLoadPromise: Promise<void> | null = null;
   let gameShellWarmupStarted = false;
+  let audienceAccess = $state(
+    resolveAudienceAccess({
+      isDev: import.meta.env.DEV,
+    }),
+  );
 
   const recentHomeRouteEvents = $derived(
     [...homeRouteDiagnostics.events].slice(-6).reverse(),
@@ -63,7 +69,8 @@
     [...homeRouteDiagnostics.errors].slice(-4).reverse(),
   );
   const showStartupDiagnostics = $derived(
-    Boolean(gameShellErrorMessage) || startupDiagnosticsOptIn,
+    canAccessAudience("internal", audienceAccess) &&
+      (Boolean(gameShellErrorMessage) || startupDiagnosticsOptIn),
   );
   const gameShellPhase = $derived(
     showGame
@@ -332,16 +339,24 @@
 
     const browserWindow = getBrowserWindow();
     const url = browserWindow ? new URL(browserWindow.location.href) : null;
+    audienceAccess = resolveAudienceAccess({
+      isDev: import.meta.env.DEV,
+      searchParams: url?.searchParams ?? null,
+    });
+    const internalToolsEnabled = canAccessAudience("internal", audienceAccess);
+    const benchmarkRequested = url?.searchParams.get("bench") === "1";
     const benchmarkEnabled =
-      import.meta.env.DEV || url?.searchParams.get("bench") === "1";
+      internalToolsEnabled && (import.meta.env.DEV || benchmarkRequested);
     startupDiagnosticsOptIn =
-      url?.searchParams.get("startupDiag") === "1" ||
-      url?.searchParams.get("diag") === "1";
+      internalToolsEnabled &&
+      (url?.searchParams.get("startupDiag") === "1" ||
+        url?.searchParams.get("diag") === "1");
 
     recordHomeRouteEvent("landing_route_mounted", {
       href: url?.toString() ?? null,
       dev: import.meta.env.DEV,
       benchmarkEnabled,
+      internalToolsEnabled,
     });
 
     const removeGlobalErrorHandlers = installHomeRouteGlobalErrorHandlers(() => {

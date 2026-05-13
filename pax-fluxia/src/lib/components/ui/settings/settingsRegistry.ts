@@ -1,5 +1,6 @@
 import type { SettingScope } from "./settingMetadata";
 import type { SettingsTier } from "../settingsDefs";
+import type { Audience } from "$lib/shell/audience";
 
 export type SettingsSectionId =
     | "players"
@@ -34,6 +35,7 @@ export interface SettingsSectionDefinition {
     label: string;
     color: string;
     tier: SettingsTier;
+    audience: Audience;
     scope: SettingScope | null;
     subsections?: readonly SettingsSubsectionDefinition[];
 }
@@ -45,6 +47,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Players",
         color: "#7dd3fc",
         tier: "basic",
+        audience: "public",
         scope: "players",
     },
     {
@@ -53,6 +56,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Timing",
         color: "#ffcc00",
         tier: "basic",
+        audience: "public",
         scope: null,
     },
     {
@@ -61,6 +65,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Combat Tuning",
         color: "#ff4466",
         tier: "advanced",
+        audience: "advanced",
         scope: "battle",
     },
     {
@@ -69,6 +74,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Economy",
         color: "#44ff88",
         tier: "basic",
+        audience: "advanced",
         scope: "economy",
     },
     {
@@ -77,6 +83,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Travel & Orders",
         color: "#44aaff",
         tier: "advanced",
+        audience: "advanced",
         scope: "travel",
     },
     {
@@ -85,6 +92,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Conquest",
         color: "#ff66aa",
         tier: "advanced",
+        audience: "advanced",
         scope: "conquest",
     },
     {
@@ -93,6 +101,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Effects",
         color: "#f472b6",
         tier: "advanced",
+        audience: "advanced",
         scope: "surge",
     },
     {
@@ -101,6 +110,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Map Options & Tuning",
         color: "#cc66ff",
         tier: "basic",
+        audience: "public",
         scope: "visuals",
         subsections: [
             { id: "background", label: "Background", icon: "◈" },
@@ -115,6 +125,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Phase Field",
         color: "#8ab4ff",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
     },
     {
@@ -123,6 +134,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Phase Edges",
         color: "#fda4af",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
     },
     {
@@ -131,6 +143,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Ember Lattice",
         color: "#fb923c",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
     },
     {
@@ -139,6 +152,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Frontier FX",
         color: "#f97316",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
     },
     {
@@ -147,6 +161,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Territory Topology",
         color: "#6ee7b7",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
     },
     {
@@ -155,6 +170,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Territory Styles",
         color: "#93c5fd",
         tier: "basic",
+        audience: "advanced",
         scope: "territory",
         subsections: [
             { id: "fill", label: "Fill", icon: "◌" },
@@ -168,6 +184,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Fleet & Star Visuals",
         color: "#88ccff",
         tier: "advanced",
+        audience: "advanced",
         scope: "ships",
     },
     {
@@ -176,6 +193,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Audio",
         color: "#44ddbb",
         tier: "basic",
+        audience: "public",
         scope: "audio",
     },
     {
@@ -184,6 +202,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Diagnostics",
         color: "#f59e0b",
         tier: "developer",
+        audience: "internal",
         scope: "diagnostics",
         subsections: [
             { id: "overlays", label: "Overlays", icon: "◌" },
@@ -199,6 +218,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "Logging",
         color: "#88aacc",
         tier: "developer",
+        audience: "internal",
         scope: "logging",
     },
     {
@@ -207,6 +227,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         label: "AI",
         color: "#ff8844",
         tier: "developer",
+        audience: "internal",
         scope: "ai",
     },
 ] as const;
