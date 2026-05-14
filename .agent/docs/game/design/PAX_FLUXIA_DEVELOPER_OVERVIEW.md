@@ -85,8 +85,8 @@ Pax Fluxia gains its depth from the underlying mechanics:
 #### Star Types and attributes
 Stars each have a type (out of 6 available), with one being basic, and five each have a 2X attribute boost in one attribute 
    1. [BLUE STAR, CIRCLE] Transit rate: how quickly this star can receive or disptch ships
-   2. [RED STAR, SQUARE] Attack strength
-   3. [GREEN STAR, TRIANGLE] Defensive strength
+   2. [RED STAR, SQUARE] Defense strength
+   3. [GREEN STAR, TRIANGLE] Attack strength
    4. [PURPLE STAR, HEXAGON] Repair rate
    5. [YELLOW STAR, PENTAGON] Production rate: ships are produced every tick at every star (eg. 1 ships every 2.5 ticks default)
    6. BASIC STAR, no bonses
