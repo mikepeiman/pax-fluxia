@@ -7,12 +7,12 @@
 > Use [TERRITORY_RENDER_SYSTEM_CURRENT.md](./TERRITORY_RENDER_SYSTEM_CURRENT.md) for the live mixed-runtime architecture, current naming/status, and 2026-04-27 / 2026-04-28 perf-corrected view.
 
 **Date:** 2026-03-19 (architecture); **2026-04-07** (transition unification + terminology); **2026-04-07** (full reconciliation with 2026-04-04 design + codebase audit)  
-**Status:** ACTIVE — single territory-system design reference.  
+**Status:** HISTORICAL/TARGET reference — superseded by `TERRITORY_RENDER_SYSTEM_CURRENT.md` for live current-state reasoning.  
 **Ref:** D-83
 
 > [!CAUTION]
-> Any AI agent working on territory code MUST read this document before making changes.
-> If your changes contradict anything here, STOP and ask the user.
+> Any AI agent working on territory architecture or transition invariants should read this document before making design changes.
+> If this document conflicts with current runtime status, defer to `TERRITORY_RENDER_SYSTEM_CURRENT.md`; if it conflicts with a mode-specific spec, ask the user.
 
 > [!IMPORTANT]
 > Experimental territory families may have their own mode-specific specs. For `perimeter_field`, the authoritative mode document is [PERIMETER_FIELD_MODE_SPEC.md](./PERIMETER_FIELD_MODE_SPEC.md).
