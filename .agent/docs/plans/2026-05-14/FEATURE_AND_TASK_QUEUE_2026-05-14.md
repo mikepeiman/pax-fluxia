@@ -21,3 +21,6 @@
   - `.agent/docs/game/design/TERMINOLOGY.md`
   - `.agent/docs/project/features/FEATURE_STATUS.md`
 - Overview doc written to disk.
+
+## Follow-On Task
+- Promote the remaining documentation from `codex/ui-settings/audience-facade` into `master` without overwriting unrelated work already present in the master worktree.
