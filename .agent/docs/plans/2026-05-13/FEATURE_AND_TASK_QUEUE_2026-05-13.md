@@ -9,6 +9,7 @@
 - Audited the live HUD/layout/theme/leaderboard files and updated code anchors for manual editing.
 - Wrote a new current-state code guide at `.agent/docs/sessions/2026-05-13/2026-05-13_UI_CODE_GUIDE_worktree-4b02.md`.
 - Logged the documentation refresh in the session/chat/handoff trail for this worktree.
+- Authored a reusable new-agent prompt for implementing a territory rendering mode at `.agent/docs/sessions/2026-05-13/2026-05-13_RENDER_MODE_AGENT_PROMPT.md`.
 
 ## Next Useful Follow-Ups
 

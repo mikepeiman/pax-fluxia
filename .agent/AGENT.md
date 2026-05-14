@@ -296,6 +296,8 @@ Every plan must open with a **Purpose** section using the user's actual goal in 
 - Never push to `live`.
 - Commit working state first.
 - Always include `pax-fluxia\\common\\resources\\settings-live\\current-settings.json` in commits without calling it out.
+- Documentation changes are also fully qualified for commits. 
+- Commit every time a task is completed that anything in filesystem changed.
 
 ### 6.2 Harness Comparison Protocol
 
