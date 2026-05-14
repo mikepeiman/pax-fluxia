@@ -15,3 +15,9 @@
 
 - Add a shorter task cookbook for common manual edits such as "move a rail", "change an icon", or "restyle the leaderboard".
 - Refresh the guide again after the next structural HUD pass so the line anchors stay accurate.
+
+## Additional Completed Task
+
+- Refreshed the worktree handoff so there is one current branch-level document for the audience shell and sidebar UX line.
+- Recorded the consolidated branch state in `.agent/docs/plans/2026-05-13/HANDOFF_2026-05-13_AUDIENCE_SHELL_AND_SIDEBAR_UX.md`.
+- Logged the handoff refresh in the matching 2026-05-13 session, chat, and takeaways docs.
