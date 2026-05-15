@@ -31,3 +31,16 @@ Include in plan document; produce plan document as project file I can reference.
 
 - Created a project plan file with a concept/intent/implementation-shape brief, screenshot-derived timing report, problem file/function map, and phased recovery plan.
 - Created today's feature queue and session note for this worktree.
+
+## Human Input
+
+```text
+I need you to produce a compact, concise outline of current architecture around territory rendering, and overall arch, so external worktree agents can produce complex rendering modes that can be effectively reintegrated into Pax Fluxia master with minimal to zero friction or conflicts.
+
+You are permitted to make a few concise suggestions for how the worktree agent should do their work, but the main focus is a short, concise architectural overview, with key files and function names.
+```
+
+## Agent Summary
+
+- Created `.agent/docs/plans/2026-05-15/TERRITORY_RENDER_ARCHITECTURE_BRIEF_FOR_WORKTREE_AGENTS_2026-05-15.md`.
+- The brief maps the overall app shape, territory runtime shapes, key dispatch files/functions, settings/diagnostics surfaces, and a minimal reintegration checklist.

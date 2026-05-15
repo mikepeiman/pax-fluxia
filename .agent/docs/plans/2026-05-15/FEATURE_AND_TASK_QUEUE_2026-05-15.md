@@ -8,6 +8,7 @@
 
 - Created a dated Grid Gradient performance recovery plan with a concept/intent/implementation-shape brief for external research.
 - Logged the screenshot-derived hot paths, affected files/functions, and proposed recovery phases.
+- Created a compact territory rendering architecture brief for external worktree agents.
 
 ## Next Useful Follow-Ups
 
