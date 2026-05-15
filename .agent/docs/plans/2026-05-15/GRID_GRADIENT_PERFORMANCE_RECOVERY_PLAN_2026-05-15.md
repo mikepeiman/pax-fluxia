@@ -89,6 +89,11 @@ The evidence below comes from user-provided DevTools Performance screenshots on 
    - border-dot batch count,
    - last draw backend.
 
+2026-05-15 update:
+
+- Renderer backend diagnostics are now exposed through the existing Mode Diagnostics row, the Grid Gradient diagnostics row, and the benchmark snapshot. The row reports `webgl`, `webgpu`, `canvas`, or `unknown`, plus the detection source and Pixi renderer class when available.
+- Implementation files: `pax-fluxia/src/lib/renderers/pixiRendererDiagnostics.ts`, `pax-fluxia/src/lib/stores/territoryRenderStatusStore.ts`, `pax-fluxia/src/lib/territory/families/gridGradient/GridGradientFamily.ts`, `pax-fluxia/src/lib/territory/families/gridGradient/gridGradientStats.ts`, `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`, and `pax-fluxia/src/lib/components/game/GameCanvas.svelte`.
+
 Acceptance:
 
 - A future screenshot or diagnostics dump can distinguish geometry rebuild, plan rebuild, rasterization, transition update, and presentation upload costs.

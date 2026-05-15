@@ -4,6 +4,10 @@ export interface GridGradientStats {
     readonly familyId: string;
     readonly familyLabel: string;
     readonly geometrySource: string | null;
+    readonly rendererType: string;
+    readonly rendererTypeSource: string;
+    readonly rendererConstructorName: string | null;
+    readonly rendererReportedType: string | null;
     readonly requestedSpacingPx: number;
     readonly effectiveSpacingPx: number;
     readonly totalCells: number;
@@ -34,6 +38,10 @@ const INITIAL: GridGradientStats = {
     familyId: 'grid_gradient',
     familyLabel: 'Grid Gradient',
     geometrySource: null,
+    rendererType: 'unknown',
+    rendererTypeSource: 'missing',
+    rendererConstructorName: null,
+    rendererReportedType: null,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
     totalCells: 0,

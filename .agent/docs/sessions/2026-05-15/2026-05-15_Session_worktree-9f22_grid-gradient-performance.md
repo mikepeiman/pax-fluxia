@@ -21,8 +21,25 @@ Analyze the user-provided DevTools Performance screenshots for `Grid Gradient`, 
 
 ## Current Status
 
-The recovery plan, compact architecture brief, and external-agent source bundle are documented. No implementation code has been changed in this session.
+The recovery plan, compact architecture brief, and external-agent source bundle are documented. Grid Gradient now exposes Pixi renderer backend through existing diagnostics rather than relying on a direct `renderer.type` console probe.
+
+## 2026-05-15 Renderer Diagnostics Follow-Up
+
+User reported that the prior console command for Pixi renderer type returned `undefined`. The implementation now:
+
+- adds `resolvePixiRendererDiagnostics()` in `pax-fluxia/src/lib/renderers/pixiRendererDiagnostics.ts`,
+- writes renderer backend fields into `territoryRenderStatus`,
+- writes renderer backend fields into `gridGradientStats`,
+- shows a `Renderer` row in the general Mode Diagnostics panel,
+- shows a `Renderer` row in the Grid Gradient diagnostics panel,
+- includes renderer diagnostics in `GridGradientFamily.getDebugSnapshot()`,
+- includes top-level renderer diagnostics in `GameCanvas.getBenchmarkTerritorySchedulerSnapshot()`.
+
+Validation:
+
+- `bunx vitest run src/lib/renderers/pixiRendererDiagnostics.test.ts src/lib/territory/families/gridGradient/gridGradientScene.test.ts`
+- `bun run build` in `pax-fluxia/`
 
 ## Next Action
 
-Begin with plan Phase 0 diagnostics, then replace the normal Grid Gradient classification path with a grid-native scanline rasterizer and move plan generation off the animation frame.
+Continue Phase 0 diagnostics, then replace the normal Grid Gradient classification path with a grid-native scanline rasterizer and move plan generation off the animation frame.

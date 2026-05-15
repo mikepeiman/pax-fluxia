@@ -9,6 +9,7 @@
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
+    import { resolvePixiRendererDiagnostics } from "$lib/renderers/pixiRendererDiagnostics";
     import {
         getOrbitSlot,
         getTotalOccupiedLayers,
@@ -6532,9 +6533,19 @@
                               return Number.isFinite(value) ? value : null;
                           })()
                         : null;
+                    const rendererDiagnostics = resolvePixiRendererDiagnostics(
+                        app?.renderer,
+                    );
                     setTerritoryRenderStatus({
                         territoryMode: activeMode,
                         geometryReady,
+                        rendererType: rendererDiagnostics.rendererType,
+                        rendererTypeSource:
+                            rendererDiagnostics.rendererTypeSource,
+                        rendererConstructorName:
+                            rendererDiagnostics.rendererConstructorName,
+                        rendererReportedType:
+                            rendererDiagnostics.rendererReportedType,
                         arrowRenderer: "overlay_canvas",
                         lastRenderFailure,
                         msrRequestedMarginPx:
@@ -7016,6 +7027,7 @@
             gridGradientFamily instanceof GridGradientFamily
                 ? gridGradientFamily.getDebugSnapshot()
                 : null;
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(app?.renderer);
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
             .slice()
             .sort((a, b) => a.id - b.id)
@@ -7046,6 +7058,7 @@
             ownerStarCounts,
             metaballGridDebug,
             gridGradientDebug,
+            rendererDiagnostics,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress: Number(lastRenderedTickProgress.toFixed(4)),

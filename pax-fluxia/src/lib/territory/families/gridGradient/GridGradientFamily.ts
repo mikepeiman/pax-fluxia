@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
+import { resolvePixiRendererDiagnostics } from '$lib/renderers/pixiRendererDiagnostics';
 import {
     buildOwnershipGridFrontierDistanceField,
     createOwnershipGridFrontierDistanceFieldBuffers,
@@ -260,9 +261,11 @@ export class GridGradientFamily implements RenderFamily {
         readonly paintMs: number;
         readonly updateMs: number;
     }): void {
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(params.input.renderer);
         const debugSnapshot = {
             familyId: this.id,
             familyLabel: this.label,
+            rendererDiagnostics,
             planKey: params.plan.planKey,
             geometryVersion: params.geometry.version,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
@@ -283,6 +286,10 @@ export class GridGradientFamily implements RenderFamily {
             geometrySource:
                 (params.input.configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ??
                 null,
+            rendererType: rendererDiagnostics.rendererType,
+            rendererTypeSource: rendererDiagnostics.rendererTypeSource,
+            rendererConstructorName: rendererDiagnostics.rendererConstructorName,
+            rendererReportedType: rendererDiagnostics.rendererReportedType,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
             totalCells: params.plan.classification.vstars.length,

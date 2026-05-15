@@ -1,15 +1,12 @@
-﻿// GRID_GRADIENT_GOD_OBJECT.ts
-// Generated reference bundle for external-agent review. Do not compile this file.
-// Each section preserves original source text and starts with original path + line range.
-// Edit the real source files listed in SOURCE comments, not this bundled digest.
+// Grid Gradient external-agent source bundle. Not compiled.
+// Generated from live source on 2026-05-15.
 
+// ============================================================================
+// SECTION 00 - contract
+// SOURCE: pax-fluxia/src/lib/territory/families/RenderFamilyTypes.ts:1-98
+// GREP: RenderFamilyInput, RenderFamily, RenderFamilyOutput
+// ============================================================================
 
-/* ==========================================================================
-SECTION 00: Render-family input/output contract
-LAYER: contract
-SOURCE: pax-fluxia\src\lib\territory\families\RenderFamilyTypes.ts:1-97
-GREP: RenderFamilyInput, RenderFamily, RenderFamilyOutput
-========================================================================== */
 import type * as PIXI from 'pixi.js';
 import type { ConquestEvent } from '@pax/common';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
@@ -66,7 +63,7 @@ export interface RenderFamilyInput {
     /**
      * Optional PREV (pre-transition) geometry snapshot, captured upstream in
      * GameCanvas once per transition key and passed to all families. Previously
-     * each family rebuilt its own PREV from reverted stars inside update() â€”
+     * each family rebuilt its own PREV from reverted stars inside update() —
      * duplicate work that dominated the trace at small cell spacings
      * (MG-PERF Phase C, 2026-04-19). Families may fall back to a local rebuild
      * if this is null (e.g. first frame after a hot reload).
@@ -108,12 +105,13 @@ export interface RenderFamily {
     dispose(): void;
 }
 
-/* ==========================================================================
-SECTION 01: Render-family registry
-LAYER: contract
-SOURCE: pax-fluxia\src\lib\territory\families\renderFamilyRegistry.ts:1-18
-GREP: registerRenderFamily, getRenderFamily
-========================================================================== */
+
+// ============================================================================
+// SECTION 01 - contract
+// SOURCE: pax-fluxia/src/lib/territory/families/renderFamilyRegistry.ts:1-19
+// GREP: registerRenderFamily, getRenderFamily
+// ============================================================================
+
 import type { RenderFamily } from './RenderFamilyTypes';
 
 const families = new Map<string, RenderFamily>();
@@ -133,12 +131,13 @@ export function disposeAllRenderFamilies(): void {
     families.clear();
 }
 
-/* ==========================================================================
-SECTION 02: Builds per-frame family input and tunables
-LAYER: contract
-SOURCE: pax-fluxia\src\lib\territory\families\buildRenderFamilyInput.ts:1-130
-GREP: buildRenderFamilyInput, collectRenderFamilyTunables
-========================================================================== */
+
+// ============================================================================
+// SECTION 02 - contract
+// SOURCE: pax-fluxia/src/lib/territory/families/buildRenderFamilyInput.ts:1-131
+// GREP: buildRenderFamilyInput, collectRenderFamilyTunables
+// ============================================================================
+
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     logPipelineStage,
@@ -270,12 +269,13 @@ export function buildRenderFamilyInput(params: {
     return input;
 }
 
-/* ==========================================================================
-SECTION 03: Builds active transition sessions for families
-LAYER: transition
-SOURCE: pax-fluxia\src\lib\territory\transitions\renderFamilyTransitionLifecycle.ts:1-173
-GREP: buildRenderFamilyTransitionLifecycle
-========================================================================== */
+
+// ============================================================================
+// SECTION 03 - transition
+// SOURCE: pax-fluxia/src/lib/territory/transitions/renderFamilyTransitionLifecycle.ts:1-174
+// GREP: buildRenderFamilyTransitionLifecycle
+// ============================================================================
+
 import type { ConquestEvent } from '@pax/common';
 import {
     resolveTerritoryTransitionDurationMs,
@@ -450,12 +450,13 @@ export function buildRenderFamilyTransitionLifecycle(params: {
     };
 }
 
-/* ==========================================================================
-SECTION 04: Ownership snapshot and shared family geometry builders
-LAYER: ownership/geometry
-SOURCE: pax-fluxia\src\lib\territory\families\buildFamilyGeometry.ts:1-281
-GREP: buildOwnershipSnapshotFromStars, buildPerimeterFieldRenderFamilyGeometry
-========================================================================== */
+
+// ============================================================================
+// SECTION 04 - ownership/geometry
+// SOURCE: pax-fluxia/src/lib/territory/families/buildFamilyGeometry.ts:1-282
+// GREP: buildOwnershipSnapshotFromStars, buildPerimeterFieldRenderFamilyGeometry
+// ============================================================================
+
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     logPipelineStage,
@@ -738,12 +739,13 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     return geometry;
 }
 
-/* ==========================================================================
-SECTION 05: Point-in-polygon hot path used by current classifier
-LAYER: geometry
-SOURCE: pax-fluxia\src\lib\territory\geometry\geometryUtils.ts:60-82
-GREP: pointInPolygon
-========================================================================== */
+
+// ============================================================================
+// SECTION 05 - geometry
+// SOURCE: pax-fluxia/src/lib/territory/geometry/geometryUtils.ts:60-82
+// GREP: pointInPolygon
+// ============================================================================
+
         }
     }
     return true;
@@ -768,14 +770,14 @@ export function pointInPolygon(px: number, py: number, polygon: readonly [number
 /**
  * Compute the centroid of a closed polygon.
 
-/* ==========================================================================
-SECTION 06: Shared grid ownership classification, current perf bottleneck
-LAYER: classification
-SOURCE: pax-fluxia\src\lib\territory\families\metaballGrid\buildGridClassification.ts:1-596
-GREP: buildGridClassification, resolveOwnerAt
-========================================================================== */
+// ============================================================================
+// SECTION 06 - classification
+// SOURCE: pax-fluxia/src/lib/territory/families/metaballGrid/buildGridClassification.ts:1-597
+// GREP: buildGridClassification, resolveOwnerAt
+// ============================================================================
+
 /**
- * metaball-grid â€” classification builder (MG2)
+ * metaball-grid — classification builder (MG2)
  *
  * Builds a world-anchored grid of vstars and resolves PREV/NEXT ownership for
  * each cell via point-in-polygon against `territoryRegions`. Classifies each
@@ -784,8 +786,8 @@ GREP: buildGridClassification, resolveOwnerAt
  *
  * Pure function. Deterministic for fixed inputs.
  *
- * Complexity: O(N_v * N_regions) per call. For 1920Ã—1080 @ 24 px spacing and
- * ~10 regions â‰ˆ 72k point-in-polygon tests â€” one-shot per conquest.
+ * Complexity: O(N_v * N_regions) per call. For 1920×1080 @ 24 px spacing and
+ * ~10 regions ≈ 72k point-in-polygon tests — one-shot per conquest.
  */
 
 import type { ConquestEvent } from '@pax/common';
@@ -1174,7 +1176,7 @@ function hash2Int(a: number, b: number): number {
 
 /**
  * Build a deterministic classification of the visual-truth grid for one
- * PREVâ†’NEXT transition.
+ * PREV→NEXT transition.
  */
 export function buildGridClassification(params: BuildGridClassificationParams): GridClassification {
     const {
@@ -1366,17 +1368,18 @@ export function buildGridClassification(params: BuildGridClassificationParams): 
     };
 }
 
-/** Helper for consumers that need row-major index â†’ vstar lookup. */
+/** Helper for consumers that need row-major index → vstar lookup. */
 export function gridIndex(ix: number, iy: number, cols: number): number {
     return iy * cols + ix;
 }
 
-/* ==========================================================================
-SECTION 07: Grid wave/phase planning reused by Grid Gradient
-LAYER: transition
-SOURCE: pax-fluxia\src\lib\territory\families\metaballGrid\planGridWave.ts:1-593
-GREP: planGridWave
-========================================================================== */
+
+// ============================================================================
+// SECTION 07 - transition
+// SOURCE: pax-fluxia/src/lib/territory/families/metaballGrid/planGridWave.ts:1-594
+// GREP: planGridWave
+// ============================================================================
+
 /**
  * metaball-grid - wave planner (MG3)
  *
@@ -1971,35 +1974,36 @@ export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
     };
 }
 
-/* ==========================================================================
-SECTION 08: Grid cell scene evaluation reused by Grid Gradient
-LAYER: transition/presentation
-SOURCE: pax-fluxia\src\lib\territory\families\metaballGrid\renderMetaballGridScene.ts:1-359
-GREP: renderMetaballGridScene
-========================================================================== */
+
+// ============================================================================
+// SECTION 08 - transition/presentation
+// SOURCE: pax-fluxia/src/lib/territory/families/metaballGrid/renderMetaballGridScene.ts:1-360
+// GREP: renderMetaballGridScene
+// ============================================================================
+
 /**
- * metaball-grid â€” per-frame scene builder (MG4)
+ * metaball-grid — per-frame scene builder (MG4)
  *
- * Given a classification, a wave plan, the current `progress âˆˆ [0, 1]`, and a
+ * Given a classification, a wave plan, the current `progress ∈ [0, 1]`, and a
  * flip-style/window, emit the set of `GridRenderCell` contributions for the
  * metaball compositor. Pure function.
  *
  * Flip styles (from plan doc):
- * - `hard` â€” one cell per vstar. Prev color until `progress < flipTime`, Next
+ * - `hard` — one cell per vstar. Prev color until `progress < flipTime`, Next
  *   color at/after. Alpha = 1.
- * - `lerp_per_cell` â€” `hard` outside `[flipTime âˆ’ W, flipTime + W]`. Inside the
+ * - `lerp_per_cell` — `hard` outside `[flipTime − W, flipTime + W]`. Inside the
  *   window, emit two cells (PREV-side and NEXT-side) with smoothstep alphas
  *   summing to 1.
- * - `dual_pass_blend` â€” always emit two cells per vstar, with PREV-side alpha
- *   `1 âˆ’ smoothstep(flipTime âˆ’ W, flipTime + W, progress)` and NEXT-side the
+ * - `dual_pass_blend` — always emit two cells per vstar, with PREV-side alpha
+ *   `1 − smoothstep(flipTime − W, flipTime + W, progress)` and NEXT-side the
  *   complement. The compositor sums both passes.
  *
  * Role handling:
- * - `native` â†’ one cell at `nextOwnerId` color, alpha 1.
- * - `dispossessed` â†’ per the flip style above.
- * - `emergent` (prev null, next X) â†’ like dispossessed but PREV-side omitted.
- * - `vacating` (prev X, next null) â†’ like dispossessed but NEXT-side omitted.
- * - `outside` â†’ never emitted.
+ * - `native` → one cell at `nextOwnerId` color, alpha 1.
+ * - `dispossessed` → per the flip style above.
+ * - `emergent` (prev null, next X) → like dispossessed but PREV-side omitted.
+ * - `vacating` (prev X, next null) → like dispossessed but NEXT-side omitted.
+ * - `outside` → never emitted.
  */
 
 import type {
@@ -2016,7 +2020,7 @@ function clamp01(x: number): number {
 
 /** Classic 2-edge smoothstep. Returns 0 at/below `edge0`, 1 at/above `edge1`. */
 function smoothstep(edge0: number, edge1: number, x: number): number {
-    if (edge1 <= edge0) return x < edge0 ? 0 : 1; // degenerate â†’ step
+    if (edge1 <= edge0) return x < edge0 ? 0 : 1; // degenerate → step
     const t = clamp01((x - edge0) / (edge1 - edge0));
     return t * t * (3 - 2 * t);
 }
@@ -2028,7 +2032,7 @@ function resolveColorIdx(ownerId: string | null, ownerColorIdx: ReadonlyMap<stri
 }
 
 /**
- * Emit a scene for `progress âˆˆ [0, 1]`. All cells carry world-space `(x, y)`,
+ * Emit a scene for `progress ∈ [0, 1]`. All cells carry world-space `(x, y)`,
  * owner color index, alpha, strength, and a `pass` tag so the compositor can
  * route PREV/NEXT passes if needed.
  */
@@ -2237,7 +2241,7 @@ function emitLerpPerCell(args: {
         if (emitPrev && prevColor !== null) {
             out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: prevColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitNext && nextColor !== null) {
-            // Only NEXT allowed (emergent) â€” hard-present under role rule.
+            // Only NEXT allowed (emergent) — hard-present under role rule.
             out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: nextColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
@@ -2246,13 +2250,13 @@ function emitLerpPerCell(args: {
         if (emitNext && nextColor !== null) {
             out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: nextColor, alpha: gain, strength, pass: 'single', role: v.role });
         } else if (emitPrev && prevColor !== null) {
-            // Only PREV allowed (vacating) â€” faded out after window.
+            // Only PREV allowed (vacating) — faded out after window.
             out.push({ vId: v.id, ix: v.ix, iy: v.iy, x: v.x, y: v.y, colorIdx: prevColor, alpha: 0, strength, pass: 'single', role: v.role });
         }
         return;
     }
 
-    // Inside window: complementary alphas. smoothstep from loâ†’hi.
+    // Inside window: complementary alphas. smoothstep from lo→hi.
     const s = smoothstep(lo, hi, progress);
     const prevAlpha = (1 - s) * (emitPrev ? 1 : 0) * gain;
     const nextAlpha = s * (emitNext ? 1 : 0) * gain;
@@ -2337,25 +2341,26 @@ function emitDualPass(args: {
     }
 }
 
-/* ==========================================================================
-SECTION 09: Shared grid types used by classification/wave/scene
-LAYER: types
-SOURCE: pax-fluxia\src\lib\territory\families\metaballGrid\metaballGridTypes.ts:1-364
-GREP: GridClassification, GridVStar, GridRenderCell
-========================================================================== */
+
+// ============================================================================
+// SECTION 09 - types
+// SOURCE: pax-fluxia/src/lib/territory/families/metaballGrid/metaballGridTypes.ts:1-365
+// GREP: GridClassification, GridVStar, GridRenderCell
+// ============================================================================
+
 /**
- * metaball-grid â€” type contracts (MG1)
+ * metaball-grid — type contracts (MG1)
  *
  * Additive render family. Not a replacement for perimeter_field.
  *
  * Two-layer architecture (per ./METABALL_GRID_MODE_PLAN_2026-04-17.md):
  *
  *  1. Ownership-geometry truth underlayer (`ResolvedGeometrySnapshot`,
- *     authoritative â€” e.g. tuned `power_voronoi_0319`).
- *  2. Visual-truth grid layer â€” a fixed, world-anchored grid of vstars with
+ *     authoritative — e.g. tuned `power_voronoi_0319`).
+ *  2. Visual-truth grid layer — a fixed, world-anchored grid of vstars with
  *     PREV and NEXT owner resolved by point-in-polygon against the
  *     `territoryRegions` of each snapshot. A wave planner assigns each
- *     dispossessed vstar a `flipTime âˆˆ [0, 1]`, and a scene builder emits
+ *     dispossessed vstar a `flipTime ∈ [0, 1]`, and a scene builder emits
  *     per-frame `{colorIdx, alpha, strength}` for each grid vstar.
  *
  * The underlayer is never mutated by this layer.
@@ -2364,9 +2369,9 @@ GREP: GridClassification, GridVStar, GridRenderCell
 import type { ConquestEvent } from '@pax/common';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Config option unions â€” mirror `METABALL_GRID_*` keys in `game.config.ts`.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Config option unions — mirror `METABALL_GRID_*` keys in `game.config.ts`.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type GridOriginMode = 'centered' | 'corner';
 
@@ -2398,26 +2403,26 @@ export type GridWaveSeeding =
 /** Per-cell flip style at `flipTime`. */
 export type GridFlipTransition = 'hard' | 'lerp_per_cell' | 'dual_pass_blend';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Role classification.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Role of a grid vstar in a PREVâ†’NEXT ownership transition.
+ * Role of a grid vstar in a PREV→NEXT ownership transition.
  *
- * - `native` â€” `prevOwnerId === nextOwnerId`, non-null. Never changes.
- * - `dispossessed` â€” both defined and different. Participates in a wave.
- * - `emergent` â€” `prevOwnerId === null`, `nextOwnerId !== null`. Treated as
+ * - `native` — `prevOwnerId === nextOwnerId`, non-null. Never changes.
+ * - `dispossessed` — both defined and different. Participates in a wave.
+ * - `emergent` — `prevOwnerId === null`, `nextOwnerId !== null`. Treated as
  *   dispossessed with PREV alpha = 0.
- * - `vacating` â€” `prevOwnerId !== null`, `nextOwnerId === null`. Treated as
+ * - `vacating` — `prevOwnerId !== null`, `nextOwnerId === null`. Treated as
  *   dispossessed with NEXT alpha = 0.
- * - `outside` â€” both null. Not emitted into the metaball field.
+ * - `outside` — both null. Not emitted into the metaball field.
  */
 export type GridVRole = 'native' | 'dispossessed' | 'emergent' | 'vacating' | 'outside';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Grid vstar.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * One vertex of the world-anchored visual grid. Positions are fixed for the
@@ -2438,15 +2443,15 @@ export interface GridVStar {
     readonly prevOwnerId: string | null;
     /** Owner under NEXT snapshot, or null if no region contains this point. */
     readonly nextOwnerId: string | null;
-    /** Role under this PREVâ†’NEXT transition. */
+    /** Role under this PREV→NEXT transition. */
     readonly role: GridVRole;
     /** For dispossessed/emergent/vacating cells, the attributed event id. */
     readonly eventId: string | null;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Classification result.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Output of `buildGridClassification`. Deterministic and pure: identical inputs
@@ -2489,15 +2494,15 @@ export interface GridClassification {
     readonly emittableVstars: readonly GridVStar[];
     /** By-role bins, each carrying vstar ids (not positions) for fast iteration. */
     readonly byRole: Readonly<Record<GridVRole, readonly string[]>>;
-    /** `eventId â†’ dispossessed vstar ids`, including the synthetic default bucket. */
+    /** `eventId → dispossessed vstar ids`, including the synthetic default bucket. */
     readonly dispossessedByEventId: Readonly<Record<string, readonly string[]>>;
     /** Synthetic default event id used for unmatched `(prev, next)` pairs. */
     readonly defaultEventId: string;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Wave plan.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** Per-event wave plan: flip-time rank for each dispossessed vstar of the event. */
 export interface GridWavePlanEvent {
@@ -2512,7 +2517,7 @@ export interface GridWavePlanEvent {
     /** Max rank across the event (used to normalize `flipTime`). */
     readonly maxRank: number;
     /**
-     * `gridVStar.id â†’ flipTime âˆˆ [0, 1]`.
+     * `gridVStar.id → flipTime ∈ [0, 1]`.
      * Ties broken deterministically by `(gridIy, gridIx)`.
      */
     readonly flipTimeByVId: ReadonlyMap<string, number>;
@@ -2524,7 +2529,7 @@ export interface GridWavePlanEvent {
 export interface GridWavePlan {
     /** Per-event sub-plans, ordered by input event order. */
     readonly perEvent: readonly GridWavePlanEvent[];
-    /** Flat lookup: `gridVStar.id â†’ flipTime âˆˆ [0, 1]` for conquest-attributed cells only. */
+    /** Flat lookup: `gridVStar.id → flipTime ∈ [0, 1]` for conquest-attributed cells only. */
     readonly flipTimeByVId: ReadonlyMap<string, number>;
     /**
      * All conquest-attributed transition cells sorted by effective flip time,
@@ -2535,9 +2540,9 @@ export interface GridWavePlan {
     readonly orderedFlipTimes: readonly number[];
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Transition truth payload (captured upstream at conquest start).
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Deterministic truth payload for one metaball-grid transition. Produced by
@@ -2561,9 +2566,9 @@ export interface GridMetaballTransitionTruth {
     readonly wavePlan: GridWavePlan;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Per-frame renderable cell.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * One renderable contribution to the metaball field at a given `progress`.
@@ -2605,7 +2610,7 @@ export interface GridRenderCell {
 
 /** Complete scene emitted per frame. */
 export interface GridMetaballScene {
-    /** Scrub position this scene was built at, `âˆˆ [0, 1]`. */
+    /** Scrub position this scene was built at, `∈ [0, 1]`. */
     readonly progress: number;
     /**
      * Emitted cells: native (every frame, static NEXT color) + active roles
@@ -2617,9 +2622,9 @@ export interface GridMetaballScene {
     readonly flipTransition: GridFlipTransition;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Build-input bundles (keep external callers terse).
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Ownership snapshot of a star at one of the PREV/NEXT time points. Used for
@@ -2653,16 +2658,16 @@ export interface BuildGridClassificationParams {
      * including weighted-voronoi MSR holes, so the grid layer remains continuous.
      */
     readonly prevOwnedStars?: ReadonlyArray<GridOwnedStar>;
-    /** Owned stars under NEXT snapshot â€” same behavior as `prevOwnedStars`. */
+    /** Owned stars under NEXT snapshot — same behavior as `prevOwnedStars`. */
     readonly nextOwnedStars?: ReadonlyArray<GridOwnedStar>;
     /**
      * Max distance (world px) a grid cell may be from an owned star to
      * inherit its owner via the nearest-star fallback. Cells farther than
-     * this from any owned star remain `outside`. Default: 3 Ã— spacingPx.
+     * this from any owned star remain `outside`. Default: 3 × spacingPx.
      */
     readonly coverageRadiusPx?: number;
     /**
-     * Hard cap on total cell count (cols Ã— rows). When the grid built from
+     * Hard cap on total cell count (cols × rows). When the grid built from
      * `spacingPx` would exceed this, the builder coarsens spacing upward to
      * stay under the cap. The effective spacing is reported as
      * `GridClassification.spacingPx`; the requested spacing is preserved as
@@ -2676,7 +2681,7 @@ export interface BuildGridClassificationParams {
     readonly distribution?: GridDistribution;
     /**
      * Deterministic per-cell position scatter, expressed as a fraction of
-     * spacing. 0 = none; 0.5 â‰ˆ neighbours can overlap. Seeded by `(ix, iy)`
+     * spacing. 0 = none; 0.5 ≈ neighbours can overlap. Seeded by `(ix, iy)`
      * so positions are stable across frames and sessions. Only applied when
      * `distribution === 'jittered'`. Default: 0.
      */
@@ -2700,7 +2705,7 @@ export interface RenderMetaballGridSceneParams {
     readonly flipWindow: number;
     readonly strength: number;
     readonly inwardOffsetPx: number;
-    /** Owner id â†’ palette color index. */
+    /** Owner id → palette color index. */
     readonly ownerColorIdx: ReadonlyMap<string, number>;
     /** When false, omit static native cells and emit only active transition cells. */
     readonly includeNativeCells?: boolean;
@@ -2708,12 +2713,13 @@ export interface RenderMetaballGridSceneParams {
     readonly omitVIds?: ReadonlySet<string>;
 }
 
-/* ==========================================================================
-SECTION 10: Grid Gradient defaults
-LAYER: settings
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\config.ts:1-20
-GREP: gridGradientFamilyConfigDefaults
-========================================================================== */
+
+// ============================================================================
+// SECTION 10 - settings
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/config.ts:1-21
+// GREP: gridGradientFamilyConfigDefaults
+// ============================================================================
+
 export type GridGradientCellShape = 'circle' | 'square' | 'noise';
 export type GridGradientBorderDotStyle = 'blended' | 'butted';
 
@@ -2735,12 +2741,13 @@ export const gridGradientFamilyConfigDefaults = {
     GRID_GRADIENT_BORDER_DOT_STYLE: 'blended' as const,
 } as const;
 
-/* ==========================================================================
-SECTION 11: Reads Grid Gradient tunables from RenderFamilyInput
-LAYER: settings
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\settings.ts:1-298
-GREP: resolveGridGradientSettings, GRID_GRADIENT_TUNABLE_KEYS
-========================================================================== */
+
+// ============================================================================
+// SECTION 11 - settings
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/settings.ts:1-299
+// GREP: resolveGridGradientSettings, GRID_GRADIENT_TUNABLE_KEYS
+// ============================================================================
+
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
 import type {
@@ -3040,12 +3047,13 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
     };
 }
 
-/* ==========================================================================
-SECTION 12: Builds Grid Gradient plan key, classification, wave plan
-LAYER: classification/transition
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\plan.ts:1-154
-GREP: buildGridGradientPlan, buildGridGradientPlanKey
-========================================================================== */
+
+// ============================================================================
+// SECTION 12 - classification/transition
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/plan.ts:1-155
+// GREP: buildGridGradientPlan, buildGridGradientPlanKey
+// ============================================================================
+
 import type { StarState } from '$lib/types/game.types';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
@@ -3201,12 +3209,13 @@ export function buildGridGradientPlan(params: {
     };
 }
 
-/* ==========================================================================
-SECTION 13: Cell sizing, owner distance summary, border-dot generation, noise shape
-LAYER: presentation
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\gridGradientScene.ts:1-244
-GREP: resolveGridGradientCellSize, buildGridGradientBorderDots
-========================================================================== */
+
+// ============================================================================
+// SECTION 13 - presentation
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/gridGradientScene.ts:1-245
+// GREP: resolveGridGradientCellSize, buildGridGradientBorderDots
+// ============================================================================
+
 import { blendColors } from '$lib/utils/colorUtils';
 import type {
     GridClassification,
@@ -3452,12 +3461,13 @@ export function resolveRenderedOwnerId(cell: GridRenderCell): string {
     return `${cell.colorIdx}`;
 }
 
-/* ==========================================================================
-SECTION 14: Pixi Graphics painting path, main render bottleneck
-LAYER: presentation
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\paint.ts:1-148
-GREP: drawGridGradientCell, drawGridGradientVectorBorders
-========================================================================== */
+
+// ============================================================================
+// SECTION 14 - presentation
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/paint.ts:1-149
+// GREP: drawGridGradientCell, drawGridGradientVectorBorders
+// ============================================================================
+
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
@@ -3607,18 +3617,243 @@ export function drawGridGradientVectorBorders(params: {
     return count;
 }
 
-/* ==========================================================================
-SECTION 15: Grid Gradient stats store
-LAYER: diagnostics
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\gridGradientStats.ts:1-71
-GREP: GridGradientStats, updateGridGradientStats
-========================================================================== */
+
+// ============================================================================
+// SECTION 15 - diagnostics/runtime
+// SOURCE: pax-fluxia/src/lib/renderers/pixiRendererDiagnostics.ts:1-135
+// GREP: resolvePixiRendererDiagnostics, PixiRendererDiagnostics
+// ============================================================================
+
+import type * as PIXI from 'pixi.js';
+
+export type PixiRendererBackend = 'webgl' | 'webgpu' | 'canvas' | 'unknown';
+
+export interface PixiRendererDiagnostics {
+    readonly rendererType: PixiRendererBackend;
+    readonly rendererTypeSource: 'reported' | 'class' | 'feature' | 'missing';
+    readonly rendererConstructorName: string | null;
+    readonly rendererReportedType: string | null;
+    readonly rendererHasWebGPUDevice: boolean;
+    readonly rendererHasWebGLContext: boolean;
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+    return typeof value === 'object' && value !== null
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+function readString(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function readConstructorName(value: unknown): string | null {
+    if (
+        (typeof value !== 'object' && typeof value !== 'function') ||
+        value === null
+    ) {
+        return null;
+    }
+    const ctor = (value as { constructor?: unknown }).constructor;
+    if (typeof ctor === 'function') return readString(ctor.name);
+    return readString(asObject(ctor)?.name);
+}
+
+function normalizeRendererType(value: string | null): PixiRendererBackend | null {
+    if (!value) return null;
+    const normalized = value.toLowerCase();
+    if (normalized.includes('webgpu')) return 'webgpu';
+    if (normalized.includes('webgl')) return 'webgl';
+    if (normalized.includes('canvas')) return 'canvas';
+    return null;
+}
+
+export function resolvePixiRendererDiagnostics(
+    renderer: PIXI.Renderer | null | undefined,
+): PixiRendererDiagnostics {
+    const rendererObject = asObject(renderer);
+    if (!rendererObject) {
+        return {
+            rendererType: 'unknown',
+            rendererTypeSource: 'missing',
+            rendererConstructorName: null,
+            rendererReportedType: null,
+            rendererHasWebGPUDevice: false,
+            rendererHasWebGLContext: false,
+        };
+    }
+
+    const constructorName = readConstructorName(renderer);
+    const reportedType =
+        readString(rendererObject.type) ??
+        readString(rendererObject.rendererType);
+    const reportedBackend = normalizeRendererType(reportedType);
+
+    const gpuSystem = asObject(rendererObject.gpu);
+    const contextSystem = asObject(rendererObject.context);
+    const directGl = asObject(rendererObject.gl);
+    const contextGl = asObject(contextSystem?.gl);
+    const rendererHasWebGPUDevice = Boolean(
+        gpuSystem ||
+            asObject(rendererObject.device) ||
+            asObject(rendererObject.encoder),
+    );
+    const rendererHasWebGLContext = Boolean(
+        directGl ||
+            contextGl ||
+            normalizeRendererType(readConstructorName(contextSystem)) === 'webgl',
+    );
+
+    if (reportedBackend) {
+        return {
+            rendererType: reportedBackend,
+            rendererTypeSource: 'reported',
+            rendererConstructorName: constructorName,
+            rendererReportedType: reportedType,
+            rendererHasWebGPUDevice,
+            rendererHasWebGLContext,
+        };
+    }
+
+    const classBackend = normalizeRendererType(constructorName);
+    if (classBackend) {
+        return {
+            rendererType: classBackend,
+            rendererTypeSource: 'class',
+            rendererConstructorName: constructorName,
+            rendererReportedType: reportedType,
+            rendererHasWebGPUDevice,
+            rendererHasWebGLContext,
+        };
+    }
+
+    if (rendererHasWebGPUDevice) {
+        return {
+            rendererType: 'webgpu',
+            rendererTypeSource: 'feature',
+            rendererConstructorName: constructorName,
+            rendererReportedType: reportedType,
+            rendererHasWebGPUDevice,
+            rendererHasWebGLContext,
+        };
+    }
+
+    if (rendererHasWebGLContext) {
+        return {
+            rendererType: 'webgl',
+            rendererTypeSource: 'feature',
+            rendererConstructorName: constructorName,
+            rendererReportedType: reportedType,
+            rendererHasWebGPUDevice,
+            rendererHasWebGLContext,
+        };
+    }
+
+    return {
+        rendererType: 'unknown',
+        rendererTypeSource: 'missing',
+        rendererConstructorName: constructorName,
+        rendererReportedType: reportedType,
+        rendererHasWebGPUDevice,
+        rendererHasWebGLContext,
+    };
+}
+
+
+// ============================================================================
+// SECTION 16 - diagnostics/store
+// SOURCE: pax-fluxia/src/lib/stores/territoryRenderStatusStore.ts:1-71
+// GREP: TerritoryRenderStatus, setTerritoryRenderStatus
+// ============================================================================
+
+import { writable } from "svelte/store";
+import {
+    completeTerritoryTuningCompile,
+    resetTerritoryTuningStatus,
+} from "./territoryTuningStatusStore";
+
+export type ArrowRendererMode = "overlay_canvas" | "pixi_link_graphics" | "none";
+
+export interface TerritoryRenderStatus {
+    territoryMode: string;
+    geometryReady: boolean | null;
+    rendererType: string;
+    rendererTypeSource: string;
+    rendererConstructorName: string | null;
+    rendererReportedType: string | null;
+    arrowRenderer: ArrowRendererMode;
+    lastRenderFailure: string | null;
+    msrRequestedMarginPx: number | null;
+    msrStarBias: number | null;
+    msrAnchorCount: number;
+    msrIntervalCount: number;
+    msrViolatedIntervalCount: number;
+    msrAcceptedRepairCount: number;
+    msrRejectedRepairCount: number;
+    msrLastInvariantFailure: string | null;
+    updatedAtMs: number;
+}
+
+const initialStatus: TerritoryRenderStatus = {
+    territoryMode: "none",
+    geometryReady: null,
+    rendererType: "unknown",
+    rendererTypeSource: "missing",
+    rendererConstructorName: null,
+    rendererReportedType: null,
+    arrowRenderer: "overlay_canvas",
+    lastRenderFailure: null,
+    msrRequestedMarginPx: null,
+    msrStarBias: null,
+    msrAnchorCount: 0,
+    msrIntervalCount: 0,
+    msrViolatedIntervalCount: 0,
+    msrAcceptedRepairCount: 0,
+    msrRejectedRepairCount: 0,
+    msrLastInvariantFailure: null,
+    updatedAtMs: 0,
+};
+
+export const territoryRenderStatus = writable<TerritoryRenderStatus>(
+    initialStatus,
+);
+
+export function setTerritoryRenderStatus(
+    patch: Partial<TerritoryRenderStatus>,
+): void {
+    territoryRenderStatus.update((status) => ({
+        ...status,
+        ...patch,
+        updatedAtMs: Date.now(),
+    }));
+    completeTerritoryTuningCompile();
+}
+
+export function resetTerritoryRenderStatus(): void {
+    territoryRenderStatus.set({
+        ...initialStatus,
+        updatedAtMs: Date.now(),
+    });
+    resetTerritoryTuningStatus();
+}
+
+
+// ============================================================================
+// SECTION 17 - diagnostics
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/gridGradientStats.ts:1-80
+// GREP: GridGradientStats, updateGridGradientStats
+// ============================================================================
+
 import { writable } from 'svelte/store';
 
 export interface GridGradientStats {
     readonly familyId: string;
     readonly familyLabel: string;
     readonly geometrySource: string | null;
+    readonly rendererType: string;
+    readonly rendererTypeSource: string;
+    readonly rendererConstructorName: string | null;
+    readonly rendererReportedType: string | null;
     readonly requestedSpacingPx: number;
     readonly effectiveSpacingPx: number;
     readonly totalCells: number;
@@ -3649,6 +3884,10 @@ const INITIAL: GridGradientStats = {
     familyId: 'grid_gradient',
     familyLabel: 'Grid Gradient',
     geometrySource: null,
+    rendererType: 'unknown',
+    rendererTypeSource: 'missing',
+    rendererConstructorName: null,
+    rendererReportedType: null,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
     totalCells: 0,
@@ -3685,14 +3924,16 @@ export function resetGridGradientStats(): void {
     gridGradientStats.set(INITIAL);
 }
 
-/* ==========================================================================
-SECTION 16: Grid Gradient family lifecycle, caching, update loop
-LAYER: presentation/runtime
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\GridGradientFamily.ts:1-323
-GREP: GridGradientFamily.update, resolvePlan
-========================================================================== */
+
+// ============================================================================
+// SECTION 18 - presentation/runtime
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/GridGradientFamily.ts:1-331
+// GREP: GridGradientFamily.update, resolvePlan, rendererDiagnostics
+// ============================================================================
+
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
+import { resolvePixiRendererDiagnostics } from '$lib/renderers/pixiRendererDiagnostics';
 import {
     buildOwnershipGridFrontierDistanceField,
     createOwnershipGridFrontierDistanceFieldBuffers,
@@ -3953,9 +4194,11 @@ export class GridGradientFamily implements RenderFamily {
         readonly paintMs: number;
         readonly updateMs: number;
     }): void {
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(params.input.renderer);
         const debugSnapshot = {
             familyId: this.id,
             familyLabel: this.label,
+            rendererDiagnostics,
             planKey: params.plan.planKey,
             geometryVersion: params.geometry.version,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
@@ -3976,6 +4219,10 @@ export class GridGradientFamily implements RenderFamily {
             geometrySource:
                 (params.input.configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ??
                 null,
+            rendererType: rendererDiagnostics.rendererType,
+            rendererTypeSource: rendererDiagnostics.rendererTypeSource,
+            rendererConstructorName: rendererDiagnostics.rendererConstructorName,
+            rendererReportedType: rendererDiagnostics.rendererReportedType,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
             totalCells: params.plan.classification.vstars.length,
@@ -4015,23 +4262,25 @@ export function createGridGradientFamily(colorUtils: ColorUtils): GridGradientFa
     return new GridGradientFamily(colorUtils);
 }
 
-/* ==========================================================================
-SECTION 17: Grid Gradient family exports
-LAYER: exports
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\index.ts:1-4
-GREP: exports
-========================================================================== */
+
+// ============================================================================
+// SECTION 19 - exports
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/index.ts:1-5
+// GREP: exports
+// ============================================================================
+
 export * from './config';
 export * from './GridGradientFamily';
 export * from './gridGradientScene';
 export * from './gridGradientStats';
 
-/* ==========================================================================
-SECTION 18: Current focused helper tests
-LAYER: tests
-SOURCE: pax-fluxia\src\lib\territory\families\gridGradient\gridGradientScene.test.ts:1-196
-GREP: tests
-========================================================================== */
+
+// ============================================================================
+// SECTION 20 - tests
+// SOURCE: pax-fluxia/src/lib/territory/families/gridGradient/gridGradientScene.test.ts:1-197
+// GREP: tests
+// ============================================================================
+
 import { describe, expect, it } from 'vitest';
 import type { GridClassification } from '../metaballGrid/metaballGridTypes';
 import {
@@ -4229,12 +4478,62 @@ describe('grid gradient scene helpers', () => {
     });
 });
 
-/* ==========================================================================
-SECTION 19: Classifies mode id as render-family path
-LAYER: routing
-SOURCE: pax-fluxia\src\lib\territory\integration\TerritoryArchitectureRouter.ts:1-83
-GREP: resolveTerritoryArchitectureRoute, grid_gradient
-========================================================================== */
+
+// ============================================================================
+// SECTION 21 - tests
+// SOURCE: pax-fluxia/src/lib/renderers/pixiRendererDiagnostics.test.ts:1-42
+// GREP: resolvePixiRendererDiagnostics tests
+// ============================================================================
+
+import { describe, expect, it } from 'vitest';
+import { resolvePixiRendererDiagnostics } from './pixiRendererDiagnostics';
+
+describe('resolvePixiRendererDiagnostics', () => {
+    it('uses the reported Pixi renderer type when available', () => {
+        const diagnostics = resolvePixiRendererDiagnostics({
+            type: 'webgpu',
+        } as never);
+
+        expect(diagnostics.rendererType).toBe('webgpu');
+        expect(diagnostics.rendererTypeSource).toBe('reported');
+    });
+
+    it('falls back to renderer class name', () => {
+        class TestWebGLRenderer {}
+        const diagnostics = resolvePixiRendererDiagnostics(
+            new TestWebGLRenderer() as never,
+        );
+
+        expect(diagnostics.rendererType).toBe('webgl');
+        expect(diagnostics.rendererTypeSource).toBe('class');
+        expect(diagnostics.rendererConstructorName).toBe('TestWebGLRenderer');
+    });
+
+    it('falls back to renderer feature systems', () => {
+        const diagnostics = resolvePixiRendererDiagnostics({
+            gpu: { device: {} },
+        } as never);
+
+        expect(diagnostics.rendererType).toBe('webgpu');
+        expect(diagnostics.rendererTypeSource).toBe('feature');
+        expect(diagnostics.rendererHasWebGPUDevice).toBe(true);
+    });
+
+    it('returns unknown when the renderer is unavailable', () => {
+        const diagnostics = resolvePixiRendererDiagnostics(null);
+
+        expect(diagnostics.rendererType).toBe('unknown');
+        expect(diagnostics.rendererTypeSource).toBe('missing');
+    });
+});
+
+
+// ============================================================================
+// SECTION 22 - routing
+// SOURCE: pax-fluxia/src/lib/territory/integration/TerritoryArchitectureRouter.ts:1-84
+// GREP: resolveTerritoryArchitectureRoute, grid_gradient
+// ============================================================================
+
 export type TerritoryArchitecturePath = 'clean' | 'legacy';
 
 export type TerritoryRuntimeRoute =
@@ -4319,12 +4618,13 @@ export function resolveTerritoryArchitectureRoute(
     };
 }
 
-/* ==========================================================================
-SECTION 20: User-visible mode catalog entry
-LAYER: routing/ui
-SOURCE: pax-fluxia\src\lib\territory\ui\territoryRenderModeCatalog.ts:1-145
-GREP: TERRITORY_RENDER_MODE_CATALOG, grid_gradient
-========================================================================== */
+
+// ============================================================================
+// SECTION 23 - routing/ui
+// SOURCE: pax-fluxia/src/lib/territory/ui/territoryRenderModeCatalog.ts:1-146
+// GREP: TERRITORY_RENDER_MODE_CATALOG, grid_gradient
+// ============================================================================
+
 /**
  * Single catalog of territory render modes shown in settings UI, aligned with
  * `GameCanvas.svelte` territory style dispatch (`TERRITORY_RENDER_MODE`).
@@ -4471,12 +4771,13 @@ export function getTerritoryRenderModeLabel(modeId: string | null | undefined): 
     return TERRITORY_RENDER_MODE_CATALOG.find((def) => def.id === modeId)?.label ?? modeId;
 }
 
-/* ==========================================================================
-SECTION 21: Grid Gradient tuning UI
-LAYER: settings/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\GridGradientTuning.svelte:1-284
-GREP: GRID_GRADIENT_* UI writes
-========================================================================== */
+
+// ============================================================================
+// SECTION 24 - settings/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/GridGradientTuning.svelte:1-285
+// GREP: GRID_GRADIENT_* UI writes
+// ============================================================================
+
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
@@ -4762,12 +5063,13 @@ GREP: GRID_GRADIENT_* UI writes
     }
 </style>
 
-/* ==========================================================================
-SECTION 22: Territory settings mode support and Grid Gradient card
-LAYER: settings/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte:1-190
-GREP: GridGradientTuning import, support helpers
-========================================================================== */
+
+// ============================================================================
+// SECTION 25 - settings/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte:1-190
+// GREP: GridGradientTuning import, support helpers
+// ============================================================================
+
 <script lang="ts">
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
@@ -4896,7 +5198,7 @@ GREP: GridGradientTuning import, support helpers
   const TERRITORY_SYSTEM_MODULES: Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > = [
-    { id: "render-mode", label: "Mode", icon: "â—Ž" },
+    { id: "render-mode", label: "Mode", icon: "◎" },
   ];
 
   const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
@@ -4959,12 +5261,12 @@ GREP: GridGradientTuning import, support helpers
     return activeSubsection === "fill" ||
       activeSubsection === "border" ||
 
-/* ==========================================================================
-SECTION 23: Territory settings renderer mode and style helpers
-LAYER: settings/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte:450-650
-GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
-========================================================================== */
+// ============================================================================
+// SECTION 26 - settings/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte:450-650
+// GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
+// ============================================================================
+
       const shouldPrime =
         !panelHasExplicitValue &&
         (configValue === undefined || configValue === entry.familyDefault);
@@ -5121,17 +5423,17 @@ GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
   > {
     const modules: Array<
       TerritoryModuleDef<TerritoryRendererViewId>
-    > = [{ id: "topology", label: "Topology", icon: "â¬¡" }];
+    > = [{ id: "topology", label: "Topology", icon: "⬡" }];
 
     if (resolveActiveStyleId() === "metaball") {
-      modules.unshift({ id: "metaball", label: "Metaball", icon: "â—‰" });
+      modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
     }
 
     if (resolveActiveStyleId() === "perimeter_field") {
       modules.unshift({
         id: "perimeter-field",
       label: "Perimeter Field",
-        icon: "â—Ž",
+        icon: "◎",
       });
     }
 
@@ -5139,7 +5441,7 @@ GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
       modules.unshift({
         id: "metaball-grid",
         label: "Grid",
-        icon: "â–¦",
+        icon: "▦",
       });
     }
 
@@ -5156,7 +5458,7 @@ GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
       resolveActiveStyleId() === "territory_runtime" ||
       resolveActiveStyleId() === "power_voronoi_runtime"
     ) {
-      modules.push({ id: "surface", label: "Surface", icon: "âœ¦" });
+      modules.push({ id: "surface", label: "Surface", icon: "✦" });
     }
 
     if (view === "tuning") {
@@ -5167,12 +5469,12 @@ GREP: TERRITORY_RENDER_MODE, isGridGradientStyle
       return modules.filter((module) => module.id !== "topology");
     }
 
-/* ==========================================================================
-SECTION 24: Territory settings Grid Gradient card render
-LAYER: settings/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\ControlsSection-Territory.svelte:2068-2295
-GREP: Grid Gradient cards
-========================================================================== */
+// ============================================================================
+// SECTION 27 - settings/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte:2068-2295
+// GREP: Grid Gradient cards
+// ============================================================================
+
       styleFamily={isEmberLatticeStyle()
         ? "metaball_grid_ember_lattice"
         : isMetaballGridPhaseEdgesStyle()
@@ -5402,12 +5704,12 @@ GREP: Grid Gradient cards
     {#if supportsSharedSurfaceStyleCard()}
       <div class="engine-control-group territory-module-card">
 
-/* ==========================================================================
-SECTION 25: Diagnostics imports/live mode gating
-LAYER: diagnostics/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte:1-90
-GREP: gridGradientStats, showGridGradientDiagnostics
-========================================================================== */
+// ============================================================================
+// SECTION 28 - diagnostics/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte:1-90
+// GREP: gridGradientStats, showGridGradientDiagnostics
+// ============================================================================
+
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -5499,13 +5801,55 @@ GREP: gridGradientStats, showGridGradientDiagnostics
     let downloading = $state<string | null>(null);
 
 
-/* ==========================================================================
-SECTION 26: Diagnostics panel readout
-LAYER: diagnostics/ui
-SOURCE: pax-fluxia\src\lib\components\ui\settings\ControlsSection-Diagnostics.svelte:706-724
-GREP: Grid Gradient diagnostics rows
-========================================================================== */
-                {formatPhaseFieldSemanticsNote()}
+// ============================================================================
+// SECTION 29 - diagnostics/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte:600-635
+// GREP: Mode Diagnostics Renderer row
+// ============================================================================
+
+        <span class="debug-hint">
+            {showUnderlyingGeometrySupported
+                ? "Draw active territory geometry truth"
+                : "Unavailable for this mode"}
+        </span>
+    </label>
+    <div class="status-grid">
+        <div><span>Mode</span><code>{getTerritoryRenderModeLabel($territoryRenderStatus.territoryMode)}</code></div>
+        <div><span>Geometry</span><span>{$territoryRenderStatus.geometryReady === null ? "pending" : $territoryRenderStatus.geometryReady ? "ready" : "missing"}</span></div>
+        <div>
+            <span>Renderer</span>
+            <span>
+                {$territoryRenderStatus.rendererType}
+                <code>{$territoryRenderStatus.rendererTypeSource}</code>
+                {#if $territoryRenderStatus.rendererConstructorName}
+                    / {$territoryRenderStatus.rendererConstructorName}
+                {/if}
+                {#if $territoryRenderStatus.rendererReportedType}
+                    / reported {$territoryRenderStatus.rendererReportedType}
+                {/if}
+            </span>
+        </div>
+        <div><span>Arrows</span><code>{$territoryRenderStatus.arrowRenderer}</code></div>
+        <div>
+            <span>Topology Compile</span>
+            <span>
+                {$territoryTuningStatus.pending
+                    ? `Compiling… ${$territoryTuningStatus.label ?? ""}`.trim()
+                    : $territoryTuningStatus.lastDurationMs !== null
+                      ? `${$territoryTuningStatus.lastDurationMs} ms`
+                      : "idle"}
+            </span>
+        </div>
+        <div>
+            <span>Requested MSR</span>
+            <span>
+
+// ============================================================================
+// SECTION 30 - diagnostics/ui
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte:720-750
+// GREP: Grid Gradient diagnostics rows, Renderer row
+// ============================================================================
+
                 Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
@@ -5513,6 +5857,19 @@ GREP: Grid Gradient diagnostics rows
     {#if showGridGradientDiagnostics}
         <div class="status-grid">
             <div><span>Family</span><code>{$gridGradientStats.familyLabel}</code></div>
+            <div>
+                <span>Renderer</span>
+                <span>
+                    {$gridGradientStats.rendererType}
+                    <code>{$gridGradientStats.rendererTypeSource}</code>
+                    {#if $gridGradientStats.rendererConstructorName}
+                        / {$gridGradientStats.rendererConstructorName}
+                    {/if}
+                    {#if $gridGradientStats.rendererReportedType}
+                        / reported {$gridGradientStats.rendererReportedType}
+                    {/if}
+                </span>
+            </div>
             <div><span>Source</span><code>{$gridGradientStats.geometrySource ?? "n/a"}</code></div>
             <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
             <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
@@ -5525,12 +5882,12 @@ GREP: Grid Gradient diagnostics rows
     {/if}
     {#if showPerimeterFieldDiagnostics}
 
-/* ==========================================================================
-SECTION 27: Settings definitions for Grid Gradient keys
-LAYER: settings/metadata
-SOURCE: pax-fluxia\src\lib\components\ui\settingsDefs.ts:615-636
-GREP: GRID_GRADIENT settingsDefs
-========================================================================== */
+// ============================================================================
+// SECTION 31 - settings/metadata
+// SOURCE: pax-fluxia/src/lib/components/ui/settingsDefs.ts:615-636
+// GREP: GRID_GRADIENT settingsDefs
+// ============================================================================
+
         configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
     },
     { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START' },
@@ -5554,12 +5911,12 @@ GREP: GRID_GRADIENT settingsDefs
     { configKey: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE' },
     { configKey: 'TERRITORY_FRONTIER_PHASE_SAMPLING' },
 
-/* ==========================================================================
-SECTION 28: Settings metadata labels for Grid Gradient
-LAYER: settings/metadata
-SOURCE: pax-fluxia\src\lib\components\ui\settings\settingMetadata.ts:474-493
-GREP: Grid Gradient metadata
-========================================================================== */
+// ============================================================================
+// SECTION 32 - settings/metadata
+// SOURCE: pax-fluxia/src/lib/components/ui/settings/settingMetadata.ts:474-493
+// GREP: Grid Gradient metadata
+// ============================================================================
+
         },
         'Frontier Fade End': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
@@ -5581,12 +5938,12 @@ GREP: Grid Gradient metadata
         'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
         'Frontier Border Geometry': {
 
-/* ==========================================================================
-SECTION 29: Config interface fields for Grid Gradient
-LAYER: settings/config
-SOURCE: pax-fluxia\src\lib\config\game.config.ts:442-520
-GREP: GRID_GRADIENT config keys
-========================================================================== */
+// ============================================================================
+// SECTION 33 - settings/config
+// SOURCE: pax-fluxia/src/lib/config/game.config.ts:442-520
+// GREP: GRID_GRADIENT config keys
+// ============================================================================
+
     METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
@@ -5641,7 +5998,7 @@ GREP: GRID_GRADIENT config keys
         | 'off'; // Fill transition selector spanning legacy and clean-arch ids
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
     TERRITORY_STYLE_MODE: 'vector' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
-    // â”€â”€ Morph Diagnostics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Morph Diagnostics ─────────────────────────────────────────────────────
     DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
     DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
     DEBUG_MORPH_PIN_THRESHOLD: number;    // Displacement below which a vertex is "pinned" (green) vs "morph" (red)
@@ -5652,14 +6009,14 @@ GREP: GRID_GRADIENT config keys
     DEBUG_MORPH_VERTEX_COLOR_MODE: string; // Vertex dot color mode: 'pinmorph' | 'owner' | 'neutral'
     DEBUG_MORPH_VERTEX_LABELS: boolean;    // Draw numeric index labels on vertex dots (default true)
 
-    // â”€â”€ DY4 Transition Isolation (F-138) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DY4 Transition Isolation (F-138) ──────────────────────────────────────
     DEBUG_DY4_DISABLE_FILL_CROSSFADE: boolean;
     DEBUG_DY4_DISABLE_BORDER_TRANSITION: boolean;
     DEBUG_DY4_FORCE_TRANSITION_START: boolean;
     TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
     TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
-    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY â€” kept for compat
+    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_ember_lattice' | 'metaball_grid_phase_field' | 'grid_gradient' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
@@ -5667,12 +6024,12 @@ GREP: GRID_GRADIENT config keys
     TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for runtime territory mode
 
 
-/* ==========================================================================
-SECTION 30: Category grouping for Grid Gradient settings
-LAYER: settings/config
-SOURCE: pax-fluxia\src\lib\config\categoryThemes.ts:280-300
-GREP: GRID_GRADIENT category keys
-========================================================================== */
+// ============================================================================
+// SECTION 34 - settings/config
+// SOURCE: pax-fluxia/src/lib/config/categoryThemes.ts:280-300
+// GREP: GRID_GRADIENT category keys
+// ============================================================================
+
         'METABALL_GRID_WAVE_EASE',
         'METABALL_GRID_FLIP_WINDOW_JITTER',
         'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
@@ -5695,12 +6052,12 @@ GREP: GRID_GRADIENT category keys
     ],
 
 
-/* ==========================================================================
-SECTION 31: Territory config fingerprint includes Grid Gradient keys
-LAYER: settings/config
-SOURCE: pax-fluxia\src\lib\territory\buildTerritoryConfigFingerprint.ts:1-35
-GREP: GRID_GRADIENT_
-========================================================================== */
+// ============================================================================
+// SECTION 35 - settings/config
+// SOURCE: pax-fluxia/src/lib/territory/buildTerritoryConfigFingerprint.ts:1-35
+// GREP: GRID_GRADIENT_
+// ============================================================================
+
 const TERRITORY_CONFIG_PREFIXES = [
     'TERRITORY_',
     'PERIMETER_FIELD_',
@@ -5737,12 +6094,12 @@ export function buildTerritoryConfigFingerprint(
 
     if (runtime && 'geometryRefreshToken' in runtime) {
 
-/* ==========================================================================
-SECTION 32: Topbar shortcut option and config write
-LAYER: ui/shortcut
-SOURCE: pax-fluxia\src\lib\territory\ui\territoryModeShortcuts.ts:1-145
-GREP: grid_gradient shortcut
-========================================================================== */
+// ============================================================================
+// SECTION 36 - ui/shortcut
+// SOURCE: pax-fluxia/src/lib/territory/ui/territoryModeShortcuts.ts:1-168
+// GREP: grid_gradient shortcut
+// ============================================================================
+
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     loadPanelSettings,
@@ -5888,13 +6245,144 @@ export function applyTopbarTerritoryModeShortcut(modeId: string): void {
 
     panel = setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
 
+    const styleFlagsPatch = Object.fromEntries(
+        Object.entries(STYLE_TO_BOOLEAN).map(([styleId, panelKey]) => [
+            panelKey,
+            modeId !== 'none' && styleId === modeId,
+        ]),
+    );
 
-/* ==========================================================================
-SECTION 33: GameCanvas imports for Grid Gradient and family helpers
-LAYER: runtime/dispatch
-SOURCE: pax-fluxia\src\lib\components\game\GameCanvas.svelte:108-155
-GREP: imports
-========================================================================== */
+    savePanelSettings({
+        ...panel,
+        ...styleFlagsPatch,
+    });
+
+    bumpTerritoryVisualConfig();
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent('pax-settings-config-sync-requested', {
+                detail: { source: 'territory-mode-shortcut', modeId },
+            }),
+        );
+    }
+}
+
+
+// ============================================================================
+// SECTION 37 - runtime/dispatch
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:1-170
+// GREP: imports
+// ============================================================================
+
+<script lang="ts">
+    import { onMount, onDestroy } from "svelte";
+    import { get } from "svelte/store";
+    import * as PIXI from "pixi.js";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { animationStore } from "$lib/stores/animationStore.svelte";
+    import { audioManager } from "$lib/services/audioManager.svelte";
+    import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
+    import { log } from "$lib/utils/logger";
+    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { normalizeBgImagePath } from "$lib/config/bgManifest";
+    import { resolvePixiRendererDiagnostics } from "$lib/renderers/pixiRendererDiagnostics";
+    import {
+        getOrbitSlot,
+        getTotalOccupiedLayers,
+        getOuterOrbitRadius,
+        getFleetPositions,
+        lerp,
+        SHIP_ANIM,
+        type VisualShipState,
+        type ShipLifecycleState,
+    } from "$lib/utils/render.utils";
+    import { distance } from "$lib/utils/math.utils";
+    import type {
+        StarState,
+        StarConnection,
+        StarId,
+    } from "$lib/types/game.types";
+    import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
+    import { FXOrchestrator } from "$lib/fx/orchestrator";
+    import {
+        territoryTransitions,
+    } from "$lib/fx/handlers/territoryTransitionHandler";
+    import {
+        createContainers,
+        initShipRendering,
+    } from "$lib/renderers/containerFactory";
+    import type { StarType } from "@pax/common";
+
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { createColorUtils } from "$lib/renderers/colorUtils";
+    import {
+        renderStars as renderStarsModule,
+        type StarLabelView,
+    } from "$lib/renderers/StarRenderer";
+    import {
+        renderConnections as renderConnectionsModule,
+    } from "$lib/renderers/LaneRenderer";
+    import { renderInteractionOverlay } from "$lib/renderers/InteractionOverlayRenderer";
+    import {
+        renderShips as renderShipsModule,
+        type SurgeState,
+        type ShipRenderState,
+        type ShipRenderResources,
+    } from "$lib/renderers/ShipRenderer";
+    import { renderStarPower as renderStarPowerModule } from "$lib/renderers/StarPowerRenderer";
+    import {
+        renderVoronoi as renderVoronoiModule,
+        resetVoronoiCache,
+    } from "$lib/renderers/VoronoiRenderer";
+    import {
+        resetMetaballCache,
+    } from "$lib/renderers/MetaballRenderer";
+    import {
+        renderPixelTerritory as renderPixelTerritoryModule,
+        resetPixelTerritoryCache,
+    } from "$lib/renderers/PixelTerritoryRenderer";
+    import {
+        renderLaneTerritory as renderLaneTerritoryModule,
+        resetLaneTerritoryCache,
+    } from "$lib/renderers/LaneTerritoryRenderer";
+    import {
+        renderContourTerritory as renderContourTerritoryModule,
+        resetContourTerritoryCache,
+    } from "$lib/renderers/ContourTerritoryRenderer";
+    import {
+        renderModifiedVoronoi as renderModifiedVoronoiModule,
+        resetModifiedVoronoiCache,
+    } from "$lib/renderers/ModifiedVoronoiRenderer";
+    import {
+        renderPowerVoronoi as renderPowerVoronoiModule,
+        resetPowerVoronoiCache,
+    } from "$lib/renderers/PowerVoronoiRenderer";
+    import {
+        renderPVV2DY4 as renderPVV2DY4Module,
+        resetPVV2DY4Cache,
+    } from "$lib/renderers/PowerVoronoiRenderer_DY4";
+    import {
+        renderPVV3 as renderPVV3Module,
+        inspectPVV3Invalidation,
+        resetPVV3Cache,
+    } from "$lib/renderers/PVV3Renderer";
+    import {
+        renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
+        resetDistanceFieldTerritoryCache,
+    } from "$lib/renderers/DistanceFieldTerritoryRenderer";
+    import {
+        renderTerritoryEngine,
+        resetTerritoryEngineCaches,
+        runFG2DataPipeline,
+        extractTerritoryRenderData,
+    } from "$lib/territory/orchestrator";
+    // ── Runtime territory layer (Phase 2: new architecture) ──────────────────
+    import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
+    import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
+    import {
+        getRenderFamily,
         registerRenderFamily,
         disposeAllRenderFamilies,
     } from "$lib/territory/families/renderFamilyRegistry";
@@ -5943,13 +6431,28 @@ GREP: imports
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import {
+        buildTerritoryGeometryCacheKeyParts,
+        readNormalizedTerritoryGeometryTunables,
+    } from "$lib/territory/geometry/geometryTuning";
+    import type {
+        OwnershipSnapshot,
+        TerritoryConquestEvent,
+    } from "$lib/territory/contracts/OwnershipContracts";
+    import type { ResolvedGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
+    import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
+    import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
+    import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
+    import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import {
+        buildRulerMeasurement,
 
-/* ==========================================================================
-SECTION 34: GameCanvas mode support and debug routing helpers
-LAYER: runtime/dispatch
-SOURCE: pax-fluxia\src\lib\components\game\GameCanvas.svelte:1838-2035
-GREP: transition/input helpers
-========================================================================== */
+// ============================================================================
+// SECTION 38 - runtime/dispatch
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:1838-2035
+// GREP: transition/input helpers
+// ============================================================================
+
+
     function transitionIdentityKey(
         conquest: import("@pax/common").ConquestEvent,
     ): string {
@@ -6147,14 +6650,14 @@ GREP: transition/input helpers
             purpose: "Provide ownership state for family geometry and scene builders",
             summary:
                 `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
-            perfEventName: "game.renderFrame.ownershipSnapshot",
 
-/* ==========================================================================
-SECTION 35: GameCanvas shared family geometry cache and prev-frame capture
-LAYER: runtime/geometry
-SOURCE: pax-fluxia\src\lib\components\game\GameCanvas.svelte:2614-2845
-GREP: getCurrentRenderFamilyGeometry, prevGeometry
-========================================================================== */
+// ============================================================================
+// SECTION 39 - runtime/geometry
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:2614-2845
+// GREP: getCurrentRenderFamilyGeometry, prevGeometry
+// ============================================================================
+
+
     function resolveActiveTerritoryMode(): string {
         let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         if (!activeMode) {
@@ -6174,7 +6677,7 @@ GREP: getCurrentRenderFamilyGeometry, prevGeometry
         return activeMode ?? "none";
     }
 
-    // â”€â”€ Runtime territory instances (class-encapsulated, no module-level state) â”€
+    // ── Runtime territory instances (class-encapsulated, no module-level state) ─
     let runtimeBridge: GameCanvasBridge | null = null;
     let runtimeBridgeFallbackLogged = false;
     let runtimeController: TerritoryEngineController | null = null;
@@ -6386,14 +6889,14 @@ GREP: getCurrentRenderFamilyGeometry, prevGeometry
                         buildPerimeterFieldRenderFamilyGeometry({
                             stars: revertedStars,
                             lanes: params.lanes,
-                            worldWidth: GAME_WIDTH,
 
-/* ==========================================================================
-SECTION 36: GameCanvas territory dispatch and Grid Gradient update call
-LAYER: runtime/dispatch
-SOURCE: pax-fluxia\src\lib\components\game\GameCanvas.svelte:5380-6120
-GREP: case grid_gradient, gg.update
-========================================================================== */
+// ============================================================================
+// SECTION 40 - runtime/dispatch
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:5380-6140
+// GREP: case grid_gradient, gg.update
+// ============================================================================
+
+            // compares these so a misalignment shows up as a clear pre/post delta.
             const containerPosPreSwitchX = activeVoronoiContainer.x;
             const containerPosPreSwitchY = activeVoronoiContainer.y;
             activeVoronoiContainer.x = territoryPresentationFrame.minX;
@@ -6406,7 +6909,7 @@ GREP: case grid_gradient, gg.update
             // FG2 geometry runs inside each style case via runFG2DataPipeline(),
             // which also populates trace data for the Trace Inspector.
             {
-                // Resolve active render mode â€” check new enum first, fall back to old booleans
+                // Resolve active render mode — check new enum first, fall back to old booleans
                 const activeMode = activeTerritoryMode;
                 const activeModeNeedsGeometry =
                     activeMode === "metaball" ||
@@ -7135,13 +7638,120 @@ GREP: case grid_gradient, gg.update
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
+                            lanes,
+                            geometry,
+                            configSource: renderFamilyConfigSource,
+                        });
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
+                        break;
+                    }
+                    case "perimeter_field": {
+                        let fam = getRenderFamily("perimeter_field");
+                        if (!fam) {
 
-/* ==========================================================================
-SECTION 37: Benchmark scheduler snapshot includes Grid Gradient
-LAYER: diagnostics/runtime
-SOURCE: pax-fluxia\src\lib\components\game\GameCanvas.svelte:6993-7052
-GREP: getBenchmarkTerritorySchedulerSnapshot, gridGradientDebug
-========================================================================== */
+// ============================================================================
+// SECTION 41 - diagnostics/runtime
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:6490-6570
+// GREP: setTerritoryRenderStatus, rendererDiagnostics
+// ============================================================================
+
+                                firstDisplayWorldBorder?.points?.[
+                                    firstDisplayWorldBorder.points.length - 1
+                                ];
+                            const fmtPt = (
+                                p: readonly [number, number] | undefined,
+                            ) =>
+                                p
+                                    ? `(${p[0].toFixed(2)},${p[1].toFixed(2)})`
+                                    : "n/a";
+                            log.renderer(
+                                "TerritoryPresent",
+                                `mode=${activeMode} container post=(${containerPosPostSwitchX.toFixed(2)},${containerPosPostSwitchY.toFixed(2)}) geomVer=${diagGeometry.version} src=${(renderFamilyConfigSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ?? "default"} worldBorders=${worldBorderCount} displayWorldBorders=${displayWorldBorderCount} displayFrontiers=${displayFrontierCount} dwb0First=${fmtPt(firstPoint)} dwb0Last=${fmtPt(lastPoint)}`,
+                            );
+                        }
+                    }
+                    if (activeModeNeedsGeometry && !geometryReady) {
+                        lastRenderFailure =
+                            `${activeMode} requires resolved geometry, but none was supplied`;
+                        log.error("GameCanvas", lastRenderFailure);
+                    }
+                    const msrDiagnostics = modeUsesSharedRenderFamilyGeometry(
+                        activeMode,
+                    )
+                        ? getCurrentRenderFamilyGeometry(
+                              stars,
+                              activeGameStore.connections as StarConnection[],
+                              getRenderFamilyModeConfigSource(activeMode),
+                          ).diagnostics.minStarMargin
+                        : null;
+                    const msrStarBias = modeUsesSharedRenderFamilyGeometry(
+                        activeMode,
+                    )
+                        ? (() => {
+                              const value =
+                                  readNormalizedTerritoryGeometryTunables(
+                                      getRenderFamilyModeConfigSource(
+                                          activeMode,
+                                      ) ??
+                                          (GAME_CONFIG as unknown as Record<
+                                              string,
+                                              unknown
+                                          >),
+                                  ).msrStarBias;
+                              return Number.isFinite(value) ? value : null;
+                          })()
+                        : null;
+                    const rendererDiagnostics = resolvePixiRendererDiagnostics(
+                        app?.renderer,
+                    );
+                    setTerritoryRenderStatus({
+                        territoryMode: activeMode,
+                        geometryReady,
+                        rendererType: rendererDiagnostics.rendererType,
+                        rendererTypeSource:
+                            rendererDiagnostics.rendererTypeSource,
+                        rendererConstructorName:
+                            rendererDiagnostics.rendererConstructorName,
+                        rendererReportedType:
+                            rendererDiagnostics.rendererReportedType,
+                        arrowRenderer: "overlay_canvas",
+                        lastRenderFailure,
+                        msrRequestedMarginPx:
+                            msrDiagnostics?.summary.requestedMarginPx ?? null,
+                        msrStarBias,
+                        msrAnchorCount:
+                            msrDiagnostics?.summary.anchorCount ?? 0,
+                        msrIntervalCount:
+                            msrDiagnostics?.summary.intervalCount ?? 0,
+                        msrViolatedIntervalCount:
+                            msrDiagnostics?.summary.violatedIntervalCount ?? 0,
+                        msrAcceptedRepairCount:
+                            msrDiagnostics?.summary.acceptedRepairCount ?? 0,
+                        msrRejectedRepairCount:
+                            msrDiagnostics?.summary.rejectedRepairCount ?? 0,
+                        msrLastInvariantFailure:
+                            msrDiagnostics?.summary.invariantFailures.at(-1) ??
+                            null,
+                    });
+                    if (transitionDiagnosticFrameInput) {
+                        measurePerf(
+                            "game.renderFrame.territory.transitionDiagnosticSync",
+
+// ============================================================================
+// SECTION 42 - diagnostics/runtime
+// SOURCE: pax-fluxia/src/lib/components/game/GameCanvas.svelte:7004-7070
+// GREP: getBenchmarkTerritorySchedulerSnapshot, gridGradientDebug, rendererDiagnostics
+// ============================================================================
+
     export function getBenchmarkTerritorySchedulerSnapshot():
         | Record<string, unknown>
         | null {
@@ -7168,6 +7778,7 @@ GREP: getBenchmarkTerritorySchedulerSnapshot, gridGradientDebug
             gridGradientFamily instanceof GridGradientFamily
                 ? gridGradientFamily.getDebugSnapshot()
                 : null;
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(app?.renderer);
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
             .slice()
             .sort((a, b) => a.id - b.id)
@@ -7198,7 +7809,13 @@ GREP: getBenchmarkTerritorySchedulerSnapshot, gridGradientDebug
             ownerStarCounts,
             metaballGridDebug,
             gridGradientDebug,
+            rendererDiagnostics,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress: Number(lastRenderedTickProgress.toFixed(4)),
             totalVisualShips,
+            visualShipStars: visualShips.size,
+            travelingShipCount: fxOrchestrator.vsm.travelingShips.length,
+            travelingShipsSampleHash,
+            travelingShipsSnapshot,
+            browserInputPending: hasBrowserInputPending(),

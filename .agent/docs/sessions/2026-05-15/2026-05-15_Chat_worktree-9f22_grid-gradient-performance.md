@@ -82,3 +82,16 @@ Whether marks must rotate, animate individually, or only scale/alpha/color-blend
 
 - Added `REQUESTED_AGENT_INFO.md` to the external-agent bundle.
 - Documented what is answerable from code, computed total cell counts for common world sizes/spacings, and wrote instructions for collecting live painted/emittable counts, raw Chrome trace JSON, accepted-look media, and active Pixi renderer type.
+
+## Human Input
+
+```text
+Do "expose renderer type through existing diagnostics." The console command returned undefined.
+```
+
+## Agent Summary
+
+- Added Pixi renderer backend detection through a shared renderer diagnostics helper.
+- Surfaced renderer backend through the general Mode Diagnostics row, Grid Gradient diagnostics row, Grid Gradient debug snapshot, and the benchmark territory scheduler snapshot.
+- Updated the session docs and requested-agent-info guide so the user can capture renderer type without relying on direct `renderer.type` console access.
+- Ran focused Vitest coverage and the `pax-fluxia` production build.

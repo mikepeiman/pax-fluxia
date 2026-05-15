@@ -9,6 +9,10 @@ export type ArrowRendererMode = "overlay_canvas" | "pixi_link_graphics" | "none"
 export interface TerritoryRenderStatus {
     territoryMode: string;
     geometryReady: boolean | null;
+    rendererType: string;
+    rendererTypeSource: string;
+    rendererConstructorName: string | null;
+    rendererReportedType: string | null;
     arrowRenderer: ArrowRendererMode;
     lastRenderFailure: string | null;
     msrRequestedMarginPx: number | null;
@@ -25,6 +29,10 @@ export interface TerritoryRenderStatus {
 const initialStatus: TerritoryRenderStatus = {
     territoryMode: "none",
     geometryReady: null,
+    rendererType: "unknown",
+    rendererTypeSource: "missing",
+    rendererConstructorName: null,
+    rendererReportedType: null,
     arrowRenderer: "overlay_canvas",
     lastRenderFailure: null,
     msrRequestedMarginPx: null,

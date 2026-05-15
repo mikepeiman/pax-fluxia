@@ -606,6 +606,19 @@
     <div class="status-grid">
         <div><span>Mode</span><code>{getTerritoryRenderModeLabel($territoryRenderStatus.territoryMode)}</code></div>
         <div><span>Geometry</span><span>{$territoryRenderStatus.geometryReady === null ? "pending" : $territoryRenderStatus.geometryReady ? "ready" : "missing"}</span></div>
+        <div>
+            <span>Renderer</span>
+            <span>
+                {$territoryRenderStatus.rendererType}
+                <code>{$territoryRenderStatus.rendererTypeSource}</code>
+                {#if $territoryRenderStatus.rendererConstructorName}
+                    / {$territoryRenderStatus.rendererConstructorName}
+                {/if}
+                {#if $territoryRenderStatus.rendererReportedType}
+                    / reported {$territoryRenderStatus.rendererReportedType}
+                {/if}
+            </span>
+        </div>
         <div><span>Arrows</span><code>{$territoryRenderStatus.arrowRenderer}</code></div>
         <div>
             <span>Topology Compile</span>
@@ -711,6 +724,19 @@
     {#if showGridGradientDiagnostics}
         <div class="status-grid">
             <div><span>Family</span><code>{$gridGradientStats.familyLabel}</code></div>
+            <div>
+                <span>Renderer</span>
+                <span>
+                    {$gridGradientStats.rendererType}
+                    <code>{$gridGradientStats.rendererTypeSource}</code>
+                    {#if $gridGradientStats.rendererConstructorName}
+                        / {$gridGradientStats.rendererConstructorName}
+                    {/if}
+                    {#if $gridGradientStats.rendererReportedType}
+                        / reported {$gridGradientStats.rendererReportedType}
+                    {/if}
+                </span>
+            </div>
             <div><span>Source</span><code>{$gridGradientStats.geometrySource ?? "n/a"}</code></div>
             <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
             <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>

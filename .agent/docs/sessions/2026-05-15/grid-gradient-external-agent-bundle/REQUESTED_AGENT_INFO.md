@@ -133,27 +133,26 @@ How to capture:
 
 ### WebGL vs WebGPU active in Pixi
 
-How to capture:
+Current implementation status:
 
-1. Open DevTools Console.
-2. Run:
+- Grid Gradient now exposes Pixi renderer backend through existing diagnostics.
+- In Mode Diagnostics, read the `Renderer` row. It reports `webgl`, `webgpu`, `canvas`, or `unknown`, plus the detection source and Pixi renderer class when available.
+- When `Grid Gradient` is selected, the Grid Gradient-specific diagnostics also show a `Renderer` row backed by the family debug snapshot.
+- The benchmark snapshot also includes top-level `rendererDiagnostics`, and `gridGradientDebug.rendererDiagnostics` when the `grid_gradient` family has rendered.
 
-```js
-window.__PIXI_APP__?.renderer?.type ?? window.__PAX_BENCH__?.canvasApi?.app?.renderer?.type
-```
+How to capture without relying on private globals:
 
-If that does not return a useful value, inspect the renderer object:
+1. Open the app.
+2. Select `Grid Gradient`.
+3. Open diagnostics.
+4. Capture the Mode Diagnostics `Renderer` row together with Grid Gradient `Cells`, `Spacing`, and `Frame`.
 
-```js
-window.__PIXI_APP__?.renderer
-```
+If DevTools inspection is still needed, use the project benchmark snapshot object and inspect its returned fields instead of reading `renderer.type` directly. Pixi 8 may not expose a useful public `renderer.type` property on the runtime object.
 
 Alternative from DevTools:
 
 - In the Performance trace, renderer stack names often reveal WebGL/WebGPU paths.
 - In Chrome GPU internals, `chrome://gpu` can confirm hardware acceleration, but Pixi renderer type is better.
-
-If no global Pixi app handle is exposed, add a temporary telemetry-only diagnostic in `GameCanvas.svelte` or expose renderer type through the existing benchmark/diagnostics snapshot.
 
 ## Should The User Record Differently?
 
