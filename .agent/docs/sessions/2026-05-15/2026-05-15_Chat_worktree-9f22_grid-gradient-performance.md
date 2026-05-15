@@ -44,3 +44,41 @@ You are permitted to make a few concise suggestions for how the worktree agent s
 
 - Created `.agent/docs/plans/2026-05-15/TERRITORY_RENDER_ARCHITECTURE_BRIEF_FOR_WORKTREE_AGENTS_2026-05-15.md`.
 - The brief maps the overall app shape, territory runtime shapes, key dispatch files/functions, settings/diagnostics surfaces, and a minimal reintegration checklist.
+
+## Human Input
+
+```text
+Create a subdirectory under today's session folder, in which you'll include all files needed for an external agent to fully evaluate and performance-optimize/refactor this mode. You may, and should, extract functions from files; in fact, best if you can chain all functions together as if this entire mode was implemented in a single file. Use comments to indicate original paths and LOC ranges for when the updates come back into the worktree here.
+
+Produce a very brief overview document introducing the "god object" code file. Point out which functions are ownership, which are geometry, which parts of rendering etc, so that agent can save tokens by grepping only relevant line ranges.
+```
+
+## Agent Summary
+
+- Created `.agent/docs/sessions/2026-05-15/grid-gradient-external-agent-bundle/`.
+- Generated `GRID_GRADIENT_GOD_OBJECT.ts`, `README.md`, and `PERFORMANCE_CONTEXT.md`.
+
+## Human Input
+
+```text
+Also FYI agent has requested some info - tell me what you can answer, and tell me how to get the remaining answers. Especially, what kind of performance "raw Chrome trace" it wants; all I know is the basics of devtools. I use Performance Recorder for usually about 30s, then I look for the biggest red intervals and do a "bottom up" trace, and sort it by total time. Tell me if I should do anything different.
+```
+
+## Human Input
+
+```text
+Oops, here is the info requested:
+The actual current cell counts at common settings.
+Cell counts at visual-quality targets.
+A raw Chrome trace, not only screenshots.
+A screenshot or video of the visually accepted look.
+Current code shape for GridGradientFamily.update, drawGridGradientCell, and buildGridClassification.
+Whether WebGL or WebGPU is active in your Pixi runtime.
+Whether camera zoom changes require grid LOD.
+Whether marks must rotate, animate individually, or only scale/alpha/color-blend.
+```
+
+## Agent Summary
+
+- Added `REQUESTED_AGENT_INFO.md` to the external-agent bundle.
+- Documented what is answerable from code, computed total cell counts for common world sizes/spacings, and wrote instructions for collecting live painted/emittable counts, raw Chrome trace JSON, accepted-look media, and active Pixi renderer type.

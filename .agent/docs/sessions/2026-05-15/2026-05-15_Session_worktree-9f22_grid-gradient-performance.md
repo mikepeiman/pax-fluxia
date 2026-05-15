@@ -17,10 +17,11 @@ Analyze the user-provided DevTools Performance screenshots for `Grid Gradient`, 
 - `.agent/docs/plans/2026-05-15/TERRITORY_RENDER_ARCHITECTURE_BRIEF_FOR_WORKTREE_AGENTS_2026-05-15.md`
 - `.agent/docs/plans/2026-05-15/FEATURE_AND_TASK_QUEUE_2026-05-15.md`
 - `.agent/docs/sessions/2026-05-15/2026-05-15_Chat_worktree-9f22_grid-gradient-performance.md`
+- `.agent/docs/sessions/2026-05-15/grid-gradient-external-agent-bundle/`
 
 ## Current Status
 
-The recovery plan and compact architecture brief are documented. No implementation code has been changed in this session.
+The recovery plan, compact architecture brief, and external-agent source bundle are documented. No implementation code has been changed in this session.
 
 ## Next Action
 
