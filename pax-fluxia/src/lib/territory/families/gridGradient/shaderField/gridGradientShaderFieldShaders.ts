@@ -2,17 +2,14 @@ export const gridGradientShaderFieldBitGl = {
     name: 'grid-gradient-shader-field-bit',
     vertex: {
         header: /* glsl */ `
-            out vec2 vUV;
             out vec2 vWorld;
         `,
         main: /* glsl */ `
-            vUV = uv;
             vWorld = position;
         `,
     },
     fragment: {
         header: /* glsl */ `#version 300 es
-            in vec2 vUV;
             in vec2 vWorld;
 
             uniform sampler2D uOwnerTex;

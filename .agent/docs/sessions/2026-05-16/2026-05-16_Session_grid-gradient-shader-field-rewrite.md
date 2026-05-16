@@ -82,6 +82,34 @@ This still fails because the worktree has unrelated existing TypeScript/Svelte e
 
 Implementation is compiled and unit-tested. Browser visual verification and Chrome Performance profiling are still needed.
 
+## Runtime Hotfix - Shader Compile Error
+
+User reported a WebGL shader compile failure while loading `Grid Gradient` with the shader-field backend:
+
+```text
+'vUV' : redefinition
+'roundPixels' : no matching overloaded function found
+```
+
+Cause:
+
+- Pixi's high-shader GL template already declares and assigns `vUV`; the Grid Gradient bit redeclared it.
+- `localUniformBitGl` emits a `roundPixels(gl_Position.xy, uResolution)` call, so the program must include Pixi's `roundPixelsBitGl`.
+
+Patch:
+
+- Removed the duplicate `vUV` declarations from `gridGradientShaderFieldShaders.ts`.
+- Added `roundPixelsBitGl` to the compiled shader bits in `GridGradientShaderFieldRenderer.ts`.
+
+Validated after patch:
+
+```text
+bunx vitest run src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/renderers/pixiRendererDiagnostics.test.ts
+bun run build
+```
+
+Additional source check confirmed the generated shader has one vertex `vUV`, one fragment `vUV`, and one `roundPixels` definition.
+
 ## Next Action
 
 In the UI, enable `Grid Gradient`, leave Backend as `Shader Field`, and check Mode Diagnostics for `shader_field -> shader_field`, texture cache hits after warm-up, and no fallback reason. Then profile 6px and 8px spacing to confirm `drawGridGradientCell` and Pixi circle triangulation are gone from steady fill frames.

@@ -152,6 +152,7 @@ Exit criteria:
 - The package still depends on current point-in-polygon classification until a later raster classification phase.
 - Shader-field rendering may initially differ visually at cell boundaries; default neighbor mode should be `eight` because marks can exceed cell spacing.
 - The replacement family file is a rewrite template, not a safe direct drop-in.
+- Pixi high-shader bits must avoid declaring template-provided varyings such as `vUV`; any use of `localUniformBitGl` must include `roundPixelsBitGl`.
 
 ## Implementation Note - 2026-05-16
 
@@ -170,6 +171,15 @@ Validated:
 bunx vitest run src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/renderers/pixiRendererDiagnostics.test.ts
 bun run build
 ```
+
+Hotfix validation after first shader compile failure:
+
+```text
+bunx vitest run src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/renderers/pixiRendererDiagnostics.test.ts
+bun run build
+```
+
+The compile failure was caused by duplicate `vUV` declarations and a missing `roundPixelsBitGl` bit. The shader source now relies on Pixi's template-provided `vUV` and includes `roundPixelsBitGl` alongside `localUniformBitGl`.
 
 Not yet validated:
 

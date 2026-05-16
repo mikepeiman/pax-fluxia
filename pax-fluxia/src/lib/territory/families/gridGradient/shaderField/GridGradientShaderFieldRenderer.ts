@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { compileHighShaderGlProgram, localUniformBitGl } from 'pixi.js';
+import { compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl } from 'pixi.js';
 import { gridGradientShaderFieldBitGl } from './gridGradientShaderFieldShaders';
 import type {
     GridGradientShaderDebugMode,
@@ -21,7 +21,7 @@ let cachedProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
 function getProgram(): ReturnType<typeof compileHighShaderGlProgram> {
     if (!cachedProgram) {
         cachedProgram = compileHighShaderGlProgram({
-            bits: [localUniformBitGl, gridGradientShaderFieldBitGl],
+            bits: [roundPixelsBitGl, localUniformBitGl, gridGradientShaderFieldBitGl],
             name: 'grid-gradient-shader-field',
         });
     }
