@@ -28,11 +28,80 @@
     const borderOffsetPx = $derived(valueOf<number>('gridGradientBorderOffsetPx', 0));
     const positionJitter = $derived(valueOf<number>('gridGradientPositionJitter', 0));
     const cellShape = $derived(valueOf<string>('gridGradientCellShape', 'circle'));
+    const drawBackend = $derived(valueOf<string>('gridGradientDrawBackend', 'shader_field'));
     const vectorBordersEnabled = $derived(valueOf<boolean>('gridGradientVectorBordersEnabled', true));
     const borderDotsEnabled = $derived(valueOf<boolean>('gridGradientBorderDotsEnabled', false));
     const borderDotSizePx = $derived(valueOf<number>('gridGradientBorderDotSizePx', 2.5));
     const borderDotStyle = $derived(valueOf<string>('gridGradientBorderDotStyle', 'blended'));
+    const shaderNeighborMode = $derived(valueOf<string>('gridGradientShaderNeighborMode', 'eight'));
+    const shaderMarkSoftness = $derived(valueOf<number>('gridGradientShaderMarkSoftness', 0.18));
+    const shaderEdgeSoftnessPx = $derived(valueOf<number>('gridGradientShaderEdgeSoftnessPx', 0.85));
+    const shaderNoiseStrength = $derived(valueOf<number>('gridGradientShaderNoiseStrength', 0.35));
+    const shaderPulseStrength = $derived(valueOf<number>('gridGradientShaderPulseStrength', 0.06));
+    const shaderPulseSpeed = $derived(valueOf<number>('gridGradientShaderPulseSpeed', 3));
+    const shaderFieldDriftPx = $derived(valueOf<number>('gridGradientShaderFieldDriftPx', 0));
+    const shaderFieldDriftSpeed = $derived(valueOf<number>('gridGradientShaderFieldDriftSpeed', 0.25));
+    const shaderGlowStrength = $derived(valueOf<number>('gridGradientShaderGlowStrength', 0.08));
+    const shaderInteriorAlphaBoost = $derived(valueOf<number>('gridGradientShaderInteriorAlphaBoost', 1));
+    const shaderEdgeAlphaBoost = $derived(valueOf<number>('gridGradientShaderEdgeAlphaBoost', 0.88));
+    const shaderColorMixPower = $derived(valueOf<number>('gridGradientShaderColorMixPower', 1));
+    const shaderDebugMode = $derived(valueOf<string>('gridGradientShaderDebugMode', 'off'));
 </script>
+
+<div class="sub-heading">Backend</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Grid Gradient Backend</span>
+        <span class="val">{drawBackend}</span>
+    </div>
+    <select
+        class="mode-select"
+        value={drawBackend}
+        onchange={(event) => {
+            writeConfig('GRID_GRADIENT_DRAW_BACKEND', 'gridGradientDrawBackend', (event.target as HTMLSelectElement).value);
+        }}>
+        <option value="shader_field">Shader Field</option>
+        <option value="graphics">Graphics</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Neighbor Mode</span>
+        <span class="val">{shaderNeighborMode}</span>
+    </div>
+    <select
+        class="mode-select"
+        value={shaderNeighborMode}
+        onchange={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', (event.target as HTMLSelectElement).value);
+        }}>
+        <option value="center">Center</option>
+        <option value="cross">Cross</option>
+        <option value="eight">Eight</option>
+    </select>
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Debug Mode</span>
+        <span class="val">{shaderDebugMode}</span>
+    </div>
+    <select
+        class="mode-select"
+        value={shaderDebugMode}
+        onchange={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_DEBUG_MODE', 'gridGradientShaderDebugMode', (event.target as HTMLSelectElement).value);
+        }}>
+        <option value="off">Off</option>
+        <option value="cell_grid">Cell Grid</option>
+        <option value="owner_index">Owner Index</option>
+        <option value="distance_band">Distance Band</option>
+        <option value="flip_time">Flip Time</option>
+        <option value="role">Role</option>
+    </select>
+</div>
 
 <div class="sub-heading">Grid Fill</div>
 
@@ -166,6 +235,184 @@
         }} />
 </div>
 
+<div class="sub-heading">Shader Field FX</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Mark Softness</span>
+        <span class="val">{shaderMarkSoftness.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1.5"
+        step="0.01"
+        value={shaderMarkSoftness}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_MARK_SOFTNESS', 'gridGradientShaderMarkSoftness', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Edge Softness</span>
+        <span class="val">{shaderEdgeSoftnessPx.toFixed(2)}px</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="8"
+        step="0.05"
+        value={shaderEdgeSoftnessPx}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX', 'gridGradientShaderEdgeSoftnessPx', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Noise</span>
+        <span class="val">{shaderNoiseStrength.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.01"
+        value={shaderNoiseStrength}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Pulse</span>
+        <span class="val">{shaderPulseStrength.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value={shaderPulseStrength}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_PULSE_STRENGTH', 'gridGradientShaderPulseStrength', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Pulse Speed</span>
+        <span class="val">{shaderPulseSpeed.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="20"
+        step="0.1"
+        value={shaderPulseSpeed}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_PULSE_SPEED', 'gridGradientShaderPulseSpeed', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Drift</span>
+        <span class="val">{shaderFieldDriftPx.toFixed(1)}px</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="12"
+        step="0.1"
+        value={shaderFieldDriftPx}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_PX', 'gridGradientShaderFieldDriftPx', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Drift Speed</span>
+        <span class="val">{shaderFieldDriftSpeed.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="8"
+        step="0.05"
+        value={shaderFieldDriftSpeed}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED', 'gridGradientShaderFieldDriftSpeed', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Glow</span>
+        <span class="val">{shaderGlowStrength.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.01"
+        value={shaderGlowStrength}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_GLOW_STRENGTH', 'gridGradientShaderGlowStrength', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Interior Alpha</span>
+        <span class="val">{shaderInteriorAlphaBoost.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.01"
+        value={shaderInteriorAlphaBoost}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST', 'gridGradientShaderInteriorAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Edge Alpha</span>
+        <span class="val">{shaderEdgeAlphaBoost.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.01"
+        value={shaderEdgeAlphaBoost}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST', 'gridGradientShaderEdgeAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Shader Color Power</span>
+        <span class="val">{shaderColorMixPower.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0.1"
+        max="4"
+        step="0.01"
+        value={shaderColorMixPower}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_SHADER_COLOR_MIX_POWER', 'gridGradientShaderColorMixPower', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
 <div class="sub-heading">Borders</div>
 
 <label class="toggle-line">
@@ -224,12 +471,16 @@
 
 <div class="sub-heading">Live Stats</div>
 <div class="perf-grid">
+    <div class="perf-label">Backend</div>
+    <div class="perf-value">{$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</div>
     <div class="perf-label">Cells</div>
     <div class="perf-value">{$gridGradientStats.paintedCells.toLocaleString()} / {$gridGradientStats.emittableCells.toLocaleString()} / {$gridGradientStats.totalCells.toLocaleString()}</div>
     <div class="perf-label">Spacing</div>
     <div class="perf-value">{$gridGradientStats.requestedSpacingPx.toFixed(1)} / {$gridGradientStats.effectiveSpacingPx.toFixed(1)} px</div>
     <div class="perf-label">Borders</div>
     <div class="perf-value">{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</div>
+    <div class="perf-label">Texture</div>
+    <div class="perf-value">{$gridGradientStats.textureUploaded ? 'upload' : 'cached'} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</div>
     <div class="perf-label">Frame</div>
     <div class="perf-value">{$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</div>
 </div>

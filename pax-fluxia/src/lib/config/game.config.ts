@@ -443,6 +443,7 @@ interface GameConfigType {
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     GRID_GRADIENT_ENABLED: boolean; // Master gate for the Grid Gradient render family
+    GRID_GRADIENT_DRAW_BACKEND: 'graphics' | 'shader_field' | 'mesh_quads'; // Grid Gradient fill presentation backend
     GRID_GRADIENT_SPACING_PX: number; // Requested invisible grid spacing in world px
     GRID_GRADIENT_MAX_CELLS: number; // Optional cell cap; coarsens spacing upward when exceeded
     GRID_GRADIENT_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
@@ -457,6 +458,19 @@ interface GameConfigType {
     GRID_GRADIENT_BORDER_DOTS_ENABLED: boolean; // Overlay grid-derived dotted borders
     GRID_GRADIENT_BORDER_DOT_SIZE_PX: number; // Dotted-border primitive size
     GRID_GRADIENT_BORDER_DOT_STYLE: 'blended' | 'butted'; // One blended line or two owner-colored lines
+    GRID_GRADIENT_SHADER_NEIGHBOR_MODE: 'center' | 'cross' | 'eight'; // Shader mark neighbor sampling radius
+    GRID_GRADIENT_SHADER_MARK_SOFTNESS: number; // Shader mark edge softness as a radius fraction
+    GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX: number; // Extra shader mark softness in world px
+    GRID_GRADIENT_SHADER_NOISE_STRENGTH: number; // Procedural edge wobble for noise marks
+    GRID_GRADIENT_SHADER_PULSE_STRENGTH: number; // Per-mark shader pulse amplitude
+    GRID_GRADIENT_SHADER_PULSE_SPEED: number; // Per-mark shader pulse speed
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_PX: number; // Optional shader-only mark drift amplitude
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED: number; // Optional shader-only mark drift speed
+    GRID_GRADIENT_SHADER_GLOW_STRENGTH: number; // Extra fill-color brightness in shader marks
+    GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: number; // Alpha boost near region interiors
+    GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: number; // Alpha boost near borders
+    GRID_GRADIENT_SHADER_COLOR_MIX_POWER: number; // Shader fill color power curve
+    GRID_GRADIENT_SHADER_DEBUG_MODE: 'off' | 'cell_grid' | 'owner_index' | 'distance_band' | 'flip_time' | 'role'; // Shader debug color overlay
     TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched
     TERRITORY_FRONTIER_PHASE_SAMPLING: TerritoryFrontierPhaseSamplingMode; // Texture filtering strategy for shader frontier bands

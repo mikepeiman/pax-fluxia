@@ -1,9 +1,12 @@
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { resolvePixiRendererDiagnostics } from '$lib/renderers/pixiRendererDiagnostics';
+import { recordPerfDuration } from '$lib/perf/perfProbe';
+import { log } from '$lib/utils/logger';
 import {
     buildOwnershipGridFrontierDistanceField,
     createOwnershipGridFrontierDistanceFieldBuffers,
+    type OwnershipGridFrontierDistanceField,
     type OwnershipGridFrontierDistanceFieldBuffers,
 } from '$lib/territory/frontier';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
@@ -18,11 +21,13 @@ import {
     buildGridGradientOwnerDistanceSummary,
     buildOwnerIndexByCell,
     resolveGridGradientCellSize,
+    type GridGradientOwnerDistanceSummary,
 } from './gridGradientScene';
 import {
     buildGridGradientPalette,
     drawGridGradientCell,
     drawGridGradientVectorBorders,
+    type GridGradientPalette,
 } from './paint';
 import {
     buildGridGradientPlan,
@@ -38,6 +43,61 @@ import {
     resetGridGradientStats,
     updateGridGradientStats,
 } from './gridGradientStats';
+import { buildGridGradientShaderFieldTexturePlan } from './shaderField/gridGradientShaderFieldPacking';
+import { GridGradientShaderFieldRenderer } from './shaderField/GridGradientShaderFieldRenderer';
+import type {
+    GridGradientDrawBackend,
+    GridGradientShaderFieldStats,
+    GridGradientShaderFieldTexturePlan,
+} from './shaderField/gridGradientShaderFieldTypes';
+
+interface PlanResolveResult {
+    readonly plan: CachedGridGradientPlan;
+    readonly cacheHit: boolean;
+    readonly rebuildReason: string | null;
+}
+
+interface DistanceInputs {
+    readonly ownerIndexByCell: Int32Array;
+    readonly distanceField: OwnershipGridFrontierDistanceField;
+    readonly distanceSummary: GridGradientOwnerDistanceSummary;
+    readonly distanceBuildMs: number;
+    readonly ownerSummaryBuildMs: number;
+}
+
+interface ShaderTextureResolveResult {
+    readonly texturePlan: GridGradientShaderFieldTexturePlan;
+    readonly cacheHit: boolean;
+    readonly rebuildReason: string | null;
+}
+
+interface GraphicsPaintResult {
+    readonly paintedCells: number;
+    readonly sceneBuildMs: number;
+    readonly paintMs: number;
+}
+
+interface RoleCounts {
+    readonly activeTransitionCells: number;
+    readonly outsideCells: number;
+}
+
+const EMPTY_SHADER_STATS: GridGradientShaderFieldStats = {
+    drawBackend: 'graphics',
+    neighborMode: 'eight',
+    textureUploaded: false,
+    textureUploadMs: 0,
+    uniformUpdateMs: 0,
+    ownerTextureBytes: 0,
+    metricsTextureBytes: 0,
+    paletteTextureBytes: 0,
+    textureBytes: 0,
+    totalCells: 0,
+    emittableCells: 0,
+    activeTransitionCells: 0,
+    outsideCells: 0,
+    fallbackReason: null,
+};
 
 export class GridGradientFamily implements RenderFamily {
     readonly id = 'grid_gradient';
@@ -45,17 +105,31 @@ export class GridGradientFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = GRID_GRADIENT_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
-    private readonly graphics = new PIXI.Graphics();
+    private readonly shaderFieldRenderer = new GridGradientShaderFieldRenderer();
+    private readonly fillGraphics = new PIXI.Graphics();
+    private readonly borderDotGraphics = new PIXI.Graphics();
+    private readonly vectorBorderGraphics = new PIXI.Graphics();
     private readonly colorUtils: ColorUtils;
     private cachedPlan: CachedGridGradientPlan | null = null;
+    private cachedShaderTexturePlan: GridGradientShaderFieldTexturePlan | null = null;
     private distanceFieldBuffers: OwnershipGridFrontierDistanceFieldBuffers | null =
         null;
+    private borderDotSignature: string | null = null;
+    private vectorBorderSignature: string | null = null;
+    private borderDotCount = 0;
+    private vectorBorderCount = 0;
     private lastDebugSnapshot: Record<string, unknown> | null = null;
     private emaUpdateMs = 0;
+    private loggedShaderFailure = false;
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
-        this.root.addChild(this.graphics);
+        this.root.addChild(
+            this.shaderFieldRenderer.container,
+            this.fillGraphics,
+            this.borderDotGraphics,
+            this.vectorBorderGraphics,
+        );
     }
 
     get displayRoot(): PIXI.Container {
@@ -70,7 +144,7 @@ export class GridGradientFamily implements RenderFamily {
         readonly input: RenderFamilyInput;
         readonly geometry: ResolvedGeometrySnapshot;
         readonly settings: GridGradientSettings;
-    }): CachedGridGradientPlan {
+    }): PlanResolveResult {
         const prevGeometry =
             params.input.activeTransition && params.input.prevGeometry
                 ? params.input.prevGeometry
@@ -81,16 +155,27 @@ export class GridGradientFamily implements RenderFamily {
             prevGeometry,
             settings: params.settings,
         });
-        if (!this.cachedPlan || this.cachedPlan.planKey !== planKey) {
-            this.cachedPlan = buildGridGradientPlan({
-                input: params.input,
-                geometry: params.geometry,
-                prevGeometry,
-                settings: params.settings,
-                planKey,
-            });
+        if (this.cachedPlan?.planKey === planKey) {
+            return {
+                plan: this.cachedPlan,
+                cacheHit: true,
+                rebuildReason: null,
+            };
         }
-        return this.cachedPlan;
+        const rebuildReason = this.cachedPlan ? 'key_change' : 'initial';
+        this.cachedPlan = buildGridGradientPlan({
+            input: params.input,
+            geometry: params.geometry,
+            prevGeometry,
+            settings: params.settings,
+            planKey,
+        });
+        this.cachedShaderTexturePlan = null;
+        return {
+            plan: this.cachedPlan,
+            cacheHit: false,
+            rebuildReason,
+        };
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
@@ -99,14 +184,15 @@ export class GridGradientFamily implements RenderFamily {
         const settings = resolveGridGradientSettings(input);
 
         if (!geometry || !settings.enabled) {
-            this.graphics.clear();
-            this.root.visible = false;
+            this.clearForDisabledFrame();
             resetGridGradientStats();
             return { container: this.root };
         }
 
         this.root.visible = true;
-        const plan = this.resolvePlan({ input, geometry, settings });
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(input.renderer);
+        const planResult = this.resolvePlan({ input, geometry, settings });
+        const { plan } = planResult;
         const palette = buildGridGradientPalette({
             colorUtils: this.colorUtils,
             input,
@@ -114,78 +200,111 @@ export class GridGradientFamily implements RenderFamily {
             settings,
         });
         const progress = input.activeTransition ? input.activeTransition.progress : 1;
-        const sceneStartMs = performance.now();
-        const scene = renderMetaballGridScene({
-            classification: plan.classification,
-            wavePlan: plan.wavePlan,
-            progress,
-            flipTransition: settings.flipTransition,
-            flipWindow: settings.flipWindow,
-            strength: 1,
-            inwardOffsetPx: 0,
-            ownerColorIdx: palette.ownerColorIdx,
-        });
-        const sceneBuildMs = performance.now() - sceneStartMs;
 
-        const ownerIndexByCell = buildOwnerIndexByCell({
-            classification: plan.classification,
-            ownerIndexByOwnerId: palette.ownerColorIdx,
-        });
-        const size = plan.classification.cols * plan.classification.rows;
-        if (
-            !this.distanceFieldBuffers ||
-            this.distanceFieldBuffers.nearestBoundaryPxByCell.length !== size
-        ) {
-            this.distanceFieldBuffers =
-                createOwnershipGridFrontierDistanceFieldBuffers(size);
+        let requestedDrawBackend = settings.drawBackend;
+        let drawBackend = requestedDrawBackend;
+        let backendFallbackReason: string | null = null;
+        let shaderTextureResult: ShaderTextureResolveResult | null = null;
+        let shaderStats: GridGradientShaderFieldStats = EMPTY_SHADER_STATS;
+        let graphicsPaint: GraphicsPaintResult = {
+            paintedCells: 0,
+            sceneBuildMs: 0,
+            paintMs: 0,
+        };
+        let distanceTimings = {
+            distanceBuildMs: 0,
+            ownerSummaryBuildMs: 0,
+        };
+
+        if (requestedDrawBackend === 'mesh_quads') {
+            drawBackend = 'graphics';
+            backendFallbackReason = 'mesh_quads_pending';
         }
-        const distanceField = buildOwnershipGridFrontierDistanceField({
-            cols: plan.classification.cols,
-            rows: plan.classification.rows,
-            ownerIndexByCell,
-            spacingPx: plan.classification.spacingPx,
-            includeWorldEdge: true,
-            reuseBuffers: this.distanceFieldBuffers,
-        });
-        const distanceSummary = buildGridGradientOwnerDistanceSummary({
-            classification: plan.classification,
-            ownerIndexByOwnerId: palette.ownerColorIdx,
-            distanceField,
-        });
 
-        const paintStartMs = performance.now();
-        this.graphics.clear();
-        let paintedCells = 0;
-        for (const cell of scene.cells) {
-            if (cell.alpha <= 0) continue;
-            const color = palette.fillHexByColorIdx[cell.colorIdx];
-            if (color === undefined) continue;
-            const cellIndex = cell.iy * plan.classification.cols + cell.ix;
-            const ownerIndex = distanceSummary.ownerIndexByCell[cellIndex];
-            if (ownerIndex < 0) continue;
-            const distancePx = distanceField.nearestBoundaryPxByCell[cellIndex];
-            const sizePx = resolveGridGradientCellSize({
-                distancePx,
-                ownerMaxDistancePx:
-                    distanceSummary.ownerMaxDistancePxByIndex[ownerIndex] ??
-                    distancePx,
-                edgeSizePx: settings.edgeSizePx,
-                centerSizePx: settings.centerSizePx,
-                curvePower: settings.curvePower,
-                borderOffsetPx: settings.borderOffsetPx,
+        if (
+            drawBackend === 'shader_field' &&
+            rendererDiagnostics.rendererType === 'webgpu'
+        ) {
+            drawBackend = 'graphics';
+            backendFallbackReason = 'webgpu_gl_shader_unavailable';
+        }
+
+        if (drawBackend === 'shader_field') {
+            try {
+                shaderTextureResult = this.resolveShaderTexturePlan({
+                    input,
+                    plan,
+                    palette,
+                    settings,
+                });
+                shaderStats = this.shaderFieldRenderer.update({
+                    plan: shaderTextureResult.texturePlan,
+                    settings,
+                    shaderSettings: {
+                        backend: settings.drawBackend,
+                        neighborMode: settings.shaderNeighborMode,
+                        shaderMarkSoftness: settings.shaderMarkSoftness,
+                        shaderEdgeSoftnessPx: settings.shaderEdgeSoftnessPx,
+                        shaderNoiseStrength: settings.shaderNoiseStrength,
+                        shaderPulseStrength: settings.shaderPulseStrength,
+                        shaderPulseSpeed: settings.shaderPulseSpeed,
+                        shaderFieldDriftPx: settings.shaderFieldDriftPx,
+                        shaderFieldDriftSpeed: settings.shaderFieldDriftSpeed,
+                        shaderGlowStrength: settings.shaderGlowStrength,
+                        shaderInteriorAlphaBoost: settings.shaderInteriorAlphaBoost,
+                        shaderEdgeAlphaBoost: settings.shaderEdgeAlphaBoost,
+                        shaderColorMixPower: settings.shaderColorMixPower,
+                        shaderDebugMode: settings.shaderDebugMode,
+                    },
+                    progress,
+                    nowMs: input.nowMs,
+                    renderer: input.renderer,
+                });
+                this.loggedShaderFailure = false;
+                this.fillGraphics.visible = false;
+                this.fillGraphics.clear();
+            } catch (err) {
+                drawBackend = 'graphics';
+                backendFallbackReason = 'shader_field_error';
+                shaderStats = { ...EMPTY_SHADER_STATS, fallbackReason: backendFallbackReason };
+                this.shaderFieldRenderer.hide();
+                if (!this.loggedShaderFailure) {
+                    log.error(
+                        'GridGradientFamily',
+                        'Shader-field backend failed; using graphics fallback.',
+                        err,
+                    );
+                    this.loggedShaderFailure = true;
+                }
+            }
+        } else {
+            this.shaderFieldRenderer.hide();
+        }
+
+        if (drawBackend === 'graphics') {
+            const distanceInputs = this.buildDistanceInputs({
+                plan,
+                palette,
             });
-            if (sizePx <= 0) continue;
-            drawGridGradientCell({
-                graphics: this.graphics,
-                shape: settings.cellShape,
-                id: cell.vId,
-                x: cell.x,
-                y: cell.y,
-                sizePx,
-                color,
-                alpha: settings.fillAlpha * cell.alpha,
+            distanceTimings = {
+                distanceBuildMs: distanceInputs.distanceBuildMs,
+                ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
+            };
+            graphicsPaint = this.paintGraphicsFill({
+                plan,
+                palette,
+                settings,
+                progress,
+                distanceInputs,
             });
-            paintedCells += 1;
+            this.fillGraphics.visible = true;
+            shaderStats = {
+                ...shaderStats,
+                drawBackend: 'graphics',
+                neighborMode: settings.shaderNeighborMode,
+                totalCells: plan.classification.vstars.length,
+                emittableCells: plan.classification.emittableVstars.length,
+            };
         }
 
         const borderDotCount = this.paintBorderDots({
@@ -193,45 +312,307 @@ export class GridGradientFamily implements RenderFamily {
             palette,
             settings,
         });
-        const vectorBorderCount = drawGridGradientVectorBorders({
-            graphics: this.graphics,
+        const vectorBorderCount = this.paintVectorBorders({
             geometry,
+            palette,
             settings,
-            colorByOwnerId: palette.colorByOwnerId,
         });
-        const paintMs = performance.now() - paintStartMs;
+        const roleCounts = this.countRoles(plan);
+
         const updateMs = performance.now() - updateStartMs;
         this.emaUpdateMs =
             this.emaUpdateMs === 0 ? updateMs : this.emaUpdateMs * 0.85 + updateMs * 0.15;
+
         this.recordStats({
             input,
             geometry,
             plan,
             settings,
-            paintedCells,
+            requestedDrawBackend,
+            drawBackend,
+            backendFallbackReason,
+            planCacheHit: planResult.cacheHit,
+            planRebuildReason: planResult.rebuildReason,
+            presentationCacheHit: shaderTextureResult?.cacheHit ?? false,
+            presentationRebuildReason:
+                shaderTextureResult?.rebuildReason ??
+                (drawBackend === 'shader_field' ? 'missing_texture_plan' : null),
+            shaderStats,
+            paintedCells:
+                drawBackend === 'shader_field'
+                    ? shaderStats.emittableCells
+                    : graphicsPaint.paintedCells,
+            activeTransitionCells:
+                shaderTextureResult?.texturePlan.activeTransitionCells ??
+                roleCounts.activeTransitionCells,
+            outsideCells:
+                shaderTextureResult?.texturePlan.outsideCells ?? roleCounts.outsideCells,
             borderDotCount,
             vectorBorderCount,
             progress,
-            sceneBuildMs,
-            paintMs,
+            distanceBuildMs:
+                shaderTextureResult?.texturePlan.distanceBuildMs ??
+                distanceTimings.distanceBuildMs,
+            ownerSummaryBuildMs:
+                shaderTextureResult?.texturePlan.ownerSummaryBuildMs ??
+                distanceTimings.ownerSummaryBuildMs,
+            sceneBuildMs: graphicsPaint.sceneBuildMs,
+            texturePackMs: shaderTextureResult?.texturePlan.texturePackMs ?? 0,
+            paintMs: graphicsPaint.paintMs,
             updateMs,
+            rendererDiagnostics,
         });
+        recordPerfDuration(
+            'territory.gridGradient.update',
+            updateMs,
+            {
+                drawBackend,
+                requestedDrawBackend,
+                cells: plan.classification.vstars.length,
+                planCacheHit: planResult.cacheHit,
+                presentationCacheHit: shaderTextureResult?.cacheHit ?? false,
+            },
+            updateStartMs,
+        );
 
         return { container: this.root };
     }
 
+    private clearForDisabledFrame(): void {
+        this.fillGraphics.clear();
+        this.borderDotGraphics.clear();
+        this.vectorBorderGraphics.clear();
+        this.shaderFieldRenderer.hide();
+        this.root.visible = false;
+        this.borderDotSignature = null;
+        this.vectorBorderSignature = null;
+        this.borderDotCount = 0;
+        this.vectorBorderCount = 0;
+    }
+
+    private countRoles(plan: CachedGridGradientPlan): RoleCounts {
+        let activeTransitionCells = 0;
+        let outsideCells = 0;
+        for (const cell of plan.classification.vstars) {
+            if (cell.role === 'outside') {
+                outsideCells += 1;
+            } else if (cell.role !== 'native') {
+                activeTransitionCells += 1;
+            }
+        }
+        return { activeTransitionCells, outsideCells };
+    }
+
+    private buildDistanceInputs(params: {
+        readonly plan: CachedGridGradientPlan;
+        readonly palette: GridGradientPalette;
+    }): DistanceInputs {
+        const ownerSummaryStartMs = performance.now();
+        const ownerIndexByCell = buildOwnerIndexByCell({
+            classification: params.plan.classification,
+            ownerIndexByOwnerId: params.palette.ownerColorIdx,
+        });
+        const ownerIndexBuildMs = performance.now() - ownerSummaryStartMs;
+
+        const size = params.plan.classification.cols * params.plan.classification.rows;
+        if (
+            !this.distanceFieldBuffers ||
+            this.distanceFieldBuffers.nearestBoundaryPxByCell.length !== size
+        ) {
+            this.distanceFieldBuffers =
+                createOwnershipGridFrontierDistanceFieldBuffers(size);
+        }
+
+        const distanceStartMs = performance.now();
+        const distanceField = buildOwnershipGridFrontierDistanceField({
+            cols: params.plan.classification.cols,
+            rows: params.plan.classification.rows,
+            ownerIndexByCell,
+            spacingPx: params.plan.classification.spacingPx,
+            includeWorldEdge: true,
+            reuseBuffers: this.distanceFieldBuffers,
+        });
+        const distanceBuildMs = performance.now() - distanceStartMs;
+
+        const summaryStartMs = performance.now();
+        const distanceSummary = buildGridGradientOwnerDistanceSummary({
+            classification: params.plan.classification,
+            ownerIndexByOwnerId: params.palette.ownerColorIdx,
+            distanceField,
+        });
+        const ownerSummaryBuildMs =
+            ownerIndexBuildMs + performance.now() - summaryStartMs;
+
+        return {
+            ownerIndexByCell,
+            distanceField,
+            distanceSummary,
+            distanceBuildMs,
+            ownerSummaryBuildMs,
+        };
+    }
+
+    private resolveShaderTexturePlan(params: {
+        readonly input: RenderFamilyInput;
+        readonly plan: CachedGridGradientPlan;
+        readonly palette: GridGradientPalette;
+        readonly settings: GridGradientSettings;
+    }): ShaderTextureResolveResult {
+        const presentationKey = this.buildShaderPresentationKey({
+            plan: params.plan,
+            palette: params.palette,
+            settings: params.settings,
+        });
+        if (this.cachedShaderTexturePlan?.presentationKey === presentationKey) {
+            return {
+                texturePlan: this.cachedShaderTexturePlan,
+                cacheHit: true,
+                rebuildReason: null,
+            };
+        }
+
+        const distanceInputs = this.buildDistanceInputs({
+            plan: params.plan,
+            palette: params.palette,
+        });
+        this.cachedShaderTexturePlan = buildGridGradientShaderFieldTexturePlan({
+            planKey: params.plan.planKey,
+            presentationKey,
+            classification: params.plan.classification,
+            wavePlan: params.plan.wavePlan,
+            palette: params.palette,
+            settings: params.settings,
+            distanceField: distanceInputs.distanceField,
+            ownerIndexByCell: distanceInputs.ownerIndexByCell,
+            ownerMaxDistancePxByIndex:
+                distanceInputs.distanceSummary.ownerMaxDistancePxByIndex,
+            world: params.input.world,
+            distanceBuildMs: distanceInputs.distanceBuildMs,
+            ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
+        });
+        return {
+            texturePlan: this.cachedShaderTexturePlan,
+            cacheHit: false,
+            rebuildReason: 'presentation_key_change',
+        };
+    }
+
+    private buildShaderPresentationKey(params: {
+        readonly plan: CachedGridGradientPlan;
+        readonly palette: GridGradientPalette;
+        readonly settings: GridGradientSettings;
+    }): string {
+        const ownerMapKey = [...params.palette.ownerColorIdx.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([ownerId, idx]) => `${ownerId}:${idx}`)
+            .join(',');
+        const fillKey = params.palette.fillHexByColorIdx
+            .map((color) => color.toString(16))
+            .join(',');
+        return [
+            params.plan.planKey,
+            ownerMapKey,
+            fillKey,
+            params.settings.borderOffsetPx,
+        ].join('|');
+    }
+
+    private paintGraphicsFill(params: {
+        readonly plan: CachedGridGradientPlan;
+        readonly palette: GridGradientPalette;
+        readonly settings: GridGradientSettings;
+        readonly progress: number;
+        readonly distanceInputs: DistanceInputs;
+    }): GraphicsPaintResult {
+        const sceneStartMs = performance.now();
+        const scene = renderMetaballGridScene({
+            classification: params.plan.classification,
+            wavePlan: params.plan.wavePlan,
+            progress: params.progress,
+            flipTransition: params.settings.flipTransition,
+            flipWindow: params.settings.flipWindow,
+            strength: 1,
+            inwardOffsetPx: 0,
+            ownerColorIdx: params.palette.ownerColorIdx,
+        });
+        const sceneBuildMs = performance.now() - sceneStartMs;
+
+        const paintStartMs = performance.now();
+        this.fillGraphics.clear();
+        let paintedCells = 0;
+        for (const cell of scene.cells) {
+            if (cell.alpha <= 0) continue;
+            const color = params.palette.fillHexByColorIdx[cell.colorIdx];
+            if (color === undefined) continue;
+            const cellIndex = cell.iy * params.plan.classification.cols + cell.ix;
+            const ownerIndex =
+                params.distanceInputs.distanceSummary.ownerIndexByCell[cellIndex];
+            if (ownerIndex < 0) continue;
+            const distancePx =
+                params.distanceInputs.distanceField.nearestBoundaryPxByCell[cellIndex];
+            const sizePx = resolveGridGradientCellSize({
+                distancePx,
+                ownerMaxDistancePx:
+                    params.distanceInputs.distanceSummary.ownerMaxDistancePxByIndex[
+                        ownerIndex
+                    ] ?? distancePx,
+                edgeSizePx: params.settings.edgeSizePx,
+                centerSizePx: params.settings.centerSizePx,
+                curvePower: params.settings.curvePower,
+                borderOffsetPx: params.settings.borderOffsetPx,
+            });
+            if (sizePx <= 0) continue;
+            drawGridGradientCell({
+                graphics: this.fillGraphics,
+                shape: params.settings.cellShape,
+                id: cell.vId,
+                x: cell.x,
+                y: cell.y,
+                sizePx,
+                color,
+                alpha: params.settings.fillAlpha * cell.alpha,
+            });
+            paintedCells += 1;
+        }
+
+        return {
+            paintedCells,
+            sceneBuildMs,
+            paintMs: performance.now() - paintStartMs,
+        };
+    }
+
     private paintBorderDots(params: {
         readonly plan: CachedGridGradientPlan;
-        readonly palette: ReturnType<typeof buildGridGradientPalette>;
+        readonly palette: GridGradientPalette;
         readonly settings: GridGradientSettings;
     }): number {
+        const signature = [
+            params.plan.planKey,
+            params.settings.borderDotsEnabled,
+            params.settings.borderDotSizePx,
+            params.settings.borderDotStyle,
+            params.settings.borderAlpha,
+            [...params.palette.colorByOwnerId.entries()]
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([ownerId, color]) => `${ownerId}:${color.toString(16)}`)
+                .join(','),
+        ].join('|');
+        if (this.borderDotSignature === signature) {
+            return this.borderDotCount;
+        }
+
+        this.borderDotGraphics.clear();
+        this.borderDotSignature = signature;
         if (
             !params.settings.borderDotsEnabled ||
             params.settings.borderDotSizePx <= 0 ||
             params.settings.borderAlpha <= 0
         ) {
+            this.borderDotCount = 0;
             return 0;
         }
+
         const dots = buildGridGradientBorderDots({
             classification: params.plan.classification,
             colorByOwnerId: params.palette.colorByOwnerId,
@@ -240,12 +621,45 @@ export class GridGradientFamily implements RenderFamily {
             alpha: params.settings.borderAlpha,
         });
         for (const dot of dots) {
-            this.graphics.circle(dot.x, dot.y, dot.sizePx * 0.5).fill({
+            this.borderDotGraphics.circle(dot.x, dot.y, dot.sizePx * 0.5).fill({
                 color: dot.color,
                 alpha: dot.alpha,
             });
         }
+        this.borderDotCount = dots.length;
         return dots.length;
+    }
+
+    private paintVectorBorders(params: {
+        readonly geometry: ResolvedGeometrySnapshot;
+        readonly palette: GridGradientPalette;
+        readonly settings: GridGradientSettings;
+    }): number {
+        const signature = [
+            params.geometry.version,
+            params.settings.vectorBordersEnabled,
+            params.settings.borderWidthPx,
+            params.settings.borderAlpha,
+            params.settings.borderSaturation,
+            params.settings.borderLightness,
+            [...params.palette.colorByOwnerId.entries()]
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([ownerId, color]) => `${ownerId}:${color.toString(16)}`)
+                .join(','),
+        ].join('|');
+        if (this.vectorBorderSignature === signature) {
+            return this.vectorBorderCount;
+        }
+
+        this.vectorBorderGraphics.clear();
+        this.vectorBorderSignature = signature;
+        this.vectorBorderCount = drawGridGradientVectorBorders({
+            graphics: this.vectorBorderGraphics,
+            geometry: params.geometry,
+            settings: params.settings,
+            colorByOwnerId: params.palette.colorByOwnerId,
+        });
+        return this.vectorBorderCount;
     }
 
     private recordStats(params: {
@@ -253,19 +667,37 @@ export class GridGradientFamily implements RenderFamily {
         readonly geometry: ResolvedGeometrySnapshot;
         readonly plan: CachedGridGradientPlan;
         readonly settings: GridGradientSettings;
+        readonly requestedDrawBackend: GridGradientDrawBackend;
+        readonly drawBackend: GridGradientDrawBackend;
+        readonly backendFallbackReason: string | null;
+        readonly planCacheHit: boolean;
+        readonly planRebuildReason: string | null;
+        readonly presentationCacheHit: boolean;
+        readonly presentationRebuildReason: string | null;
+        readonly shaderStats: GridGradientShaderFieldStats;
         readonly paintedCells: number;
+        readonly activeTransitionCells: number;
+        readonly outsideCells: number;
         readonly borderDotCount: number;
         readonly vectorBorderCount: number;
         readonly progress: number;
+        readonly distanceBuildMs: number;
+        readonly ownerSummaryBuildMs: number;
         readonly sceneBuildMs: number;
+        readonly texturePackMs: number;
         readonly paintMs: number;
         readonly updateMs: number;
+        readonly rendererDiagnostics: ReturnType<typeof resolvePixiRendererDiagnostics>;
     }): void {
-        const rendererDiagnostics = resolvePixiRendererDiagnostics(params.input.renderer);
         const debugSnapshot = {
             familyId: this.id,
             familyLabel: this.label,
-            rendererDiagnostics,
+            rendererDiagnostics: params.rendererDiagnostics,
+            requestedDrawBackend: params.requestedDrawBackend,
+            drawBackend: params.drawBackend,
+            backendFallbackReason: params.backendFallbackReason,
+            planCacheHit: params.planCacheHit,
+            presentationCacheHit: params.presentationCacheHit,
             planKey: params.plan.planKey,
             geometryVersion: params.geometry.version,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
@@ -277,6 +709,8 @@ export class GridGradientFamily implements RenderFamily {
             vectorBorderCount: params.vectorBorderCount,
             cellShape: params.settings.cellShape,
             borderDotStyle: params.settings.borderDotStyle,
+            shaderNeighborMode: params.settings.shaderNeighborMode,
+            shaderDebugMode: params.settings.shaderDebugMode,
             progress: params.progress,
         };
         this.lastDebugSnapshot = debugSnapshot;
@@ -286,31 +720,53 @@ export class GridGradientFamily implements RenderFamily {
             geometrySource:
                 (params.input.configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ??
                 null,
-            rendererType: rendererDiagnostics.rendererType,
-            rendererTypeSource: rendererDiagnostics.rendererTypeSource,
-            rendererConstructorName: rendererDiagnostics.rendererConstructorName,
-            rendererReportedType: rendererDiagnostics.rendererReportedType,
+            rendererType: params.rendererDiagnostics.rendererType,
+            rendererTypeSource: params.rendererDiagnostics.rendererTypeSource,
+            rendererConstructorName:
+                params.rendererDiagnostics.rendererConstructorName,
+            rendererReportedType: params.rendererDiagnostics.rendererReportedType,
+            requestedDrawBackend: params.requestedDrawBackend,
+            drawBackend: params.drawBackend,
+            backendFallbackReason: params.backendFallbackReason,
+            planCacheHit: params.planCacheHit,
+            planRebuildReason: params.planRebuildReason,
+            presentationCacheHit: params.presentationCacheHit,
+            presentationRebuildReason: params.presentationRebuildReason,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
             totalCells: params.plan.classification.vstars.length,
             emittableCells: params.plan.classification.emittableVstars.length,
             paintedCells: params.paintedCells,
+            activeTransitionCells: params.activeTransitionCells,
+            outsideCells: params.outsideCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
             cellShape: params.settings.cellShape,
             borderDotStyle: params.settings.borderDotStyle,
             borderDotsEnabled: params.settings.borderDotsEnabled,
             vectorBordersEnabled: params.settings.vectorBordersEnabled,
+            shaderNeighborMode: params.settings.shaderNeighborMode,
+            shaderDebugMode: params.settings.shaderDebugMode,
             centerSizePx: params.settings.centerSizePx,
             edgeSizePx: params.settings.edgeSizePx,
             curvePower: params.settings.curvePower,
             borderOffsetPx: params.settings.borderOffsetPx,
             lastClassificationBuildMs: params.plan.classificationBuildMs,
             lastWavePlanBuildMs: params.plan.wavePlanBuildMs,
+            lastDistanceBuildMs: params.distanceBuildMs,
+            lastOwnerSummaryBuildMs: params.ownerSummaryBuildMs,
             lastSceneBuildMs: params.sceneBuildMs,
+            lastTexturePackMs: params.texturePackMs,
+            lastTextureUploadMs: params.shaderStats.textureUploadMs,
+            lastUniformUpdateMs: params.shaderStats.uniformUpdateMs,
             lastPaintMs: params.paintMs,
             lastUpdateMs: params.updateMs,
             emaUpdateMs: this.emaUpdateMs,
+            textureUploaded: params.shaderStats.textureUploaded,
+            ownerTextureBytes: params.shaderStats.ownerTextureBytes,
+            metricsTextureBytes: params.shaderStats.metricsTextureBytes,
+            paletteTextureBytes: params.shaderStats.paletteTextureBytes,
+            textureBytes: params.shaderStats.textureBytes,
             transitionEventCount: params.input.activeTransition?.events.length ?? 0,
             rawProgress: params.input.activeTransition ? params.progress : null,
             visibleFrameState: params.input.activeTransition ? 'transition' : 'steady',
@@ -318,9 +774,13 @@ export class GridGradientFamily implements RenderFamily {
     }
 
     dispose(): void {
-        this.graphics.destroy();
+        this.shaderFieldRenderer.dispose();
+        this.fillGraphics.destroy();
+        this.borderDotGraphics.destroy();
+        this.vectorBorderGraphics.destroy();
         this.root.destroy({ children: true });
         this.cachedPlan = null;
+        this.cachedShaderTexturePlan = null;
         this.distanceFieldBuffers = null;
     }
 }

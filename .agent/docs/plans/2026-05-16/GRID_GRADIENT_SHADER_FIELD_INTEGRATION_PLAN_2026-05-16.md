@@ -6,7 +6,7 @@ Commit the external Grid Gradient shader-field research package into project doc
 
 ## Current Status
 
-The package is documentation/reference material only. It has not been wired into source, compiled, or validated in the live app.
+The package began as documentation/reference material. It is now partially integrated into source as the default Grid Gradient fill backend, with graphics fallback retained.
 
 Committed reference location:
 
@@ -36,6 +36,12 @@ gridGradientStats.shaderField.patch.ts
 GridGradientTuning.shaderField.patch.svelte
 ControlsSection-Diagnostics.gridGradient.shaderField.patch.svelte
 gridGradientShaderFieldPacking.test.ts
+```
+
+Implementation source location:
+
+```text
+pax-fluxia/src/lib/territory/families/gridGradient/shaderField/
 ```
 
 ## Architecture Decision
@@ -141,11 +147,36 @@ Exit criteria:
 
 ## Known Risks
 
-- Pixi 8 shader construction in the package is deliberately adapter-like and may not compile unchanged.
+- Pixi 8 shader construction from the package was replaced with the local high-shader and `BufferImageSource` pattern; browser verification is still required.
 - Texture creation may need a local Pixi 8-compatible `TextureSource` path rather than `Texture.fromBuffer`.
 - The package still depends on current point-in-polygon classification until a later raster classification phase.
 - Shader-field rendering may initially differ visually at cell boundaries; default neighbor mode should be `eight` because marks can exceed cell spacing.
 - The replacement family file is a rewrite template, not a safe direct drop-in.
+
+## Implementation Note - 2026-05-16
+
+Completed:
+
+1. Added `shaderField/` modules for type contracts, texture packing, shader source, renderer wrapper, and exports.
+2. Added `gridGradientShaderFieldPacking.test.ts`.
+3. Added `GRID_GRADIENT_DRAW_BACKEND` and shader-field tuning keys through config, settings, panel mapping, search metadata, and UI controls.
+4. Reworked `GridGradientFamily` to use separate fill, shader-field, border-dot, and vector-border layers.
+5. Added plan cache diagnostics, presentation cache diagnostics, texture upload stats, texture byte counts, active/outside cell counts, shader neighbor mode, and shader debug mode.
+6. Kept `graphics` as explicit fallback and as the fallback for pending `mesh_quads`, WebGPU GL-shader mismatch, and shader update failure.
+
+Validated:
+
+```text
+bunx vitest run src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/renderers/pixiRendererDiagnostics.test.ts
+bun run build
+```
+
+Not yet validated:
+
+```text
+Browser visual render
+Chrome Performance trace after warm-up
+```
 
 ## Commit Sequence
 

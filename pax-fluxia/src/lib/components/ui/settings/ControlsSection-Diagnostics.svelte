@@ -738,9 +738,16 @@
                 </span>
             </div>
             <div><span>Source</span><code>{$gridGradientStats.geometrySource ?? "n/a"}</code></div>
+            <div><span>Backend</span><span>{$gridGradientStats.requestedDrawBackend} -> {$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</span></div>
+            <div><span>Plan Cache</span><span>{$gridGradientStats.planCacheHit ? "hit" : "miss"}{#if $gridGradientStats.planRebuildReason} / {$gridGradientStats.planRebuildReason}{/if}</span></div>
+            <div><span>Paint Cache</span><span>{$gridGradientStats.presentationCacheHit ? "hit" : "miss"}{#if $gridGradientStats.presentationRebuildReason} / {$gridGradientStats.presentationRebuildReason}{/if}</span></div>
             <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
+            <div><span>Active/Outside</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.outsideCells.toLocaleString()} outside</span></div>
             <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
             <div><span>Fill</span><span>{$gridGradientStats.cellShape} / {$gridGradientStats.edgeSizePx.toFixed(1)}px edge / {$gridGradientStats.centerSizePx.toFixed(1)}px center / curve {$gridGradientStats.curvePower.toFixed(2)}</span></div>
+            <div><span>Shader</span><span>{$gridGradientStats.shaderNeighborMode} neighbors / {$gridGradientStats.shaderDebugMode}</span></div>
+            <div><span>Textures</span><span>{$gridGradientStats.textureUploaded ? "upload" : "cached"} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</span></div>
+            <div><span>Build Split</span><span>plan {$gridGradientStats.lastClassificationBuildMs.toFixed(1)} + {$gridGradientStats.lastWavePlanBuildMs.toFixed(1)} ms / field {$gridGradientStats.lastDistanceBuildMs.toFixed(1)} + {$gridGradientStats.lastTexturePackMs.toFixed(1)} ms / upload {$gridGradientStats.lastTextureUploadMs.toFixed(1)} ms</span></div>
             <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
             <div><span>Borders</span><span>{$gridGradientStats.vectorBordersEnabled ? "vector on" : "vector off"} / {$gridGradientStats.borderDotsEnabled ? `${$gridGradientStats.borderDotStyle} dots` : "dots off"}</span></div>
             <div><span>Border Count</span><span>{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</span></div>

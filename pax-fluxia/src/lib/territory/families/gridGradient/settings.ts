@@ -12,11 +12,15 @@ import {
     gridGradientFamilyConfigDefaults,
     type GridGradientBorderDotStyle,
     type GridGradientCellShape,
+    type GridGradientDrawBackend,
+    type GridGradientShaderDebugMode,
+    type GridGradientShaderNeighborMode,
 } from './config';
 import { isGridGradientCellShape } from './gridGradientScene';
 
 export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_ENABLED',
+    'GRID_GRADIENT_DRAW_BACKEND',
     'GRID_GRADIENT_SPACING_PX',
     'GRID_GRADIENT_MAX_CELLS',
     'GRID_GRADIENT_ORIGIN_MODE',
@@ -31,6 +35,19 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_BORDER_DOTS_ENABLED',
     'GRID_GRADIENT_BORDER_DOT_SIZE_PX',
     'GRID_GRADIENT_BORDER_DOT_STYLE',
+    'GRID_GRADIENT_SHADER_NEIGHBOR_MODE',
+    'GRID_GRADIENT_SHADER_MARK_SOFTNESS',
+    'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX',
+    'GRID_GRADIENT_SHADER_NOISE_STRENGTH',
+    'GRID_GRADIENT_SHADER_PULSE_STRENGTH',
+    'GRID_GRADIENT_SHADER_PULSE_SPEED',
+    'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX',
+    'GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED',
+    'GRID_GRADIENT_SHADER_GLOW_STRENGTH',
+    'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
+    'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
+    'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
+    'GRID_GRADIENT_SHADER_DEBUG_MODE',
     'METABALL_ALPHA',
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
@@ -47,6 +64,7 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
 
 export interface GridGradientSettings {
     readonly enabled: boolean;
+    readonly drawBackend: GridGradientDrawBackend;
     readonly spacingPx: number;
     readonly maxCells: number;
     readonly originMode: GridOriginMode;
@@ -61,6 +79,19 @@ export interface GridGradientSettings {
     readonly borderDotsEnabled: boolean;
     readonly borderDotSizePx: number;
     readonly borderDotStyle: GridGradientBorderDotStyle;
+    readonly shaderNeighborMode: GridGradientShaderNeighborMode;
+    readonly shaderMarkSoftness: number;
+    readonly shaderEdgeSoftnessPx: number;
+    readonly shaderNoiseStrength: number;
+    readonly shaderPulseStrength: number;
+    readonly shaderPulseSpeed: number;
+    readonly shaderFieldDriftPx: number;
+    readonly shaderFieldDriftSpeed: number;
+    readonly shaderGlowStrength: number;
+    readonly shaderInteriorAlphaBoost: number;
+    readonly shaderEdgeAlphaBoost: number;
+    readonly shaderColorMixPower: number;
+    readonly shaderDebugMode: GridGradientShaderDebugMode;
     readonly fillAlpha: number;
     readonly fillSaturation: number;
     readonly fillLightness: number;
@@ -143,6 +174,12 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             input,
             'GRID_GRADIENT_ENABLED',
             defaults.GRID_GRADIENT_ENABLED,
+        ),
+        drawBackend: readTunableString(
+            input,
+            'GRID_GRADIENT_DRAW_BACKEND',
+            defaults.GRID_GRADIENT_DRAW_BACKEND,
+            ['graphics', 'shader_field', 'mesh_quads'],
         ),
         spacingPx: clamp(
             readTunableNumber(
@@ -229,6 +266,117 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             'GRID_GRADIENT_BORDER_DOT_STYLE',
             defaults.GRID_GRADIENT_BORDER_DOT_STYLE,
             ['blended', 'butted'],
+        ),
+        shaderNeighborMode: readTunableString(
+            input,
+            'GRID_GRADIENT_SHADER_NEIGHBOR_MODE',
+            defaults.GRID_GRADIENT_SHADER_NEIGHBOR_MODE,
+            ['center', 'cross', 'eight'],
+        ),
+        shaderMarkSoftness: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_MARK_SOFTNESS',
+                defaults.GRID_GRADIENT_SHADER_MARK_SOFTNESS,
+            ),
+            0,
+            1.5,
+        ),
+        shaderEdgeSoftnessPx: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX',
+                defaults.GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX,
+            ),
+            0,
+            8,
+        ),
+        shaderNoiseStrength: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_NOISE_STRENGTH',
+                defaults.GRID_GRADIENT_SHADER_NOISE_STRENGTH,
+            ),
+            0,
+            2,
+        ),
+        shaderPulseStrength: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_PULSE_STRENGTH',
+                defaults.GRID_GRADIENT_SHADER_PULSE_STRENGTH,
+            ),
+            0,
+            1,
+        ),
+        shaderPulseSpeed: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_PULSE_SPEED',
+                defaults.GRID_GRADIENT_SHADER_PULSE_SPEED,
+            ),
+            0,
+            20,
+        ),
+        shaderFieldDriftPx: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX',
+                defaults.GRID_GRADIENT_SHADER_FIELD_DRIFT_PX,
+            ),
+            0,
+            12,
+        ),
+        shaderFieldDriftSpeed: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED',
+                defaults.GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED,
+            ),
+            0,
+            8,
+        ),
+        shaderGlowStrength: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_GLOW_STRENGTH',
+                defaults.GRID_GRADIENT_SHADER_GLOW_STRENGTH,
+            ),
+            0,
+            2,
+        ),
+        shaderInteriorAlphaBoost: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
+                defaults.GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST,
+            ),
+            0,
+            3,
+        ),
+        shaderEdgeAlphaBoost: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
+                defaults.GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST,
+            ),
+            0,
+            3,
+        ),
+        shaderColorMixPower: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
+                defaults.GRID_GRADIENT_SHADER_COLOR_MIX_POWER,
+            ),
+            0.1,
+            4,
+        ),
+        shaderDebugMode: readTunableString(
+            input,
+            'GRID_GRADIENT_SHADER_DEBUG_MODE',
+            defaults.GRID_GRADIENT_SHADER_DEBUG_MODE,
+            ['off', 'cell_grid', 'owner_index', 'distance_band', 'flip_time', 'role'],
         ),
         fillAlpha: clamp(
             readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.52),
