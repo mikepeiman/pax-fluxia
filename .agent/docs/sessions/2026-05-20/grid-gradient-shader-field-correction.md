@@ -1,4 +1,4 @@
-# 2026-05-20 - Grid Gradient Regression Recovery
+# 2026-05-20 - Grid Gradient Shader-Field Correction
 
 ## Problem
 
@@ -13,8 +13,9 @@ User verification of the previous pass found three release-blocking regressions:
 - The Grid Gradient plan-worker handoff could keep presenting the previous cached plan while a new transition plan was pending. If the worker stalled, rejected, or returned too late, the mode looked dead because both fills and grid-derived borders were still based on the old plan.
 - The dual-mark shader transition and border-proximity blend greatly expanded the fragment shader path and repurposed the metrics alpha channel from mark seed to clamped border distance. That increased risk in the exact path responsible for the blue overlay.
 - The worker request reused the metaball-grid worker contract and shipped large geometry/classification inputs through structured clone. That was not a Grid Gradient-specific contract and is the most likely source of intermittent long stalls.
+- The specific blue rectangle path was the shader debug `cell_grid` branch introduced with the shader-field backend. It emitted cyan-blue grid lines directly over the full shader mesh using `vec4(0.2, 0.8, 1.0, line * 0.35)`. Because that control was surfaced and persisted through settings, normal play could route into a diagnostic field overlay instead of the accepted dot-fill look.
 
-## Recovery Shape
+## Correction Shape
 
 Grid Gradient remains a render-family mode. It does not use a direct legacy renderer path.
 
@@ -28,6 +29,7 @@ Grid Gradient remains a render-family mode. It does not use a direct legacy rend
 - Removed Grid Gradient's reuse of `metaballGridPlan.worker.ts`.
 - Removed the failed dual-mark shader transition, border-blend uniforms, and border-distance alpha-channel packing.
 - Removed the public `Grid Gradient Backend` selector and the failed transition-scale/border-blend controls from surfaced settings metadata/UI.
+- Removed the shader debug mode setting, uniform, diagnostics field, and GLSL branches so normal Grid Gradient rendering cannot draw the blue full-field diagnostic overlay.
 - Added a local visual transition clock inside `GridGradientFamily`:
   - starts at progress `0` when an active-transition plan is built,
   - keeps the transition plan visible if the upstream active-transition object ends before the local visual clock finishes,
@@ -42,10 +44,19 @@ Grid Gradient remains a render-family mode. It does not use a direct legacy rend
 
 ## Validation
 
+- `rg` verification:
+  - No runtime references remain for `GRID_GRADIENT_SHADER_DEBUG_MODE`, `shaderDebugMode`, `uDebugMode`, or the cyan overlay color in Grid Gradient source.
 - `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts ./src/lib/components/game/territoryPresentationSpace.test.ts`
-  - Passed: 10 tests.
+  - Superseded by the focused run below.
+- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts ./src/lib/components/game/territoryPresentationSpace.test.ts`
+  - Passed: 11 tests.
 - `bun run build`
   - Passed. Existing CSS/chunk warnings remain.
+- Browser smoke on `http://127.0.0.1:1441/play?bench=1&showGame=1&internal=1`
+  - Started a game, selected `Grad Grid Gradient`, and captured a screenshot.
+  - Dot fills rendered across owned regions.
+  - No large cyan-blue shader debug rectangle was visible.
+  - Existing unrelated RoomBrowser lobby 404/HTML JSON error remained.
 - Browser smoke on `http://127.0.0.1:1441/?bench=1&showGame=1&internal=1`
   - Selected and dispatched `grid_gradient`.
   - Renderer diagnostics reported WebGL and `drawBackend=shader_field` with no fallback.

@@ -5,7 +5,6 @@ import type { GridGradientPalette } from '../paint';
 import type { OwnershipGridFrontierDistanceField } from '$lib/territory/frontier';
 import type {
     GridGradientDrawBackend,
-    GridGradientShaderDebugMode,
     GridGradientShaderNeighborMode,
 } from '../config';
 
@@ -13,7 +12,6 @@ export type GridGradientShaderFieldShape = 'circle' | 'square' | 'diamond' | 'no
 
 export type {
     GridGradientDrawBackend,
-    GridGradientShaderDebugMode,
     GridGradientShaderNeighborMode,
 } from '../config';
 
@@ -31,7 +29,6 @@ export interface GridGradientShaderFieldSettings {
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
     readonly shaderColorMixPower: number;
-    readonly shaderDebugMode: GridGradientShaderDebugMode;
 }
 
 export interface GridGradientShaderFieldTexturePlan {

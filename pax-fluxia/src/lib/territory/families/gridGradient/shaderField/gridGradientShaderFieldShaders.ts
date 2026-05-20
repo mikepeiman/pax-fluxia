@@ -43,7 +43,6 @@ export const gridGradientShaderFieldBitGl = {
 
             uniform float uShapeMode;
             uniform float uNeighborMode;
-            uniform float uDebugMode;
 
             float saturate(float v) {
                 return clamp(v, 0.0, 1.0);
@@ -191,14 +190,6 @@ export const gridGradientShaderFieldBitGl = {
                     rgb += color.rgb * mask * uGlowStrength;
                 }
 
-                if (uDebugMode > 1.5 && uDebugMode < 2.5) {
-                    float hue = fract(nextOwner / max(1.0, uPaletteSize));
-                    return vec4(vec3(hue, 1.0 - hue, 0.5 + 0.5 * sin(hue * 6.2831)), alpha);
-                }
-                if (uDebugMode > 2.5 && uDebugMode < 3.5) return vec4(vec3(distanceBand), alpha);
-                if (uDebugMode > 3.5 && uDebugMode < 4.5) return vec4(vec3(flipTime), alpha);
-                if (uDebugMode > 4.5 && uDebugMode < 5.5) return vec4(vec3(role / 4.0), alpha);
-
                 return vec4(rgb, alpha);
             }
         `,
@@ -221,12 +212,6 @@ export const gridGradientShaderFieldBitGl = {
                 accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0, -1.0), worldPos));
                 accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0,  1.0), worldPos));
                 accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0, -1.0), worldPos));
-            }
-
-            if (uDebugMode > 0.5 && uDebugMode < 1.5) {
-                vec2 grid = abs(fract((worldPos - uWorldOrigin) / uSpacingPx) - 0.5);
-                float line = 1.0 - smoothstep(0.47, 0.50, max(grid.x, grid.y));
-                accum = alphaOver(accum, vec4(0.2, 0.8, 1.0, line * 0.35));
             }
 
             if (accum.a <= 0.001) discard;

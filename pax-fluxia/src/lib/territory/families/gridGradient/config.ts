@@ -2,13 +2,6 @@ export type GridGradientCellShape = 'circle' | 'square' | 'noise';
 export type GridGradientBorderDotStyle = 'blended' | 'butted';
 export type GridGradientDrawBackend = 'graphics' | 'shader_field' | 'mesh_quads';
 export type GridGradientShaderNeighborMode = 'center' | 'cross' | 'eight';
-export type GridGradientShaderDebugMode =
-    | 'off'
-    | 'cell_grid'
-    | 'owner_index'
-    | 'distance_band'
-    | 'flip_time'
-    | 'role';
 
 export const gridGradientFamilyConfigDefaults = {
     GRID_GRADIENT_ENABLED: true,
@@ -39,5 +32,4 @@ export const gridGradientFamilyConfigDefaults = {
     GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: 1,
     GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: 0.88,
     GRID_GRADIENT_SHADER_COLOR_MIX_POWER: 1,
-    GRID_GRADIENT_SHADER_DEBUG_MODE: 'off' as const,
 } as const;

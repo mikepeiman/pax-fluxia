@@ -44,7 +44,6 @@
     const shaderInteriorAlphaBoost = $derived(valueOf<number>('gridGradientShaderInteriorAlphaBoost', 1));
     const shaderEdgeAlphaBoost = $derived(valueOf<number>('gridGradientShaderEdgeAlphaBoost', 0.88));
     const shaderColorMixPower = $derived(valueOf<number>('gridGradientShaderColorMixPower', 1));
-    const shaderDebugMode = $derived(valueOf<string>('gridGradientShaderDebugMode', 'off'));
 </script>
 
 <div class="var-row">
@@ -61,26 +60,6 @@
         <option value="center">Center</option>
         <option value="cross">Cross</option>
         <option value="eight">Eight</option>
-    </select>
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Shader Debug Mode</span>
-        <span class="val">{shaderDebugMode}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={shaderDebugMode}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_DEBUG_MODE', 'gridGradientShaderDebugMode', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="off">Off</option>
-        <option value="cell_grid">Cell Grid</option>
-        <option value="owner_index">Owner Index</option>
-        <option value="distance_band">Distance Band</option>
-        <option value="flip_time">Flip Time</option>
-        <option value="role">Role</option>
     </select>
 </div>
 

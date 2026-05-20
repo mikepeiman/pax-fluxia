@@ -2,7 +2,6 @@ import * as PIXI from 'pixi.js';
 import { compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl } from 'pixi.js';
 import { gridGradientShaderFieldBitGl } from './gridGradientShaderFieldShaders';
 import type {
-    GridGradientShaderDebugMode,
     GridGradientShaderFieldStats,
     GridGradientShaderFieldUpdateParams,
     GridGradientShaderNeighborMode,
@@ -36,23 +35,6 @@ function neighborModeToNumber(mode: GridGradientShaderNeighborMode): number {
     if (mode === 'center') return 0;
     if (mode === 'cross') return 1;
     return 2;
-}
-
-function debugModeToNumber(mode: GridGradientShaderDebugMode): number {
-    switch (mode) {
-        case 'cell_grid':
-            return 1;
-        case 'owner_index':
-            return 2;
-        case 'distance_band':
-            return 3;
-        case 'flip_time':
-            return 4;
-        case 'role':
-            return 5;
-        default:
-            return 0;
-    }
 }
 
 function shapeToNumber(shape: string): number {
@@ -346,10 +328,6 @@ export class GridGradientShaderFieldRenderer {
                 value: neighborModeToNumber(params.shaderSettings.neighborMode),
                 type: 'f32',
             },
-            uDebugMode: {
-                value: debugModeToNumber(params.shaderSettings.shaderDebugMode),
-                type: 'f32',
-            },
         };
     }
 
@@ -381,7 +359,6 @@ export class GridGradientShaderFieldRenderer {
             uColorMixPower: params.shaderSettings.shaderColorMixPower,
             uShapeMode: shapeToNumber(params.settings.cellShape),
             uNeighborMode: neighborModeToNumber(params.shaderSettings.neighborMode),
-            uDebugMode: debugModeToNumber(params.shaderSettings.shaderDebugMode),
         });
     }
 

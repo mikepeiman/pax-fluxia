@@ -501,7 +501,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Shader Interior Alpha': { key: 'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST' },
         'Shader Edge Alpha': { key: 'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST' },
         'Color Gamma': { key: 'GRID_GRADIENT_SHADER_COLOR_MIX_POWER' },
-        'Shader Debug Mode': { key: 'GRID_GRADIENT_SHADER_DEBUG_MODE' },
         'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
         'Frontier Border Geometry': {
             key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',

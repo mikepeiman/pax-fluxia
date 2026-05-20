@@ -308,7 +308,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
         'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
         'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
-        'GRID_GRADIENT_SHADER_DEBUG_MODE',
     ],
 
     ships: [

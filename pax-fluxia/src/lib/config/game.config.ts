@@ -470,7 +470,6 @@ interface GameConfigType {
     GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: number; // Alpha boost near region interiors
     GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: number; // Alpha boost near borders
     GRID_GRADIENT_SHADER_COLOR_MIX_POWER: number; // Shader fill color power curve
-    GRID_GRADIENT_SHADER_DEBUG_MODE: 'off' | 'cell_grid' | 'owner_index' | 'distance_band' | 'flip_time' | 'role'; // Shader debug color overlay
     TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched
     TERRITORY_FRONTIER_PHASE_SAMPLING: TerritoryFrontierPhaseSamplingMode; // Texture filtering strategy for shader frontier bands

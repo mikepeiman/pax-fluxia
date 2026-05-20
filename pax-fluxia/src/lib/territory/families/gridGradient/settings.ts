@@ -13,7 +13,6 @@ import {
     type GridGradientBorderDotStyle,
     type GridGradientCellShape,
     type GridGradientDrawBackend,
-    type GridGradientShaderDebugMode,
     type GridGradientShaderNeighborMode,
 } from './config';
 import { isGridGradientCellShape } from './gridGradientScene';
@@ -46,7 +45,6 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
     'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
     'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
-    'GRID_GRADIENT_SHADER_DEBUG_MODE',
     'METABALL_ALPHA',
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
@@ -90,7 +88,6 @@ export interface GridGradientSettings {
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
     readonly shaderColorMixPower: number;
-    readonly shaderDebugMode: GridGradientShaderDebugMode;
     readonly fillAlpha: number;
     readonly fillSaturation: number;
     readonly fillLightness: number;
@@ -370,12 +367,6 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             ),
             0.1,
             4,
-        ),
-        shaderDebugMode: readTunableString(
-            input,
-            'GRID_GRADIENT_SHADER_DEBUG_MODE',
-            defaults.GRID_GRADIENT_SHADER_DEBUG_MODE,
-            ['off', 'cell_grid', 'owner_index', 'distance_band', 'flip_time', 'role'],
         ),
         fillAlpha: clamp(
             readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.52),

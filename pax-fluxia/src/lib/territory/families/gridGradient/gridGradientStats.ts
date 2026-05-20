@@ -29,7 +29,6 @@ export interface GridGradientStats {
     readonly borderDotsEnabled: boolean;
     readonly vectorBordersEnabled: boolean;
     readonly shaderNeighborMode: string;
-    readonly shaderDebugMode: string;
     readonly centerSizePx: number;
     readonly edgeSizePx: number;
     readonly curvePower: number;
@@ -94,7 +93,6 @@ const INITIAL: GridGradientStats = {
     borderDotsEnabled: false,
     vectorBordersEnabled: true,
     shaderNeighborMode: 'eight',
-    shaderDebugMode: 'off',
     centerSizePx: 0,
     edgeSizePx: 0,
     curvePower: 0,

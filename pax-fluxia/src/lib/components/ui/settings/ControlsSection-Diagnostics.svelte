@@ -745,7 +745,7 @@
             <div><span>Active/Outside</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.outsideCells.toLocaleString()} outside</span></div>
             <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
             <div><span>Fill</span><span>{$gridGradientStats.cellShape} / {$gridGradientStats.edgeSizePx.toFixed(1)}px edge / {$gridGradientStats.centerSizePx.toFixed(1)}px center / curve {$gridGradientStats.curvePower.toFixed(2)}</span></div>
-            <div><span>Shader</span><span>{$gridGradientStats.shaderNeighborMode} neighbors / {$gridGradientStats.shaderDebugMode}</span></div>
+            <div><span>Shader</span><span>{$gridGradientStats.shaderNeighborMode} neighbors</span></div>
             <div><span>Textures</span><span>{$gridGradientStats.textureUploaded ? "upload" : "cached"} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</span></div>
             <div><span>Build Split</span><span>plan {$gridGradientStats.lastClassificationBuildMs.toFixed(1)} + {$gridGradientStats.lastWavePlanBuildMs.toFixed(1)} ms / field {$gridGradientStats.lastDistanceBuildMs.toFixed(1)} + {$gridGradientStats.lastTexturePackMs.toFixed(1)} ms / upload {$gridGradientStats.lastTextureUploadMs.toFixed(1)} ms</span></div>
             <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
