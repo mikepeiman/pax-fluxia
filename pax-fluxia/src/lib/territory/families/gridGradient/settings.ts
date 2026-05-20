@@ -20,7 +20,6 @@ import { isGridGradientCellShape } from './gridGradientScene';
 
 export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_ENABLED',
-    'GRID_GRADIENT_DRAW_BACKEND',
     'GRID_GRADIENT_SPACING_PX',
     'GRID_GRADIENT_MAX_CELLS',
     'GRID_GRADIENT_ORIGIN_MODE',

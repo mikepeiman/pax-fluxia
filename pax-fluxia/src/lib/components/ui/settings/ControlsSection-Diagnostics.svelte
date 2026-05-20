@@ -751,7 +751,8 @@
             <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
             <div><span>Borders</span><span>{$gridGradientStats.vectorBordersEnabled ? "vector on" : "vector off"} / {$gridGradientStats.borderDotsEnabled ? `${$gridGradientStats.borderDotStyle} dots` : "dots off"}</span></div>
             <div><span>Border Count</span><span>{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</span></div>
-            <div><span>Frame</span><span>{$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</span></div>
+            <div><span>Frame</span><span><code>{$gridGradientStats.clockSource}</code> / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</span></div>
+            <div><span>Transition</span><span>{$gridGradientStats.visualTransitionActive ? "local clock" : "scheduler"} / plan {$gridGradientStats.requestedPlanPending ? "pending" : "ready"} / progress {($gridGradientStats.rawProgress ?? $gridGradientStats.schedulerRawProgress ?? 1).toFixed(3)}</span></div>
         </div>
     {/if}
     {#if showPerimeterFieldDiagnostics}

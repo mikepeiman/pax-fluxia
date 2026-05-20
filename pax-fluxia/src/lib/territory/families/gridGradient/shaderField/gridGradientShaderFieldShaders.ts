@@ -27,6 +27,7 @@ export const gridGradientShaderFieldBitGl = {
             uniform float uFillAlpha;
             uniform float uCenterSizePx;
             uniform float uEdgeSizePx;
+            uniform float uBorderOffsetPx;
             uniform float uCurvePower;
             uniform float uMarkSoftness;
             uniform float uEdgeSoftnessPx;
@@ -54,9 +55,27 @@ export const gridGradientShaderFieldBitGl = {
             }
 
             float hash21(vec2 p) {
-                vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
                 p3 += dot(p3, p3.yzx + 33.33);
                 return fract((p3.x + p3.y) * p3.z);
+            }
+
+            float valueNoise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                float a = hash21(i);
+                float b = hash21(i + vec2(1.0, 0.0));
+                float c = hash21(i + vec2(0.0, 1.0));
+                float d = hash21(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+            }
+
+            float pulseField(vec2 cell) {
+                float phase = uTimeSec * uPulseSpeed;
+                float broad = valueNoise(cell * 0.11 + vec2(phase * 0.055, -phase * 0.037));
+                float detail = valueNoise(cell * 0.31 + vec2(-phase * 0.021, phase * 0.044));
+                return sin(phase + (broad * 0.7 + detail * 0.3) * 6.2831853 + cell.x * 0.173 + cell.y * 0.219);
             }
 
             float unpackOwner(vec2 rg) {
@@ -128,7 +147,7 @@ export const gridGradientShaderFieldBitGl = {
             }
 
             float markMask(vec2 p, float radius, float seed) {
-                float softness = max(0.01, radius * uMarkSoftness + uEdgeSoftnessPx);
+                float softness = max(0.01, max(radius * uMarkSoftness, uEdgeSoftnessPx));
                 if (uShapeMode < 0.5) return circleMask(p, radius, softness);
                 if (uShapeMode < 1.5) return squareMask(p, radius, softness);
                 return noiseMask(p, radius, softness, seed);
@@ -193,8 +212,12 @@ export const gridGradientShaderFieldBitGl = {
             }
 
             vec4 styleContribution(vec4 color, float mask, float alphaFactor, float distanceBand, float pulse) {
+                if (mask <= 0.001 || color.a <= 0.001 || alphaFactor <= 0.001) {
+                    return vec4(0.0);
+                }
                 float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
                 float alpha = mask * color.a * alphaFactor * uFillAlpha * alphaBoost;
+                if (alpha <= 0.001) return vec4(0.0);
                 vec3 rgb = color.rgb * pulse;
 
                 if (uColorMixPower != 1.0) {
@@ -239,6 +262,7 @@ export const gridGradientShaderFieldBitGl = {
                 float flipTime = metrics.g;
                 float distanceBand = metrics.r;
                 float borderDistancePx = metrics.a * 255.0;
+                if (borderDistancePx < uBorderOffsetPx) return vec4(0.0);
                 float noiseSeed = hash21(cell + vec2(prevOwner * 0.13, nextOwner * 0.17));
 
                 float t = transitionT(flipTime);
@@ -263,7 +287,7 @@ export const gridGradientShaderFieldBitGl = {
 
                 float pulse = 1.0;
                 if (uPulseStrength > 0.0) {
-                    pulse += sin(uTimeSec * uPulseSpeed + noiseSeed * 6.2831) * uPulseStrength;
+                    pulse += pulseField(cell + vec2(noiseSeed * 13.0, noiseSeed * 7.0)) * uPulseStrength;
                 }
 
                 vec4 accum = vec4(0.0);

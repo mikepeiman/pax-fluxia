@@ -28,7 +28,6 @@
     const borderOffsetPx = $derived(valueOf<number>('gridGradientBorderOffsetPx', 0));
     const positionJitter = $derived(valueOf<number>('gridGradientPositionJitter', 0));
     const cellShape = $derived(valueOf<string>('gridGradientCellShape', 'circle'));
-    const drawBackend = $derived(valueOf<string>('gridGradientDrawBackend', 'shader_field'));
     const vectorBordersEnabled = $derived(valueOf<boolean>('gridGradientVectorBordersEnabled', true));
     const borderDotsEnabled = $derived(valueOf<boolean>('gridGradientBorderDotsEnabled', false));
     const borderDotSizePx = $derived(valueOf<number>('gridGradientBorderDotSizePx', 2.5));
@@ -53,23 +52,7 @@
     const shaderDebugMode = $derived(valueOf<string>('gridGradientShaderDebugMode', 'off'));
 </script>
 
-<div class="sub-heading">Backend</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Grid Gradient Backend</span>
-        <span class="val">{drawBackend}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={drawBackend}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_DRAW_BACKEND', 'gridGradientDrawBackend', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="shader_field">Shader Field</option>
-        <option value="graphics">Graphics</option>
-    </select>
-</div>
+<div class="sub-heading">Shader Field</div>
 
 <div class="var-row">
     <div class="row-top">
@@ -293,7 +276,7 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Shader Edge Softness</span>
+        <span class="var-name">Edge Feather</span>
         <span class="val">{shaderEdgeSoftnessPx.toFixed(2)}px</span>
     </div>
     <input
@@ -309,7 +292,7 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Shader Noise</span>
+        <span class="var-name">Noise Roughness</span>
         <span class="val">{shaderNoiseStrength.toFixed(2)}</span>
     </div>
     <input
@@ -317,6 +300,7 @@
         min="0"
         max="2"
         step="0.01"
+        disabled={cellShape !== 'noise'}
         value={shaderNoiseStrength}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', parseFloat((event.target as HTMLInputElement).value));
@@ -342,7 +326,7 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Shader Pulse Speed</span>
-        <span class="val">{shaderPulseSpeed.toFixed(2)}</span>
+        <span class="val">{shaderPulseSpeed.toFixed(2)} rad/s</span>
     </div>
     <input
         type="range"
@@ -453,7 +437,7 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Shader Color Power</span>
+        <span class="var-name">Color Gamma</span>
         <span class="val">{shaderColorMixPower.toFixed(2)}</span>
     </div>
     <input
@@ -568,7 +552,7 @@
     <div class="perf-label">Texture</div>
     <div class="perf-value">{$gridGradientStats.textureUploaded ? 'upload' : 'cached'} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</div>
     <div class="perf-label">Frame</div>
-    <div class="perf-value">{$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</div>
+    <div class="perf-value">{$gridGradientStats.clockSource} / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms</div>
 </div>
 
 <style>

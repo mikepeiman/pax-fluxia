@@ -308,6 +308,7 @@ export class GridGradientShaderFieldRenderer {
             uFillAlpha: { value: params.settings.fillAlpha, type: 'f32' },
             uCenterSizePx: { value: params.settings.centerSizePx, type: 'f32' },
             uEdgeSizePx: { value: params.settings.edgeSizePx, type: 'f32' },
+            uBorderOffsetPx: { value: params.settings.borderOffsetPx, type: 'f32' },
             uCurvePower: { value: params.settings.curvePower, type: 'f32' },
             uMarkSoftness: { value: params.shaderSettings.shaderMarkSoftness, type: 'f32' },
             uEdgeSoftnessPx: {
@@ -389,6 +390,7 @@ export class GridGradientShaderFieldRenderer {
             uFillAlpha: params.settings.fillAlpha,
             uCenterSizePx: params.settings.centerSizePx,
             uEdgeSizePx: params.settings.edgeSizePx,
+            uBorderOffsetPx: params.settings.borderOffsetPx,
             uCurvePower: params.settings.curvePower,
             uMarkSoftness: params.shaderSettings.shaderMarkSoftness,
             uEdgeSoftnessPx: params.shaderSettings.shaderEdgeSoftnessPx,

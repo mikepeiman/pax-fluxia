@@ -18,7 +18,9 @@ export interface CachedGridGradientPlan {
     readonly wavePlanBuildMs: number;
 }
 
-function toOwnedStars(stars: ReadonlyArray<StarState>): GridOwnedStar[] {
+export function toGridGradientOwnedStars(
+    stars: ReadonlyArray<StarState>,
+): GridOwnedStar[] {
     const out: GridOwnedStar[] = [];
     for (const star of stars) {
         if (star.ownerId) {
@@ -33,7 +35,9 @@ function toOwnedStars(stars: ReadonlyArray<StarState>): GridOwnedStar[] {
     return out;
 }
 
-function toPreviousOwnedStars(input: RenderFamilyInput): GridOwnedStar[] {
+export function toGridGradientPreviousOwnedStars(
+    input: RenderFamilyInput,
+): GridOwnedStar[] {
     const previousOwnerByStarId = new Map<string, string>();
     for (const entry of input.activeTransition?.events ?? []) {
         previousOwnerByStarId.set(entry.event.starId, entry.event.previousOwner);
@@ -110,9 +114,9 @@ export function buildGridGradientPlan(params: {
         const star = starById.get(starId);
         return star ? { x: star.x, y: star.y } : null;
     };
-    const ownedStars = toOwnedStars(params.input.stars);
+    const ownedStars = toGridGradientOwnedStars(params.input.stars);
     const previousOwnedStars = params.input.activeTransition
-        ? toPreviousOwnedStars(params.input)
+        ? toGridGradientPreviousOwnedStars(params.input)
         : ownedStars;
     const conquestEvents = params.input.activeTransition?.conquestEvents ?? [];
 

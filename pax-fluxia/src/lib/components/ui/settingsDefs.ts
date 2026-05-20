@@ -631,7 +631,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
     { configKey: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
     { configKey: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
-    { configKey: 'GRID_GRADIENT_DRAW_BACKEND' },
     { configKey: 'GRID_GRADIENT_SHADER_NEIGHBOR_MODE' },
     { configKey: 'GRID_GRADIENT_SHADER_MARK_SOFTNESS' },
     { configKey: 'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX' },

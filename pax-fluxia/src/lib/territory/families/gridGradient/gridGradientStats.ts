@@ -51,8 +51,17 @@ export interface GridGradientStats {
     readonly paletteTextureBytes: number;
     readonly textureBytes: number;
     readonly transitionEventCount: number;
+    readonly schedulerRawProgress: number | null;
     readonly rawProgress: number | null;
-    readonly visibleFrameState: 'steady' | 'transition';
+    readonly visualTransitionActive: boolean;
+    readonly localVisualTransitionDurationMs: number | null;
+    readonly requestedPlanPending: boolean;
+    readonly clockSource: 'none' | 'scheduler' | 'local';
+    readonly visibleFrameState:
+        | 'steady'
+        | 'holding_pre'
+        | 'requested_plan'
+        | 'fallback_plan';
 }
 
 const INITIAL: GridGradientStats = {
@@ -63,8 +72,8 @@ const INITIAL: GridGradientStats = {
     rendererTypeSource: 'missing',
     rendererConstructorName: null,
     rendererReportedType: null,
-    requestedDrawBackend: 'graphics',
-    drawBackend: 'graphics',
+    requestedDrawBackend: 'shader_field',
+    drawBackend: 'shader_field',
     backendFallbackReason: null,
     planCacheHit: false,
     planRebuildReason: null,
@@ -106,7 +115,12 @@ const INITIAL: GridGradientStats = {
     paletteTextureBytes: 0,
     textureBytes: 0,
     transitionEventCount: 0,
+    schedulerRawProgress: null,
     rawProgress: null,
+    visualTransitionActive: false,
+    localVisualTransitionDurationMs: null,
+    requestedPlanPending: false,
+    clockSource: 'none',
     visibleFrameState: 'steady',
 };
 
