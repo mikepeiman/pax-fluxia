@@ -15,12 +15,12 @@ import type {
     RenderFamilyInput,
     RenderFamilyOutput,
 } from '../RenderFamilyTypes';
-import { renderMetaballGridScene } from '../metaballGrid/renderMetaballGridScene';
 import {
     buildGridGradientBorderDots,
     buildGridGradientOwnerDistanceSummary,
     buildOwnerIndexByCell,
     resolveGridGradientCellSize,
+    resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
     type GridGradientOwnerDistanceSummary,
 } from './gridGradientScene';
@@ -677,25 +677,18 @@ export class GridGradientFamily implements RenderFamily {
         readonly distanceInputs: DistanceInputs;
     }): GraphicsPaintResult {
         const sceneStartMs = performance.now();
-        const scene = renderMetaballGridScene({
-            classification: params.plan.classification,
-            wavePlan: params.plan.wavePlan,
-            progress: params.progress,
-            flipTransition: params.settings.flipTransition,
-            flipWindow: params.settings.flipWindow,
-            strength: 1,
-            inwardOffsetPx: 0,
-            ownerColorIdx: params.palette.ownerColorIdx,
-        });
         const sceneBuildMs = performance.now() - sceneStartMs;
 
         const paintStartMs = performance.now();
         this.fillGraphics.clear();
         let paintedCells = 0;
-        for (const cell of scene.cells) {
-            if (cell.alpha <= 0) continue;
-            const color = params.palette.fillHexByColorIdx[cell.colorIdx];
-            if (color === undefined) continue;
+        for (const cell of params.plan.classification.emittableVstars) {
+            const sideAlphas = resolveGridGradientTransitionSideAlphas({
+                role: cell.role,
+                progress: params.progress,
+            });
+            if (sideAlphas.prevAlpha <= 0 && sideAlphas.nextAlpha <= 0) continue;
+
             const cellIndex = cell.iy * params.plan.classification.cols + cell.ix;
             const ownerIndex =
                 params.distanceInputs.distanceSummary.ownerIndexByCell[cellIndex];
@@ -714,22 +707,37 @@ export class GridGradientFamily implements RenderFamily {
                 borderOffsetPx: params.settings.borderOffsetPx,
             });
             if (sizePx <= 0) continue;
-            const transitionScale = resolveGridGradientTransitionScale({
-                role: cell.role,
-                alpha: cell.alpha,
-            });
-            if (transitionScale <= 0) continue;
-            drawGridGradientCell({
-                graphics: this.fillGraphics,
-                shape: params.settings.cellShape,
-                id: cell.vId,
-                x: cell.x,
-                y: cell.y,
-                sizePx: sizePx * transitionScale,
-                color,
-                alpha: params.settings.fillAlpha * cell.alpha,
-            });
-            paintedCells += 1;
+
+            const drawSide = (
+                ownerId: string | null,
+                alpha: number,
+                side: 'prev' | 'next',
+            ): void => {
+                if (!ownerId || alpha <= 0) return;
+                const colorIdx = params.palette.ownerColorIdx.get(ownerId);
+                if (colorIdx === undefined) return;
+                const color = params.palette.fillHexByColorIdx[colorIdx];
+                if (color === undefined) return;
+                const transitionScale = resolveGridGradientTransitionScale({
+                    role: cell.role,
+                    alpha,
+                });
+                if (transitionScale <= 0) return;
+                drawGridGradientCell({
+                    graphics: this.fillGraphics,
+                    shape: params.settings.cellShape,
+                    id: `${cell.id}:${side}`,
+                    x: cell.x,
+                    y: cell.y,
+                    sizePx: sizePx * transitionScale,
+                    color,
+                    alpha: params.settings.fillAlpha * alpha,
+                });
+                paintedCells += 1;
+            };
+
+            drawSide(cell.prevOwnerId, sideAlphas.prevAlpha, 'prev');
+            drawSide(cell.nextOwnerId, sideAlphas.nextAlpha, 'next');
         }
 
         return {

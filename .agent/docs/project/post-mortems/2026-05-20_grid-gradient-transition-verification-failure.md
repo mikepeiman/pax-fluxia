@@ -25,6 +25,7 @@ The user had to detect the failure visually. The report overstated confidence an
 - Treat live transition diagnostics as required evidence: event count, active transition cell count, progress, clock source, backend, and fill style.
 - Freeze Grid Gradient previous-frame geometry during active transitions so PREV geometry is less likely to be overwritten by POST geometry.
 - Add a focused test proving Grid Gradient produces active transition cells and advancing progress when given PREV/NEXT snapshots.
+- When live diagnostics show active cells and progress but no visible animation, move to the shader/presentation path and make the changed-cell transition visually continuous across the full conquest duration.
 
 ## Lessons
 

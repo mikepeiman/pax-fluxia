@@ -8,6 +8,8 @@ Make Grid Gradient conquest fills visibly transition instead of snapping PRE/POS
 
 - Grid Gradient fill transitions: user reports zero visible interpolation. Current fix freezes Grid Gradient previous-frame geometry during active transitions and adds a family test proving PREV/NEXT input yields changing cells and advancing local progress.
 - Required verification: live UI must show `transitionEventCount > 0`, `activeTransitionCells > 0`, progress advancing between `0` and `1`, `fillStyle=pointillist`, and the expected visible dot growth/fade.
+- User diagnostics after the cache fix showed `shader_field`, `plan ready`, progress `0.397`, and 455 active cells, but still no visible transition. This moved the target from transition planning to presentation strength.
+- Current pass changes Grid Gradient fills to a global dual-pass for changed cells: old-owner dots use `1 - progress`, new-owner dots use `progress`, so every changed cell participates for the full conquest duration.
 - Documentation correction: this exact daily queue is now the active queue path. The earlier topic-specific queue filename is being removed from this branch and its still-relevant points are represented here and in the session/takeaway docs.
 - Local validation passed for the focused Grid Gradient test set and `bun run build`; live visual verification is still required.
 

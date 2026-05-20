@@ -206,7 +206,6 @@ export const gridGradientShaderFieldBitGl = {
 
                 float prevOwner = unpackOwner(ownerPacked.rg);
                 float nextOwner = unpackOwner(ownerPacked.ba);
-                float flipTime = metrics.g;
                 float distanceBand = metrics.r;
                 float noiseSeed = metrics.a;
                 if (uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
@@ -252,8 +251,7 @@ export const gridGradientShaderFieldBitGl = {
                     );
                 }
 
-                float blendWindow = max(0.001, uFlipWindow);
-                float t = smoothstep(flipTime - blendWindow, flipTime + blendWindow, uProgress);
+                float t = saturate(uProgress);
                 vec4 accum = vec4(0.0);
                 accum = alphaOver(
                     accum,

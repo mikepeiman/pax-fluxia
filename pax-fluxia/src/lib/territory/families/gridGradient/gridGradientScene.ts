@@ -86,6 +86,18 @@ export function resolveGridGradientTransitionScale(params: {
     return 0.28 + 0.72 * Math.sqrt(alpha);
 }
 
+export function resolveGridGradientTransitionSideAlphas(params: {
+    readonly role: GridVRole;
+    readonly progress: number;
+}): { prevAlpha: number; nextAlpha: number } {
+    const t = clamp01(params.progress);
+    if (params.role === 'outside') return { prevAlpha: 0, nextAlpha: 0 };
+    if (params.role === 'native') return { prevAlpha: 0, nextAlpha: 1 };
+    if (params.role === 'emergent') return { prevAlpha: 0, nextAlpha: t };
+    if (params.role === 'vacating') return { prevAlpha: 1 - t, nextAlpha: 0 };
+    return { prevAlpha: 1 - t, nextAlpha: t };
+}
+
 export function buildGridGradientOwnerDistanceSummary(params: {
     readonly classification: GridClassification;
     readonly ownerIndexByOwnerId: ReadonlyMap<string, number>;

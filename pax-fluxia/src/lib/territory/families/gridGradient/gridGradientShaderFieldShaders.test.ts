@@ -46,12 +46,13 @@ describe('gridGradientShaderFieldBitGl', () => {
             gridGradientShaderFieldBitGl.fragment.main,
         ].join('\n');
 
-        expect(source).toContain('uniform float uFlipWindow');
+        expect(source).toContain('float t = saturate(uProgress);');
         expect(source).toContain('transitionMarkScale');
         expect(source).toContain('shadeCellSide');
         expect(source).toContain('shadeCellSide(');
         expect(source).toContain('1.0 - t');
         expect(source).toContain('radius * scale');
+        expect(source).not.toContain('smoothstep(flipTime - blendWindow');
         expect(source).not.toContain('vec4 color = mix(prevColor, nextColor, t)');
     });
 });

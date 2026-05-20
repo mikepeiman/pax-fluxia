@@ -4,6 +4,7 @@ import {
     buildGridGradientBorderDots,
     buildGridGradientNoisePolygon,
     resolveGridGradientCellSize,
+    resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
 } from './gridGradientScene';
 
@@ -159,6 +160,29 @@ describe('grid gradient scene helpers', () => {
         expect(low).toBeGreaterThan(0);
         expect(low).toBeLessThan(high);
         expect(high).toBeCloseTo(1);
+    });
+
+    it('keeps every changing cell in the global fill transition for the full duration', () => {
+        const dispossessed = resolveGridGradientTransitionSideAlphas({
+            role: 'dispossessed',
+            progress: 0.4,
+        });
+        expect(dispossessed.prevAlpha).toBeCloseTo(0.6);
+        expect(dispossessed.nextAlpha).toBeCloseTo(0.4);
+        expect(resolveGridGradientTransitionSideAlphas({
+            role: 'emergent',
+            progress: 0.4,
+        })).toEqual({ prevAlpha: 0, nextAlpha: 0.4 });
+        const vacating = resolveGridGradientTransitionSideAlphas({
+            role: 'vacating',
+            progress: 0.4,
+        });
+        expect(vacating.prevAlpha).toBeCloseTo(0.6);
+        expect(vacating.nextAlpha).toBe(0);
+        expect(resolveGridGradientTransitionSideAlphas({
+            role: 'native',
+            progress: 0.4,
+        })).toEqual({ prevAlpha: 0, nextAlpha: 1 });
     });
 
     it('builds one blended dot per differing grid edge', () => {
