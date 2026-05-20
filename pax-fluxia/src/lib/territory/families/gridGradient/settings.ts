@@ -40,15 +40,12 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_SHADER_NOISE_STRENGTH',
     'GRID_GRADIENT_SHADER_PULSE_STRENGTH',
     'GRID_GRADIENT_SHADER_PULSE_SPEED',
-    'GRID_GRADIENT_SHADER_TRANSITION_SCALE_MIN',
     'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX',
     'GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED',
     'GRID_GRADIENT_SHADER_GLOW_STRENGTH',
     'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
     'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
     'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
-    'GRID_GRADIENT_BORDER_BLEND_RANGE_PX',
-    'GRID_GRADIENT_BORDER_BLEND_STRENGTH',
     'GRID_GRADIENT_SHADER_DEBUG_MODE',
     'METABALL_ALPHA',
     'METABALL_SATURATION',
@@ -87,15 +84,12 @@ export interface GridGradientSettings {
     readonly shaderNoiseStrength: number;
     readonly shaderPulseStrength: number;
     readonly shaderPulseSpeed: number;
-    readonly shaderTransitionScaleMin: number;
     readonly shaderFieldDriftPx: number;
     readonly shaderFieldDriftSpeed: number;
     readonly shaderGlowStrength: number;
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
     readonly shaderColorMixPower: number;
-    readonly borderBlendRangePx: number;
-    readonly borderBlendStrength: number;
     readonly shaderDebugMode: GridGradientShaderDebugMode;
     readonly fillAlpha: number;
     readonly fillSaturation: number;
@@ -323,15 +317,6 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             0,
             20,
         ),
-        shaderTransitionScaleMin: clamp(
-            readTunableNumber(
-                input,
-                'GRID_GRADIENT_SHADER_TRANSITION_SCALE_MIN',
-                defaults.GRID_GRADIENT_SHADER_TRANSITION_SCALE_MIN,
-            ),
-            0.05,
-            1,
-        ),
         shaderFieldDriftPx: clamp(
             readTunableNumber(
                 input,
@@ -385,24 +370,6 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             ),
             0.1,
             4,
-        ),
-        borderBlendRangePx: clamp(
-            readTunableNumber(
-                input,
-                'GRID_GRADIENT_BORDER_BLEND_RANGE_PX',
-                defaults.GRID_GRADIENT_BORDER_BLEND_RANGE_PX,
-            ),
-            0,
-            64,
-        ),
-        borderBlendStrength: clamp(
-            readTunableNumber(
-                input,
-                'GRID_GRADIENT_BORDER_BLEND_STRENGTH',
-                defaults.GRID_GRADIENT_BORDER_BLEND_STRENGTH,
-            ),
-            0,
-            1,
         ),
         shaderDebugMode: readTunableString(
             input,

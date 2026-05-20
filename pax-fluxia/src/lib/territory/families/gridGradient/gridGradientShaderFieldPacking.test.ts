@@ -78,9 +78,6 @@ describe('buildGridGradientShaderFieldTexturePlan', () => {
         expect(plan.paletteTextureData).toHaveLength(12);
         expect(plan.activeTransitionCells).toBe(2);
         expect(plan.outsideCells).toBe(1);
-        expect(plan.metricsTextureData[3]).toBe(0);
-        expect(plan.metricsTextureData[7]).toBe(5);
-        expect(plan.metricsTextureData[11]).toBe(10);
         expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.25 })).toBe(1);
         expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.75 })).toBe(2);
     });

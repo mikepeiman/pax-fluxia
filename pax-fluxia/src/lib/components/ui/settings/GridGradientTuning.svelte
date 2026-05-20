@@ -38,21 +38,14 @@
     const shaderNoiseStrength = $derived(valueOf<number>('gridGradientShaderNoiseStrength', 0.35));
     const shaderPulseStrength = $derived(valueOf<number>('gridGradientShaderPulseStrength', 0.06));
     const shaderPulseSpeed = $derived(valueOf<number>('gridGradientShaderPulseSpeed', 3));
-    const flipTransition = $derived(valueOf<string>('metaballGridFlipTransition', 'dual_pass_blend'));
-    const flipWindow = $derived(valueOf<number>('metaballGridFlipWindow', 0.14));
-    const shaderTransitionScaleMin = $derived(valueOf<number>('gridGradientShaderTransitionScaleMin', 0.28));
     const shaderFieldDriftPx = $derived(valueOf<number>('gridGradientShaderFieldDriftPx', 0));
     const shaderFieldDriftSpeed = $derived(valueOf<number>('gridGradientShaderFieldDriftSpeed', 0.25));
     const shaderGlowStrength = $derived(valueOf<number>('gridGradientShaderGlowStrength', 0.08));
     const shaderInteriorAlphaBoost = $derived(valueOf<number>('gridGradientShaderInteriorAlphaBoost', 1));
     const shaderEdgeAlphaBoost = $derived(valueOf<number>('gridGradientShaderEdgeAlphaBoost', 0.88));
     const shaderColorMixPower = $derived(valueOf<number>('gridGradientShaderColorMixPower', 1));
-    const borderBlendRangePx = $derived(valueOf<number>('gridGradientBorderBlendRangePx', 8));
-    const borderBlendStrength = $derived(valueOf<number>('gridGradientBorderBlendStrength', 0.45));
     const shaderDebugMode = $derived(valueOf<string>('gridGradientShaderDebugMode', 'off'));
 </script>
-
-<div class="sub-heading">Shader Field</div>
 
 <div class="var-row">
     <div class="row-top">
@@ -227,39 +220,6 @@
 
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">Flip Transition</span>
-        <span class="val">{flipTransition}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={flipTransition}
-        onchange={(event) => {
-            writeConfig('METABALL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="hard">Hard</option>
-        <option value="lerp_per_cell">Lerp per cell</option>
-        <option value="dual_pass_blend">Dual pass blend</option>
-    </select>
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Flip Window</span>
-        <span class="val">{flipWindow.toFixed(3)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="0.5"
-        step="0.005"
-        value={flipWindow}
-        oninput={(event) => {
-            writeConfig('METABALL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
         <span class="var-name">Shader Mark Softness</span>
         <span class="val">{shaderMarkSoftness.toFixed(2)}</span>
     </div>
@@ -336,22 +296,6 @@
         value={shaderPulseSpeed}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_PULSE_SPEED', 'gridGradientShaderPulseSpeed', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Transition Scale Min</span>
-        <span class="val">{shaderTransitionScaleMin.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0.05"
-        max="1"
-        step="0.01"
-        value={shaderTransitionScaleMin}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_TRANSITION_SCALE_MIN', 'gridGradientShaderTransitionScaleMin', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
@@ -452,38 +396,6 @@
 </div>
 
 <div class="sub-heading">Borders</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Border Blend Range</span>
-        <span class="val">{borderBlendRangePx.toFixed(0)}px</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="64"
-        step="1"
-        value={borderBlendRangePx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_BLEND_RANGE_PX', 'gridGradientBorderBlendRangePx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Border Blend Strength</span>
-        <span class="val">{borderBlendStrength.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={borderBlendStrength}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_BLEND_STRENGTH', 'gridGradientBorderBlendStrength', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
 
 <label class="toggle-line">
     <input

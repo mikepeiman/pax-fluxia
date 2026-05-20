@@ -7,7 +7,6 @@ import type {
     GridGradientShaderFieldUpdateParams,
     GridGradientShaderNeighborMode,
 } from './gridGradientShaderFieldTypes';
-import type { GridFlipTransition } from '../../metaballGrid/metaballGridTypes';
 
 interface BufferTextureState {
     source: PIXI.BufferImageSource;
@@ -54,12 +53,6 @@ function debugModeToNumber(mode: GridGradientShaderDebugMode): number {
         default:
             return 0;
     }
-}
-
-function transitionModeToNumber(mode: GridFlipTransition): number {
-    if (mode === 'hard') return 0;
-    if (mode === 'lerp_per_cell') return 1;
-    return 2;
 }
 
 function shapeToNumber(shape: string): number {
@@ -324,15 +317,6 @@ export class GridGradientShaderFieldRenderer {
                 type: 'f32',
             },
             uPulseSpeed: { value: params.shaderSettings.shaderPulseSpeed, type: 'f32' },
-            uTransitionMode: {
-                value: transitionModeToNumber(params.settings.flipTransition),
-                type: 'f32',
-            },
-            uTransitionScaleMin: {
-                value: params.shaderSettings.shaderTransitionScaleMin,
-                type: 'f32',
-            },
-            uFlipWindow: { value: params.settings.flipWindow, type: 'f32' },
             uFieldDriftPx: {
                 value: params.shaderSettings.shaderFieldDriftPx,
                 type: 'f32',
@@ -355,14 +339,6 @@ export class GridGradientShaderFieldRenderer {
             },
             uColorMixPower: {
                 value: params.shaderSettings.shaderColorMixPower,
-                type: 'f32',
-            },
-            uBorderBlendRangePx: {
-                value: params.shaderSettings.borderBlendRangePx,
-                type: 'f32',
-            },
-            uBorderBlendStrength: {
-                value: params.shaderSettings.borderBlendStrength,
                 type: 'f32',
             },
             uShapeMode: { value: shapeToNumber(params.settings.cellShape), type: 'f32' },
@@ -397,17 +373,12 @@ export class GridGradientShaderFieldRenderer {
             uNoiseStrength: params.shaderSettings.shaderNoiseStrength,
             uPulseStrength: params.shaderSettings.shaderPulseStrength,
             uPulseSpeed: params.shaderSettings.shaderPulseSpeed,
-            uTransitionMode: transitionModeToNumber(params.settings.flipTransition),
-            uTransitionScaleMin: params.shaderSettings.shaderTransitionScaleMin,
-            uFlipWindow: params.settings.flipWindow,
             uFieldDriftPx: params.shaderSettings.shaderFieldDriftPx,
             uFieldDriftSpeed: params.shaderSettings.shaderFieldDriftSpeed,
             uGlowStrength: params.shaderSettings.shaderGlowStrength,
             uInteriorAlphaBoost: params.shaderSettings.shaderInteriorAlphaBoost,
             uEdgeAlphaBoost: params.shaderSettings.shaderEdgeAlphaBoost,
             uColorMixPower: params.shaderSettings.shaderColorMixPower,
-            uBorderBlendRangePx: params.shaderSettings.borderBlendRangePx,
-            uBorderBlendStrength: params.shaderSettings.borderBlendStrength,
             uShapeMode: shapeToNumber(params.settings.cellShape),
             uNeighborMode: neighborModeToNumber(params.shaderSettings.neighborMode),
             uDebugMode: debugModeToNumber(params.shaderSettings.shaderDebugMode),

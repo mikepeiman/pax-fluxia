@@ -25,15 +25,12 @@ export interface GridGradientShaderFieldSettings {
     readonly shaderNoiseStrength: number;
     readonly shaderPulseStrength: number;
     readonly shaderPulseSpeed: number;
-    readonly shaderTransitionScaleMin: number;
     readonly shaderFieldDriftPx: number;
     readonly shaderFieldDriftSpeed: number;
     readonly shaderGlowStrength: number;
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
     readonly shaderColorMixPower: number;
-    readonly borderBlendRangePx: number;
-    readonly borderBlendStrength: number;
     readonly shaderDebugMode: GridGradientShaderDebugMode;
 }
 
@@ -51,7 +48,7 @@ export interface GridGradientShaderFieldTexturePlan {
 
     /** RGBA8: prevOwnerLo, prevOwnerHi, nextOwnerLo, nextOwnerHi. */
     readonly ownerTextureData: Uint8Array;
-    /** RGBA8: distanceBand, flipTime, role, nearestBorderPxClamped. */
+    /** RGBA8: distanceBand, flipTime, role, noise. */
     readonly metricsTextureData: Uint8Array;
     /** RGBA8 row texture. Index 0 is transparent outside/null owner. */
     readonly paletteTextureData: Uint8Array;

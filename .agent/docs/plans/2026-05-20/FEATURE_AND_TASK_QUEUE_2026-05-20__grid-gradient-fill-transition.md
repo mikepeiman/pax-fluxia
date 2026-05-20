@@ -3,23 +3,23 @@
 ## Completed
 
 - Implement Grid Gradient conquest fill transition in the existing render-family shader-field path.
-- Add presentation-only blending for fill marks that touch, or sit within a tunable range of, ownership borders.
-- Surface tuning controls in the existing Grid Gradient settings panel.
+- Back out the failed dual-mark shader transition, border-proximity blend, and Grid Gradient plan-worker handoff after user verification found no visible update, a large blue overlay, and intermittent multi-second loading stalls.
+- Restore the shader-field presentation to the simpler texture-packed color-blend path that previously rendered without the blue overlay.
+- Add a narrow local visual transition clock inside `GridGradientFamily` so a freshly built transition plan animates from progress `0` after the plan is available.
+- Keep Grid Gradient on the render-family runtime path; no direct renderer path was added.
 - Hide the player-facing backend selector; shader field is the normal path, graphics remains an internal fallback visible in diagnostics.
-- Reuse the existing metaball-grid plan worker so transition classification/wave planning no longer runs on the main thread after the initial cached plan.
-- Add a Grid Gradient local visual clock so worker-built transition plans animate from the start instead of snapping to the scheduler's already-advanced progress.
-- Clarify partially opaque shader controls: edge feather, noise roughness, pulse speed units, and color gamma.
+- Remove the failed transition-scale and border-blend controls from the surfaced settings metadata/UI.
+- Fix shader-field border offset so a nonzero offset suppresses marks inside the offset band instead of only changing gradient size.
 
 ## Validation
 
 - Focused Grid Gradient packing/scene tests passed.
 - `bun run build` in `pax-fluxia/` passed.
-- `svelte-check` remains blocked by pre-existing repo-wide errors outside this change area.
-- Browser smoke selected Grid Gradient without shader/WebGL compile errors. Screenshot capture timed out on the heavy canvas page, so user visual verification is still required.
-- User visual verification: select Grid Gradient, trigger conquest, and confirm old marks shrink/fade while new marks grow/fade without moving vector borders. Diagnostics should show local clock / requested plan during the fill transition.
+- Browser smoke confirmed: no blue overlay in screenshot, Grid Gradient selectable and dispatched as `grid_gradient`, WebGL shader-field backend active with no fallback, forced conquest changed ownership, and diagnostics showed `local / transition` with 221 active transition cells before returning to steady.
 
 ## Follow-Up Candidates
 
-- If border blending is too local, consider expanding neighbor sampling from adjacent grid cells to a small radius kernel.
+- Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
 - Decide whether `Color Gamma` and separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.
+- Main-thread classification/wave planning is still a performance risk during conquest; any future off-main-thread attempt needs a Grid Gradient-specific worker contract and proof that it cannot leave the old plan visible indefinitely.

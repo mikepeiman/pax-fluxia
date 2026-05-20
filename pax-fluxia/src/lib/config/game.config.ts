@@ -464,15 +464,12 @@ interface GameConfigType {
     GRID_GRADIENT_SHADER_NOISE_STRENGTH: number; // Procedural edge wobble for noise marks
     GRID_GRADIENT_SHADER_PULSE_STRENGTH: number; // Per-mark shader pulse amplitude
     GRID_GRADIENT_SHADER_PULSE_SPEED: number; // Per-mark shader pulse speed
-    GRID_GRADIENT_SHADER_TRANSITION_SCALE_MIN: number; // Smallest old/new mark scale during conquest fill flips
     GRID_GRADIENT_SHADER_FIELD_DRIFT_PX: number; // Optional shader-only mark drift amplitude
     GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED: number; // Optional shader-only mark drift speed
     GRID_GRADIENT_SHADER_GLOW_STRENGTH: number; // Extra fill-color brightness in shader marks
     GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: number; // Alpha boost near region interiors
     GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: number; // Alpha boost near borders
     GRID_GRADIENT_SHADER_COLOR_MIX_POWER: number; // Shader fill color power curve
-    GRID_GRADIENT_BORDER_BLEND_RANGE_PX: number; // Distance beyond touched border marks that blends opposing colors
-    GRID_GRADIENT_BORDER_BLEND_STRENGTH: number; // Strength of shader fill color mixing near ownership borders
     GRID_GRADIENT_SHADER_DEBUG_MODE: 'off' | 'cell_grid' | 'owner_index' | 'distance_band' | 'flip_time' | 'role'; // Shader debug color overlay
     TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched

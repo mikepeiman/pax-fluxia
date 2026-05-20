@@ -1,5 +1,9 @@
 # 2026-05-20 - Grid Gradient Fill Transition and Border Blend
 
+## Status Update
+
+This implementation was reverted later on 2026-05-20 after user verification reported no visible transition, a large blue overlay, and intermittent long loading stalls. The reverted parts were the dual-mark shader transition, the alpha-channel border-distance packing, and the border-proximity color blend. The retained direction is a simpler shader-field color-blend transition driven by the existing render-family plan.
+
 ## Scope
 
 Grid Gradient remains a render-family mode. The work is presentation-only: PV ownership and territory geometry still decide previous/next owner, border distance, and wave timing. The shader field renderer now uses those existing inputs to animate fill marks and blend marks near ownership borders.

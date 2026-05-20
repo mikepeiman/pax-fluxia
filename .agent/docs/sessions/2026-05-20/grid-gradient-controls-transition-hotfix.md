@@ -1,5 +1,9 @@
 # 2026-05-20 - Grid Gradient Controls and Transition Hotfix
 
+## Status Update
+
+This pass was superseded later on 2026-05-20. User verification found that the worker handoff could leave Grid Gradient visually dead, the dual-mark/border-blend shader path could produce a large blue overlay, and loading could intermittently stall for many seconds. The follow-up recovery removed the worker handoff and the border-blend/dual-mark shader changes.
+
 ## Context
 
 User feedback after the shader-field integration:

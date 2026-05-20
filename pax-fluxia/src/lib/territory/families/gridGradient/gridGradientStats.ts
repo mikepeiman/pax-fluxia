@@ -59,6 +59,7 @@ export interface GridGradientStats {
     readonly clockSource: 'none' | 'scheduler' | 'local';
     readonly visibleFrameState:
         | 'steady'
+        | 'transition'
         | 'holding_pre'
         | 'requested_plan'
         | 'fallback_plan';
