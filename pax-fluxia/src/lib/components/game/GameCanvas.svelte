@@ -6135,6 +6135,7 @@
                             lanes,
                             geometry,
                             configSource: renderFamilyConfigSource,
+                            freezeDuringActiveTransition: true,
                         });
                         if (transitionDiagnosticCaptureEnabled) {
                             transitionDiagnosticFrameInput = {
