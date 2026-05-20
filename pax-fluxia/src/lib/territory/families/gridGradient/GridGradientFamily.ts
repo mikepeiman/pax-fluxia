@@ -380,7 +380,6 @@ export class GridGradientFamily implements RenderFamily {
                         shaderGlowStrength: settings.shaderGlowStrength,
                         shaderInteriorAlphaBoost: settings.shaderInteriorAlphaBoost,
                         shaderEdgeAlphaBoost: settings.shaderEdgeAlphaBoost,
-                        shaderColorMixPower: settings.shaderColorMixPower,
                     },
                     progress,
                     nowMs: input.nowMs,

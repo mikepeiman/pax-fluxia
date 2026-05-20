@@ -38,20 +38,22 @@ Grid Gradient remains a render-family mode. It now reuses the existing metaball-
 - Reworked shader pulse from a visibly column-correlated phase into a 2D value-noise phase field.
 - Clarified control labels:
   - `Shader Edge Softness` -> `Edge Feather`
-  - `Shader Noise` -> `Noise Roughness`, adjustable even when Shape is not `Noise`
+  - `Shader Noise` -> `Shader Noise Roughness (Noise)`, now disabled when the active fill path cannot consume it
   - `Shader Pulse Speed` now shows `rad/s`
-  - `Shader Color Power` -> `Color Gamma`
+- Later update: removed the shader post-color power/gamma control entirely and replaced it with `Fill HSLA` controls.
 
 ## Current Control Semantics
 
+- `Fill HSLA`: Hue Shift applies inside Grid Gradient palette construction; Saturation, Lightness, and Alpha reuse the shared territory/metaball fill controls that Grid Gradient already consumes.
 - `Center Size` and `Edge Size`: mark diameter at interior and near-border distance bands.
 - `Gradient Curve`: remaps border distance into mark size progression.
 - `Border Offset`: fill exclusion band from ownership frontier, in world pixels.
 - `Edge Feather`: fixed pixel feather around each mark edge.
 - `Shader Mark Softness`: radius-relative mark feather; more visible on larger center marks.
-- `Noise Roughness`: only affects `Shape = Noise`, but remains draggable so the saved value is not blocked by the current shape.
+- `Shader Noise Roughness (Noise)`: only active for shader-field pointillist noise marks; otherwise the row is disabled instead of acting like a live no-op control.
 - `Shader Pulse Speed`: angular phase rate in radians per second.
-- `Color Gamma`: applies a nonlinear color curve before alpha compositing; useful only for deliberate color response tuning and a candidate for removal if it remains too subtle.
+- The removed color power/gamma path no longer has a shader uniform or settings key.
+- `Solid Fill` disables pointillist-only sampling controls instead of leaving active knobs that cannot affect the fill.
 
 ## Remaining Risk
 

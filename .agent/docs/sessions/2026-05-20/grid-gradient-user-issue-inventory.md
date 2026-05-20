@@ -25,13 +25,13 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 17 | Need a conquest fill transition for Grid Gradient fills. | Yes | Captured; current implementation uses a conservative color-blend transition over per-cell flip timing. |
 | 18 | Need a way to blend circles touched by borders or within a configured border range. | Yes | Captured as deferred; the first attempt was removed because it contributed risk in the shader-field path. |
 | 19 | `Border Offset` did not behave correctly; it looked like a subtle alpha adjustment rather than a clear border-offset band. | Yes | Captured and corrected in May 20 notes as a shader discard/exclusion-band fix. |
-| 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed it to `Noise Roughness`. It only affects `Shape = Noise`; the slider is no longer disabled when another shape is selected. |
+| 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed it to `Shader Noise Roughness (Noise)`. It only affects shader-field pointillist noise marks, so the control is now disabled when the active shape/backend/fill style cannot consume it. |
 | 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Reopened by user verification after the first attempt still looked column-grouped. Current patch replaces the smoothed low-frequency phase field with a per-cell two-axis hash using both grid coordinates strongly, moves mark jitter/drift off the single packed seed scalar, and changes packed seed generation from string-id hash to direct `ix,iy` hash. |
 | 22 | `Edge Size` seemed to have the same effect as `Center Size`. | No | Documentation gap corrected here; still needs behavioral verification or control redesign. |
 | 23 | `Shader Mark Softness` seemed identical to `Shader Edge Softness`. | No | Documentation gap corrected here; still needs shader/control semantics verification. |
 | 24 | `Shader Pulse Speed` seemed to have no effect and lacked units. | Yes | Captured; UI now labels it as rad/s, but the visual-effect complaint still needs user verification. |
 | 25 | `Shader Interior Alpha` appeared to do nothing. | Partial | May 20 queue mentions alpha boosts, but the original complaint was not itemized. Later user found fill visibility depended on this alpha being nonzero. |
-| 26 | `Shader Color Power` appeared to do nothing and used unclear terminology. | Yes | Captured; renamed to Color Gamma, with follow-up candidate to remove or demote if still too subtle. |
+| 26 | `Shader Color Power` appeared to do nothing and used unclear terminology. | Yes | User rejected the later `Color Gamma` rename. Current update removes the shader post-color power path and replaces the visible color response surface with Fill HSLA. |
 | 27 | Conquests caused animation stutter; this is unacceptable and must become smooth. | Yes | Captured; main-thread planning remains an open performance risk. |
 | 28 | A large square blue/cyan overlay appeared over most of the map in shader-field Grid Gradient. | Yes | Captured; cause recorded as the surfaced shader debug grid branch and failed shader expansion risk. |
 | 29 | The visible `Grid Gradient Backend` option was not requested and needed explanation/removal from player-facing UI. | Yes | Captured; removed from normal settings, backend remains diagnostics/internal fallback. |
@@ -46,7 +46,10 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 38 | User asked to process all messages received and not ignore older messages just because new ones came in. | No | Documentation gap corrected here; treat this inventory as the active carry-forward list. |
 | 39 | User noticed another top Grid Gradient control disappeared and asked what it was, why it was removed, and what mechanism caused this pattern. | No | Documentation gap corrected here. The removed top control was the public `Grid Gradient Backend` selector. It was removed from player-facing controls after user objected to the extra backend option; backend state remains in diagnostics/internal fallback. `.agent/AGENT.md` now requires visible-control inventory before removing/hiding/renaming/disabling controls. |
 | 40 | Pure fill and point fill did not use the same coordinates; point fill was mistranslated like the earlier border localization bug. | No | Corrected in shader-field packing/renderer: mesh bounds are local to the presentation frame and the shader uses a separate grid origin derived from classified cell coordinates. Needs user visual verification. |
-| 41 | `Noise Roughness` slider was not draggable. | No | Corrected: the UI no longer disables the slider when Shape is not `Noise`. It remains visually meaningful only for noise-shaped marks. |
+| 41 | `Noise Roughness` slider was not draggable. | No | Corrected as a UI-state issue, then revised after user pushback: it is not exposed as active when the current path cannot consume it. |
+| 42 | User does not want `Color Gamma`; user wants HSLA controls. | No | Corrected here. Added `Fill HSLA` with Grid Gradient hue shift plus shared fill saturation/lightness/alpha, and removed the gamma shader uniform/settings key. |
+| 43 | User challenged the idea of a draggable/stored control that currently does nothing, asking whether that is good code practice, UX, or DX. | No | Corrected here. `.agent/AGENT.md` now forbids active player-facing controls that cannot affect the active render path; scoped settings must be disabled or moved to a relevant section. |
+| 44 | Solid-fill geometry verification should not leave pointillist-specific knobs pretending to affect the active fill. | No | Corrected as part of the no-active-no-op rule. Pointillist-only controls are disabled when `Solid Fill` is active; grid sampling rows remain active only when they can affect point fill or dotted borders. |
 
 ## Process Correction
 
@@ -55,5 +58,5 @@ The May 20 notes were too implementation-centered. They captured the main fix lo
 ## Active Carry-Forward
 
 - Keep the performance backlog explicit: raw Chrome trace, cell-count measurements, visual-quality target counts, and a refreshed hotspot report.
-- Revisit control semantics after the solid fill verifier exists, especially `Edge Size`, `Shader Mark Softness`, `Shader Interior Alpha`, and color response.
+- Revisit control semantics after the solid fill verifier exists, especially `Edge Size`, `Shader Mark Softness`, and `Shader Interior Alpha`.
 - Revisit border-proximity blending only after the stable shader-field baseline and geometry-verification toggle are user-verified.

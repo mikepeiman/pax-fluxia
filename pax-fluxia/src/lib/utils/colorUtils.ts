@@ -21,6 +21,7 @@ export function rgbToHSL(r: number, g: number, b: number): [number, number, numb
 }
 
 export function hslToRGB(h: number, s: number, l: number): [number, number, number] {
+    h = ((h % 360) + 360) % 360;
     h /= 360;
     if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
     const hue2rgb = (p: number, q: number, t: number) => {
@@ -39,11 +40,16 @@ export function hslToRGB(h: number, s: number, l: number): [number, number, numb
     ];
 }
 
-export function adjustColorHSL(hex: number, satMult: number, lightMult: number): number {
+export function adjustColorHSL(
+    hex: number,
+    satMult: number,
+    lightMult: number,
+    hueShiftDeg = 0,
+): number {
     const [r, g, b] = hexToRGB(hex);
     const [h, s, l] = rgbToHSL(r, g, b);
     const [nr, ng, nb] = hslToRGB(
-        h,
+        h + hueShiftDeg,
         Math.min(1, Math.max(0, s * satMult)),
         Math.min(1, Math.max(0, l * lightMult)),
     );

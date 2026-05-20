@@ -29,6 +29,7 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_CENTER_SIZE_PX',
     'GRID_GRADIENT_EDGE_SIZE_PX',
     'GRID_GRADIENT_CURVE_POWER',
+    'GRID_GRADIENT_FILL_HUE_SHIFT_DEG',
     'GRID_GRADIENT_BORDER_OFFSET_PX',
     'GRID_GRADIENT_CELL_SHAPE',
     'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
@@ -46,7 +47,6 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_SHADER_GLOW_STRENGTH',
     'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST',
     'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST',
-    'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
     'METABALL_ALPHA',
     'METABALL_SATURATION',
     'METABALL_LIGHTNESS',
@@ -90,7 +90,7 @@ export interface GridGradientSettings {
     readonly shaderGlowStrength: number;
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
-    readonly shaderColorMixPower: number;
+    readonly fillHueShiftDeg: number;
     readonly fillAlpha: number;
     readonly fillSaturation: number;
     readonly fillLightness: number;
@@ -237,6 +237,15 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             0.1,
             6,
         ),
+        fillHueShiftDeg: clamp(
+            readTunableNumber(
+                input,
+                'GRID_GRADIENT_FILL_HUE_SHIFT_DEG',
+                defaults.GRID_GRADIENT_FILL_HUE_SHIFT_DEG,
+            ),
+            -180,
+            180,
+        ),
         borderOffsetPx: clamp(
             readTunableNumber(
                 input,
@@ -367,15 +376,6 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             ),
             0,
             3,
-        ),
-        shaderColorMixPower: clamp(
-            readTunableNumber(
-                input,
-                'GRID_GRADIENT_SHADER_COLOR_MIX_POWER',
-                defaults.GRID_GRADIENT_SHADER_COLOR_MIX_POWER,
-            ),
-            0.1,
-            4,
         ),
         fillAlpha: clamp(
             readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.52),

@@ -319,10 +319,6 @@ export class GridGradientShaderFieldRenderer {
                 value: params.shaderSettings.shaderEdgeAlphaBoost,
                 type: 'f32',
             },
-            uColorMixPower: {
-                value: params.shaderSettings.shaderColorMixPower,
-                type: 'f32',
-            },
             uShapeMode: { value: shapeToNumber(params.settings.cellShape), type: 'f32' },
             uNeighborMode: {
                 value: neighborModeToNumber(params.shaderSettings.neighborMode),
@@ -356,7 +352,6 @@ export class GridGradientShaderFieldRenderer {
             uGlowStrength: params.shaderSettings.shaderGlowStrength,
             uInteriorAlphaBoost: params.shaderSettings.shaderInteriorAlphaBoost,
             uEdgeAlphaBoost: params.shaderSettings.shaderEdgeAlphaBoost,
-            uColorMixPower: params.shaderSettings.shaderColorMixPower,
             uShapeMode: shapeToNumber(params.settings.cellShape),
             uNeighborMode: neighborModeToNumber(params.shaderSettings.neighborMode),
         });

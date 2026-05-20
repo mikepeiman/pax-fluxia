@@ -13,8 +13,10 @@
 - Adjust `Shader Pulse`, mark jitter, field drift, and packed seed generation to use two-axis cell hashes after user verification showed the first pulse pass still looked column-grouped.
 - Add `Fill Style` under Grid Gradient controls so the user can switch between `Pointillist` and `Solid Fill` for geometry verification.
 - Align shader-field point fill to the same localized presentation coordinates as solid fill and borders.
-- Keep `Noise Roughness` draggable even when the current mark shape is not `Noise`.
+- Scope `Shader Noise Roughness (Noise)` so it is disabled when the active fill path cannot consume it, instead of presenting an active no-op control.
+- Remove the rejected color power/gamma shader path and replace it with `Fill HSLA` controls.
 - Add an agent rule requiring visible control inventory before removing, hiding, renaming, disabling, or making a surfaced control irrelevant.
+- Add an agent rule forbidding active player-facing controls that cannot affect the active render path.
 
 ## Validation
 
@@ -27,5 +29,5 @@
 - Preserve the issue inventory in `.agent/docs/sessions/2026-05-20/grid-gradient-user-issue-inventory.md`; update it whenever new Grid Gradient feedback arrives.
 - Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
-- Decide whether `Color Gamma` and separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.
+- Decide whether separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.
 - Main-thread classification/wave planning is still a performance risk during conquest; any future off-main-thread attempt needs a Grid Gradient-specific worker contract and proof that it cannot leave the old plan visible indefinitely.

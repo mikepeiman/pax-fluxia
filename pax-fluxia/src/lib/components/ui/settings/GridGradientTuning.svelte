@@ -20,12 +20,21 @@
         return (panel[panelKey] ?? fallback) as T;
     }
 
+    function configNumber(configKey: string, fallback: number): number {
+        const value = (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    }
+
     const spacingPx = $derived(valueOf<number>('gridGradientSpacingPx', 6));
     const maxCells = $derived(valueOf<number>('gridGradientMaxCells', 160000));
     const fillStyle = $derived(valueOf<string>('gridGradientFillStyle', 'pointillist'));
     const centerSizePx = $derived(valueOf<number>('gridGradientCenterSizePx', 10));
     const edgeSizePx = $derived(valueOf<number>('gridGradientEdgeSizePx', 1.5));
     const curvePower = $derived(valueOf<number>('gridGradientCurvePower', 1.6));
+    const fillHueShiftDeg = $derived(valueOf<number>('gridGradientFillHueShiftDeg', configNumber('GRID_GRADIENT_FILL_HUE_SHIFT_DEG', 0)));
+    const fillSaturation = $derived(valueOf<number>('metaballSaturation', configNumber('METABALL_SATURATION', 1)));
+    const fillLightness = $derived(valueOf<number>('metaballLightness', configNumber('METABALL_LIGHTNESS', 1)));
+    const fillAlpha = $derived(valueOf<number>('metaballAlpha', configNumber('METABALL_ALPHA', 0.52)));
     const borderOffsetPx = $derived(valueOf<number>('gridGradientBorderOffsetPx', 0));
     const positionJitter = $derived(valueOf<number>('gridGradientPositionJitter', 0));
     const cellShape = $derived(valueOf<string>('gridGradientCellShape', 'circle'));
@@ -44,16 +53,20 @@
     const shaderGlowStrength = $derived(valueOf<number>('gridGradientShaderGlowStrength', 0.08));
     const shaderInteriorAlphaBoost = $derived(valueOf<number>('gridGradientShaderInteriorAlphaBoost', 1));
     const shaderEdgeAlphaBoost = $derived(valueOf<number>('gridGradientShaderEdgeAlphaBoost', 0.88));
-    const shaderColorMixPower = $derived(valueOf<number>('gridGradientShaderColorMixPower', 1));
+    const pointillistFillActive = $derived(fillStyle === 'pointillist');
+    const gridSamplingActive = $derived(pointillistFillActive || borderDotsEnabled);
+    const shaderFieldFxActive = $derived(pointillistFillActive && $gridGradientStats.drawBackend === 'shader_field');
+    const shaderNoiseActive = $derived(shaderFieldFxActive && cellShape === 'noise');
 </script>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Neighbor Mode</span>
-        <span class="val">{shaderNeighborMode}</span>
+        <span class="val">{shaderFieldFxActive ? shaderNeighborMode : 'inactive'}</span>
     </div>
     <select
         class="mode-select"
+        disabled={!shaderFieldFxActive}
         value={shaderNeighborMode}
         onchange={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', (event.target as HTMLSelectElement).value);
@@ -82,45 +95,48 @@
     </select>
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!gridSamplingActive}>
     <div class="row-top">
         <span class="var-name">Grid Spacing</span>
-        <span class="val">{spacingPx.toFixed(1)}px</span>
+        <span class="val">{gridSamplingActive ? `${spacingPx.toFixed(1)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="2"
         max="32"
         step="0.5"
+        disabled={!gridSamplingActive}
         value={spacingPx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SPACING_PX', 'gridGradientSpacingPx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!gridSamplingActive}>
     <div class="row-top">
         <span class="var-name">Max Cells</span>
-        <span class="val">{Math.round(maxCells).toLocaleString()}</span>
+        <span class="val">{gridSamplingActive ? Math.round(maxCells).toLocaleString() : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="320000"
         step="5000"
+        disabled={!gridSamplingActive}
         value={maxCells}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_MAX_CELLS', 'gridGradientMaxCells', parseInt((event.target as HTMLInputElement).value, 10));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!pointillistFillActive}>
     <div class="row-top">
         <span class="var-name">Shape</span>
-        <span class="val">{cellShape}</span>
+        <span class="val">{pointillistFillActive ? cellShape : 'inactive'}</span>
     </div>
     <select
         class="mode-select"
+        disabled={!pointillistFillActive}
         value={cellShape}
         onchange={(event) => {
             writeConfig('GRID_GRADIENT_CELL_SHAPE', 'gridGradientCellShape', (event.target as HTMLSelectElement).value);
@@ -131,80 +147,153 @@
     </select>
 </div>
 
+<div class="sub-heading">Fill HSLA</div>
+
 <div class="var-row">
     <div class="row-top">
+        <span class="var-name">Hue Shift</span>
+        <span class="val">{fillHueShiftDeg.toFixed(0)}deg</span>
+    </div>
+    <input
+        type="range"
+        min="-180"
+        max="180"
+        step="1"
+        value={fillHueShiftDeg}
+        oninput={(event) => {
+            writeConfig('GRID_GRADIENT_FILL_HUE_SHIFT_DEG', 'gridGradientFillHueShiftDeg', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Saturation</span>
+        <span class="val">{fillSaturation.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.01"
+        value={fillSaturation}
+        oninput={(event) => {
+            writeConfig('METABALL_SATURATION', 'metaballSaturation', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Lightness</span>
+        <span class="val">{fillLightness.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="3"
+        step="0.01"
+        value={fillLightness}
+        oninput={(event) => {
+            writeConfig('METABALL_LIGHTNESS', 'metaballLightness', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Alpha</span>
+        <span class="val">{fillAlpha.toFixed(2)}</span>
+    </div>
+    <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value={fillAlpha}
+        oninput={(event) => {
+            writeConfig('METABALL_ALPHA', 'metaballAlpha', parseFloat((event.target as HTMLInputElement).value));
+        }} />
+</div>
+
+<div class="sub-heading">Gradient Shape</div>
+
+<div class="var-row" class:disabled={!pointillistFillActive}>
+    <div class="row-top">
         <span class="var-name">Center Size</span>
-        <span class="val">{centerSizePx.toFixed(1)}px</span>
+        <span class="val">{pointillistFillActive ? `${centerSizePx.toFixed(1)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="1"
         max="48"
         step="0.5"
+        disabled={!pointillistFillActive}
         value={centerSizePx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_CENTER_SIZE_PX', 'gridGradientCenterSizePx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!pointillistFillActive}>
     <div class="row-top">
         <span class="var-name">Edge Size</span>
-        <span class="val">{edgeSizePx.toFixed(1)}px</span>
+        <span class="val">{pointillistFillActive ? `${edgeSizePx.toFixed(1)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0.5"
         max="16"
         step="0.5"
+        disabled={!pointillistFillActive}
         value={edgeSizePx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_EDGE_SIZE_PX', 'gridGradientEdgeSizePx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!pointillistFillActive}>
     <div class="row-top">
         <span class="var-name">Gradient Curve</span>
-        <span class="val">{curvePower.toFixed(2)}</span>
+        <span class="val">{pointillistFillActive ? curvePower.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0.1"
         max="6"
         step="0.05"
+        disabled={!pointillistFillActive}
         value={curvePower}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_CURVE_POWER', 'gridGradientCurvePower', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!pointillistFillActive}>
     <div class="row-top">
         <span class="var-name">Border Offset</span>
-        <span class="val">{borderOffsetPx.toFixed(1)}px</span>
+        <span class="val">{pointillistFillActive ? `${borderOffsetPx.toFixed(1)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="80"
         step="1"
+        disabled={!pointillistFillActive}
         value={borderOffsetPx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_BORDER_OFFSET_PX', 'gridGradientBorderOffsetPx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!gridSamplingActive}>
     <div class="row-top">
         <span class="var-name">Position Jitter</span>
-        <span class="val">{positionJitter.toFixed(2)}</span>
+        <span class="val">{gridSamplingActive ? positionJitter.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="0.5"
         step="0.01"
+        disabled={!gridSamplingActive}
         value={positionJitter}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_DISTRIBUTION', 'gridGradientDistribution', parseFloat((event.target as HTMLInputElement).value) > 0 ? 'jittered' : 'square');
@@ -214,179 +303,173 @@
 
 <div class="sub-heading">Shader Field FX</div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Mark Softness</span>
-        <span class="val">{shaderMarkSoftness.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderMarkSoftness.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="1.5"
         step="0.01"
+        disabled={!shaderFieldFxActive}
         value={shaderMarkSoftness}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_MARK_SOFTNESS', 'gridGradientShaderMarkSoftness', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Edge Feather</span>
-        <span class="val">{shaderEdgeSoftnessPx.toFixed(2)}px</span>
+        <span class="val">{shaderFieldFxActive ? `${shaderEdgeSoftnessPx.toFixed(2)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="8"
         step="0.05"
+        disabled={!shaderFieldFxActive}
         value={shaderEdgeSoftnessPx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX', 'gridGradientShaderEdgeSoftnessPx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderNoiseActive}>
     <div class="row-top">
-        <span class="var-name">Noise Roughness</span>
-        <span class="val">{shaderNoiseStrength.toFixed(2)}</span>
+        <span class="var-name">Shader Noise Roughness (Noise)</span>
+        <span class="val">{shaderNoiseActive ? shaderNoiseStrength.toFixed(2) : cellShape === 'noise' ? 'inactive' : 'noise only'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="2"
         step="0.01"
+        disabled={!shaderNoiseActive}
         value={shaderNoiseStrength}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Pulse</span>
-        <span class="val">{shaderPulseStrength.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderPulseStrength.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="1"
         step="0.01"
+        disabled={!shaderFieldFxActive}
         value={shaderPulseStrength}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_PULSE_STRENGTH', 'gridGradientShaderPulseStrength', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Pulse Speed</span>
-        <span class="val">{shaderPulseSpeed.toFixed(2)} rad/s</span>
+        <span class="val">{shaderFieldFxActive ? `${shaderPulseSpeed.toFixed(2)} rad/s` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="20"
         step="0.1"
+        disabled={!shaderFieldFxActive}
         value={shaderPulseSpeed}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_PULSE_SPEED', 'gridGradientShaderPulseSpeed', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Drift</span>
-        <span class="val">{shaderFieldDriftPx.toFixed(1)}px</span>
+        <span class="val">{shaderFieldFxActive ? `${shaderFieldDriftPx.toFixed(1)}px` : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="12"
         step="0.1"
+        disabled={!shaderFieldFxActive}
         value={shaderFieldDriftPx}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_PX', 'gridGradientShaderFieldDriftPx', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Drift Speed</span>
-        <span class="val">{shaderFieldDriftSpeed.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderFieldDriftSpeed.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="8"
         step="0.05"
+        disabled={!shaderFieldFxActive}
         value={shaderFieldDriftSpeed}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED', 'gridGradientShaderFieldDriftSpeed', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Glow</span>
-        <span class="val">{shaderGlowStrength.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderGlowStrength.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="2"
         step="0.01"
+        disabled={!shaderFieldFxActive}
         value={shaderGlowStrength}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_GLOW_STRENGTH', 'gridGradientShaderGlowStrength', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Interior Alpha</span>
-        <span class="val">{shaderInteriorAlphaBoost.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderInteriorAlphaBoost.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="3"
         step="0.01"
+        disabled={!shaderFieldFxActive}
         value={shaderInteriorAlphaBoost}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST', 'gridGradientShaderInteriorAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 
-<div class="var-row">
+<div class="var-row" class:disabled={!shaderFieldFxActive}>
     <div class="row-top">
         <span class="var-name">Shader Edge Alpha</span>
-        <span class="val">{shaderEdgeAlphaBoost.toFixed(2)}</span>
+        <span class="val">{shaderFieldFxActive ? shaderEdgeAlphaBoost.toFixed(2) : 'inactive'}</span>
     </div>
     <input
         type="range"
         min="0"
         max="3"
         step="0.01"
+        disabled={!shaderFieldFxActive}
         value={shaderEdgeAlphaBoost}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST', 'gridGradientShaderEdgeAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Color Gamma</span>
-        <span class="val">{shaderColorMixPower.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="4"
-        step="0.01"
-        value={shaderColorMixPower}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_COLOR_MIX_POWER', 'gridGradientShaderColorMixPower', parseFloat((event.target as HTMLInputElement).value));
         }} />
 </div>
 

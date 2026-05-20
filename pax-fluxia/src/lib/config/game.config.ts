@@ -453,6 +453,7 @@ interface GameConfigType {
     GRID_GRADIENT_CENTER_SIZE_PX: number; // Largest fill primitive size at region centers
     GRID_GRADIENT_EDGE_SIZE_PX: number; // Smallest fill primitive size at borders
     GRID_GRADIENT_CURVE_POWER: number; // Distance-to-border size curve power
+    GRID_GRADIENT_FILL_HUE_SHIFT_DEG: number; // Fill and border hue shift in degrees
     GRID_GRADIENT_BORDER_OFFSET_PX: number; // Fill pullback from territory borders
     GRID_GRADIENT_CELL_SHAPE: 'circle' | 'square' | 'noise'; // Primitive shape used for fill samples
     GRID_GRADIENT_VECTOR_BORDERS_ENABLED: boolean; // Draw smoothed vector borders from resolved geometry
@@ -470,7 +471,6 @@ interface GameConfigType {
     GRID_GRADIENT_SHADER_GLOW_STRENGTH: number; // Extra fill-color brightness in shader marks
     GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: number; // Alpha boost near region interiors
     GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: number; // Alpha boost near borders
-    GRID_GRADIENT_SHADER_COLOR_MIX_POWER: number; // Shader fill color power curve
     TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched
     TERRITORY_FRONTIER_PHASE_SAMPLING: TerritoryFrontierPhaseSamplingMode; // Texture filtering strategy for shader frontier bands

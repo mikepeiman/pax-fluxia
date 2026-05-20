@@ -32,11 +32,13 @@ export function buildGridGradientPalette(params: {
             base,
             params.settings.fillSaturation,
             params.settings.fillLightness,
+            params.settings.fillHueShiftDeg,
         );
         const border = adjustColorHSL(
             base,
             params.settings.borderSaturation,
             params.settings.borderLightness,
+            params.settings.fillHueShiftDeg,
         );
         ownerColorIdx.set(ownerId, idx);
         fillColorByOwnerId.set(ownerId, fill);

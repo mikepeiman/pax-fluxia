@@ -243,6 +243,7 @@ Required pattern:
 - Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
 - User configurability is part of the product.
 - Before removing, hiding, renaming, disabling, or making irrelevant any visible control, inventory the control, its config key, its runtime consumer, and its diagnostic/product status. Preserve product controls unless the user explicitly retires them. Diagnostic-only controls must move to diagnostics, not silently disappear.
+- Do not expose a player-facing control that cannot affect the active render path. If a setting is shape/backend-specific, keep the control visibly disabled with an explicit scope marker or move it to the relevant scoped section; do not present inert stored state as an active tuning control.
 
 ### 4.7 Comments
 

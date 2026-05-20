@@ -28,7 +28,6 @@ export interface GridGradientShaderFieldSettings {
     readonly shaderGlowStrength: number;
     readonly shaderInteriorAlphaBoost: number;
     readonly shaderEdgeAlphaBoost: number;
-    readonly shaderColorMixPower: number;
 }
 
 export interface GridGradientShaderFieldTexturePlan {

@@ -39,7 +39,6 @@ export const gridGradientShaderFieldBitGl = {
             uniform float uGlowStrength;
             uniform float uInteriorAlphaBoost;
             uniform float uEdgeAlphaBoost;
-            uniform float uColorMixPower;
 
             uniform float uShapeMode;
             uniform float uNeighborMode;
@@ -208,10 +207,6 @@ export const gridGradientShaderFieldBitGl = {
                 float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
                 float alpha = mask * color.a * uFillAlpha * alphaBoost;
                 vec3 rgb = color.rgb * pulse;
-
-                if (uColorMixPower != 1.0) {
-                    rgb = pow(max(rgb, vec3(0.0)), vec3(max(0.01, uColorMixPower)));
-                }
 
                 if (uGlowStrength > 0.0) {
                     rgb += color.rgb * mask * uGlowStrength;

@@ -12,6 +12,16 @@ describe('gridGradientShaderFieldBitGl', () => {
         expect(source).not.toContain('vec4(0.2, 0.8, 1.0');
     });
 
+    it('does not apply a hidden color power curve after palette lookup', () => {
+        const source = [
+            gridGradientShaderFieldBitGl.fragment.header,
+            gridGradientShaderFieldBitGl.fragment.main,
+        ].join('\n');
+
+        expect(source).not.toContain('uColorMixPower');
+        expect(source).not.toContain('pow(max(rgb');
+    });
+
     it('uses per-cell two-axis hashes for pulse and center jitter', () => {
         const source = [
             gridGradientShaderFieldBitGl.fragment.header,

@@ -482,6 +482,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Grid Gradient Center Size': { key: 'GRID_GRADIENT_CENTER_SIZE_PX' },
         'Grid Gradient Edge Size': { key: 'GRID_GRADIENT_EDGE_SIZE_PX' },
         'Grid Gradient Curve': { key: 'GRID_GRADIENT_CURVE_POWER' },
+        'Fill Hue Shift': { key: 'GRID_GRADIENT_FILL_HUE_SHIFT_DEG' },
         'Grid Gradient Border Offset': { key: 'GRID_GRADIENT_BORDER_OFFSET_PX' },
         'Grid Gradient Vector Borders': {
             key: 'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
@@ -501,7 +502,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Shader Glow': { key: 'GRID_GRADIENT_SHADER_GLOW_STRENGTH' },
         'Shader Interior Alpha': { key: 'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST' },
         'Shader Edge Alpha': { key: 'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST' },
-        'Color Gamma': { key: 'GRID_GRADIENT_SHADER_COLOR_MIX_POWER' },
         'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
         'Frontier Border Geometry': {
             key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',
