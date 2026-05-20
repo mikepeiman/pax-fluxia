@@ -33,12 +33,17 @@ export const gridGradientShaderFieldBitGl = {
             uniform float uNoiseStrength;
             uniform float uPulseStrength;
             uniform float uPulseSpeed;
+            uniform float uTransitionMode;
+            uniform float uTransitionScaleMin;
+            uniform float uFlipWindow;
             uniform float uFieldDriftPx;
             uniform float uFieldDriftSpeed;
             uniform float uGlowStrength;
             uniform float uInteriorAlphaBoost;
             uniform float uEdgeAlphaBoost;
             uniform float uColorMixPower;
+            uniform float uBorderBlendRangePx;
+            uniform float uBorderBlendStrength;
 
             uniform float uShapeMode;
             uniform float uNeighborMode;
@@ -46,6 +51,12 @@ export const gridGradientShaderFieldBitGl = {
 
             float saturate(float v) {
                 return clamp(v, 0.0, 1.0);
+            }
+
+            float hash21(vec2 p) {
+                vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return fract((p3.x + p3.y) * p3.z);
             }
 
             float unpackOwner(vec2 rg) {
@@ -88,6 +99,14 @@ export const gridGradientShaderFieldBitGl = {
                 return texture(uPaletteTex, vec2(x, 0.5));
             }
 
+            float transitionT(float flipTime) {
+                if (uTransitionMode < 0.5) {
+                    return step(flipTime, uProgress);
+                }
+                float transitionWindow = max(0.0001, uFlipWindow);
+                return smoothstep(flipTime - transitionWindow, flipTime + transitionWindow, uProgress);
+            }
+
             float circleMask(vec2 p, float radius, float softness) {
                 float d = length(p);
                 return 1.0 - smoothstep(radius, radius + softness, d);
@@ -122,12 +141,90 @@ export const gridGradientShaderFieldBitGl = {
                 return 1.0;
             }
 
+            float effectiveOwnerAt(vec2 cell) {
+                vec4 ownerPacked = readOwnerTex(cell);
+                vec4 metrics = readMetricsTex(cell);
+                float role = floor(metrics.b * 255.0 + 0.5);
+                if (role < 0.5) return 0.0;
+
+                float prevOwner = unpackOwner(ownerPacked.rg);
+                float nextOwner = unpackOwner(ownerPacked.ba);
+                float prevAllowed = roleAllowsSide(role, 0.0);
+                float nextAllowed = roleAllowsSide(role, 1.0);
+                if (prevAllowed <= 0.5) return nextOwner;
+                if (nextAllowed <= 0.5) return prevOwner;
+                if (prevOwner <= 0.5) return nextOwner;
+                if (nextOwner <= 0.5) return prevOwner;
+                if (abs(prevOwner - nextOwner) <= 0.5) return nextOwner;
+                return transitionT(metrics.g) < 0.5 ? prevOwner : nextOwner;
+            }
+
+            void accumulateOpposingColor(inout vec4 accum, inout float count, vec2 cell, vec2 offset, float currentOwner) {
+                float owner = effectiveOwnerAt(cell + offset);
+                if (owner > 0.5 && abs(owner - currentOwner) > 0.5) {
+                    vec4 color = readPalette(owner);
+                    accum.rgb += color.rgb;
+                    accum.a += color.a;
+                    count += 1.0;
+                }
+            }
+
+            vec4 averageOpposingColor(vec2 cell, float currentOwner) {
+                vec4 accum = vec4(0.0);
+                float count = 0.0;
+                accumulateOpposingColor(accum, count, cell, vec2( 1.0,  0.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2(-1.0,  0.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2( 0.0,  1.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2( 0.0, -1.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2( 1.0,  1.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2( 1.0, -1.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2(-1.0,  1.0), currentOwner);
+                accumulateOpposingColor(accum, count, cell, vec2(-1.0, -1.0), currentOwner);
+                if (count <= 0.5) return vec4(0.0);
+                return accum / count;
+            }
+
             vec4 alphaOver(vec4 under, vec4 over) {
                 float a = over.a + under.a * (1.0 - over.a);
                 if (a <= 0.0001) return vec4(0.0);
                 vec3 rgb =
                     (over.rgb * over.a + under.rgb * under.a * (1.0 - over.a)) / a;
                 return vec4(rgb, a);
+            }
+
+            vec4 styleContribution(vec4 color, float mask, float alphaFactor, float distanceBand, float pulse) {
+                float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
+                float alpha = mask * color.a * alphaFactor * uFillAlpha * alphaBoost;
+                vec3 rgb = color.rgb * pulse;
+
+                if (uColorMixPower != 1.0) {
+                    rgb = pow(max(rgb, vec3(0.0)), vec3(max(0.01, uColorMixPower)));
+                }
+
+                if (uGlowStrength > 0.0) {
+                    rgb += color.rgb * mask * uGlowStrength;
+                }
+
+                return vec4(rgb, alpha);
+            }
+
+            vec4 applyBorderBlend(vec4 color, vec2 cell, float currentOwner, float borderDistancePx, float radius) {
+                if (color.a <= 0.001 || uBorderBlendStrength <= 0.001 || currentOwner <= 0.5) {
+                    return color;
+                }
+                float borderT;
+                if (uBorderBlendRangePx <= 0.001) {
+                    borderT = 1.0 - step(radius, borderDistancePx);
+                } else {
+                    borderT = 1.0 - smoothstep(radius, radius + uBorderBlendRangePx, borderDistancePx);
+                }
+                borderT *= uBorderBlendStrength;
+                if (borderT <= 0.001) return color;
+
+                vec4 opposing = averageOpposingColor(cell, currentOwner);
+                if (opposing.a <= 0.001) return color;
+                color.rgb = mix(color.rgb, opposing.rgb, saturate(borderT));
+                return color;
             }
 
             vec4 shadeCell(vec2 cell, vec2 worldPos) {
@@ -141,18 +238,15 @@ export const gridGradientShaderFieldBitGl = {
                 float nextOwner = unpackOwner(ownerPacked.ba);
                 float flipTime = metrics.g;
                 float distanceBand = metrics.r;
-                float noiseSeed = metrics.a;
+                float borderDistancePx = metrics.a * 255.0;
+                float noiseSeed = hash21(cell + vec2(prevOwner * 0.13, nextOwner * 0.17));
 
-                float blendWindow = 0.08;
-                float t = smoothstep(flipTime - blendWindow, flipTime + blendWindow, uProgress);
+                float t = transitionT(flipTime);
 
                 float prevAllowed = roleAllowsSide(role, 0.0);
                 float nextAllowed = roleAllowsSide(role, 1.0);
                 vec4 prevColor = readPalette(prevOwner) * prevAllowed;
                 vec4 nextColor = readPalette(nextOwner) * nextAllowed;
-                vec4 color = mix(prevColor, nextColor, t);
-
-                if (color.a <= 0.001) return vec4(0.0);
 
                 float distanceT = pow(saturate(distanceBand), max(0.01, uCurvePower));
                 float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
@@ -167,35 +261,47 @@ export const gridGradientShaderFieldBitGl = {
                     center += vec2(cos(phase), sin(phase * 1.17)) * uFieldDriftPx;
                 }
 
-                float mask = markMask(worldPos - center, radius, noiseSeed);
-                if (mask <= 0.001) return vec4(0.0);
-
                 float pulse = 1.0;
                 if (uPulseStrength > 0.0) {
                     pulse += sin(uTimeSec * uPulseSpeed + noiseSeed * 6.2831) * uPulseStrength;
                 }
 
-                float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
-                float alpha = mask * color.a * uFillAlpha * alphaBoost;
-                vec3 rgb = color.rgb * pulse;
+                vec4 accum = vec4(0.0);
+                float currentOwner = effectiveOwnerAt(cell);
+                float scaleMin = saturate(uTransitionScaleMin);
 
-                if (uColorMixPower != 1.0) {
-                    rgb = pow(max(rgb, vec3(0.0)), vec3(max(0.01, uColorMixPower)));
-                }
-
-                if (uGlowStrength > 0.0) {
-                    rgb += color.rgb * mask * uGlowStrength;
+                if ((role > 0.5 && role < 1.5) || abs(prevOwner - nextOwner) <= 0.5) {
+                    vec4 color = nextColor.a > 0.001 ? nextColor : prevColor;
+                    float mask = markMask(worldPos - center, radius, noiseSeed);
+                    accum = styleContribution(color, mask, 1.0, distanceBand, pulse);
+                } else {
+                    if (prevColor.a > 0.001) {
+                        float prevRadius = radius * mix(1.0, scaleMin, t);
+                        float prevMask = markMask(worldPos - center, prevRadius, noiseSeed);
+                        accum = alphaOver(
+                            accum,
+                            styleContribution(prevColor, prevMask, 1.0 - t, distanceBand, pulse)
+                        );
+                    }
+                    if (nextColor.a > 0.001) {
+                        float nextRadius = radius * mix(scaleMin, 1.0, t);
+                        float nextMask = markMask(worldPos - center, nextRadius, fract(noiseSeed + 0.37));
+                        accum = alphaOver(
+                            accum,
+                            styleContribution(nextColor, nextMask, t, distanceBand, pulse)
+                        );
+                    }
                 }
 
                 if (uDebugMode > 1.5 && uDebugMode < 2.5) {
                     float hue = fract(nextOwner / max(1.0, uPaletteSize));
-                    return vec4(vec3(hue, 1.0 - hue, 0.5 + 0.5 * sin(hue * 6.2831)), alpha);
+                    return vec4(vec3(hue, 1.0 - hue, 0.5 + 0.5 * sin(hue * 6.2831)), accum.a);
                 }
-                if (uDebugMode > 2.5 && uDebugMode < 3.5) return vec4(vec3(distanceBand), alpha);
-                if (uDebugMode > 3.5 && uDebugMode < 4.5) return vec4(vec3(flipTime), alpha);
-                if (uDebugMode > 4.5 && uDebugMode < 5.5) return vec4(vec3(role / 4.0), alpha);
+                if (uDebugMode > 2.5 && uDebugMode < 3.5) return vec4(vec3(distanceBand), accum.a);
+                if (uDebugMode > 3.5 && uDebugMode < 4.5) return vec4(vec3(flipTime), accum.a);
+                if (uDebugMode > 4.5 && uDebugMode < 5.5) return vec4(vec3(role / 4.0), accum.a);
 
-                return vec4(rgb, alpha);
+                return applyBorderBlend(accum, cell, currentOwner, borderDistancePx, radius);
             }
         `,
         main: /* glsl */ `

@@ -31,15 +31,6 @@ function packHexColor(hex: number, alpha: number, out: Uint8Array, offset: numbe
     out[offset + 3] = Math.round(clamp01(alpha) * 255);
 }
 
-function hashByte(value: string): number {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < value.length; i += 1) {
-        h ^= value.charCodeAt(i);
-        h = Math.imul(h, 0x01000193);
-    }
-    return (h >>> 24) & 0xff;
-}
-
 function resolveDistanceBand(params: {
     distancePx: number;
     ownerMaxDistancePx: number;
@@ -51,6 +42,11 @@ function resolveDistanceBand(params: {
     const maxDistance = Math.max(borderOffsetPx + 0.001, Number.isFinite(params.ownerMaxDistancePx) ? params.ownerMaxDistancePx : distancePx);
     const t = (distancePx - borderOffsetPx) / (maxDistance - borderOffsetPx);
     return Math.round(clamp01(t) * 255);
+}
+
+function encodeBorderDistancePx(distancePx: number): number {
+    if (!Number.isFinite(distancePx) || distancePx <= 0) return 0;
+    return Math.round(Math.min(255, distancePx));
 }
 
 function buildPalette(params: BuildGridGradientShaderFieldTexturePlanParams): {
@@ -156,7 +152,7 @@ export function buildGridGradientShaderFieldTexturePlan(
         const flipTime = params.wavePlan.flipTimeByVId.get(v.id) ?? (v.role === 'native' ? 1 : 0);
         metricsTextureData[metricsOffset + 1] = Math.round(clamp01(flipTime) * 255);
         metricsTextureData[metricsOffset + 2] = ROLE_BYTE[v.role] ?? 0;
-        metricsTextureData[metricsOffset + 3] = hashByte(v.id);
+        metricsTextureData[metricsOffset + 3] = encodeBorderDistancePx(distancePx);
 
         if (v.role !== 'native' && v.role !== 'outside') activeTransitionCells += 1;
         if (v.role === 'outside') outsideCells += 1;
