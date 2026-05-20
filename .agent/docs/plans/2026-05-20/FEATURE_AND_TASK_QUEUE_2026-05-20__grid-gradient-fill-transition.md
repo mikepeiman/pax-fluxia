@@ -12,11 +12,12 @@
 - Fix shader-field border offset so a nonzero offset suppresses marks inside the offset band instead of only changing gradient size.
 - Adjust `Shader Pulse`, mark jitter, field drift, and packed seed generation to use two-axis cell hashes after user verification showed the first pulse pass still looked column-grouped.
 - Add `Fill Style` under Grid Gradient controls so the user can switch between `Pointillist` and `Solid Fill` for geometry verification.
+- Align shader-field point fill to the same localized presentation coordinates as solid fill and borders.
 - Add an agent rule requiring visible control inventory before removing, hiding, renaming, disabling, or making a surfaced control irrelevant.
 
 ## Validation
 
-- Focused Grid Gradient shader/packing/scene tests passed: 9 tests.
+- Focused Grid Gradient shader/packing/scene plus presentation-space tests passed: 12 tests.
 - `bun run build` in `pax-fluxia/` passed with existing unused-CSS and chunk-size warnings.
 - Browser smoke confirmed: no blue overlay in screenshot, Grid Gradient selectable and dispatched as `grid_gradient`, WebGL shader-field backend active with no fallback, forced conquest changed ownership, and diagnostics showed `local / transition` with 221 active transition cells before returning to steady.
 

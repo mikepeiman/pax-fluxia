@@ -269,7 +269,7 @@ export class GridGradientShaderFieldRenderer {
                 type: 'vec2<f32>',
             },
             uWorldOrigin: {
-                value: new Float32Array([params.plan.worldMinX, params.plan.worldMinY]),
+                value: new Float32Array([params.plan.gridOriginX, params.plan.gridOriginY]),
                 type: 'vec2<f32>',
             },
             uWorldSize: {
@@ -335,7 +335,7 @@ export class GridGradientShaderFieldRenderer {
         if (!this.shader) return;
         updateUniformGroup(this.shader, {
             uGridSize: new Float32Array([params.plan.cols, params.plan.rows]),
-            uWorldOrigin: new Float32Array([params.plan.worldMinX, params.plan.worldMinY]),
+            uWorldOrigin: new Float32Array([params.plan.gridOriginX, params.plan.gridOriginY]),
             uWorldSize: new Float32Array([params.plan.worldWidth, params.plan.worldHeight]),
             uSpacingPx: params.plan.spacingPx,
             uPaletteSize: params.plan.paletteSize,

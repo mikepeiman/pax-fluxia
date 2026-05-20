@@ -40,6 +40,8 @@ export interface GridGradientShaderFieldTexturePlan {
     readonly worldMinY: number;
     readonly worldWidth: number;
     readonly worldHeight: number;
+    readonly gridOriginX: number;
+    readonly gridOriginY: number;
     readonly spacingPx: number;
     readonly requestedSpacingPx: number;
 

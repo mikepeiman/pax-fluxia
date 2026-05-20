@@ -68,11 +68,15 @@ describe('buildGridGradientShaderFieldTexturePlan', () => {
             } as never,
             ownerIndexByCell: new Int32Array([0, 1, 1, -1]),
             ownerMaxDistancePxByIndex: [10, 10],
-            world: { width: 20, height: 20, minX: 0, minY: 0 },
+            world: { width: 20, height: 20, minX: 100, minY: 50 },
         });
 
         expect(plan.cols).toBe(2);
         expect(plan.rows).toBe(2);
+        expect(plan.worldMinX).toBe(0);
+        expect(plan.worldMinY).toBe(0);
+        expect(plan.gridOriginX).toBe(0);
+        expect(plan.gridOriginY).toBe(0);
         expect(plan.paletteSize).toBe(3);
         expect(plan.ownerTextureData).toHaveLength(16);
         expect(plan.metricsTextureData).toHaveLength(16);

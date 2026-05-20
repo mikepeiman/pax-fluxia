@@ -45,6 +45,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 37 | User cannot tell whether pointillist fills are filling correct geometry and requested a toggle between solid geometry fill and pointillist fill. | No | Implemented after user correctly pointed out the earlier miss. UI path: Grid Gradient controls -> Grid Fill -> Fill Style -> `Pointillist` or `Solid Fill`. |
 | 38 | User asked to process all messages received and not ignore older messages just because new ones came in. | No | Documentation gap corrected here; treat this inventory as the active carry-forward list. |
 | 39 | User noticed another top Grid Gradient control disappeared and asked what it was, why it was removed, and what mechanism caused this pattern. | No | Documentation gap corrected here. The removed top control was the public `Grid Gradient Backend` selector. It was removed from player-facing controls after user objected to the extra backend option; backend state remains in diagnostics/internal fallback. `.agent/AGENT.md` now requires visible-control inventory before removing/hiding/renaming/disabling controls. |
+| 40 | Pure fill and point fill did not use the same coordinates; point fill was mistranslated like the earlier border localization bug. | No | Corrected in shader-field packing/renderer: mesh bounds are local to the presentation frame and the shader uses a separate grid origin derived from classified cell coordinates. Needs user visual verification. |
 
 ## Process Correction
 

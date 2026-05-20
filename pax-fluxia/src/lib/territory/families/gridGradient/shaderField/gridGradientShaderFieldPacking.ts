@@ -118,6 +118,13 @@ export function buildGridGradientShaderFieldTexturePlan(
     const cols = params.classification.cols;
     const rows = params.classification.rows;
     const totalCells = cols * rows;
+    const firstCell = params.classification.vstars[0];
+    const gridOriginX = firstCell
+        ? firstCell.x - params.classification.spacingPx * 0.5
+        : 0;
+    const gridOriginY = firstCell
+        ? firstCell.y - params.classification.spacingPx * 0.5
+        : 0;
 
     const paletteStartMs = performance.now();
     const palette = buildPalette(params);
@@ -166,10 +173,12 @@ export function buildGridGradientShaderFieldTexturePlan(
         presentationKey: params.presentationKey,
         cols,
         rows,
-        worldMinX: params.world.minX ?? 0,
-        worldMinY: params.world.minY ?? 0,
+        worldMinX: 0,
+        worldMinY: 0,
         worldWidth: params.world.width,
         worldHeight: params.world.height,
+        gridOriginX,
+        gridOriginY,
         spacingPx: params.classification.spacingPx,
         requestedSpacingPx: params.classification.requestedSpacingPx,
         ownerTextureData,

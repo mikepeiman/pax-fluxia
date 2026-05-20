@@ -55,10 +55,14 @@ User asked for a simple way to compare the resolved territory geometry against t
 
 This stays inside the existing render-family path. It does not add ownership truth, fabricate geometry, or create a direct renderer path.
 
+## Follow-Up: Point-Fill Coordinate Alignment
+
+User verification with `Solid Fill` showed that shader-field point fills were offset from the resolved geometry in the same direction as the earlier border-localization bug. The cause was the shader-field path reusing the viewport frame's map-space `minX/minY` as both mesh bounds and grid origin after GameCanvas had already localized stars and geometry into the presentation frame. The shader now renders its mesh in local frame coordinates and uses a separate phase-preserving grid origin derived from the first classified cell. This keeps point fill, solid fill, vector borders, and dotted borders in the same presentation coordinate space.
+
 Validation for this follow-up:
 
-- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts`
-  - Passed: 9 tests.
+- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts ./src/lib/components/game/territoryPresentationSpace.test.ts`
+  - Passed: 12 tests.
 - `bun run build`
   - Passed. Existing unused-CSS and chunk-size warnings remain.
 
