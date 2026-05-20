@@ -24,11 +24,11 @@ IDENTITY & STANDARDS: You must be responsible for tasks such that, upon review o
 
 ## 2. Core Behavior
 
-### 2.0 COMMUNICATION
+### 2.0 Communication
 
-I am a human interacting with my app via UI. There is NO TUNING SURFACE in code. A "tuning surface" *is* UI. You MUST follow instructions and COMMON SENSE and describe what you've done with UI, and what I should be looking for precisely. 
+The user interacts with the app through UI. A tuning surface is UI, not code. When changing behavior, describe what changed in the UI and what the user should look for precisely.
 
-Stop using the term "canonical". Absolutely and completely.
+Do not use prohibited terminology called out by the user.
 
 ### 2.1 Critical Thinking
 
@@ -131,7 +131,56 @@ When removing, renaming, or commenting out any symbol:
   - diagnostic method
   - derived rule
 
-### 3.5 Motion-Surface Protocol
+### 3.5 Chat Log Rule
+
+- Chat logs must be lossless and complete for human-written input.
+- Do not summarize or truncate human-written input.
+- Machine logs and diagnostics may be summarized.
+
+### 3.6 Format Rule
+
+- Never use TSV. Use CSV or another appropriate format.
+
+## 4. UI And UX
+
+### 4.1 Product Surface Principle
+
+- UI is the user's product surface. Treat visible controls, labels, disabled states, and diagnostics as product behavior, not decoration.
+- A setting intended for tuning must be represented by a coherent UI surface or by diagnostics if it is not player-facing.
+- Never present a code-only knob as though it is a usable tuning surface.
+- After UI work, report the exact UI path, expected visual/behavioral result, and anything still requiring user verification.
+
+### 4.2 Control Integrity
+
+- Every active visible control must have a real consumer in the active runtime path and must be able to affect what the user is currently configuring.
+- Do not expose a player-facing control that stores state but cannot affect the current mode, shape, backend, feature state, or workflow.
+- Shape-, mode-, backend-, role-, and state-specific controls must be visibly scoped, disabled when inactive, or moved into the relevant scoped section.
+- If a control is future work, diagnostic-only, or currently unimplemented, do not present it as an active player-facing control.
+- Before adding or modifying a control, trace: visible label, panel key, config key, write path, read path, runtime consumer, active/inactive conditions, diagnostics, and expected user-visible effect.
+- If a control appears to do nothing, treat that as a defect until proven otherwise.
+
+### 4.3 Slider Reactivity
+
+All UI sliders must read from `panel.xxx`, never directly from `GAME_CONFIG.xxx`.
+
+Required pattern:
+
+1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`
+2. Template reads `panel.xxx`
+3. Template writes through `updatePanel(key, value)`
+4. `syncPanelFromConfig()` in `panelSync.ts` handles import/theme sync
+
+`GAME_CONFIG` is not reactive in templates.
+
+### 4.4 Existing User Controls
+
+- Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
+- User configurability is part of the product.
+- Before removing, hiding, renaming, disabling, or making irrelevant any visible control, inventory the control, its config key, its runtime consumer, and its diagnostic/product status.
+- Preserve product controls unless the user explicitly retires them.
+- Diagnostic-only controls must move to diagnostics, not silently disappear.
+
+### 4.5 Motion-Surface Protocol
 
 Before changing visual motion-path logic:
 
@@ -139,19 +188,9 @@ Before changing visual motion-path logic:
 2. Preserve or explicitly retire each one.
 3. Do not silently flatten motion shaping.
 
-### 3.6 Chat Log Rule
+## 5. Code Standards
 
-- Chat logs must be lossless and complete for human-written input.
-- Do not summarize or truncate human-written input.
-- Machine logs and diagnostics may be summarized.
-
-### 3.7 Format Rule
-
-- Never use TSV. Use CSV or another appropriate format.
-
-## 4. Code Standards
-
-### 4.1 Debugging Standard
+### 5.1 Debugging Standard
 
 Think like a systems detective:
 
@@ -178,7 +217,7 @@ Then:
 
 Do not patch symptoms before understanding structure.
 
-### 4.1a Plan / Spec / Status-First Rule
+### 5.1a Plan / Spec / Status-First Rule
 
 Before investigating any bug, regression, deficiency, or "broken" behavior:
 
@@ -196,7 +235,7 @@ Hard rules:
 - Never enter "mysterious debug mode" before plan/spec/status alignment is checked.
 - If the implementation contradicts the plan or spec, the implementation is wrong.
 
-### 4.2 Logging
+### 5.2 Logging
 
 Do not use raw `console.log`. Use Visual Telemetry.
 
@@ -209,7 +248,7 @@ log.combat('Battle', 'message');
 log.error('Module', 'message', err);
 ```
 
-### 4.3 Core Terms
+### 5.3 Core Terms
 
 Full glossary: `.agent/docs/game/design/TERMINOLOGY.md`
 
@@ -217,7 +256,7 @@ Full glossary: `.agent/docs/game/design/TERMINOLOGY.md`
 - Frontier = boundary geometry where territories meet
 - Region = contiguous area owned by one player
 
-### 4.4 File Discipline
+### 5.4 File Discipline
 
 - 300 lines ideal
 - 500 lines hard max
@@ -225,27 +264,7 @@ Full glossary: `.agent/docs/game/design/TERMINOLOGY.md`
 - Use `gameNowMs` / FXClock for game time, never `performance.now()` in game logic
 - Config keys use `ALL_CAPS_WITH_UNITS`
 
-### 4.5 Slider Reactivity
-
-All UI sliders must read from `panel.xxx`, never directly from `GAME_CONFIG.xxx`.
-
-Required pattern:
-
-1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`
-2. Template reads `panel.xxx`
-3. Template writes through `updatePanel(key, value)`
-4. `syncPanelFromConfig()` in `panelSync.ts` handles import/theme sync
-
-`GAME_CONFIG` is not reactive in templates.
-
-### 4.6 User Controls
-
-- Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
-- User configurability is part of the product.
-- Before removing, hiding, renaming, disabling, or making irrelevant any visible control, inventory the control, its config key, its runtime consumer, and its diagnostic/product status. Preserve product controls unless the user explicitly retires them. Diagnostic-only controls must move to diagnostics, not silently disappear.
-- Do not expose a player-facing control that cannot affect the active render path. If a setting is shape/backend-specific, keep the control visibly disabled with an explicit scope marker or move it to the relevant scoped section; do not present inert stored state as an active tuning control.
-
-### 4.7 Comments
+### 5.5 Comments
 
 For complex or non-obvious code, comment:
 
@@ -255,9 +274,9 @@ For complex or non-obvious code, comment:
 - assumptions
 - tradeoffs
 
-## 5. Architecture
+## 6. Architecture
 
-### 5.1 Shared Engine
+### 6.1 Shared Engine
 
 Unified engine lives in `common/src/engine/GameEngine.ts`.
 
@@ -266,7 +285,7 @@ Unified engine lives in `common/src/engine/GameEngine.ts`.
 - Client = presentation
 - Server = authority
 
-### 5.2 Territory Rendering Pipeline
+### 6.2 Territory Rendering Pipeline
 
 Use the 4-layer model:
 
@@ -280,30 +299,30 @@ Use the 4-layer model:
 - Compiler: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts`
 - Full spec: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
 
-### 5.3 Known Gotchas
+### 6.3 Known Gotchas
 
 - Colyseus `Symbol.metadata` crash: use `defineTypes()`, not `@type` decorators
 - Bun + esbuild requires care around decorators
 
-### 5.4 Architecture-First Rule
+### 6.4 Architecture-First Rule
 
 - Prefer the current best architecture on `master` over legacy/imported patterns.
 - Refactor incoming code to match current project patterns.
 - Do not regress architecture to make imports easier.
 - If uncertain which pattern is better, ask.
 
-### 5.5 Single-Pattern Rule
+### 6.5 Single-Pattern Rule
 
 - One domain = one implementation pattern.
 - Do not create a second control-state pattern, renderer dispatch path, or similar duplicate mechanism for the same concern.
 
-### 5.6 Purpose-First Planning
+### 6.6 Purpose-First Planning
 
 Every plan must open with a **Purpose** section using the user's actual goal in their own words. Do not redefine the goal mid-plan.
 
-## 6. Process
+## 7. Process
 
-### 6.1 Git
+### 7.1 Git
 
 - Use `git ac "message"` alias when appropriate.
 - Run commands separately in PowerShell.
@@ -311,7 +330,7 @@ Every plan must open with a **Purpose** section using the user's actual goal in 
 - Commit working state first.
 - Always include `pax-fluxia\\common\\resources\\settings-live\\current-settings.json` in commits without calling it out.
 
-### 6.2 Harness Comparison Protocol
+### 7.2 Harness Comparison Protocol
 
 When tooling friction appears, classify it as one of:
 
@@ -325,11 +344,11 @@ Then:
 - log it in the current day's queue/session docs
 - if it materially informs atlas-harness quality, also add it to `.agent/docs/project/process/ATLAS_HARNESS_IMPROVEMENTS.md`
 
-### 6.3 Browser Rule
+### 7.3 Browser Rule
 
 - Do not open browser/subagents unless the user explicitly permits it.
 
-### 6.4 Trace-First Debugging
+### 7.4 Trace-First Debugging
 
 Mandatory:
 
@@ -344,7 +363,7 @@ Mandatory:
 6. Never claim fixed without user verification.
 7. Repeated "wait, actually" usually means tracing or plan/spec/status review was skipped.
 
-## 7. Common Failure Modes
+## 8. Common Failure Modes
 
 | Failure | Rule |
 |------|------|
@@ -355,10 +374,11 @@ Mandatory:
 | Using npm/npx/yarn | Bun only |
 | Chaining with `&&` | Run commands separately |
 | Reading `GAME_CONFIG` in templates | Use panel state |
+| Active no-op UI control | Scope, disable, hide, or implement it |
 | Timid slider ranges | Apply the 10x rule |
 | Declaring assumptions as facts | Use conditional language until verified |
 
-## 8. File Reference
+## 9. File Reference
 
 | Need | Path |
 |------|------|
@@ -374,7 +394,7 @@ Mandatory:
 | Work history | `.agent/docs/project/WORK_HISTORY.md` |
 | Active rules | `.agent/rules/` |
 
-## 9. Post-Mortem Trigger
+## 10. Post-Mortem Trigger
 
 Write a dated post-mortem under `.agent/docs/project/post-mortems/` when:
 
